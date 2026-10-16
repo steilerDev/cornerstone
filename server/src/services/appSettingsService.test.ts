@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
@@ -48,7 +49,11 @@ describe('appSettingsService', () => {
     it('returns both fields null on an empty app_settings table', () => {
       const result = appSettingsService.getHouseholdSettings(db);
 
-      expect(result).toEqual({ householdName: null, householdAddress: null });
+      expect(result).toEqual({
+        householdName: null,
+        householdAddress: null,
+        entriesLanguage: 'en',
+      });
     });
 
     it('returns the persisted householdName after an update, address stays null', () => {
@@ -71,6 +76,7 @@ describe('appSettingsService', () => {
       expect(result).toEqual({
         householdName: 'The Smith Family',
         householdAddress: '123 Main St, Springfield',
+        entriesLanguage: 'en',
       });
     });
   });
@@ -230,6 +236,189 @@ describe('appSettingsService', () => {
       expect(() => {
         appSettingsService.updateHouseholdSettings(db, { householdAddress: 'C'.repeat(501) });
       }).toThrow('Household address must be 500 characters or fewer');
+    });
+  });
+  // ─── entriesLanguage (#2215) ───────────────────────────────────────────────
+
+  describe('entriesLanguage', () => {
+    let seq = 0;
+
+    function addUser(createdAt: string, id: string, locale?: string): string {
+      seq += 1;
+      db.insert(schema.users)
+        .values({
+          id,
+          email: `user${seq}@example.com`,
+          displayName: `User ${seq}`,
+          role: 'member',
+          authProvider: 'local',
+          createdAt,
+          updatedAt: createdAt,
+        })
+        .run();
+      if (locale !== undefined) {
+        db.insert(schema.userPreferences)
+          .values({ userId: id, key: 'locale', value: locale, createdAt, updatedAt: createdAt })
+          .run();
+      }
+      return id;
+    }
+
+    const settingsRows = () => db.select().from(schema.appSettings).all();
+
+    it('is en when there are no users and nothing is stored', () => {
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it.each(['de', 'en'])('follows the earliest user locale %s', (locale) => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', locale);
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe(locale);
+    });
+
+    it.each(['system', 'fr', ''])('falls back to en for the founder locale "%s"', (locale) => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', locale);
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it('falls back to en when the founder has no locale preference row', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1');
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it('ignores a later user with de when the founder has no locale', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1');
+      addUser('2026-02-01T00:00:00.000Z', 'u-2', 'de');
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it('picks the founder by created_at, not by insertion order', () => {
+      addUser('2026-03-01T00:00:00.000Z', 'u-a', 'en');
+      addUser('2026-01-01T00:00:00.000Z', 'u-z', 'de');
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('breaks a created_at tie by the lowest id', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-b', 'en');
+      addUser('2026-01-01T00:00:00.000Z', 'u-a', 'de');
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('still counts a deactivated founder', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'de');
+      db.update(schema.users)
+        .set({ deactivatedAt: '2026-02-01T00:00:00.000Z' })
+        .where(eq(schema.users.id, 'u-1'))
+        .run();
+      addUser('2026-03-01T00:00:00.000Z', 'u-2', 'en');
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('counts an admin and a member alike (any role)', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'de');
+      db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, 'u-1')).run();
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('does not write any app_settings row when reading', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'de');
+      const before = settingsRows().length;
+
+      appSettingsService.getHouseholdSettings(db);
+      appSettingsService.getHouseholdSettings(db);
+
+      expect(settingsRows()).toHaveLength(before);
+      expect(before).toBe(0);
+    });
+
+    it('changes with the founder locale while nothing is stored, but not with another user', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'en');
+      addUser('2026-02-01T00:00:00.000Z', 'u-2');
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+
+      db.insert(schema.userPreferences)
+        .values({ userId: 'u-2', key: 'locale', value: 'de', createdAt: 'x', updatedAt: 'x' })
+        .run();
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+
+      db.update(schema.userPreferences)
+        .set({ value: 'de' })
+        .where(eq(schema.userPreferences.userId, 'u-1'))
+        .run();
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('lets a stored en beat a founder de', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'de');
+
+      appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'en' });
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it('lets a stored de beat a founder en', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'en');
+
+      appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'de' });
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('derives again when the stored value is garbage', () => {
+      addUser('2026-01-01T00:00:00.000Z', 'u-1', 'de');
+      db.insert(schema.appSettings)
+        .values({ key: 'entries_language', value: 'klingon', updatedAt: 'x' })
+        .run();
+
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('de');
+    });
+
+    it('update writes the entries_language row and returns it', () => {
+      const result = appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'de' });
+
+      expect(result.entriesLanguage).toBe('de');
+      expect(settingsRows().map((r) => [r.key, r.value])).toEqual([['entries_language', 'de']]);
+    });
+
+    it('update with only entriesLanguage counts as a field and leaves name/address alone', () => {
+      appSettingsService.updateHouseholdSettings(db, { householdName: 'Sample Household' });
+
+      const result = appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'en' });
+
+      expect(result.householdName).toBe('Sample Household');
+      expect(result.householdAddress).toBeNull();
+    });
+
+    it('update upserts rather than duplicating the entries_language row', () => {
+      appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'de' });
+      appSettingsService.updateHouseholdSettings(db, { entriesLanguage: 'en' });
+
+      expect(settingsRows().filter((r) => r.key === 'entries_language')).toHaveLength(1);
+      expect(appSettingsService.getHouseholdSettings(db).entriesLanguage).toBe('en');
+    });
+
+    it('update rejects a non-enum value and writes nothing', () => {
+      const bad = { entriesLanguage: 'fr' } as unknown as Parameters<
+        typeof appSettingsService.updateHouseholdSettings
+      >[1];
+
+      expect(() => appSettingsService.updateHouseholdSettings(db, bad)).toThrow(ValidationError);
+      expect(settingsRows()).toHaveLength(0);
+    });
+
+    it('update rejects null as a non-enum value', () => {
+      const bad = { entriesLanguage: null } as unknown as Parameters<
+        typeof appSettingsService.updateHouseholdSettings
+      >[1];
+
+      expect(() => appSettingsService.updateHouseholdSettings(db, bad)).toThrow(ValidationError);
     });
   });
 });

@@ -14,6 +14,7 @@ import {
   ConflictError,
   CategoryInUseError,
 } from '../errors/AppError.js';
+import { assertSameIdSet, nextSortOrder } from './referenceListOrder.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -42,13 +43,13 @@ function isValidHexColor(color: string): boolean {
 }
 
 /**
- * List all household item categories, sorted by sort_order ascending.
+ * List all household item categories, sorted by sort_order ascending, ties broken by name.
  */
 export function listHouseholdItemCategories(db: DbType): HouseholdItemCategoryEntity[] {
   const rows = db
     .select()
     .from(householdItemCategories)
-    .orderBy(asc(householdItemCategories.sortOrder))
+    .orderBy(asc(householdItemCategories.sortOrder), asc(householdItemCategories.name))
     .all();
   return rows.map(toHouseholdItemCategory);
 }
@@ -105,6 +106,15 @@ export function createHouseholdItemCategory(
     throw new ConflictError('A household item category with this name already exists');
   }
 
+  const sortOrder =
+    data.sortOrder ??
+    nextSortOrder(
+      db
+        .select({ max: sql<number | null>`MAX(${householdItemCategories.sortOrder})` })
+        .from(householdItemCategories)
+        .get()?.max,
+    );
+
   // Create category
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -115,7 +125,7 @@ export function createHouseholdItemCategory(
       name: trimmedName,
       color: data.color ?? null,
       translationKey: null,
-      sortOrder: data.sortOrder ?? 0,
+      sortOrder,
       createdAt: now,
       updatedAt: now,
     })
@@ -126,7 +136,7 @@ export function createHouseholdItemCategory(
     name: trimmedName,
     color: data.color ?? null,
     translationKey: null,
-    sortOrder: data.sortOrder ?? 0,
+    sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -253,4 +263,35 @@ export function deleteHouseholdItemCategory(db: DbType, id: string): void {
 
   // Delete category
   db.delete(householdItemCategories).where(eq(householdItemCategories.id, id)).run();
+}
+
+/**
+ * Atomically reorder the list: `ids` must be exactly the current set of ids.
+ * Writes only rows whose position changed.
+ * @throws ReorderSetMismatchError if the id set differs from the current list
+ */
+export function reorderHouseholdItemCategories(
+  db: DbType,
+  ids: readonly string[],
+): HouseholdItemCategoryEntity[] {
+  db.transaction((tx) => {
+    const rows = tx
+      .select({ id: householdItemCategories.id, sortOrder: householdItemCategories.sortOrder })
+      .from(householdItemCategories)
+      .all();
+    assertSameIdSet(
+      rows.map((r) => r.id),
+      ids,
+    );
+    const current = new Map(rows.map((r) => [r.id, r.sortOrder]));
+    const now = new Date().toISOString();
+    ids.forEach((id, index) => {
+      if (current.get(id) === index) return;
+      tx.update(householdItemCategories)
+        .set({ sortOrder: index, updatedAt: now })
+        .where(eq(householdItemCategories.id, id))
+        .run();
+    });
+  });
+  return listHouseholdItemCategories(db);
 }

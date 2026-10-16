@@ -5,6 +5,7 @@ import {
   createOrientation,
   updateOrientation,
   deleteOrientation,
+  reorderOrientations,
 } from './orientationApi.js';
 import type {
   OrientationListResponse,
@@ -166,6 +167,43 @@ describe('orientationApi', () => {
           method: 'DELETE',
         }),
       );
+    });
+  });
+
+  describe('reorderOrientations', () => {
+    it('PATCHes /api/orientations/reorder with the full id list and returns the rows', async () => {
+      const rows = [makeOrientation({ id: 'b' }), makeOrientation({ id: 'a' })];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ orientations: rows }),
+      } as Response);
+
+      const result = await reorderOrientations(['b', 'a']);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/orientations/reorder',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ ids: ['b', 'a'] }) }),
+      );
+      expect(result).toEqual(rows);
+    });
+
+    it('rejects with REORDER_SET_MISMATCH details on 409', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'REORDER_SET_MISMATCH',
+            message: 'The ids are not exactly the current list',
+            details: { missingIds: ['a'], unknownIds: [] },
+          },
+        }),
+      } as Response);
+
+      await expect(reorderOrientations(['b'])).rejects.toMatchObject({
+        statusCode: 409,
+        error: { code: 'REORDER_SET_MISMATCH', details: { missingIds: ['a'] } },
+      });
     });
   });
 });

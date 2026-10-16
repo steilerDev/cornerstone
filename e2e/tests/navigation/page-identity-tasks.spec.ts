@@ -80,7 +80,9 @@ async function mockHouseName(page: Page): Promise<void> {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ settings: { householdName: HOUSE, householdAddress: null } }),
+      body: JSON.stringify({
+        settings: { householdName: HOUSE, householdAddress: null, entriesLanguage: 'en' },
+      }),
     });
   });
 }
@@ -297,7 +299,9 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ settings: { householdName: null, householdAddress: null } }),
+          body: JSON.stringify({
+            settings: { householdName: null, householdAddress: null, entriesLanguage: 'en' },
+          }),
         });
       });
       await page.goto(routeUrl('workItems'));

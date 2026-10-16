@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { ReorderReferenceListRequest } from '@cornerstone/shared';
 import { UnauthorizedError } from '../errors/AppError.js';
+import { buildReorderSchema } from '../services/referenceListOrder.js';
 import * as budgetCategoryService from '../services/budgetCategoryService.js';
 import type { CreateBudgetCategoryRequest, UpdateBudgetCategoryRequest } from '@cornerstone/shared';
 
@@ -54,7 +56,7 @@ const categoryIdSchema = {
 export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/budget-categories
-   * List all budget categories, sorted by sort_order ascending.
+   * List all budget categories, sorted by sort_order ascending, ties broken by name.
    * Auth required: Yes (both admin and member)
    */
   fastify.get('/', async (request, reply) => {
@@ -81,6 +83,30 @@ export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
 
       const category = budgetCategoryService.createBudgetCategory(fastify.db, request.body);
       return reply.status(201).send({ budgetCategory: category });
+    },
+  );
+
+  /**
+   * PATCH /api/budget-categories/reorder
+   *
+   * Atomically reorder the whole list. Body `{ ids }` must be exactly the current
+   * set of ids (409 REORDER_SET_MISMATCH otherwise). Returns the reordered list.
+   *
+   * Auth required: Yes (any authenticated user)
+   */
+  fastify.patch<{ Body: ReorderReferenceListRequest }>(
+    '/reorder',
+    { schema: buildReorderSchema() },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const categories = budgetCategoryService.reorderBudgetCategories(
+        fastify.db,
+        request.body.ids,
+      );
+      return reply.status(200).send({ categories });
     },
   );
 

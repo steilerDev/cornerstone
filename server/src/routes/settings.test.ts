@@ -18,6 +18,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
+import { appSettings, userPreferences } from '../db/schema.js';
 import type { ApiErrorResponse, HouseholdSettingsResponse } from '@cornerstone/shared';
 
 // ─── Test setup ───────────────────────────────────────────────────────────────
@@ -87,7 +88,11 @@ describe('Settings Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<HouseholdSettingsResponse>();
-      expect(body.settings).toEqual({ householdName: null, householdAddress: null });
+      expect(body.settings).toEqual({
+        householdName: null,
+        householdAddress: null,
+        entriesLanguage: 'en',
+      });
     });
 
     it('returns 200 with persisted settings after a PATCH', async () => {
@@ -114,6 +119,7 @@ describe('Settings Routes', () => {
       expect(body.settings).toEqual({
         householdName: 'The Smith Family',
         householdAddress: '123 Main St',
+        entriesLanguage: 'en',
       });
     });
 
@@ -290,6 +296,7 @@ describe('Settings Routes', () => {
       expect(body.settings).toEqual({
         householdName: 'Both Fields',
         householdAddress: '789 Pine Rd',
+        entriesLanguage: 'en',
       });
     });
 
@@ -304,6 +311,131 @@ describe('Settings Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+  // ─── entriesLanguage (#2215) ────────────────────────────────────────────────
+
+  describe('entriesLanguage', () => {
+    function setLocale(userId: string, locale: string): void {
+      const now = new Date().toISOString();
+      app.db
+        .insert(userPreferences)
+        .values({ userId, key: 'locale', value: locale, createdAt: now, updatedAt: now })
+        .run();
+    }
+
+    async function getLanguage(cookie: string): Promise<string> {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/settings',
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      return response.json<HouseholdSettingsResponse>().settings.entriesLanguage;
+    }
+
+    async function patch(cookie: string, payload: unknown) {
+      return app.inject({
+        method: 'PATCH',
+        url: '/api/settings',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify(payload),
+      });
+    }
+
+    it('GET includes the derived entriesLanguage from the first user locale without storing it', async () => {
+      const { cookie, userId } = await createUserWithSession('founder@example.com', 'admin');
+      setLocale(userId, 'de');
+
+      expect(await getLanguage(cookie)).toBe('de');
+      expect(app.db.select().from(appSettings).all()).toHaveLength(0);
+    });
+
+    it('does not change when another user sets their locale', async () => {
+      const { cookie } = await createUserWithSession('founder@example.com', 'admin');
+      const second = await createUserWithSession('second@example.com', 'member');
+      setLocale(second.userId, 'de');
+
+      expect(await getLanguage(cookie)).toBe('en');
+    });
+
+    it('follows the founder locale until a value is stored', async () => {
+      const { cookie, userId } = await createUserWithSession('founder@example.com', 'admin');
+      expect(await getLanguage(cookie)).toBe('en');
+
+      setLocale(userId, 'de');
+
+      expect(await getLanguage(cookie)).toBe('de');
+    });
+
+    it('PATCH stores entriesLanguage and a later founder locale change no longer applies', async () => {
+      const { cookie, userId } = await createUserWithSession('founder@example.com', 'admin');
+      setLocale(userId, 'de');
+
+      const response = await patch(cookie, { entriesLanguage: 'en' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<HouseholdSettingsResponse>().settings.entriesLanguage).toBe('en');
+      expect(
+        app.db
+          .select()
+          .from(appSettings)
+          .all()
+          .filter((r) => r.key === 'entries_language')
+          .map((r) => r.value),
+      ).toEqual(['en']);
+      expect(await getLanguage(cookie)).toBe('en');
+    });
+
+    it('PATCH with only entriesLanguage leaves the household name and address untouched', async () => {
+      const { cookie } = await createUserWithSession();
+      await patch(cookie, { householdName: 'Sample Household' });
+
+      const response = await patch(cookie, { entriesLanguage: 'de' });
+
+      expect(response.json<HouseholdSettingsResponse>().settings).toEqual({
+        householdName: 'Sample Household',
+        householdAddress: null,
+        entriesLanguage: 'de',
+      });
+    });
+
+    it('returns 400 VALIDATION_ERROR for null', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await patch(cookie, { entriesLanguage: null });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR for an unsupported language and stores nothing', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await patch(cookie, { entriesLanguage: 'fr' });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      expect(app.db.select().from(appSettings).all()).toHaveLength(0);
+    });
+
+    it('lets a member change the entries language', async () => {
+      const { cookie } = await createUserWithSession('member@example.com', 'member');
+
+      const response = await patch(cookie, { entriesLanguage: 'de' });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('returns 401 for an unauthenticated PATCH of entriesLanguage', async () => {
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/settings',
+        headers: { 'content-type': 'application/json' },
+        payload: JSON.stringify({ entriesLanguage: 'de' }),
+      });
+
+      expect(response.statusCode).toBe(401);
     });
   });
 });

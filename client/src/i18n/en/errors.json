@@ -51,6 +51,7 @@
   "TRADE_IN_USE": "This trade is in use and cannot be deleted.",
   "BACKUP_FAILED": "The backup could not be created. Please try again.",
   "SAME_SOURCE": "The source and target budget source must be different.",
+  "REORDER_SET_MISMATCH": "The list changed in the meantime. Refresh and try again.",
   "STALE_OWNERSHIP": "One or more budget lines no longer belong to this source. Refresh and try again.",
   "INVALID_DEPOSIT_STATUS_TRANSITION": "This deposit status change is not allowed.",
   "INVALID_DEPOSIT_DATE_FOR_STATUS": "This date cannot be set for the deposit's current status.",

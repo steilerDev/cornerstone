@@ -23,13 +23,19 @@ import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import type { FastifyInstance } from 'fastify';
 import * as schema from '../db/schema.js';
-import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+  ReorderSetMismatchError,
+} from '../errors/AppError.js';
 import {
   listOrientations,
   getOrientationById,
   createOrientation,
   updateOrientation,
   deleteOrientation,
+  reorderOrientations,
 } from './orientationService.js';
 
 describe('orientationService', () => {
@@ -332,12 +338,6 @@ describe('orientationService', () => {
       expect(result.description).toBeNull();
     });
 
-    it('defaults sortOrder to 0 when not provided', () => {
-      const result = createOrientation(app.db, { name: 'South' });
-
-      expect(result.sortOrder).toBe(0);
-    });
-
     it('trims whitespace from name', () => {
       const result = createOrientation(app.db, { name: '  South  ' });
 
@@ -592,6 +592,183 @@ describe('orientationService', () => {
 
     it('throws NotFoundError for unknown orientation ID', () => {
       expect(() => deleteOrientation(app.db, 'no-such-id')).toThrow(NotFoundError);
+    });
+  });
+
+  // ─── Append, list order and reorder (#2215) ────────────────────────────────
+
+  describe('append, list order and reorder for orientations (#2215)', () => {
+    const STAMP = '2026-01-01T00:00:00.000Z';
+
+    function seedRows(rows: Array<[string, string, number]>): void {
+      app.db.delete(schema.orientations).run();
+      for (const [id, name, sortOrder] of rows) {
+        app.db
+          .insert(schema.orientations)
+          .values({ id, name, sortOrder, createdAt: STAMP, updatedAt: STAMP })
+          .run();
+      }
+    }
+
+    const readRows = () =>
+      app.db
+        .select()
+        .from(schema.orientations)
+        .all()
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+    const orderOf = (rows: Array<{ id: string }>) => rows.map((r) => r.id);
+
+    it('appends at 0 when the list is empty', () => {
+      seedRows([]);
+
+      expect(createOrientation(app.db, { name: 'First Entry' }).sortOrder).toBe(0);
+    });
+
+    it('appends at max + 1 when the list has entries', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 5],
+      ]);
+
+      expect(createOrientation(app.db, { name: 'Next Entry' }).sortOrder).toBe(6);
+    });
+
+    it('appends after a list whose only entry sits at 0', () => {
+      seedRows([['a', 'Alpha', 0]]);
+
+      expect(createOrientation(app.db, { name: 'Next Entry' }).sortOrder).toBe(1);
+    });
+
+    it('keeps an explicit sortOrder instead of appending', () => {
+      seedRows([['a', 'Alpha', 3]]);
+
+      expect(createOrientation(app.db, { name: 'Pinned Entry', sortOrder: 1 }).sortOrder).toBe(1);
+    });
+
+    it('persists the appended sortOrder', () => {
+      seedRows([['a', 'Alpha', 2]]);
+
+      const created = createOrientation(app.db, { name: 'Persisted Entry' });
+
+      expect(readRows().find((r) => r.id === created.id)?.sortOrder).toBe(3);
+    });
+
+    it('lists by sort order and breaks ties by name', () => {
+      seedRows([
+        ['a', 'Zulu', 1],
+        ['z', 'Alpha', 1],
+        ['m', 'Mike', 0],
+      ]);
+
+      expect(listOrientations(app.db).map((r) => r.name)).toEqual(['Mike', 'Alpha', 'Zulu']);
+    });
+
+    it('reorders to 0..n-1 in the requested order and returns the list in that order', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+
+      const result = reorderOrientations(app.db, ['c', 'a', 'b']);
+
+      expect(orderOf(result)).toEqual(['c', 'a', 'b']);
+      expect(result.map((r) => r.sortOrder)).toEqual([0, 1, 2]);
+      expect(readRows().map((r) => [r.id, r.sortOrder])).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 0],
+      ]);
+    });
+
+    it('normalises gaps and ties to 0..n-1', () => {
+      seedRows([
+        ['a', 'Alpha', 7],
+        ['b', 'Bravo', 7],
+        ['c', 'Charlie', 40],
+      ]);
+
+      const result = reorderOrientations(app.db, ['a', 'b', 'c']);
+
+      expect(result.map((r) => r.sortOrder)).toEqual([0, 1, 2]);
+    });
+
+    it('accepts a single-entry list', () => {
+      seedRows([['a', 'Alpha', 9]]);
+
+      expect(reorderOrientations(app.db, ['a']).map((r) => r.sortOrder)).toEqual([0]);
+    });
+
+    it('writes only rows whose position changed', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+
+      reorderOrientations(app.db, ['a', 'c', 'b']);
+
+      const rows = readRows();
+      expect(rows.find((r) => r.id === 'a')?.updatedAt).toBe(STAMP);
+      expect(rows.find((r) => r.id === 'b')?.updatedAt).not.toBe(STAMP);
+      expect(rows.find((r) => r.id === 'c')?.updatedAt).not.toBe(STAMP);
+    });
+
+    it('writes nothing when the order is already current', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+      ]);
+
+      reorderOrientations(app.db, ['a', 'b']);
+
+      expect(readRows().every((r) => r.updatedAt === STAMP)).toBe(true);
+    });
+
+    it.each([
+      ['a missing id', ['a', 'b'], { missingIds: ['c'], unknownIds: [] }],
+      ['an unknown id', ['a', 'b', 'c', 'zzz'], { missingIds: [], unknownIds: ['zzz'] }],
+      ['a swapped id', ['a', 'b', 'zzz'], { missingIds: ['c'], unknownIds: ['zzz'] }],
+      ['an empty list', [], { missingIds: ['a', 'b', 'c'], unknownIds: [] }],
+    ])('rejects %s with ReorderSetMismatchError and changes nothing', (_name, ids, details) => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+      const before = readRows();
+
+      let caught: unknown;
+      try {
+        reorderOrientations(app.db, ids);
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(ReorderSetMismatchError);
+      expect((caught as ReorderSetMismatchError).code).toBe('REORDER_SET_MISMATCH');
+      expect((caught as ReorderSetMismatchError).statusCode).toBe(409);
+      expect((caught as ReorderSetMismatchError).details).toEqual(details);
+      expect(readRows()).toEqual(before);
+    });
+
+    it('rolls back every write when a later write fails (one transaction)', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+      const before = readRows();
+      app.db.$client.exec(
+        `CREATE TEMP TRIGGER fail_reorder BEFORE UPDATE ON orientations WHEN NEW.id = 'c'
+         BEGIN SELECT RAISE(ABORT, 'boom'); END`,
+      );
+
+      expect(() => reorderOrientations(app.db, ['b', 'c', 'a'])).toThrow('boom');
+
+      app.db.$client.exec('DROP TRIGGER fail_reorder');
+      expect(readRows()).toEqual(before);
     });
   });
 });

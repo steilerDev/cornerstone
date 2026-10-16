@@ -5,8 +5,8 @@
  *   1.  AC1  — purchase delete dialog is the shared Modal: drawn above the backdrop, usable,
  *              Escape closes it, confirming returns to the purchases list.
  *   2.  AC2  — phone width (390 px, light + dark): no sideways page scroll on (a) the task page
- *              with an expanded invoice group and (b) Settings > Manage, where the six tabs
- *              share one row and the last one is reachable.
+ *              with an expanded invoice group and (b) Settings > Project setup, which has no tab
+ *              row any more (#2215) and every section fits the width.
  *   3.  AC3  — no empty / raw-id category chips (purchase page, task page), the company edit form
  *              shows the current trade, and diary workers use a plural-aware label (en + de).
  *   4.  AC4  — photo viewer: next arrow never sits under the details panel (desktop) or the
@@ -59,6 +59,7 @@ import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { PhotoViewerPage } from '../../pages/PhotoViewerPage.js';
+import { ProjectSetupPage } from '../../pages/ProjectSetupPage.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { VendorsPage } from '../../pages/VendorsPage.js';
@@ -373,43 +374,32 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
       expect(await hasSidewaysScroll(page), 'after expanding the invoice group').toBe(false);
     });
 
-    test(`D-22: Settings Manage: one tab row, no sideways page scroll, last tab reachable (${theme})`, async ({
+    test(`D-22: Project setup has no tab row and no sideways scroll on a phone (${theme})`, async ({
       page,
     }) => {
       skipUnlessPhone(page);
 
-      await page.goto(ROUTES.manage);
-      await page
-        .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
-        .waitFor({ state: 'visible' });
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
       await setTheme(page, theme);
 
-      const tabs = page.getByRole('tab');
-      await expect(tabs).toHaveCount(6);
+      // The six tabs became sections: there is no tab row left to wrap or scroll
+      await expect(page.getByRole('tablist')).toHaveCount(0);
+      await expect(page.getByRole('tab')).toHaveCount(0);
+      expect(await hasSidewaysScroll(page), 'Project setup').toBe(false);
 
-      expect(await hasSidewaysScroll(page), 'Manage page').toBe(false);
-
-      // All six tabs share one line (no second row)
-      const offsets = await tabs.evaluateAll((els) =>
-        els.map((el) => (el as HTMLElement).offsetTop),
-      );
-      expect(new Set(offsets).size, `tab offsetTop values: ${offsets.join(',')}`).toBe(1);
-
-      // The tab list itself may scroll; the last tab can be scrolled into the visible area
-      const lastTab = tabs.last();
-      await lastTab.scrollIntoViewIfNeeded();
-      const box = await lastTab.boundingBox();
+      // Every section fits the viewport width, including the last one after scrolling to it
       const viewportWidth = page.viewportSize()!.width;
-      expect(box).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(-1);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(viewportWidth + 1);
-      expect(await hasSidewaysScroll(page), 'after scrolling the tab list').toBe(false);
-
-      // Keyboard: End moves to (and selects) the last tab
-      await tabs.first().focus();
-      await page.keyboard.press('End');
-      await expect(lastTab).toHaveAttribute('aria-selected', 'true');
-      await expect(lastTab).toBeFocused();
+      for (const section of setup.sectionsInOrder(true)) {
+        if ((await section.count()) === 0) continue;
+        await section.scrollIntoViewIfNeeded();
+        const box = await section.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(-1);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(viewportWidth + 1);
+      }
+      await setup.pointers.scrollIntoViewIfNeeded();
+      expect(await hasSidewaysScroll(page), 'after scrolling to the last section').toBe(false);
     });
   }
 });
@@ -657,7 +647,7 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     await page
       .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
       .waitFor({ state: 'visible' });
-    const panel = page.locator(`#${tab}-panel`);
+    const panel = page.getByTestId(`project-setup-${tab}`);
     const row = panel.locator('[class*="itemRow"]').filter({ hasText: name });
     const button = row.getByRole('button', { name: 'Delete', exact: true });
     await button.waitFor({ state: 'visible' });

@@ -1,0 +1,136 @@
+.card {
+  composes: card from '../../styles/shared.module.css';
+  scroll-margin-top: calc(var(--topbar-height) + var(--spacing-4));
+}
+
+.title {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.title:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+}
+
+.textarea {
+  composes: textarea from '../../styles/shared.module.css';
+}
+
+.select {
+  composes: select from '../../styles/shared.module.css';
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  color: var(--color-primary-hover);
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.success {
+  composes: bannerSuccess from '../../styles/shared.module.css';
+}
+
+.error {
+  composes: bannerError from '../../styles/shared.module.css';
+}
+
+.loadError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.retry {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.save {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}
+
+.save[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
+
+@media (max-width: 1023px) {
+  .save,
+  .retry {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (pointer: coarse) {
+  .retry {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 767px) {
+  .input,
+  .select {
+    min-height: var(--touch-target-min);
+  }
+
+  .save {
+    width: 100%;
+  }
+}

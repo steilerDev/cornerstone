@@ -34,8 +34,9 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 
 // Trades are managed in the Trades sheet on the Companies page since #2213
 const MANAGE_TRADES_URL = routeUrl('companies', undefined, { trades: 1 });
-const MANAGE_BUDGET_CATEGORIES_URL = '/settings/manage?tab=budget-categories';
-const MANAGE_HI_CATEGORIES_URL = '/settings/manage?tab=hi-categories';
+// Project setup (#2215): one page with sections; the lists are `project-setup-*` sections
+const MANAGE_BUDGET_CATEGORIES_URL = `${routeUrl('settingsManage')}#cost-categories`;
+const MANAGE_HI_CATEGORIES_URL = `${routeUrl('settingsManage')}#purchase-categories`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-test context helper
@@ -156,7 +157,7 @@ test.describe('i18n: Predefined category name translations', () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Budget Categories tab
+  // Cost categories section
   // ───────────────────────────────────────────────────────────────────────────
 
   test('English baseline: Manage budget categories tab shows "Materials"', async ({ browser }) => {
@@ -168,10 +169,8 @@ test.describe('i18n: Predefined category name translations', () => {
     );
     try {
       await scopedPage.goto(MANAGE_BUDGET_CATEGORIES_URL);
-      await scopedPage.locator('#budget-categories-panel').waitFor({ state: 'attached' });
-
-      const budgetPanel = scopedPage.locator('#budget-categories-panel');
-      await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+      const budgetPanel = scopedPage.getByTestId('project-setup-cost-categories');
+      await budgetPanel.getByRole('listitem').first().waitFor({ state: 'visible' });
 
       // Then: The predefined "Materials" budget category is visible with its English name
       await expect(budgetPanel.getByText('Materials', { exact: true }).first()).toBeVisible();
@@ -195,22 +194,20 @@ test.describe('i18n: Predefined category name translations', () => {
       await scopedPage.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'networkidle' });
       await scopedPage.reload({ waitUntil: 'networkidle' });
 
-      const budgetPanel = scopedPage.locator('#budget-categories-panel');
+      const budgetPanel = scopedPage.getByTestId('project-setup-cost-categories');
       await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible({
         timeout: 30000,
       });
 
       // And: The raw English name "Materials" is NOT shown as a category name
-      await expect(
-        budgetPanel.locator('[class*="itemName"]').filter({ hasText: 'Materials' }),
-      ).not.toBeVisible();
+      await expect(budgetPanel.getByText('Materials', { exact: true })).not.toBeVisible();
     } finally {
       await context.close();
     }
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Household Item Categories tab
+  // Purchase categories section
   // ───────────────────────────────────────────────────────────────────────────
 
   test('English baseline: Manage household item categories tab shows "Furniture"', async ({
@@ -224,10 +221,8 @@ test.describe('i18n: Predefined category name translations', () => {
     );
     try {
       await scopedPage.goto(MANAGE_HI_CATEGORIES_URL);
-      await scopedPage.locator('#hi-categories-panel').waitFor({ state: 'attached' });
-
-      const hiPanel = scopedPage.locator('#hi-categories-panel');
-      await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+      const hiPanel = scopedPage.getByTestId('project-setup-purchase-categories');
+      await hiPanel.getByRole('listitem').first().waitFor({ state: 'visible' });
 
       // Then: The predefined "Furniture" household item category is visible with its English name
       await expect(hiPanel.getByText('Furniture', { exact: true }).first()).toBeVisible();
@@ -251,15 +246,13 @@ test.describe('i18n: Predefined category name translations', () => {
       await scopedPage.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'networkidle' });
       await scopedPage.reload({ waitUntil: 'networkidle' });
 
-      const hiPanel = scopedPage.locator('#hi-categories-panel');
+      const hiPanel = scopedPage.getByTestId('project-setup-purchase-categories');
       await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible({
         timeout: 30000,
       });
 
       // And: The raw English name "Furniture" is NOT shown as a category name
-      await expect(
-        hiPanel.locator('[class*="itemName"]').filter({ hasText: 'Furniture' }),
-      ).not.toBeVisible();
+      await expect(hiPanel.getByText('Furniture', { exact: true })).not.toBeVisible();
     } finally {
       await context.close();
     }

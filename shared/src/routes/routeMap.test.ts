@@ -179,4 +179,30 @@ describe('legacy URLs stay one hop and permanent', () => {
       });
     }
   });
+  it('keeps the six Settings tab entries interim and served by the page (#2215)', () => {
+    const tabs: [string, string][] = [
+      ['areas', '/areas'],
+      ['household', '/settings/manage#house'],
+      ['trades', '/settings/manage#trades'],
+      ['orientations', '/settings/manage#orientations'],
+      ['hi-categories', '/settings/manage#purchase-categories'],
+      ['budget-categories', '/settings/manage#cost-categories'],
+    ];
+    for (const [tab, to] of tabs) {
+      const entry = ENTRIES.find((e) => e.from === `/settings/manage?tab=${tab}`);
+      expect(entry).toBeDefined();
+      expect(entry?.stage).toBe('interim');
+      expect(entry?.interim).toBe('page');
+      expect(entry?.to).toBe(to);
+    }
+  });
+
+  it('serves /budget/categories as a done redirect to the cost categories section (#2215)', () => {
+    const entry = ENTRIES.find((e) => e.from === '/budget/categories');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.interim).toBeUndefined();
+    expect(entry?.to).toBe('/settings/manage#cost-categories');
+    const live = LIVE_REDIRECT_ROUTES.find((r) => r.from === '/budget/categories');
+    expect(live?.target).toBe('/settings/manage#cost-categories');
+  });
 });

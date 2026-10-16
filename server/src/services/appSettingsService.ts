@@ -7,16 +7,46 @@
  */
 
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type * as schemaTypes from '../db/schema.js';
-import { appSettings } from '../db/schema.js';
-import type { HouseholdSettings, UpdateHouseholdSettingsRequest } from '@cornerstone/shared';
+import { appSettings, userPreferences, users } from '../db/schema.js';
+import type {
+  EntriesLanguage,
+  HouseholdSettings,
+  UpdateHouseholdSettingsRequest,
+} from '@cornerstone/shared';
+import { ENTRIES_LANGUAGES, FALLBACK_ENTRIES_LANGUAGE } from '@cornerstone/shared';
 import { ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 const HOUSEHOLD_NAME_KEY = 'household_name';
 const HOUSEHOLD_ADDRESS_KEY = 'household_address';
+const ENTRIES_LANGUAGE_KEY = 'entries_language';
+
+function isEntriesLanguage(v: unknown): v is EntriesLanguage {
+  return typeof v === 'string' && (ENTRIES_LANGUAGES as readonly string[]).includes(v);
+}
+
+/**
+ * Unset-value derivation: the earliest-created user's (any role, deactivated included)
+ * locale preference when it is 'de' or 'en', otherwise the fallback. Never persisted.
+ */
+function deriveEntriesLanguage(db: DbType): EntriesLanguage {
+  const founder = db
+    .select({ id: users.id })
+    .from(users)
+    .orderBy(asc(users.createdAt), asc(users.id))
+    .limit(1)
+    .get();
+  if (!founder) return FALLBACK_ENTRIES_LANGUAGE;
+  const pref = db
+    .select({ value: userPreferences.value })
+    .from(userPreferences)
+    .where(and(eq(userPreferences.userId, founder.id), eq(userPreferences.key, 'locale')))
+    .get();
+  return isEntriesLanguage(pref?.value) ? pref.value : FALLBACK_ENTRIES_LANGUAGE;
+}
 
 /**
  * Retrieve a raw setting value from app_settings.
@@ -43,26 +73,29 @@ function upsertRawSetting(db: DbType, key: string, value: string | null): void {
 
 /**
  * Get the current household settings.
- * Returns an object with householdName and householdAddress (both nullable).
- * If settings have not been configured, returns nulls.
+ * householdName and householdAddress are nullable; entriesLanguage is never null
+ * (stored value, else derived from the founder's locale, else 'en'). Reads never write.
  */
 export function getHouseholdSettings(db: DbType): HouseholdSettings {
   const householdName = getRawSetting(db, HOUSEHOLD_NAME_KEY);
   const householdAddress = getRawSetting(db, HOUSEHOLD_ADDRESS_KEY);
 
+  const storedLanguage = getRawSetting(db, ENTRIES_LANGUAGE_KEY);
+
   return {
     householdName,
     householdAddress,
+    entriesLanguage: isEntriesLanguage(storedLanguage) ? storedLanguage : deriveEntriesLanguage(db),
   };
 }
 
 /**
  * Update household settings.
- * At least one field must be provided (either householdName or householdAddress).
- * Setting a field to null clears it.
+ * At least one of householdName, householdAddress or entriesLanguage must be provided.
+ * Setting householdName or householdAddress to null clears it (entriesLanguage is never null).
  * Partial updates leave other fields unchanged.
  *
- * @throws ValidationError if both fields are undefined or if values exceed maxLength
+ * @throws ValidationError if no field is provided, a length is exceeded or entriesLanguage is invalid
  * @returns the updated HouseholdSettings
  */
 export function updateHouseholdSettings(
@@ -70,7 +103,11 @@ export function updateHouseholdSettings(
   data: UpdateHouseholdSettingsRequest,
 ): HouseholdSettings {
   // Validate at least one field provided
-  if (data.householdName === undefined && data.householdAddress === undefined) {
+  if (
+    data.householdName === undefined &&
+    data.householdAddress === undefined &&
+    data.entriesLanguage === undefined
+  ) {
     throw new ValidationError('At least one field must be provided');
   }
 
@@ -88,6 +125,10 @@ export function updateHouseholdSettings(
     }
   }
 
+  if (data.entriesLanguage !== undefined && !isEntriesLanguage(data.entriesLanguage)) {
+    throw new ValidationError('Language of entries must be one of: de, en');
+  }
+
   // Update each field if provided
   if (data.householdName !== undefined) {
     upsertRawSetting(db, HOUSEHOLD_NAME_KEY, data.householdName);
@@ -95,6 +136,10 @@ export function updateHouseholdSettings(
 
   if (data.householdAddress !== undefined) {
     upsertRawSetting(db, HOUSEHOLD_ADDRESS_KEY, data.householdAddress);
+  }
+
+  if (data.entriesLanguage !== undefined) {
+    upsertRawSetting(db, ENTRIES_LANGUAGE_KEY, data.entriesLanguage);
   }
 
   return getHouseholdSettings(db);

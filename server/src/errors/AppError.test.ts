@@ -22,6 +22,7 @@ import {
   BackupNotFoundError,
   BackupFailedError,
   RestoreFailedError,
+  ReorderSetMismatchError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -347,6 +348,20 @@ describe('CircularDependencyError', () => {
   });
 });
 
+describe('ReorderSetMismatchError', () => {
+  it('is a 409 REORDER_SET_MISMATCH carrying both id lists and exposing details', () => {
+    const details = { missingIds: ['a'], unknownIds: ['z'] };
+    const error = new ReorderSetMismatchError(details);
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('ReorderSetMismatchError');
+    expect(error.code).toBe('REORDER_SET_MISMATCH');
+    expect(error.statusCode).toBe(409);
+    expect(error.details).toEqual(details);
+    expect(error.suppressDetails).toBe(false);
+  });
+});
+
 describe('every AppError subclass', () => {
   type ErrorCtor = new (...args: unknown[]) => AppError;
   const subclasses = Object.entries(errorModule).filter(
@@ -354,7 +369,7 @@ describe('every AppError subclass', () => {
   ) as [string, ErrorCtor][];
 
   it('is discovered (guards against the table silently becoming empty)', () => {
-    expect(subclasses).toHaveLength(44);
+    expect(subclasses).toHaveLength(45);
   });
 
   it.each(subclasses)(

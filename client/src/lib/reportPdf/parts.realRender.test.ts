@@ -128,7 +128,11 @@ const report: SourceReportResponse = {
   generatedAt: '2026-02-15T00:00:00.000Z',
 };
 const includedIds = new Set(['inv-1', 'inv-2', 'inv-3', 'inv-4']);
-const household = { householdName: 'The Smiths', householdAddress: '123 Main St' };
+const household = {
+  householdName: 'The Smiths',
+  householdAddress: '123 Main St',
+  entriesLanguage: 'en' as const,
+};
 
 // ─── Spy-wrapped real createPdf + fetch stub ──────────────────────────────────
 

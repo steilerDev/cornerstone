@@ -19,6 +19,7 @@ import {
   ConflictError,
   CategoryInUseError,
 } from '../errors/AppError.js';
+import { assertSameIdSet, nextSortOrder } from './referenceListOrder.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -46,10 +47,14 @@ function isValidHexColor(color: string): boolean {
 }
 
 /**
- * List all budget categories, sorted by sort_order ascending.
+ * List all budget categories, sorted by sort_order ascending, ties broken by name.
  */
 export function listBudgetCategories(db: DbType): BudgetCategory[] {
-  const rows = db.select().from(budgetCategories).orderBy(asc(budgetCategories.sortOrder)).all();
+  const rows = db
+    .select()
+    .from(budgetCategories)
+    .orderBy(asc(budgetCategories.sortOrder), asc(budgetCategories.name))
+    .all();
   return rows.map(toBudgetCategory);
 }
 
@@ -110,6 +115,15 @@ export function createBudgetCategory(
     throw new ConflictError('A budget category with this name already exists');
   }
 
+  const sortOrder =
+    data.sortOrder ??
+    nextSortOrder(
+      db
+        .select({ max: sql<number | null>`MAX(${budgetCategories.sortOrder})` })
+        .from(budgetCategories)
+        .get()?.max,
+    );
+
   // Create category
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -121,7 +135,7 @@ export function createBudgetCategory(
       description: data.description ?? null,
       color: data.color ?? null,
       translationKey: null,
-      sortOrder: data.sortOrder ?? 0,
+      sortOrder,
       createdAt: now,
       updatedAt: now,
     })
@@ -133,7 +147,7 @@ export function createBudgetCategory(
     description: data.description ?? null,
     color: data.color ?? null,
     translationKey: null,
-    sortOrder: data.sortOrder ?? 0,
+    sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -279,4 +293,32 @@ export function deleteBudgetCategory(db: DbType, id: string): void {
 
   // Delete category
   db.delete(budgetCategories).where(eq(budgetCategories.id, id)).run();
+}
+
+/**
+ * Atomically reorder the list: `ids` must be exactly the current set of ids.
+ * Writes only rows whose position changed.
+ * @throws ReorderSetMismatchError if the id set differs from the current list
+ */
+export function reorderBudgetCategories(db: DbType, ids: readonly string[]): BudgetCategory[] {
+  db.transaction((tx) => {
+    const rows = tx
+      .select({ id: budgetCategories.id, sortOrder: budgetCategories.sortOrder })
+      .from(budgetCategories)
+      .all();
+    assertSameIdSet(
+      rows.map((r) => r.id),
+      ids,
+    );
+    const current = new Map(rows.map((r) => [r.id, r.sortOrder]));
+    const now = new Date().toISOString();
+    ids.forEach((id, index) => {
+      if (current.get(id) === index) return;
+      tx.update(budgetCategories)
+        .set({ sortOrder: index, updatedAt: now })
+        .where(eq(budgetCategories.id, id))
+        .run();
+    });
+  });
+  return listBudgetCategories(db);
 }

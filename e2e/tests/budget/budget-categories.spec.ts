@@ -1,1073 +1,651 @@
 /**
- * E2E tests for Budget Categories CRUD management (Story #142)
+ * E2E tests for the Cost categories and Purchase categories sections of Settings > Project setup
+ * (#2215, EPIC-21; formerly the Budget Categories and Household Item Categories tabs, Story #142)
  *
- * UAT Scenarios covered:
- * - Scenario 1: Default categories are seeded on first migration
- * - Scenario 2: View all budget categories
- * - Scenario 3: Create a new budget category — happy path (all fields)
- * - Scenario 4: Create a category with name only (minimal required fields)
- * - Scenario 5: Create category fails — missing required name
- * - Scenario 6: Create category fails — duplicate name
- * - Scenario 8: Edit an existing budget category
- * - Scenario 11: Delete a budget category — not referenced by any work item
- * - Scenario 18: Empty state when all categories deleted
- * - Responsive layout (mobile/tablet/desktop)
- * - Dark mode rendering
+ * Both lists are `ReferenceList` sections: a New button, a ⋯ menu per row (Edit, Move up,
+ * Move down, Delete), reorder by drag or keyboard, "No color" instead of an empty swatch. The
+ * New/Edit dialog is a Modal from 768px (448px wide) and a bottom Sheet below. Deleting a
+ * category that is still used turns the confirm into a blocked dialog with a fixed sentence and
+ * no counts (the server hides the counts: #315 hardening).
+ *
+ * Each scenario runs for both lists (`LISTS` below) unless it needs the cost-only description.
+ *
+ * Scenarios:
+ * 1. [smoke] Built-in categories are listed (translated names) with no "#N" order numbers
+ * 2. Create: dialog type per viewport, "No color" is the default, a color shows as a swatch,
+ *    the row is announced, validation and duplicate-name errors keep the dialog open
+ * 3. Edit: rename persists after a reload, saving unchanged sends nothing, a built-in category
+ *    shows the translated-name hint
+ * 4. Delete: confirm, focus on the neighbour's ⋯; Cancel keeps the row
+ * 5. Delete blocked: a category used by a cost line / purchase cannot be deleted
+ * 6. Empty and error states (mocked)
+ * 7. Reorder through ⋯ Move up/down hits the right endpoint with the full id list (mocked)
+ * 8. Dark mode: the dialog is usable
+ *
+ * The category lists are shared by every worker: all created categories carry a unique
+ * `testPrefix` and are removed in `finally`. Reorder is mocked (see fixtures/referenceListMocks).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
-import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
+import {
+  createHouseholdItemViaApi,
+  createWorkItemViaApi,
+  deleteHouseholdItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+import { mockReferenceList } from '../../fixtures/referenceListMocks.js';
 import { API } from '../../fixtures/testData.js';
-import { defined } from '../../fixtures/assertions.js';
+import { PROJECT_SETUP_URL, ProjectSetupPage } from '../../pages/ProjectSetupPage.js';
+import type { ReferenceListControl } from '../../pages/ProjectSetupPage.js';
 
-// Default categories after EPIC-05 seeding + EPIC-18 migration 0028
-// (Equipment, Landscaping, Utilities, Insurance, Contingency conditionally deleted; Waste added)
-const DEFAULT_CATEGORIES = ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'];
+interface ListCase {
+  readonly key: 'costCategories' | 'purchaseCategories';
+  readonly api: string;
+  readonly title: string;
+  readonly newLabel: string;
+  readonly editLabel: string;
+  readonly empty: string;
+  readonly loadFailed: string;
+  readonly duplicate: string;
+  readonly builtIns: readonly string[];
+  readonly blocked: (name: string) => string;
+  readonly hasDescription: boolean;
+}
+
+const LISTS: readonly ListCase[] = [
+  {
+    key: 'costCategories',
+    api: API.budgetCategories,
+    title: 'Cost categories',
+    newLabel: 'New cost category',
+    editLabel: 'Edit cost category',
+    empty: 'No cost categories yet.',
+    loadFailed: "Couldn't load the cost categories.",
+    duplicate: 'A cost category with this name already exists.',
+    // Default categories after EPIC-05 seeding + EPIC-18 migration 0028
+    builtIns: ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'],
+    blocked: (name) => `${name} is still used by cost lines or grants, so it can't be deleted.`,
+    hasDescription: true,
+  },
+  {
+    key: 'purchaseCategories',
+    api: '/api/household-item-categories',
+    title: 'Purchase categories',
+    newLabel: 'New purchase category',
+    editLabel: 'Edit purchase category',
+    empty: 'No purchase categories yet.',
+    loadFailed: "Couldn't load the purchase categories.",
+    duplicate: 'A purchase category with this name already exists.',
+    builtIns: ['Furniture', 'Appliances', 'Fixtures', 'Decor'],
+    blocked: (name) => `${name} is still used by purchases, so it can't be deleted.`,
+    hasDescription: false,
+  },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: create a temporary category via API and return its id for cleanup
+// API helpers
 // ─────────────────────────────────────────────────────────────────────────────
-async function createCategoryViaApi(page: Page, name: string, sortOrder = 999): Promise<string> {
-  const response = await page.request.post(API.budgetCategories, {
-    data: { name, sortOrder },
+
+async function createCategoryViaApi(
+  page: Page,
+  list: ListCase,
+  name: string,
+  color?: string,
+): Promise<string> {
+  const response = await page.request.post(list.api, {
+    data: { name, ...(color ? { color } : {}) },
   });
-  expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { id: string };
-  return body.id;
+  expect(response.ok(), `POST ${list.api} "${name}"`).toBeTruthy();
+  // Budget categories answer `{ budgetCategory }`, household item categories the bare entity
+  const body = (await response.json()) as { id?: string; budgetCategory?: { id: string } };
+  return (body.budgetCategory ?? (body as { id: string })).id;
 }
 
-async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`${API.budgetCategories}/${id}`);
+async function deleteCategoryViaApi(page: Page, list: ListCase, id: string): Promise<void> {
+  await page.request.delete(`${list.api}/${id}`);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1 & 2: Default categories present and list view
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
-  test(
-    'All default categories are present after fresh migration',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      // Given: EPIC-05 migration applied; default seeds loaded
-      const categoriesPage = new BudgetCategoriesPage(page);
+/** Delete every category with this name through the API (cleanup after a UI create). */
+async function deleteCategoriesByName(page: Page, list: ListCase, name: string): Promise<void> {
+  const response = await page.request.get(list.api);
+  const body = (await response.json()) as { categories: { id: string; name: string }[] };
+  for (const category of body.categories.filter((c) => c.name === name)) {
+    await deleteCategoryViaApi(page, list, category.id);
+  }
+}
 
-      // When: I navigate to Budget > Categories
-      await categoriesPage.goto();
+function controlFor(setup: ProjectSetupPage, list: ListCase): ReferenceListControl {
+  return setup[list.key];
+}
 
-      // Then: All 10 named default categories appear in the list
-      // (we check for presence rather than exact count=10 since parallel workers
-      //  may have created additional categories in the shared database)
-      const names = await categoriesPage.getCategoryNames();
-      for (const expectedName of DEFAULT_CATEGORIES) {
-        expect(names).toContain(expectedName);
+for (const list of LISTS) {
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 1: the built-in categories
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — built-in categories (Scenario 1)`, { tag: '@responsive' }, () => {
+    test(
+      `The built-in ${list.title.toLowerCase()} are listed without order numbers`,
+      { tag: '@smoke' },
+      async ({ page }) => {
+        const setup = new ProjectSetupPage(page);
+        await setup.goto(list.key === 'costCategories' ? 'cost-categories' : 'purchase-categories');
+        const control = controlFor(setup, list);
+
+        await expect(control.heading).toHaveText(list.title);
+        // Other workers may add categories, so assert presence rather than the exact count
+        await expect(control.items.first()).toBeVisible();
+        const names = await control.orderOfNames();
+        for (const builtIn of list.builtIns) expect(names).toContain(builtIn);
+        // "#N" sort-order numbers are no longer shown anywhere in the section
+        await expect(control.section.getByText(/#\d/)).toHaveCount(0);
+        await expect(control.newButton).toHaveAccessibleName(list.newLabel);
+      },
+    );
+
+    test('A built-in category shows the translated-name hint in its Edit dialog', async ({
+      page,
+    }) => {
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+      const control = controlFor(setup, list);
+      const builtIn = list.builtIns[0]!;
+
+      await control.clickMenuItem(builtIn, 'Edit');
+      await control.dialog.waitFor({ state: 'visible' });
+      await expect(control.dialog).toContainText(
+        'This name is translated. If you change it, your text is shown in every language.',
+      );
+      // Nothing was changed: Cancel closes without asking
+      await control.cancelButton.click();
+      await expect(control.dialog).toHaveCount(0);
+      await expect(control.row(builtIn)).toBeVisible();
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 2: create
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — create (Scenario 2)`, { tag: '@responsive' }, () => {
+    test('New opens the dialog as a Modal (448px) from 768px and a bottom Sheet below', async ({
+      page,
+    }) => {
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      const widths = test.info().project.name === 'mobile' ? [375] : [768, 1280];
+
+      for (const width of widths) {
+        await page.setViewportSize({ width, height: 900 });
+        await setup.goto();
+        await control.openNewDialog();
+        await expect(control.dialog.getByRole('heading', { name: list.newLabel })).toBeVisible();
+        await expect(control.nameInput).toBeFocused();
+
+        const box = await control.dialogPanel().boundingBox();
+        if (!box) throw new Error('dialog panel has no box');
+        if (width >= 768) {
+          expect(
+            Math.abs(box.width - 448),
+            `Modal width at ${width}px: ${box.width}`,
+          ).toBeLessThanOrEqual(1);
+        } else {
+          // A bottom Sheet is full width and sits on the bottom edge
+          expect(Math.abs(box.width - width), `Sheet width: ${box.width}`).toBeLessThanOrEqual(1);
+          expect(Math.abs(box.y + box.height - 900), 'Sheet bottom edge').toBeLessThanOrEqual(1);
+        }
+        await control.cancelButton.click();
+        await expect(control.dialog).toHaveCount(0);
       }
+    });
+
+    test('A new category has "No color" ticked and shows no swatch; a colored one shows its color', async ({
+      page,
+      testPrefix,
+    }) => {
+      const plain = `${testPrefix} Tiles`;
+      const colored = `${testPrefix} Paint`;
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      await setup.goto();
+
+      try {
+        await control.openNewDialog();
+        await expect(control.noColor).toBeChecked();
+        await expect(control.colorInput).toBeDisabled();
+        await control.fillDialog({ name: plain });
+        await control.save();
+
+        await expect(control.row(plain)).toBeVisible();
+        await expect(setup.statusRegion).toHaveText(`${plain} added.`);
+        await expect(control.menuTrigger(plain)).toBeFocused();
+        await expect(control.swatch(plain)).toHaveCount(0);
+
+        await control.create({ name: colored, color: '#336699' });
+        await expect(control.swatch(colored)).toHaveCount(1);
+        await expect(control.swatch(colored)).toHaveCSS('background-color', 'rgb(51, 102, 153)');
+
+        // Neither row shows an order number, and new rows go to the end in creation order
+        await expect(control.row(plain)).not.toContainText(/#\d/);
+        await expect(control.row(colored)).not.toContainText(/#\d/);
+        const names = await control.orderOfNames();
+        expect(names.indexOf(plain)).toBeLessThan(names.indexOf(colored));
+      } finally {
+        await deleteCategoriesByName(page, list, plain);
+        await deleteCategoriesByName(page, list, colored);
+      }
+    });
+
+    if (list.hasDescription) {
+      test('A description is saved and shown under the name', async ({ page, testPrefix }) => {
+        const name = `${testPrefix} Described`;
+        const setup = new ProjectSetupPage(page);
+        const control = controlFor(setup, list);
+        await setup.goto();
+
+        try {
+          await control.create({ name, description: 'Sample description text' });
+          await expect(control.row(name)).toContainText('Sample description text');
+        } finally {
+          await deleteCategoriesByName(page, list, name);
+        }
+      });
+    }
+
+    test('An empty name shows "Enter a name." and keeps focus on the field', async ({ page }) => {
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      await setup.goto();
+
+      await control.openNewDialog();
+      await control.saveButton.click();
+      await expect(control.dialog).toContainText('Enter a name.');
+      await expect(control.nameInput).toBeFocused();
+      await expect(control.nameInput).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    test('A duplicate name shows the duplicate message and keeps the dialog open', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} Duplicate`;
+      const id = await createCategoryViaApi(page, list, name);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        await control.openNewDialog();
+        await control.fillDialog({ name });
+        await control.saveButton.click();
+
+        await expect(control.dialog).toContainText(list.duplicate);
+        await expect(control.dialog).toBeVisible();
+        await expect(control.nameInput).toBeFocused();
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 3: edit
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — edit (Scenario 3)`, { tag: '@responsive' }, () => {
+    test('Rename and recolor a category: the change persists after a reload', async ({
+      page,
+      testPrefix,
+    }) => {
+      const original = `${testPrefix} Old Name`;
+      const renamed = `${testPrefix} New Name`;
+      const id = await createCategoryViaApi(page, list, original);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        await control.clickMenuItem(original, 'Edit');
+        await expect(control.dialog.getByRole('heading', { name: list.editLabel })).toBeVisible();
+        await expect(control.nameInput).toHaveValue(original);
+        await expect(control.noColor).toBeChecked();
+        await control.fillDialog({ name: renamed, color: '#aa5500' });
+        await control.save();
+
+        await expect(control.row(renamed)).toBeVisible();
+        await expect(control.row(original)).toHaveCount(0);
+        await expect(setup.statusRegion).toHaveText(`${renamed} saved.`);
+        await expect(control.menuTrigger(renamed)).toBeFocused();
+
+        await page.goto(page.url());
+        await setup.waitForLoaded();
+        await expect(control.row(renamed)).toBeVisible();
+        await expect(control.swatch(renamed)).toHaveCSS('background-color', 'rgb(170, 85, 0)');
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+
+    test('Switching a color back to "No color" removes the swatch', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} Colored`;
+      const id = await createCategoryViaApi(page, list, name, '#336699');
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        await expect(control.swatch(name)).toHaveCount(1);
+        await control.clickMenuItem(name, 'Edit');
+        await control.dialog.waitFor({ state: 'visible' });
+        await expect(control.noColor).not.toBeChecked();
+        await control.fillDialog({ color: null });
+        await control.save();
+
+        await expect(control.swatch(name)).toHaveCount(0);
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+
+    test('Saving without a change closes the dialog and sends nothing', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} Unchanged`;
+      const id = await createCategoryViaApi(page, list, name);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      const writes: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes(`${list.api}/${id}`) && request.method() !== 'GET') {
+          writes.push(request.method());
+        }
+      });
+
+      try {
+        await setup.goto();
+        await control.clickMenuItem(name, 'Edit');
+        await control.dialog.waitFor({ state: 'visible' });
+        await control.save();
+        await expect(control.row(name)).toBeVisible();
+        expect(writes).toEqual([]);
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+
+    test('Escape on a dirty dialog opens the discard confirm; a second Escape closes only the confirm', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} Stacked`;
+      const id = await createCategoryViaApi(page, list, name);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        await control.clickMenuItem(name, 'Edit');
+        await control.dialog.waitFor({ state: 'visible' });
+        await control.nameInput.fill(`${name} edited`);
+
+        await page.keyboard.press('Escape');
+        await expect(control.discardDialog.dialog).toBeVisible();
+        await expect(control.dialog).toBeVisible();
+
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('alertdialog')).toHaveCount(0);
+        await expect(control.dialog).toBeVisible();
+
+        await page.keyboard.press('Escape');
+        await control.discardDialog.confirm();
+        await expect(control.dialog).toHaveCount(0);
+        await expect(control.row(name)).toBeVisible();
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () => document.activeElement !== null && document.activeElement !== document.body,
+            ),
+          )
+          .toBe(true);
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 4: delete
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — delete (Scenario 4)`, { tag: '@responsive' }, () => {
+    test('Confirming deletes an unused category and moves focus to a neighbour', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} Disposable`;
+      const id = await createCategoryViaApi(page, list, name);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        const names = await control.orderOfNames();
+        const index = names.indexOf(name);
+        const neighbour = names[index + 1] ?? names[index - 1];
+
+        await control.openDelete(name);
+        await expect(control.deleteDialog.dialog).toHaveAccessibleName(`Delete ${name}?`);
+        await expect(control.deleteDialog.dialog).toContainText("This can't be undone.");
+        await expect(control.deleteDialog.cancelButton).toBeFocused();
+        await control.deleteDialog.confirmAndWaitClosed();
+
+        await expect(control.row(name)).toHaveCount(0);
+        await expect(setup.statusRegion).toHaveText(`${name} deleted.`);
+        await expect(control.menuTrigger(neighbour!)).toBeFocused();
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+
+    test('Cancel keeps the category', async ({ page, testPrefix }) => {
+      const name = `${testPrefix} KeepMe`;
+      const id = await createCategoryViaApi(page, list, name);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+
+      try {
+        await setup.goto();
+        await control.openDelete(name);
+        await control.deleteDialog.cancel();
+        await expect(control.row(name)).toBeVisible();
+      } finally {
+        await deleteCategoryViaApi(page, list, id);
+      }
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 5: delete blocked while in use
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — delete blocked (Scenario 5)`, { tag: '@responsive' }, () => {
+    test('A category that is still used cannot be deleted: fixed sentence, no counts, no Delete button', async ({
+      page,
+      testPrefix,
+    }) => {
+      const name = `${testPrefix} In Use`;
+      const categoryId = await createCategoryViaApi(page, list, name);
+      let cleanup: () => Promise<void>;
+
+      if (list.key === 'costCategories') {
+        const workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Sample task` });
+        const line = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+          data: {
+            description: `${testPrefix} Sample cost line`,
+            plannedAmount: 100,
+            confidence: 'own_estimate',
+            budgetSourceId: 'discretionary-system',
+            budgetCategoryId: categoryId,
+          },
+        });
+        expect(line.ok(), `POST cost line: ${line.status()}`).toBeTruthy();
+        cleanup = () => deleteWorkItemViaApi(page, workItemId);
+      } else {
+        const purchaseId = await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} Sample purchase`,
+          category: categoryId,
+        });
+        cleanup = () => deleteHouseholdItemViaApi(page, purchaseId);
+      }
+
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      try {
+        await setup.goto();
+        await control.openDelete(name);
+        const deleteRequest = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`${list.api}/${categoryId}`) &&
+            resp.request().method() === 'DELETE',
+        );
+        await control.deleteDialog.confirm();
+        expect((await deleteRequest).status()).toBe(409);
+
+        const dialog = control.deleteDialog.dialog;
+        await expect(dialog).toContainText(list.blocked(name));
+        await expect(control.deleteDialog.confirmButton).toHaveCount(0);
+        await expect(control.deleteDialog.consequencesList).toHaveCount(0);
+        await expect(control.deleteDialog.cancelButton).toBeVisible();
+
+        await control.deleteDialog.cancel();
+        await expect(control.row(name)).toBeVisible();
+      } finally {
+        await cleanup();
+        await deleteCategoryViaApi(page, list, categoryId);
+      }
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 6: empty and error states (mocked)
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(
+    `${list.title} — empty and error states (Scenario 6)`,
+    { tag: '@responsive' },
+    () => {
+      test('An empty list shows the empty state', async ({ page }) => {
+        await mockReferenceList(page, list.key, []);
+        const setup = new ProjectSetupPage(page);
+        await setup.goto();
+        await expect(controlFor(setup, list).section).toContainText(list.empty);
+        await expect(controlFor(setup, list).items).toHaveCount(0);
+      });
+
+      test('A failed load shows an error with Retry, and Retry loads the list', async ({
+        page,
+        testPrefix,
+      }) => {
+        let fail = true;
+        await page.route(
+          (url) => url.pathname === list.api,
+          async (route) => {
+            if (route.request().method() === 'GET' && fail) {
+              await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                  error: { code: 'INTERNAL_ERROR', message: 'Internal error' },
+                }),
+              });
+            } else {
+              await route.continue();
+            }
+          },
+        );
+        const name = `${testPrefix} After Retry`;
+        const id = await createCategoryViaApi(page, list, name);
+        const setup = new ProjectSetupPage(page);
+        const control = controlFor(setup, list);
+
+        try {
+          await page.goto(PROJECT_SETUP_URL);
+          await setup.heading.waitFor({ state: 'visible' });
+          await expect(control.section).toContainText(list.loadFailed);
+          // New is inert until the list is loaded
+          await expect(control.newButton).toHaveAttribute('aria-disabled', 'true');
+
+          fail = false;
+          await control.retryButton.click();
+          await expect(control.row(name)).toBeVisible();
+        } finally {
+          await deleteCategoryViaApi(page, list, id);
+        }
+      });
     },
   );
 
-  test('List shows name, color swatch and sort order for each category', async ({ page }) => {
-    // Given: Default categories are seeded
-    const categoriesPage = new BudgetCategoriesPage(page);
+  // ───────────────────────────────────────────────────────────────────────────
+  // Scenario 7: reorder through the ⋯ menu (mocked, the list is global)
+  // ───────────────────────────────────────────────────────────────────────────
+  test.describe(`${list.title} — reorder (Scenario 7)`, { tag: '@responsive' }, () => {
+    test('⋯ Move down sends one PATCH with every id in the new order', async ({
+      page,
+      testPrefix,
+    }) => {
+      const rows = [
+        { id: 'mock-category-a', name: `${testPrefix} Alpha`, color: '#336699' },
+        { id: 'mock-category-b', name: `${testPrefix} Bravo` },
+        { id: 'mock-category-c', name: `${testPrefix} Charlie` },
+      ];
+      const mock = await mockReferenceList(page, list.key, rows);
+      const setup = new ProjectSetupPage(page);
+      const control = controlFor(setup, list);
+      await setup.goto();
 
-    // When: I navigate to Budget > Categories
-    await categoriesPage.goto();
+      await control.openMenu(rows[0]!.name);
+      await expect(control.menuItem('Move up')).toHaveAttribute('aria-disabled', 'true');
+      await control.menuItem('Move down').click();
 
-    // Then: The "Materials" row is visible with a color swatch and sort order indicator
-    const materialsRow = await categoriesPage.getCategoryRow('Materials');
-    expect(materialsRow).not.toBeNull();
-    if (materialsRow) {
-      // Color swatch element should be present
-      const swatch = materialsRow.locator('[class*="itemSwatch"]');
-      await expect(swatch).toBeVisible();
-
-      // Sort order indicator should be present
-      const sortOrder = materialsRow.locator('[class*="itemSortOrder"]');
-      await expect(sortOrder).toBeVisible();
-    }
-  });
-
-  test('Categories list heading shows at least 10 (the default seed count)', async ({ page }) => {
-    // Given: Default categories are seeded
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // When: I navigate to Budget > Categories
-    await categoriesPage.goto();
-
-    // Then: The heading shows a count >= 10
-    // (exact count may be higher if parallel workers have added test categories)
-    const count = await categoriesPage.getCategoriesCount();
-    expect(count).toBeGreaterThanOrEqual(DEFAULT_CATEGORIES.length);
-
-    // And: The heading pattern "Categories (N)" is present
-    await expect(categoriesPage.categoriesListHeading).toContainText(/Categories \(\d+\)/);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8 (order) & Scenario 2: Categories sorted by sort_order
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Sort order display (Scenario 2 & 13)', { tag: '@responsive' }, () => {
-  test('Categories are displayed in ascending sort_order: Materials before Labor before Permits', async ({
-    page,
-  }) => {
-    // Given: Default categories with known sort_orders exist
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // When: I navigate to Budget > Categories
-    await categoriesPage.goto();
-
-    // Then: The order is Materials, Labor, Permits (first three defaults)
-    const names = await categoriesPage.getCategoryNames();
-    const materialsIdx = names.indexOf('Materials');
-    const laborIdx = names.indexOf('Labor');
-    const permitsIdx = names.indexOf('Permits');
-
-    expect(materialsIdx).toBeGreaterThanOrEqual(0);
-    expect(laborIdx).toBeGreaterThanOrEqual(0);
-    expect(permitsIdx).toBeGreaterThanOrEqual(0);
-    expect(materialsIdx).toBeLessThan(laborIdx);
-    expect(laborIdx).toBeLessThan(permitsIdx);
-  });
-
-  test('Newly created category with lower sort_order appears before higher sort_order categories', async ({
-    page,
-    testPrefix,
-  }) => {
-    // Given: Default categories: Materials(0), Labor(1), Permits(2), + seeded Design/Utilities/etc.
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Sort Test Zero`;
-
-    try {
-      // When: I create a category with sort_order = 0 (same as Materials, lower than Labor)
-      createdId = await createCategoryViaApi(page, categoryName, 0);
-
-      await categoriesPage.goto();
-      await categoriesPage.waitForCategoriesLoaded();
-
-      // Then: The new category appears before "Labor" (sort_order=1) in the list
-      const names = await categoriesPage.getCategoryNames();
-      const newIdx = names.indexOf(categoryName);
-      const laborIdx = names.indexOf('Labor');
-      expect(newIdx).toBeGreaterThanOrEqual(0);
-      expect(laborIdx).toBeGreaterThanOrEqual(0);
-      expect(newIdx).toBeLessThan(laborIdx);
-    } finally {
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Create category — happy path (all fields)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Create new category with all fields — appears in list at correct position', async ({
-    page,
-    testPrefix,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    const categoryName = `${testPrefix} Excavation`;
-
-    // Given: I am on the Budget > Categories page
-    await categoriesPage.goto();
-
-    // When: I click "Add Category"
-    await categoriesPage.openCreateForm();
-
-    // And: I fill in all fields
-    await categoriesPage.createCategory({
-      name: categoryName,
-      description: 'Site clearing and foundation digging',
-      color: '#8b4513',
-      sortOrder: 50,
+      await expect.poll(() => mock.requests.length).toBe(1);
+      expect(mock.requests[0]).toEqual([rows[1]!.id, rows[0]!.id, rows[2]!.id]);
+      await expect
+        .poll(() => control.orderOfNames())
+        .toEqual([rows[1]!.name, rows[0]!.name, rows[2]!.name]);
+      await expect(control.menuTrigger(rows[0]!.name)).toBeFocused();
     });
-
-    // Then: Success banner appears
-    const successText = await categoriesPage.getSuccessBannerText();
-    expect(successText).toContain(categoryName);
-
-    // And: The create form stays visible (visual cleanup #1185 — always-visible form, no toggle)
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-
-    // And: The new category appears in the list
-    const names = await categoriesPage.getCategoryNames();
-    expect(names).toContain(categoryName);
-
-    // And: The description is shown
-    const description = await categoriesPage.getCategoryDescription(categoryName);
-    expect(description).toBe('Site clearing and foundation digging');
-
-    // Cleanup: delete the created category via API
-    const rows = await categoriesPage.getCategoryRows();
-    let createdId: string | null = null;
-    for (const row of rows) {
-      const nameEl = row.locator('[class*="itemName"]');
-      const rowText = await nameEl.textContent();
-      if (rowText?.trim() === categoryName) {
-        // Get the delete button aria-label to find the category
-        const deleteBtn = row.getByRole('button', { name: `Delete ${categoryName}` });
-        const ariaLabel = await deleteBtn.getAttribute('aria-label');
-        // Delete via modal
-        if (ariaLabel) {
-          await deleteBtn.click();
-          await categoriesPage.deleteModal.waitFor({ state: 'visible' });
-          await categoriesPage.confirmDelete();
-          await categoriesPage.deleteModal.waitFor({ state: 'hidden' });
-          createdId = 'deleted';
-        }
-        break;
-      }
-    }
-    // If modal-based delete failed, try API fallback via list count
-    if (!createdId) {
-      // Reload and try API-based cleanup by finding the new category's id
-      const response = await page.request.get(API.budgetCategories);
-      const body = (await response.json()) as { categories: Array<{ id: string; name: string }> };
-      const found = body.categories.find((c) => c.name === categoryName);
-      if (found) {
-        await deleteCategoryViaApi(page, found.id);
-      }
-    }
   });
-
-  test('Create form resets after successful creation', async ({ page, testPrefix }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    const categoryName = `${testPrefix} Create Reset Test`;
-
-    try {
-      await categoriesPage.goto();
-      await categoriesPage.openCreateForm();
-
-      // When: Create a category
-      await categoriesPage.createCategory({
-        name: categoryName,
-        sortOrder: 998,
-      });
-
-      // Wait for success
-      await categoriesPage.getSuccessBannerText();
-
-      // Then: Visual cleanup #1185 — form always visible; name input resets after creation
-      await expect(categoriesPage.createFormHeading).toBeVisible();
-      await expect(categoriesPage.createNameInput).toHaveValue('');
-    } finally {
-      // Cleanup via API
-      const response = await page.request.get(API.budgetCategories);
-      const body = (await response.json()) as { categories: Array<{ id: string; name: string }> };
-      const found = body.categories.find((c) => c.name === categoryName);
-      if (found) {
-        await deleteCategoryViaApi(page, found.id);
-      }
-    }
-  });
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Create category fails — missing required name
+// Scenario 8: dark mode
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create category validation (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Create button is disabled when name field is empty', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
 
-    // Given: I am on the Add Category form
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // When: The Name field is empty (default state)
-    // Then: The "Create Category" button should be disabled
-    await expect(categoriesPage.createSubmitButton).toBeDisabled();
-  });
-
-  test('Create button becomes enabled when name is filled', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: Create form is open
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // When: I type a name
-    await categoriesPage.createNameInput.fill('Test Category');
-
-    // Then: The "Create Category" button should be enabled
-    await expect(categoriesPage.createSubmitButton).toBeEnabled();
-  });
-
-  test('Create shows validation error when name is cleared and submitted', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: Create form is open with a name, then cleared
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // When: I fill in a name, then clear it (via keyboard), then attempt to submit
-    await categoriesPage.createNameInput.fill('Temp');
-    await categoriesPage.createNameInput.fill('');
-    await categoriesPage.createNameInput.focus();
-    // The button should be disabled due to empty name guard in JSX
-    const isDisabled = await categoriesPage.createSubmitButton.isDisabled();
-    expect(isDisabled).toBe(true);
-  });
-
-  // Visual cleanup #1185: the create form has no Cancel button (always visible, no toggle).
-  // This test verifies that clearing the name input and NOT submitting leaves no category created.
-  test('Clearing the create form without submitting does not create a category', async ({
-    page,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: The create form is always visible
-    await categoriesPage.goto();
-
-    const countBefore = await categoriesPage.getCategoriesCount();
-
-    // When: I fill in a name but then clear it (simulate "cancel" intent)
-    await categoriesPage.createNameInput.fill('Should Not Be Created');
-    await categoriesPage.createNameInput.fill('');
-
-    // Then: The form stays visible (always rendered)
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-
-    // And: No new category was created (submit button is disabled with empty name)
-    await expect(categoriesPage.createSubmitButton).toBeDisabled();
-    const countAfter = await categoriesPage.getCategoriesCount();
-    expect(countAfter).toBe(countBefore);
-
-    // And: The category does not appear in the list
-    const names = await categoriesPage.getCategoryNames();
-    expect(names).not.toContain('Should Not Be Created');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Create category fails — duplicate name
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Duplicate name validation (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Creating category with duplicate name "Labor" shows error', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: "Labor" already exists (seeded by default)
-    await categoriesPage.goto();
-
-    // Record the count before attempting the duplicate (may include test categories from other workers)
-    const countBefore = await categoriesPage.getCategoriesCount();
-
-    await categoriesPage.openCreateForm();
-
-    // When: I attempt to create a new category with Name = "Labor"
-    await categoriesPage.createCategory({ name: 'Labor' });
-
-    // Then: An error message indicates the name must be unique
-    const errorText = await categoriesPage.getCreateErrorText();
-    expect(errorText).toBeTruthy();
-    // Error should mention uniqueness or duplication
-    expect(errorText?.toLowerCase()).toMatch(/already exists|unique|duplicate|conflict/);
-
-    // And: The category count is unchanged (no duplicate created)
-    const countAfter = await categoriesPage.getCategoriesCount();
-    expect(countAfter).toBe(countBefore);
-  });
-
-  test('Duplicate name error does not close the create form', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: "Materials" already exists
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // When: I attempt to create a duplicate
-    await categoriesPage.createCategory({ name: 'Materials' });
-
-    // Then: The create form remains visible (not closed on error)
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Edit an existing budget category
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
-  test('Edit "Design" description and color — changes persist after reload', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    const originalDescription = 'Design';
-
-    // Given: The "Design" category exists
-    await categoriesPage.goto();
-
-    // Record the initial state so we can restore it
-    const designRow = await categoriesPage.getCategoryRow('Design');
-    expect(designRow).not.toBeNull();
-
-    // When: I click "Edit" on the "Design" category
-    await categoriesPage.openEditForm('Design');
-
-    // Get the category id from the edit form inputs (id="edit-name-{id}")
-    const editNameInputs = await page.locator('[id^="edit-name-"]').all();
-    expect(editNameInputs.length).toBe(1);
-    const inputId = await defined(editNameInputs[0], 'edit name input').getAttribute('id');
-    const categoryId = inputId?.replace('edit-name-', '') ?? '';
-    expect(categoryId).toBeTruthy();
-
-    // And: I change the Description
-    await categoriesPage.fillEditForm(categoryId, {
-      description: 'Architectural drawings and planning',
-      color: '#a0522d',
+test.describe('Cost categories — dark mode (Scenario 8)', () => {
+  test('The New dialog is usable in dark mode', async ({ browser, testPrefix }) => {
+    const context = await browser.newContext({
+      colorScheme: 'dark',
+      storageState: 'test-results/.auth/admin.json',
     });
-
-    // And: I click "Save"
-    const saveButton = categoriesPage.getEditSaveButton('Design');
-    await saveButton.click();
-
-    // Then: Success banner appears
-    const successText = await categoriesPage.getSuccessBannerText();
-    expect(successText).toContain('Design');
-
-    // And: The edit form closes
-    await expect(categoriesPage.getEditForm('Design')).not.toBeVisible();
-
-    // And: The updated description is visible in the list
-    const description = await categoriesPage.getCategoryDescription('Design');
-    expect(description).toBe('Architectural drawings and planning');
-
-    // And: The change persists when I reload the page
-    await categoriesPage.goto();
-    const descriptionAfterReload = await categoriesPage.getCategoryDescription('Design');
-    expect(descriptionAfterReload).toBe('Architectural drawings and planning');
-
-    // Cleanup: restore the original empty description
-    await categoriesPage.openEditForm('Design');
-    const editInputsAfterReload = await page.locator('[id^="edit-name-"]').all();
-    const editInputIdAfterReload = await defined(
-      editInputsAfterReload[0],
-      'edit name input',
-    ).getAttribute('id');
-    const categoryIdAfterReload = editInputIdAfterReload?.replace('edit-name-', '') ?? '';
-    await categoriesPage.fillEditForm(categoryIdAfterReload, {
-      description: originalDescription === 'Design' ? '' : originalDescription,
-    });
-    const saveAfterReload = categoriesPage.getEditSaveButton('Design');
-    await saveAfterReload.click();
-    await categoriesPage.getSuccessBannerText();
-  });
-
-  test('Edit modal can be cancelled — original values retained', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: "Waste" category exists (added in migration 0028 alongside Materials, Labor, etc.)
-    await categoriesPage.goto();
-
-    // When: I click "Edit" on "Waste"
-    await categoriesPage.openEditForm('Waste');
-
-    const editInputs = await page.locator('[id^="edit-name-"]').all();
-    const inputId = await defined(editInputs[0], 'edit name input').getAttribute('id');
-    const categoryId = inputId?.replace('edit-name-', '') ?? '';
-
-    // And: I change the name but click Cancel
-    await categoriesPage.fillEditForm(categoryId, { name: 'Modified Waste Name' });
-    const cancelButton = categoriesPage.getEditCancelButton('Waste');
-    await cancelButton.click();
-
-    // Then: The edit form is dismissed
-    await expect(categoriesPage.getEditForm('Waste')).not.toBeVisible();
-
-    // And: The original name "Waste" is still in the list
-    const names = await categoriesPage.getCategoryNames();
-    expect(names).toContain('Waste');
-    expect(names).not.toContain('Modified Waste Name');
-  });
-
-  test('Edit with empty name shows error or disables save button', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: "Other" category exists (always present as a default seed)
-    await categoriesPage.goto();
-    await categoriesPage.openEditForm('Other');
-
-    const editInputs = await page.locator('[id^="edit-name-"]').all();
-    const inputId = await defined(editInputs[0], 'edit name input').getAttribute('id');
-    const categoryId = inputId?.replace('edit-name-', '') ?? '';
-
-    // When: I clear the name field
-    await categoriesPage.fillEditForm(categoryId, { name: '' });
-
-    // Then: Save button should be disabled (JSX guard: disabled={isUpdating || !editingCategory.name.trim()})
-    const saveButton = categoriesPage.getEditSaveButton('Other');
-    await expect(saveButton).toBeDisabled();
-
-    // Cleanup: cancel the edit
-    const cancelButton = categoriesPage.getEditCancelButton('Other');
-    await cancelButton.click();
-  });
-
-  test('Only one category can be edited at a time — other edit buttons are disabled', async ({
-    page,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Given: I open the edit form for "Waste" (added in migration 0028)
-    await categoriesPage.goto();
-    await categoriesPage.openEditForm('Waste');
-
-    // Then: The edit button for another category (e.g., "Other") should be disabled
-    const otherRow = await categoriesPage.getCategoryRow('Other');
-    expect(otherRow).not.toBeNull();
-    if (otherRow) {
-      const otherEditButton = otherRow.getByRole('button', { name: 'Edit Other' });
-      await expect(otherEditButton).toBeDisabled();
-    }
-
-    // Cleanup: cancel the edit
-    const cancelButton = categoriesPage.getEditCancelButton('Waste');
-    await cancelButton.click();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 11: Delete a category not referenced by any work item
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
-  test('Delete confirmation modal opens with category name in text', async ({
-    page,
-    testPrefix,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Delete Modal Test`;
+    const page = await context.newPage();
+    const name = `${testPrefix} Dark Category`;
 
     try {
-      // Given: A test category exists that is not referenced
-      createdId = await createCategoryViaApi(page, categoryName, 997);
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+      await setup.costCategories.openNewDialog();
 
-      // When: I navigate to Budget > Categories and click Delete
-      await categoriesPage.goto();
-      await categoriesPage.openDeleteModal(categoryName);
+      const colors = await setup.costCategories.dialogPanel().evaluate((panel) => ({
+        background: getComputedStyle(panel).backgroundColor,
+        text: getComputedStyle(panel).color,
+      }));
+      expect(colors.background, 'dialog text is readable on its background').not.toBe(colors.text);
 
-      // Then: The modal is visible
-      await expect(categoriesPage.deleteModal).toBeVisible();
-
-      // And: The dialog title asks "Delete <name>?" (names the category)
-      await expect(categoriesPage.deleteModalTitle).toHaveText(`Delete ${categoryName}?`);
+      await setup.costCategories.fillDialog({ name, color: '#336699' });
+      await setup.costCategories.save();
+      await expect(setup.costCategories.row(name)).toBeVisible();
     } finally {
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
-    }
-  });
-
-  test('Confirming deletion removes category from list', async ({ page, testPrefix }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    const categoryName = `${testPrefix} Delete Confirm Test`;
-
-    // Given: A test category exists (created fresh for this test)
-    const createdId = await createCategoryViaApi(page, categoryName, 996);
-
-    // When: I navigate to Budget > Categories
-    await categoriesPage.goto();
-
-    const countBefore = await categoriesPage.getCategoriesCount();
-
-    // And: I click Delete on the category and confirm
-    await categoriesPage.openDeleteModal(categoryName);
-    await categoriesPage.confirmDelete();
-
-    // Then: The modal closes
-    await expect(categoriesPage.deleteModal).not.toBeVisible();
-
-    // And: Success banner appears
-    const successText = await categoriesPage.getSuccessBannerText();
-    expect(successText).toContain('deleted');
-
-    // And: The category is removed from the list
-    const names = await categoriesPage.getCategoryNames();
-    expect(names).not.toContain(categoryName);
-
-    // And: Count decreased by 1
-    const countAfter = await categoriesPage.getCategoriesCount();
-    expect(countAfter).toBe(countBefore - 1);
-
-    // Note: no API cleanup needed — category was deleted via UI
-    void createdId; // suppress unused variable warning
-  });
-
-  test('Cancelling deletion modal leaves category in list', async ({ page, testPrefix }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Cancel Delete Test`;
-
-    try {
-      // Given: A test category exists
-      createdId = await createCategoryViaApi(page, categoryName, 995);
-
-      await categoriesPage.goto();
-
-      const countBefore = await categoriesPage.getCategoriesCount();
-
-      // When: I click Delete then Cancel
-      await categoriesPage.openDeleteModal(categoryName);
-      await categoriesPage.cancelDelete();
-
-      // Then: The category is still in the list
-      const names = await categoriesPage.getCategoryNames();
-      expect(names).toContain(categoryName);
-
-      // And: Count is unchanged
-      const countAfter = await categoriesPage.getCategoriesCount();
-      expect(countAfter).toBe(countBefore);
-    } finally {
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
-    }
-  });
-
-  test('Delete confirmation does not show an error for an unreferenced category', async ({
-    page,
-    testPrefix,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    const categoryName = `${testPrefix} Delete No Error Test`;
-
-    // Given: An unreferenced category exists
-    const createdId = await createCategoryViaApi(page, categoryName, 994);
-
-    try {
-      await categoriesPage.goto();
-
-      // When: I open the delete modal
-      await categoriesPage.openDeleteModal(categoryName);
-
-      // Then: No error banner is shown — only the warning text
-      await expect(categoriesPage.deleteModalWarning).toBeVisible();
-      const errorText = await categoriesPage.getDeleteModalErrorText();
-      expect(errorText).toBeNull();
-    } finally {
-      // Close modal if open
-      const isModalVisible = await categoriesPage.deleteModal.isVisible();
-      if (isModalVisible) {
-        await categoriesPage.cancelDelete();
-      }
-      // Cleanup
-      await deleteCategoryViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 12: Delete blocked when category is in use (409 error)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete blocked when in use (Scenario 12)', { tag: '@responsive' }, () => {
-  test('Delete confirmation button is not shown after 409 error', async ({ page, testPrefix }) => {
-    // This test verifies the UI behavior when the API returns a 409 conflict.
-    // We simulate this by intercepting the DELETE request and returning 409.
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Delete Blocked Test`;
-
-    try {
-      // Given: A test category exists
-      createdId = await createCategoryViaApi(page, categoryName, 993);
-
-      // Intercept the DELETE request for this category and force a 409 response
-      await page.route(`${API.budgetCategories}/**`, async (route) => {
-        if (route.request().method() === 'DELETE') {
-          await route.fulfill({
-            status: 409,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              error: {
-                code: 'CATEGORY_IN_USE',
-                message:
-                  'This category cannot be deleted because it is currently in use by one or more budget entries.',
-              },
-            }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
-
-      await categoriesPage.goto();
-
-      // When: I attempt to delete the category and confirm
-      await categoriesPage.openDeleteModal(categoryName);
-      await categoriesPage.confirmDelete();
-
-      // Then: An error message appears explaining the category is in use
-      const errorText = await categoriesPage.getDeleteModalErrorText();
-      expect(errorText).toBeTruthy();
-      expect(errorText?.toLowerCase()).toMatch(/in use|cannot be deleted|budget entries/);
-
-      // And: The "Delete Category" confirm button is hidden (replaced by error)
-      await expect(categoriesPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
-
-      // And: The category remains in the list (modal still open)
-      await expect(categoriesPage.deleteModal).toBeVisible();
-
-      // Close modal
-      await categoriesPage.cancelDelete();
-    } finally {
-      // Remove route interception
-      await page.unroute(`${API.budgetCategories}/**`);
-      // Cleanup
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Empty state when all categories deleted
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
-  test('Empty state message shown when no categories exist', async ({ page }) => {
-    // Note: This test uses API route mocking to simulate an empty list
-    // without actually deleting all 10 default categories (which would be destructive).
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Intercept the GET request to return an empty list
-    await page.route(`${API.budgetCategories}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ categories: [] }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      // Given: No categories exist (simulated by mocked empty response)
-      await categoriesPage.goto();
-
-      // When: The page loads
-
-      // Then: Empty state message is visible
-      await expect(categoriesPage.emptyState).toBeVisible({ timeout: 10000 });
-
-      // And: The empty state contains helpful text
-      const emptyText = await categoriesPage.emptyState.textContent();
-      expect(emptyText).toBeTruthy();
-      expect(emptyText?.toLowerCase()).toMatch(/no.*categor|add.*first/);
-
-      // And: The create form is still visible (visual cleanup #1185 — always rendered)
-      await expect(categoriesPage.createFormHeading).toBeVisible();
-    } finally {
-      await page.unroute(`${API.budgetCategories}`);
-    }
-  });
-
-  test('Categories count heading shows 0 when list is empty', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await page.route(`${API.budgetCategories}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ categories: [] }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await categoriesPage.goto();
-      await expect(categoriesPage.categoriesListHeading).toContainText('0');
-    } finally {
-      await page.unroute(`${API.budgetCategories}`);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Page structure and navigation
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
-  // Visual cleanup #1185: the <h1>Manage</h1> heading was removed from ManagePage.
-  // Use the "Add Category" button and categories list heading as page identifiers instead.
-  test('Page loads ManagePage budget-categories tab — "Add Category" button and list are visible', async ({
-    page,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    // The create form heading is always visible — confirms the tab panel has mounted.
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-
-    // Verify the correct sub-page loaded via the h2 section heading (categories list)
-    const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
-    await expect(sectionHeading).toBeVisible();
-  });
-
-  // Visual cleanup #1185: "Add Category" toggle button was removed; create form is always visible.
-  test('Create form is always visible on page load', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-    await expect(categoriesPage.createSubmitButton).toBeVisible();
-  });
-
-  test('Create submit button is disabled when name is empty', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    // Name is empty by default — submit button is disabled
-    await expect(categoriesPage.createSubmitButton).toBeDisabled();
-  });
-
-  test('Page URL is /settings/manage?tab=budget-categories', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    await page.waitForURL('**/settings/manage?tab=budget-categories');
-    expect(page.url()).toContain('/settings/manage');
-    expect(page.url()).toContain('tab=budget-categories');
-  });
-
-  test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
-    await page.goto('/budget');
-    await page.waitForURL('/budget/overview');
-    expect(page.url()).toContain('/budget/overview');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Responsive layout (Scenario 9)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
-  test('Page renders without horizontal scroll on current viewport', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-
-    expect(hasHorizontalScroll).toBe(false);
-  });
-
-  test('Create form fields are visible and usable on current viewport', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // All form inputs should be visible regardless of viewport
-    await expect(categoriesPage.createNameInput).toBeVisible();
-    await expect(categoriesPage.createDescriptionInput).toBeVisible();
-    await expect(categoriesPage.createColorInput).toBeVisible();
-    await expect(categoriesPage.createSortOrderInput).toBeVisible();
-    await expect(categoriesPage.createSubmitButton).toBeVisible();
-    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
-  });
-
-  test('Category list rows are visible and action buttons accessible on current viewport', async ({
-    page,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-
-    // At least one category row is visible
-    const rows = await categoriesPage.getCategoryRows();
-    expect(rows.length).toBeGreaterThan(0);
-
-    // The first row (Materials) has Edit and Delete buttons
-    const firstRow = defined(rows[0], 'first category row');
-    const firstNameEl = firstRow.locator('[class*="itemName"]');
-    const firstName = (await firstNameEl.textContent())?.trim() ?? '';
-
-    if (firstName) {
-      const editButton = firstRow.getByRole('button', { name: `Edit ${firstName}` });
-      const deleteButton = firstRow.getByRole('button', { name: `Delete ${firstName}` });
-
-      await expect(editButton).toBeVisible();
-      await expect(deleteButton).toBeVisible();
-    }
-  });
-
-  test('Desktop: create form fields render in a single row (>= 1024px)', async ({ page }) => {
-    const viewport = page.viewportSize();
-
-    // Only run this specific layout assertion on desktop
-    if (!viewport || viewport.width < 1024) {
-      test.skip();
-      return;
-    }
-
-    const categoriesPage = new BudgetCategoriesPage(page);
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // On desktop, the name, color, and sort order fields should all be in view
-    // without requiring any scrolling within the form
-    const nameInputBox = await categoriesPage.createNameInput.boundingBox();
-    const colorInputBox = await categoriesPage.createColorInput.boundingBox();
-    const sortOrderBox = await categoriesPage.createSortOrderInput.boundingBox();
-
-    expect(nameInputBox).not.toBeNull();
-    expect(colorInputBox).not.toBeNull();
-    expect(sortOrderBox).not.toBeNull();
-
-    // On desktop they should be roughly on the same vertical line (same row)
-    if (nameInputBox && colorInputBox && sortOrderBox) {
-      const rowHeightTolerance = 60; // Allow 60px tolerance for alignment
-      expect(Math.abs(nameInputBox.y - colorInputBox.y)).toBeLessThan(rowHeightTolerance);
-      expect(Math.abs(nameInputBox.y - sortOrderBox.y)).toBeLessThan(rowHeightTolerance);
-    }
-    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Dark mode rendering (Scenario 10)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () => {
-  test('Page renders correctly in dark mode — no white-on-white or black-on-black text', async ({
-    page,
-  }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    // Enable dark mode via the data-theme attribute (matches ThemeContext implementation)
-    await page.goto('/settings/manage?tab=budget-categories');
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-
-    // Wait for tab content to load — the "Add Category" button is the readiness indicator.
-    // Visual cleanup #1185: h1 and toggle button removed; use createFormHeading as readiness indicator.
-    await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
-
-    // Then: The create form heading is visible (not hidden by theme issues)
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-
-    // And: The categories section is visible
-    await expect(categoriesPage.categoriesListHeading).toBeVisible();
-
-    // And: At least one category row is visible (content renders)
-    const rows = await categoriesPage.getCategoryRows();
-    expect(rows.length).toBeGreaterThan(0);
-
-    // And: No horizontal scroll in dark mode
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-    expect(hasHorizontalScroll).toBe(false);
-  });
-
-  test('Create form is usable in dark mode', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await page.goto('/settings/manage?tab=budget-categories');
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-
-    // Visual cleanup #1185: h1 and toggle button removed; the create form is always visible.
-    // Wait for the create form heading as the readiness indicator.
-    await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
-
-    // Form inputs should be visible in dark mode
-    await expect(categoriesPage.createNameInput).toBeVisible();
-    await expect(categoriesPage.createSubmitButton).toBeVisible();
-  });
-
-  test('Delete modal is usable in dark mode', async ({ page, testPrefix }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Dark Mode Delete Test`;
-
-    try {
-      createdId = await createCategoryViaApi(page, categoryName, 992);
-
-      await page.goto('/settings/manage?tab=budget-categories');
-      await page.evaluate(() => {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      });
-
-      // Visual cleanup #1185: h1 and toggle button removed; the create form is always visible.
-      // Wait for the create form heading as the readiness indicator.
-      await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
-
-      // Open delete modal in dark mode
-      await categoriesPage.openDeleteModal(categoryName);
-
-      // Modal should be visible and usable
-      await expect(categoriesPage.deleteModal).toBeVisible();
-      await expect(categoriesPage.deleteConfirmButton).toBeVisible();
-      await expect(categoriesPage.deleteCancelButton).toBeVisible();
-
-      // Close modal
-      await categoriesPage.cancelDelete();
-    } finally {
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Color field behavior (Scenario 17)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
-  test('Color swatch reflects selected color in create form', async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-
-    await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
-
-    // The color input has a default value
-    const defaultColor = await categoriesPage.createColorInput.inputValue();
-    expect(defaultColor).toMatch(/^#[0-9a-fA-F]{6}$/);
-
-    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
-  });
-
-  test('Color input accepts hex color values', async ({ page, testPrefix }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
-    const categoryName = `${testPrefix} Color Test`;
-
-    try {
-      // Create a category with a specific color via API
-      const response = await page.request.post(API.budgetCategories, {
-        data: { name: categoryName, color: '#ff6b35', sortOrder: 991 },
-      });
-      expect(response.ok()).toBeTruthy();
-      const body = (await response.json()) as { id: string };
-      createdId = body.id;
-
-      await categoriesPage.goto();
-
-      // The category should be in the list with its color swatch
-      const row = await categoriesPage.getCategoryRow(categoryName);
-      expect(row).not.toBeNull();
-
-      if (row) {
-        const swatch = row.locator('[class*="itemSwatch"]');
-        await expect(swatch).toBeVisible();
-        // The swatch should have a non-transparent background color
-        const bgColor = await swatch.evaluate((el) => (el as HTMLElement).style.backgroundColor);
-        expect(bgColor).toBeTruthy();
-      }
-    } finally {
-      if (createdId) {
-        await deleteCategoryViaApi(page, createdId);
-      }
+      await deleteCategoriesByName(page, LISTS[0]!, name);
+      await context.close();
     }
   });
 });

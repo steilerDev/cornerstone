@@ -516,5 +516,27 @@
   },
   "statusHints": {
     "submitted": "Bezahlt oder fällig und in einem Mittelabruf an die Bank enthalten"
+  },
+  "referenceList": {
+    "new": "Neu",
+    "nameLabel": "Name",
+    "descriptionLabel": "Beschreibung",
+    "colorLabel": "Farbe",
+    "noColor": "Keine Farbe",
+    "nameRequired": "Geben Sie einen Namen ein.",
+    "translatedHint": "Dieser Name ist übersetzt. Wenn Sie ihn ändern, wird Ihr Text in jeder Sprache angezeigt.",
+    "actionsFor": "Aktionen für {{name}}",
+    "reorderHandle": "{{name}} neu anordnen",
+    "reorderInstructions": "Drücken Sie die Leertaste zum Aufnehmen. Verschieben Sie mit den Pfeiltasten, legen Sie mit der Leertaste ab und brechen Sie mit Escape ab.",
+    "pickedUp": "{{name}} aufgenommen. Position {{position}} von {{total}}.",
+    "position": "{{name}}, Position {{position}} von {{total}}.",
+    "dropped": "{{name}} auf Position {{position}} von {{total}} verschoben.",
+    "reorderCanceled": "Neuanordnung abgebrochen. {{name}} steht wieder auf Position {{position}}.",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
+    "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "added": "{{name}} hinzugefügt.",
+    "saved": "{{name}} gespeichert.",
+    "deleted": "{{name}} gelöscht."
   }
 }

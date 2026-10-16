@@ -10,6 +10,7 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
+import { assertSameIdSet, nextSortOrder } from './referenceListOrder.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -95,6 +96,15 @@ export function createOrientation(db: DbType, data: CreateOrientationRequest): O
     throw new ConflictError('An orientation with this name already exists');
   }
 
+  const sortOrder =
+    data.sortOrder ??
+    nextSortOrder(
+      db
+        .select({ max: sql<number | null>`MAX(${orientations.sortOrder})` })
+        .from(orientations)
+        .get()?.max,
+    );
+
   // Create orientation
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -104,7 +114,7 @@ export function createOrientation(db: DbType, data: CreateOrientationRequest): O
       id,
       name: trimmedName,
       description: data.description ?? null,
-      sortOrder: data.sortOrder ?? 0,
+      sortOrder,
       createdAt: now,
       updatedAt: now,
     })
@@ -114,7 +124,7 @@ export function createOrientation(db: DbType, data: CreateOrientationRequest): O
     id,
     name: trimmedName,
     description: data.description ?? null,
-    sortOrder: data.sortOrder ?? 0,
+    sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -210,4 +220,32 @@ export function deleteOrientation(db: DbType, id: string): void {
 
   // Delete orientation (DB FK ON DELETE SET NULL will null referencing photos)
   db.delete(orientations).where(eq(orientations.id, id)).run();
+}
+
+/**
+ * Atomically reorder the list: `ids` must be exactly the current set of ids.
+ * Writes only rows whose position changed.
+ * @throws ReorderSetMismatchError if the id set differs from the current list
+ */
+export function reorderOrientations(db: DbType, ids: readonly string[]): OrientationResponse[] {
+  db.transaction((tx) => {
+    const rows = tx
+      .select({ id: orientations.id, sortOrder: orientations.sortOrder })
+      .from(orientations)
+      .all();
+    assertSameIdSet(
+      rows.map((r) => r.id),
+      ids,
+    );
+    const current = new Map(rows.map((r) => [r.id, r.sortOrder]));
+    const now = new Date().toISOString();
+    ids.forEach((id, index) => {
+      if (current.get(id) === index) return;
+      tx.update(orientations)
+        .set({ sortOrder: index, updatedAt: now })
+        .where(eq(orientations.id, id))
+        .run();
+    });
+  });
+  return listOrientations(db);
 }

@@ -125,6 +125,7 @@ function makeReport(
 const household: HouseholdSettings = {
   householdName: 'The Smiths',
   householdAddress: '123 Main St',
+  entriesLanguage: 'en',
 };
 
 // #1932 AC 3.1: the sender is [user.displayName, householdAddress] — the household NAME is never
@@ -864,7 +865,11 @@ describe('buildReportContent — cover letter', () => {
   });
 
   it('AC 3.2: sender is just the user displayName when the household has no address (householdName alone is never used, even when present)', () => {
-    const nameOnly: HouseholdSettings = { householdName: 'The Smiths', householdAddress: null };
+    const nameOnly: HouseholdSettings = {
+      householdName: 'The Smiths',
+      householdAddress: null,
+      entriesLanguage: 'en',
+    };
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
@@ -875,7 +880,11 @@ describe('buildReportContent — cover letter', () => {
   });
 
   it('AC 3.2: sender is just the household address when user is null, with no leading blank line', () => {
-    const addressOnly: HouseholdSettings = { householdName: null, householdAddress: '123 Main St' };
+    const addressOnly: HouseholdSettings = {
+      householdName: null,
+      householdAddress: '123 Main St',
+      entriesLanguage: 'en',
+    };
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,

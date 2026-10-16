@@ -110,3 +110,10 @@ MEMORY.md previously pointed at a `patterns.md` file that no longer exists in th
 - Photo viewer surfaces use theme-invariant `--color-photo-*` tokens; themed states (loading/error/empty) must render outside the dark stage, so the page only applies the dark bg when the viewer is shown.
 - Area colour dot = `--area-color` custom property inline (documented user-data exception).
 - `PageLayout` has an optional `headingRef` prop (ref + `tabIndex={-1}` on the `<h1>`; unchanged output when omitted), used for focus-restore fallbacks.
+
+## ReferenceList (#2215)
+
+- `components/ReferenceList/`: shared ordered-list card (New/Edit dialog, row ⋯ menu, drag via `useReorder` Pointer Events + keyboard pick-up, one atomic `PATCH …/reorder` per move). Data via `hooks/useReferenceListData` over an adapter; ManagePage adapters in `pages/ManagePage/referenceListAdapters.ts`.
+- Pending focus is applied in a layout effect and skipped while a dialog is open (a dialog's own focus restore runs first); reorder requests are `sticky` until the request settles because moved keyed rows can blur.
+- `CATEGORY_IN_USE` details are suppressed server-side (#315): category delete-blocked dialogs use a fixed sentence per list, no counts.
+- Unserved routes (`areas`): guard `navHref()` with `isRouteServed()`; it throws otherwise.

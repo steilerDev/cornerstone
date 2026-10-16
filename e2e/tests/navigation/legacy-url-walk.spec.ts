@@ -14,6 +14,8 @@
  * - E1b Every page the map serves (every id'd route, 'interim: page' included) loads on its
  *       own URL without a redirect hop; planned routes are not served; planned query maps
  *       keep rendering today's page with the query intact
+ * - E1c The six /settings/manage?tab=... links the Project setup page serves itself (#2215)
+ *       land on their section anchor, `tab` removed, by exactly one replaceState
  * - E2  /login?error= and /login?next= are left alone; an unauthenticated legacy URL lands on
  *       /login without ever touching its target
  * - E3  Permanent URLs (vCard /companies/:id, /budget/vendors/:id, calendar-entry URLs) work
@@ -97,10 +99,26 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   ['/settings/vendors/:id', '/companies/:id'],
 ];
 
-/** Landing paths whose target carries its own query pair (checked in addition to ?q=walk). */
-const TARGET_QUERY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  '/budget/categories': { tab: 'budget-categories' },
+/**
+ * Redirects whose target carries its own hash. The target hash wins over an incoming hash (the
+ * ?q=walk#walk variant lands on it too), as `resolveRedirect` documents.
+ */
+const TARGET_HASH: Readonly<Record<string, string>> = {
+  '/budget/categories': '#cost-categories',
 };
+
+/**
+ * The six `?tab=` links the Project setup page serves itself (#2215), written out by hand: each
+ * lands on its section anchor with `tab` removed.
+ */
+const PROJECT_SETUP_TABS: ReadonlyArray<readonly [string, string]> = [
+  ['household', '#house'],
+  ['orientations', '#orientations'],
+  ['budget-categories', '#cost-categories'],
+  ['hi-categories', '#purchase-categories'],
+  ['trades', '#trades'],
+  ['areas', '#areas'],
+];
 
 const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
   {
@@ -328,30 +346,24 @@ test.describe('Legacy URL walk (route map)', () => {
         const landing = LIVE_REDIRECTS.find(([source]) => source === from)?.[1] ?? '';
         const landingPath = withSeed(landing);
         const startPath = withSeed(from);
-        const targetQuery = TARGET_QUERY[from] ?? {};
+        const targetHash = TARGET_HASH[from];
 
         // Bare variant: no query, no hash
         await page.goto(startPath);
         await expect(page, `${from} (bare)`).toHaveURL(
           (url) =>
-            url.pathname === landingPath &&
-            Object.entries(targetQuery).every(
-              ([key, value]) => url.searchParams.get(key) === value,
-            ),
+            url.pathname === landingPath && (targetHash === undefined || url.hash === targetHash),
         );
         await waitForShell(page);
         await expectSingleHop(page, landingPath, true);
 
-        // Variant with a query string and a hash: both must survive the redirect
+        // Variant with a query string and a hash: the query survives (and the hash, unless the target defines its own)
         await page.goto(`${startPath}?q=walk#walk`);
         await expect(page, `${from} (?q=walk#walk)`).toHaveURL(
           (url) =>
             url.pathname === landingPath &&
             url.searchParams.get('q') === 'walk' &&
-            url.hash === '#walk' &&
-            Object.entries(targetQuery).every(
-              ([key, value]) => url.searchParams.get(key) === value,
-            ),
+            url.hash === (targetHash ?? '#walk'),
         );
         await waitForShell(page);
         await expectSingleHop(page, landingPath, true);
@@ -359,15 +371,16 @@ test.describe('Legacy URL walk (route map)', () => {
     });
   }
 
-  test('E1: /budget/categories keeps its own tab and the incoming query side by side', async ({
+  test('E1: /budget/categories lands on Cost categories, the incoming query kept and no ?tab=', async ({
     page,
   }) => {
     await page.goto('/budget/categories?q=walk');
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === routeUrl('settingsManage') &&
-        url.searchParams.get('tab') === 'budget-categories' &&
-        url.searchParams.get('q') === 'walk',
+        url.hash === '#cost-categories' &&
+        url.searchParams.get('q') === 'walk' &&
+        !url.searchParams.has('tab'),
     );
   });
 
@@ -479,7 +492,8 @@ test.describe('Legacy URL walk (route map)', () => {
     const queryMaps = ENTRIES.filter(
       (entry) => entry.stage === 'planned' && entry.match?.query !== undefined,
     );
-    expect(queryMaps.length, 'query-map entries in the route map').toBe(10);
+    // 10 before #2215; the six Project setup tabs are served by that page now (E1c)
+    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(4);
 
     for (const entry of queryMaps) {
       const query = entry.match?.query ?? {};
@@ -498,6 +512,46 @@ test.describe('Legacy URL walk (route map)', () => {
           pairs.every(([key, value]) => url.searchParams.get(key) === value),
       );
       await expectSingleHop(page, path, false);
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // E1c — the six ?tab= links the Project setup page serves itself (#2215)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  test('E1c: the route map marks the six Project setup tab links as served by the page', () => {
+    const served = ENTRIES.filter(
+      (entry) =>
+        entry.from.startsWith('/settings/manage?tab=') &&
+        entry.stage === 'interim' &&
+        entry.interim === 'page',
+    );
+    expect(served.map((entry) => entry.from).sort()).toEqual(
+      PROJECT_SETUP_TABS.map(([tab]) => `/settings/manage?tab=${tab}`).sort(),
+    );
+  });
+
+  test('E1c: each Project setup tab link lands on its section anchor with one replaceState', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await installRouteLog(page);
+
+    for (const [tab, anchor] of PROJECT_SETUP_TABS) {
+      await page.goto(routeUrl('settingsManage', undefined, { tab }));
+      await waitForShell(page);
+      await expect(page, `?tab=${tab}`).toHaveURL(
+        (url) =>
+          url.pathname === routeUrl('settingsManage') &&
+          url.hash === anchor &&
+          !url.searchParams.has('tab'),
+      );
+
+      const log = await readRouteLog(page);
+      expect(
+        log.map((entry) => entry.kind),
+        `?tab=${tab} is rewritten by exactly one replaceState`,
+      ).toEqual(['replaceState']);
     }
   });
 

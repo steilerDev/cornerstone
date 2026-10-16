@@ -1,2677 +1,894 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within, act } from '@testing-library/react';
+import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
-import { OriginProbe } from '../../test/originProbe.js';
-import { ownNavigations } from '../../test/navLandmarks.js';
-import type { ReactNode } from 'react';
-import type * as UseAreasTypes from '../../hooks/useAreas.js';
-import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as UseTradesTypes from '../../hooks/useTrades.js';
-import type * as UseOrientationsTypes from '../../hooks/useOrientations.js';
-import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
-import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
-import type * as SettingsApiTypes from '../../lib/settingsApi.js';
-import type * as AuthContextTypes from '../../contexts/AuthContext.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import enErrors from '../../i18n/en/errors.json';
-import enSettings from '../../i18n/en/settings.json';
+import type * as SharedTypes from '@cornerstone/shared';
 import type {
+  AreaResponse,
   BudgetCategory,
   HouseholdItemCategoryEntity,
-  AreaResponse,
-  TradeResponse,
+  HouseholdSettings,
   OrientationResponse,
-  ApiError,
 } from '@cornerstone/shared';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import type { RouterLog } from '../../test/recordingRouter.js';
+import { OriginProbe } from '../../test/originProbe.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import type * as UseAreasTypes from '../../hooks/useAreas.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
+import type * as BudgetApiTypes from '../../lib/budgetCategoriesApi.js';
+import type * as HouseholdApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type * as OrientationApiTypes from '../../lib/orientationApi.js';
+import type * as SettingsApiTypes from '../../lib/settingsApi.js';
+import type * as PageTypes from './ManagePage.js';
+import enSettings from '../../i18n/en/settings.json';
 
-// ─── Mock hooks and API modules BEFORE importing components ───────────────────
+type RouteId = Parameters<typeof SharedTypes.isRouteServed>[0];
 
-// Mock AuthContext — ManagePage uses useAuth() to compute isAdmin for tab visibility
-const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+// ─── Mocks (before the page is imported) ──────────────────────────────────────
+
+const served = new Set<string>();
+
+let mockEntriesLanguage: 'de' | 'en' | null = null;
+const mockSetHouseName = jest.fn<(name: string | null) => void>();
+const mockSetEntriesLanguage = jest.fn<(language: 'de' | 'en') => void>();
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  useHouseName: () => ({
+    houseName: null,
+    setHouseName: mockSetHouseName,
+    entriesLanguage: mockEntriesLanguage,
+    setEntriesLanguage: mockSetEntriesLanguage,
+  }),
+  useEntriesLanguage: () => mockEntriesLanguage,
+}));
+
+const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
+
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
-
 jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
   fetchDeleteImpact: mockFetchDeleteImpact,
 }));
 
-/** The delete action is aria-disabled until the "also affects" counts have loaded. */
-async function enabledConfirm(prefix: string): Promise<HTMLElement> {
-  const btn = await screen.findByTestId(`${prefix}-confirm`);
-  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-  return btn;
-}
+const budgetApi = {
+  fetchBudgetCategories: jest.fn<typeof BudgetApiTypes.fetchBudgetCategories>(),
+  createBudgetCategory: jest.fn<typeof BudgetApiTypes.createBudgetCategory>(),
+  updateBudgetCategory: jest.fn<typeof BudgetApiTypes.updateBudgetCategory>(),
+  deleteBudgetCategory: jest.fn<typeof BudgetApiTypes.deleteBudgetCategory>(),
+  reorderBudgetCategories: jest.fn<typeof BudgetApiTypes.reorderBudgetCategories>(),
+};
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => budgetApi);
 
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: mockUseAuth,
-  AuthProvider: ({ children }: { children: ReactNode }) => children,
-}));
+const householdApi = {
+  fetchHouseholdItemCategories: jest.fn<typeof HouseholdApiTypes.fetchHouseholdItemCategories>(),
+  createHouseholdItemCategory: jest.fn<typeof HouseholdApiTypes.createHouseholdItemCategory>(),
+  updateHouseholdItemCategory: jest.fn<typeof HouseholdApiTypes.updateHouseholdItemCategory>(),
+  deleteHouseholdItemCategory: jest.fn<typeof HouseholdApiTypes.deleteHouseholdItemCategory>(),
+  reorderHouseholdItemCategories:
+    jest.fn<typeof HouseholdApiTypes.reorderHouseholdItemCategories>(),
+};
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => householdApi);
 
-// Mock HouseNameContext — a saved household name is pushed into the browser title (PLT-092)
-const mockSetHouseName = jest.fn<(name: string | null) => void>();
-jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
-  useHouseName: () => ({ houseName: null, setHouseName: mockSetHouseName }),
-}));
+const orientationApi = {
+  fetchOrientations: jest.fn<typeof OrientationApiTypes.fetchOrientations>(),
+  createOrientation: jest.fn<typeof OrientationApiTypes.createOrientation>(),
+  updateOrientation: jest.fn<typeof OrientationApiTypes.updateOrientation>(),
+  deleteOrientation: jest.fn<typeof OrientationApiTypes.deleteOrientation>(),
+  reorderOrientations: jest.fn<typeof OrientationApiTypes.reorderOrientations>(),
+};
+jest.unstable_mockModule('../../lib/orientationApi.js', () => orientationApi);
 
-const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
-jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
-  useAreas: mockUseAreas,
-}));
-
-const mockUseTrades = jest.fn<typeof UseTradesTypes.useTrades>();
-jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
-  useTrades: mockUseTrades,
-}));
-
-const mockUseOrientations = jest.fn<typeof UseOrientationsTypes.useOrientations>();
-jest.unstable_mockModule('../../hooks/useOrientations.js', () => ({
-  useOrientations: mockUseOrientations,
-}));
-
-const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
-const mockCreateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.createBudgetCategory>();
-const mockUpdateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.updateBudgetCategory>();
-const mockDeleteBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.deleteBudgetCategory>();
-
-jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
-  fetchBudgetCategories: mockFetchBudgetCategories,
-  createBudgetCategory: mockCreateBudgetCategory,
-  updateBudgetCategory: mockUpdateBudgetCategory,
-  deleteBudgetCategory: mockDeleteBudgetCategory,
-}));
-
-const mockFetchHICCategories = jest.fn<typeof HICApiTypes.fetchHouseholdItemCategories>();
-const mockCreateHICCategory = jest.fn<typeof HICApiTypes.createHouseholdItemCategory>();
-const mockUpdateHICCategory = jest.fn<typeof HICApiTypes.updateHouseholdItemCategory>();
-const mockDeleteHICCategory = jest.fn<typeof HICApiTypes.deleteHouseholdItemCategory>();
-
-jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
-  fetchHouseholdItemCategories: mockFetchHICCategories,
-  createHouseholdItemCategory: mockCreateHICCategory,
-  updateHouseholdItemCategory: mockUpdateHICCategory,
-  deleteHouseholdItemCategory: mockDeleteHICCategory,
-}));
-
-const mockFetchHouseholdSettings = jest.fn<typeof SettingsApiTypes.fetchHouseholdSettings>();
-const mockUpdateHouseholdSettings = jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>();
-
+const mockFetchSettings = jest.fn<typeof SettingsApiTypes.fetchHouseholdSettings>();
+const mockUpdateSettings = jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>();
 jest.unstable_mockModule('../../lib/settingsApi.js', () => ({
-  fetchHouseholdSettings: mockFetchHouseholdSettings,
-  updateHouseholdSettings: mockUpdateHouseholdSettings,
+  fetchHouseholdSettings: mockFetchSettings,
+  updateHouseholdSettings: mockUpdateSettings,
 }));
 
-// Mock AreaPicker — pure display component, no need for full rendering
 jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (val: string) => void;
-    nullable?: boolean;
-    disabled?: boolean;
-    areas: AreaResponse[];
-  }) => (
-    <select data-testid="area-picker" value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">No parent</option>
-    </select>
-  ),
+  AreaPicker: () => <select data-testid="area-picker" />,
 }));
 
-// ─── Sample test data ──────────────────────────────────────────────────────────
+let ManagePage: typeof PageTypes.ManagePage;
 
-const sampleArea1: AreaResponse = {
+beforeAll(async () => {
+  const shared = await import('@cornerstone/shared');
+  jest.unstable_mockModule('@cornerstone/shared', () => ({
+    ...shared,
+    isRouteServed: (id: RouteId) => served.has(id) || shared.isRouteServed(id),
+    getRouteEntry: (id: RouteId) => {
+      const entry = shared.getRouteEntry(id);
+      return served.has(id) ? { ...entry, stage: 'done' } : entry;
+    },
+  }));
+  // routeUrl resolves stages inside the shared module, which the patched lookup cannot reach.
+  const navActive = await import('../../navigation/navActive.js');
+  jest.unstable_mockModule('../../navigation/navActive.js', () => ({
+    ...navActive,
+    navHref: (id: string) => `/${id}`,
+  }));
+  ({ ManagePage } = await import('./ManagePage.js'));
+});
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
+const STAMP = '2026-01-01T00:00:00.000Z';
+const costRow = (over: Partial<BudgetCategory>): BudgetCategory => ({
+  id: 'bc-1',
+  name: 'Materials',
+  description: null,
+  color: null,
+  translationKey: null,
+  sortOrder: 0,
+  createdAt: STAMP,
+  updatedAt: STAMP,
+  ...over,
+});
+const BUILT_IN = costRow({
+  id: 'bc-1',
+  name: 'Materials DB name',
+  translationKey: 'budgetCategories.materials',
+});
+const TILES = costRow({
+  id: 'bc-2',
+  name: 'Tiles',
+  description: 'Floor and wall',
+  color: '#336699',
+});
+
+const purchaseRow = (over: Partial<HouseholdItemCategoryEntity>): HouseholdItemCategoryEntity => ({
+  id: 'hic-1',
+  name: 'Furniture',
+  color: null,
+  translationKey: null,
+  sortOrder: 0,
+  createdAt: STAMP,
+  updatedAt: STAMP,
+  ...over,
+});
+const FURNITURE = purchaseRow({ id: 'hic-1', name: 'Furniture' });
+const APPLIANCES = purchaseRow({ id: 'hic-2', name: 'Appliances', color: '#8B5CF6' });
+
+const orientationRow = (over: Partial<OrientationResponse>): OrientationResponse => ({
+  id: 'or-1',
+  name: 'North',
+  description: 'Faces the street',
+  sortOrder: 0,
+  createdAt: STAMP,
+  updatedAt: STAMP,
+  ...over,
+});
+const NORTH = orientationRow({ id: 'or-1', name: 'North' });
+const SOUTH = orientationRow({ id: 'or-2', name: 'South', description: null, sortOrder: 1 });
+
+const AREA: AreaResponse = {
   id: 'area-1',
   name: 'Kitchen',
   parentId: null,
   color: '#F59E0B',
-  description: 'The main kitchen area',
-  sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
-const sampleArea2: AreaResponse = {
-  id: 'area-2',
-  name: 'Bathroom',
-  parentId: null,
-  color: '#3B82F6',
   description: null,
-  sortOrder: 1,
-  createdAt: '2026-01-02T00:00:00.000Z',
-  updatedAt: '2026-01-02T00:00:00.000Z',
-};
-
-const sampleTrade1: TradeResponse = {
-  id: 'trade-1',
-  name: 'Plumbing',
-  color: '#3B82F6',
-  translationKey: null,
-  description: 'Water-related work',
   sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
+  createdAt: STAMP,
+  updatedAt: STAMP,
 };
 
-const sampleTrade2: TradeResponse = {
-  id: 'trade-2',
-  name: 'Electrical',
-  color: '#F59E0B',
-  translationKey: null,
-  description: null,
-  sortOrder: 1,
-  createdAt: '2026-01-02T00:00:00.000Z',
-  updatedAt: '2026-01-02T00:00:00.000Z',
+const SETTINGS: HouseholdSettings = {
+  householdName: 'Sample House',
+  householdAddress: '1 Example Lane',
+  entriesLanguage: 'en',
 };
 
-const sampleBudgetCat1: BudgetCategory = {
-  id: 'bc-1',
-  name: 'Materials',
-  description: 'Building materials',
-  color: '#FF5733',
-  translationKey: null,
-  sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
+describe('ManagePage (Settings > Project setup)', () => {
+  let media: MatchMediaControl;
 
-const sampleBudgetCat2: BudgetCategory = {
-  id: 'bc-2',
-  name: 'Labor',
-  description: null,
-  color: '#3B82F6',
-  translationKey: null,
-  sortOrder: 1,
-  createdAt: '2026-01-02T00:00:00.000Z',
-  updatedAt: '2026-01-02T00:00:00.000Z',
-};
-
-const sampleHICat1: HouseholdItemCategoryEntity = {
-  id: 'hic-1',
-  name: 'Furniture',
-  color: '#8B5CF6',
-  translationKey: null,
-  sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
-const sampleOrientation1: OrientationResponse = {
-  id: 'orient-1',
-  name: 'North',
-  description: 'North-facing',
-  sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
-const sampleOrientation2: OrientationResponse = {
-  id: 'orient-2',
-  name: 'South',
-  description: null,
-  sortOrder: 1,
-  createdAt: '2026-01-02T00:00:00.000Z',
-  updatedAt: '2026-01-02T00:00:00.000Z',
-};
-
-const sampleHICat2: HouseholdItemCategoryEntity = {
-  id: 'hic-2',
-  name: 'Appliances',
-  color: '#3B82F6',
-  translationKey: null,
-  sortOrder: 1,
-  createdAt: '2026-01-02T00:00:00.000Z',
-  updatedAt: '2026-01-02T00:00:00.000Z',
-};
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function makeAreasHookResult(
-  overrides: Partial<UseAreasTypes.UseAreasResult> = {},
-): UseAreasTypes.UseAreasResult {
-  return {
-    areas: [sampleArea1, sampleArea2],
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-    createArea: jest
-      .fn<UseAreasTypes.UseAreasResult['createArea']>()
-      .mockResolvedValue(sampleArea1),
-    updateArea: jest
-      .fn<UseAreasTypes.UseAreasResult['updateArea']>()
-      .mockResolvedValue(sampleArea1),
-    deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(undefined),
-    ...overrides,
-  };
-}
-
-function makeTradesHookResult(
-  overrides: Partial<UseTradesTypes.UseTradesResult> = {},
-): UseTradesTypes.UseTradesResult {
-  return {
-    trades: [
-      { ...sampleTrade1, vendorCount: 0 },
-      { ...sampleTrade2, vendorCount: 0 },
-    ],
-    isInitialLoading: false,
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-    createTrade: jest
-      .fn<UseTradesTypes.UseTradesResult['createTrade']>()
-      .mockResolvedValue(sampleTrade1),
-    updateTrade: jest
-      .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
-      .mockResolvedValue(sampleTrade1),
-    deleteTrade: jest
-      .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
-      .mockResolvedValue(undefined),
-    mergeTrade: jest.fn<UseTradesTypes.UseTradesResult['mergeTrade']>(),
-    ...overrides,
-  };
-}
-
-function makeOrientationsHookResult(
-  overrides: Partial<UseOrientationsTypes.UseOrientationsResult> = {},
-): UseOrientationsTypes.UseOrientationsResult {
-  return {
-    orientations: [sampleOrientation1, sampleOrientation2],
-    isLoading: false,
-    error: null,
-    refetch: jest.fn(),
-    createOrientation: jest
-      .fn<UseOrientationsTypes.UseOrientationsResult['createOrientation']>()
-      .mockResolvedValue(sampleOrientation1),
-    updateOrientation: jest
-      .fn<UseOrientationsTypes.UseOrientationsResult['updateOrientation']>()
-      .mockResolvedValue(sampleOrientation1),
-    deleteOrientation: jest
-      .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-      .mockResolvedValue(undefined),
-    ...overrides,
-  };
-}
-
-// ─── Test suite ────────────────────────────────────────────────────────────────
-
-describe('ManagePage', () => {
-  let ManagePage: React.ComponentType;
-
-  function renderManagePage(initialPath = '/settings/manage') {
-    return render(
-      <MemoryRouter initialEntries={[initialPath]}>
-        <ManagePage />
-      </MemoryRouter>,
-    );
-  }
-
-  beforeEach(async () => {
-    if (!ManagePage) {
-      const module = await import('./ManagePage.js');
-      ManagePage = module.default;
-    }
-
-    // Reset all mocks
-    mockUseAreas.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'area', id: 'x', effects: [] });
-    mockUseTrades.mockReset();
-    mockUseOrientations.mockReset();
-    mockFetchBudgetCategories.mockReset();
-    mockCreateBudgetCategory.mockReset();
-    mockUpdateBudgetCategory.mockReset();
-    mockDeleteBudgetCategory.mockReset();
-    mockFetchHICCategories.mockReset();
-    mockCreateHICCategory.mockReset();
-    mockUpdateHICCategory.mockReset();
-    mockDeleteHICCategory.mockReset();
-    mockFetchHouseholdSettings.mockReset();
-    mockUpdateHouseholdSettings.mockReset();
+  beforeEach(() => {
+    served.clear();
+    mockEntriesLanguage = null;
+    media = installMatchMedia({ '(min-width: 768px)': true });
     mockSetHouseName.mockReset();
-    mockUseAuth.mockReset();
-
-    // Default: admin user so all settings tabs are visible
-    mockUseAuth.mockReturnValue({
-      user: {
-        id: 'user-admin',
-        email: 'admin@example.com',
-        displayName: 'Admin',
-        role: 'admin' as const,
-        authProvider: 'local' as const,
-        oidcLinked: false,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-        deactivatedAt: null,
-      },
-      oidcEnabled: false,
+    mockSetEntriesLanguage.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'orientation', id: 'x', effects: [] });
+    for (const api of [budgetApi, householdApi, orientationApi]) {
+      for (const fn of Object.values(api)) fn.mockReset();
+    }
+    mockFetchSettings.mockReset();
+    mockUpdateSettings.mockReset();
+    mockFetchSettings.mockResolvedValue(SETTINGS);
+    budgetApi.fetchBudgetCategories.mockResolvedValue({ categories: [BUILT_IN, TILES] });
+    householdApi.fetchHouseholdItemCategories.mockResolvedValue({
+      categories: [FURNITURE, APPLIANCES],
+    });
+    orientationApi.fetchOrientations.mockResolvedValue({ orientations: [NORTH, SOUTH] });
+    mockUseAreas.mockReset();
+    mockUseAreas.mockReturnValue({
+      areas: [AREA],
       isLoading: false,
       error: null,
-      refreshAuth: jest.fn(async () => Promise.resolve()),
-      logout: jest.fn(async () => Promise.resolve()),
-    });
-
-    // Default hook return values
-    mockUseAreas.mockReturnValue(makeAreasHookResult());
-    mockUseTrades.mockReturnValue(makeTradesHookResult());
-    mockUseOrientations.mockReturnValue(makeOrientationsHookResult());
-
-    // Budget categories and HI categories default — only fetched when tab is active
-    mockFetchBudgetCategories.mockResolvedValue({
-      categories: [sampleBudgetCat1, sampleBudgetCat2],
-    });
-    mockFetchHICCategories.mockResolvedValue({ categories: [sampleHICat1, sampleHICat2] });
-
-    // Household settings default — only fetched when the household tab is active
-    mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
+      refetch: jest.fn(),
+      createArea: jest.fn(),
+      updateArea: jest.fn(),
+      deleteArea: jest.fn(),
+    } as unknown as ReturnType<typeof UseAreasTypes.useAreas>);
   });
 
-  // ─── Tab rendering ─────────────────────────────────────────────────────────
-
-  describe('Settings section navigation (AC5)', () => {
-    it('renders no Settings tab row of its own: the sidebar lists the Settings views', () => {
-      const { container } = renderManagePage();
-
-      expect(screen.queryByRole('navigation', { name: 'Settings section navigation' })).toBeNull();
-      expect(ownNavigations(container)).toEqual([]);
-    });
+  afterEach(() => {
+    media.restore();
   });
 
-  describe('tab-to-URL sync (the URL is the source of truth, replace only, nothing on mount)', () => {
-    /**
-     * Uses the recording router: a pushed entry would show as PUSH and grow `log.entries`.
-     * Mutation: the old mount effect (`setSearchParams({ tab: activeTab }, { replace: true })`)
-     * fails the "writes nothing on load" tests; a push instead of replace fails the click tests.
-     */
-    function renderRouted(url: string) {
-      const log = createRouterLog();
-      render(
-        <RecordingRouter entries={[url]} log={log}>
-          <OriginProbe />
-          <ManagePage />
-        </RecordingRouter>,
-      );
-      return { log };
-    }
+  function renderPage(url = '/settings/manage') {
+    const log: RouterLog = createRouterLog();
+    const view = render(
+      <RecordingRouter entries={['/start', url]} log={log}>
+        <OriginProbe />
+        <ManagePage />
+      </RecordingRouter>,
+    );
+    return { log, view };
+  }
 
-    function currentUrl(): string {
-      return `${screen.getByTestId('probe-path').textContent}${screen.getByTestId('probe-search').textContent}`;
-    }
+  async function loaded(url?: string) {
+    const result = renderPage(url);
+    await screen.findByTestId('cost-categories-row-bc-1');
+    await screen.findByTestId('purchase-categories-row-hic-1');
+    await screen.findByTestId('photo-orientations-row-or-1');
+    await screen.findByTestId('project-setup-house-name');
+    return result;
+  }
 
-    it('writes nothing to the URL on load and still shows the Areas tab (D-10 Back trap)', async () => {
-      const { log } = renderRouted('/settings/manage');
+  const statusRegion = () => screen.getByTestId('project-setup-status');
+  const costMenu = (id: string) => screen.getByTestId(`cost-categories-menu-${id}`);
 
-      expect(await screen.findByRole('tab', { name: 'Areas' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(log.actions).toEqual([]);
-      expect(screen.getByTestId('probe-search')).toHaveTextContent('');
-      expect(currentUrl()).toBe('/settings/manage');
-      expect(log.entries).toEqual(['/settings/manage']);
-    });
+  async function chooseCostAction(
+    user: ReturnType<typeof userEvent.setup>,
+    id: string,
+    action: 'edit' | 'move-up' | 'move-down' | 'delete',
+  ) {
+    await user.click(costMenu(id));
+    await user.click(await screen.findByTestId(`cost-categories-${action}-${id}`));
+  }
 
-    it('does not navigate when ?tab already matches, and keeps the location', async () => {
-      const { log } = renderRouted('/settings/manage?tab=household&q=x');
-
-      expect(await screen.findByRole('tab', { name: 'Household' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(log.actions).toEqual([]);
-      expect(currentUrl()).toBe('/settings/manage?tab=household&q=x');
-    });
-
-    it('falls back to the Areas tab for an unknown ?tab without rewriting the URL', async () => {
-      const { log } = renderRouted('/settings/manage?tab=bogus');
-
-      expect(await screen.findByRole('tab', { name: 'Areas' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(log.actions).toEqual([]);
-      expect(currentUrl()).toBe('/settings/manage?tab=bogus');
-    });
-
-    it('replaces (never pushes) when a tab is clicked, leaving the history length unchanged', async () => {
-      const user = userEvent.setup();
-      const { log } = renderRouted('/settings/manage');
-      await screen.findByRole('tab', { name: 'Areas' });
-
-      await user.click(screen.getByRole('tab', { name: 'Trades' }));
-
-      await waitFor(() => expect(currentUrl()).toBe('/settings/manage?tab=trades'));
-      expect(log.actions).toEqual(['REPLACE /settings/manage?tab=trades']);
-      expect(log.entries).toHaveLength(1);
-      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('keeps other query keys when another tab is clicked', async () => {
-      const user = userEvent.setup();
-      const { log } = renderRouted('/settings/manage?tab=household&x=1');
-      await screen.findByRole('tab', { name: 'Household' });
-
-      await user.click(screen.getByRole('tab', { name: 'Trades' }));
-
-      await waitFor(() => expect(currentUrl()).toBe('/settings/manage?tab=trades&x=1'));
-      expect(log.actions).toEqual(['REPLACE /settings/manage?tab=trades&x=1']);
-    });
-
-    it('ArrowRight selects and focuses the next tab, still with REPLACE', async () => {
-      const user = userEvent.setup();
-      const { log } = renderRouted('/settings/manage');
-      const areas = await screen.findByRole('tab', { name: 'Areas' });
-      areas.focus();
-
-      await user.keyboard('{ArrowRight}');
-
-      await waitFor(() => expect(currentUrl()).toBe('/settings/manage?tab=trades'));
-      expect(log.actions).toEqual(['REPLACE /settings/manage?tab=trades']);
-      expect(log.entries).toHaveLength(1);
-      const trades = screen.getByRole('tab', { name: 'Trades' });
-      expect(trades).toHaveAttribute('aria-selected', 'true');
-      expect(document.activeElement).toBe(trades);
-    });
-  });
-
-  describe('page identity (#2204)', () => {
+  describe('page identity', () => {
     it('renders exactly one level-1 heading, "Project setup"', async () => {
-      renderManagePage();
-      await screen.findByRole('tab', { name: 'Areas' });
+      await loaded();
 
       const h1s = screen.getAllByRole('heading', { level: 1 });
       expect(h1s).toHaveLength(1);
       expect(h1s[0]).toHaveTextContent(/^Project setup$/);
-      expect(screen.queryByRole('heading', { name: /^Manage$/ })).not.toBeInTheDocument();
     });
 
     it('sets the tab title from the same word with the Settings section', async () => {
-      renderManagePage();
-      await screen.findByRole('tab', { name: 'Areas' });
+      await loaded();
 
       expect(document.title).toBe('Project setup · Settings · Cornerstone');
     });
 
-    it('shows no "You are here" trail', async () => {
-      renderManagePage();
-      await screen.findByRole('tab', { name: 'Areas' });
+    it('has no tab row and no "You are here" trail', async () => {
+      await loaded();
 
-      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).toBeNull();
+      expect(screen.queryByRole('tab')).toBeNull();
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).toBeNull();
+    });
+
+    it('has unique test ids across the whole page', async () => {
+      await loaded();
+
+      expect(findDuplicateTestIds()).toEqual([]);
     });
   });
 
-  describe('Tab navigation', () => {
-    it('renders all six tab buttons', async () => {
-      renderManagePage();
-      expect(screen.getByRole('tab', { name: 'Household' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Areas' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Trades' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Orientations' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Budget Categories' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toBeInTheDocument();
-    });
-
-    it('Household tab is first in the tab list', async () => {
-      renderManagePage();
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs[0]).toHaveAccessibleName('Household');
-    });
-
-    it('Household tab is active when ?tab=household in URL', async () => {
-      renderManagePage('/settings/manage?tab=household');
-      const householdTab = screen.getByRole('tab', { name: 'Household' });
-      expect(householdTab).toHaveAttribute('aria-selected', 'true');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('clicking Household tab makes it active', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      await user.click(screen.getByRole('tab', { name: 'Household' }));
-
-      expect(screen.getByRole('tab', { name: 'Household' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('Areas tab is active by default (no URL param)', async () => {
-      renderManagePage('/settings/manage');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'true');
-      const tradesTab = screen.getByRole('tab', { name: 'Trades' });
-      expect(tradesTab).toHaveAttribute('aria-selected', 'false');
-      const orientationsTab = screen.getByRole('tab', { name: 'Orientations' });
-      expect(orientationsTab).toHaveAttribute('aria-selected', 'false');
-      const budgetTab = screen.getByRole('tab', { name: 'Budget Categories' });
-      expect(budgetTab).toHaveAttribute('aria-selected', 'false');
-      const hicTab = screen.getByRole('tab', { name: 'Household Item Categories' });
-      expect(hicTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('Areas tab is active when ?tab=areas in URL', async () => {
-      renderManagePage('/settings/manage?tab=areas');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('Trades tab is active when ?tab=trades in URL', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      const tradesTab = screen.getByRole('tab', { name: 'Trades' });
-      expect(tradesTab).toHaveAttribute('aria-selected', 'true');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('Budget Categories tab is active when ?tab=budget-categories in URL', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      const budgetTab = screen.getByRole('tab', { name: 'Budget Categories' });
-      expect(budgetTab).toHaveAttribute('aria-selected', 'true');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('Household Item Categories tab is active when ?tab=hi-categories in URL', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      const hicTab = screen.getByRole('tab', { name: 'Household Item Categories' });
-      expect(hicTab).toHaveAttribute('aria-selected', 'true');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('clicking Trades tab makes it active', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      // Initially Areas tab is active
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
-
-      // Click Trades tab
-      await user.click(screen.getByRole('tab', { name: 'Trades' }));
-
-      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('clicking Budget Categories tab makes it active', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      await user.click(screen.getByRole('tab', { name: 'Budget Categories' }));
-
-      expect(screen.getByRole('tab', { name: 'Budget Categories' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('clicking Household Item Categories tab makes it active', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      await user.click(screen.getByRole('tab', { name: 'Household Item Categories' }));
-
-      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
-    });
-  });
-
-  // ─── Areas tab content ─────────────────────────────────────────────────────
-
-  // ── Tablist keyboard (#2196 AC2) ─────────────────────────────────────────
-  // Layout (single scrolling row on phones) is CSS and is covered by the E2E
-  // visual-defects spec: jsdom applies no CSS-module rules.
-
-  describe('Tablist keyboard navigation', () => {
-    const TAB_NAMES = [
-      'Household',
-      'Areas',
-      'Trades',
-      'Orientations',
-      'Budget Categories',
-      'Household Item Categories',
-    ];
-
-    beforeEach(() => {
-      // jsdom lacks scrollIntoView
-      Element.prototype.scrollIntoView = jest.fn();
-    });
-
-    it('ArrowRight from Areas activates and focuses Trades', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=areas');
-
-      screen.getByRole('tab', { name: 'Areas' }).focus();
-      await user.keyboard('{ArrowRight}');
-
-      const trades = screen.getByRole('tab', { name: 'Trades' });
-      expect(trades).toHaveAttribute('aria-selected', 'true');
-      expect(trades).toHaveFocus();
-      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-    });
-
-    it('ArrowLeft from the first tab wraps to the last tab', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
-
-      screen.getByRole('tab', { name: 'Household' }).focus();
-      await user.keyboard('{ArrowLeft}');
-
-      const last = screen.getByRole('tab', { name: 'Household Item Categories' });
-      expect(last).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('keeps focus on the tab after arrowing onto the last tab (no autoFocus in its panel)', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
-
-      screen.getByRole('tab', { name: 'Household' }).focus();
-      await user.keyboard('{ArrowLeft}');
-
-      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveFocus();
-    });
-
-    it('ArrowLeft from Trades moves back to Areas', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=trades');
-
-      screen.getByRole('tab', { name: 'Trades' }).focus();
-      await user.keyboard('{ArrowLeft}');
-
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('ArrowRight from the last tab wraps to the first tab', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      screen.getByRole('tab', { name: 'Household Item Categories' }).focus();
-      await user.keyboard('{ArrowRight}');
-
-      const first = screen.getByRole('tab', { name: 'Household' });
-      expect(first).toHaveAttribute('aria-selected', 'true');
-      expect(first).toHaveFocus();
-    });
-
-    it('End jumps to the last tab', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=areas');
-
-      screen.getByRole('tab', { name: 'Areas' }).focus();
-      await user.keyboard('{End}');
-      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-    });
-
-    it('Home jumps from Areas to the first tab', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=areas');
-
-      screen.getByRole('tab', { name: 'Areas' }).focus();
-      await user.keyboard('{Home}');
-
-      const first = screen.getByRole('tab', { name: 'Household' });
-      expect(first).toHaveAttribute('aria-selected', 'true');
-      expect(first).toHaveFocus();
-    });
-
-    it('ignores unrelated keys', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=areas');
-
-      screen.getByRole('tab', { name: 'Areas' }).focus();
-      await user.keyboard('a');
-
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('only the active tab is in the tab order (roving tabIndex)', () => {
-      renderManagePage('/settings/manage?tab=trades');
-
-      for (const name of TAB_NAMES) {
-        expect(screen.getByRole('tab', { name })).toHaveAttribute(
-          'tabindex',
-          name === 'Trades' ? '0' : '-1',
-        );
-      }
-    });
-
-    it('an unknown ?tab= value falls back to Areas with a single tab stop on Areas', () => {
-      renderManagePage('/settings/manage?tab=bogus');
-
-      for (const name of TAB_NAMES) {
-        const tab = screen.getByRole('tab', { name });
-        expect(tab).toHaveAttribute('aria-selected', name === 'Areas' ? 'true' : 'false');
-        expect(tab).toHaveAttribute('tabindex', name === 'Areas' ? '0' : '-1');
-      }
-    });
-
-    it('only the selected tab has aria-controls, pointing at the rendered panel', () => {
-      renderManagePage('/settings/manage?tab=trades');
-
-      const panel = screen.getByRole('tabpanel');
-      for (const name of TAB_NAMES) {
-        const tab = screen.getByRole('tab', { name });
-        if (name === 'Trades') {
-          expect(tab).toHaveAttribute('aria-controls', panel.id);
-        } else {
-          expect(tab).not.toHaveAttribute('aria-controls');
-        }
-      }
-    });
-
-    it('the tab panel is labelled by the active tab', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=areas');
-
-      const panel = screen.getByRole('tabpanel');
-      expect(panel).toHaveAttribute('aria-labelledby', 'manage-tab-areas');
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('id', 'manage-tab-areas');
-
-      await user.click(screen.getByRole('tab', { name: 'Trades' }));
-      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'manage-tab-trades');
-      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute(
-        'aria-controls',
-        'trades-panel',
-      );
-    });
-  });
-
-  describe('Areas tab', () => {
-    it('shows loading state while fetching areas', () => {
-      mockUseAreas.mockReturnValue(makeAreasHookResult({ isLoading: true, areas: [] }));
-      renderManagePage('/settings/manage');
-      // Skeleton renders (role="status" aria-busy="true") instead of the area list
-      expect(screen.getByRole('status')).toBeInTheDocument();
-      expect(screen.queryByText('Kitchen')).not.toBeInTheDocument();
-    });
-
-    it('shows area list after loading', async () => {
-      renderManagePage('/settings/manage');
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
-      expect(screen.getByText('Bathroom')).toBeInTheDocument();
-    });
-
-    it('shows Create New Area section', async () => {
-      renderManagePage('/settings/manage');
-      expect(screen.getByText('Create New Area')).toBeInTheDocument();
-    });
-
-    it('shows error state when loading areas fails', async () => {
-      mockUseAreas.mockReturnValue(
-        makeAreasHookResult({
-          isLoading: false,
-          areas: [],
-          error: 'An unexpected error occurred while loading areas.',
-        }),
-      );
-      renderManagePage('/settings/manage');
-      // EmptyState renders with the error message
-      expect(
-        screen.getByText('An unexpected error occurred while loading areas.'),
-      ).toBeInTheDocument();
-    });
-
-    it('shows area count in section heading', async () => {
-      renderManagePage('/settings/manage');
-      expect(screen.getByText(/Existing Areas \(2\)/)).toBeInTheDocument();
-    });
-
-    it('Create Area button is disabled when name is empty', async () => {
-      renderManagePage('/settings/manage');
-      const createButton = screen.getByRole('button', { name: 'Create Area' });
-      expect(createButton).toBeDisabled();
-    });
-
-    it('shows edit form when Edit button is clicked for an area', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    });
-
-    it('cancels edit and returns to view mode', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      // Back to normal view — Edit buttons visible again
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
-      });
-    });
-
-    it('successfully creates a new area', async () => {
-      const user = userEvent.setup();
-      const newArea: AreaResponse = {
-        id: 'area-3',
-        name: 'Living Room',
-        parentId: null,
-        color: '#22C55E',
-        description: null,
-        sortOrder: 2,
-        createdAt: '2026-03-06T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      const mockCreateArea = jest
-        .fn<UseAreasTypes.UseAreasResult['createArea']>()
-        .mockResolvedValue(newArea);
-      mockUseAreas.mockReturnValue(makeAreasHookResult({ createArea: mockCreateArea }));
-
-      renderManagePage('/settings/manage');
-
-      const nameInput = screen.getByRole('textbox', { name: 'Area Name' });
-      await user.type(nameInput, 'Living Room');
-
-      await user.click(screen.getByRole('button', { name: 'Create Area' }));
-
-      await waitFor(() => {
-        expect(mockCreateArea).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Living Room' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Area "Living Room" created successfully')).toBeInTheDocument();
-      });
-    });
-
-    it('successfully updates an area', async () => {
-      const user = userEvent.setup();
-      const updatedArea: AreaResponse = {
-        ...sampleArea1,
-        name: 'Kitchen Updated',
-      };
-      const mockUpdateArea = jest
-        .fn<UseAreasTypes.UseAreasResult['updateArea']>()
-        .mockResolvedValue(updatedArea);
-      mockUseAreas.mockReturnValue(makeAreasHookResult({ updateArea: mockUpdateArea }));
-
-      renderManagePage('/settings/manage');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      // Clear the name input and type a new name
-      // The edit name input is labelled "Area Name"
-      const nameInput = screen.getAllByRole('textbox', { name: 'Area Name' });
-      // There's both the create and edit form; the edit form input comes last (only visible one in edit mode)
-      const editNameInput = nameInput[nameInput.length - 1]!;
-      await user.clear(editNameInput);
-      await user.type(editNameInput, 'Kitchen Updated');
-
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateArea).toHaveBeenCalledWith(
-          'area-1',
-          expect.objectContaining({ name: 'Kitchen Updated' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Area "Kitchen Updated" updated successfully')).toBeInTheDocument();
-      });
-    });
-
-    it('delete confirmation modal appears on Delete button click', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]!);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-      expect(screen.getByRole('alertdialog', { name: 'Delete Kitchen?' })).toBeInTheDocument();
-      expect(screen.getByTestId('area-delete-cancel')).toHaveFocus();
-      // #2196 AC6: the warning states what is really deleted / blocked
-      expect(screen.getByText(enSettings.manage.areas.deleteWarning)).toBeInTheDocument();
-    });
-
-    it('successfully deletes an area after confirming in modal', async () => {
-      const user = userEvent.setup();
-      const mockDeleteArea = jest
-        .fn<UseAreasTypes.UseAreasResult['deleteArea']>()
-        .mockResolvedValue(undefined);
-      mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: mockDeleteArea }));
-
-      renderManagePage('/settings/manage');
-
-      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]!);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      await user.click(await enabledConfirm('area-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteArea).toHaveBeenCalledWith('area-1');
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Area "Kitchen" deleted successfully/)).toBeInTheDocument();
-      });
-      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
-      await waitFor(() => {
-        expect(document.activeElement?.tagName).toBe('H2');
-        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
-        expect(document.activeElement).not.toHaveAttribute('data-testid');
-      });
-    });
-
-    it('calls useAreas hook when areas tab is active', async () => {
-      renderManagePage('/settings/manage');
-      expect(mockUseAreas).toHaveBeenCalled();
-    });
-  });
-
-  // ─── Trades tab content ────────────────────────────────────────────────────
-
-  describe('Trades tab (a pointer to the Companies page since #2213)', () => {
-    it('shows the pointer text and a link to the Trades sheet', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByText('Trades are managed on the Companies page.')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Open Trades' })).toHaveAttribute(
-        'href',
-        '/companies?trades=1',
-      );
-    });
-
-    it('keeps the Trades tab selected for the old ?tab=trades bookmark', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('renders no trade form, list or counter any more', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(screen.queryByText('Create New Trade')).not.toBeInTheDocument();
-      expect(screen.queryByText(/Existing Trades/)).not.toBeInTheDocument();
-      expect(screen.queryByRole('textbox', { name: 'Trade Name' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Create Trade' })).not.toBeInTheDocument();
-      expect(screen.queryByText('Plumbing')).not.toBeInTheDocument();
-    });
-
-    it('does not load trades on this page', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(mockUseTrades).not.toHaveBeenCalled();
-    });
-
-    it('follows the link to the Companies page with the sheet open (a push)', async () => {
-      const user = userEvent.setup();
-      const log = createRouterLog();
-      render(
-        <RecordingRouter entries={['/settings/manage?tab=trades']} log={log}>
-          <ManagePage />
-        </RecordingRouter>,
-      );
-
-      await user.click(screen.getByRole('link', { name: 'Open Trades' }));
-
-      expect(log.actions).toEqual(['PUSH /companies?trades=1']);
-    });
-  });
-
-  // ─── Budget Categories tab content ────────────────────────────────────────
-
-  describe('Budget Categories tab', () => {
-    it('shows loading state while fetching budget categories', () => {
-      mockFetchBudgetCategories.mockReturnValue(new Promise(() => {}));
-      renderManagePage('/settings/manage?tab=budget-categories');
-      // Budget categories tab now uses Skeleton component for loading
-      expect(screen.getByRole('status')).toBeInTheDocument();
-    });
-
-    it('shows budget category list after loading', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-      expect(screen.getByText('Labor')).toBeInTheDocument();
-    });
-
-    it('shows the create form immediately (always visible, no toggle required)', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
-      });
-    });
-
-    it('shows error state when loading budget categories fails', async () => {
-      mockFetchBudgetCategories.mockRejectedValue(new Error('Network error'));
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load budget categories. Please try again.'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('shows category count', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(screen.getByText(/Categories \(2\)/)).toBeInTheDocument();
-      });
-    });
-
-    it('shows New Budget Category create form without any interaction required', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
-      });
-
-      // The create form inputs are always visible
-      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
-    });
-
-    it('delete confirmation modal appears on delete click', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      const deleteButton = screen.getByRole('button', { name: 'Delete Materials' });
-      await user.click(deleteButton);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-      expect(screen.getByRole('alertdialog', { name: 'Delete Materials?' })).toBeInTheDocument();
-      expect(screen.getByTestId('budget-category-delete-cancel')).toHaveFocus();
-    });
-
-    it('calls fetchBudgetCategories when tab is active', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('successfully creates a new budget category', async () => {
-      const user = userEvent.setup();
-      const newCat: BudgetCategory = {
-        id: 'bc-new',
-        name: 'Permits',
-        description: null,
-        color: '#22C55E',
-        translationKey: null,
-        sortOrder: 2,
-        createdAt: '2026-03-06T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      mockCreateBudgetCategory.mockResolvedValue(newCat);
-
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
-      });
-
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.type(nameInput, 'Permits');
-
-      await user.click(screen.getByRole('button', { name: 'Create Category' }));
-
-      await waitFor(() => {
-        expect(mockCreateBudgetCategory).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Permits' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Category "Permits" created successfully')).toBeInTheDocument();
-      });
-    });
-
-    it('shows edit form when Edit is clicked for a budget category', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    });
-
-    it('cancels edit of budget category and returns to view mode', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Edit Materials' })).toBeInTheDocument();
-      });
-    });
-
-    it('successfully updates a budget category', async () => {
-      const user = userEvent.setup();
-      const updated: BudgetCategory = {
-        id: 'bc-1',
-        name: 'Materials Updated',
-        description: 'Building materials',
-        color: '#FF5733',
-        translationKey: null,
-        sortOrder: 0,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      mockUpdateBudgetCategory.mockResolvedValue(updated);
-
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
-
-      // Both the always-visible create form and the edit form have a "Name" input
-      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
-      const editNameInput = nameInputs[nameInputs.length - 1]!;
-      await user.clear(editNameInput);
-      await user.type(editNameInput, 'Materials Updated');
-
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateBudgetCategory).toHaveBeenCalledWith(
-          'bc-1',
-          expect.objectContaining({ name: 'Materials Updated' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Category "Materials Updated" updated successfully'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('successfully deletes a budget category after confirming in modal', async () => {
-      const user = userEvent.setup();
-      mockDeleteBudgetCategory.mockResolvedValue(undefined);
-
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      await user.click(await enabledConfirm('budget-category-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1');
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Category "Materials" deleted successfully/)).toBeInTheDocument();
-      });
-    });
-
-    it('after deleting a budget category focus lands on the section heading, not on <body> or the deleted row button', async () => {
-      const user = userEvent.setup();
-      mockDeleteBudgetCategory.mockResolvedValue(undefined);
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await screen.findByText('Materials');
-      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
-      await user.click(await enabledConfirm('budget-category-delete'));
-      await waitFor(() => expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1'));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'));
-      expect(document.activeElement).toHaveAttribute('tabindex', '-1');
-    });
-
-    it('shows in-use error when deleting a budget category referenced by budget entries', async () => {
-      const user = userEvent.setup();
-      mockDeleteBudgetCategory.mockRejectedValue(
-        new ApiClientError(409, {
-          code: 'CATEGORY_IN_USE',
-          message: 'Category is in use',
-        }),
-      );
-
-      renderManagePage('/settings/manage?tab=budget-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Materials')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      await user.click(await enabledConfirm('budget-category-delete'));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /This category cannot be deleted because it is currently in use by one or more budget entries/,
-          ),
-        ).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Household Item Categories tab content ─────────────────────────────────
-
-  describe('Household Item Categories tab', () => {
-    it('shows loading state while fetching HI categories', () => {
-      mockFetchHICCategories.mockReturnValue(new Promise(() => {}));
-      renderManagePage('/settings/manage?tab=hi-categories');
-      // HI categories tab now uses Skeleton component for loading
-      expect(screen.getByRole('status')).toBeInTheDocument();
-    });
-
-    it('shows HI category list after loading', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-      expect(screen.getByText('Appliances')).toBeInTheDocument();
-    });
-
-    it('shows the create form immediately (always visible, no toggle required)', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
-      });
-    });
-
-    it('shows error state when loading HI categories fails', async () => {
-      mockFetchHICCategories.mockRejectedValue(new Error('Network error'));
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load household item categories. Please try again.'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('shows category count', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(screen.getByText(/Categories \(2\)/)).toBeInTheDocument();
-      });
-    });
-
-    it('shows New Household Item Category create form without any interaction required', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
-      });
-
-      // The create form inputs are always visible
-      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
-    });
-
-    it('delete confirmation modal appears on delete click', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-
-      const deleteButton = screen.getByRole('button', { name: 'Delete Furniture' });
-      await user.click(deleteButton);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-      expect(screen.getByRole('alertdialog', { name: 'Delete Furniture?' })).toBeInTheDocument();
-      expect(screen.getByTestId('hi-category-delete-cancel')).toHaveFocus();
-    });
-
-    it('calls fetchHouseholdItemCategories when tab is active', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('shows edit form when Edit is clicked for a HI category', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    });
-
-    it('cancels edit of HI category and returns to view mode', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Edit Furniture' })).toBeInTheDocument();
-      });
-    });
-
-    it('successfully updates a HI category', async () => {
-      const user = userEvent.setup();
-      const updated: HouseholdItemCategoryEntity = {
-        id: 'hic-1',
-        name: 'Furniture Updated',
-        color: '#8B5CF6',
-        translationKey: null,
-        sortOrder: 0,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      mockUpdateHICCategory.mockResolvedValue(updated);
-
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
-
-      // Both the always-visible create form and the edit form have a "Name" input
-      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
-      const editNameInput = nameInputs[nameInputs.length - 1]!;
-      await user.clear(editNameInput);
-      await user.type(editNameInput, 'Furniture Updated');
-
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateHICCategory).toHaveBeenCalledWith(
-          'hic-1',
-          expect.objectContaining({ name: 'Furniture Updated' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Category "Furniture Updated" updated successfully'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('shows "in use" error when deleting a category referenced by household items', async () => {
-      const user = userEvent.setup();
-      mockDeleteHICCategory.mockRejectedValue(
-        new ApiClientError(409, {
-          code: 'CATEGORY_IN_USE',
-          message: 'Category is in use',
-        }),
-      );
-
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Furniture')).toBeInTheDocument();
-      });
-
-      const deleteButton = screen.getByRole('button', { name: 'Delete Furniture' });
-      await user.click(deleteButton);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      const confirmButton = await enabledConfirm('hi-category-delete');
-      await user.click(confirmButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /This category cannot be deleted because it is currently in use by one or more household items/,
-          ),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('successfully creates a new HI category', async () => {
-      const user = userEvent.setup();
-      const newCat: HouseholdItemCategoryEntity = {
-        id: 'hic-new',
-        name: 'Garden',
-        color: '#22C55E',
-        translationKey: null,
-        sortOrder: 2,
-        createdAt: '2026-03-06T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      mockCreateHICCategory.mockResolvedValue(newCat);
-
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
-      });
-
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.type(nameInput, 'Garden');
-
-      await user.click(screen.getByRole('button', { name: 'Create Category' }));
-
-      await waitFor(() => {
-        expect(mockCreateHICCategory).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Garden' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Category "Garden" created successfully')).toBeInTheDocument();
-      });
-    });
-
-    it('shows validation error when name is empty', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
-      });
-
-      // Create Category button is disabled when name input is empty
-      const createButton = screen.getByRole('button', { name: 'Create Category' });
-      expect(createButton).toBeDisabled();
-    });
-
-    it('shows API error when creation fails with conflict', async () => {
-      const user = userEvent.setup();
-      mockCreateHICCategory.mockRejectedValue(
-        new ApiClientError(409, {
-          code: 'CONFLICT',
-          message: 'RAW-SERVER-SENTINEL',
-        }),
-      );
-
-      renderManagePage('/settings/manage?tab=hi-categories');
-
-      await waitFor(() => {
-        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
-      });
-
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.type(nameInput, 'Furniture');
-
-      await user.click(screen.getByRole('button', { name: 'Create Category' }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(enSettings.manage.householdItemCategories.messages.duplicateName),
-        ).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Orientations tab content ──────────────────────────────────────────────
-
-  describe('Orientations tab', () => {
-    it('Orientations tab is active when ?tab=orientations in URL', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      const orientationsTab = screen.getByRole('tab', { name: 'Orientations' });
-      expect(orientationsTab).toHaveAttribute('aria-selected', 'true');
-      const areasTab = screen.getByRole('tab', { name: 'Areas' });
-      expect(areasTab).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('clicking Orientations tab makes it active', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage');
-
-      // Initially Areas tab is active
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
-
-      await user.click(screen.getByRole('tab', { name: 'Orientations' }));
-
-      expect(screen.getByRole('tab', { name: 'Orientations' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
-    });
-
-    it('shows loading state while fetching orientations', () => {
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({ isLoading: true, orientations: [] }),
-      );
-      renderManagePage('/settings/manage?tab=orientations');
-      // Skeleton renders (role="status" aria-busy="true") instead of the orientation list
-      expect(screen.getByRole('status')).toBeInTheDocument();
-      expect(screen.queryByText('North')).not.toBeInTheDocument();
-    });
-
-    it('shows orientation list after loading (both names)', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      expect(screen.getByText('North')).toBeInTheDocument();
-      expect(screen.getByText('South')).toBeInTheDocument();
-    });
-
-    it('shows name, description, and sort order in view mode', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      expect(screen.getByText('North')).toBeInTheDocument();
-      expect(screen.getByText('North-facing')).toBeInTheDocument();
-      // Sort order rendered as #0
-      expect(screen.getByText('#0')).toBeInTheDocument();
-    });
-
-    it('does not show description when null', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      // sampleOrientation2 has description: null — no empty description span rendered
-      // South is visible but its null description does not produce a text node
-      expect(screen.getByText('South')).toBeInTheDocument();
-      // 'North-facing' is sampleOrientation1's description — no second description span
-      expect(screen.getAllByText(/facing/i)).toHaveLength(1);
-    });
-
-    it('shows Create New Orientation section', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      // The heading uses createTitle key ("Create orientation"); query by heading role to be specific
-      expect(screen.getByRole('heading', { name: 'Create orientation' })).toBeInTheDocument();
-    });
-
-    it('Create button is disabled when name is empty', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      const createButton = screen.getByRole('button', { name: 'Create orientation' });
-      expect(createButton).toBeDisabled();
-    });
-
-    it('shows EmptyState when no orientations exist', async () => {
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({ isLoading: false, orientations: [] }),
-      );
-      renderManagePage('/settings/manage?tab=orientations');
-      expect(
-        screen.getByText(
-          'No orientations yet. Create one above to tag your photos with a direction.',
-        ),
-      ).toBeInTheDocument();
-    });
-
-    it('shows edit form when Edit is clicked (input pre-filled with orientation name)', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=orientations');
-
-      await user.click(screen.getByRole('button', { name: 'Edit North' }));
-
-      // Edit form appears with pre-filled name
-      const nameInput = document.getElementById('edit-name-orient-1') as HTMLInputElement;
-      expect(nameInput).not.toBeNull();
-      expect(nameInput.value).toBe('North');
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    });
-
-    it('cancels edit and returns to view mode', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=orientations');
-
-      await user.click(screen.getByRole('button', { name: 'Edit North' }));
-
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      // Back to normal view — Edit buttons visible again
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: 'Edit North' })).toHaveLength(1);
-      });
-    });
-
-    it('successfully creates a new orientation (createOrientation called with correct data)', async () => {
-      const user = userEvent.setup();
-      const newOrientation: OrientationResponse = {
-        id: 'orient-3',
-        name: 'East',
-        description: null,
-        sortOrder: 2,
-        createdAt: '2026-03-06T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      const mockCreateOrientation = jest
-        .fn<UseOrientationsTypes.UseOrientationsResult['createOrientation']>()
-        .mockResolvedValue(newOrientation);
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({ createOrientation: mockCreateOrientation }),
-      );
-
-      renderManagePage('/settings/manage?tab=orientations');
-
-      const nameInput = screen.getByRole('textbox', { name: 'Name' });
-      await user.type(nameInput, 'East');
-
-      await user.click(screen.getByRole('button', { name: 'Create orientation' }));
-
-      await waitFor(() => {
-        expect(mockCreateOrientation).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'East' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Orientation "East" created.')).toBeInTheDocument();
-      });
-    });
-
-    it('shows validation error when name empty on create (submit form directly)', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-
-      // The create button is disabled when name is empty — assert disabled state
-      const createButton = screen.getByRole('button', { name: 'Create orientation' });
-      expect(createButton).toBeDisabled();
-
-      // Verify that the name input exists and is required
-      const nameInput = screen.getByRole('textbox', { name: 'Name' });
-      expect(nameInput).toBeInTheDocument();
-      expect((nameInput as HTMLInputElement).value).toBe('');
-    });
-
-    it('delete confirmation modal appears on Delete click', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=orientations');
-
-      await user.click(screen.getByRole('button', { name: 'Delete North' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-      expect(screen.getByRole('alertdialog', { name: 'Delete North?' })).toBeInTheDocument();
-      expect(screen.getByTestId('orientation-delete-cancel')).toHaveFocus();
-    });
-
-    it('successfully deletes after confirming (deleteOrientation called)', async () => {
-      const user = userEvent.setup();
-      const mockDeleteOrientation = jest
-        .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-        .mockResolvedValue(undefined);
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({ deleteOrientation: mockDeleteOrientation }),
-      );
-
-      renderManagePage('/settings/manage?tab=orientations');
-
-      await user.click(screen.getByRole('button', { name: 'Delete North' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      await user.click(await enabledConfirm('orientation-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteOrientation).toHaveBeenCalledWith('orient-1');
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Orientation "North" deleted.')).toBeInTheDocument();
-      });
-      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
-      await waitFor(() => {
-        expect(document.activeElement?.tagName).toBe('H2');
-        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
-        expect(document.activeElement).not.toHaveAttribute('data-testid');
-      });
-    });
-
-    it('shows error state when loading fails (EmptyState with error)', async () => {
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({
-          isLoading: false,
-          orientations: [],
-          error: 'Failed to load orientations.',
-        }),
-      );
-      renderManagePage('/settings/manage?tab=orientations');
-      expect(screen.getByText('Failed to load orientations.')).toBeInTheDocument();
-    });
-
-    it('successfully updates an orientation (updateOrientation called with correct data)', async () => {
-      const user = userEvent.setup();
-      const updatedOrientation: OrientationResponse = {
-        ...sampleOrientation1,
-        name: 'North Updated',
-      };
-      const mockUpdateOrientation = jest
-        .fn<UseOrientationsTypes.UseOrientationsResult['updateOrientation']>()
-        .mockResolvedValue(updatedOrientation);
-      mockUseOrientations.mockReturnValue(
-        makeOrientationsHookResult({ updateOrientation: mockUpdateOrientation }),
-      );
-
-      renderManagePage('/settings/manage?tab=orientations');
-
-      await user.click(screen.getByRole('button', { name: 'Edit North' }));
-
-      const nameInput = document.getElementById('edit-name-orient-1') as HTMLInputElement;
-      await user.clear(nameInput);
-      await user.type(nameInput, 'North Updated');
-
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateOrientation).toHaveBeenCalledWith(
-          'orient-1',
-          expect.objectContaining({ name: 'North Updated' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Orientation "North Updated" updated.')).toBeInTheDocument();
-      });
-    });
-
-    it('orientation count shown in existing orientations heading', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      expect(screen.getByText('Orientations (2)')).toBeInTheDocument();
-    });
-  });
-
-  // ─── Tab isolation ─────────────────────────────────────────────────────────
-
-  describe('Tab isolation', () => {
-    it('does not show trade content on the Areas tab and never loads trades', async () => {
-      renderManagePage('/settings/manage');
-      expect(mockUseAreas).toHaveBeenCalled();
-      expect(mockUseTrades).not.toHaveBeenCalled();
-      expect(screen.queryByText('Plumbing')).not.toBeInTheDocument();
-      expect(screen.queryByText('Electrical')).not.toBeInTheDocument();
-    });
-
-    it('does not call useAreas and does not show area content when Trades tab is active', async () => {
-      renderManagePage('/settings/manage?tab=trades');
+  describe('section order', () => {
+    const sectionHeadings = () =>
+      screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+
+    it('shows House, Cost categories, Purchase categories, Photo orientations, Areas, then pointers', async () => {
+      await loaded();
+
+      expect(sectionHeadings()).toEqual([
+        'House',
+        'Cost categories',
+        'Purchase categories',
+        'Photo orientations',
+        'Areas',
+        'Managed on other pages',
+      ]);
+    });
+
+    it('drops the interim Areas card once the Areas page is served', async () => {
+      served.add('areas');
+      await loaded();
+
+      expect(sectionHeadings()).toEqual([
+        'House',
+        'Cost categories',
+        'Purchase categories',
+        'Photo orientations',
+        'Managed on other pages',
+      ]);
+      expect(screen.queryByTestId('project-setup-areas')).toBeNull();
       expect(mockUseAreas).not.toHaveBeenCalled();
-      expect(screen.queryByText('Kitchen')).not.toBeInTheDocument();
-      expect(screen.queryByText('Bathroom')).not.toBeInTheDocument();
     });
 
-    it('does not call fetchBudgetCategories when Areas tab is active', async () => {
-      renderManagePage('/settings/manage');
-      // Let any async effects settle
-      await waitFor(() => {
-        expect(mockUseAreas).toHaveBeenCalled();
-      });
-      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
-    });
+    it('anchors every section by its id', async () => {
+      await loaded();
 
-    it('does not call fetchHouseholdItemCategories when Areas tab is active', async () => {
-      renderManagePage('/settings/manage');
-      await waitFor(() => {
-        expect(mockUseAreas).toHaveBeenCalled();
-      });
-      expect(mockFetchHICCategories).not.toHaveBeenCalled();
-    });
-
-    it('does not call fetchBudgetCategories when Trades tab is active', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
-    });
-
-    it('does not call fetchHouseholdItemCategories when Trades tab is active', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(mockFetchHICCategories).not.toHaveBeenCalled();
-    });
-
-    it('does not call fetchHouseholdItemCategories when Budget Categories tab is active', async () => {
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await waitFor(() => {
-        expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
-      });
-      expect(mockFetchHICCategories).not.toHaveBeenCalled();
-    });
-
-    it('does not call fetchBudgetCategories when HI Categories tab is active', async () => {
-      renderManagePage('/settings/manage?tab=hi-categories');
-      await waitFor(() => {
-        expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
-      });
-      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
-    });
-
-    it('does not call useOrientations when Areas tab is active', async () => {
-      renderManagePage('/settings/manage');
-      expect(mockUseAreas).toHaveBeenCalled();
-      expect(mockUseOrientations).not.toHaveBeenCalled();
-    });
-
-    it('budget API not called when Orientations tab is active', async () => {
-      renderManagePage('/settings/manage?tab=orientations');
-      await waitFor(() => {
-        expect(mockUseOrientations).toHaveBeenCalled();
-      });
-      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
-      expect(mockFetchHICCategories).not.toHaveBeenCalled();
+      for (const id of [
+        'house',
+        'cost-categories',
+        'purchase-categories',
+        'orientations',
+        'areas',
+        'pointers',
+      ]) {
+        expect(document.getElementById(id)).not.toBeNull();
+      }
+      expect(document.getElementById('trades')).not.toBeNull();
     });
   });
 
-  // ─── Household tab (Story #1877) ───────────────────────────────────────────
+  describe('pointer rows', () => {
+    it('points Trades at the Companies page with the Trades sheet open', async () => {
+      await loaded();
 
-  describe('Household tab', () => {
-    it('shows a loading skeleton while settings are being fetched', async () => {
-      mockFetchHouseholdSettings.mockImplementationOnce(() => new Promise(() => {}));
-      renderManagePage('/settings/manage?tab=household');
-
-      expect(document.querySelector('[class*="skeleton"]')).toBeInTheDocument();
+      const link = screen.getByTestId('project-setup-pointer-trades');
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveAttribute('href', '/companies?trades=1');
+      expect(link).toHaveAttribute('id', 'trades');
+      expect(within(link).getByText('Managed on Companies')).toBeInTheDocument();
     });
 
-    it('loads and displays existing household settings', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'The Smith Family',
-        householdAddress: '123 Main St',
-      });
+    it('has no Areas pointer while Areas is only an interim card', async () => {
+      await loaded();
 
-      renderManagePage('/settings/manage?tab=household');
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('The Smith Family')).toBeInTheDocument();
-      });
-      expect(screen.getByDisplayValue('123 Main St')).toBeInTheDocument();
+      expect(screen.queryByTestId('project-setup-pointer-areas')).toBeNull();
+      expect(screen.getByTestId('project-setup-areas')).toBeInTheDocument();
     });
 
-    it('shows empty fields when settings are null', async () => {
-      renderManagePage('/settings/manage?tab=household');
+    it('shows the Areas pointer, and not the card, once Areas is served', async () => {
+      served.add('areas');
+      await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
-      });
-      expect(screen.getByLabelText('Household Name')).toHaveValue('');
-      expect(screen.getByLabelText('Household Address')).toHaveValue('');
+      const link = screen.getByTestId('project-setup-pointer-areas');
+      expect(link).toHaveAttribute('href', '/areas');
+      expect(screen.queryByTestId('project-setup-areas')).toBeNull();
     });
 
-    it('shows an error banner when loading settings fails', async () => {
-      mockFetchHouseholdSettings.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    it('navigates to Companies on a plain click of the Trades pointer', async () => {
+      const user = userEvent.setup();
+      const { log } = await loaded();
+
+      await user.click(screen.getByTestId('project-setup-pointer-trades'));
+
+      expect(log.actions.at(-1)).toMatch(/^PUSH \/companies\?trades=1/);
+    });
+  });
+
+  describe('URL handling (D-10, #2204)', () => {
+    it('D-10: writes nothing to the URL on load and pushes no history entry', async () => {
+      const { log } = await loaded('/settings/manage');
+
+      expect(log.actions).toEqual([]);
+      expect(screen.getByTestId('probe-search')).toHaveTextContent('');
+      expect(`${screen.getByTestId('probe-path').textContent}`).toBe('/settings/manage');
+      expect(log.entries).toEqual(['/start', '/settings/manage']);
+    });
+
+    it('D-10: keeps a section hash as it is and writes nothing', async () => {
+      const { log } = await loaded('/settings/manage#cost-categories');
+
+      expect(log.actions).toEqual([]);
+      expect(log.entries).toEqual(['/start', '/settings/manage#cost-categories']);
+    });
+
+    it.each([
+      ['household', '#house'],
+      ['orientations', '#orientations'],
+      ['budget-categories', '#cost-categories'],
+      ['hi-categories', '#purchase-categories'],
+      ['trades', '#trades'],
+      ['areas', '#areas'],
+    ])('replaces ?tab=%s with %s and does not grow the history', async (tab, hash) => {
+      const { log } = await loaded(`/settings/manage?tab=${tab}`);
+
+      expect(log.actions).toEqual([`REPLACE /settings/manage${hash}`]);
+      expect(log.entries).toEqual(['/start', `/settings/manage${hash}`]);
+    });
+
+    it('drops an unknown ?tab without moving anywhere else', async () => {
+      const { log } = await loaded('/settings/manage?tab=bogus&x=1');
+
+      expect(log.actions).toEqual(['REPLACE /settings/manage?x=1']);
+    });
+
+    it('sends ?tab=areas to the Areas page once it is served', async () => {
+      served.add('areas');
+      const { log } = renderPage('/settings/manage?tab=areas');
+      await screen.findByTestId('project-setup-house');
+
+      expect(log.actions).toEqual(['REPLACE /areas']);
+    });
+
+    it('moves focus to the section heading named by the hash once the page has loaded', async () => {
+      await loaded('/settings/manage#purchase-categories');
+
+      await waitFor(() =>
+        expect(document.activeElement).toBe(document.getElementById('purchase-categories-heading')),
       );
-
-      renderManagePage('/settings/manage?tab=household');
-
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
 
-    it('translates the error code even when the server body has no message', async () => {
-      mockFetchHouseholdSettings.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR' } as unknown as ApiError),
+    it('focuses the heading of a legacy ?tab= section after the rewrite', async () => {
+      await loaded('/settings/manage?tab=orientations');
+
+      await waitFor(() =>
+        expect(document.activeElement).toBe(document.getElementById('orientations-heading')),
       );
+    });
+  });
 
-      renderManagePage('/settings/manage?tab=household');
+  describe('status region', () => {
+    it('is mounted from the first render, polite and not atomic', async () => {
+      renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      });
+      const region = statusRegion();
+      expect(region).toHaveAttribute('role', 'status');
+      expect(region).not.toHaveAttribute('aria-atomic');
+      expect(region).toHaveTextContent('');
+      await screen.findByTestId('cost-categories-row-bc-1');
+      expect(statusRegion()).toBe(region);
     });
 
-    it('shows the generic load error message when the rejection is not an ApiClientError', async () => {
-      mockFetchHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
-
-      renderManagePage('/settings/manage?tab=household');
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load household information. Please try again.'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('Save button is disabled until a field is changed (dirty-gated save)', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: 'Original Address',
-      });
-
-      renderManagePage('/settings/manage?tab=household');
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
-      });
-
-      expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
-    });
-
-    it('Save button becomes enabled after editing the name field', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: null,
-      });
-
+    it('announces a created entry after the next frame', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      budgetApi.createBudgetCategory.mockResolvedValue(
+        costRow({ id: 'bc-3', name: 'Paint', sortOrder: 2 }),
+      );
+      await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
-      });
+      await user.click(screen.getByTestId('cost-categories-new'));
+      await user.type(screen.getByTestId('cost-categories-name'), 'Paint');
+      await user.click(screen.getByTestId('cost-categories-save'));
 
-      await user.type(screen.getByLabelText('Household Name'), ' Updated');
+      await waitFor(() => expect(statusRegion()).toHaveTextContent('Paint added.'));
+    });
+  });
 
-      expect(screen.getByRole('button', { name: 'Save Changes' })).not.toBeDisabled();
+  describe('cost categories', () => {
+    it('lists built-in names translated and user names as typed, in server order', async () => {
+      await loaded();
+
+      const names = within(screen.getByTestId('project-setup-cost-categories'))
+        .getAllByRole('listitem')
+        .map((li) => li.querySelector('[title]')?.getAttribute('title'));
+      expect(names).toEqual(['Materials', 'Tiles']);
     });
 
-    it('saves the household name and address and shows a success banner', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: null,
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'New Household',
-        householdAddress: '456 Oak Ave',
-      });
+    it('shows no position numbers on any row', async () => {
+      await loaded();
 
+      for (const li of screen.getAllByRole('listitem')) {
+        expect(li.textContent).not.toMatch(/#\s*\d/);
+      }
+    });
+
+    it('marks the colour swatch only for rows that have a colour', async () => {
+      await loaded();
+
+      const swatch = (id: string) =>
+        screen.getByTestId(`cost-categories-row-${id}`).querySelector('[class*="swatch"]');
+      expect(swatch('bc-1')).not.toHaveAttribute('data-color');
+      expect(swatch('bc-2')).toHaveAttribute('data-color', 'set');
+    });
+
+    it('creates with name, description and colour and appends the row at the end', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      budgetApi.createBudgetCategory.mockResolvedValue(
+        costRow({ id: 'bc-3', name: 'Paint', sortOrder: 2 }),
+      );
+      await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
+      await user.click(screen.getByTestId('cost-categories-new'));
+      await user.type(screen.getByTestId('cost-categories-name'), 'Paint');
+      await user.click(screen.getByTestId('cost-categories-save'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('cost-categories-row-bc-3')).toBeInTheDocument(),
+      );
+      expect(budgetApi.createBudgetCategory).toHaveBeenCalledWith({
+        name: 'Paint',
+        description: null,
+        color: null,
       });
-
-      await user.type(screen.getByLabelText('Household Name'), 'New Household');
-      await user.type(screen.getByLabelText('Household Address'), '456 Oak Ave');
-
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(mockUpdateHouseholdSettings).toHaveBeenCalledWith({
-          householdName: 'New Household',
-          householdAddress: '456 Oak Ave',
-        });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Household information updated successfully')).toBeInTheDocument();
-      });
-      expect(mockSetHouseName).toHaveBeenCalledTimes(1);
-      expect(mockSetHouseName).toHaveBeenCalledWith('New Household');
+      const rows = within(screen.getByTestId('project-setup-cost-categories')).getAllByRole(
+        'listitem',
+      );
+      expect(rows.at(-1)).toBe(screen.getByTestId('cost-categories-row-bc-3'));
+      await waitFor(() => expect(costMenu('bc-3')).toHaveFocus());
     });
 
-    it('pushes a cleared household name into the browser title as null', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Old',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockResolvedValueOnce({
-        householdName: null,
-        householdAddress: null,
-      });
-
+    it('shows the duplicate-name copy and keeps the dialog open on a 409 CONFLICT', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
-      const nameInput = await screen.findByLabelText('Household Name');
-      await waitFor(() => expect(nameInput).toHaveValue('Old'));
+      budgetApi.createBudgetCategory.mockRejectedValue(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      await loaded();
 
-      await user.clear(nameInput);
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+      await user.click(screen.getByTestId('cost-categories-new'));
+      await user.type(screen.getByTestId('cost-categories-name'), 'Tiles');
+      await user.click(screen.getByTestId('cost-categories-save'));
 
-      await waitFor(() => expect(mockSetHouseName).toHaveBeenCalledWith(null));
+      expect(
+        await screen.findByText(enSettings.projectSetup.costCategories.duplicateName),
+      ).toBeVisible();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
-    it('does not touch the browser title when the save fails', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
-
+    it('edits only the changed field and announces the save', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
-      const nameInput = await screen.findByLabelText('Household Name');
-      await waitFor(() => expect(nameInput).toHaveValue('Original'));
+      budgetApi.updateBudgetCategory.mockResolvedValue({ ...TILES, name: 'Wall tiles' });
+      await loaded();
 
-      await user.type(nameInput, ' two');
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+      await chooseCostAction(user, 'bc-2', 'edit');
+      await user.clear(screen.getByTestId('cost-categories-name'));
+      await user.type(screen.getByTestId('cost-categories-name'), 'Wall tiles');
+      await user.click(screen.getByTestId('cost-categories-save'));
 
-      await waitFor(() => expect(mockUpdateHouseholdSettings).toHaveBeenCalled());
-      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
-      expect(mockSetHouseName).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(budgetApi.updateBudgetCategory).toHaveBeenCalledWith('bc-2', { name: 'Wall tiles' }),
+      );
+      await waitFor(() => expect(statusRegion()).toHaveTextContent('Wall tiles saved.'));
     });
 
-    it('trims whitespace and converts an empty field to null on save', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: '  ',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockResolvedValueOnce({
-        householdName: null,
-        householdAddress: null,
-      });
-
+    it('does not send the name of an unchanged built-in category', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      budgetApi.updateBudgetCategory.mockResolvedValue(BUILT_IN);
+      await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
-      });
+      await chooseCostAction(user, 'bc-1', 'edit');
+      expect((screen.getByTestId('cost-categories-name') as HTMLInputElement).value).toBe(
+        'Materials',
+      );
+      await user.type(screen.getByTestId('cost-categories-description'), 'Notes');
+      await user.click(screen.getByTestId('cost-categories-save'));
 
-      // Dirty the form so Save is enabled, then clear it back out.
-      const nameInput = screen.getByLabelText('Household Name');
-      await user.type(nameInput, 'x');
-      await user.clear(nameInput);
-
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(mockUpdateHouseholdSettings).toHaveBeenCalledWith({
-          householdName: null,
-          householdAddress: null,
-        });
-      });
+      await waitFor(() => expect(budgetApi.updateBudgetCategory).toHaveBeenCalledTimes(1));
+      expect(budgetApi.updateBudgetCategory).toHaveBeenCalledWith('bc-1', { description: 'Notes' });
     });
 
-    it('shows an error banner when save fails', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockRejectedValueOnce(
-        new ApiClientError(400, {
-          code: 'VALIDATION_ERROR',
+    it('deletes after confirming and focuses the neighbouring row actions', async () => {
+      const user = userEvent.setup();
+      budgetApi.deleteBudgetCategory.mockResolvedValue(undefined);
+      await loaded();
+
+      await chooseCostAction(user, 'bc-1', 'delete');
+      await user.click(screen.getByTestId('cost-categories-delete-dialog-confirm'));
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('cost-categories-row-bc-1')).not.toBeInTheDocument(),
+      );
+      expect(budgetApi.deleteBudgetCategory).toHaveBeenCalledWith('bc-1');
+      await waitFor(() => expect(costMenu('bc-2')).toHaveFocus());
+      await waitFor(() => expect(statusRegion()).toHaveTextContent('Materials deleted.'));
+    });
+
+    it('blocked delete: fixed sentence, no counts and no Delete button', async () => {
+      const user = userEvent.setup();
+      budgetApi.deleteBudgetCategory.mockRejectedValue(
+        new ApiClientError(409, {
+          code: 'CATEGORY_IN_USE',
           message: 'RAW-SERVER-SENTINEL',
+          details: { workItemCount: 7, subsidyProgramCount: 3 },
         }),
       );
+      await loaded();
 
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      await chooseCostAction(user, 'bc-2', 'delete');
+      await user.click(screen.getByTestId('cost-categories-delete-dialog-confirm'));
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
-      });
-
-      await user.type(screen.getByLabelText('Household Name'), ' Extra');
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+      const dialog = await screen.findByRole('alertdialog');
+      await within(dialog).findByText(
+        "Tiles is still used by cost lines or grants, so it can't be deleted.",
+      );
+      expect(screen.queryByTestId('cost-categories-delete-dialog-confirm')).toBeNull();
+      expect(dialog.textContent).not.toMatch(/[0-9]/);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      expect(screen.getByTestId('cost-categories-row-bc-2')).toBeInTheDocument();
     });
 
-    it('shows the generic save error message when the rejection is not an ApiClientError', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
-
+    it('does not ask for delete consequences for a cost category', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      await loaded();
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
-      });
+      await chooseCostAction(user, 'bc-2', 'delete');
+      await screen.findByRole('alertdialog');
 
-      await user.type(screen.getByLabelText('Household Name'), ' Extra');
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Failed to save household information. Please try again.'),
-        ).toBeInTheDocument();
-      });
+      expect(screen.queryByTestId('cost-categories-delete-dialog-consequences')).toBeNull();
     });
 
-    it('re-disables the Save button after a successful save (form no longer dirty)', async () => {
-      mockFetchHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original',
-        householdAddress: null,
-      });
-      mockUpdateHouseholdSettings.mockResolvedValueOnce({
-        householdName: 'Original Updated',
-        householdAddress: null,
-      });
-
+    it('shows a load error with Retry that reloads only this list', async () => {
       const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=household');
+      budgetApi.fetchBudgetCategories.mockRejectedValueOnce(new Error('offline'));
+      renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
-      });
+      await user.click(await screen.findByTestId('cost-categories-retry'));
 
-      await user.type(screen.getByLabelText('Household Name'), ' Updated');
-      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
-      });
-    });
-
-    it('does not call fetchBudgetCategories or fetchHouseholdItemCategories when Household tab is active', async () => {
-      renderManagePage('/settings/manage?tab=household');
-
-      await waitFor(() => {
-        expect(mockFetchHouseholdSettings).toHaveBeenCalledTimes(1);
-      });
-      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
-      expect(mockFetchHICCategories).not.toHaveBeenCalled();
+      await screen.findByTestId('cost-categories-row-bc-1');
+      expect(budgetApi.fetchBudgetCategories).toHaveBeenCalledTimes(2);
+      expect(householdApi.fetchHouseholdItemCategories).toHaveBeenCalledTimes(1);
+      expect(orientationApi.fetchOrientations).toHaveBeenCalledTimes(1);
     });
   });
 
-  // ─── API errors are translated, never raw server text (#2129) ─────────────
-
-  describe('API error handling (#2129)', () => {
-    const SENTINEL = 'RAW-SERVER-SENTINEL';
-    const rejecting = (err: unknown) => jest.fn<() => Promise<never>>().mockRejectedValue(err);
-    const conflict = () => new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL });
-
-    function expectNoSentinel() {
-      expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
-    }
-
-    describe('create: 409 CONFLICT shows the tab-specific duplicateName copy', () => {
-      it('areas', async () => {
-        const user = userEvent.setup();
-        mockUseAreas.mockReturnValue(makeAreasHookResult({ createArea: rejecting(conflict()) }));
-        renderManagePage('/settings/manage?tab=areas');
-        await user.type(screen.getByRole('textbox', { name: 'Area Name' }), 'Kitchen');
-        await user.click(screen.getByRole('button', { name: 'Create Area' }));
-        expect(
-          await screen.findByText(enSettings.manage.areas.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('orientations', async () => {
-        const user = userEvent.setup();
-        mockUseOrientations.mockReturnValue(
-          makeOrientationsHookResult({
-            createOrientation: rejecting(conflict()),
-          }),
-        );
-        renderManagePage('/settings/manage?tab=orientations');
-        await user.type(screen.getByRole('textbox', { name: 'Name' }), 'North');
-        await user.click(screen.getByRole('button', { name: 'Create orientation' }));
-        expect(
-          await screen.findByText(enSettings.manage.orientations.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('budget categories', async () => {
-        const user = userEvent.setup();
-        mockCreateBudgetCategory.mockRejectedValue(conflict());
-        renderManagePage('/settings/manage?tab=budget-categories');
-        await waitFor(() => {
-          expect(screen.getByText('Materials')).toBeInTheDocument();
-        });
-        await user.type(screen.getByRole('textbox', { name: /Name/i }), 'Materials');
-        await user.click(screen.getByRole('button', { name: 'Create Category' }));
-        expect(
-          await screen.findByText(enSettings.manage.budgetCategories.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-    });
-
-    describe('update: 409 CONFLICT shows the tab-specific duplicateName copy', () => {
-      it('areas', async () => {
-        const user = userEvent.setup();
-        mockUseAreas.mockReturnValue(makeAreasHookResult({ updateArea: rejecting(conflict()) }));
-        renderManagePage('/settings/manage?tab=areas');
-        await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(
-          await screen.findByText(enSettings.manage.areas.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('orientations', async () => {
-        const user = userEvent.setup();
-        mockUseOrientations.mockReturnValue(
-          makeOrientationsHookResult({
-            updateOrientation: rejecting(conflict()),
-          }),
-        );
-        renderManagePage('/settings/manage?tab=orientations');
-        await user.click(screen.getByRole('button', { name: 'Edit North' }));
-        await user.type(document.getElementById('edit-name-orient-1')!, ' 2');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(
-          await screen.findByText(enSettings.manage.orientations.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('budget categories', async () => {
-        const user = userEvent.setup();
-        mockUpdateBudgetCategory.mockRejectedValue(conflict());
-        renderManagePage('/settings/manage?tab=budget-categories');
-        await user.click(await screen.findByRole('button', { name: 'Edit Materials' }));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(
-          await screen.findByText(enSettings.manage.budgetCategories.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('household item categories', async () => {
-        const user = userEvent.setup();
-        mockUpdateHICCategory.mockRejectedValue(conflict());
-        renderManagePage('/settings/manage?tab=hi-categories');
-        await user.click(await screen.findByRole('button', { name: 'Edit Furniture' }));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(
-          await screen.findByText(enSettings.manage.householdItemCategories.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-    });
-
-    describe('a non-CONFLICT ApiClientError is translated by code', () => {
-      it('areas create: VALIDATION_ERROR', async () => {
-        const user = userEvent.setup();
-        mockUseAreas.mockReturnValue(
-          makeAreasHookResult({
-            createArea: rejecting(
-              new ApiClientError(400, { code: 'VALIDATION_ERROR', message: SENTINEL }),
-            ),
-          }),
-        );
-        renderManagePage('/settings/manage?tab=areas');
-        await user.type(screen.getByRole('textbox', { name: 'Area Name' }), 'X');
-        await user.click(screen.getByRole('button', { name: 'Create Area' }));
-        expect(await screen.findByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('household item categories delete: FORBIDDEN', async () => {
-        const user = userEvent.setup();
-        mockDeleteHICCategory.mockRejectedValue(
-          new ApiClientError(403, { code: 'FORBIDDEN', message: SENTINEL }),
-        );
-        renderManagePage('/settings/manage?tab=hi-categories');
-        await user.click(await screen.findByRole('button', { name: 'Delete Furniture' }));
-        await user.click(await enabledConfirm('hi-category-delete'));
-        expect(await screen.findByText(enErrors.FORBIDDEN)).toBeInTheDocument();
-        expectNoSentinel();
-      });
-    });
-
-    describe('delete failures render in the error banner, not the success banner', () => {
-      async function openDelete(
-        tab: string,
-        deleteButtonName: string | RegExp,
-      ): Promise<ReturnType<typeof userEvent.setup>> {
-        const user = userEvent.setup();
-        renderManagePage(`/settings/manage?tab=${tab}`);
-        const buttons = await screen.findAllByRole('button', { name: deleteButtonName });
-        await user.click(buttons[0]!);
-        await screen.findByRole('alertdialog');
-        return user;
-      }
-
-      function expectErrorBanner(text: string) {
-        const matches = screen.getAllByText(text);
-        const banner = matches
-          .map((el) => el.closest('[role="alert"]'))
-          .find((el): el is Element => el !== null);
-        expect(banner).toBeDefined();
-        // #2209: the delete failure is shown by the open confirm dialog, as an alert.
-        expect(banner!.closest('[role="alertdialog"]')).not.toBeNull();
-        expect(banner!.className).not.toContain('successBanner');
-      }
-
-      it('areas: 409 shows deleteConflict', async () => {
-        mockUseAreas.mockReturnValue(
-          makeAreasHookResult({
-            deleteArea: rejecting(
-              new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
-            ),
-          }),
-        );
-        const user = await openDelete('areas', 'Delete');
-        await user.click(await enabledConfirm('area-delete'));
-        const text = enSettings.manage.areas.messages.deleteConflict;
-        await screen.findAllByText(text);
-        expectErrorBanner(text);
-        expectNoSentinel();
-      });
-
-      it('areas: non-409 ApiClientError is translated by code', async () => {
-        mockUseAreas.mockReturnValue(
-          makeAreasHookResult({
-            deleteArea: rejecting(
-              new ApiClientError(500, { code: 'INTERNAL_ERROR', message: SENTINEL }),
-            ),
-          }),
-        );
-        const user = await openDelete('areas', 'Delete');
-        await user.click(await enabledConfirm('area-delete'));
-        await screen.findAllByText(enErrors.INTERNAL_ERROR);
-        expectErrorBanner(enErrors.INTERNAL_ERROR);
-        expectNoSentinel();
-      });
-
-      it('areas: plain Error shows the deleteError fallback', async () => {
-        mockUseAreas.mockReturnValue(
-          makeAreasHookResult({
-            deleteArea: rejecting(new Error('RAW-LOCAL')),
-          }),
-        );
-        const user = await openDelete('areas', 'Delete');
-        await user.click(await enabledConfirm('area-delete'));
-        const text = enSettings.manage.areas.messages.deleteError;
-        await screen.findAllByText(text);
-        expectErrorBanner(text);
-        expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
-      });
-
-      it('orientations: ApiClientError is translated by code', async () => {
-        mockUseOrientations.mockReturnValue(
-          makeOrientationsHookResult({
-            deleteOrientation: rejecting(
-              new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL }),
-            ),
-          }),
-        );
-        const user = userEvent.setup();
-        renderManagePage('/settings/manage?tab=orientations');
-        await user.click(screen.getByRole('button', { name: 'Delete North' }));
-        await screen.findByRole('alertdialog');
-        await user.click(await enabledConfirm('orientation-delete'));
-        await screen.findAllByText(enErrors.CONFLICT);
-        expectErrorBanner(enErrors.CONFLICT);
-        expectNoSentinel();
-      });
-
-      it('orientations: plain Error shows the deleteError fallback', async () => {
-        mockUseOrientations.mockReturnValue(
-          makeOrientationsHookResult({
-            deleteOrientation: rejecting(new Error('RAW-LOCAL')),
-          }),
-        );
-        const user = userEvent.setup();
-        renderManagePage('/settings/manage?tab=orientations');
-        await user.click(screen.getByRole('button', { name: 'Delete North' }));
-        await screen.findByRole('alertdialog');
-        await user.click(await enabledConfirm('orientation-delete'));
-        const text = enSettings.manage.orientations.messages.deleteError;
-        await screen.findAllByText(text);
-        expectErrorBanner(text);
-      });
-    });
-
-    describe('delete failures render inside the dialog (#2271)', () => {
-      const cases = [
-        {
-          label: 'areas',
-          tab: 'areas',
-          open: 'Delete',
-          prefix: 'area-delete',
-          expected: () => enSettings.manage.areas.messages.deleteConflict,
-          successPrefix: 'Area "',
-          arrange: (err: unknown) =>
-            mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: rejecting(err) })),
-          error: () => new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
-        },
-        {
-          label: 'orientations',
-          tab: 'orientations',
-          open: 'Delete North',
-          prefix: 'orientation-delete',
-          expected: () => enErrors.CONFLICT,
-          successPrefix: 'Orientation "',
-          arrange: (err: unknown) =>
-            mockUseOrientations.mockReturnValue(
-              makeOrientationsHookResult({ deleteOrientation: rejecting(err) }),
-            ),
-          error: () => new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL }),
-        },
-      ];
-
-      for (const c of cases) {
-        it(`${c.label}: keeps the dialog open with the error inside, hides confirm, shows no success message, and reopening is clean`, async () => {
-          c.arrange(c.error());
-          const user = userEvent.setup();
-          renderManagePage(`/settings/manage?tab=${c.tab}`);
-          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
-          await user.click(await enabledConfirm(c.prefix));
-
-          // Error text is inside the still-open dialog, replacing the warning
-          await waitFor(() => {
-            expect(
-              within(screen.getByRole('alertdialog')).getByText(c.expected()),
-            ).toBeInTheDocument();
-          });
-          const open = screen.getByRole('alertdialog');
-          expect(within(open).queryByTestId(`${c.prefix}-confirm`)).not.toBeInTheDocument();
-          expect(screen.queryByText(new RegExp(`^${c.successPrefix}`))).not.toBeInTheDocument();
-          expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
-          // No page-level duplicate of the error outside the dialog
-          expect(screen.getAllByText(c.expected())).toHaveLength(1);
-
-          // Close and reopen: no stale error, confirm is back
-          await user.click(within(open).getByTestId(`${c.prefix}-cancel`));
-          await waitFor(() => {
-            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-          });
-          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
-          const reopened = await screen.findByRole('alertdialog');
-          expect(within(reopened).queryByText(c.expected())).not.toBeInTheDocument();
-          expect(within(reopened).getByTestId(`${c.prefix}-confirm`)).toBeInTheDocument();
-        });
-      }
-    });
-
-    it('budget categories: plain Error on create shows the createError fallback', async () => {
+  describe('purchase categories', () => {
+    it('creates with name and colour only', async () => {
       const user = userEvent.setup();
-      mockCreateBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await screen.findByText('Materials');
-      await user.type(screen.getByRole('textbox', { name: /Name/i }), 'Other');
-      await user.click(screen.getByRole('button', { name: 'Create Category' }));
-      expect(
-        await screen.findByText(enSettings.manage.budgetCategories.messages.createError),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      householdApi.createHouseholdItemCategory.mockResolvedValue(
+        purchaseRow({ id: 'hic-3', name: 'Lamps', sortOrder: 2 }),
+      );
+      await loaded();
+
+      await user.click(screen.getByTestId('purchase-categories-new'));
+      expect(screen.queryByTestId('purchase-categories-description')).toBeNull();
+      await user.type(screen.getByTestId('purchase-categories-name'), 'Lamps');
+      await user.click(screen.getByTestId('purchase-categories-save'));
+
+      await waitFor(() =>
+        expect(householdApi.createHouseholdItemCategory).toHaveBeenCalledWith({
+          name: 'Lamps',
+          color: null,
+        }),
+      );
     });
 
-    it('budget categories: plain Error on update shows the updateError fallback', async () => {
+    it('blocked delete uses the purchase wording', async () => {
       const user = userEvent.setup();
-      mockUpdateBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await user.click(await screen.findByRole('button', { name: 'Edit Materials' }));
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-      expect(
-        await screen.findByText(enSettings.manage.budgetCategories.messages.updateError),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
-    });
+      householdApi.deleteHouseholdItemCategory.mockRejectedValue(
+        new ApiClientError(409, { code: 'CATEGORY_IN_USE', message: 'x' }),
+      );
+      await loaded();
 
-    it('budget categories: plain Error on delete shows the deleteError fallback', async () => {
-      const user = userEvent.setup();
-      mockDeleteBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
-      renderManagePage('/settings/manage?tab=budget-categories');
-      await user.click(await screen.findByRole('button', { name: 'Delete Materials' }));
-      await user.click(await enabledConfirm('budget-category-delete'));
-      expect(
-        await screen.findByText(enSettings.manage.budgetCategories.messages.deleteError),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      await user.click(screen.getByTestId('purchase-categories-menu-hic-1'));
+      await user.click(await screen.findByTestId('purchase-categories-delete-hic-1'));
+      await user.click(screen.getByTestId('purchase-categories-delete-dialog-confirm'));
+
+      await screen.findByText("Furniture is still used by purchases, so it can't be deleted.");
+      expect(screen.queryByTestId('purchase-categories-delete-dialog-confirm')).toBeNull();
     });
   });
 
-  // ─── Reloads keep the section mounted (#2209 final fix) ─────────────────────────
+  describe('photo orientations', () => {
+    it('creates with name and description and no colour', async () => {
+      const user = userEvent.setup();
+      orientationApi.createOrientation.mockResolvedValue(
+        orientationRow({ id: 'or-3', name: 'East', sortOrder: 2 }),
+      );
+      await loaded();
 
-  describe('a reload after a delete keeps the section mounted', () => {
-    const skeleton = () => document.querySelector('[aria-busy="true"]');
-    const sectionHeading = () => document.querySelector<HTMLElement>('h2[tabindex="-1"]');
-    const NEVER = () => new Promise<never>(() => {});
+      await user.click(screen.getByTestId('photo-orientations-new'));
+      expect(screen.queryByTestId('photo-orientations-color')).toBeNull();
+      await user.type(screen.getByTestId('photo-orientations-name'), 'East');
+      await user.type(screen.getByTestId('photo-orientations-description'), 'Faces the garden');
+      await user.click(screen.getByTestId('photo-orientations-save'));
 
-    interface Case {
-      label: string;
-      path: string;
-      rowButton: string;
-      prefix: string;
-      /** Makes the data source report "loading" again once the delete has been issued. */
-      arrange: () => void;
-      /** Makes the first load stay pending. */
-      arrangeFirstLoad: () => void;
-    }
-
-    let reloading = false;
-
-    // Areas and orientations reload through their hook (isLoading goes true again after a
-    // delete). The two category sections drop the row locally and do not refetch, so for them the
-    // "reload" arrangement only proves the heading survives the delete; the skeleton regression is
-    // pinned by the first two.
-    const cases: Case[] = [
-      {
-        label: 'areas',
-        path: '/settings/manage?tab=areas',
-        rowButton: 'Delete',
-        prefix: 'area-delete',
-        arrange: () => {
-          mockUseAreas.mockImplementation(() =>
-            makeAreasHookResult({
-              isLoading: reloading,
-              deleteArea: jest.fn(async () => {
-                reloading = true;
-              }),
-            }),
-          );
-        },
-        arrangeFirstLoad: () =>
-          mockUseAreas.mockImplementation(() => makeAreasHookResult({ isLoading: true })),
-      },
-      {
-        label: 'orientations',
-        path: '/settings/manage?tab=orientations',
-        rowButton: 'Delete North',
-        prefix: 'orientation-delete',
-        arrange: () => {
-          mockUseOrientations.mockImplementation(() =>
-            makeOrientationsHookResult({
-              isLoading: reloading,
-              deleteOrientation: jest.fn(async () => {
-                reloading = true;
-              }),
-            }),
-          );
-        },
-        arrangeFirstLoad: () =>
-          mockUseOrientations.mockImplementation(() =>
-            makeOrientationsHookResult({ isLoading: true }),
-          ),
-      },
-      {
-        label: 'budget categories',
-        path: '/settings/manage?tab=budget-categories',
-        rowButton: 'Delete Materials',
-        prefix: 'budget-category-delete',
-        arrange: () => {
-          mockFetchBudgetCategories
-            .mockResolvedValueOnce({ categories: [sampleBudgetCat1, sampleBudgetCat2] })
-            .mockImplementation(NEVER);
-          mockDeleteBudgetCategory.mockResolvedValue(undefined);
-        },
-        arrangeFirstLoad: () => mockFetchBudgetCategories.mockImplementation(NEVER),
-      },
-      {
-        label: 'household item categories',
-        path: '/settings/manage?tab=hi-categories',
-        rowButton: 'Delete Furniture',
-        prefix: 'hi-category-delete',
-        arrange: () => {
-          mockFetchHICCategories
-            .mockResolvedValueOnce({ categories: [sampleHICat1, sampleHICat2] })
-            .mockImplementation(NEVER);
-          mockDeleteHICCategory.mockResolvedValue(undefined);
-        },
-        arrangeFirstLoad: () => mockFetchHICCategories.mockImplementation(NEVER),
-      },
-    ];
-
-    beforeEach(() => {
-      reloading = false;
+      await waitFor(() =>
+        expect(orientationApi.createOrientation).toHaveBeenCalledWith({
+          name: 'East',
+          description: 'Faces the garden',
+        }),
+      );
     });
 
-    describe.each(cases)('$label', (c) => {
-      it('shows the skeleton on the first load only', async () => {
-        c.arrangeFirstLoad();
-        renderManagePage(c.path);
-        await waitFor(() => expect(skeleton()).not.toBeNull());
-        expect(sectionHeading()).toBeNull();
-      });
+    it('asks what a delete also changes and lists the counts in the confirm', async () => {
+      const user = userEvent.setup();
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'orientation',
+        id: 'or-1',
+        effects: [{ kind: 'photosLoseOrientation', count: 4 }],
+      } as unknown as Awaited<ReturnType<typeof DeleteImpactApiTypes.fetchDeleteImpact>>);
+      await loaded();
 
-      it('after a confirmed delete the h2 stays mounted and focused while the reload is in flight', async () => {
-        c.arrange();
-        const user = userEvent.setup();
-        renderManagePage(c.path);
-        await waitFor(() => expect(sectionHeading()).not.toBeNull());
-        expect(skeleton()).toBeNull();
-        const heading = sectionHeading()!;
+      await user.click(screen.getByTestId('photo-orientations-menu-or-1'));
+      await user.click(await screen.findByTestId('photo-orientations-delete-or-1'));
 
-        const deleteButton = (await screen.findAllByRole('button', { name: c.rowButton }))[0]!;
-        await user.click(deleteButton);
-        await user.click(await enabledConfirm(c.prefix));
-        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-        await act(async () => {
-          await Promise.resolve();
-        });
+      const list = await screen.findByTestId('photo-orientations-delete-dialog-consequences');
+      expect(list).toHaveTextContent('4');
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('orientation', 'or-1');
+    });
 
-        // the reload is in flight now: no skeleton replaced the section
-        expect(skeleton()).toBeNull();
-        expect(heading.isConnected).toBe(true);
-        expect(sectionHeading()).toBe(heading);
-        await waitFor(() => expect(document.activeElement).toBe(heading));
-        expect(document.body).not.toHaveFocus();
-      });
+    it('deletes after confirming', async () => {
+      const user = userEvent.setup();
+      orientationApi.deleteOrientation.mockResolvedValue(undefined);
+      await loaded();
+
+      await user.click(screen.getByTestId('photo-orientations-menu-or-1'));
+      await user.click(await screen.findByTestId('photo-orientations-delete-or-1'));
+      const confirm = await screen.findByTestId('photo-orientations-delete-dialog-confirm');
+      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+      await user.click(confirm);
+
+      await waitFor(() => expect(orientationApi.deleteOrientation).toHaveBeenCalledWith('or-1'));
+      await waitFor(() =>
+        expect(screen.queryByTestId('photo-orientations-row-or-1')).not.toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe('reorder', () => {
+    it('Move down sends one request with the full id list and shows the server order', async () => {
+      const user = userEvent.setup();
+      budgetApi.reorderBudgetCategories.mockResolvedValue([
+        { ...TILES, sortOrder: 0 },
+        { ...BUILT_IN, sortOrder: 1 },
+      ]);
+      await loaded();
+
+      await chooseCostAction(user, 'bc-1', 'move-down');
+
+      await waitFor(() =>
+        expect(budgetApi.reorderBudgetCategories).toHaveBeenCalledWith(['bc-2', 'bc-1']),
+      );
+      expect(budgetApi.reorderBudgetCategories).toHaveBeenCalledTimes(1);
+      const rows = within(screen.getByTestId('project-setup-cost-categories')).getAllByRole(
+        'listitem',
+      );
+      expect(rows.map((li) => li.getAttribute('data-testid'))).toEqual([
+        'cost-categories-row-bc-2',
+        'cost-categories-row-bc-1',
+      ]);
+      await waitFor(() => expect(costMenu('bc-1')).toHaveFocus());
+      await waitFor(() => expect(statusRegion()).toHaveTextContent('moved to position 2 of 2'));
+    });
+
+    it('reorders the purchase categories and the orientations through their own endpoints', async () => {
+      const user = userEvent.setup();
+      householdApi.reorderHouseholdItemCategories.mockResolvedValue([APPLIANCES, FURNITURE]);
+      orientationApi.reorderOrientations.mockResolvedValue([SOUTH, NORTH]);
+      await loaded();
+
+      await user.click(screen.getByTestId('purchase-categories-menu-hic-1'));
+      await user.click(await screen.findByTestId('purchase-categories-move-down-hic-1'));
+      await waitFor(() =>
+        expect(householdApi.reorderHouseholdItemCategories).toHaveBeenCalledWith([
+          'hic-2',
+          'hic-1',
+        ]),
+      );
+      await user.click(screen.getByTestId('photo-orientations-menu-or-2'));
+      await user.click(await screen.findByTestId('photo-orientations-move-up-or-2'));
+
+      await waitFor(() =>
+        expect(orientationApi.reorderOrientations).toHaveBeenCalledWith(['or-2', 'or-1']),
+      );
+    });
+
+    it('rolls back, shows the banner and reloads the list on REORDER_SET_MISMATCH', async () => {
+      const user = userEvent.setup();
+      budgetApi.reorderBudgetCategories.mockRejectedValue(
+        new ApiClientError(409, {
+          code: 'REORDER_SET_MISMATCH',
+          message: 'RAW-SERVER-SENTINEL',
+          details: { missingIds: ['bc-9'], unknownIds: [] },
+        }),
+      );
+      const fresh = [TILES, BUILT_IN, costRow({ id: 'bc-9', name: 'Added elsewhere' })];
+      budgetApi.fetchBudgetCategories.mockResolvedValueOnce({ categories: [BUILT_IN, TILES] });
+      budgetApi.fetchBudgetCategories.mockResolvedValueOnce({ categories: fresh });
+      await loaded();
+
+      await chooseCostAction(user, 'bc-1', 'move-down');
+
+      expect(await screen.findByTestId('cost-categories-reorder-error')).toHaveAttribute(
+        'role',
+        'alert',
+      );
+      await screen.findByTestId('cost-categories-row-bc-9');
+      expect(budgetApi.fetchBudgetCategories).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      const rows = within(screen.getByTestId('project-setup-cost-categories')).getAllByRole(
+        'listitem',
+      );
+      expect(rows.map((li) => li.getAttribute('data-testid'))).toEqual([
+        'cost-categories-row-bc-2',
+        'cost-categories-row-bc-1',
+        'cost-categories-row-bc-9',
+      ]);
+    });
+
+    it('restores the previous order and shows the banner on another failure, without reloading', async () => {
+      const user = userEvent.setup();
+      budgetApi.reorderBudgetCategories.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      await loaded();
+
+      await chooseCostAction(user, 'bc-1', 'move-down');
+
+      await screen.findByTestId('cost-categories-reorder-error');
+      const rows = within(screen.getByTestId('project-setup-cost-categories')).getAllByRole(
+        'listitem',
+      );
+      expect(rows.map((li) => li.getAttribute('data-testid'))).toEqual([
+        'cost-categories-row-bc-1',
+        'cost-categories-row-bc-2',
+      ]);
+      expect(budgetApi.fetchBudgetCategories).toHaveBeenCalledTimes(1);
+      expect(costMenu('bc-1')).toHaveFocus();
+    });
+  });
+
+  describe('language of user text', () => {
+    it('sets lang on user-entered names and descriptions from the entries language', async () => {
+      mockEntriesLanguage = 'de';
+      await loaded();
+
+      const tiles = screen.getByTestId('cost-categories-row-bc-2');
+      expect(within(tiles).getByText('Tiles')).toHaveAttribute('lang', 'de');
+      expect(within(tiles).getByText('Floor and wall')).toHaveAttribute('lang', 'de');
+      const north = screen.getByTestId('photo-orientations-row-or-1');
+      expect(within(north).getByText('North')).toHaveAttribute('lang', 'de');
+    });
+
+    it('leaves built-in translated names without a lang attribute', async () => {
+      mockEntriesLanguage = 'de';
+      await loaded();
+
+      const builtIn = screen.getByTestId('cost-categories-row-bc-1');
+      expect(within(builtIn).getByText('Materials')).not.toHaveAttribute('lang');
+    });
+
+    it('sets no lang while the entries language is unknown', async () => {
+      await loaded();
+
+      expect(
+        within(screen.getByTestId('cost-categories-row-bc-2')).getByText('Tiles'),
+      ).not.toHaveAttribute('lang');
+    });
+  });
+
+  describe('interim Areas card', () => {
+    it('shows the card with the areas list while Areas is not a page', async () => {
+      await loaded();
+
+      const card = screen.getByTestId('project-setup-areas');
+      expect(within(card).getByText('Kitchen')).toBeInTheDocument();
+      expect(mockUseAreas).toHaveBeenCalled();
+    });
+
+    it('settles the page when the card has loaded, so a #areas hash can scroll', async () => {
+      await loaded('/settings/manage#areas');
+
+      await waitFor(() =>
+        expect(document.activeElement).toBe(document.getElementById('areas-heading')),
+      );
+    });
+  });
+
+  describe('House section on the page', () => {
+    it('loads the settings once and shows the entries-language select', async () => {
+      await loaded();
+
+      expect(mockFetchSettings).toHaveBeenCalledTimes(1);
+      expect((screen.getByTestId('project-setup-language') as HTMLSelectElement).value).toBe('en');
+    });
+
+    it('sends a changed language to the context and the server', async () => {
+      const user = userEvent.setup();
+      mockUpdateSettings.mockResolvedValue({ ...SETTINGS, entriesLanguage: 'de' });
+      await loaded();
+
+      await user.selectOptions(screen.getByTestId('project-setup-language'), 'de');
+      await user.click(screen.getByTestId('project-setup-house-save'));
+
+      await waitFor(() => expect(mockSetEntriesLanguage).toHaveBeenCalledWith('de'));
+      expect(mockUpdateSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ entriesLanguage: 'de' }),
+      );
     });
   });
 });

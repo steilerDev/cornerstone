@@ -730,8 +730,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: '/settings/manage?tab=budget-categories',
+    stage: 'done',
   },
   {
     id: 'schedule',
@@ -1062,7 +1061,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'areas',
@@ -1079,7 +1079,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'household',
@@ -1096,7 +1097,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'trades',
@@ -1113,7 +1115,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'orientations',
@@ -1130,7 +1133,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'hi-categories',
@@ -1147,7 +1151,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         tab: 'budget-categories',

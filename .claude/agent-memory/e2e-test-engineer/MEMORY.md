@@ -38,6 +38,7 @@
 - [story-2201-route-map-walk.md](story-2201-route-map-walk.md) — #2201: POMs build URLs via shared `routeUrl`; legacy-url-walk spec design (frozen 26 redirects, hop log, strict param seeding).
 
 - [story-2211-command-search.md](story-2211-command-search.md) — #2211 palette POM/spec, Back-reopens-palette defect, list-search text collision, sandbox run notes.
+- [story-2215-project-setup.md](story-2215-project-setup.md) — #2215 Project setup POM (ReferenceListControl), mocked global-list reorder, anchors, live-run traps.
 
 ## Open follow-ups to flag to orchestrator
 

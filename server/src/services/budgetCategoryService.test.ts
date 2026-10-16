@@ -10,6 +10,7 @@ import {
   ValidationError,
   ConflictError,
   CategoryInUseError,
+  ReorderSetMismatchError,
 } from '../errors/AppError.js';
 import type { CreateBudgetCategoryRequest, UpdateBudgetCategoryRequest } from '@cornerstone/shared';
 
@@ -256,6 +257,13 @@ describe('Budget Category Service', () => {
   describe('createBudgetCategory()', () => {
     it('creates a category with name only', () => {
       const data: CreateBudgetCategoryRequest = { name: 'Custom Masonry' };
+      const seededMax = Math.max(
+        ...db
+          .select()
+          .from(schema.budgetCategories)
+          .all()
+          .map((r) => r.sortOrder),
+      );
 
       const result = budgetCategoryService.createBudgetCategory(db, data);
 
@@ -263,7 +271,7 @@ describe('Budget Category Service', () => {
       expect(result.name).toBe('Custom Masonry');
       expect(result.description).toBeNull();
       expect(result.color).toBeNull();
-      expect(result.sortOrder).toBe(0);
+      expect(result.sortOrder).toBe(seededMax + 1);
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
     });
@@ -292,7 +300,7 @@ describe('Budget Category Service', () => {
       expect(result.name).toBe('Custom Tiling');
     });
 
-    it('creates category with sortOrder of 0 (default)', () => {
+    it('keeps an explicit sortOrder of 0', () => {
       const data: CreateBudgetCategoryRequest = { name: 'Custom HVAC', sortOrder: 0 };
 
       const result = budgetCategoryService.createBudgetCategory(db, data);
@@ -949,6 +957,199 @@ describe('Budget Category Service', () => {
         name: 'Custom Budget 2',
       });
       expect(result.translationKey).toBeNull();
+    });
+  });
+
+  // ─── Append, list order and reorder (#2215) ────────────────────────────────
+
+  describe('append, list order and reorder for budget categories (#2215)', () => {
+    const STAMP = '2026-01-01T00:00:00.000Z';
+
+    function seedRows(rows: Array<[string, string, number]>): void {
+      db.delete(schema.budgetCategories).run();
+      for (const [id, name, sortOrder] of rows) {
+        db.insert(schema.budgetCategories)
+          .values({ id, name, sortOrder, createdAt: STAMP, updatedAt: STAMP })
+          .run();
+      }
+    }
+
+    const readRows = () =>
+      db
+        .select()
+        .from(schema.budgetCategories)
+        .all()
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+    const orderOf = (rows: Array<{ id: string }>) => rows.map((r) => r.id);
+
+    it('appends at 0 when the list is empty', () => {
+      seedRows([]);
+
+      expect(
+        budgetCategoryService.createBudgetCategory(db, { name: 'First Entry' }).sortOrder,
+      ).toBe(0);
+    });
+
+    it('appends at max + 1 when the list has entries', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 5],
+      ]);
+
+      expect(budgetCategoryService.createBudgetCategory(db, { name: 'Next Entry' }).sortOrder).toBe(
+        6,
+      );
+    });
+
+    it('appends after a list whose only entry sits at 0', () => {
+      seedRows([['a', 'Alpha', 0]]);
+
+      expect(budgetCategoryService.createBudgetCategory(db, { name: 'Next Entry' }).sortOrder).toBe(
+        1,
+      );
+    });
+
+    it('keeps an explicit sortOrder instead of appending', () => {
+      seedRows([['a', 'Alpha', 3]]);
+
+      expect(
+        budgetCategoryService.createBudgetCategory(db, { name: 'Pinned Entry', sortOrder: 1 })
+          .sortOrder,
+      ).toBe(1);
+    });
+
+    it('persists the appended sortOrder', () => {
+      seedRows([['a', 'Alpha', 2]]);
+
+      const created = budgetCategoryService.createBudgetCategory(db, { name: 'Persisted Entry' });
+
+      expect(readRows().find((r) => r.id === created.id)?.sortOrder).toBe(3);
+    });
+
+    it('lists by sort order and breaks ties by name', () => {
+      seedRows([
+        ['a', 'Zulu', 1],
+        ['z', 'Alpha', 1],
+        ['m', 'Mike', 0],
+      ]);
+
+      expect(budgetCategoryService.listBudgetCategories(db).map((r) => r.name)).toEqual([
+        'Mike',
+        'Alpha',
+        'Zulu',
+      ]);
+    });
+
+    it('reorders to 0..n-1 in the requested order and returns the list in that order', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+
+      const result = budgetCategoryService.reorderBudgetCategories(db, ['c', 'a', 'b']);
+
+      expect(orderOf(result)).toEqual(['c', 'a', 'b']);
+      expect(result.map((r) => r.sortOrder)).toEqual([0, 1, 2]);
+      expect(readRows().map((r) => [r.id, r.sortOrder])).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 0],
+      ]);
+    });
+
+    it('normalises gaps and ties to 0..n-1', () => {
+      seedRows([
+        ['a', 'Alpha', 7],
+        ['b', 'Bravo', 7],
+        ['c', 'Charlie', 40],
+      ]);
+
+      const result = budgetCategoryService.reorderBudgetCategories(db, ['a', 'b', 'c']);
+
+      expect(result.map((r) => r.sortOrder)).toEqual([0, 1, 2]);
+    });
+
+    it('accepts a single-entry list', () => {
+      seedRows([['a', 'Alpha', 9]]);
+
+      expect(
+        budgetCategoryService.reorderBudgetCategories(db, ['a']).map((r) => r.sortOrder),
+      ).toEqual([0]);
+    });
+
+    it('writes only rows whose position changed', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+
+      budgetCategoryService.reorderBudgetCategories(db, ['a', 'c', 'b']);
+
+      const rows = readRows();
+      expect(rows.find((r) => r.id === 'a')?.updatedAt).toBe(STAMP);
+      expect(rows.find((r) => r.id === 'b')?.updatedAt).not.toBe(STAMP);
+      expect(rows.find((r) => r.id === 'c')?.updatedAt).not.toBe(STAMP);
+    });
+
+    it('writes nothing when the order is already current', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+      ]);
+
+      budgetCategoryService.reorderBudgetCategories(db, ['a', 'b']);
+
+      expect(readRows().every((r) => r.updatedAt === STAMP)).toBe(true);
+    });
+
+    it.each([
+      ['a missing id', ['a', 'b'], { missingIds: ['c'], unknownIds: [] }],
+      ['an unknown id', ['a', 'b', 'c', 'zzz'], { missingIds: [], unknownIds: ['zzz'] }],
+      ['a swapped id', ['a', 'b', 'zzz'], { missingIds: ['c'], unknownIds: ['zzz'] }],
+      ['an empty list', [], { missingIds: ['a', 'b', 'c'], unknownIds: [] }],
+    ])('rejects %s with ReorderSetMismatchError and changes nothing', (_name, ids, details) => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+      const before = readRows();
+
+      let caught: unknown;
+      try {
+        budgetCategoryService.reorderBudgetCategories(db, ids);
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).toBeInstanceOf(ReorderSetMismatchError);
+      expect((caught as ReorderSetMismatchError).code).toBe('REORDER_SET_MISMATCH');
+      expect((caught as ReorderSetMismatchError).statusCode).toBe(409);
+      expect((caught as ReorderSetMismatchError).details).toEqual(details);
+      expect(readRows()).toEqual(before);
+    });
+
+    it('rolls back every write when a later write fails (one transaction)', () => {
+      seedRows([
+        ['a', 'Alpha', 0],
+        ['b', 'Bravo', 1],
+        ['c', 'Charlie', 2],
+      ]);
+      const before = readRows();
+      sqlite.exec(
+        `CREATE TEMP TRIGGER fail_reorder BEFORE UPDATE ON budget_categories WHEN NEW.id = 'c'
+         BEGIN SELECT RAISE(ABORT, 'boom'); END`,
+      );
+
+      expect(() => budgetCategoryService.reorderBudgetCategories(db, ['b', 'c', 'a'])).toThrow(
+        'boom',
+      );
+
+      sqlite.exec('DROP TRIGGER fail_reorder');
+      expect(readRows()).toEqual(before);
     });
   });
 });

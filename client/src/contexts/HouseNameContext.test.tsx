@@ -21,9 +21,10 @@ jest.unstable_mockModule('../lib/settingsApi.js', () => ({
 
 let HouseNameProvider: typeof HouseNameTypes.HouseNameProvider;
 let useHouseName: typeof HouseNameTypes.useHouseName;
+let useEntriesLanguage: typeof HouseNameTypes.useEntriesLanguage;
 
 beforeAll(async () => {
-  ({ HouseNameProvider, useHouseName } = await import('./HouseNameContext.js'));
+  ({ HouseNameProvider, useHouseName, useEntriesLanguage } = await import('./HouseNameContext.js'));
 });
 
 function authAs(userId: string | null) {
@@ -48,8 +49,35 @@ function renderProvider() {
   );
 }
 
-function settings(householdName: string | null) {
-  return { householdName, householdAddress: null };
+function settings(householdName: string | null, entriesLanguage: unknown = 'en') {
+  return {
+    householdName,
+    householdAddress: null,
+    entriesLanguage,
+  } as Awaited<ReturnType<typeof SettingsApiTypes.fetchHouseholdSettings>>;
+}
+
+let setEntriesLanguageRef: (language: 'de' | 'en') => void = () => {};
+
+function LanguageProbe() {
+  const { entriesLanguage, setEntriesLanguage, setHouseName } = useHouseName();
+  const hookValue = useEntriesLanguage();
+  setEntriesLanguageRef = setEntriesLanguage;
+  setHouseNameRef = setHouseName;
+  return (
+    <div>
+      <div data-testid="language">{entriesLanguage ?? 'none'}</div>
+      <div data-testid="hook-language">{hookValue ?? 'none'}</div>
+    </div>
+  );
+}
+
+function renderLanguageProvider() {
+  return render(
+    <HouseNameProvider>
+      <LanguageProbe />
+    </HouseNameProvider>,
+  );
 }
 
 describe('HouseNameProvider', () => {
@@ -196,5 +224,115 @@ describe('useHouseName outside a provider', () => {
 
     expect(screen.getByTestId('name')).toHaveTextContent('none');
     expect(() => setHouseNameRef('x')).not.toThrow();
+  });
+});
+
+describe('entriesLanguage (#2215)', () => {
+  beforeEach(() => {
+    mockUseAuth.mockReset();
+    mockFetchHouseholdSettings.mockReset();
+    setEntriesLanguageRef = () => {};
+    setHouseNameRef = () => {};
+  });
+
+  it.each(['de', 'en'] as const)('carries %s from the settings fetch', async (language) => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockResolvedValue(settings('Synthetic House', language));
+
+    renderLanguageProvider();
+
+    await waitFor(() => expect(screen.getByTestId('language')).toHaveTextContent(language));
+    expect(screen.getByTestId('hook-language')).toHaveTextContent(language);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['invalid', 'fr'],
+    ['null', null],
+  ])('is null for a %s field', async (_label, value) => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockResolvedValue(settings('Synthetic House', value));
+
+    renderLanguageProvider();
+
+    await waitFor(() => expect(mockFetchHouseholdSettings).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('language')).toHaveTextContent('none'));
+  });
+
+  it('is null when the fetch rejects', async () => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockRejectedValue(new Error('boom'));
+
+    renderLanguageProvider();
+
+    await waitFor(() => expect(mockFetchHouseholdSettings).toHaveBeenCalled());
+    expect(screen.getByTestId('language')).toHaveTextContent('none');
+  });
+
+  it('is null while signed out', () => {
+    authAs(null);
+
+    renderLanguageProvider();
+
+    expect(screen.getByTestId('language')).toHaveTextContent('none');
+  });
+
+  it('setEntriesLanguage replaces the language and keeps the house name', async () => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockResolvedValue(settings('Synthetic House', 'en'));
+    renderLanguageProvider();
+    await waitFor(() => expect(screen.getByTestId('language')).toHaveTextContent('en'));
+
+    act(() => setEntriesLanguageRef('de'));
+
+    expect(screen.getByTestId('language')).toHaveTextContent('de');
+    expect(screen.getByTestId('hook-language')).toHaveTextContent('de');
+  });
+
+  it('setHouseName keeps the entries language', async () => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockResolvedValue(settings('Synthetic House', 'de'));
+    renderLanguageProvider();
+    await waitFor(() => expect(screen.getByTestId('language')).toHaveTextContent('de'));
+
+    act(() => setHouseNameRef('Renamed'));
+
+    expect(screen.getByTestId('language')).toHaveTextContent('de');
+  });
+
+  it('setEntriesLanguage is a no-op while signed out', () => {
+    authAs(null);
+    renderLanguageProvider();
+
+    act(() => setEntriesLanguageRef('de'));
+
+    expect(screen.getByTestId('language')).toHaveTextContent('none');
+  });
+
+  it('setEntriesLanguage before the fetch resolves does not invent a house name', () => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockReturnValue(new Promise(() => {}));
+    renderLanguageProvider();
+
+    act(() => setEntriesLanguageRef('de'));
+
+    expect(screen.getByTestId('language')).toHaveTextContent('de');
+  });
+
+  it('setHouseName before the fetch resolves leaves the language null', () => {
+    authAs('u-1');
+    mockFetchHouseholdSettings.mockReturnValue(new Promise(() => {}));
+    renderLanguageProvider();
+
+    act(() => setHouseNameRef('Early'));
+
+    expect(screen.getByTestId('language')).toHaveTextContent('none');
+  });
+
+  it('is null outside a provider', () => {
+    render(<LanguageProbe />);
+
+    expect(screen.getByTestId('language')).toHaveTextContent('none');
+    expect(() => setEntriesLanguageRef('de')).not.toThrow();
   });
 });

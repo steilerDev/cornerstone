@@ -489,6 +489,7 @@ test.describe('Documentation screenshots', () => {
     // Note: renamed from 'Tags page' in EPIC-18 (tagging system removed; page now shows Areas)
     await page.goto(`${baseUrl}/settings/manage`);
     await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('project-setup-house')).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -540,11 +541,8 @@ test.describe('Documentation screenshots', () => {
   test('Budget categories', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetCategories}`);
     await page.waitForLoadState('networkidle');
-    // Visual cleanup #1185: the h1 "Manage" heading was removed from ManagePage.
-    // Wait for the always-visible create form heading as the readiness indicator.
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Budget Category' }),
-    ).toBeVisible();
+    // Project setup (#2215): the legacy URL lands on the Cost categories section.
+    await expect(page.getByTestId('project-setup-cost-categories')).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
