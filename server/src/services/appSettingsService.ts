@@ -91,11 +91,11 @@ export function getHouseholdSettings(db: DbType): HouseholdSettings {
 
 /**
  * Update household settings.
- * At least one field must be provided (either householdName or householdAddress).
- * Setting a field to null clears it.
+ * At least one of householdName, householdAddress or entriesLanguage must be provided.
+ * Setting householdName or householdAddress to null clears it (entriesLanguage is never null).
  * Partial updates leave other fields unchanged.
  *
- * @throws ValidationError if both fields are undefined or if values exceed maxLength
+ * @throws ValidationError if no field is provided, a length is exceeded or entriesLanguage is invalid
  * @returns the updated HouseholdSettings
  */
 export function updateHouseholdSettings(

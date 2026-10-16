@@ -47,7 +47,7 @@ function isValidHexColor(color: string): boolean {
 }
 
 /**
- * List all budget categories, sorted by sort_order ascending.
+ * List all budget categories, sorted by sort_order ascending, ties broken by name.
  */
 export function listBudgetCategories(db: DbType): BudgetCategory[] {
   const rows = db

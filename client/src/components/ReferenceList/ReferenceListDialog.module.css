@@ -109,6 +109,10 @@
 }
 
 @media (max-width: 767px) {
+  .input {
+    min-height: var(--touch-target-min);
+  }
+
   .footer > * {
     flex: 1;
   }

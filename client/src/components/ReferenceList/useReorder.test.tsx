@@ -174,15 +174,30 @@ describe('useReorder', () => {
       expect(onAnnounce).toHaveBeenLastCalledWith('Item b moved to position 2 of 3.');
     });
 
-    it('does not move or announce past the ends', () => {
+    it('ArrowUp on the first row keeps the order and announces the unchanged position', () => {
       renderList();
       const handle = screen.getByTestId('handle-a');
-
       fireEvent.keyDown(handle, { key: ' ' });
+
       fireEvent.keyDown(handle, { key: 'ArrowUp' });
 
-      expect(onAnnounce).toHaveBeenCalledTimes(1);
       expect(order()).toEqual(['row-a', 'row-b', 'row-c']);
+      expect(onAnnounce).toHaveBeenCalledTimes(2);
+      expect(onAnnounce).toHaveBeenLastCalledWith('Item a, position 1 of 3.');
+      expect(onCommit).not.toHaveBeenCalled();
+    });
+
+    it('ArrowDown on the last row keeps the order and announces the unchanged position', () => {
+      renderList();
+      const handle = screen.getByTestId('handle-c');
+      fireEvent.keyDown(handle, { key: ' ' });
+
+      fireEvent.keyDown(handle, { key: 'ArrowDown' });
+
+      expect(order()).toEqual(['row-a', 'row-b', 'row-c']);
+      expect(onAnnounce).toHaveBeenCalledTimes(2);
+      expect(onAnnounce).toHaveBeenLastCalledWith('Item c, position 3 of 3.');
+      expect(onCommit).not.toHaveBeenCalled();
     });
 
     it('Escape restores the order, announces the cancel and commits nothing', () => {

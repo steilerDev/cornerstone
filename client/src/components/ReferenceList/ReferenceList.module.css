@@ -61,6 +61,12 @@
   composes: btnSecondary from '../../styles/shared.module.css';
 }
 
+@media (max-width: 1023px), (pointer: coarse) {
+  .retry {
+    min-height: var(--touch-target-min);
+  }
+}
+
 .banner {
   composes: bannerError from '../../styles/shared.module.css';
   margin-bottom: var(--spacing-3);

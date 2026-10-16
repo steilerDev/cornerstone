@@ -43,7 +43,7 @@ function isValidHexColor(color: string): boolean {
 }
 
 /**
- * List all household item categories, sorted by sort_order ascending.
+ * List all household item categories, sorted by sort_order ascending, ties broken by name.
  */
 export function listHouseholdItemCategories(db: DbType): HouseholdItemCategoryEntity[] {
   const rows = db

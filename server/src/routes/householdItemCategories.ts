@@ -57,7 +57,7 @@ const categoryIdSchema = {
 export default async function householdItemCategoryRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/household-item-categories
-   * List all household item categories, sorted by sort_order ascending.
+   * List all household item categories, sorted by sort_order ascending, ties broken by name.
    * Auth required: Yes (both admin and member)
    */
   fastify.get('/', async (request, reply) => {

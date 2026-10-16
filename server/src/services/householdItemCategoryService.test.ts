@@ -257,7 +257,7 @@ describe('Household Item Category Service', () => {
       expect(result.name).toBe('Test HIC Lamps');
     });
 
-    it('creates category with sortOrder of 0 (default)', () => {
+    it('keeps an explicit sortOrder of 0', () => {
       const data: CreateHouseholdItemCategoryRequest = { name: 'Test HIC Mirrors', sortOrder: 0 };
       const result = householdItemCategoryService.createHouseholdItemCategory(db, data);
       expect(result.sortOrder).toBe(0);

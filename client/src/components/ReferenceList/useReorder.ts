@@ -170,7 +170,11 @@ export function useReorder({
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
       const next = moveId(picked.preview, id, index + (event.key === 'ArrowUp' ? -1 : 1));
-      if (next[index] === id) return;
+      if (next[index] === id) {
+        // At the first or last row: say where the row stays.
+        announcePosition('position', id, picked.preview);
+        return;
+      }
       refocusRef.current = id;
       setPicked({ id, preview: next });
       announcePosition('position', id, next);

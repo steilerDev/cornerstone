@@ -56,7 +56,7 @@ const categoryIdSchema = {
 export default async function budgetCategoryRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/budget-categories
-   * List all budget categories, sorted by sort_order ascending.
+   * List all budget categories, sorted by sort_order ascending, ties broken by name.
    * Auth required: Yes (both admin and member)
    */
   fastify.get('/', async (request, reply) => {

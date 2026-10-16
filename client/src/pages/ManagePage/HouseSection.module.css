@@ -112,12 +112,24 @@
 }
 
 @media (max-width: 1023px) {
-  .save {
+  .save,
+  .retry {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (pointer: coarse) {
+  .retry {
     min-height: var(--touch-target-min);
   }
 }
 
 @media (max-width: 767px) {
+  .input,
+  .select {
+    min-height: var(--touch-target-min);
+  }
+
   .save {
     width: 100%;
   }

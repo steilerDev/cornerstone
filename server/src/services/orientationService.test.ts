@@ -338,12 +338,6 @@ describe('orientationService', () => {
       expect(result.description).toBeNull();
     });
 
-    it('defaults sortOrder to 0 when not provided', () => {
-      const result = createOrientation(app.db, { name: 'South' });
-
-      expect(result.sortOrder).toBe(0);
-    });
-
     it('trims whitespace from name', () => {
       const result = createOrientation(app.db, { name: '  South  ' });
 

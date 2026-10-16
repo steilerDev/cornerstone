@@ -39,7 +39,8 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    * GET /api/settings
    *
    * Retrieve current application settings (household name, address and entries language).
-   * Returns nulls before any values have been set.
+   * Household name and address are null until set; entriesLanguage is never null (stored value,
+   * else the earliest user's locale if de|en, else en; resolved on read, never persisted).
    *
    * Auth required: Yes
    */

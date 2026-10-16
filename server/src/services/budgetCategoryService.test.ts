@@ -300,7 +300,7 @@ describe('Budget Category Service', () => {
       expect(result.name).toBe('Custom Tiling');
     });
 
-    it('creates category with sortOrder of 0 (default)', () => {
+    it('keeps an explicit sortOrder of 0', () => {
       const data: CreateBudgetCategoryRequest = { name: 'Custom HVAC', sortOrder: 0 };
 
       const result = budgetCategoryService.createBudgetCategory(db, data);
