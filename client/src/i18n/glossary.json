@@ -17,7 +17,12 @@
       }
     },
     "transition": "Words under formerly and doNotUse may remain in existing strings until the EPIC-21 story that renames that label replaces them; every new or changed string uses the canon. Former names stay search aliases permanently and are never removed.",
-    "germanAddressForm": "Owner decision (2026-10-16): all German UI text addresses the user informally with \"du\" (dein/deine/deinem/deinen/deiner, dich, dir; imperatives in the du form, e.g. \"Versuche es erneut\"). The formal \"Sie\"/\"Ihr\" register is retired for the user. Third-party \"Sie\"/\"sie\" (for example a Rechnung, an app, or the recipient of a generated letter) keeps its meaning and is not changed by this rule. Exception, formal by design: outgoing documents to banks and authorities (the generated cover letters, for example budget.json coverLetter) and the LLM prompt text keep the formal \"Sie\" register, because they are read by third parties, not the user."
+    "addressForm": {
+      "de": {
+        "form": "du",
+        "rule": "Address the user with du, dein and dich; text to third parties (report cover letters, AI prompts) stays formal."
+      }
+    }
   },
   "terms": {
     "Home": {
