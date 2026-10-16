@@ -1,11 +1,11 @@
 {
   "page": {
-    "subtitle": "Alle Blickpunkte nach Bereich und Ausrichtung. Öffnen Sie einen, um seine Fotos nach Tagebuchdatum durchzusehen.",
+    "subtitle": "Alle Blickpunkte nach Bereich und Ausrichtung. Öffne einen, um seine Fotos nach Tagebuchdatum durchzusehen.",
     "loading": "Fotos werden geladen",
     "loadError": "Fotos konnten nicht geladen werden.",
     "retry": "Erneut versuchen",
     "emptyTitle": "Noch keine Tagebuchfotos",
-    "emptyDescription": "Fotos, die Sie zu Tagebucheinträgen hinzufügen, erscheinen hier, sortiert nach Bereich und Ausrichtung."
+    "emptyDescription": "Fotos, die du zu Tagebucheinträgen hinzufügst, erscheinen hier, sortiert nach Bereich und Ausrichtung."
   },
   "spots": {
     "tableCaption": "Fotos nach Bereich und Ausrichtung",

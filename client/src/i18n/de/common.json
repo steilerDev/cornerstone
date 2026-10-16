@@ -136,8 +136,8 @@
     "fewerDetails": "Weniger Details",
     "addAnother": "Nach dem Speichern weitere anlegen",
     "saving": "Wird gespeichert…",
-    "saveFailed": "Speichern nicht möglich. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-    "fieldInvalid": "Prüfen Sie diesen Wert.",
+    "saveFailed": "Speichern nicht möglich. Prüfe deine Verbindung und versuche es erneut.",
+    "fieldInvalid": "Prüfe diesen Wert.",
     "backTo": "Zurück zu {{title}}"
   },
   "userMenu": {
@@ -160,7 +160,7 @@
   },
   "noAccess": {
     "title": "Kein Zugriff",
-    "description": "Wenden Sie sich an einen Administrator, wenn Sie Zugriff benötigen.",
+    "description": "Wende dich an einen Administrator, wenn du Zugriff benötigst.",
     "backLink": "Zurück zum Start"
   },
   "tagPicker": {
@@ -170,7 +170,7 @@
     "colorLabel": "Farbe:",
     "createButton": "Tag erstellen",
     "creating": "Wird erstellt...",
-    "createError": "Tag konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "createError": "Tag konnte nicht erstellt werden. Bitte versuche es erneut.",
     "noMatchingTags": "Keine passenden Tags gefunden",
     "noMoreTags": "Keine weiteren Tags verfügbar"
   },
@@ -254,8 +254,8 @@
     "refreshButton": "Seite neu laden"
   },
   "requestErrors": {
-    "network": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-    "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+    "network": "Der Server ist nicht erreichbar. Bitte prüfe deine Verbindung und versuche es erneut.",
+    "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut."
   },
   "statusVocabulary": {
     "invoice": {
@@ -369,8 +369,8 @@
     "pickDate": "Datum wählen",
     "dateLabel": "Datum",
     "setDate": "Datum festlegen",
-    "dateInFuture": "Wählen Sie ein Datum bis einschließlich heute.",
-    "dateBeforeStart": "Wählen Sie ein Datum ab dem Startdatum.",
+    "dateInFuture": "Wähle ein Datum bis einschließlich heute.",
+    "dateBeforeStart": "Wähle ein Datum ab dem Startdatum.",
     "whenStarted": "Wann hat es begonnen?",
     "whenFinished": "Wann wurde es abgeschlossen?",
     "whenArrived": "Wann ist es angekommen?",
@@ -440,14 +440,14 @@
     "title": "Überall suchen",
     "inputLabel": "Überall suchen",
     "placeholder": "Aufgaben, Firmen, Rechnungen suchen...",
-    "hintEmpty": "Tippen Sie, um Aufgaben, Anschaffungen, Rechnungen, Firmen, Tagebucheinträge, Bereiche und Kostenpositionen zu durchsuchen.",
-    "hintTooShort": "Geben Sie mindestens 2 Zeichen ein, um alles zu durchsuchen.",
+    "hintEmpty": "Tippe, um Aufgaben, Anschaffungen, Rechnungen, Firmen, Tagebucheinträge, Bereiche und Kostenpositionen zu durchsuchen.",
+    "hintTooShort": "Gib mindestens 2 Zeichen ein, um alles zu durchsuchen.",
     "goTo": "Navigation",
     "goToItem": "Zu {{name}} wechseln",
     "formerly": "Früher „{{name}}“",
     "groupCount": "{{shown}} von {{total}}",
     "showMore": "{{count}} weitere anzeigen",
-    "capped": "{{shown}} von {{total}} werden angezeigt. Grenzen Sie Ihre Suche ein, um die übrigen zu sehen.",
+    "capped": "{{shown}} von {{total}} werden angezeigt. Grenze deine Suche ein, um die übrigen zu sehen.",
     "foundIn": "Gefunden in {{field}}",
     "groups": {
       "work_item": "Aufgaben",
@@ -482,16 +482,16 @@
       "invoice": "In der Rechnung {{label}}",
       "invoiceUnnamed": "In einer Rechnung ohne Nummer"
     },
-    "callHint": "Drücken Sie Umschalt+Eingabetaste zum Anrufen",
+    "callHint": "Drücke Umschalt+Eingabetaste zum Anrufen",
     "opensInNewTab": "(öffnet in einem neuen Tab)",
     "cannotOpen": "Kann von hier nicht geöffnet werden",
     "documentsUnavailable": "Dokumente sind gerade nicht erreichbar. Andere Ergebnisse werden angezeigt.",
     "documentsUnavailableLive": "Dokumente sind gerade nicht verfügbar.",
     "noResults": "Keine Ergebnisse für „{{query}}“",
-    "noResultsHint": "Versuchen Sie eine andere Schreibweise, einen Firmennamen, eine Rechnungsnummer oder einen Teil einer Telefonnummer.",
+    "noResultsHint": "Versuche eine andere Schreibweise, einen Firmennamen, eine Rechnungsnummer oder einen Teil einer Telefonnummer.",
     "noResultsLive": "Keine Ergebnisse für {{query}}",
     "nothingElse": "Nichts weiter gefunden für „{{query}}“.",
-    "error": "Die Suche hat nicht funktioniert. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "error": "Die Suche hat nicht funktioniert. Prüfe deine Verbindung und versuche es erneut.",
     "retry": "Erneut versuchen",
     "clear": "Suche leeren",
     "results": "Suchergebnisse",
@@ -523,18 +523,18 @@
     "descriptionLabel": "Beschreibung",
     "colorLabel": "Farbe",
     "noColor": "Keine Farbe",
-    "nameRequired": "Geben Sie einen Namen ein.",
-    "translatedHint": "Dieser Name ist übersetzt. Wenn Sie ihn ändern, wird Ihr Text in jeder Sprache angezeigt.",
+    "nameRequired": "Gib einen Namen ein.",
+    "translatedHint": "Dieser Name ist übersetzt. Wenn du ihn änderst, wird dein Text in jeder Sprache angezeigt.",
     "actionsFor": "Aktionen für {{name}}",
     "reorderHandle": "{{name}} neu anordnen",
-    "reorderInstructions": "Drücken Sie die Leertaste zum Aufnehmen. Verschieben Sie mit den Pfeiltasten, legen Sie mit der Leertaste ab und brechen Sie mit Escape ab.",
+    "reorderInstructions": "Drücke die Leertaste zum Aufnehmen. Verschiebe mit den Pfeiltasten, lege mit der Leertaste ab und brich mit Escape ab.",
     "pickedUp": "{{name}} aufgenommen. Position {{position}} von {{total}}.",
     "position": "{{name}}, Position {{position}} von {{total}}.",
     "dropped": "{{name}} auf Position {{position}} von {{total}} verschoben.",
     "reorderCanceled": "Neuanordnung abgebrochen. {{name}} steht wieder auf Position {{position}}.",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
-    "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "added": "{{name}} hinzugefügt.",
     "saved": "{{name}} gespeichert.",
     "deleted": "{{name}} gelöscht."

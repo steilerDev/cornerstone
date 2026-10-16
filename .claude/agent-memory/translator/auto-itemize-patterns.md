@@ -38,7 +38,7 @@ metadata:
 **Error messages** (extraction service context):
 
 - `unexpectedResponse` → "Der Extraktionsdienst hat eine unerwartete Antwort zurückgegeben."
-- `providerError` → "Der Extraktionsdienst ist nicht erreichbar. Versuchen Sie es erneut oder schlüsseln Sie manuell auf." — "schlüsseln Sie manuell auf" for "itemize manually"
+- `providerError` → "Der Extraktionsdienst ist nicht erreichbar. Versuche es erneut oder schlüssle manuell auf." — "schlüssle manuell auf" for "itemize manually"
 - `invalidResponseError` → "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben."
 
 ### LLM error codes in `de/errors.json` — reviewed and updated

@@ -35,14 +35,14 @@
       "month": "Monat"
     },
     "errorBanner": {
-      "title": "Fehler beim Laden des Zeitplans. Bitte versuchen Sie es erneut.",
+      "title": "Fehler beim Laden des Zeitplans. Bitte versuche es erneut.",
       "tryAgain": "Erneut versuchen"
     },
     "emptyState": {
       "noItems": "Keine Arbeitspakete zum Anzeigen",
-      "noItemsMessage": "Fügen Sie Arbeitspakete mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
+      "noItemsMessage": "Füge Arbeitspakete mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
       "noScheduled": "Keine geplanten Arbeitspakete",
-      "noScheduledMessage": "Ihre Arbeitspakete haben noch kein Start- und Enddatum. Legen Sie Daten für Ihre Arbeitspakete fest, um sie im Zeitplan zu sehen.",
+      "noScheduledMessage": "Deine Arbeitspakete haben noch kein Start- und Enddatum. Lege Daten für deine Arbeitspakete fest, um sie im Zeitplan zu sehen.",
       "goToWorkItems": "Zu Arbeitspaketen gehen"
     }
   },
@@ -163,7 +163,7 @@
     "newButton": "Neuer Meilenstein",
     "empty": {
       "noItems": "Noch keine Meilensteine",
-      "noItemsMessage": "Erstellen Sie Ihren ersten Meilenstein, um wichtige Projektfortschrittspunkte zu markieren.",
+      "noItemsMessage": "Erstelle deinen ersten Meilenstein, um wichtige Projektfortschrittspunkte zu markieren.",
       "createFirst": "Ersten Meilenstein erstellen"
     },
     "table": {
@@ -188,8 +188,8 @@
       "delete": "Löschen"
     },
     "loading": "Meilensteine werden geladen...",
-    "error": "Fehler beim Laden der Meilensteine. Bitte versuchen Sie es erneut.",
-    "deleteError": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
+    "error": "Fehler beim Laden der Meilensteine. Bitte versuche es erneut.",
+    "deleteError": "Fehler beim Löschen des Meilensteins. Bitte versuche es erneut.",
     "keyboard": {
       "newMilestone": "Neuer Meilenstein",
       "selectNext": "Nächsten Artikel wählen",
@@ -217,7 +217,7 @@
     },
     "detail": {
       "loading": "Meilenstein wird geladen...",
-      "error": "Fehler beim Laden des Meilensteins. Bitte versuchen Sie es erneut.",
+      "error": "Fehler beim Laden des Meilensteins. Bitte versuche es erneut.",
       "editButton": "Bearbeiten",
       "notFound": "Meilenstein nicht gefunden",
       "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
@@ -262,8 +262,8 @@
       "householdItem": "Haushaltsartikel",
       "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
       "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
-      "noMatches": "Keine Artikel entsprechen Ihrer Suche",
-      "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
+      "noMatches": "Keine Artikel entsprechen deiner Suche",
+      "noDepMatches": "Keine Arbeitspakete entsprechen deiner Suche",
       "form": {
         "title": "Meilenstein bearbeiten",
         "titleLabel": "Titel",
@@ -281,12 +281,12 @@
         "description": "Beschreibung",
         "completedAt": "Abgeschlossen am"
       },
-      "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuchen Sie es erneut.",
-      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuchen Sie es erneut.",
-      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
-      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
-      "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuchen Sie es erneut.",
-      "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
+      "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuche es erneut.",
+      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuche es erneut.",
+      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitspakets. Bitte versuche es erneut.",
+      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuche es erneut.",
+      "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuche es erneut.",
+      "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuche es erneut.",
       "deleteButton": "Meilenstein löschen"
     }
   }

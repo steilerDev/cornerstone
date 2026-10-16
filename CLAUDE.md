@@ -519,7 +519,7 @@ Before creating a new UI component, check if an existing shared component can be
 The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
 
 - **Frontend**: All user-facing strings must use `t()` — never hardcode text in JSX. Translation files: `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only; never write non-English translations.
-- **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
+- **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance. German UI addresses the user with informal "du" (never "Sie"/"Ihr" for the user; owner decision 2026-10-16, see `glossary.json` `_meta.germanAddressForm`).
 - **Glossary** (`client/src/i18n/glossary.json`, schema v2, glossary v1 approved by the owner): domain terms and fixed UI words only. `_meta` holds `schemaVersion: 2`, `glossaryVersion`, `locales`, `lastUpdated`, `approval` (owner decision and the translator's sign-off) and `transition`. Each key of `terms` is the **English canon**. A term has:
   - `groups` (`primaryNoun`, `supportingNoun`, `view`, `diaryType`, `scheduleWord`, `statusWord`, `figureWord`, `homeWord`, `historyEventType`, `tabWord`, `verb`, `photoMarkup`, `general`);
   - `en` and `de` forms (`singular`, `plural`, `verb`, `noun`, `chip`, `sentence`, `shortForm`, `shortFormNote`, `note`);

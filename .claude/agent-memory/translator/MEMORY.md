@@ -8,7 +8,7 @@
 
 ## Key Conventions
 
-- Formal register: use "Sie" form in German
+- Informal register: German UI uses "du" (owner decision 2026-10-16), never "Sie"/"Ihr" for the user. See [German du register](german-du-register.md)
 - Translation files: `client/src/i18n/{locale}/{namespace}.json`
 - Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, photoViewer, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
