@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-12",
+    "lastUpdated": "2026-10-16",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -16,7 +16,13 @@
         "statement": "Every German form was checked against the owner-approved glossary v1; terms marked shipped match the current German UI."
       }
     },
-    "transition": "Words under formerly and doNotUse may remain in existing strings until the EPIC-21 story that renames that label replaces them; every new or changed string uses the canon. Former names stay search aliases permanently and are never removed."
+    "transition": "Words under formerly and doNotUse may remain in existing strings until the EPIC-21 story that renames that label replaces them; every new or changed string uses the canon. Former names stay search aliases permanently and are never removed.",
+    "addressForm": {
+      "de": {
+        "form": "du",
+        "rule": "Address the user with du, dein and dich; text to third parties (report cover letters, AI prompts) stays formal."
+      }
+    }
   },
   "terms": {
     "Home": {

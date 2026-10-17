@@ -18,31 +18,31 @@
     "currentPasswordRequired": "Aktuelles Passwort ist erforderlich",
     "newPasswordRequired": "Neues Passwort ist erforderlich",
     "newPasswordTooShort": "Neues Passwort muss mindestens 12 Zeichen lang sein",
-    "confirmPasswordRequired": "Bitte bestätigen Sie Ihr neues Passwort",
+    "confirmPasswordRequired": "Bitte bestätige dein neues Passwort",
     "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
     "passwordChangedSuccess": "Passwort erfolgreich geändert",
     "passwordChangeFailed": "Passwort konnte nicht geändert werden. Bitte erneut versuchen.",
     "changingPassword": "Passwort wird geändert...",
     "password": "Passwort",
-    "passwordManagedByProvider": "Ihr Passwort wird von Ihrem Single-Sign-on-Anbieter verwaltet.",
+    "passwordManagedByProvider": "Dein Passwort wird von deinem Single-Sign-on-Anbieter verwaltet.",
     "preferences": "Voreinstellungen",
     "language": "Sprache",
     "systemLanguage": "System (Browsersprache)",
-    "heading": "Ihre Angaben",
+    "heading": "Deine Angaben",
     "signInMethod": "Anmeldeart",
     "signInLocal": "E-Mail und Passwort",
     "signInLocalAndSso": "E-Mail, Passwort und Single Sign-on",
     "signInSso": "Single Sign-on",
-    "passwordHint": "Verwenden Sie mindestens 12 Zeichen.",
+    "passwordHint": "Verwende mindestens 12 Zeichen.",
     "theme": "Design"
   },
   "userManagement": {
     "loading": "Benutzer werden geladen...",
     "errorTitle": "Fehler",
-    "loadError": "Benutzer konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "loadError": "Benutzer konnten nicht geladen werden. Bitte versuche es erneut.",
     "searchPlaceholder": "Nach Name oder E-Mail suchen...",
     "emptyState": "Keine Benutzer gefunden.",
-    "emptyStateSearch": "Keine Benutzer gefunden, die Ihrer Suche entsprechen.",
+    "emptyStateSearch": "Keine Benutzer gefunden, die deiner Suche entsprechen.",
     "tableHeaders": {
       "name": "Name",
       "email": "E-Mail",
@@ -80,7 +80,7 @@
       "cancel": "Abbrechen",
       "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
-      "error": "Benutzer konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+      "error": "Benutzer konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "addUser": "Benutzer hinzufügen",
     "createModal": {
@@ -96,21 +96,21 @@
       "cancel": "Abbrechen",
       "create": "Benutzer erstellen",
       "creating": "Wird erstellt...",
-      "error": "Benutzer konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+      "error": "Benutzer konnte nicht erstellt werden. Bitte versuche es erneut."
     },
     "createValidation": {
       "emailTooLong": "E-Mail darf maximal 255 Zeichen lang sein",
       "passwordRequired": "Passwort ist erforderlich",
       "passwordTooShort": "Passwort muss mindestens 12 Zeichen lang sein",
       "passwordTooLong": "Passwort darf maximal 255 Zeichen lang sein",
-      "confirmPasswordRequired": "Bitte bestätigen Sie das Passwort",
+      "confirmPasswordRequired": "Bitte bestätige das Passwort",
       "passwordsDoNotMatch": "Passwörter stimmen nicht überein"
     },
     "editValidation": {
       "displayNameRequired": "Anzeigename ist erforderlich",
       "displayNameTooLong": "Anzeigename darf maximal 100 Zeichen lang sein",
       "emailRequired": "E-Mail ist erforderlich",
-      "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein"
+      "emailInvalid": "Bitte gib eine gültige E-Mail-Adresse ein"
     },
     "deactivateModal": {
       "title": "{{name}} deaktivieren?",
@@ -118,7 +118,7 @@
       "message": "Die Sitzungen werden sofort beendet.",
       "confirm": "Deaktivieren",
       "confirming": "Wird deaktiviert...",
-      "error": "Benutzer konnte nicht deaktiviert werden. Bitte versuchen Sie es erneut."
+      "error": "Benutzer konnte nicht deaktiviert werden. Bitte versuche es erneut."
     },
     "errors": {
       "emailInUse": "Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet."
@@ -129,9 +129,9 @@
       "loading": "Bereiche werden geladen...",
       "errorTitle": "Fehler",
       "retry": "Erneut versuchen",
-      "loadError": "Bereiche konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "loadError": "Bereiche konnten nicht geladen werden. Bitte versuche es erneut.",
       "createTitle": "Neuen Bereich erstellen",
-      "createDescription": "Bereiche helfen Ihnen, Arbeitspakete nach Standort oder Raum zu organisieren (z. B. Küche, Schlafzimmer, Badezimmer). Bereiche können Unterbereiche haben.",
+      "createDescription": "Bereiche helfen dir, Arbeitspakete nach Standort oder Raum zu organisieren (z. B. Küche, Schlafzimmer, Badezimmer). Bereiche können Unterbereiche haben.",
       "nameLabel": "Bereichsname",
       "namePlaceholder": "z. B. Küche, Schlafzimmer, Badezimmer",
       "parentLabel": "Übergeordneter Bereich",
@@ -142,7 +142,7 @@
       "createButton": "Bereich erstellen",
       "creating": "Wird erstellt...",
       "existingTitle": "Vorhandene Bereiche ({{count}})",
-      "emptyState": "Noch keine Bereiche. Erstellen Sie Ihren ersten Bereich, um Ihre Arbeitspakete zu organisieren.",
+      "emptyState": "Noch keine Bereiche. Erstelle deinen ersten Bereich, um deine Arbeitspakete zu organisieren.",
       "save": "Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
@@ -157,15 +157,15 @@
         "created": "Bereich „{{name}}“ erfolgreich erstellt",
         "updated": "Bereich „{{name}}“ erfolgreich aktualisiert",
         "deleted": "Bereich „{{name}}“ erfolgreich gelöscht",
-        "createError": "Bereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "createError": "Bereich konnte nicht erstellt werden. Bitte versuche es erneut.",
+        "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+        "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuche es erneut.",
         "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da eine Aufgabe oder Anschaffung ihn oder einen seiner Unterbereiche verwendet.",
         "duplicateName": "Ein Bereich mit diesem Namen existiert bereits auf dieser Ebene."
       }
     },
     "trades": {
-      "loadError": "Gewerke konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+      "loadError": "Gewerke konnten nicht geladen werden. Bitte versuche es erneut."
     },
     "orientations": {
       "messages": {
@@ -180,16 +180,16 @@
       "nameHint": "Wird oben in der Seitenleiste und im Browser-Tab angezeigt.",
       "addressLabel": "Hausadresse",
       "addressHint": "Wird als Absender auf Bankberichten verwendet.",
-      "entriesLanguageLabel": "Sprache Ihrer Texte",
-      "entriesLanguageHint": "Wird für die Silbentrennung langer Wörter am Zeilenende in Ihren Notizen und Beschreibungen verwendet. Dies ist nicht die Sprache der App.",
+      "entriesLanguageLabel": "Sprache deiner Texte",
+      "entriesLanguageHint": "Wird für die Silbentrennung langer Wörter am Zeilenende in deinen Notizen und Beschreibungen verwendet. Dies ist nicht die Sprache der App.",
       "appLanguageLink": "Sprache der App im Konto festlegen",
       "saved": "Hausdaten gespeichert.",
-      "saveFailed": "Hausdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "saveFailed": "Hausdaten konnten nicht gespeichert werden. Bitte versuche es erneut.",
       "loadFailed": "Hausdaten konnten nicht geladen werden."
     },
     "costCategories": {
       "title": "Kostenkategorien",
-      "description": "Gruppieren Sie Kosten bei Aufgaben, Rechnungen und Angeboten.",
+      "description": "Gruppiere Kosten bei Aufgaben, Rechnungen und Angeboten.",
       "item": "Kostenkategorie",
       "items": "Kostenkategorien",
       "newItem": "Neue {{item}}",
@@ -201,7 +201,7 @@
     },
     "purchaseCategories": {
       "title": "Anschaffungskategorien",
-      "description": "Gruppieren Sie Ihre Anschaffungen nach Art.",
+      "description": "Gruppiere deine Anschaffungen nach Art.",
       "item": "Anschaffungskategorie",
       "items": "Anschaffungskategorien",
       "newItem": "Neue {{item}}",
@@ -213,7 +213,7 @@
     },
     "orientations": {
       "title": "Fotoausrichtungen",
-      "description": "Benennen Sie die Ausrichtungen, mit denen Sie Fotos kennzeichnen.",
+      "description": "Benenne die Ausrichtungen, mit denen du Fotos kennzeichnest.",
       "item": "Ausrichtung",
       "items": "Ausrichtungen",
       "newItem": "Neue {{item}}",
@@ -235,15 +235,15 @@
   },
   "dav": {
     "heading": "Kalender- & Kontaktsynchronisierung",
-    "description": "Verbinden Sie eine Kalender- oder Kontakte-App. Erstellen Sie ein Token, um sie anzumelden.",
+    "description": "Verbinde eine Kalender- oder Kontakte-App. Erstelle ein Token, um sie anzumelden.",
     "generateToken": "Token generieren",
     "regenerateToken": "Token neu generieren",
     "revokeToken": "Token widerrufen",
     "revokeTitle": "Kalenderzugriff widerrufen?",
-    "revokeLead": "Kalender- und Kontakt-Apps synchronisieren nicht mehr, bis Sie ein neues Token erstellen.",
+    "revokeLead": "Kalender- und Kontakt-Apps synchronisieren nicht mehr, bis du ein neues Token erstellst.",
     "revokeAction": "Widerrufen",
     "tokenActive": "Token aktiv seit {{date}}",
-    "tokenWarning": "Kopieren Sie dieses Token jetzt. Es wird nur einmal angezeigt.",
+    "tokenWarning": "Kopiere dieses Token jetzt. Es wird nur einmal angezeigt.",
     "copyToken": "Kopieren",
     "tokenCopied": "Kopiert",
     "downloadProfile": "Apple-Profil herunterladen",
@@ -252,14 +252,14 @@
     "generating": "Wird generiert...",
     "revoking": "Wird widerrufen...",
     "errors": {
-      "loadFailed": "Token-Status konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "generateFailed": "Token konnte nicht generiert werden. Bitte versuchen Sie es erneut.",
-      "revokeFailed": "Token konnte nicht widerrufen werden. Bitte versuchen Sie es erneut."
+      "loadFailed": "Token-Status konnte nicht geladen werden. Bitte versuche es erneut.",
+      "generateFailed": "Token konnte nicht generiert werden. Bitte versuche es erneut.",
+      "revokeFailed": "Token konnte nicht widerrufen werden. Bitte versuche es erneut."
     },
     "hideToken": "Token ausblenden",
     "tokenCopiedAnnouncement": "Token kopiert",
     "regenerateTitle": "Neues Token erstellen?",
-    "regenerateLead": "Apps, die das aktuelle Token verwenden, synchronisieren nicht mehr, bis Sie sie aktualisieren.",
+    "regenerateLead": "Apps, die das aktuelle Token verwenden, synchronisieren nicht mehr, bis du sie aktualisierst.",
     "regenerateAction": "Neues Token erstellen"
   },
   "trades": {
@@ -309,7 +309,7 @@
     "creating": "Sicherung wird erstellt...",
     "loading": "Sicherungen werden geladen...",
     "emptyStateMessage": "Noch keine Sicherungen vorhanden",
-    "emptyStateDescription": "Klicken Sie auf 'Sicherung erstellen', um Ihre erste Sicherung anzulegen.",
+    "emptyStateDescription": "Klicke auf 'Sicherung erstellen', um deine erste Sicherung anzulegen.",
     "tableHeaders": {
       "filename": "Dateiname",
       "createdAt": "Erstellt",
@@ -321,32 +321,32 @@
       "restore": "Wiederherstellen"
     },
     "deleteModal": {
-      "error": "Sicherung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+      "error": "Sicherung konnte nicht gelöscht werden. Bitte versuche es erneut."
     },
     "restoreModal": {
       "title": "{{name}} wiederherstellen?",
       "warning": "Dadurch werden alle aktuellen Anwendungsdaten unwiderruflich durch den Inhalt der Sicherung ersetzt. Der Server wird automatisch neu gestartet. Alle aktuellen Daten gehen verloren.",
       "confirm": "Wiederherstellen",
       "confirming": "Wird wiederhergestellt…",
-      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
+      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte versuche es erneut."
     },
-    "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
-    "createError": "Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "restartingMessage": "Der Server wird neu gestartet. Bitte warte einen Moment und lade dann die Seite neu.",
+    "createError": "Sicherung konnte nicht erstellt werden. Bitte versuche es erneut.",
+    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuche es erneut.",
     "scheduler": {
       "heading": "Automatischer Sicherungsplan",
       "loading": "Planungsstatus wird geladen …",
       "statusLabel": "Automatische Sicherungen",
       "enabled": "Aktiviert",
       "disabled": "Deaktiviert",
-      "disabledHint": "Setzen Sie die Umgebungsvariable BACKUP_CADENCE, um automatische Sicherungen zu aktivieren.",
+      "disabledHint": "Setze die Umgebungsvariable BACKUP_CADENCE, um automatische Sicherungen zu aktivieren.",
       "lastRunLabel": "Letzter geplanter Lauf",
       "lastRunSuccess": "Erfolgreich",
       "lastRunFailure": "Fehlgeschlagen",
       "noRunsYet": "Es wurden noch keine automatischen Sicherungen ausgeführt",
       "nextRunLabel": "Nächster geplanter Lauf",
       "thenLabel": "dann",
-      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut."
+      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuche es erneut."
     }
   },
   "vendors": {
@@ -376,9 +376,9 @@
       "saveChanges": "Änderungen speichern",
       "loading": "Kontakte werden geladen...",
       "errors": {
-        "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-        "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+        "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuche es erneut.",
+        "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuche es erneut.",
+        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuche es erneut."
       }
     }
   },
@@ -402,28 +402,28 @@
     "mergeDuplicates": "Doppelte zusammenführen…",
     "deleteAction": "Löschen",
     "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits.",
-    "nameRequired": "Geben Sie einen Namen ein.",
+    "nameRequired": "Gib einen Namen ein.",
     "added": "{{name}} hinzugefügt",
     "renamed": "{{name}} umbenannt",
-    "empty": "Noch keine Gewerke. Fügen Sie oben eines hinzu.",
+    "empty": "Noch keine Gewerke. Füge oben eines hinzu.",
     "loadError": "Gewerke konnten nicht geladen werden.",
     "tryAgain": "Erneut versuchen",
     "merge": {
       "title": "{{name}} in ein anderes Gewerk zusammenführen?",
-      "lead": "Wählen Sie das Gewerk aus, das bleibt. Die Firmen von {{name}} werden ihm zugeordnet, und {{name}} wird entfernt.",
+      "lead": "Wähle das Gewerk aus, das bleibt. Die Firmen von {{name}} werden ihm zugeordnet, und {{name}} wird entfernt.",
       "keepLabel": "Dieses Gewerk behalten",
       "moveCount_one": "{{count}} Firma wird zu {{target}} verschoben",
       "moveCount_other": "{{count}} Firmen werden zu {{target}} verschoben",
       "noneMove": "Keine Firmen werden zu {{target}} verschoben",
-      "chooseFirst": "Wählen Sie das Gewerk aus, das bleibt",
+      "chooseFirst": "Wähle das Gewerk aus, das bleibt",
       "confirm": "Zusammenführen",
       "busy": "Wird zusammengeführt…",
       "done": "{{name}} wurde in {{target}} zusammengeführt"
     },
     "deleteDialog": {
       "title": "{{name}} löschen?",
-      "blocked_one": "{{count}} Firma verwendet dieses Gewerk noch. Führen Sie es stattdessen mit einem anderen Gewerk zusammen oder ändern Sie zuerst diese Firma.",
-      "blocked_other": "{{count}} Firmen verwenden dieses Gewerk noch. Führen Sie es stattdessen mit einem anderen Gewerk zusammen oder ändern Sie zuerst diese Firmen.",
+      "blocked_one": "{{count}} Firma verwendet dieses Gewerk noch. Führe es stattdessen mit einem anderen Gewerk zusammen oder ändere zuerst diese Firma.",
+      "blocked_other": "{{count}} Firmen verwenden dieses Gewerk noch. Führe es stattdessen mit einem anderen Gewerk zusammen oder ändere zuerst diese Firmen.",
       "mergeInstead": "Stattdessen zusammenführen",
       "confirm": "Löschen",
       "busy": "Wird gelöscht…",

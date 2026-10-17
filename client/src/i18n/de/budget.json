@@ -2,10 +2,10 @@
   "overview": {
     "loading": "Budget-Übersicht wird geladen...",
     "error": "Fehler",
-    "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuche es später erneut.",
     "retry": "Erneut versuchen",
     "emptyStateTitle": "Noch keine Budgetdaten",
-    "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
+    "emptyStateDescription": "Beginne mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Deine Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
     "actions": {
       "addButton": "Hinzufügen",
       "addInvoice": "Rechnung Hinzufügen",
@@ -83,10 +83,10 @@
     "addSource": "Quelle Hinzufügen",
     "loading": "Budgetquellen werden geladen...",
     "error": "Fehler",
-    "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuche es später erneut.",
     "retry": "Erneut versuchen",
     "newBudgetSource": "Neue Budgetquelle",
-    "newBudgetSourceDescription": "Budgetquellen stellen Finanzierung für Ihr Projekt dar (z. B. Bankkredite, Kreditlinien, Ersparnisse).",
+    "newBudgetSourceDescription": "Budgetquellen stellen Finanzierung für dein Projekt dar (z. B. Bankkredite, Kreditlinien, Ersparnisse).",
     "form": {
       "name": "Name",
       "type": "Typ",
@@ -123,7 +123,7 @@
     },
     "sourcesList": {
       "title": "Quellen",
-      "empty": "Noch keine Budgetquellen. Fügen Sie Ihre erste Finanzierungsquelle hinzu, um die Projektfinanzierung zu verfolgen.",
+      "empty": "Noch keine Budgetquellen. Füge deine erste Finanzierungsquelle hinzu, um die Projektfinanzierung zu verfolgen.",
       "system": "System"
     },
     "deleteModal": {
@@ -133,9 +133,9 @@
       "created": "Budgetquelle „{{name}}“ erfolgreich erstellt",
       "updated": "Budgetquelle „{{name}}“ erfolgreich aktualisiert",
       "deleted": "Budgetquelle „{{name}}“ erfolgreich gelöscht",
-      "createError": "Budgetquelle konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "updateError": "Budgetquelle konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Budgetquelle konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "createError": "Budgetquelle konnte nicht erstellt werden. Bitte versuche es später erneut.",
+      "updateError": "Budgetquelle konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "deleteError": "Budgetquelle konnte nicht gelöscht werden. Bitte versuche es später erneut."
     },
     "sourceTypes": {
       "bank_loan": "Bankdarlehen",
@@ -210,14 +210,14 @@
         "pickerEmpty": "Keine weiteren Quellen gefunden",
         "claimedWarningHeading_one": "{{count}} Position hat eine eingereichte Rechnung",
         "claimedWarningHeading_other": "{{count}} Positionen haben eine eingereichte Rechnung",
-        "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfen Sie die Auswirkungen mit Ihrem Steuerberater, bevor Sie fortfahren.",
+        "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfe die Auswirkungen mit deinem Steuerberater, bevor du fortfährst.",
         "understoodLabel": "Ich verstehe, dass hierdurch Positionen mit einer eingereichten Rechnung neu zugeordnet werden",
         "confirmButton": "Positionen verschieben",
-        "confirmDisabledHint": "Aktivieren Sie das Kontrollkästchen „Ich verstehe“, um die Bestätigung zu ermöglichen",
-        "confirmDisabledNoTarget": "Wählen Sie eine Zielquelle aus, um die Bestätigung zu ermöglichen",
+        "confirmDisabledHint": "Aktiviere das Kontrollkästchen „Ich verstehe“, um die Bestätigung zu ermöglichen",
+        "confirmDisabledNoTarget": "Wähle eine Zielquelle aus, um die Bestätigung zu ermöglichen",
         "successToast_one": "{{count}} Position wurde nach {{targetName}} verschoben",
         "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
-        "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
+        "genericError": "Positionen konnten nicht verschoben werden. Bitte versuche es erneut."
       }
     },
     "docs": {
@@ -244,8 +244,8 @@
     "sortDesc": "↓ Absteigend",
     "dateAdded": "Hinzugefügt am",
     "lastUpdated": "Zuletzt aktualisiert",
-    "noSearchResults": "Keine Auftragnehmer stimmen Ihrer Suche überein",
-    "tryDifferentSearch": "Versuchen Sie unterschiedliche Suchbegriffe oder löschen Sie die Suche, um alle Auftragnehmer zu sehen.",
+    "noSearchResults": "Keine Auftragnehmer stimmen deiner Suche überein",
+    "tryDifferentSearch": "Versuche unterschiedliche Suchbegriffe oder lösche die Suche, um alle Auftragnehmer zu sehen.",
     "clearSearch": "Suche Löschen",
     "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Auftragnehmern",
     "previous": "Zurück",
@@ -263,7 +263,7 @@
     },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
     "messages": {
-      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut."
+      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut."
     }
   },
   "budgetLine": {
@@ -276,7 +276,7 @@
     "deleteAriaNamed": "{{item}} löschen: {{description}}"
   },
   "budgetSection": {
-    "noBudgetLines": "Noch keine Kostenpositionen. Fügen Sie die erste hinzu, um Kosten zu erfassen.",
+    "noBudgetLines": "Noch keine Kostenpositionen. Füge die erste hinzu, um Kosten zu erfassen.",
     "linkToInvoice": "Mit Rechnung verknüpfen",
     "subsidies": "Förderprogramme"
   },
@@ -292,7 +292,7 @@
     "addInvoice": "Rechnung Hinzufügen",
     "invoicesLoading": "Rechnungen werden geladen...",
     "noInvoicesYet": "Noch keine Rechnungen.",
-    "noInvoicesHint": "Klicken Sie auf „Rechnung Hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
+    "noInvoicesHint": "Klicke auf „Rechnung Hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
     "outstanding": "Ausstehend:",
     "createdBy": "Erstellt von",
     "detailFields": {
@@ -365,15 +365,15 @@
       "addInvoiceTitle": "Rechnung Hinzufügen",
       "editInvoiceTitle": "Rechnung Bearbeiten",
       "deleteInvoiceTitle": "Rechnung Löschen",
-      "deleteInvoiceConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} löschen möchten?",
+      "deleteInvoiceConfirm": "Bist du sicher, dass du die Rechnung {{number}} löschen möchtest?",
       "deleteInvoiceWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
     },
     "messages": {
-      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
-      "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuche es später erneut.",
+      "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut.",
+      "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
     },
     "unlinkFromInvoice": "Von Rechnung trennen"
   },
@@ -413,7 +413,7 @@
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",
       "dateRequired": "Rechnungsdatum ist erforderlich.",
-      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus"
+      "vendorRequired": "Bitte wähle einen Auftragnehmer aus"
     },
     "buttons": {
       "edit": "Bearbeiten",
@@ -425,13 +425,13 @@
     },
     "modal": {
       "editTitle": "Rechnung Bearbeiten",
-      "deleteConfirmShort": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?"
+      "deleteConfirmShort": "Bist du sicher, dass du diese Rechnung löschen möchtest?"
     },
     "messages": {
-      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut.",
       "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden",
-      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduzieren Sie zuerst die aufgeschlüsselten Budgetpositionen."
+      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Budgetpositionen."
     },
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",
@@ -441,7 +441,7 @@
       "loading": "Budgetpositionen werden geladen…",
       "empty": {
         "message": "Keine Budgetpositionen verknüpft",
-        "description": "Verknüpfen Sie Budgetpositionen, um Teile dieser Rechnung bestimmten Arbeitspaketen oder Haushaltsartikeln zuzuordnen."
+        "description": "Verknüpfe Budgetpositionen, um Teile dieser Rechnung bestimmten Arbeitspaketen oder Haushaltsartikeln zuzuordnen."
       },
       "countLabel_one": "{{count}} Budgetposition verknüpft",
       "countLabel_other": "{{count}} Budgetpositionen verknüpft",
@@ -474,7 +474,7 @@
       "editError": {
         "amountInvalid": "Betrag muss eine nicht-negative Zahl sein.",
         "exceedsTotal": "Der neue Betrag würde den Rechnungsgesamtbetrag überschreiten.",
-        "saveFailed": "Budgetposition konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+        "saveFailed": "Budgetposition konnte nicht aktualisiert werden. Bitte versuche es erneut."
       },
       "picker": {
         "title": "Budgetposition Hinzufügen",
@@ -501,13 +501,13 @@
           "unitPriceInvalid": "Stückpreis muss eine gültige nicht-negative Zahl sein.",
           "exceedsTotal": "Das Verknüpfen dieser Budgetposition würde den Rechnungsgesamtbetrag überschreiten.",
           "alreadyLinked": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
-          "linkFailed": "Budgetposition konnte nicht verknüpft werden. Bitte versuchen Sie es erneut.",
+          "linkFailed": "Budgetposition konnte nicht verknüpft werden. Bitte versuche es erneut.",
           "createFailed": "Budgetposition konnte nicht erstellt werden."
         },
         "selectAriaLabel": "{{description}} auswählen"
       },
       "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
-      "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuche es erneut.",
       "dismissError": "Schließen",
       "dismissErrorAriaLabel": "Fehler schließen",
       "unassigned": "Nicht zugewiesen",
@@ -516,7 +516,7 @@
       "assigningButton": "Wird zugewiesen…",
       "assignAriaLabel": "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen",
       "assignedSuccess": "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen",
-      "assignParentRequired": "Bitte wählen Sie ein Arbeitspaket oder einen Haushaltsartikel aus"
+      "assignParentRequired": "Bitte wähle ein Arbeitspaket oder einen Haushaltsartikel aus"
     },
     "deposits": {
       "sectionTitle": "Abschlagszahlungen",
@@ -525,7 +525,7 @@
       "loading": "Abschlagszahlungen werden geladen...",
       "empty": {
         "message": "Noch keine Abschlagszahlungen",
-        "description": "Teilen Sie diese Rechnung in Teilzahlungen auf, indem Sie eine Abschlagszahlung hinzufügen."
+        "description": "Teile diese Rechnung in Teilzahlungen auf, indem du eine Abschlagszahlung hinzufügst."
       },
       "finalPayment": "Schlusszahlung",
       "columns": {
@@ -570,8 +570,8 @@
         "budgetSourceNone": "Keine (anteilig)",
         "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Budgetquelle dieser Rechnung.",
         "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt, die Quelle mit dem größten zugeordneten Anteil dieser Rechnung.",
-        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wählen Sie eine Quelle aus, oder lassen Sie das Feld leer, um diese Abschlagszahlung anteilig zu belassen.",
-        "exceedsInvoiceWarning": "Abschlagszahlungen abzüglich Rückerstattungen werden den Rechnungsbetrag um {{amount}} übersteigen. Sie können die Abschlagszahlung dennoch speichern."
+        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wähle eine Quelle aus, oder lass das Feld leer, um diese Abschlagszahlung anteilig zu belassen.",
+        "exceedsInvoiceWarning": "Abschlagszahlungen abzüglich Rückerstattungen werden den Rechnungsbetrag um {{amount}} übersteigen. Du kannst die Abschlagszahlung dennoch speichern."
       },
       "entryTypeLabels": {
         "deposit": "Abschlagszahlung",
@@ -581,9 +581,9 @@
         "refundExceedsTotal": "Rückerstattungen würden das Maximum aus Rechnungsbetrag und erfassten Abschlagszahlungen übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
-        "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-        "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuche es erneut.",
+        "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuche es erneut.",
         "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
         "claimedDateRequired": "Einreichungsdatum ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
@@ -592,7 +592,7 @@
     },
     "convertModal": {
       "title": "Angebot in Endrechnung umwandeln",
-      "intro": "Überprüfen Sie den Endbetrag, die aufgeschlüsselten Positionen und die Abschlagszahlungen. Nichts wird gespeichert, bis Sie bestätigen.",
+      "intro": "Überprüfe den Endbetrag, die aufgeschlüsselten Positionen und die Abschlagszahlungen. Nichts wird gespeichert, bis du bestätigst.",
       "confirm": "In Rechnung umwandeln",
       "confirming": "Wird umgewandelt...",
       "cancel": "Abbrechen",
@@ -601,7 +601,7 @@
         "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
       },
       "errors": {
-        "itemizedExceeds": "Die Summe der aufgeschlüsselten Beträge überschreitet den Endbetrag. Passen Sie die aufgeschlüsselten Positionen an.",
+        "itemizedExceeds": "Die Summe der aufgeschlüsselten Beträge überschreitet den Endbetrag. Passe die aufgeschlüsselten Positionen an.",
         "notQuotation": "Diese Rechnung ist kein Angebot mehr. Die Seite wurde aktualisiert."
       },
       "source": {
@@ -610,13 +610,13 @@
         "change": "Dokument ändern",
         "remove": "Entfernen",
         "none": "Kein Dokument ausgewählt. Ein ausgewähltes Dokument wird als Rechnungsanlage verknüpft.",
-        "paperlessUnavailable": "Paperless-ngx ist nicht konfiguriert, daher kann kein Dokument verknüpft werden. Sie können immer noch manuell umwandeln.",
+        "paperlessUnavailable": "Paperless-ngx ist nicht konfiguriert, daher kann kein Dokument verknüpft werden. Du kannst immer noch manuell umwandeln.",
         "aiAnalyze": "Aus Dokument vorausfüllen",
         "aiAnalyzing": "Wird analysiert...",
         "aiUnavailable": "KI-Vorausfüllung ist nicht verfügbar, da KI-Unterstützung nicht konfiguriert ist.",
-        "aiNeedsDocument": "Wählen Sie ein Dokument aus, um die KI-Vorausfüllung zu aktivieren.",
-        "aiSuccess": "Aus Dokument vorausgefüllt. Überprüfen Sie die Werte vor dem Bestätigen.",
-        "aiError": "Analyse fehlgeschlagen. Ihre Einträge sind noch vorhanden. Fahren Sie manuell fort oder versuchen Sie es erneut.",
+        "aiNeedsDocument": "Wähle ein Dokument aus, um die KI-Vorausfüllung zu aktivieren.",
+        "aiSuccess": "Aus Dokument vorausgefüllt. Überprüfe die Werte vor dem Bestätigen.",
+        "aiError": "Analyse fehlgeschlagen. Deine Einträge sind noch vorhanden. Fahre manuell fort oder versuche es erneut.",
         "aiRetry": "Erneut versuchen",
         "aiTotalMismatch": "Die Dokumentensumme ({{extracted}}) unterscheidet sich um mehr als 1% vom angebotenen Betrag ({{quoted}}).",
         "aiNoLines": "Im Dokument wurden keine Positionen erkannt, daher wurde der Endbetrag nicht vorausgefüllt."
@@ -634,9 +634,9 @@
         "deltaDecrease": "Reduktion: −{{amount}} (−{{percent}})",
         "deltaNone": "Keine Änderung",
         "errors": {
-          "amountRequired": "Geben Sie einen Endbetrag ein.",
+          "amountRequired": "Gib einen Endbetrag ein.",
           "amountPositive": "Der Endbetrag muss größer als 0 sein.",
-          "dateRequired": "Geben Sie ein Rechnungsdatum ein.",
+          "dateRequired": "Gib ein Rechnungsdatum ein.",
           "dueDateBeforeDate": "Das Fälligkeitsdatum muss auf oder nach dem Rechnungsdatum liegen."
         }
       },
@@ -657,7 +657,7 @@
         "itemizedTotal": "Aufgeschlüsselte Summe",
         "remainderDiscretionary": "Verbleibend für Diskretionär",
         "overAllocated": "Die aufgeschlüsselte Summe überschreitet den Endbetrag um {{amount}}.",
-        "lineInvalid": "Geben Sie einen Betrag größer als 0 ein.",
+        "lineInvalid": "Gib einen Betrag größer als 0 ein.",
         "empty": "Keine aufgeschlüsselten Positionen. Nichts zum Anpassen.",
         "workItem": "Arbeitspaket",
         "householdItem": "Haushaltsartikel"
@@ -673,7 +673,7 @@
         "noRemaining": "Keine verbleibende Zahlung."
       },
       "overpaid": {
-        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Sie können die Umwandlung durchführen; fügen Sie einen Rückerstattungseintrag hinzu, wenn der Auftragnehmer die Differenz erstattet.",
+        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Du kannst die Umwandlung durchführen; füge einen Rückerstattungseintrag hinzu, wenn der Auftragnehmer die Differenz erstattet.",
         "addRefund": "Rückerstattung hinzufügen",
         "resolved": "Abschlagszahlungen übersteigen den Endbetrag nicht mehr.",
         "refundDescription": "Rückerstattung für Angebotsumwandlung"
@@ -691,10 +691,10 @@
     "addProgram": "Programm Hinzufügen",
     "loading": "Förderprogramme werden geladen...",
     "error": "Fehler",
-    "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuche es später erneut.",
     "retry": "Erneut versuchen",
     "noProgramsTitle": "Noch keine Förderprogramme",
-    "noProgramsDescription": "Fügen Sie Ihr erstes Programm hinzu, um verfügbare Zuschüsse und Regierungsanreize für Ihr Projekt zu verfolgen.",
+    "noProgramsDescription": "Füge dein erstes Programm hinzu, um verfügbare Zuschüsse und Regierungsanreize für dein Projekt zu verfolgen.",
     "programsCount": "Programme ({{count}})",
     "newSubsidyProgram": "Neues Förderprogramm",
     "subsidyDescription": "Förderprogramme stellen staatliche oder institutionelle Programme dar, die Baukosten durch prozentuale oder pauschale Reduktionen senken.",
@@ -769,9 +769,9 @@
       "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
     },
     "messages": {
-      "createError": "Förderprogramm konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "updateError": "Förderprogramm konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Förderprogramm konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "createError": "Förderprogramm konnte nicht erstellt werden. Bitte versuche es später erneut.",
+      "updateError": "Förderprogramm konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "deleteError": "Förderprogramm konnte nicht gelöscht werden. Bitte versuche es später erneut.",
       "created": "Förderprogramm „{{name}}“ erfolgreich erstellt",
       "updated": "Förderprogramm „{{name}}“ erfolgreich aktualisiert",
       "deleted": "Förderprogramm „{{name}}“ erfolgreich gelöscht"
@@ -813,7 +813,7 @@
     "parentPickerHouseholdItemTab": "Haushaltsartikel",
     "parentPickerSeparator": "oder",
     "parentPickerFieldsetLegend": "Arbeitspaket oder Haushaltsartikel zuweisen",
-    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut.",
+    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuche es erneut.",
     "linkedItemLegend": "Verknüpftes Element",
     "changeParentButton": "Ändern",
     "cancelChangeParentButton": "Abbrechen",
@@ -822,11 +822,11 @@
     "moveCrossTableHint": "Das Verschieben zu einem Haushaltsartikel überträgt diese Budgetposition in das Haushaltsartikelbudget.",
     "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
     "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung.",
+    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entferne entweder die Verschiebung oder verknüpfe diese Budgetposition zuerst mit einer Rechnung.",
     "addBudgetLineAriaLabel": "Budgetposition hinzufügen",
     "errors": {
-      "saveFailed": "Budgetposition konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+      "saveFailed": "Budgetposition konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuche es erneut."
     }
   },
   "invoiceLinkModal": {
@@ -838,7 +838,7 @@
     "loading": "Rechnungen werden geladen...",
     "emptyState": "Keine Rechnungen verfügbar",
     "searchPlaceholder": "Nach Rechnungsnummer oder Beschreibung suchen...",
-    "noMatches": "Keine Rechnungen entsprechen Ihrer Suche",
+    "noMatches": "Keine Rechnungen entsprechen deiner Suche",
     "amountLabel": "Aufgeschlüsselter Betrag",
     "overAvailable": "{{amount}} über verfügbar",
     "willRemain": "{{amount}} verbleiben",
@@ -849,9 +849,9 @@
     "invoiceFallbackLabel": "Rechnung {{id}}",
     "successToast": "Budgetposition erfolgreich mit Rechnung verknüpft",
     "errors": {
-      "loadFailed": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "selectInvoice": "Bitte wählen Sie eine Rechnung aus",
-      "invalidAmount": "Bitte geben Sie einen gültigen Betrag ein",
+      "loadFailed": "Rechnungen konnten nicht geladen werden. Bitte versuche es erneut.",
+      "selectInvoice": "Bitte wähle eine Rechnung aus",
+      "invalidAmount": "Bitte gib einen gültigen Betrag ein",
       "exceedsBalance": "Betrag übersteigt den verfügbaren Saldo ({{amount}} verfügbar)",
       "alreadyLinked": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft",
       "exceedsInvoiceTotal": "Der aufgeschlüsselte Betrag übersteigt den Rechnungsgesamtbetrag",
@@ -874,10 +874,10 @@
     "addFirstInvoice": "Erste Rechnung Hinzufügen",
     "loading": "Rechnungen werden geladen...",
     "error": "Fehler",
-    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
     "retry": "Erneut versuchen",
     "noInvoicesTitle": "Noch keine Rechnungen",
-    "noInvoicesDescription": "Fügen Sie Ihre erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
+    "noInvoicesDescription": "Füge deine erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
     "searchPlaceholder": "Nach Rechnungsnummer suchen...",
     "summaryPending": "Zu zahlen",
     "summaryPaid": "Bezahlt",
@@ -901,8 +901,8 @@
     "sortDueDate": "Fälligkeitsdatum",
     "sortAsc": "↑ Aufsteigend",
     "sortDesc": "↓ Absteigend",
-    "noFilterResults": "Keine Rechnungen entsprechen Ihren Filtern",
-    "tryDifferentFilters": "Versuchen Sie unterschiedliche Filter oder löschen Sie sie, um alle Rechnungen zu sehen.",
+    "noFilterResults": "Keine Rechnungen entsprechen deinen Filtern",
+    "tryDifferentFilters": "Versuche unterschiedliche Filter oder lösche sie, um alle Rechnungen zu sehen.",
     "clearFilters": "Filter Löschen",
     "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
     "previous": "Zurück",
@@ -937,7 +937,7 @@
       }
     },
     "validation": {
-      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus.",
+      "vendorRequired": "Bitte wähle einen Auftragnehmer aus.",
       "amountRequired": "Betrag muss eine positive Zahl sein.",
       "dateRequired": "Rechnungsdatum ist erforderlich."
     },
@@ -951,18 +951,18 @@
     },
     "modal": {
       "title": "Rechnung Hinzufügen",
-      "description": "Füllen Sie die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
+      "description": "Fülle die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
       "deleteTitle": "Rechnung Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
+      "deleteConfirm": "Bist du sicher, dass du die Rechnung {{number}} für {{amount}} löschen möchtest?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
     },
     "actions": {
       "menuAriaLabel": "Aktionen für Rechnung {{number}}"
     },
     "messages": {
-      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut.",
+      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
     },
     "attribution": {
       "none": "—",
@@ -1000,7 +1000,7 @@
       "collapseLabel_one": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlung",
       "collapseLabel_other": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlungen",
       "summaryOpenPayable": "Noch zu zahlen",
-      "summaryRefundsDue": "Ihnen zustehende Rückerstattungen",
+      "summaryRefundsDue": "dir zustehende Rückerstattungen",
       "summaryRefundsDueHint": "Noch nicht erhaltene Rückerstattungen, nicht mit der offenen Summe verrechnet",
       "empty": {
         "message": "Derzeit nichts offen",
@@ -1013,10 +1013,10 @@
     "analyzing": "Analysiere… ({{seconds}}s)",
     "spinnerLabel": "Rechnung wird analysiert",
     "error": "Fehler beim Laden der Aufschlüsselung",
-    "missingDocument": "Kehren Sie zu den Rechnungen zurück und wählen Sie ein Dokument aus, um daraus eine neue Rechnung zu erstellen.",
-    "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-    "unexpectedResponse": "Unerwartete Antwort vom Sprachmodell. Bitte versuchen Sie es erneut.",
+    "missingDocument": "Kehre zu den Rechnungen zurück und wähle ein Dokument aus, um daraus eine neue Rechnung zu erstellen.",
+    "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuche es erneut.",
+    "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "unexpectedResponse": "Unerwartete Antwort vom Sprachmodell. Bitte versuche es erneut.",
     "retry": "Erneut versuchen",
     "skipToForm": "Zum Formular springen",
     "invoiceMetadata": "Rechnungsmetadaten",
@@ -1034,7 +1034,7 @@
     "modeAppend": "Zu bestehenden Positionen hinzufügen",
     "modeReplace": "Bestehende Positionen ersetzen",
     "extractedLines": "Extrahierte Positionen",
-    "discretionaryFundingNote": "Neue Positionen werden aus Ihrer Diskretionären Finanzierungsquelle finanziert. Sie können die Finanzierungsquelle für jede Position unten neu zuweisen.",
+    "discretionaryFundingNote": "Neue Positionen werden aus deiner Diskretionären Finanzierungsquelle finanziert. Du kannst die Finanzierungsquelle für jede Position unten neu zuweisen.",
     "lineItemsListLabel": "Extrahierte Positionen",
     "included": "Einbeziehen",
     "description": "Beschreibung",
@@ -1067,7 +1067,7 @@
     "categoryAriaLabel": "Budgetkategorie für Position auswählen",
     "fundingSourceLabel": "Finanzierungsquelle",
     "fundingSourceAriaLabel": "Finanzierungsquelle für Position auswählen",
-    "categoryRequiredError": "Bitte wählen Sie für alle einbezogenen Positionen eine Kategorie aus",
+    "categoryRequiredError": "Bitte wähle für alle einbezogenen Positionen eine Kategorie aus",
     "pickerTitle": "Einem Arbeitspaket oder Haushaltsartikel zuweisen",
     "pickerStep2Title": "Budgetposition auswählen für {{itemTitle}}",
     "pickerSelectTypeLabel": "Artikeltyp auswählen:",
@@ -1083,7 +1083,7 @@
     "save": "Speichern",
     "saving": "Wird gespeichert...",
     "cancel": "Abbrechen",
-    "cancelConfirmBody": "Sie haben nicht gespeicherte Änderungen. Sind Sie sicher, dass Sie diese verwerfen möchten?",
+    "cancelConfirmBody": "Du hast nicht gespeicherte Änderungen. Bist du sicher, dass du diese verwerfen möchtest?",
     "invalidDocumentId": "Ungültige Dokument-ID",
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmer suchen…",
@@ -1095,16 +1095,16 @@
     "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
     "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
     "extractionStarted": "Dokument wird mit KI analysiert…",
-    "extractionComplete": "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen.",
+    "extractionComplete": "Extraktion abgeschlossen. Bitte prüfe die vorgeschlagenen Positionen.",
     "lineItems": "Positionen",
     "noLineItems": "Keine Positionen extrahiert",
     "creatingNewBadge": "Wird erstellt",
     "inlineFormLabel": "Details der neuen Budgetposition",
     "discardInlineDraft": "Verwerfen",
-    "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigieren Sie dies vor dem Speichern.",
-    "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigiere dies vor dem Speichern.",
+    "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuche es erneut.",
     "inlineDraftLinkFailed": "Budgetposition konnte nicht mit der Rechnung verknüpft werden.",
-    "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfen Sie dies und verknüpfen Sie es manuell.",
+    "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfe dies und verknüpfe es manuell.",
     "selectForMergeAriaLabel": "„{{description}}“ zum Zusammenführen auswählen",
     "selectionDisabledAssignedAriaLabel": "Bereits zugewiesen – kann nicht zum Zusammenführen ausgewählt werden",
     "mergeSelectedCount_one": "{{count}} ausgewählt",
@@ -1112,7 +1112,7 @@
     "clearSelection": "Auswahl aufheben",
     "mergeButton": "Zusammenführen",
     "mergeButtonAriaLabel": "{{count}} ausgewählte Positionen zusammenführen",
-    "mergeDisabledHint": "Wählen Sie mindestens 2 Positionen zum Zusammenführen aus",
+    "mergeDisabledHint": "Wähle mindestens 2 Positionen zum Zusammenführen aus",
     "mergingLabel": "Positionen werden zusammengeführt",
     "mergingCaption": "{{count}} Positionen werden zusammengeführt…",
     "mergeAnnounceStart": "{{count}} Positionen werden zusammengeführt…",
@@ -1143,12 +1143,12 @@
       "maxFileSizeHelper": "Leer lassen für ein einzelnes PDF ohne Limit. Größere Berichte werden in mehrere PDFs aufgeteilt.",
       "maxFileSizeDisabledHint": "Gilt nur für angehängte Rechnungs-PDFs.",
       "maxFileSizeError": {
-        "invalid": "Geben Sie eine positive Zahl ein, zum Beispiel 10 oder 9,5.",
+        "invalid": "Gib eine positive Zahl ein, zum Beispiel 10 oder 9,5.",
         "min": "Das Minimum beträgt 1 MB.",
-        "decimals": "Verwenden Sie höchstens eine Dezimalstelle."
+        "decimals": "Verwende höchstens eine Dezimalstelle."
       }
     },
-    "useCaseLabel": "Welchen Bericht benötigen Sie?",
+    "useCaseLabel": "Welchen Bericht benötigst du?",
     "useCase": {
       "budget-overview": "Budgetübersicht",
       "claim": "Einreichung",
@@ -1159,7 +1159,7 @@
       "claim": "Zu zahlende oder bezahlte Rechnungen, die noch nicht eingereicht sind",
       "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
     },
-    "sourceLabel": "Wählen Sie eine Budgetquelle aus",
+    "sourceLabel": "Wähle eine Budgetquelle aus",
     "amountLabel": {
       "overview": "Gesamtbetrag",
       "claim": "Zu zahlen oder bezahlt, nicht eingereicht",
@@ -1173,7 +1173,7 @@
     "unallocatedExplained": "Diese Rechnungen sind dieser Budgetquelle nicht zugeordnet",
     "emptyInvoices": "Keine Rechnungen gefunden",
     "emptyInvoicesDescription": "Diese Budgetquelle hat keine Rechnungen für diesen Berichtstyp",
-    "selectAtLeastOne": "Wählen Sie mindestens eine Rechnung aus, um fortzufahren",
+    "selectAtLeastOne": "Wähle mindestens eine Rechnung aus, um fortzufahren",
     "attachDocuments": "Rechnungs-PDFs anhängen",
     "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
     "includeCoverLetter": "Anschreiben einfügen",
@@ -1187,9 +1187,9 @@
     "claimSuccess": "{{invoices}} und {{progressPayments}} als eingereicht markiert",
     "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es sind keine Abschlagszahlungen mehr einzureichen.",
     "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
-    "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuchen Sie es erneut.",
-    "claimFailedWithInvoices": "Rechnungen {{invoiceNumbers}} konnten nicht als eingereicht markiert werden: Ihr aktueller Status lässt das nicht zu.",
-    "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuche es erneut.",
+    "claimFailedWithInvoices": "Rechnungen {{invoiceNumbers}} konnten nicht als eingereicht markiert werden: dein aktueller Status lässt das nicht zu.",
+    "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuche es erneut.",
     "viewInvoices": "Rechnungen anzeigen",
     "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
     "errorLoadingReport": "Bericht konnte nicht geladen werden",
@@ -1237,7 +1237,7 @@
       "previewPartLabel": "Datei",
       "previewPartOption": "Teil {{part}} von {{total}}",
       "preparing": "Dateien werden vorbereitet…",
-      "stale": "Der Bericht hat sich seit der Vorbereitung der Dateien geändert. Sie werden bei der nächsten Vorschau, beim Download oder Upload erneut erstellt.",
+      "stale": "Der Bericht hat sich seit der Vorbereitung der Dateien geändert. Du wirst bei der nächsten Vorschau, beim Download oder Upload erneut erstellt.",
       "updateFiles": "Dateien aktualisieren",
       "downloading": "Datei {{current}} von {{total}} wird heruntergeladen…",
       "uploading": "Datei {{current}} von {{total}} wird hochgeladen…",
@@ -1293,9 +1293,9 @@
       "maxLengthReachedAnnouncement": "Maximale Länge erreicht.",
       "previewPdf": "PDF-Vorschau anzeigen",
       "previewModalTitle": "PDF-Vorschau",
-      "discardConfirmTitle": "Ihre Bearbeitungen verwerfen?",
+      "discardConfirmTitle": "Deine Bearbeitungen verwerfen?",
       "discardConfirmTitleGenerating": "KI-Generierung abbrechen?",
-      "discardConfirmBody": "Dadurch wird der Berichtsinhalt neu generiert und Ihre Bearbeitungen gehen verloren.",
+      "discardConfirmBody": "Dadurch wird der Berichtsinhalt neu generiert und deine Bearbeitungen gehen verloren.",
       "discardConfirmBodyGenerating": "Eine KI-Generierung läuft gerade. Durch diese Änderung wird sie abgebrochen.",
       "discardAndContinue": "Verwerfen und Fortfahren",
       "keepEditing": "Weiter bearbeiten",
@@ -1303,14 +1303,14 @@
       "tableHeading": "Berichtstabelle",
       "columnVisibilityLabel": "Spalten ein-/ausblenden",
       "allocatedAmountRequiredHint": "Erforderlich – jeder Bericht enthält den zugeordneten Betrag.",
-      "usageHiddenAttachmentsWarning": "Anhänge sind aktiviert, aber wenn Sie „Verwendung“ ausblenden, fehlt in der PDF-Datei der Bezug zwischen den einzelnen Zeilen und den zugehörigen Anhängen.",
+      "usageHiddenAttachmentsWarning": "Anhänge sind aktiviert, aber wenn du „Verwendung“ ausblendest, fehlt in der PDF-Datei der Bezug zwischen den einzelnen Zeilen und den zugehörigen Anhängen.",
       "enhanceWithAi": "Mit KI verbessern",
       "enhanceWithAiDescription": "Ersetzt die unten stehenden Verwendungstexte und das Anschreiben durch KI-generierte Inhalte. Vorgenommene Bearbeitungen gehen dabei verloren.",
       "generating": "Generiere… ({{seconds}}s)",
       "aiGeneratedNote": "Inhalt mit KI generiert – vor dem Absenden prüfen.",
-      "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
-      "aiOverwriteConfirmTitle": "Ihre Bearbeitungen überschreiben?",
-      "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt Ihre manuellen Bearbeitungen mit neu erzeugtem Text.",
+      "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuche es erneut.",
+      "aiOverwriteConfirmTitle": "Deine Bearbeitungen überschreiben?",
+      "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt deine manuellen Bearbeitungen mit neu erzeugtem Text.",
       "aiOverwriteAndGenerate": "Überschreiben und Generieren"
     },
     "table": {
@@ -1383,8 +1383,8 @@
     "unassigned": "Nicht zugewiesen",
     "sizing": {
       "progress": "Anhanggrößen werden überprüft… {{current}} von {{total}}",
-      "fetchFailed_one": "{{count}} Anhang konnte nicht geladen werden. Überprüfen Sie die Paperless-Verbindung und versuchen Sie es erneut, oder fahren Sie ohne ihn fort.",
-      "fetchFailed_other": "{{count}} Anhänge konnten nicht geladen werden. Überprüfen Sie die Paperless-Verbindung und versuchen Sie es erneut, oder fahren Sie ohne sie fort.",
+      "fetchFailed_one": "{{count}} Anhang konnte nicht geladen werden. Überprüfe die Paperless-Verbindung und versuche es erneut, oder fahre ohne ihn fort.",
+      "fetchFailed_other": "{{count}} Anhänge konnten nicht geladen werden. Überprüfe die Paperless-Verbindung und versuche es erneut, oder fahre ohne sie fort.",
       "fetchFailedItem": "{{title}} ({{vendor}}, {{invoiceNumber}})",
       "documentFallbackTitle": "Dokument {{id}}",
       "continueAnyway": "Ohne fehlende Anhänge fortfahren"
@@ -1431,10 +1431,10 @@
       "tradeFilterLabel": "Gewerk",
       "actionsFor": "Aktionen für {{name}}",
       "emptyTitle": "Noch keine Firmen",
-      "emptyDescription": "Fügen Sie Firmen hinzu, mit denen Sie arbeiten. Danach können Sie sie mit zwei Tipps anrufen.",
-      "loadError": "Firmen konnten nicht geladen werden. Versuchen Sie es erneut.",
-      "deleteBlocked": "Diese Firma kann nicht gelöscht werden, solange Rechnungen oder Kostenpositionen sie verwenden. Entfernen Sie diese zuerst.",
-      "deleteFailed": "Die Firma konnte nicht gelöscht werden. Versuchen Sie es erneut.",
+      "emptyDescription": "Füge Firmen hinzu, mit denen du arbeitest. Danach kannst du sie mit zwei Tipps anrufen.",
+      "loadError": "Firmen konnten nicht geladen werden. Versuche es erneut.",
+      "deleteBlocked": "Diese Firma kann nicht gelöscht werden, solange Rechnungen oder Kostenpositionen sie verwenden. Entferne diese zuerst.",
+      "deleteFailed": "Die Firma konnte nicht gelöscht werden. Versuche es erneut.",
       "columns": {
         "name": "Name",
         "trade": "Gewerk",
@@ -1457,9 +1457,9 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
-      "nameRequired": "Geben Sie einen Namen ein.",
-      "nameTooLong": "Verwenden Sie höchstens 200 Zeichen.",
-      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein."
+      "nameRequired": "Gib einen Namen ein.",
+      "nameTooLong": "Verwende höchstens 200 Zeichen.",
+      "emailInvalid": "Gib eine gültige E-Mail-Adresse ein."
     },
     "picker": {
       "newNamed": "Neue Firma „{{name}}“"

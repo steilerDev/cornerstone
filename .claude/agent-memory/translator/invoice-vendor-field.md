@@ -13,7 +13,7 @@ Keys added to `de/budget.json` under `invoiceDetail`:
 | --------------------------- | -------------------------------------------------------------- |
 | `form.placeholders.vendor`  | `"Auftragnehmer suchen…"`                                      |
 | `form.noVendorsFound`       | `"Keine Auftragnehmer gefunden"`                               |
-| `validation.vendorRequired` | `"Bitte wählen Sie einen Auftragnehmer aus"`                   |
+| `validation.vendorRequired` | `"Bitte wähle einen Auftragnehmer aus"`                        |
 | `messages.vendorNotFound`   | `"Der ausgewählte Auftragnehmer konnte nicht gefunden werden"` |
 
 **Why:** Search placeholder pattern `"{Noun} suchen…"` confirmed by existing keys at `vendors.searchPlaceholder` = "Auftragnehmer nach Name oder Fachrichtung suchen..." and `sources.budgetLines.move.pickerPlaceholder` = "Quellen suchen…". The short form `"Auftragnehmer suchen…"` matches `budget.json:973` `vendorPlaceholder` = "Auftragnehmer suchen…" exactly.

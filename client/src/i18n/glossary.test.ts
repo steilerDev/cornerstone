@@ -29,6 +29,11 @@ describe('glossary.json (real file)', () => {
     expect(GLOSSARY.terms.length).toBeGreaterThan(100);
   });
 
+  it('addresses German users with du', () => {
+    expect(GLOSSARY.meta.addressForm.de.form).toBe('du');
+    expect(GLOSSARY.meta.addressForm.de.rule.length).toBeGreaterThan(0);
+  });
+
   describe('AC1: every term is complete', () => {
     it.each(GLOSSARY.terms.map((t) => [t.canon, t] as const))(
       '%s has a one-line definition, en and de forms, valid groups and both arrays',
@@ -538,6 +543,7 @@ function validRaw(): Record<string, unknown> {
         translatorSignOff: { agent: 'translator', date: '2026-01-01', statement: 'ok' },
       },
       transition: 'none',
+      addressForm: { de: { form: 'du', rule: 'Informal address everywhere.' } },
     },
     terms: {
       Widget: {
@@ -613,6 +619,35 @@ describe('parseGlossary', () => {
       (r) => delete r._meta.approval.owner.decision,
       '_meta.approval.owner.decision',
     ],
+    ['a missing addressForm', (r) => delete r._meta.addressForm, '_meta.addressForm'],
+    [
+      'an addressForm that is not an object',
+      (r) => (r._meta.addressForm = 'du'),
+      '_meta.addressForm',
+    ],
+    ['an addressForm array', (r) => (r._meta.addressForm = []), '_meta.addressForm'],
+    ['a missing de address form', (r) => delete r._meta.addressForm.de, '_meta.addressForm.de'],
+    [
+      'an extra locale in addressForm',
+      (r) => (r._meta.addressForm.en = { form: 'you', rule: 'x' }),
+      '_meta.addressForm.en',
+    ],
+    [
+      'an extra key in an address form entry',
+      (r) => (r._meta.addressForm.de.note = 'x'),
+      '_meta.addressForm.de.note',
+    ],
+    [
+      'a blank address form',
+      (r) => (r._meta.addressForm.de.form = '  '),
+      '_meta.addressForm.de.form',
+    ],
+    [
+      'a blank address rule',
+      (r) => (r._meta.addressForm.de.rule = ''),
+      '_meta.addressForm.de.rule',
+    ],
+    ['an unknown _meta key', (r) => (r._meta.bogus = 1), '_meta.bogus'],
     ['empty terms', (r) => (r.terms = {}), 'terms'],
     ['terms that is not an object', (r) => (r.terms = []), 'terms'],
     ['an unknown group', (r) => (r.terms.Widget.groups = ['nope']), 'terms["Widget"].groups[0]'],

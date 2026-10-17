@@ -15,7 +15,7 @@ pre-existing error code" and to check whether `de/errors.json` already had it. V
 
 Neither `en/errors.json` nor `de/errors.json` had the key before this session — it's a genuine
 gap that predates #1901, not something introduced by this feature. Added the German translation
-("Wählen Sie mindestens eine Rechnung aus.") independently of the frontend-developer's parallel
+("Wähle mindestens eine Rechnung aus.") independently of the frontend-developer's parallel
 English addition; confirmed both are needed via a flattened-key diff after the fact.
 
 **Why:** avoids two mistakes — (1) assuming a "backfill" instruction means the key already exists

@@ -66,6 +66,12 @@ export interface GlossaryTerm {
   formerly: readonly string[];
 }
 
+/** How a non-English locale addresses the user (English is the canon and carries none). */
+export interface GlossaryAddressForm {
+  form: string;
+  rule: string;
+}
+
 export interface GlossaryMeta {
   schemaVersion: 2;
   glossaryVersion: string;
@@ -76,6 +82,7 @@ export interface GlossaryMeta {
     translatorSignOff: { agent: 'translator'; date: string; statement: string };
   };
   transition: string;
+  addressForm: Readonly<Record<GlossaryExtraLocale, GlossaryAddressForm>>;
 }
 
 export interface Glossary {
@@ -131,8 +138,39 @@ function includes<T extends string>(list: readonly T[], value: unknown): value i
   return typeof value === 'string' && (list as readonly string[]).includes(value);
 }
 
+const META_KEYS = [
+  'description',
+  'schemaVersion',
+  'glossaryVersion',
+  'locales',
+  'lastUpdated',
+  'approval',
+  'transition',
+  'addressForm',
+] as const;
+
+function parseAddressForm(raw: unknown): GlossaryMeta['addressForm'] {
+  const record = expectRecord(raw, '_meta.addressForm');
+  expectOnlyKeys(record, GLOSSARY_LOCALES, '_meta.addressForm');
+  const entries = GLOSSARY_LOCALES.map((locale) => {
+    const path = `_meta.addressForm.${locale}`;
+    if (!(locale in record)) return fail(path, 'missing locale');
+    const entry = expectRecord(record[locale], path);
+    expectOnlyKeys(entry, ['form', 'rule'], path);
+    return [
+      locale,
+      {
+        form: expectString(entry.form, `${path}.form`),
+        rule: expectString(entry.rule, `${path}.rule`),
+      },
+    ] as const;
+  });
+  return Object.fromEntries(entries) as GlossaryMeta['addressForm'];
+}
+
 function parseMeta(raw: unknown): GlossaryMeta {
   const meta = expectRecord(raw, '_meta');
+  expectOnlyKeys(meta, META_KEYS, '_meta');
   if (meta.schemaVersion !== 2) fail('_meta.schemaVersion', 'must be 2');
   const glossaryVersion = expectString(meta.glossaryVersion, '_meta.glossaryVersion');
   const lastUpdated = expectString(meta.lastUpdated, '_meta.lastUpdated');
@@ -169,6 +207,7 @@ function parseMeta(raw: unknown): GlossaryMeta {
       },
     },
     transition,
+    addressForm: parseAddressForm(meta.addressForm),
   };
 }
 
