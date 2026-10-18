@@ -10,8 +10,12 @@ import {
   effectivePhotoMaxFileSizeBytes,
   type AppConfig,
 } from '../plugins/config.js';
-import { buildOidcRedirectUri } from '../routes/oidc.js';
-import { buildDavUrl, hostOf, publicUrlWithoutCredentials } from './publicAddress.js';
+import {
+  buildDavUrl,
+  buildOidcRedirectUri,
+  hostOf,
+  publicUrlWithoutCredentials,
+} from './publicAddress.js';
 
 /** A fresh copy of a card's env lists, so callers can never mutate the shared table. */
 function envFor(key: IntegrationKey): IntegrationEnv {

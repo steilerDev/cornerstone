@@ -23,7 +23,6 @@ import type { FastifyInstance } from 'fastify';
 import { OIDC_LOGIN_ERROR_CODES } from '@cornerstone/shared';
 import type * as AppModule from '../app.js';
 import type * as UserServiceModule from '../services/userService.js';
-import type * as OidcRoutesModule from './oidc.js';
 
 // ─── Mock oidcService BEFORE importing app ─────────────────────────────────
 
@@ -50,7 +49,6 @@ jest.unstable_mockModule('../services/oidcService.js', () => ({
 
 let buildApp: typeof AppModule.buildApp;
 let userService: typeof UserServiceModule;
-let oidcRoutes: typeof OidcRoutesModule;
 
 describe('OIDC Routes', () => {
   let app: FastifyInstance;
@@ -76,7 +74,6 @@ describe('OIDC Routes', () => {
     if (!buildApp) {
       buildApp = (await import('../app.js')).buildApp;
       userService = await import('../services/userService.js');
-      oidcRoutes = await import('./oidc.js');
     }
 
     // Reset mocks before each test
@@ -669,47 +666,6 @@ describe('OIDC Routes', () => {
 
       const leg1 = (mockBuildAuthorizationUrl.mock.calls[0] as unknown[])[1] as string;
       expect(leg1).toBe('https://public.example.test/api/auth/oidc/callback');
-    });
-  });
-
-  describe('buildOidcRedirectUri', () => {
-    it('exposes the callback path constant', () => {
-      expect(oidcRoutes.OIDC_CALLBACK_PATH).toBe('/api/auth/oidc/callback');
-    });
-
-    it('preserves a path prefix in EXTERNAL_URL', () => {
-      const uri = oidcRoutes.buildOidcRedirectUri(
-        'https://example.com/cornerstone',
-        'http://internal:3000',
-      );
-      expect(uri.href).toBe('https://example.com/cornerstone/api/auth/oidc/callback');
-    });
-
-    it('uses the request origin when no external URL is configured', () => {
-      const uri = oidcRoutes.buildOidcRedirectUri(undefined, 'http://app.local:3000');
-      expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
-    });
-
-    it('treats an empty external URL as unset', () => {
-      const uri = oidcRoutes.buildOidcRedirectUri('', 'http://app.local:3000');
-      expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
-    });
-
-    it('normalises an uppercase host identically on both legs', () => {
-      const a = oidcRoutes.buildOidcRedirectUri(undefined, 'https://APP.Example.COM');
-      const b = oidcRoutes.buildOidcRedirectUri('https://APP.Example.COM', 'http://x');
-      expect(a.href).toBe('https://app.example.com/api/auth/oidc/callback');
-      expect(b.href).toBe(a.href);
-    });
-
-    it('keeps a percent-encoded query intact when set via the URL setter', () => {
-      const uri = oidcRoutes.buildOidcRedirectUri(undefined, 'http://app.local:3000');
-      uri.search = new URL(
-        '/api/auth/oidc/callback?iss=https%3A%2F%2Fidp.example.com&code=a%20b',
-        'http://x',
-      ).search;
-      expect(uri.search).toBe('?iss=https%3A%2F%2Fidp.example.com&code=a%20b');
-      expect(uri.searchParams.get('iss')).toBe('https://idp.example.com');
     });
   });
 

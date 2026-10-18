@@ -204,7 +204,11 @@ export function IntegrationsPage() {
     let chipNode: ReactNode;
     if (paperless) {
       chipNode = probeRunning ? (
-        <Skeleton lines={1} loadingLabel={t('integrations.paperless.checking')} />
+        <Skeleton
+          lines={1}
+          className={styles.chipSkeleton}
+          loadingLabel={t('integrations.paperless.checking')}
+        />
       ) : (
         state && chip('paperless', state)
       );

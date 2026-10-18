@@ -4,7 +4,9 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import {
+  OIDC_CALLBACK_PATH,
   buildDavUrl,
+  buildOidcRedirectUri,
   hostOf,
   publicUrlWithoutCredentials,
   requestOrigin,
@@ -104,5 +106,43 @@ describe('buildDavUrl', () => {
 
   it('falls back to the request origin when the external URL is unparsable', () => {
     expect(buildDavUrl('::nope::', 'http://internal:3000')).toBe('http://internal:3000/dav/');
+  });
+});
+
+describe('buildOidcRedirectUri', () => {
+  it('exposes the callback path constant', () => {
+    expect(OIDC_CALLBACK_PATH).toBe('/api/auth/oidc/callback');
+  });
+
+  it('preserves a path prefix in EXTERNAL_URL', () => {
+    const uri = buildOidcRedirectUri('https://example.com/cornerstone', 'http://internal:3000');
+    expect(uri.href).toBe('https://example.com/cornerstone/api/auth/oidc/callback');
+  });
+
+  it('uses the request origin when no external URL is configured', () => {
+    const uri = buildOidcRedirectUri(undefined, 'http://app.local:3000');
+    expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
+  });
+
+  it('treats an empty external URL as unset', () => {
+    const uri = buildOidcRedirectUri('', 'http://app.local:3000');
+    expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
+  });
+
+  it('normalises an uppercase host identically on both legs', () => {
+    const a = buildOidcRedirectUri(undefined, 'https://APP.Example.COM');
+    const b = buildOidcRedirectUri('https://APP.Example.COM', 'http://x');
+    expect(a.href).toBe('https://app.example.com/api/auth/oidc/callback');
+    expect(b.href).toBe(a.href);
+  });
+
+  it('keeps a percent-encoded query intact when set via the URL setter', () => {
+    const uri = buildOidcRedirectUri(undefined, 'http://app.local:3000');
+    uri.search = new URL(
+      '/api/auth/oidc/callback?iss=https%3A%2F%2Fidp.example.com&code=a%20b',
+      'http://x',
+    ).search;
+    expect(uri.search).toBe('?iss=https%3A%2F%2Fidp.example.com&code=a%20b');
+    expect(uri.searchParams.get('iss')).toBe('https://idp.example.com');
   });
 });

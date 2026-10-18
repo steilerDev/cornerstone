@@ -38,6 +38,10 @@
   border-radius: var(--radius-sm);
 }
 
+.chipSkeleton {
+  width: 6rem;
+}
+
 .purpose {
   margin: var(--spacing-2) 0 0;
   font-size: var(--font-size-sm);
