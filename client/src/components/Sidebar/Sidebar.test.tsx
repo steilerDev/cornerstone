@@ -279,7 +279,7 @@ describe('Sidebar', () => {
   });
 
   describe('Settings', () => {
-    it('D-23: a member is offered Settings and Account only, never Users or Backups', () => {
+    it('D-23: a member is offered Settings and Account only, never Users, Backups or Integrations', () => {
       mockRole = 'member';
       renderAt('/settings/profile');
 
@@ -287,14 +287,21 @@ describe('Sidebar', () => {
       expect(links.map((l) => l.textContent)).toEqual(['Settings', 'Account']);
       expect(screen.queryByRole('link', { name: /^users$/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: /^backups$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /^integrations$/i })).not.toBeInTheDocument();
       expect(section('settings')).toHaveAttribute('href', '/settings/manage');
     });
 
-    it('D-23: an admin is offered Account, Users and Backups under Settings', () => {
+    it('D-23: an admin is offered Account, Users, Backups and Integrations under Settings', () => {
       renderAt('/settings/profile');
 
       const links = within(settingsNav()).getAllByRole('link');
-      expect(links.map((l) => l.textContent)).toEqual(['Settings', 'Account', 'Users', 'Backups']);
+      expect(links.map((l) => l.textContent)).toEqual([
+        'Settings',
+        'Account',
+        'Users',
+        'Backups',
+        'Integrations',
+      ]);
       expect(view('settingsProfile')).toHaveAttribute('aria-current', 'page');
     });
 

@@ -11,5 +11,5 @@ metadata:
 - Region name of the Documents section includes the link count: match `/^Documents/`, not exact.
 - On phone/tablet the h1 is a title-menu BUTTON: never assert `main` has 0 buttons, look inside the cards.
 - Same-document hash navigation keeps focus: `goto('about:blank')` first when asserting an unknown anchor does nothing.
-- Member spec reuses the `member-access` isolated user (no extra login). Login limit is 20/15 min per container: run admin and navigation folders in separate invocations per project.
+- Member spec reuses the `member-access` isolated user (no extra login). Login limit no longer binds in E2E (container sets AUTH_RATE_LIMIT_MAX=1000).
 - Quotation convert dialog hides Source document (Paperless off) and the AI block (llmEnabled off) entirely.

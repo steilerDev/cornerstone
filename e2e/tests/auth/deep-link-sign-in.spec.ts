@@ -14,8 +14,8 @@
  *
  * The SSO half of the deep link (E7) lives in auth/oidc.spec.ts, which owns the mock IdP.
  *
- * Login rate limit (20 per 15 minutes per IP): this file signs in exactly twice (E6, E8) and
- * creates no users. Projects: desktop only (the logic is viewport independent).
+ * Logins: this file signs in exactly twice (E6, E8) and creates no users (the E2E container
+ * raises the login rate limit, so this is intent, not a budget). Projects: desktop only (the logic is viewport independent).
  */
 
 import { test, expect } from '@playwright/test';

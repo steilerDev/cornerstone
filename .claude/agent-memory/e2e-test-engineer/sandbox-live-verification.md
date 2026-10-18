@@ -193,7 +193,7 @@ validate correctness.
 
 ## Added 2026-10-11 (#2213): batching and image freshness
 
-- One container run allows 20 logins per 15 min: a single run over navigation + i18n + admin with many workers hit
+- (Obsolete since the E2E container sets AUTH_RATE_LIMIT_MAX=1000; batching no longer needed for 429s.) Formerly one container run allowed 20 logins per 15 min: a single run over navigation + i18n + admin with many workers hit
   `429 RATE_LIMIT_EXCEEDED` in every isolated-user spec (dashboard, new-menu-member, user-menu). Run folders in separate
   invocations (each starts a fresh container) with `--workers=6`.
 - The image is a snapshot of the tree at build time: if the translator/frontend write files after `docker build` started
