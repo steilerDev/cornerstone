@@ -6,10 +6,10 @@ import { useFormatters } from '../../lib/formatters.js';
 import { FormError } from '../FormError/FormError.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
+import { CALENDAR_SYNC_ANCHOR } from './calendarSyncAnchor.js';
 import styles from './DavAccessCard.module.css';
 
-/** Deep-link anchor of the section heading (`/settings/profile#calendar-sync`). */
-export const CALENDAR_SYNC_ANCHOR = 'calendar-sync';
+export { CALENDAR_SYNC_ANCHOR };
 
 type PendingFocus = 'copy' | 'regenerate' | null;
 
@@ -189,10 +189,12 @@ export function DavAccessCard() {
             </div>
           )}
 
-          <div className={styles.urlPanel}>
-            <div className={styles.urlLabel}>{t('dav.serverUrl')}</div>
-            <div className={styles.url}>{window.location.origin}/dav/</div>
-          </div>
+          {status && (
+            <div className={styles.urlPanel}>
+              <div className={styles.urlLabel}>{t('dav.serverUrl')}</div>
+              <div className={styles.url}>{status.davUrl}</div>
+            </div>
+          )}
 
           <div className={styles.actions}>
             {status?.hasToken ? (

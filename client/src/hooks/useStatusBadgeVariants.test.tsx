@@ -12,9 +12,11 @@ describe('useStatusBadgeVariants', () => {
   it('returns one variant map per status vocabulary', () => {
     const { result } = renderHook(() => useStatusBadgeVariants());
     expect(Object.keys(result.current).sort()).toEqual([
+      'backupRun',
       'defect',
       'fundingSource',
       'grant',
+      'integration',
       'invoice',
       'milestone',
       'progressPayment',
@@ -55,6 +57,14 @@ describe('useStatusBadgeVariants', () => {
       'closed',
       'exhausted',
     ]);
+    expect(Object.keys(result.current.integration).sort()).toEqual([
+      'connected',
+      'notSetUp',
+      'off',
+      'on',
+      'unreachable',
+    ]);
+    expect(Object.keys(result.current.backupRun).sort()).toEqual(['failed', 'succeeded']);
     expect(Object.keys(result.current.defect).sort()).toEqual(['in_progress', 'open', 'resolved']);
   });
 

@@ -161,9 +161,10 @@
  * nothing can read or write that row afterwards. Accumulation is bounded per
  * SHARD, not per run — each shard is its own CI job with its own container and DB
  * (`containers/setup.ts` runs in globalSetup) — so `/settings/users`' 100-row page
- * is never in reach. The reason to prefer per-worker is the login rate limit
- * (`POST /api/auth/login`: 20 requests / 15 min, keyed on `request.ip`, one bucket
- * per shard), not user-table size.
+ * is never in reach. Per-worker users are preferred for speed and isolation (one
+ * user creation + login per worker, not per test). The E2E container raises the
+ * login limit (`AUTH_RATE_LIMIT_MAX=1000`, `containers/cornerstoneContainer.ts`), so
+ * the production 20 per 15 min per IP does not bind there.
  */
 
 import type { APIRequestContext, PlaywrightWorkerArgs } from '@playwright/test';

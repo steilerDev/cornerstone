@@ -83,6 +83,15 @@ const mockLocation = { pathname: '/budget/invoices/inv-xyz', search: '', hash: '
 jest.unstable_mockModule('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => mockLocation,
+  // NavAnchor (inside IntegrationsLink) resolves its href and click handler through these.
+  useHref: (to: string) => to,
+  useLinkClickHandler: () => () => undefined,
+}));
+
+// IntegrationsLink reads the signed-in user: admins get the link, everyone else nothing.
+let mockUser: { role: 'admin' | 'member' } | null = { role: 'member' };
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: mockUser }),
 }));
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
@@ -288,31 +297,101 @@ describe('LinkedDocumentsSection', () => {
     });
   });
 
-  describe('not configured state', () => {
-    it('renders not-configured banner when paperlessStatus.configured=false', async () => {
-      mockGetPaperlessStatus.mockResolvedValue({
-        configured: false,
-        reachable: false,
-        error: null,
-        paperlessUrl: null,
-      });
+  describe('Paperless off (documents section is quiet)', () => {
+    const OFF_STATUS = { configured: false, reachable: false, error: null, paperlessUrl: null };
+
+    beforeEach(() => {
+      mockUser = { role: 'member' };
+    });
+
+    it('renders nothing while the Paperless status is still unknown', () => {
+      mockGetPaperlessStatus.mockReturnValue(new Promise(() => undefined));
+      const { container } = render(
+        <LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('renders nothing when Paperless is off and there are no links', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      const { container } = render(
+        <LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />,
+      );
+      await waitFor(() => expect(mockGetPaperlessStatus).toHaveBeenCalled());
+      await act(async () => undefined);
+      expect(container).toBeEmptyDOMElement();
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(document.body.textContent).not.toMatch(/PAPERLESS_|not configured/i);
+    });
+
+    it('renders nothing when Paperless is off and the links are still loading', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(makeHook({ isLoading: true }));
+      const { container } = render(
+        <LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />,
+      );
+      await act(async () => undefined);
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('with two kept links shows the notice, no Add button and read-only cards', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeLink('link-1'), makeLink('link-2')] }),
+      );
       render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
-      await waitFor(() =>
-        expect(screen.getByText(/Paperless-ngx is not configured/i)).toBeInTheDocument(),
+      expect(await screen.findByTestId('documents-paperless-off')).toHaveTextContent(
+        'Paperless is not connected. 2 links are kept.',
+      );
+      expect(screen.queryByRole('button', { name: /Add Document/i })).not.toBeInTheDocument();
+      expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument();
+      expect(screen.getByTestId('linked-card-link-2')).toBeInTheDocument();
+    });
+
+    it('uses the singular for one kept link', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [makeLink('link-1')] }));
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      expect(await screen.findByTestId('documents-paperless-off')).toHaveTextContent(
+        'Paperless is not connected. 1 link is kept.',
       );
     });
 
-    it('"Add Document" button is disabled when Paperless is not configured', async () => {
-      mockGetPaperlessStatus.mockResolvedValue({
-        configured: false,
-        reachable: false,
-        error: null,
-        paperlessUrl: null,
-      });
+    it('shows an admin the See Integrations link to the Paperless card', async () => {
+      mockUser = { role: 'admin' };
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [makeLink('link-1')] }));
       render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeDisabled(),
-      );
+      const link = await screen.findByTestId('documents-integrations-link');
+      expect(link).toHaveTextContent('See Integrations');
+      expect(link).toHaveAttribute('href', '/settings/integrations#paperless');
+    });
+
+    it('shows a member no Integrations link', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [makeLink('link-1')] }));
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await screen.findByTestId('documents-paperless-off');
+      expect(screen.queryByTestId('documents-integrations-link')).not.toBeInTheDocument();
+    });
+
+    it('still shows the error banner when Paperless is off and the links failed to load', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(OFF_STATUS);
+      mockUseDocumentLinks.mockReturnValue(makeHook({ error: 'Failed to load documents' }));
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load documents');
+      expect(screen.queryByTestId('documents-paperless-off')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Paperless configured', () => {
+    it('shows an enabled Add Document button without a title tooltip', async () => {
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      const button = await screen.findByRole('button', { name: /\+ Add Document/i });
+      expect(button).toBeEnabled();
+      expect(button).not.toHaveAttribute('title');
+      expect(screen.queryByTestId('documents-paperless-off')).not.toBeInTheDocument();
     });
   });
 
@@ -689,7 +768,9 @@ describe('LinkedDocumentsSection', () => {
   describe('section structure', () => {
     it('renders the "Documents" section heading', async () => {
       render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
-      expect(screen.getByRole('heading', { name: /^Documents/i, level: 2 })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: /^Documents/i, level: 2 }),
+      ).toBeInTheDocument();
     });
 
     it('renders count badge when links are present', async () => {

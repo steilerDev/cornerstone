@@ -417,6 +417,9 @@ export async function searchPaperlessDocuments(
   };
 }
 
+/** Shared time limit (ms) for the status probe and the filter-tag lookup. */
+export const PAPERLESS_STATUS_TIMEOUT_MS = 5000;
+
 /**
  * Check the connectivity status of the Paperless-ngx integration.
  * Performs a lightweight probe request to verify reachability.
@@ -425,17 +428,32 @@ export async function getStatus(
   baseUrl: string,
   token: string,
   filterTagName?: string,
+  timeoutMs: number = PAPERLESS_STATUS_TIMEOUT_MS,
 ): Promise<PaperlessStatusResponse> {
+  // One signal covers the probe and the filter-tag lookup.
+  const signal = AbortSignal.timeout(timeoutMs);
+  const timedOut = (): PaperlessStatusResponse => ({
+    configured: true,
+    reachable: false,
+    error: `Timed out after ${timeoutMs / 1000} s`,
+    paperlessUrl: null,
+    filterTag: null,
+  });
   try {
-    await fetchPaperless<{ count: number }>(baseUrl, token, '/api/documents/?page_size=1');
-    // paperlessUrl is always overridden by the route handler with fastify.config.paperlessUrl
+    await fetchPaperless<{ count: number }>(baseUrl, token, '/api/documents/?page_size=1', {
+      signal,
+    });
+    // paperlessUrl is always overridden by the route handler
     let filterTag: string | null = null;
     if (filterTagName) {
-      const tagId = await resolveFilterTagId(baseUrl, token, filterTagName);
+      const tagId = await resolveFilterTagId(baseUrl, token, filterTagName, { signal });
+      // resolveFilterTagId swallows errors, so check the signal explicitly.
+      if (signal.aborted) return timedOut();
       filterTag = tagId !== null ? filterTagName : null;
     }
     return { configured: true, reachable: true, error: null, paperlessUrl: null, filterTag };
   } catch (err) {
+    if (signal.aborted) return timedOut();
     const rawMessage = err instanceof Error ? err.message : String(err);
     const message = sanitizeErrorMessage(rawMessage);
     return {

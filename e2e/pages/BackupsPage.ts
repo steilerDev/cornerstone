@@ -32,7 +32,10 @@ export class BackupsPage {
   readonly schedulerSection: Locator;
   readonly schedulerHeading: Locator;
   readonly schedulerErrorBanner: Locator;
+  /** "Automatic backups are off." line shown when the scheduler is off. */
   readonly schedulerDisabledHint: Locator;
+  /** Admin-only "See Integrations" link inside the off hint. */
+  readonly schedulerIntegrationsLink: Locator;
   readonly schedulerNoRunsYetText: Locator;
 
   constructor(page: Page) {
@@ -46,10 +49,8 @@ export class BackupsPage {
     this.schedulerSection = page.locator('section[aria-labelledby="scheduler-status-heading"]');
     this.schedulerHeading = page.locator('#scheduler-status-heading');
     this.schedulerErrorBanner = this.schedulerSection.locator('[role="alert"]');
-    this.schedulerDisabledHint = this.schedulerSection.getByText(
-      'Set the BACKUP_CADENCE environment variable',
-      { exact: false },
-    );
+    this.schedulerDisabledHint = page.getByTestId('backups-scheduler-off');
+    this.schedulerIntegrationsLink = page.getByTestId('backups-integrations-link');
     this.schedulerNoRunsYetText = this.schedulerSection.getByText(
       'No automatic backups have run yet',
       { exact: false },
@@ -141,7 +142,7 @@ export class BackupsPage {
       .locator('xpath=following-sibling::dd[1]');
   }
 
-  /** The "Automatic backups" row value — contains the Enabled/Disabled badge. */
+  /** The "Automatic backups" row value — contains the On/Off badge. */
   get schedulerStatusValue(): Locator {
     return this.schedulerRowValue('Automatic backups');
   }

@@ -22,7 +22,7 @@
  *   10. Paperless document + AI prefill (mocked) and document link on convert
  *   11. Suggestion badge when the field was edited before AI
  *   12. AI failure keeps typed values, retry available, manual conversion still works
- *   13. AI unavailable (llmEnabled=false) disables AI prefill
+ *   13. AI unavailable (llmEnabled=false) hides the AI prefill block
  *   14. @responsive Mobile 375: line cards, stacked footer, 44px Confirm
  *   15. @responsive Tablet 768: table renders, conversion succeeds
  *   16. Dark mode smoke
@@ -742,7 +742,7 @@ test.describe('Quotation conversion - cancel and Escape (Scenario 8)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Quotation conversion - Paperless not configured (Scenario 9)', () => {
-  test('Shows the unavailable note; manual conversion still succeeds', async ({
+  test('Hides the Source document section entirely; manual conversion still succeeds', async ({
     page,
     testPrefix,
   }) => {
@@ -753,8 +753,13 @@ test.describe('Quotation conversion - Paperless not configured (Scenario 9)', ()
       await detail.goto(fixture.invoiceId);
       await detail.openConvert();
 
-      await expect(detail.convertPaperlessUnavailable).toBeVisible();
+      // Nothing about Paperless or AI: no section, no heading, no explanatory note
+      await expect(detail.convertDialog).toBeVisible();
+      await expect(detail.convertSourceSection).toHaveCount(0);
+      await expect(detail.convertDialog.getByText('Source document')).toHaveCount(0);
+      await expect(detail.convertDialog.getByText(/not configured|PAPERLESS_/i)).toHaveCount(0);
       await expect(detail.convertSelectDocument).toHaveCount(0);
+      await expect(detail.convertAiPrefill).toHaveCount(0);
 
       expect(await detail.confirmConvert()).toBe(200);
       await expect(detail.statusBadge).toContainText('To pay');
@@ -928,7 +933,10 @@ test.describe('Quotation conversion - AI failure (Scenario 12)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Quotation conversion - AI unavailable (Scenario 13)', () => {
-  test('llmEnabled=false disables the AI prefill button', async ({ page, testPrefix }) => {
+  test('llmEnabled=false hides the AI prefill block; picking a document still works', async ({
+    page,
+    testPrefix,
+  }) => {
     const detail = new InvoiceDetailPage(page);
     let fixture: Fixture | null = null;
     try {
@@ -941,9 +949,11 @@ test.describe('Quotation conversion - AI unavailable (Scenario 13)', () => {
       await detail.openConvert();
 
       await expect(detail.convertSelectDocument).toBeVisible();
-      await expect(detail.convertAiPrefill).toBeDisabled();
+      await expect(detail.convertAiPrefill).toHaveCount(0);
       await pickMockDocument(page, detail);
-      await expect(detail.convertAiPrefill).toBeDisabled();
+      await expect(detail.convertSelectedDocument).toBeVisible();
+      await expect(detail.convertAiPrefill).toHaveCount(0);
+      await expect(detail.convertSourceSection.getByText(/AI/)).toHaveCount(0);
     } finally {
       await cleanup(page, fixture);
     }

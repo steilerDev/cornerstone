@@ -21,7 +21,7 @@ describe('davTokensApi', () => {
 
   describe('getDavTokenStatus', () => {
     it('sends GET request to /api/users/me/dav/token', async () => {
-      const mockResponse: DavTokenStatus = { hasToken: false };
+      const mockResponse: DavTokenStatus = { hasToken: false, davUrl: 'http://localhost/dav/' };
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
@@ -33,7 +33,7 @@ describe('davTokensApi', () => {
     });
 
     it('returns status with hasToken=false when no token exists', async () => {
-      const mockResponse: DavTokenStatus = { hasToken: false };
+      const mockResponse: DavTokenStatus = { hasToken: false, davUrl: 'http://localhost/dav/' };
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
@@ -49,6 +49,7 @@ describe('davTokensApi', () => {
       const mockResponse: DavTokenStatus = {
         hasToken: true,
         createdAt: '2026-01-15T10:00:00.000Z',
+        davUrl: 'http://localhost/dav/',
       };
       mockFetch.mockResolvedValueOnce({
         ok: true,

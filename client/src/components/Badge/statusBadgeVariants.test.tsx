@@ -13,6 +13,7 @@ import {
   MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
 import enCommon from '../../i18n/en/common.json';
 import enBudget from '../../i18n/en/budget.json';
 import deCommon from '../../i18n/de/common.json';
@@ -20,9 +21,11 @@ import { Badge } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
+  buildBackupRunVariants,
   buildDefectStatusVariants,
   buildFundingSourceStatusVariants,
   buildGrantStatusVariants,
+  buildIntegrationStatusVariants,
   buildInvoiceStatusVariants,
   buildMilestoneStatusVariants,
   buildProgressPaymentStatusVariants,
@@ -350,5 +353,58 @@ describe.each([
       expect(de[member]!.label).not.toBe(variants[member]!.label);
       expect(de[member]!.label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe.each([
+  [
+    'buildIntegrationStatusVariants (#2217)',
+    buildIntegrationStatusVariants,
+    INTEGRATION_STATUSES,
+    'integrationStatus',
+    {
+      connected: 'Connected',
+      unreachable: "Can't connect",
+      on: 'On',
+      off: 'Off',
+      notSetUp: 'Not set up',
+    },
+    { connected: 'success', unreachable: 'warning', on: 'success', off: 'info', notSetUp: 'info' },
+  ],
+  [
+    'buildBackupRunVariants (#2217)',
+    buildBackupRunVariants,
+    BACKUP_RUN_OUTCOMES,
+    'backupRun',
+    { succeeded: 'Succeeded', failed: 'Failed' },
+    { succeeded: 'success', failed: 'error' },
+  ],
+] as const)('%s', (_name, build, members, key, labels, classes) => {
+  const variants = build(realT) as Record<string, { label: string; className?: string }>;
+
+  it('has exactly one entry per member of the shared tuple', () => {
+    expect(Object.keys(variants).sort()).toEqual([...members].sort());
+  });
+
+  it('gives every variant a label from common and a Badge class', () => {
+    for (const member of members) {
+      expect(variants[member]!.label).toBe((labels as Record<string, string>)[member]);
+      expect(variants[member]!.label).toBe(
+        (enCommon as unknown as Record<string, Record<string, string>>)[key]![member],
+      );
+      expect(variants[member]!.className).toBe((classes as Record<string, string>)[member]);
+    }
+  });
+
+  it('renders through Badge with the variant label and class', () => {
+    const member = members[0]!;
+    render(<Badge variants={variants} value={member} testId="chip" />);
+    expect(screen.getByTestId('chip')).toHaveTextContent(variants[member]!.label);
+    expect(screen.getByTestId('chip')).toHaveClass(variants[member]!.className!);
+  });
+
+  it('has a German label for every member', () => {
+    const de = build(realTFor(deCommon)) as Record<string, { label: string }>;
+    for (const member of members) expect(de[member]!.label.length).toBeGreaterThan(0);
   });
 });

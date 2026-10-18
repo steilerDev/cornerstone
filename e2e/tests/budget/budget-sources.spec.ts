@@ -26,6 +26,12 @@ import { AppShellPage } from '../../pages/AppShellPage.js';
 import type { Page } from '@playwright/test';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { API } from '../../fixtures/testData.js';
+import {
+  expectNoDocumentsSection,
+  mockKeptDocumentLinks,
+  mockPaperlessConfigured,
+  openAndSettle,
+} from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -1251,7 +1257,7 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Documents panel contains "Documents" heading inside source docs region', async ({
+  test('Documents panel contains "Documents" heading inside source docs region (Paperless connected)', async ({
     page,
     testPrefix,
   }) => {
@@ -1260,7 +1266,8 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     let createdId: string | null = null;
 
     try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+      await mockPaperlessConfigured(page);
 
       await sourcesPage.goto();
       await sourcesPage.waitForSourcesLoaded();
@@ -1277,7 +1284,7 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('"+ Add Document" button is visible and disabled (Paperless not configured)', async ({
+  test('With Paperless off and no links the docs panel shows no Documents section or Add button', async ({
     page,
     testPrefix,
   }) => {
@@ -1290,21 +1297,17 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
 
       await sourcesPage.goto();
       await sourcesPage.waitForSourcesLoaded();
-      await sourcesPage.expandSourceDocs(sourceName);
+      await openAndSettle(page, () => sourcesPage.expandSourceDocs(sourceName));
 
       const panel = sourcesPage.getDocsPanelById(createdId);
       await expect(panel).toBeVisible();
-
-      // "+ Add Document" button is present but disabled because Paperless is not configured
-      const addButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addButton).toBeVisible();
-      await expect(addButton).toBeDisabled();
+      await expectNoDocumentsSection(panel);
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }
   });
 
-  test('"Paperless-ngx is not configured" banner is shown inside documents panel', async ({
+  test('With Paperless off and kept links the docs panel shows the read-only notice', async ({
     page,
     testPrefix,
   }) => {
@@ -1313,7 +1316,8 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     let createdId: string | null = null;
 
     try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 50000 });
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+      await mockKeptDocumentLinks(page, 'budget_source', createdId, 1);
 
       await sourcesPage.goto();
       await sourcesPage.waitForSourcesLoaded();
@@ -1321,10 +1325,12 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
 
       const panel = sourcesPage.getDocsPanelById(createdId);
       await expect(panel).toBeVisible();
-
-      // Not-configured banner text is visible inside the panel
-      const banner = panel.getByText('Paperless-ngx is not configured');
-      await expect(banner).toBeVisible();
+      await expect(panel.getByTestId('documents-paperless-off')).toContainText(
+        'Paperless is not connected. 1 link is kept.',
+      );
+      await expect(panel.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
+        0,
+      );
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }

@@ -442,6 +442,66 @@ describe('Photo Routes', () => {
       expect(errBody.error.message).toMatch(/exceeds maximum/i);
     });
 
+    it('names the effective limit in the 413 message (Story #2217)', async () => {
+      const { cookie } = await createUserWithSession('limitmsg@example.com', 'Msg', 'password');
+
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
+      await app.close();
+      app = await buildApp();
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.alloc(1.5 * 1024 * 1024, 0xff),
+          filename: 'huge.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: 'test' },
+        { name: 'entityId', value: 'entity-msg' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(413);
+      const errBody = JSON.parse(response.body) as ApiErrorResponse;
+      expect(errBody.error.message).toBe('File size exceeds maximum of 1MB');
+    });
+
+    it('rejects a 51 MB upload with 413 even when PHOTO_MAX_FILE_SIZE_MB is 60', async () => {
+      const { cookie } = await createUserWithSession('cap@example.com', 'Cap', 'password');
+
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '60';
+      await app.close();
+      app = await buildApp();
+      // The setting is kept as configured; only the effective limit is capped.
+      expect(app.config.photoMaxFileSizeMb).toBe(60);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.alloc(51 * 1024 * 1024, 0xff),
+          filename: 'huge.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: 'test' },
+        { name: 'entityId', value: 'entity-cap' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(413);
+    });
+
     it('returns 400 when service throws ValidationError for invalid MIME type', async () => {
       const { cookie } = await createUserWithSession('mime@example.com', 'MimeUser', 'password');
       const { ValidationError } = await import('../errors/AppError.js');

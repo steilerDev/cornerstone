@@ -78,6 +78,15 @@ const mockLocation = { pathname: '/budget/invoices/inv-xyz', search: '', hash: '
 jest.unstable_mockModule('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => mockLocation,
+  // NavAnchor (inside IntegrationsLink) resolves its href and click handler through these.
+  useHref: (to: string) => to,
+  useLinkClickHandler: () => () => undefined,
+}));
+
+// IntegrationsLink reads the signed-in user: admins get the link, everyone else nothing.
+const mockUser: { role: 'admin' | 'member' } | null = { role: 'member' };
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: mockUser }),
 }));
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────

@@ -24,33 +24,19 @@
 
 /* Facts */
 .facts {
-  margin: 0;
+  composes: factList from '../../styles/shared.module.css';
 }
 
 .factRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-  padding-block: var(--spacing-3);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.factRow:last-child {
-  border-bottom: none;
+  composes: factRow from '../../styles/shared.module.css';
 }
 
 .factLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
+  composes: factLabel from '../../styles/shared.module.css';
 }
 
 .factValue {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  overflow-wrap: anywhere;
-  text-align: right;
+  composes: factValue from '../../styles/shared.module.css';
 }
 
 /* Forms */
@@ -148,16 +134,6 @@ button.secondaryButton[aria-disabled='true']:hover {
 @media (max-width: 767px) {
   .card {
     padding: var(--spacing-4);
-  }
-
-  .factRow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-1);
-  }
-
-  .factValue {
-    text-align: left;
   }
 
   .primaryButton,

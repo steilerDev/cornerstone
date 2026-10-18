@@ -12,6 +12,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import type * as DocumentBrowserModule from './DocumentBrowser.js';
 import type * as ApiClientModule from '../../lib/apiClient.js';
 
@@ -36,6 +37,10 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessDocument: jest.fn(),
   getDocumentThumbnailUrl: (id: number) => `/api/paperless/documents/${id}/thumb`,
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
+}));
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: null }),
 }));
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
@@ -531,9 +536,13 @@ describe('DocumentBrowser infinite scroll (integration)', () => {
       paperlessUrl: null,
       filterTag: null,
     });
-    render(<DocumentBrowser />);
+    render(
+      <MemoryRouter>
+        <DocumentBrowser />
+      </MemoryRouter>,
+    );
 
-    expect(await screen.findByText(/paperless-ngx not configured/i)).toBeInTheDocument();
+    expect(await screen.findByText('Paperless is not connected')).toBeInTheDocument();
     expect(mockListPaperlessDocuments).not.toHaveBeenCalled();
     expect(screen.queryByTestId('paperless-documents-footer')).not.toBeInTheDocument();
   });

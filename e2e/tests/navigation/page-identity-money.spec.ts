@@ -120,6 +120,8 @@ function json(body: unknown, status = 200) {
 
 /** Linked-document list of one invoice, as returned by GET /api/document-links. */
 async function mockInvoiceDocumentLink(page: Page, invoiceId: string): Promise<void> {
+  // Itemize needs a connected Paperless: with it off, kept links are read-only (#2217)
+  await mockPaperlessConfigured(page);
   await page.route(
     (url) =>
       url.pathname.endsWith('/api/document-links') &&

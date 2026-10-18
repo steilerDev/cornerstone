@@ -19,6 +19,8 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import type { BackupRunOutcome, IntegrationStatus } from '../../lib/integrationStatus.js';
+import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
 import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariant } from './Badge.js';
@@ -54,6 +56,19 @@ const INVOICE_STATUS_CLASS: Record<InvoiceStatus, string> = {
   paid: badgeStyles.paid!,
   claimed: badgeStyles.claimed!,
   quotation: badgeStyles.offer!,
+};
+
+const INTEGRATION_STATUS_CLASS: Record<IntegrationStatus, string> = {
+  connected: badgeStyles.success!,
+  on: badgeStyles.success!,
+  unreachable: badgeStyles.warning!,
+  off: badgeStyles.info!,
+  notSetUp: badgeStyles.info!,
+};
+
+const BACKUP_RUN_CLASS: Record<BackupRunOutcome, string> = {
+  succeeded: badgeStyles.success!,
+  failed: badgeStyles.error!,
 };
 
 const TASK_STATUS_CLASS: Record<WorkItemStatus, string> = {
@@ -128,6 +143,32 @@ export function buildProgressPaymentStatusVariants(
       variant.title = t('statusHints.submitted', { ns: 'common' });
     }
     result[status] = variant;
+  }
+  return result;
+}
+
+export function buildIntegrationStatusVariants(
+  t: StatusLabelT,
+): Record<IntegrationStatus, BadgeVariant> {
+  const set = I18N_UNION_KEYS.integrationStatus;
+  const result = {} as Record<IntegrationStatus, BadgeVariant>;
+  for (const status of INTEGRATION_STATUSES) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns }),
+      className: INTEGRATION_STATUS_CLASS[status],
+    };
+  }
+  return result;
+}
+
+export function buildBackupRunVariants(t: StatusLabelT): Record<BackupRunOutcome, BadgeVariant> {
+  const set = I18N_UNION_KEYS.backupRun;
+  const result = {} as Record<BackupRunOutcome, BadgeVariant>;
+  for (const outcome of BACKUP_RUN_OUTCOMES) {
+    result[outcome] = {
+      label: t(set.key(outcome), { ns: set.ns }),
+      className: BACKUP_RUN_CLASS[outcome],
+    };
   }
   return result;
 }

@@ -132,11 +132,9 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
 
   const statusVariants = useStatusBadgeVariants();
 
-  const aiHintText = !llmEnabled
-    ? t('invoiceDetail.convertModal.source.aiUnavailable')
-    : !selectedDocument
-      ? t('invoiceDetail.convertModal.source.aiNeedsDocument')
-      : null;
+  const aiHintText = !selectedDocument
+    ? t('invoiceDetail.convertModal.source.aiNeedsDocument')
+    : null;
 
   const isAnalyzing = aiState === 'analyzing';
 
@@ -250,19 +248,15 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
         )}
 
         {/* A. Source document */}
-        <section
-          className={styles.section}
-          aria-labelledby={ids.sourceHeading}
-          data-testid="convert-source-section"
-        >
-          <h3 className={styles.sectionHeading} id={ids.sourceHeading}>
-            {t('invoiceDetail.convertModal.source.heading')}
-          </h3>
-          {!paperless.configured ? (
-            <p className={styles.muted} data-testid="convert-paperless-unavailable">
-              {t('invoiceDetail.convertModal.source.paperlessUnavailable')}
-            </p>
-          ) : (
+        {paperless.configured && (
+          <section
+            className={styles.section}
+            aria-labelledby={ids.sourceHeading}
+            data-testid="convert-source-section"
+          >
+            <h3 className={styles.sectionHeading} id={ids.sourceHeading}>
+              {t('invoiceDetail.convertModal.source.heading')}
+            </h3>
             <>
               <div className={styles.sourceRow}>
                 <button
@@ -297,62 +291,70 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
                 )}
               </div>
 
-              <div className={styles.aiBlock}>
-                <button
-                  type="button"
-                  className={styles.actionButton}
-                  onClick={() => void convert.analyze()}
-                  disabled={!llmEnabled || !selectedDocument || isAnalyzing || convert.isSaving}
-                  aria-describedby={aiHintText ? ids.aiHint : undefined}
-                  data-testid="convert-ai-prefill"
-                >
-                  {isAnalyzing ? (
-                    <span className={styles.aiButtonContent}>
-                      <Spinner size="sm" color="muted" />
-                      {t('invoiceDetail.convertModal.source.aiAnalyzing')}
-                    </span>
-                  ) : (
-                    t('invoiceDetail.convertModal.source.aiAnalyze')
+              {llmEnabled && (
+                <div className={styles.aiBlock}>
+                  <button
+                    type="button"
+                    className={styles.actionButton}
+                    onClick={() => void convert.analyze()}
+                    disabled={!selectedDocument || isAnalyzing || convert.isSaving}
+                    aria-describedby={aiHintText ? ids.aiHint : undefined}
+                    data-testid="convert-ai-prefill"
+                  >
+                    {isAnalyzing ? (
+                      <span className={styles.aiButtonContent}>
+                        <Spinner size="sm" color="muted" />
+                        {t('invoiceDetail.convertModal.source.aiAnalyzing')}
+                      </span>
+                    ) : (
+                      t('invoiceDetail.convertModal.source.aiAnalyze')
+                    )}
+                  </button>
+                  {aiHintText && (
+                    <p className={styles.hint} id={ids.aiHint}>
+                      {aiHintText}
+                    </p>
                   )}
-                </button>
-                {aiHintText && (
-                  <p className={styles.hint} id={ids.aiHint}>
-                    {aiHintText}
-                  </p>
-                )}
-                {aiState === 'error' && (
-                  <div data-testid="convert-ai-error">
-                    <FormError message={convert.aiError} />
-                    <button
-                      type="button"
-                      className={styles.actionButton}
-                      onClick={() => void convert.analyze()}
-                      data-testid="convert-ai-retry"
+                  {aiState === 'error' && (
+                    <div data-testid="convert-ai-error">
+                      <FormError message={convert.aiError} />
+                      <button
+                        type="button"
+                        className={styles.actionButton}
+                        onClick={() => void convert.analyze()}
+                        data-testid="convert-ai-retry"
+                      >
+                        {t('invoiceDetail.convertModal.source.aiRetry')}
+                      </button>
+                    </div>
+                  )}
+                  {aiState === 'success' && (
+                    <p
+                      role="status"
+                      className={styles.successText}
+                      data-testid="convert-ai-success"
                     >
-                      {t('invoiceDetail.convertModal.source.aiRetry')}
-                    </button>
-                  </div>
-                )}
-                {aiState === 'success' && (
-                  <p role="status" className={styles.successText} data-testid="convert-ai-success">
-                    {t('invoiceDetail.convertModal.source.aiSuccess')}
-                  </p>
-                )}
-                {aiState === 'success' && convert.aiMismatch && (
-                  <div className={styles.aiWarning} data-testid="convert-ai-mismatch">
-                    {t('invoiceDetail.convertModal.source.aiTotalMismatch', {
-                      extracted: formatCurrency(convert.aiMismatch.extracted),
-                      quoted: formatCurrency(quotedAmount),
-                    })}
-                  </div>
-                )}
-                {aiState === 'success' && convert.aiNoLines && (
-                  <p className={styles.muted}>{t('invoiceDetail.convertModal.source.aiNoLines')}</p>
-                )}
-              </div>
+                      {t('invoiceDetail.convertModal.source.aiSuccess')}
+                    </p>
+                  )}
+                  {aiState === 'success' && convert.aiMismatch && (
+                    <div className={styles.aiWarning} data-testid="convert-ai-mismatch">
+                      {t('invoiceDetail.convertModal.source.aiTotalMismatch', {
+                        extracted: formatCurrency(convert.aiMismatch.extracted),
+                        quoted: formatCurrency(quotedAmount),
+                      })}
+                    </div>
+                  )}
+                  {aiState === 'success' && convert.aiNoLines && (
+                    <p className={styles.muted}>
+                      {t('invoiceDetail.convertModal.source.aiNoLines')}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* B. Invoice details */}
         <section className={styles.section} aria-labelledby={ids.detailsHeading}>

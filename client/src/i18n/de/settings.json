@@ -337,16 +337,12 @@
       "heading": "Automatischer Sicherungsplan",
       "loading": "Planungsstatus wird geladen …",
       "statusLabel": "Automatische Sicherungen",
-      "enabled": "Aktiviert",
-      "disabled": "Deaktiviert",
-      "disabledHint": "Setze die Umgebungsvariable BACKUP_CADENCE, um automatische Sicherungen zu aktivieren.",
       "lastRunLabel": "Letzter geplanter Lauf",
-      "lastRunSuccess": "Erfolgreich",
-      "lastRunFailure": "Fehlgeschlagen",
       "noRunsYet": "Es wurden noch keine automatischen Sicherungen ausgeführt",
       "nextRunLabel": "Nächster geplanter Lauf",
       "thenLabel": "dann",
-      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuche es erneut."
+      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuche es erneut.",
+      "off": "Automatische Sicherungen sind aus."
     }
   },
   "vendors": {
@@ -366,15 +362,15 @@
       "nameRequired": "Mindestens Vorname oder Nachname ist erforderlich.",
       "saveError": "Kontakt konnte nicht gespeichert werden. Bitte erneut versuchen.",
       "deleteError": "Kontakt konnte nicht gelöscht werden. Bitte erneut versuchen.",
-      "contactAdded": "Kontakt {{name}} hinzugefügt",
-      "contactUpdated": "Kontakt {{name}} aktualisiert",
-      "contactDeleted": "Kontakt {{name}} gelöscht",
       "cancel": "Abbrechen",
       "creating": "Erstellen...",
       "createContactSubmit": "Kontakt erstellen",
       "saving": "Speichern...",
       "saveChanges": "Änderungen speichern",
       "loading": "Kontakte werden geladen...",
+      "contactAdded": "Kontakt {{name}} hinzugefügt",
+      "contactUpdated": "Kontakt {{name}} aktualisiert",
+      "contactDeleted": "Kontakt {{name}} gelöscht",
       "errors": {
         "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuche es erneut.",
         "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuche es erneut.",
@@ -400,7 +396,6 @@
     "saving": "Wird gespeichert…",
     "cancel": "Abbrechen",
     "mergeDuplicates": "Doppelte zusammenführen…",
-    "deleteAction": "Löschen",
     "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits.",
     "nameRequired": "Gib einen Namen ein.",
     "added": "{{name}} hinzugefügt",
@@ -420,6 +415,7 @@
       "busy": "Wird zusammengeführt…",
       "done": "{{name}} wurde in {{target}} zusammengeführt"
     },
+    "deleteAction": "Löschen",
     "deleteDialog": {
       "title": "{{name}} löschen?",
       "blocked_one": "{{count}} Firma verwendet dieses Gewerk noch. Führe es stattdessen mit einem anderen Gewerk zusammen oder ändere zuerst diese Firma.",
@@ -428,6 +424,114 @@
       "confirm": "Löschen",
       "busy": "Wird gelöscht…",
       "done": "{{name}} wurde gelöscht"
+    }
+  },
+  "integrations": {
+    "intro": "Hier siehst du, womit Cornerstone verbunden ist. Du kannst die Einstellungen hier nicht ändern: Diese werden beim Start von Cornerstone festgelegt. Um eine zu ändern, passe ihre Umgebungsvariable an und starte Cornerstone neu.",
+    "loading": "{{name}} wird geladen",
+    "yes": "Ja",
+    "no": "Nein",
+    "setup": {
+      "heading": "So richtest du es ein",
+      "required": "Erforderlich",
+      "optional": "Optional",
+      "noServerSetup": "Auf dem Server ist keine Einrichtung nötig."
+    },
+    "docs": {
+      "link": "Einrichtungsanleitung lesen",
+      "linkLabel": "Einrichtungsanleitung für {{name}} lesen (öffnet in einem neuen Tab)"
+    },
+    "loadError": {
+      "heading": "Die Integrationen konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "retrying": "Wird erneut versucht…",
+      "retryFailed": "Immer noch nicht erreichbar. Versuche es gleich erneut."
+    },
+    "paperless": {
+      "title": "Paperless",
+      "purpose": "Verknüpfe Rechnungen und andere Einträge mit Dokumenten, die in Paperless gespeichert sind.",
+      "hint": "Trage die Adresse und ein Zugriffstoken von Paperless ein und starte Cornerstone danach neu.",
+      "address": "Adresse",
+      "filterTag": "Filter-Tag",
+      "filterTagNone": "Keiner",
+      "checking": "Verbindung zu Paperless wird geprüft",
+      "unreachable": "Cornerstone kann Paperless gerade nicht erreichen. Verknüpfte Dokumente werden als Nummern angezeigt, bis die Verbindung wieder steht. Prüfe, ob die Adresse stimmt und Paperless läuft.",
+      "tagNotFound": "Cornerstone kann das Filter-Tag „{{tag}}“ in Paperless nicht finden. Daher werden so lange keine Dokumente angezeigt, bis das Tag existiert.",
+      "recheck": "Erneut prüfen",
+      "rechecking": "Wird geprüft…",
+      "connectedAnnouncement": "Paperless ist verbunden.",
+      "stillUnreachableAnnouncement": "Paperless ist weiterhin nicht erreichbar."
+    },
+    "ai": {
+      "title": "KI",
+      "purpose": "Liest Dokumente und hilft beim Schreiben von Berichtstexten. Zum Lesen von Dokumenten wird außerdem Paperless benötigt.",
+      "hint": "Trage Adresse, Schlüssel und Modellnamen deines KI-Anbieters ein und starte Cornerstone danach neu.",
+      "provider": "Anbieter",
+      "providerGeneric": "Andere (OpenAI-kompatibel)",
+      "model": "Modell",
+      "address": "Adresse"
+    },
+    "singleSignOn": {
+      "title": "Single Sign-on",
+      "purpose": "Ermöglicht die Anmeldung über einen externen Anmeldedienst statt mit Passwort.",
+      "hint": "Hinterlege die unten stehende Weiterleitungsadresse bei deinem Anmeldedienst, trage danach dessen Daten ein und starte Cornerstone neu.",
+      "signInService": "Anmeldedienst",
+      "newAccounts": "Neue Konten",
+      "newAccountsJit": "Werden bei der ersten Anmeldung angelegt",
+      "newAccountsLinkOnly": "Nur Personen, die bereits ein Konto haben",
+      "redirectAddress": "Weiterleitungsadresse"
+    },
+    "calendarContacts": {
+      "title": "Kalender- & Kontaktsynchronisierung",
+      "purpose": "Jede Person verbindet eine Kalender- oder Kontakte-App mit einem persönlichen Token.",
+      "hint": "Hier gibt es nichts einzurichten. Jede Person erstellt unter Konto ein Token.",
+      "serverAddress": "Serveradresse",
+      "accountLink": "Token unter Konto erstellen"
+    },
+    "automaticBackups": {
+      "title": "Automatische Sicherungen",
+      "purpose": "Speichert nach einem Zeitplan eine Sicherung deines Projekts.",
+      "hint": "Lege einen Zeitplan fest, um automatische Sicherungen einzuschalten, und starte Cornerstone danach neu.",
+      "schedule": "Zeitplan",
+      "invalidSchedule": "Dieser Zeitplan ist ungültig, daher sind automatische Sicherungen aus.",
+      "keeps": "Behält",
+      "keepsLatest_one": "Die neueste Sicherung",
+      "keepsLatest_other": "Die neuesten {{count}} Sicherungen",
+      "keepsAll": "Alle Sicherungen",
+      "lastRun": "Letzter Lauf",
+      "noRunsYet": "Es wurden noch keine automatischen Sicherungen ausgeführt",
+      "nextRun": "Nächster Lauf",
+      "backupsLink": "Zu den Sicherungen"
+    },
+    "history": {
+      "title": "Verlauf",
+      "purpose": "Hält Änderungen an deinem Projekt automatisch im Verlauf fest.",
+      "hint": "Er ist eingeschaltet, solange du ihn nicht ausschaltest. Zum Ausschalten setze die Variable auf false und starte Cornerstone neu."
+    },
+    "money": {
+      "title": "Währung & Mehrwertsteuer",
+      "purpose": "Legt die Währung und den Mehrwertsteuersatz fest, mit denen Beträge berechnet werden.",
+      "hint": "Ändere die Währung oder den Mehrwertsteuersatz und starte Cornerstone danach neu.",
+      "currency": "Währung",
+      "currencyValue": "{{code}}, zum Beispiel {{example}}",
+      "vatRate": "Mehrwertsteuersatz"
+    },
+    "photos": {
+      "title": "Fotospeicher",
+      "purpose": "Wo Fotos gespeichert werden und wie groß ein einzelnes Foto sein darf.",
+      "hint": "Ändere den Ordner oder die Größenbegrenzung und starte Cornerstone danach neu.",
+      "folder": "Ordner",
+      "largestPhoto": "Größtes Foto"
+    },
+    "publicAddress": {
+      "title": "Öffentliche Adresse und Proxy",
+      "purpose": "Die Webadresse, über die Personen Cornerstone aufrufen, und wie Cornerstone einem Proxy davor vertraut.",
+      "hint": "Lege die öffentliche Adresse fest, wenn Cornerstone hinter einem Proxy läuft, und starte Cornerstone danach neu.",
+      "publicAddress": "Öffentliche Adresse",
+      "notSet": "Nicht festgelegt. Cornerstone verwendet die Adresse in deinem Browser.",
+      "behindProxy": "Hinter einem Proxy",
+      "secureCookies": "Sichere Cookies",
+      "secureCookiesOn": "Ja, nur über HTTPS"
     }
   }
 }

@@ -526,6 +526,49 @@ describe('LinkedDocumentCard', () => {
 
   // ─── Attachment type badge and select (Story #1877) ──────────────────────
 
+  describe('readOnly (Paperless off)', () => {
+    const renderReadOnly = () =>
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'quotation' })}
+          paperlessBaseUrl={null}
+          readOnly
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+
+    it('keeps the title and date but shows no action', () => {
+      renderReadOnly();
+      expect(screen.getByRole('heading', { name: 'Invoice March' })).toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('hides View, Unlink, Itemize and the document type control', () => {
+      renderReadOnly();
+      expect(screen.queryByRole('button', { name: /Unlink document/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Tag document type/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
+    });
+
+    it('shows no action when no handler is passed either (handlers are optional)', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} readOnly />);
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('optional handlers', () => {
+    it('does not throw when View and Unlink are clicked without handlers', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />);
+      fireEvent.click(screen.getByRole('button', { name: /Unlink document/i }));
+      fireEvent.click(screen.getByRole('button', { name: /View details/i }));
+      expect(screen.getByRole('heading', { name: 'Invoice March' })).toBeInTheDocument();
+    });
+  });
+
   describe('attachment type badge and select', () => {
     it('does not render a badge or select when onAttachmentTypeChange is omitted', () => {
       render(

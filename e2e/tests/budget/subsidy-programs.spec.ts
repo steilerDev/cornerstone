@@ -23,6 +23,12 @@ import { AppShellPage } from '../../pages/AppShellPage.js';
 import type { Page } from '@playwright/test';
 import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
 import { API } from '../../fixtures/testData.js';
+import {
+  expectNoDocumentsSection,
+  mockKeptDocumentLinks,
+  mockPaperlessConfigured,
+  openAndSettle,
+} from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -859,7 +865,7 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Documents panel contains "Documents" heading inside program docs region', async ({
+  test('Documents panel contains "Documents" heading inside program docs region (Paperless connected)', async ({
     page,
     testPrefix,
   }) => {
@@ -869,6 +875,7 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
 
     try {
       createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
+      await mockPaperlessConfigured(page);
 
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
@@ -885,7 +892,7 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('"+ Add Document" button is visible and disabled (Paperless not configured)', async ({
+  test('With Paperless off and no links the docs panel shows no Documents section or Add button', async ({
     page,
     testPrefix,
   }) => {
@@ -894,25 +901,21 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     let createdId: string | null = null;
 
     try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 25 });
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
 
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
-      await subsidyPage.expandProgramDocs(programName);
+      await openAndSettle(page, () => subsidyPage.expandProgramDocs(programName));
 
       const panel = subsidyPage.getDocsPanelById(createdId);
       await expect(panel).toBeVisible();
-
-      // "+ Add Document" button is present but disabled because Paperless is not configured
-      const addButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addButton).toBeVisible();
-      await expect(addButton).toBeDisabled();
+      await expectNoDocumentsSection(panel);
     } finally {
       if (createdId) await deleteProgramViaApi(page, createdId);
     }
   });
 
-  test('"Paperless-ngx is not configured" banner is shown inside documents panel', async ({
+  test('With Paperless off and kept links the docs panel shows the read-only notice', async ({
     page,
     testPrefix,
   }) => {
@@ -921,7 +924,8 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     let createdId: string | null = null;
 
     try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 30 });
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
+      await mockKeptDocumentLinks(page, 'subsidy_program', createdId, 1);
 
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
@@ -929,10 +933,12 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
 
       const panel = subsidyPage.getDocsPanelById(createdId);
       await expect(panel).toBeVisible();
-
-      // Not-configured banner text is visible inside the panel
-      const banner = panel.getByText('Paperless-ngx is not configured');
-      await expect(banner).toBeVisible();
+      await expect(panel.getByTestId('documents-paperless-off')).toContainText(
+        'Paperless is not connected. 1 link is kept.',
+      );
+      await expect(panel.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
+        0,
+      );
     } finally {
       if (createdId) await deleteProgramViaApi(page, createdId);
     }

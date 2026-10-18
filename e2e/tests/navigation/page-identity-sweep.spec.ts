@@ -309,6 +309,13 @@ const ROWS: SweepRow[] = [
     crumbs: false,
     active: 'sidebar-view-settingsBackups',
   },
+  {
+    id: 'settingsIntegrations',
+    path: () => routeUrl('settingsIntegrations'),
+    h1: 'Integrations',
+    crumbs: false,
+    active: 'sidebar-view-settingsIntegrations',
+  },
   // Home (h1 owned by #2230): `/` redirects one hop to the overview
   {
     id: 'home',

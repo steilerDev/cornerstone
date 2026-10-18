@@ -65,6 +65,7 @@ const AREAS = [
       { route: 'settingsProfile' },
       { route: 'settingsUsers' },
       { route: 'settingsBackups' },
+      { route: 'settingsIntegrations' },
     ],
   },
 ] as const satisfies readonly { readonly area: string; readonly rows: readonly Reach[] }[];

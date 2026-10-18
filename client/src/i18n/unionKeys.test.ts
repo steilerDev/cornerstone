@@ -79,8 +79,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 37 registered sets', () => {
-    expect(SETS).toHaveLength(37);
+  it('iterates all 39 registered sets', () => {
+    expect(SETS).toHaveLength(39);
   });
 });
 
@@ -193,6 +193,8 @@ describe('I18N_UNION_KEYS registry', () => {
       'diaryAutomaticEntryType',
       'searchResultGroup',
       'searchMatchedField',
+      'integrationStatus',
+      'backupRun',
       'createMenuEntry',
     ]);
   });

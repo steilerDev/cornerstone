@@ -283,6 +283,52 @@ describe('Paperless Routes', () => {
       expect(body.paperlessUrl).toBe('http://paperless:8000');
     });
 
+    it('paperlessUrl loses embedded credentials, query and hash (Story #2217)', async () => {
+      await app.close();
+      process.env.PAPERLESS_URL = 'http://pl-user:pl-pass@paperless:8000/sub/?k=v#frag';
+      process.env.PAPERLESS_API_TOKEN = 'test-token';
+      app = await buildApp();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 10 }));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<PaperlessStatusResponse>().paperlessUrl).toBe(
+        'http://paperless:8000/sub',
+      );
+      for (const leak of ['pl-user', 'pl-pass', '?k=v', '#frag']) {
+        expect(response.body).not.toContain(leak);
+      }
+    });
+
+    it('external URL credentials are stripped too (Story #2217)', async () => {
+      await app.close();
+      process.env.PAPERLESS_URL = 'http://paperless:8000';
+      process.env.PAPERLESS_API_TOKEN = 'test-token';
+      process.env.PAPERLESS_EXTERNAL_URL = 'https://ext-user:ext-pass@external.example.com/p';
+      app = await buildApp();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/status',
+        headers: { cookie },
+      });
+
+      expect(response.json<PaperlessStatusResponse>().paperlessUrl).toBe(
+        'https://external.example.com/p',
+      );
+      expect(response.body).not.toContain('ext-pass');
+    });
+
     describe('PAPERLESS_FILTER_TAG support', () => {
       it('returns filterTag=null when PAPERLESS_FILTER_TAG not set', async () => {
         await rebuildAppWithPaperless();

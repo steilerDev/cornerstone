@@ -835,7 +835,7 @@ describe('BackupsPage', () => {
       expect(screen.getByRole('status', { name: /loading scheduler status/i })).toBeInTheDocument();
     });
 
-    it('renders the disabled badge and hint when the scheduler is disabled', async () => {
+    it('renders the Off chip and the off hint with an admin link when the scheduler is off', async () => {
       mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
       mockGetSchedulerStatus.mockResolvedValueOnce({
         scheduler: { enabled: false, lastRun: null, nextRuns: [] },
@@ -843,16 +843,63 @@ describe('BackupsPage', () => {
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByText('Disabled')).toBeInTheDocument();
+      const offChip = await screen.findByText('Off');
+      // Badge className regression guard: the real CSS module class, not a literal.
+      expect(offChip.className).toContain(badgeStyles.info);
+      expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+
+      const hint = screen.getByTestId('backups-scheduler-off');
+      expect(hint).toHaveTextContent('Automatic backups are off.');
+      expect(hint).not.toHaveTextContent(/BACKUP_CADENCE|environment variable/i);
+      expect(screen.getByTestId('backups-integrations-link')).toHaveAttribute(
+        'href',
+        '/settings/integrations#automatic-backups',
+      );
+    });
+
+    it('keeps the off hint outside the status definition list', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+
+      renderPage();
+
+      const hint = await screen.findByTestId('backups-scheduler-off');
+      expect(hint.closest('dl')).toBeNull();
+      expect(hint.tagName).toBe('P');
+    });
+
+    it('shows a member the off hint without the Integrations link', async () => {
+      mockUseAuth.mockReturnValue({
+        ...mockUseAuth(),
+        user: { ...mockUseAuth().user!, role: 'member' as const },
       });
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
 
-      expect(screen.getByText(/Set the BACKUP_CADENCE environment variable/i)).toBeInTheDocument();
+      renderPage();
 
-      // Badge className regression guard — the rendered Badge must use the
-      // real CSS module class (badgeStyles.info), not a hardcoded literal.
-      const disabledBadge = screen.getByText('Disabled');
-      expect(disabledBadge.className).toContain(badgeStyles.info);
+      await screen.findByTestId('backups-scheduler-off');
+      expect(screen.queryByTestId('backups-integrations-link')).not.toBeInTheDocument();
+    });
+
+    it('shows no off hint while loading, after an error, or when the scheduler is on', async () => {
+      mockListBackups.mockResolvedValue({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockReturnValueOnce(new Promise(() => {}));
+      const loading = renderPage();
+      await screen.findByRole('status', { name: /loading scheduler status/i });
+      expect(screen.queryByTestId('backups-scheduler-off')).not.toBeInTheDocument();
+      loading.unmount();
+
+      mockGetSchedulerStatus.mockRejectedValueOnce(new Error('network dropped'));
+      const failed = renderPage();
+      await screen.findByText(/Failed to load scheduler status/i);
+      expect(screen.queryByTestId('backups-scheduler-off')).not.toBeInTheDocument();
+      failed.unmount();
+
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: { enabled: true, lastRun: null, nextRuns: ['2026-03-23T02:00:00.000Z'] },
+      } as BackupSchedulerStatusResponse);
+      renderPage();
+      await screen.findByText('On');
+      expect(screen.queryByTestId('backups-scheduler-off')).not.toBeInTheDocument();
     });
 
     it('renders enabled badge, a successful lastRun, and both next run times (primary + "then" secondary)', async () => {
@@ -868,7 +915,7 @@ describe('BackupsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument();
+        expect(screen.getByText('On')).toBeInTheDocument();
       });
 
       // Last run: success badge + formatted timestamp (identity-mocked formatDateTime)
@@ -882,7 +929,7 @@ describe('BackupsPage', () => {
       expect(screen.getByText(/2026-03-24T02:00:00\.000Z/)).toBeInTheDocument();
 
       // Badge className regression guard
-      const enabledBadge = screen.getByText('Enabled');
+      const enabledBadge = screen.getByText('On');
       expect(enabledBadge.className).toContain(badgeStyles.success);
       const successBadge = screen.getByText('Succeeded');
       expect(successBadge.className).toContain(badgeStyles.success);
@@ -973,11 +1020,11 @@ describe('BackupsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Enabled')).toBeInTheDocument();
+        expect(screen.getByText('On')).toBeInTheDocument();
       });
 
       expect(badgeStyles.success).toBeTruthy();
-      expect(screen.getByText('Enabled').className).toContain(badgeStyles.success);
+      expect(screen.getByText('On').className).toContain(badgeStyles.success);
       expect(screen.getByText('Succeeded').className).toContain(badgeStyles.success);
     });
   });

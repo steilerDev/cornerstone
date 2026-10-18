@@ -628,7 +628,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                       |
 | `OIDC_JIT_PROVISIONING`      | `false`                    | Opt-in: create a `member` account on first OIDC login with a verified email that matches no account. Off = link-only |
 | `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                                |
-| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                                      |
+| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB (capped at 50; a higher value logs a startup warning)                                |
 | `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                          |
 | `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                                |
 | `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                                |

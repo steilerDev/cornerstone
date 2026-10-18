@@ -204,13 +204,19 @@ describe('ConvertQuotationModal', () => {
   });
 
   describe('source document section', () => {
-    it('shows only the unavailable hint when Paperless is not configured', () => {
+    it('renders no source section, hint or AI control when Paperless is not configured', () => {
       renderModal();
 
-      expect(screen.getByTestId('convert-paperless-unavailable')).toHaveTextContent(
-        t('invoiceDetail.convertModal.source.paperlessUnavailable'),
-      );
+      expect(screen.queryByTestId('convert-source-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('convert-paperless-unavailable')).not.toBeInTheDocument();
       expect(screen.queryByTestId('convert-select-document')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('convert-ai-prefill')).not.toBeInTheDocument();
+    });
+
+    it('renders no source section when Paperless is off even if AI is on', () => {
+      renderModal({ llmEnabled: true });
+
+      expect(screen.queryByTestId('convert-source-section')).not.toBeInTheDocument();
       expect(screen.queryByTestId('convert-ai-prefill')).not.toBeInTheDocument();
     });
 
@@ -244,20 +250,17 @@ describe('ConvertQuotationModal', () => {
       expect(fns.removeDocument).toHaveBeenCalledTimes(1);
     });
 
-    it('disables the AI button with the unavailable hint when the LLM is off', () => {
+    it('renders no AI control or hint when the LLM is off', () => {
       renderModal({
         paperless: { configured: true, paperlessUrl: null },
         llmEnabled: false,
         selectedDocument: { id: 4, title: 'Doc' },
       });
 
-      const button = screen.getByTestId('convert-ai-prefill');
-      expect(button).toBeDisabled();
-      const hintId = button.getAttribute('aria-describedby');
-      expect(hintId).toBeTruthy();
-      expect(document.getElementById(hintId!)).toHaveTextContent(
-        t('invoiceDetail.convertModal.source.aiUnavailable'),
-      );
+      expect(screen.getByTestId('convert-source-section')).toBeInTheDocument();
+      expect(screen.getByTestId('convert-select-document')).toBeInTheDocument();
+      expect(screen.queryByTestId('convert-ai-prefill')).not.toBeInTheDocument();
+      expect(screen.getByTestId('convert-source-section')).not.toHaveTextContent(/AI|assistance/i);
     });
 
     it('disables the AI button with the needs-document hint when no document is selected', () => {

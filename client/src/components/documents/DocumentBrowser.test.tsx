@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import { MemoryRouter } from 'react-router-dom';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
 
 // Mock usePaperless hook
@@ -30,6 +31,12 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
     syncWithServer: jest.fn(),
   })),
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// IntegrationsLink (rendered in the not-configured state) reads the signed-in user.
+let mockUser: { role: 'admin' | 'member' } | null = null;
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: mockUser }),
 }));
 
 // Deferred type import — must appear AFTER jest.unstable_mockModule calls to ensure mock
@@ -79,6 +86,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
 
 beforeEach(async () => {
   ({ DocumentBrowser } = (await import('./DocumentBrowser.js')) as typeof DocumentBrowserModule);
+  mockUser = null;
   mockUsePaperless.mockReset();
   mockUsePaperless.mockReturnValue(makeHook());
 });
@@ -91,22 +99,54 @@ describe('DocumentBrowser', () => {
       expect(screen.getByText(/Checking Paperless-ngx connection/i)).toBeInTheDocument();
     });
 
-    it('renders not configured state when configured=false', () => {
-      mockUsePaperless.mockReturnValue(
-        makeHook({
-          status: {
-            configured: false,
-            reachable: false,
-            error: null,
-            paperlessUrl: null,
-            filterTag: null,
-          },
-        }),
+    const notConfiguredHook = () =>
+      makeHook({
+        status: {
+          configured: false,
+          reachable: false,
+          error: null,
+          paperlessUrl: null,
+          filterTag: null,
+        },
+      });
+
+    it('renders the not-connected state without any environment variable name', () => {
+      mockUsePaperless.mockReturnValue(notConfiguredHook());
+      render(
+        <MemoryRouter>
+          <DocumentBrowser />
+        </MemoryRouter>,
       );
-      render(<DocumentBrowser />);
-      expect(screen.getByText(/Paperless-ngx Not Configured/i)).toBeInTheDocument();
-      expect(screen.getByText(/PAPERLESS_URL/)).toBeInTheDocument();
-      expect(screen.getByText(/PAPERLESS_API_TOKEN/)).toBeInTheDocument();
+      expect(screen.getByText('Paperless is not connected')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Documents come from Paperless, which is not connected right now\./),
+      ).toBeInTheDocument();
+      expect(document.body.textContent).not.toMatch(/PAPERLESS_|environment variable/);
+    });
+
+    it('shows the Integrations link to an admin, pointing at the Paperless card', () => {
+      mockUser = { role: 'admin' };
+      mockUsePaperless.mockReturnValue(notConfiguredHook());
+      render(
+        <MemoryRouter>
+          <DocumentBrowser />
+        </MemoryRouter>,
+      );
+      expect(screen.getByTestId('document-browser-integrations-link')).toHaveAttribute(
+        'href',
+        '/settings/integrations#paperless',
+      );
+    });
+
+    it('shows no Integrations link to a member', () => {
+      mockUser = { role: 'member' };
+      mockUsePaperless.mockReturnValue(notConfiguredHook());
+      render(
+        <MemoryRouter>
+          <DocumentBrowser />
+        </MemoryRouter>,
+      );
+      expect(screen.queryByTestId('document-browser-integrations-link')).not.toBeInTheDocument();
     });
 
     it('renders unreachable state when configured=true but reachable=false', () => {

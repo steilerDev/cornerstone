@@ -227,6 +227,37 @@ jest.unstable_mockModule('./lib/backupsApi.js', () => ({
   getSchedulerStatus: mockGetSchedulerStatus,
 }));
 
+// IntegrationsPage (admin only) loads this on mount; a member must never trigger it (#2217).
+const ENV = { required: [], optional: [] };
+const mockGetIntegrationsStatus = jest.fn<() => Promise<unknown>>();
+jest.unstable_mockModule('./lib/integrationsApi.js', () => ({
+  getIntegrationsStatus: mockGetIntegrationsStatus,
+}));
+const integrationsBody = {
+  paperless: { configured: false, host: null, filterTag: null, env: ENV },
+  ai: { configured: false, provider: null, model: null, host: null, env: ENV },
+  singleSignOn: {
+    configured: false,
+    issuerHost: null,
+    jitProvisioning: false,
+    redirectUri: 'http://localhost/api/auth/oidc/callback',
+    env: ENV,
+  },
+  calendarContacts: { davUrl: 'http://localhost/dav/', env: ENV },
+  backups: {
+    enabled: false,
+    cadence: null,
+    retention: null,
+    lastRun: null,
+    nextRun: null,
+    env: ENV,
+  },
+  diaryEvents: { enabled: true, env: ENV },
+  money: { currency: 'EUR', vatRate: 0.19, env: ENV },
+  photos: { storagePath: '/data/photos', maxFileSizeBytes: 20971520, env: ENV },
+  publicAddress: { externalUrl: null, trustProxy: false, secureCookies: true, env: ENV },
+};
+
 // HouseNameProvider fetches the household settings once per signed-in user (browser title).
 const mockFetchHouseholdSettings = jest.fn<typeof SettingsApiTypes.fetchHouseholdSettings>();
 jest.unstable_mockModule('./lib/settingsApi.js', () => ({
@@ -269,6 +300,7 @@ describe('App', () => {
     mockListUsers.mockReset();
     mockListBackups.mockReset();
     mockGetSchedulerStatus.mockReset();
+    mockGetIntegrationsStatus.mockReset();
     mockFetchAllInvoices.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
@@ -685,6 +717,30 @@ describe('App', () => {
 
       await waitFor(() => expect(mockListBackups).toHaveBeenCalled(), { timeout: 5000 });
       expect(screen.queryByRole('heading', { name: noAccessHeading })).toBeNull();
+    });
+
+    it('shows No access in place for a member at /settings/integrations without loading it', async () => {
+      window.history.pushState({}, 'Integrations', '/settings/integrations');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/settings/integrations');
+      expect(mockGetIntegrationsStatus).not.toHaveBeenCalled();
+    });
+
+    it('lets an admin through to the Integrations page', async () => {
+      signInAs('admin');
+      mockGetIntegrationsStatus.mockResolvedValue(integrationsBody);
+      window.history.pushState({}, 'Integrations', '/settings/integrations');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Integrations' }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: noAccessHeading })).toBeNull();
+      await waitFor(() => expect(mockGetIntegrationsStatus).toHaveBeenCalled());
     });
 
     it('ends a member following the legacy /admin/users link on the No access page', async () => {

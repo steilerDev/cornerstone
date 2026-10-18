@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { IntegrationsLink } from '../../navigation/IntegrationsLink.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
-import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
+import { Badge } from '../../components/Badge/Badge.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -28,6 +29,7 @@ export function BackupsPage() {
   const pageTitle = tCommon('navigation.backups');
   useDocumentTitle(pageTitle);
   const { formatDate, formatDateTime, formatFileSize } = useFormatters();
+  const variants = useStatusBadgeVariants();
 
   // Data state
   const [backups, setBackups] = useState<BackupMeta[]>([]);
@@ -98,22 +100,6 @@ export function BackupsPage() {
 
     void loadSchedulerStatus();
   }, [t, tErrors]);
-
-  const schedulerEnabledVariants = useMemo(
-    (): BadgeVariantMap => ({
-      enabled: { label: t('backups.scheduler.enabled'), className: badgeStyles.success! },
-      disabled: { label: t('backups.scheduler.disabled'), className: badgeStyles.info! },
-    }),
-    [t],
-  );
-
-  const lastRunOutcomeVariants = useMemo(
-    (): BadgeVariantMap => ({
-      success: { label: t('backups.scheduler.lastRunSuccess'), className: badgeStyles.success! },
-      failure: { label: t('backups.scheduler.lastRunFailure'), className: badgeStyles.error! },
-    }),
-    [t],
-  );
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
@@ -220,17 +206,11 @@ export function BackupsPage() {
                   <dt>{t('backups.scheduler.statusLabel')}</dt>
                   <dd>
                     <Badge
-                      variants={schedulerEnabledVariants}
-                      value={schedulerStatus.enabled ? 'enabled' : 'disabled'}
+                      variants={variants.integration}
+                      value={schedulerStatus.enabled ? 'on' : 'off'}
                     />
                   </dd>
                 </div>
-
-                {!schedulerStatus.enabled && (
-                  <p className={styles.schedulerStatusHint}>
-                    {t('backups.scheduler.disabledHint')}
-                  </p>
-                )}
 
                 {schedulerStatus.enabled && (
                   <>
@@ -243,8 +223,8 @@ export function BackupsPage() {
                               {formatDateTime(schedulerStatus.lastRun.timestamp)}
                             </span>
                             <Badge
-                              variants={lastRunOutcomeVariants}
-                              value={schedulerStatus.lastRun.success ? 'success' : 'failure'}
+                              variants={variants.backupRun}
+                              value={schedulerStatus.lastRun.success ? 'succeeded' : 'failed'}
                             />
                           </>
                         ) : (
@@ -274,6 +254,16 @@ export function BackupsPage() {
                 )}
               </dl>
             )}
+
+            {!isSchedulerLoading &&
+              !schedulerError &&
+              schedulerStatus &&
+              !schedulerStatus.enabled && (
+                <p className={styles.schedulerStatusHint} data-testid="backups-scheduler-off">
+                  {t('backups.scheduler.off')}{' '}
+                  <IntegrationsLink anchor="automatic-backups" testId="backups-integrations-link" />
+                </p>
+              )}
           </section>
 
           <div className={styles.toolbar}>

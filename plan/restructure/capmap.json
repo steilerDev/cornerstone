@@ -3053,10 +3053,10 @@
   "JRN-072": {
     "name": "Connect Cornerstone to a Paperless-ngx instance",
     "from": "No UI — env PAPERLESS_URL, PAPERLESS_API_TOKEN, PAPERLESS_EXTERNAL_URL, PAPERLESS_FILTER_TAG",
-    "to": "Operator (container env) PAPERLESS_* — status in Settings > Integrations (admin only)",
+    "to": "Settings > Integrations > Paperless (admin only); operator sets PAPERLESS_* in the container env",
     "change": "same",
     "gate": "paperless",
-    "note": "Env-var text no longer shown to members (P26). Paperless stays optional: without it the app shows no Documents sections at all (C2)."
+    "note": "Env-var text no longer shown to members (P26). Paperless stays optional: without it the app shows no Documents sections at all (C2). #2217: Settings › Integrations › Paperless."
   },
   "JRN-073": {
     "name": "See the Paperless documents linked to a work item, household item or invoice",
@@ -3161,7 +3161,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card fallback 'Document #id' when Paperless is unreachable; when Paperless is not configured but links exist, the summary fact shows 'Documents (n)' and the panel says read-only 'Paperless is not connected — n links kept' (admins: link to Settings > Integrations)",
     "change": "same",
     "gate": "paperless",
-    "note": "The 171 stored links stay visible even if Paperless is switched off (C-01); no configuration text for members."
+    "note": "The 171 stored links stay visible even if Paperless is switched off (C-01); no configuration text for members. #2217: until the Documents panel ships, the documents section shows the read-only notice; admins get a link to Settings › Integrations › Paperless."
   },
   "JRN-089": {
     "name": "Browse the whole Paperless library on a standalone page (no longer reachable)",
@@ -4133,7 +4133,7 @@
     "to": "Global rule: integration UI renders only when the integration is configured (Paperless only / Paperless + AI only / SSO only surfaces); status for admins in Settings > Integrations (admin only)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Paperless and AI each render their UI only when configured; members never see configuration text (P26, P27). Every capability with gate != none in this map sits on a surface that renders only when its integration is configured; the builder checks the gate marker."
+    "note": "Paperless and AI each render their UI only when configured; members never see configuration text (P26, P27). Every capability with gate != none in this map sits on a surface that renders only when its integration is configured; the builder checks the gate marker. #2217: Settings › Integrations › Paperless and AI (status for admins)."
   },
   "PLT-115": {
     "name": "Show/hide, reorder (drag) and reset table columns on any list; the layout is remembered per user",
@@ -4162,33 +4162,33 @@
   "PLT-118": {
     "name": "Connect an AI (LLM) provider so the AI features (invoice extraction, quotation prefill, line merging, report text) become available",
     "from": "No UI - container env LLM_BASE_URL, LLM_API_KEY, LLM_MODEL (+ optional LLM_PROVIDER openai|anthropic|gemini|ollama|generic, LLM_REQUEST_TIMEOUT_MS default 30000, LLM_MAX_TOKENS default 16384) | Effect only visible indirectly: invoice document \"Itemize\", Paperless-first \"Add Invoice\" review, quotation \"Prefill from document\", auto-itemize \"Merge\", report \"Enhance with AI\" (gated by autoItemizeEnabled / llmEnabled from GET /api/config)",
-    "to": "Operator (container env) LLM_* — status in Settings > Integrations (admin only)",
+    "to": "Settings > Integrations > AI (admin only); operator sets LLM_* in the container env",
     "change": "same",
     "gate": "paperless",
-    "note": "AI stays optional; Paperless + AI together enable the document review and 'Split with AI'."
+    "note": "AI stays optional; Paperless + AI together enable the document review and 'Split with AI'. #2217: Settings › Integrations › AI."
   },
   "PLT-119": {
     "name": "Set up single sign-on with an OpenID Connect identity provider",
     "from": "No UI - container env OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET (+ optional OIDC_JIT_PROVISIONING); register <EXTERNAL_URL or request origin>/api/auth/oidc/callback as redirect URI at the IdP | Effect visible as: /login \"Login with SSO\" button (PLT-023), Settings > Users \"Single sign-on only (no password)\" option (PLT-078), Profile \"Authentication\" line (PLT-031)",
-    "to": "Operator (container env) OIDC_* — status in Settings > Integrations (admin only)",
+    "to": "Settings > Integrations > Single sign-on (admin only); operator sets OIDC_* in the container env",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2217: Settings › Integrations › Single sign-on."
   },
   "PLT-120": {
     "name": "Serve the instance under a public URL behind a reverse proxy (public base URL, forwarded headers, HTTPS-only cookies)",
     "from": "No UI - container env EXTERNAL_URL, TRUST_PROXY (default false), SECURE_COOKIES (default true)",
-    "to": "Operator (container env) EXTERNAL_URL, TRUST_PROXY, SECURE_COOKIES — shown in Settings > Integrations (admin only)",
+    "to": "Settings > Integrations > Public address and proxy (admin only); operator sets EXTERNAL_URL, TRUST_PROXY, SECURE_COOKIES",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2217: Settings › Integrations › Public address and proxy."
   },
   "PLT-121": {
     "name": "Deploy and upgrade the single-container instance; configuration is validated and database migrations run automatically on start",
     "from": "No UI - run the Docker image with a persistent data volume (DATABASE_URL default /app/data/cornerstone.db), PORT, HOST, LOG_LEVEL (defaults in CLAUDE.md), NODE_ENV; upgrade = pull a newer image and restart | Result visible as: sidebar footer version \"Cornerstone v<version>\" (PLT-008); health endpoints (PLT-117)",
-    "to": "Operator (container env) — deploy and upgrade; version in Global > User menu > About",
+    "to": "Settings > Integrations > Photo storage (admin only); deploy and upgrade stay operator tasks; version in Global > User menu > About",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2217: Settings › Integrations › Photo storage."
   }
 }

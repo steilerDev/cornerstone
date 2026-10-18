@@ -44,6 +44,7 @@ export const ROUTES = {
   userManagement: routeUrl('settingsUsers'),
   diary: routeUrl('diary'),
   backups: routeUrl('settingsBackups'),
+  integrations: routeUrl('settingsIntegrations'),
 };
 
 /**
@@ -57,6 +58,7 @@ export function loginUrlFor(target: string): string {
 export const API = {
   health: '/api/health',
   authMe: '/api/auth/me',
+  integrations: '/api/settings/integrations',
   login: '/api/auth/login',
   logout: '/api/auth/logout',
   setup: '/api/auth/setup',

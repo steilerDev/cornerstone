@@ -195,6 +195,87 @@ describe('getStatus()', () => {
     expect(result.error).toContain('API version 10');
   });
 
+  describe('time limit (Story #2217)', () => {
+    /** A fetch that never answers but rejects when its signal aborts, like the real one. */
+    function hangUntilAborted(): void {
+      mockFetch.mockImplementationOnce(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            const signal = (init as RequestInit | undefined)?.signal;
+            if (!signal) return; // would hang forever: the test then fails by timeout
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('The operation was aborted', 'TimeoutError')),
+            );
+          }),
+      );
+    }
+
+    it('shares one 5 s limit between the probe and the tag lookup', () => {
+      expect(paperlessService.PAPERLESS_STATUS_TIMEOUT_MS).toBe(5000);
+    });
+
+    it('returns reachable=false with the timeout text when the probe hangs', async () => {
+      hangUntilAborted();
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, undefined, 50);
+
+      expect(result).toEqual({
+        configured: true,
+        reachable: false,
+        error: 'Timed out after 0.05 s',
+        paperlessUrl: null,
+        filterTag: null,
+      });
+    });
+
+    it('formats whole seconds without decimals', async () => {
+      hangUntilAborted();
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, undefined, 1000);
+
+      expect(result.error).toBe('Timed out after 1 s');
+    });
+
+    it('passes the same abort signal to the probe and the tag lookup', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({ count: 1, results: [{ id: 7, name: 'house', colour: 1 }] }),
+      );
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, 'house');
+
+      expect(result.reachable).toBe(true);
+      expect(result.filterTag).toBe('house');
+      const signals = mockFetch.mock.calls.map(([, init]) => (init as RequestInit).signal);
+      expect(signals).toHaveLength(2);
+      expect(signals[0]).toBeInstanceOf(AbortSignal);
+      expect(signals[1]).toBe(signals[0]);
+    });
+
+    it('returns reachable=false (timeout) when the probe is fine but the tag lookup hangs', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1 }));
+      hangUntilAborted();
+
+      const result = await paperlessService.getStatus(BASE_URL, TOKEN, 'house', 50);
+
+      expect(result).toEqual({
+        configured: true,
+        reachable: false,
+        error: 'Timed out after 0.05 s',
+        paperlessUrl: null,
+        filterTag: null,
+      });
+    });
+
+    it('does not throw on a timeout: the status route can never answer 5xx for it', async () => {
+      hangUntilAborted();
+
+      await expect(
+        paperlessService.getStatus(BASE_URL, TOKEN, undefined, 20),
+      ).resolves.toMatchObject({ reachable: false });
+    });
+  });
+
   describe('filter tag resolution', () => {
     beforeEach(() => {
       paperlessService._resetFilterTagCache();

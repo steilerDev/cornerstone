@@ -27,6 +27,8 @@ export async function startCornerstoneContainer(
   const environment = {
     DATABASE_URL: '/app/data/cornerstone.db',
     SECURE_COOKIES: 'false',
+    // Login rate limit is unit-tested on the server; E2E shards share one IP and many logins.
+    AUTH_RATE_LIMIT_MAX: '1000',
     LOG_LEVEL: 'warn',
     NODE_ENV: 'production',
     TRUST_PROXY: 'true', // Enable proxy trust for X-Forwarded-* headers

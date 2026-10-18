@@ -27,11 +27,11 @@
     "users": "Benutzer",
     "backups": "Sicherungen",
     "integrations": "Integrationen",
+    "youAreHere": "Du bist hier",
+    "backTo": "Zurück zu {{origin}}",
     "more": "Mehr",
     "homeAttention_one": "Start, {{count}} braucht dich",
     "homeAttention_other": "Start, {{count}} brauchen dich",
-    "youAreHere": "Du bist hier",
-    "backTo": "Zurück zu {{origin}}",
     "task": "Aufgabe",
     "purchase": "Anschaffung",
     "milestone": "Meilenstein",
@@ -544,5 +544,19 @@
     "added": "{{name}} hinzugefügt.",
     "saved": "{{name}} gespeichert.",
     "deleted": "{{name}} gelöscht."
+  },
+  "integrationStatus": {
+    "connected": "Verbunden",
+    "unreachable": "Keine Verbindung",
+    "on": "An",
+    "off": "Aus",
+    "notSetUp": "Nicht eingerichtet"
+  },
+  "backupRun": {
+    "succeeded": "Erfolgreich",
+    "failed": "Fehlgeschlagen"
+  },
+  "integrationsLink": {
+    "label": "Zu den Integrationen"
   }
 }

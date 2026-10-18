@@ -44,6 +44,7 @@ import {
   TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 
@@ -205,6 +206,10 @@ export const I18N_UNION_KEYS = {
   searchResultGroup: unionKeySet('common', 'commandSearch.groups', SEARCH_RESULT_TYPES),
   /** common — "Found in ‹field›" word per matched field (#2211). */
   searchMatchedField: unionKeySet('common', 'commandSearch.fields', SEARCH_MATCHED_FIELDS),
+  /** common — integration chip (Connected, Can't connect, On, Off, Not set up) (#2217). */
+  integrationStatus: unionKeySet('common', 'integrationStatus', INTEGRATION_STATUSES),
+  /** common — last automatic backup outcome chip (#2217). */
+  backupRun: unionKeySet('common', 'backupRun', BACKUP_RUN_OUTCOMES),
   /** common — New menu / New sheet entry label. */
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
 } as const;

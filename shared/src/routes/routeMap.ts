@@ -604,7 +604,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: [],
-    stage: 'planned',
+    stage: 'done',
     parent: 'settingsManage',
   },
   {

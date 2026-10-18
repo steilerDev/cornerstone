@@ -465,6 +465,15 @@ export type {
   BackupSchedulerStatusResponse,
 } from './types/backup.js';
 
+// Settings > Integrations
+export { LLM_PROVIDERS } from './types/integrations.js';
+export type {
+  LlmProvider,
+  IntegrationEnv,
+  IntegrationKey,
+  IntegrationsStatusResponse,
+} from './types/integrations.js';
+
 // App Settings
 export { ENTRIES_LANGUAGES, FALLBACK_ENTRIES_LANGUAGE } from './types/settings.js';
 export type { ReorderReferenceListRequest } from './types/referenceList.js';

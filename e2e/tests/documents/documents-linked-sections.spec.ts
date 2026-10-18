@@ -8,12 +8,14 @@
  *   - Budget Sources page (/budget/sources) — Story #1744 (via docs toggle panel)
  *   - Subsidy Programs page (/budget/subsidies) — Story #1744 (via docs toggle panel)
  *
- * In the E2E environment, Paperless-ngx is NOT configured, so tests verify:
- * - The "Documents" section heading is present
- * - The "+ Add Document" button is DISABLED (not configured)
- * - The "not configured" banner is shown with guidance text
+ * In the E2E environment Paperless is NOT configured (#2217), so tests verify:
+ * - With no links the section is absent: no heading, no "+ Add Document", no "not configured"
+ *   text and no environment variable names
+ * - With kept links: a read-only list, one muted line ("Paperless is not connected. N links are
+ *   kept.") and, for admins, a link to Settings > Integrations > Paperless (no Add, Unlink or View)
+ * - With a mocked configured Paperless the full section is back (heading, enabled Add button)
  * - Responsive layout: no horizontal scroll
- * - Dark mode: section renders correctly
+ * - Dark mode: the notice renders correctly
  *
  * Scenarios covered:
  * 1.  Work item detail page: "Documents" section heading is visible
@@ -66,7 +68,13 @@ import {
   createSubsidyProgramViaApi,
   deleteSubsidyProgramViaApi,
 } from '../../fixtures/apiHelpers.js';
-import { API } from '../../fixtures/testData.js';
+import { API, ROUTES } from '../../fixtures/testData.js';
+import {
+  expectNoDocumentsSection,
+  mockKeptDocumentLinks,
+  mockPaperlessConfigured,
+  openAndSettle,
+} from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: create a vendor + invoice via API and return IDs
@@ -106,211 +114,173 @@ async function deleteVendorViaApi(page: Page, vendorId: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 1–6: Work Item detail page — LinkedDocumentsSection
+// Scenarios 1–16 (rewritten for #2217): the Documents section with Paperless off.
+//
+// With Paperless off (the E2E container state) the section shows NOTHING when the record has no
+// links: no heading, no disabled "+ Add Document", no "not configured" text, no env names. With
+// kept links it shows a read-only list plus one muted line, and admins get a link to
+// Settings > Integrations > Paperless. A mocked configured Paperless brings the full section back.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DOCUMENTS_HEADING = { level: 2, name: 'Documents', exact: true } as const;
+const PAPERLESS_ENV_NAMES = /PAPERLESS_URL|PAPERLESS_API_TOKEN/;
+
+/** The read-only notice for `count` kept links, with the admin Integrations link. */
+async function expectKeptLinksNotice(page: Page, count: number): Promise<void> {
+  const section = page.getByRole('region', { name: /^Documents/ });
+  const notice = page.getByTestId('documents-paperless-off');
+  await expect(section).toBeVisible();
+  await expect(notice).toContainText(
+    count === 1
+      ? 'Paperless is not connected. 1 link is kept.'
+      : `Paperless is not connected. ${count} links are kept.`,
+  );
+  await expect(page.getByTestId('documents-integrations-link')).toHaveAttribute(
+    'href',
+    `${ROUTES.integrations}#paperless`,
+  );
+  // Read-only: no Add, no Unlink, no View
+  await expect(section.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(0);
+  await expect(section.getByRole('button', { name: /Unlink document/ })).toHaveCount(0);
+  await expect(section.getByRole('button', { name: /Details/ })).toHaveCount(0);
+  await expect(section.getByText(PAPERLESS_ENV_NAMES)).toHaveCount(0);
+}
+
 test.describe(
-  'LinkedDocumentsSection on Work Item detail (Scenarios 1–6)',
+  'Documents section with Paperless off — Work Item detail (Scenarios 1–6)',
   { tag: '@responsive' },
   () => {
-    test('Documents section heading "Documents" is visible on work item detail page', async ({
+    test('No links: the Documents section is absent from the work item page', async ({
       page,
       testPrefix,
     }) => {
-      // Given: A work item exists
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Heading Test`,
+          title: `${testPrefix} Doc Section Absent Test`,
         });
-
-        // When: Navigating to the work item detail page
         const detailPage = new WorkItemDetailPage(page);
-        await detailPage.goto(createdId);
 
-        // Then: The "Documents" section heading should be visible
-        // The section uses aria-labelledby="documents-section-title"
-        const documentsSection = page.getByRole('region', {
-          name: 'Documents',
-          exact: true,
-        });
-        // Fallback: the h2 heading directly
-        const documentsHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Documents',
-          exact: true,
-        });
-        await expect(documentsHeading).toBeVisible();
-        // The section should be present (linked via aria-labelledby)
-        await expect(documentsSection).toBeVisible();
+        await openAndSettle(page, () => detailPage.goto(createdId as string));
+
+        await expect(detailPage.heading).toBeVisible();
+        await expectNoDocumentsSection(page);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('"+ Add Document" button is disabled when Paperless is not configured', async ({
+    test('Kept links: a read-only list and one muted line, with the admin Integrations link', async ({
       page,
       testPrefix,
     }) => {
-      // Given: Paperless is NOT configured and a work item exists
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Add Doc Button Test`,
+          title: `${testPrefix} Doc Section Kept Test`,
         });
-
-        // When: Navigating to the work item detail page
+        await mockKeptDocumentLinks(page, 'work_item', createdId, 2);
         const detailPage = new WorkItemDetailPage(page);
+
         await detailPage.goto(createdId);
 
-        // Then: The "+ Add Document" button should be disabled
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeVisible();
-        await expect(addDocButton).toBeDisabled();
+        await expectKeptLinksNotice(page, 2);
+        await expect(page.getByTestId('documents-paperless-off')).toBeVisible();
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('"Not configured" banner is shown in the Documents section on work item detail', async ({
+    test('Kept link: the singular line, and the Integrations link opens the Paperless card', async ({
       page,
       testPrefix,
     }) => {
-      // Given: Paperless is NOT configured and a work item exists
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Not Configured Banner Test`,
+          title: `${testPrefix} Doc Section Kept One Test`,
         });
-
-        // When: Navigating to the work item detail page
+        await mockKeptDocumentLinks(page, 'work_item', createdId, 1);
         const detailPage = new WorkItemDetailPage(page);
         await detailPage.goto(createdId);
+        await expectKeptLinksNotice(page, 1);
 
-        // Then: The "not configured" banner should appear in the Documents section
-        // LinkedDocumentsSection renders: "Paperless-ngx is not configured"
-        const notConfiguredText = page.getByText('Paperless-ngx is not configured');
-        await expect(notConfiguredText).toBeVisible();
+        await page.getByTestId('documents-integrations-link').click();
+
+        await expect(page).toHaveURL(`${ROUTES.integrations}#paperless`);
+        await expect(page.locator('#paperless-heading')).toBeFocused();
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('"Not configured" banner contains PAPERLESS_URL setup instructions', async ({
+    test('Paperless connected: the section has an accessible heading and an enabled Add button', async ({
       page,
       testPrefix,
     }) => {
-      // Given: Paperless is NOT configured and a work item exists
-      let createdId: string | null = null;
-      try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Not Configured Instructions Test`,
-        });
-
-        // When: Navigating to the work item detail page
-        const detailPage = new WorkItemDetailPage(page);
-        await detailPage.goto(createdId);
-
-        // Then: The setup instructions should mention the env var names
-        // (retrying assertions: the section renders after the Paperless status fetch resolves,
-        // so a one-shot page.content() read right after goto() races it)
-        await expect(page.getByText('Paperless-ngx is not configured')).toBeVisible();
-        await expect(page.getByText('PAPERLESS_URL').first()).toBeAttached();
-        await expect(page.getByText('PAPERLESS_API_TOKEN').first()).toBeAttached();
-      } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
-      }
-    });
-
-    test('Documents section has accessible aria-labelledby heading on work item detail', async ({
-      page,
-      testPrefix,
-    }) => {
-      // Given: A work item exists
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
           title: `${testPrefix} Doc Section A11y Test`,
         });
-
-        // When: Navigating to the work item detail page
+        await mockPaperlessConfigured(page);
         const detailPage = new WorkItemDetailPage(page);
+
         await detailPage.goto(createdId);
 
-        // Then: The section has an ARIA label via its h2#documents-section-title
-        // The h2 should have the correct id for aria-labelledby
+        await expect(page.getByRole('heading', DOCUMENTS_HEADING)).toBeVisible();
+        await expect(page.getByRole('region', { name: 'Documents', exact: true })).toBeVisible();
         const sectionTitle = page.locator('#documents-section-title');
-        await expect(sectionTitle).toBeVisible();
         await expect(sectionTitle).toHaveText(/Documents/);
+        await expect(
+          page.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toBeEnabled();
+        await expect(page.getByText(/not configured/i)).toHaveCount(0);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('Documents section renders without horizontal scroll on work item detail (responsive)', async ({
+    test('The page renders without horizontal scroll with the kept-links notice (responsive)', async ({
       page,
       testPrefix,
     }) => {
-      // Given: A work item exists
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
           title: `${testPrefix} Doc Section Responsive Test`,
         });
-
-        // When: Navigating to the work item detail page
+        await mockKeptDocumentLinks(page, 'work_item', createdId, 2);
         const detailPage = new WorkItemDetailPage(page);
         await detailPage.goto(createdId);
+        const notice = page.getByTestId('documents-paperless-off');
+        await notice.scrollIntoViewIfNeeded();
+        await expect(notice).toBeVisible();
 
-        // Scroll to the Documents section
-        const documentsHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Documents',
-          exact: true,
-        });
-        await documentsHeading.scrollIntoViewIfNeeded();
-
-        // Then: No horizontal scrollbar
-        const hasHorizontalScroll = await page.evaluate(() => {
-          return document.documentElement.scrollWidth > window.innerWidth;
-        });
+        const hasHorizontalScroll = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
         expect(hasHorizontalScroll).toBe(false);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('Documents section renders correctly in dark mode on work item detail', async ({
-      page,
-      testPrefix,
-    }) => {
-      // Given: A work item exists
+    test('The kept-links notice renders in dark mode', async ({ page, testPrefix }) => {
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
           title: `${testPrefix} Doc Section Dark Mode Test`,
         });
-
+        await mockKeptDocumentLinks(page, 'work_item', createdId, 1);
         await page.goto(`/project/work-items/${createdId}`);
-        // Enable dark mode
         await page.evaluate(() => {
           document.documentElement.setAttribute('data-theme', 'dark');
         });
-
         const detailPage = new WorkItemDetailPage(page);
         await detailPage.heading.waitFor({ state: 'visible' });
 
-        // Then: Documents section heading and add button visible in dark mode
-        const documentsHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Documents',
-          exact: true,
-        });
-        await expect(documentsHeading).toBeVisible();
-
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeVisible();
-        await expect(addDocButton).toBeDisabled();
+        await expectKeptLinksNotice(page, 1);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
@@ -319,110 +289,87 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 7–10: Invoice detail page — LinkedDocumentsSection
+// Scenarios 7–10: Invoice detail page
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'LinkedDocumentsSection on Invoice detail (Scenarios 7–10)',
+  'Documents section with Paperless off — Invoice detail (Scenarios 7–10)',
   { tag: '@responsive' },
   () => {
-    test('Documents section heading "Documents" is visible on invoice detail page', async ({
+    test('No links: the Documents section is absent from the invoice page', async ({
       page,
       testPrefix,
     }) => {
-      // Given: A vendor and invoice exist
       let ids: InvoiceIds | null = null;
       try {
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
+        const invoiceId = ids.invoiceId;
 
-        // When: Navigating to the invoice detail page
-        // Invoice detail route: /budget/invoices/:id
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
+        await openAndSettle(page, () =>
+          page.goto(`/budget/invoices/${invoiceId}`).then(() => undefined),
+        );
 
-        // Then: The "Documents" section heading should be visible
-        const documentsHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Documents',
-          exact: true,
-        });
-        await expect(documentsHeading).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expectNoDocumentsSection(page);
       } finally {
         if (ids) await deleteVendorViaApi(page, ids.vendorId);
       }
     });
 
-    test('"+ Add Document" button is disabled when Paperless is not configured (invoice)', async ({
+    test('Kept links: the invoice page shows the read-only notice', async ({
       page,
       testPrefix,
     }) => {
-      // Given: Paperless is NOT configured and an invoice exists
       let ids: InvoiceIds | null = null;
       try {
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
+        await mockKeptDocumentLinks(page, 'invoice', ids.invoiceId, 1);
 
-        // When: Navigating to the invoice detail page
         await page.goto(`/budget/invoices/${ids.invoiceId}`);
-        await page
-          .getByRole('heading', { level: 2, name: 'Documents', exact: true })
-          .waitFor({ state: 'visible' });
 
-        // Then: The "+ Add Document" button should be disabled
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeVisible();
-        await expect(addDocButton).toBeDisabled();
+        await expectKeptLinksNotice(page, 1);
       } finally {
         if (ids) await deleteVendorViaApi(page, ids.vendorId);
       }
     });
 
-    test('"Not configured" banner is shown in the Documents section on invoice detail', async ({
+    test('Paperless connected: the invoice page shows the Documents heading and Add button', async ({
       page,
       testPrefix,
     }) => {
-      // Given: Paperless is NOT configured and an invoice exists
       let ids: InvoiceIds | null = null;
       try {
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
+        await mockPaperlessConfigured(page);
 
-        // When: Navigating to the invoice detail page
         await page.goto(`/budget/invoices/${ids.invoiceId}`);
-        await page
-          .getByRole('heading', { level: 2, name: 'Documents', exact: true })
-          .waitFor({ state: 'visible' });
 
-        // Then: The "not configured" message should appear
-        const notConfiguredText = page.getByText('Paperless-ngx is not configured');
-        await expect(notConfiguredText).toBeVisible();
+        await expect(page.getByRole('heading', DOCUMENTS_HEADING)).toBeVisible();
+        await expect(
+          page.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toBeEnabled();
       } finally {
         if (ids) await deleteVendorViaApi(page, ids.vendorId);
       }
     });
 
-    test('Invoice detail page Documents section renders without horizontal scroll (responsive)', async ({
+    test('The invoice page renders without horizontal scroll with the notice (responsive)', async ({
       page,
       testPrefix,
     }) => {
-      // Given: An invoice exists
       let ids: InvoiceIds | null = null;
       try {
         ids = await createVendorAndInvoiceViaApi(page, testPrefix);
+        await mockKeptDocumentLinks(page, 'invoice', ids.invoiceId, 2);
 
-        // When: Navigating to the invoice detail page
         await page.goto(`/budget/invoices/${ids.invoiceId}`);
-        const documentsHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Documents',
-          exact: true,
-        });
-        await documentsHeading.waitFor({ state: 'visible' });
+        const notice = page.getByTestId('documents-paperless-off');
+        await notice.waitFor({ state: 'visible' });
+        await notice.scrollIntoViewIfNeeded();
 
-        // Scroll to the Documents section
-        await documentsHeading.scrollIntoViewIfNeeded();
-
-        // Then: No horizontal scrollbar
-        const hasHorizontalScroll = await page.evaluate(() => {
-          return document.documentElement.scrollWidth > window.innerWidth;
-        });
+        const hasHorizontalScroll = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
         expect(hasHorizontalScroll).toBe(false);
       } finally {
         if (ids) await deleteVendorViaApi(page, ids.vendorId);
@@ -432,98 +379,81 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 11–13: Budget Source — LinkedDocumentsSection (Story #1744)
+// Scenarios 11–13: Budget Source (Story #1744)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'LinkedDocumentsSection on Budget Source (Scenarios 11–13, Story #1744)',
+  'Documents section with Paperless off — Budget Source (Scenarios 11–13, Story #1744)',
   { tag: '@responsive' },
   () => {
-    test('"Documents" section heading is visible after expanding source docs panel', async ({
+    test('No links: the expanded docs panel shows no Documents section', async ({
       page,
       testPrefix,
     }) => {
       const sourcesPage = new BudgetSourcesPage(page);
       const sourceName = `${testPrefix} LinkedDocs Budget Source`;
       let createdId: string | null = null;
-
       try {
-        createdId = await createBudgetSourceViaApi(page, {
-          name: sourceName,
-          totalAmount: 10000,
-        });
-
-        // When: Navigate to budget sources and expand the docs panel
+        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
         await sourcesPage.goto();
         await sourcesPage.waitForSourcesLoaded();
-        await sourcesPage.expandSourceDocs(sourceName);
 
-        // Then: The "Documents" section heading is visible inside the panel
+        await openAndSettle(page, () => sourcesPage.expandSourceDocs(sourceName));
+
         const panel = sourcesPage.getDocsPanelById(createdId);
         await expect(panel).toBeVisible();
-
-        const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
-        await expect(docsHeading).toBeVisible();
+        await expectNoDocumentsSection(panel);
       } finally {
         if (createdId) await deleteBudgetSourceViaApi(page, createdId);
       }
     });
 
-    test('"+ Add Document" button is disabled when Paperless is not configured (budget source)', async ({
-      page,
-      testPrefix,
-    }) => {
+    test('Kept links: the docs panel shows the read-only notice', async ({ page, testPrefix }) => {
       const sourcesPage = new BudgetSourcesPage(page);
-      const sourceName = `${testPrefix} LinkedDocs AddBtn Source`;
+      const sourceName = `${testPrefix} LinkedDocs Kept Source`;
       let createdId: string | null = null;
-
       try {
-        createdId = await createBudgetSourceViaApi(page, {
-          name: sourceName,
-          totalAmount: 20000,
-        });
-
+        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 20000 });
+        await mockKeptDocumentLinks(page, 'budget_source', createdId, 1);
         await sourcesPage.goto();
         await sourcesPage.waitForSourcesLoaded();
+
         await sourcesPage.expandSourceDocs(sourceName);
 
         const panel = sourcesPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-
-        // "+ Add Document" button is present but disabled (Paperless not configured)
-        const addDocButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeVisible();
-        await expect(addDocButton).toBeDisabled();
+        await expect(panel.getByTestId('documents-paperless-off')).toContainText(
+          'Paperless is not connected. 1 link is kept.',
+        );
+        await expect(
+          panel.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toHaveCount(0);
       } finally {
         if (createdId) await deleteBudgetSourceViaApi(page, createdId);
       }
     });
 
-    test('Documents section heading has accessible id="documents-section-title" on budget source', async ({
+    test('Paperless connected: the docs panel heading has id="documents-section-title"', async ({
       page,
       testPrefix,
     }) => {
       const sourcesPage = new BudgetSourcesPage(page);
       const sourceName = `${testPrefix} LinkedDocs A11y Source`;
       let createdId: string | null = null;
-
       try {
-        createdId = await createBudgetSourceViaApi(page, {
-          name: sourceName,
-          totalAmount: 30000,
-        });
-
+        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
+        await mockPaperlessConfigured(page);
         await sourcesPage.goto();
         await sourcesPage.waitForSourcesLoaded();
+
         await sourcesPage.expandSourceDocs(sourceName);
 
         const panel = sourcesPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-
-        // The h2 inside LinkedDocumentsSection has id="documents-section-title"
         const sectionTitle = panel.locator('#documents-section-title');
         await expect(sectionTitle).toBeVisible();
         await expect(sectionTitle).toHaveText(/Documents/);
+        await expect(
+          panel.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toBeEnabled();
       } finally {
         if (createdId) await deleteBudgetSourceViaApi(page, createdId);
       }
@@ -532,98 +462,90 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 14–16: Subsidy Program — LinkedDocumentsSection (Story #1744)
+// Scenarios 14–16: Subsidy Program (Story #1744)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'LinkedDocumentsSection on Subsidy Program (Scenarios 14–16, Story #1744)',
+  'Documents section with Paperless off — Subsidy Program (Scenarios 14–16, Story #1744)',
   { tag: '@responsive' },
   () => {
-    test('"Documents" section heading is visible after expanding program docs panel', async ({
+    test('No links: the expanded docs panel shows no Documents section', async ({
       page,
       testPrefix,
     }) => {
       const subsidyPage = new SubsidyProgramsPage(page);
       const programName = `${testPrefix} LinkedDocs Subsidy Program`;
       let createdId: string | null = null;
-
       try {
         createdId = await createSubsidyProgramViaApi(page, {
           name: programName,
           reductionValue: 10,
         });
-
-        // When: Navigate to subsidy programs and expand the docs panel
         await subsidyPage.goto();
         await subsidyPage.waitForProgramsLoaded();
-        await subsidyPage.expandProgramDocs(programName);
 
-        // Then: The "Documents" section heading is visible inside the panel
+        await openAndSettle(page, () => subsidyPage.expandProgramDocs(programName));
+
         const panel = subsidyPage.getDocsPanelById(createdId);
         await expect(panel).toBeVisible();
-
-        const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
-        await expect(docsHeading).toBeVisible();
+        await expectNoDocumentsSection(panel);
       } finally {
         if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
       }
     });
 
-    test('"+ Add Document" button is disabled when Paperless is not configured (subsidy program)', async ({
-      page,
-      testPrefix,
-    }) => {
+    test('Kept links: the docs panel shows the read-only notice', async ({ page, testPrefix }) => {
       const subsidyPage = new SubsidyProgramsPage(page);
-      const programName = `${testPrefix} LinkedDocs AddBtn Program`;
+      const programName = `${testPrefix} LinkedDocs Kept Program`;
       let createdId: string | null = null;
-
       try {
         createdId = await createSubsidyProgramViaApi(page, {
           name: programName,
           reductionValue: 15,
         });
-
+        await mockKeptDocumentLinks(page, 'subsidy_program', createdId, 2);
         await subsidyPage.goto();
         await subsidyPage.waitForProgramsLoaded();
+
         await subsidyPage.expandProgramDocs(programName);
 
         const panel = subsidyPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-
-        // "+ Add Document" button is present but disabled (Paperless not configured)
-        const addDocButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeVisible();
-        await expect(addDocButton).toBeDisabled();
+        await expect(panel.getByTestId('documents-paperless-off')).toContainText(
+          'Paperless is not connected. 2 links are kept.',
+        );
+        await expect(
+          panel.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toHaveCount(0);
       } finally {
         if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
       }
     });
 
-    test('Documents section heading has accessible id="documents-section-title" on subsidy program', async ({
+    test('Paperless connected: the docs panel heading has id="documents-section-title"', async ({
       page,
       testPrefix,
     }) => {
       const subsidyPage = new SubsidyProgramsPage(page);
       const programName = `${testPrefix} LinkedDocs A11y Program`;
       let createdId: string | null = null;
-
       try {
         createdId = await createSubsidyProgramViaApi(page, {
           name: programName,
           reductionValue: 20,
         });
-
+        await mockPaperlessConfigured(page);
         await subsidyPage.goto();
         await subsidyPage.waitForProgramsLoaded();
+
         await subsidyPage.expandProgramDocs(programName);
 
         const panel = subsidyPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-
-        // The h2 inside LinkedDocumentsSection has id="documents-section-title"
         const sectionTitle = panel.locator('#documents-section-title');
         await expect(sectionTitle).toBeVisible();
         await expect(sectionTitle).toHaveText(/Documents/);
+        await expect(
+          panel.getByRole('button', { name: '+ Add Document', exact: true }),
+        ).toBeEnabled();
       } finally {
         if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
       }

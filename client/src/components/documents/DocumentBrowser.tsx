@@ -8,6 +8,7 @@ import { DocumentCard } from './DocumentCard.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
 import { DocumentSkeleton } from './DocumentSkeleton.js';
 import { InfiniteScrollFooter } from '../InfiniteScrollFooter/InfiniteScrollFooter.js';
+import { IntegrationsLink } from '../../navigation/IntegrationsLink.js';
 import { findScrollParent } from '../../lib/scrollParent.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './DocumentBrowser.module.css';
@@ -153,7 +154,10 @@ export function DocumentBrowser({
       <div className={styles.browser}>
         <div className={styles.infoState}>
           <h2 className={styles.infoTitle}>{t('browser.notConfigured')}</h2>
-          <p className={styles.infoText}>{t('browser.notConfiguredMessage')}</p>
+          <p className={styles.infoText}>
+            {t('browser.notConfiguredMessage')}{' '}
+            <IntegrationsLink anchor="paperless" testId="document-browser-integrations-link" />
+          </p>
         </div>
       </div>
     );

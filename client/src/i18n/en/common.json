@@ -505,5 +505,14 @@
     "added": "{{name}} added.",
     "saved": "{{name}} saved.",
     "deleted": "{{name}} deleted."
-  }
+  },
+  "integrationStatus": {
+    "connected": "Connected",
+    "unreachable": "Can't connect",
+    "on": "On",
+    "off": "Off",
+    "notSetUp": "Not set up"
+  },
+  "backupRun": { "succeeded": "Succeeded", "failed": "Failed" },
+  "integrationsLink": { "label": "See Integrations" }
 }

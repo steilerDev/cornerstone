@@ -18,6 +18,9 @@ interface ProfileInfo {
   memberSince: string;
 }
 
+/** Synthetic server address the mocked token status reports as `davUrl`. */
+export const MOCK_DAV_URL = 'https://house.example.test/dav/';
+
 export class ProfilePage {
   readonly page: Page;
   readonly heading: Locator;
@@ -25,6 +28,8 @@ export class ProfilePage {
   // Sections (in page order)
   readonly profileSection: Locator;
   readonly syncSection: Locator;
+  /** The server address shown for manual setup (the server's `davUrl`, not the browser origin). */
+  readonly syncServerUrl: Locator;
   readonly preferencesSection: Locator;
   readonly passwordSection: Locator;
 
@@ -73,6 +78,9 @@ export class ProfilePage {
 
     this.profileSection = page.getByTestId('account-profile');
     this.syncSection = page.getByTestId('account-sync');
+    this.syncServerUrl = this.syncSection
+      .getByText('Server URL for manual setup', { exact: true })
+      .locator('xpath=following-sibling::div[1]');
     this.preferencesSection = page.getByTestId('account-preferences');
     this.passwordSection = page.getByTestId('account-password');
 
@@ -256,6 +264,7 @@ export class ProfilePage {
   async mockTokenEndpoints(
     token = 'e2e-synthetic-token-0001',
     initiallyActive = false,
+    davUrl = MOCK_DAV_URL,
   ): Promise<{ token: string; posts: () => number }> {
     let active = initiallyActive;
     let posts = 0;
@@ -278,8 +287,8 @@ export class ProfilePage {
           contentType: 'application/json',
           body: JSON.stringify(
             active
-              ? { hasToken: true, createdAt: '2026-01-15T09:00:00.000Z' }
-              : { hasToken: false },
+              ? { hasToken: true, createdAt: '2026-01-15T09:00:00.000Z', davUrl }
+              : { hasToken: false, davUrl },
           ),
         });
       }

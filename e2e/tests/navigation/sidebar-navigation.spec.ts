@@ -230,7 +230,7 @@ test.describe('Sidebar Navigation', () => {
     }
   });
 
-  test('E4 (D-23): an admin sees Settings, Account, Users and Backups; Account is current', async ({
+  test('E4 (D-23): an admin sees Settings, Account, Users, Backups and Integrations; Account is current', async ({
     page,
   }) => {
     const appShell = new AppShellPage(page);
@@ -244,6 +244,7 @@ test.describe('Sidebar Navigation', () => {
       'Account',
       'Users',
       'Backups',
+      'Integrations',
     ]);
     await expect(appShell.activeEntries).toHaveCount(1);
     await expect(appShell.viewLink('settingsProfile')).toHaveAttribute('aria-current', 'page');

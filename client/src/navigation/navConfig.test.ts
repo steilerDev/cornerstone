@@ -370,12 +370,15 @@ describe('navSections', () => {
     expect(ids(navSections(ADMIN))).toContain('companies');
   });
 
-  it('hides planned views: financing and integrations', () => {
+  it('hides planned views: financing', () => {
     const sections = navSections(ADMIN);
     expect(viewRoutes(sections.find((s) => s.id === 'money'))).not.toContain('financing');
-    expect(viewRoutes(sections.find((s) => s.id === 'settings'))).not.toContain(
-      'settingsIntegrations',
-    );
+  });
+
+  it('serves Integrations (no longer a planned view) as the last Settings view for an admin', () => {
+    const settings = viewRoutes(navSections(ADMIN).find((s) => s.id === 'settings'));
+    expect(settings).toContain('settingsIntegrations');
+    expect(settings[settings.length - 1]).toBe('settingsIntegrations');
   });
 
   it('shows the served views to an admin', () => {
@@ -395,12 +398,14 @@ describe('navSections', () => {
       'settingsProfile',
       'settingsUsers',
       'settingsBackups',
+      'settingsIntegrations',
     ]);
   });
 
   it('hides the admin-only views from a member', () => {
     const settings = navSections(MEMBER).find((s) => s.id === 'settings');
     expect(viewRoutes(settings)).toEqual(['settingsProfile']);
+    expect(viewRoutes(settings)).not.toContain('settingsIntegrations');
   });
 
   it('does not change which sections a member sees (no section is admin-only today)', () => {

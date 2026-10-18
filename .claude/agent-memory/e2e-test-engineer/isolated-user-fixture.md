@@ -28,7 +28,7 @@ against itself only).
 
 **How to apply — constraints that decide the scope, verified against the server:**
 
-- `POST /api/auth/login` is rate-limited **20 requests / 15 min per IP**
+- **E2E container sets `AUTH_RATE_LIMIT_MAX=1000`** (`e2e/containers/cornerstoneContainer.ts`, since PR #2304): the production default of 20/15 min per IP made shard re-grouping flip shards to 429. The limit is unit-tested on the server, so do NOT contort specs to save logins; per-worker is still preferred for speed. (Older containers/images: `POST /api/auth/login` was 20 requests / 15 min per IP.)
   (`server/src/routes/auth.ts`); every worker in a shard shares the bucket (`global: false`,
   so only explicitly-configured routes are limited). Per-worker = 1 login per worker;
   per-test multiplies fast. Budget it before converting a big file.
@@ -40,7 +40,7 @@ against itself only).
   its own container and DB (`containers/setup.ts` runs in globalSetup). So the 100-row
   `/settings/users` page (`sortBy: null`, insertion order, scanned row-by-row by
   `edit-user.spec.ts` / `deactivate-user.spec.ts`) is never remotely in reach — my original
-  worry was overstated. The case for per-worker rests on the login rate limit above.
+  worry was overstated. Per-worker is preferred for speed, not the rate limit.
 - Keep the string "admin" out of generated e-mails/display names —
   `search-users.spec.ts` asserts every row matching a search for "Admin" has "admin" in its
   name column.

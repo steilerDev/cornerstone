@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { EmptyState } from './EmptyState.js';
 
@@ -256,6 +257,68 @@ describe('EmptyState', () => {
       expect(heading).toHaveClass('messageHeading');
       fireEvent.click(screen.getByRole('button', { name: 'Go' }));
       expect(onClick).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── h2 and messageRef (Story #2217) ───────────────────────────────────────
+
+  describe('h2 and messageRef', () => {
+    it('renders an h2 with the heading classes, link-action branch included', () => {
+      renderInRouter(
+        <EmptyState
+          message="Not connected"
+          messageAs="h2"
+          action={{ label: 'Back', href: '/x' }}
+        />,
+      );
+
+      const heading = screen.getByRole('heading', { level: 2, name: 'Not connected' });
+      expect(heading).toHaveClass('message');
+      expect(heading).toHaveClass('messageHeading');
+      expect(screen.getByRole('link', { name: 'Back' })).toBeInTheDocument();
+    });
+
+    it('renders an h2 in the button-action branch', () => {
+      render(
+        <EmptyState
+          message="Not connected"
+          messageAs="h2"
+          action={{ label: 'Go', onClick: jest.fn() }}
+        />,
+      );
+
+      expect(screen.getByRole('heading', { level: 2, name: 'Not connected' })).toBeInTheDocument();
+    });
+
+    it('attaches messageRef and makes the message programmatically focusable', () => {
+      const ref = React.createRef<HTMLHeadingElement>();
+      render(<EmptyState message="Not connected" messageAs="h2" messageRef={ref} />);
+
+      const heading = screen.getByRole('heading', { level: 2 });
+      expect(ref.current).toBe(heading);
+      expect(heading).toHaveAttribute('tabindex', '-1');
+      heading.focus();
+      expect(heading).toHaveFocus();
+    });
+
+    it('attaches messageRef on the link-action branch and on a paragraph message', () => {
+      const ref = React.createRef<HTMLParagraphElement>();
+      renderInRouter(
+        <EmptyState message="Nothing" messageRef={ref} action={{ label: 'Go', href: '/x' }} />,
+      );
+
+      expect(ref.current).toBe(screen.getByText('Nothing'));
+      expect(ref.current?.tagName).toBe('P');
+      expect(ref.current).toHaveAttribute('tabindex', '-1');
+    });
+
+    it('adds no tabindex and no extra class when no ref is passed (defaults unchanged)', () => {
+      render(<EmptyState message="Plain" />);
+      render(<EmptyState message="Heading" messageAs="h1" />);
+
+      expect(screen.getByText('Plain')).not.toHaveAttribute('tabindex');
+      expect(screen.getByText('Plain')).toHaveAttribute('class', 'message');
+      expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('tabindex');
     });
   });
 });
