@@ -156,6 +156,8 @@ describe('BackupsPage', () => {
         deactivatedAt: null,
       },
       oidcEnabled: false,
+      status: 'authenticated',
+      setupRequired: false,
       isLoading: false,
       error: null,
       refreshAuth: jest.fn(async () => Promise.resolve()),

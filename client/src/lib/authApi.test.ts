@@ -37,6 +37,15 @@ describe('authApi', () => {
   });
 
   describe('getAuthMe', () => {
+    it('forwards the abort signal to get', async () => {
+      mockGet.mockResolvedValue({ user: null, setupRequired: false, oidcEnabled: false });
+      const controller = new AbortController();
+
+      await authApi.getAuthMe({ signal: controller.signal });
+
+      expect(mockGet).toHaveBeenCalledWith('/auth/me', { signal: controller.signal });
+    });
+
     it('calls get with /auth/me', async () => {
       const mockResponse = {
         user: {
@@ -56,7 +65,7 @@ describe('authApi', () => {
 
       const result = await authApi.getAuthMe();
 
-      expect(mockGet).toHaveBeenCalledWith('/auth/me');
+      expect(mockGet).toHaveBeenCalledWith('/auth/me', undefined);
       expect(result).toEqual(mockResponse);
     });
 

@@ -168,6 +168,8 @@ beforeEach(async () => {
   mockUseAuth.mockReturnValue({
     user: null,
     oidcEnabled: false,
+    status: 'signedOut',
+    setupRequired: false,
     isLoading: false,
     error: null,
     refreshAuth: jest.fn(async () => {}),
@@ -880,6 +882,8 @@ describe('ReportWizardPage', () => {
           deactivatedAt: null,
         },
         oidcEnabled: false,
+        status: 'authenticated',
+        setupRequired: false,
         isLoading: false,
         error: null,
         refreshAuth: jest.fn(async () => {}),

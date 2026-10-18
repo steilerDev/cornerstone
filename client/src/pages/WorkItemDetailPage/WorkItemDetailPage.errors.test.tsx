@@ -378,6 +378,8 @@ describe('WorkItemDetailPage', () => {
 
     mockUseAuth.mockReturnValue({
       user: mockUser,
+      status: 'authenticated',
+      setupRequired: false,
       isLoading: false,
       error: null,
       refreshAuth: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),

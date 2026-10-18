@@ -1,13 +1,27 @@
 import { routeUrl } from '@cornerstone/shared';
-import { createContext, use, useState, useEffect, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from 'react';
 import { getAuthMe, logout as logoutApi, type AuthMeResponse } from '../lib/authApi.js';
 import type { UserResponse } from '@cornerstone/shared';
 import { useTranslation } from 'react-i18next';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import { translateApiError } from '../lib/errorTranslation.js';
+import { isSignedOutError } from '../lib/authFailure.js';
+
+export type AuthStatus =
+  'loading' | 'authenticated' | 'signedOut' | 'setupRequired' | 'error' | 'signingOut';
 
 export interface AuthContextValue {
   user: UserResponse | null;
+  status: AuthStatus;
+  setupRequired: boolean;
   oidcEnabled: boolean;
   isLoading: boolean;
   error: string | null;
@@ -21,32 +35,55 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+interface AuthState {
+  user: UserResponse | null;
+  status: AuthStatus;
+  oidcEnabled: boolean;
+  error: string | null;
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
-  const [authState, setAuthState] = useState<{
-    user: UserResponse | null;
-    oidcEnabled: boolean;
-    isLoading: boolean;
-    error: string | null;
-  }>({
+  const [authState, setAuthState] = useState<AuthState>({
     user: null,
+    status: 'loading',
     oidcEnabled: false,
-    isLoading: true,
     error: null,
   });
+  const controllerRef = useRef<AbortController | null>(null);
+  // Set once logout starts: no session check may change the state afterwards.
+  const signingOutRef = useRef(false);
+  // Latest translate functions: keeps loadAuth stable so the mount check runs exactly once.
+  const translateRef = useRef({ t, tErrors, tCommon });
+  translateRef.current = { t, tErrors, tCommon };
 
   const loadAuth = useCallback(async () => {
+    if (signingOutRef.current) return;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     try {
-      const response: AuthMeResponse = await getAuthMe();
+      const response: AuthMeResponse = await getAuthMe({ signal: controller.signal });
+      if (controller.signal.aborted || signingOutRef.current) return;
       setAuthState({
         user: response.user,
+        status: response.setupRequired
+          ? 'setupRequired'
+          : response.user
+            ? 'authenticated'
+            : 'signedOut',
         oidcEnabled: response.oidcEnabled,
-        isLoading: false,
         error: null,
       });
     } catch (error) {
+      if (controller.signal.aborted || signingOutRef.current) return;
+      if (isSignedOutError(error)) {
+        setAuthState({ user: null, status: 'signedOut', oidcEnabled: false, error: null });
+        return;
+      }
+      const { t, tErrors, tCommon } = translateRef.current;
       let message: string;
       if (error instanceof ApiClientError) {
         message = translateApiError(error.error.code, tErrors);
@@ -55,41 +92,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         message = t('session.loadError');
       }
-      setAuthState({
-        user: null,
-        oidcEnabled: false,
-        isLoading: false,
-        error: message,
-      });
+      // A failed refresh of a known session is not a sign-out: keep the user.
+      setAuthState((prev) =>
+        prev.user !== null
+          ? prev
+          : { user: null, status: 'error', oidcEnabled: false, error: message },
+      );
     }
-  }, [t, tErrors, tCommon]);
+  }, []);
 
   useEffect(() => {
     void loadAuth();
   }, [loadAuth]);
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, []);
 
   const refreshAuth = async () => {
     await loadAuth();
   };
 
   const logout = async () => {
+    signingOutRef.current = true;
+    controllerRef.current?.abort();
+    setAuthState({ user: null, status: 'signingOut', oidcEnabled: false, error: null });
     try {
       await logoutApi();
     } catch {
       // Ignore errors - clear local state even if server logout fails (e.g., session expired)
     } finally {
-      setAuthState({
-        user: null,
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-      });
-      // Force full page reload to /login so AuthGuard re-runs its mount check
+      setAuthState({ user: null, status: 'signingOut', oidcEnabled: false, error: null });
+      // Force a full page reload to /login so the session check starts from scratch
       window.location.assign(routeUrl('login'));
     }
   };
 
-  return <AuthContext value={{ ...authState, refreshAuth, logout }}>{children}</AuthContext>;
+  return (
+    <AuthContext
+      value={{
+        ...authState,
+        setupRequired: authState.status === 'setupRequired',
+        isLoading: authState.status === 'loading',
+        refreshAuth,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext>
+  );
 }
 
 export function useAuth(): AuthContextValue {

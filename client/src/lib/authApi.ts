@@ -1,4 +1,5 @@
 import { get, post } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type { UserResponse } from '@cornerstone/shared';
 
 export interface AuthMeResponse {
@@ -26,8 +27,8 @@ export interface LoginPayload {
   password: string;
 }
 
-export function getAuthMe(): Promise<AuthMeResponse> {
-  return get<AuthMeResponse>('/auth/me');
+export function getAuthMe(options?: RequestOptions): Promise<AuthMeResponse> {
+  return get<AuthMeResponse>('/auth/me', options);
 }
 
 export function setup(payload: SetupPayload): Promise<SetupResponse> {
