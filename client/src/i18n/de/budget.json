@@ -8,8 +8,8 @@
     "emptyStateDescription": "Beginne mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Deine Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
     "actions": {
       "addButton": "Hinzufügen",
-      "addInvoice": "Rechnung Hinzufügen",
-      "addVendor": "Auftragnehmer Hinzufügen"
+      "addInvoice": "Rechnung hinzufügen",
+      "addVendor": "Auftragnehmer hinzufügen"
     },
     "expectedPayback": "Erwartete Rückzahlung",
     "costBreakdown": {
@@ -46,7 +46,7 @@
         "allSourcesAnnouncement": "Es werden alle Budgetpositionen angezeigt",
         "statusAnnouncement": "{{selected}} von {{total}} Budgetquellen ausgewählt",
         "empty": "Keine Budgetpositionen entsprechen dem ausgewählten Quellenfilter.",
-        "clear": "Filter Löschen"
+        "clear": "Filter löschen"
       },
       "costBasis": {
         "label": "Kostenbasis",
@@ -80,7 +80,7 @@
   },
   "sources": {
     "sectionTitle": "Quellen",
-    "addSource": "Quelle Hinzufügen",
+    "addSource": "Quelle hinzufügen",
     "loading": "Budgetquellen werden geladen...",
     "error": "Fehler",
     "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuche es später erneut.",
@@ -113,7 +113,7 @@
       "interestRateInvalid": "Zinssatz muss eine nicht-negative Zahl sein"
     },
     "buttons": {
-      "create": "Quelle Erstellen",
+      "create": "Quelle erstellen",
       "creating": "Wird erstellt...",
       "save": "Speichern",
       "saving": "Wird gespeichert...",
@@ -246,7 +246,7 @@
     "lastUpdated": "Zuletzt aktualisiert",
     "noSearchResults": "Keine Auftragnehmer stimmen deiner Suche überein",
     "tryDifferentSearch": "Versuche unterschiedliche Suchbegriffe oder lösche die Suche, um alle Auftragnehmer zu sehen.",
-    "clearSearch": "Suche Löschen",
+    "clearSearch": "Suche löschen",
     "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Auftragnehmern",
     "previous": "Zurück",
     "next": "Weiter",
@@ -255,10 +255,10 @@
       "nameTooLong": "Name des Auftragnehmers darf maximal 200 Zeichen lang sein."
     },
     "buttons": {
-      "save": "Änderungen Speichern",
+      "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "edit": "Bearbeiten",
-      "viewDetails": "Details Anzeigen",
+      "viewDetails": "Details anzeigen",
       "retry": "Erneut versuchen"
     },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
@@ -289,10 +289,10 @@
     "totalInvoices": "Gesamtrechnungen",
     "outstandingBalance": "Ausstehender Saldo",
     "invoices": "Rechnungen",
-    "addInvoice": "Rechnung Hinzufügen",
+    "addInvoice": "Rechnung hinzufügen",
     "invoicesLoading": "Rechnungen werden geladen...",
     "noInvoicesYet": "Noch keine Rechnungen.",
-    "noInvoicesHint": "Klicke auf „Rechnung Hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
+    "noInvoicesHint": "Klicke auf „Rechnung hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
     "outstanding": "Ausstehend:",
     "createdBy": "Erstellt von",
     "detailFields": {
@@ -325,7 +325,7 @@
     "buttons": {
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "save": "Änderungen Speichern",
+      "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "retry": "Erneut versuchen",
@@ -333,7 +333,7 @@
       "deleteRow": "Löschen"
     },
     "invoiceForm": {
-      "title": "Rechnung Hinzufügen",
+      "title": "Rechnung hinzufügen",
       "invoiceNumber": "Rechnung #",
       "invoiceNumberPlaceholder": "z. B. RE-001",
       "amount": "Betrag",
@@ -341,7 +341,7 @@
       "dueDate": "Fälligkeitsdatum",
       "status": "Status",
       "notes": "Notizen",
-      "add": "Rechnung Hinzufügen",
+      "add": "Rechnung hinzufügen",
       "adding": "Wird hinzugefügt..."
     },
     "deleteInvoiceModal": {
@@ -362,9 +362,9 @@
       "noInvoiceNumber": "Keine Rechnungsnummer"
     },
     "modal": {
-      "addInvoiceTitle": "Rechnung Hinzufügen",
-      "editInvoiceTitle": "Rechnung Bearbeiten",
-      "deleteInvoiceTitle": "Rechnung Löschen",
+      "addInvoiceTitle": "Rechnung hinzufügen",
+      "editInvoiceTitle": "Rechnung bearbeiten",
+      "deleteInvoiceTitle": "Rechnung löschen",
       "deleteInvoiceConfirm": "Bist du sicher, dass du die Rechnung {{number}} löschen möchtest?",
       "deleteInvoiceWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
     },
@@ -418,13 +418,13 @@
     "buttons": {
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "save": "Änderungen Speichern",
+      "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "convertToFinal": "In Endrechnung umwandeln"
     },
     "modal": {
-      "editTitle": "Rechnung Bearbeiten",
+      "editTitle": "Rechnung bearbeiten",
       "deleteConfirmShort": "Bist du sicher, dass du diese Rechnung löschen möchtest?"
     },
     "messages": {
@@ -437,7 +437,7 @@
       "createFormLegend": "Neue Budgetposition erstellen",
       "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt",
       "sectionTitle": "Budgetpositionen",
-      "addButton": "Budgetposition Hinzufügen",
+      "addButton": "Budgetposition hinzufügen",
       "loading": "Budgetpositionen werden geladen…",
       "empty": {
         "message": "Keine Budgetpositionen verknüpft",
@@ -460,7 +460,7 @@
         "ariaLabel": "Aktionen für Budgetposition {{description}}"
       },
       "modal": {
-        "editTitle": "Budgetposition Bearbeiten",
+        "editTitle": "Budgetposition bearbeiten",
         "removeTitle": "Diese Kostenposition aus der Rechnung entfernen?",
         "removeConfirm": "Diese Budgetposition wird von der Rechnung getrennt. Die Budgetposition selbst verbleibt im Arbeitspaket oder Haushaltsartikel.",
         "removeConfirmButton": "Entfernen",
@@ -477,7 +477,7 @@
         "saveFailed": "Budgetposition konnte nicht aktualisiert werden. Bitte versuche es erneut."
       },
       "picker": {
-        "title": "Budgetposition Hinzufügen",
+        "title": "Budgetposition hinzufügen",
         "step2Title": "Budgetposition für {{itemTitle}} auswählen",
         "closeAriaLabel": "Budgetpositions-Auswahl schließen",
         "workItemTab": "Arbeitspaket",
@@ -485,13 +485,13 @@
         "separator": "oder",
         "loadingLines": "Budgetpositionen werden geladen…",
         "noUnlinkedLines": "Keine nicht verknüpften Budgetpositionen für dieses Element.",
-        "createLine": "Budgetposition Erstellen",
+        "createLine": "Budgetposition erstellen",
         "unnamedBudgetLine": "Unbenannte Budgetposition",
         "plannedLabel": "Geplant: {{amount}}",
         "itemizedAmountAriaLabel": "Aufgeschlüsselter Betrag für {{description}}",
         "budgetLineGeneric": "Budgetposition",
         "remainingToAllocate": "Noch zuzuordnen:",
-        "addSelectedLines": "Ausgewählte Positionen Hinzufügen",
+        "addSelectedLines": "Ausgewählte Positionen hinzufügen",
         "backButton": "← Zurück",
         "loadError": "Budgetpositionen konnten nicht geladen werden.",
         "loadFormError": "Formulardaten konnten nicht geladen werden.",
@@ -521,7 +521,7 @@
     "deposits": {
       "sectionTitle": "Abschlagszahlungen",
       "countChip": "{{count}} Abschlagszahlungen",
-      "addButton": "Abschlagszahlung Hinzufügen",
+      "addButton": "Abschlagszahlung hinzufügen",
       "loading": "Abschlagszahlungen werden geladen...",
       "empty": {
         "message": "Noch keine Abschlagszahlungen",
@@ -548,8 +548,8 @@
         "ariaLabel": "Aktionen für Abschlagszahlung {{description}}"
       },
       "modal": {
-        "addTitle": "Abschlagszahlung Hinzufügen",
-        "editTitle": "Abschlagszahlung Bearbeiten",
+        "addTitle": "Abschlagszahlung hinzufügen",
+        "editTitle": "Abschlagszahlung bearbeiten",
         "deleteWarningPaidClaimed": "Diese Abschlagszahlung ist als bezahlt oder eingereicht markiert. Beim Löschen entfällt ihr Beitrag zu den Budgetsummen."
       },
       "form": {
@@ -688,7 +688,7 @@
   "subsidies": {
     "title": "Förderprogramme",
     "sectionTitle": "Förderprogramme",
-    "addProgram": "Programm Hinzufügen",
+    "addProgram": "Programm hinzufügen",
     "loading": "Förderprogramme werden geladen...",
     "error": "Fehler",
     "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuche es später erneut.",
@@ -712,8 +712,8 @@
       "notes": "Notizen",
       "applicableCategories": "Anwendbare Budgetkategorien",
       "noCategoryLabel": "Ohne Kategorie",
-      "selectAll": "Alle Auswählen",
-      "deselectAll": "Alle Abwählen",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
       "required": "*",
       "placeholders": {
         "name": "z. B. Energieeffizienz-Zuschuss",
@@ -739,7 +739,7 @@
       "emptyState": "Keine Förderprogramme verknüpft",
       "selectAriaLabel": "Förderprogramm zum Verknüpfen auswählen",
       "selectPlaceholder": "Förderprogramm auswählen...",
-      "addButton": "Förderprogramm Hinzufügen",
+      "addButton": "Förderprogramm hinzufügen",
       "linking": "Wird verknüpft...",
       "unlinkAriaLabel": "Förderprogramm {{name}} trennen",
       "reductionPercentage": "{{value}}% Reduktion",
@@ -753,7 +753,7 @@
       }
     },
     "buttons": {
-      "create": "Programm Erstellen",
+      "create": "Programm erstellen",
       "creating": "Wird erstellt...",
       "save": "Speichern",
       "saving": "Wird gespeichert...",
@@ -762,8 +762,8 @@
       "delete": "Löschen",
       "editAria": "{{name}} bearbeiten",
       "deleteAria": "{{name}} löschen",
-      "selectAll": "Alle Auswählen",
-      "deselectAll": "Alle Abwählen"
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen"
     },
     "modal": {
       "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
@@ -870,8 +870,8 @@
   },
   "invoices": {
     "sectionTitle": "Rechnungen",
-    "addInvoice": "Rechnung Hinzufügen",
-    "addFirstInvoice": "Erste Rechnung Hinzufügen",
+    "addInvoice": "Rechnung hinzufügen",
+    "addFirstInvoice": "Erste Rechnung hinzufügen",
     "loading": "Rechnungen werden geladen...",
     "error": "Fehler",
     "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
@@ -903,7 +903,7 @@
     "sortDesc": "↓ Absteigend",
     "noFilterResults": "Keine Rechnungen entsprechen deinen Filtern",
     "tryDifferentFilters": "Versuche unterschiedliche Filter oder lösche sie, um alle Rechnungen zu sehen.",
-    "clearFilters": "Filter Löschen",
+    "clearFilters": "Filter löschen",
     "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
     "previous": "Zurück",
     "next": "Weiter",
@@ -942,17 +942,17 @@
       "dateRequired": "Rechnungsdatum ist erforderlich."
     },
     "buttons": {
-      "create": "Rechnung Hinzufügen",
+      "create": "Rechnung hinzufügen",
       "creating": "Wird hinzugefügt...",
-      "save": "Änderungen Speichern",
+      "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "view": "Anzeigen"
     },
     "modal": {
-      "title": "Rechnung Hinzufügen",
+      "title": "Rechnung hinzufügen",
       "description": "Fülle die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
-      "deleteTitle": "Rechnung Löschen",
+      "deleteTitle": "Rechnung löschen",
       "deleteConfirm": "Bist du sicher, dass du die Rechnung {{number}} für {{amount}} löschen möchtest?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
     },
@@ -1093,7 +1093,7 @@
     "budgetSourceApplied_one": "Budgetquelle „{{name}}“ auf {{count}} Position angewendet",
     "budgetSourceApplied_other": "Budgetquelle „{{name}}“ auf {{count}} Positionen angewendet",
     "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
-    "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
+    "createAndItemize": "Rechnung erstellen & aufschlüsseln",
     "extractionStarted": "Dokument wird mit KI analysiert…",
     "extractionComplete": "Extraktion abgeschlossen. Bitte prüfe die vorgeschlagenen Positionen.",
     "lineItems": "Positionen",
@@ -1297,7 +1297,7 @@
       "discardConfirmTitleGenerating": "KI-Generierung abbrechen?",
       "discardConfirmBody": "Dadurch wird der Berichtsinhalt neu generiert und deine Bearbeitungen gehen verloren.",
       "discardConfirmBodyGenerating": "Eine KI-Generierung läuft gerade. Durch diese Änderung wird sie abgebrochen.",
-      "discardAndContinue": "Verwerfen und Fortfahren",
+      "discardAndContinue": "Verwerfen und fortfahren",
       "keepEditing": "Weiter bearbeiten",
       "coverLetterHeading": "Anschreiben",
       "tableHeading": "Berichtstabelle",
@@ -1311,7 +1311,7 @@
       "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuche es erneut.",
       "aiOverwriteConfirmTitle": "Deine Bearbeitungen überschreiben?",
       "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt deine manuellen Bearbeitungen mit neu erzeugtem Text.",
-      "aiOverwriteAndGenerate": "Überschreiben und Generieren"
+      "aiOverwriteAndGenerate": "Überschreiben und generieren"
     },
     "table": {
       "title": {

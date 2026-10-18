@@ -39,7 +39,9 @@
 
 ## Button/Action Label Convention
 
-- Two-word imperative buttons `{Noun} {Verb}` capitalise **both** words: `Rechnung Hinzufügen`, `Auftragnehmer Hinzufügen`, `Förderprogramm Hinzufügen`.
+- Button and label convention (superseded 2026-10-18, owner/UX decision): German sentence case. Only the first word and nouns (including nominalised verbs such as `das Speichern`, `zum Anzeigen`, `beim Löschen`) are capitalised. Verbs, adjectives and adverbs in a mid-label position are lowercase: `Rechnung hinzufügen`, `Änderungen speichern`, `Alle auswählen`, `Verwerfen und fortfahren`. The old title-case rule (`Rechnung Hinzufügen`) is retired.
+- A quoted label inside a German hint must match the corrected label: `Klicke auf „Rechnung hinzufügen“`.
+- Quoted labels whose first word is capitalised (`„Bezahlt am“`, `„Ich verstehe“`) and sort or status labels (`↑ Aufsteigend`, `← Zurück`) keep the capital because it is the first word of the label.
 - **Exception**: phrases starting with a preposition (`Mit …`, `Zu …`, `Von …`) keep the trailing verb **lowercase** — standard German sentence-case, not title-case. Confirmed pattern: `"Mit SSO anmelden"` (auth.json), `"Mit Rechnung verknüpfen"` (householdItems.json, budget.json `invoiceLinkModal.title`/`.linkButton`). Do not capitalise the verb in this construction even though it's a button/title.
 
 ## Orphan Cleanup Heuristic
