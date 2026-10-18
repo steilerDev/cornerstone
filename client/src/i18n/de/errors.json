@@ -12,7 +12,7 @@
   "ACCOUNT_DEACTIVATED": "Dieses Konto wurde deaktiviert.",
   "SELF_DEACTIVATION": "Du kannst dein eigenes Konto nicht deaktivieren.",
   "LAST_ADMIN": "Der letzte Administrator kann nicht entfernt werden.",
-  "OIDC_NOT_CONFIGURED": "Single Sign-On ist für diese Instanz nicht konfiguriert.",
+  "OIDC_NOT_CONFIGURED": "Single Sign-on ist für diese Instanz nicht konfiguriert.",
   "OIDC_NO_MATCHING_ACCOUNT": "Für deine E-Mail-Adresse wurde kein Konto gefunden. Bitte wende dich an einen Administrator, damit zunächst ein Konto für dich angelegt wird.",
   "OIDC_EMAIL_UNVERIFIED": "Dein Identitätsanbieter hat nicht bestätigt, dass deine E-Mail-Adresse verifiziert ist.",
   "CIRCULAR_DEPENDENCY": "Dies würde eine zirkuläre Abhängigkeit erzeugen.",
