@@ -7,23 +7,23 @@
   },
   "empty": {
     "title": "Noch keine Tagebucheinträge.",
-    "createButton": "Erstellen Sie Ihren ersten Eintrag"
+    "createButton": "Erstelle deinen ersten Eintrag"
   },
   "loading": "Einträge werden geladen...",
-  "error": "Fehler beim Laden von Tagebucheinträgen. Bitte versuchen Sie es erneut.",
+  "error": "Fehler beim Laden von Tagebucheinträgen. Bitte versuche es erneut.",
   "infiniteScroll": {
     "loadingMore": "Weitere Einträge werden geladen…",
     "loadingMoreAriaLabel": "Weitere Tagebucheinträge werden geladen",
     "loadMoreButton": "Mehr laden",
     "retryButton": "Erneut versuchen",
     "errorMessage": "Weitere Einträge konnten nicht geladen werden.",
-    "endOfList": "Sie haben das Ende erreicht – keine weiteren Einträge vorhanden.",
+    "endOfList": "Du hast das Ende erreicht – keine weiteren Einträge vorhanden.",
     "initialLoadAnnouncement_one": "{{count}} Eintrag geladen",
     "initialLoadAnnouncement_other": "{{count}} Einträge geladen",
     "batchAppendedAnnouncement_one": "{{count}} weiterer Eintrag geladen",
     "batchAppendedAnnouncement_other": "{{count}} weitere Einträge geladen",
-    "batchAppendedAndEndAnnouncement_one": "{{count}} weiterer Eintrag geladen. Sie haben das Ende erreicht.",
-    "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Einträge geladen. Sie haben das Ende erreicht."
+    "batchAppendedAndEndAnnouncement_one": "{{count}} weiterer Eintrag geladen. Du hast das Ende erreicht.",
+    "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Einträge geladen. Du hast das Ende erreicht."
   },
   "filterBar": {
     "search": "Einträge durchsuchen...",
@@ -69,13 +69,13 @@
     "titlePlaceholder": "Nachtrag-Titel",
     "body": "Eintrag Text",
     "bodyRequired": "Eintragstext ist erforderlich",
-    "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
+    "bodyDescription": "Füge weitere relevante Informationen hinzu",
     "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
     "submitButton": "Eintrag erstellen",
     "submittingButton": "Wird erstellt...",
     "cancelButton": "Abbrechen",
     "successMessage": "Tagebucheintrag erfolgreich erstellt",
-    "errorMessage": "Fehler beim Erstellen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
+    "errorMessage": "Fehler beim Erstellen des Tagebucheintrags. Bitte versuche es erneut.",
     "photoUploadError": "Eintrag erstellt, aber einige Fotos konnten nicht hochgeladen werden"
   },
   "detail": {
@@ -85,11 +85,11 @@
     "notFoundMessage": "Der gesuchte Tagebucheintrag existiert nicht.",
     "deletingButton": "Wird gelöscht...",
     "deleteConfirm": "Eintrag löschen",
-    "deleteMessage": "Möchten Sie diesen Eintrag wirklich löschen?",
+    "deleteMessage": "Möchtest du diesen Eintrag wirklich löschen?",
     "deleteCancel": "Abbrechen",
     "deleteConfirmButton": "Eintrag löschen",
-    "errorMessage": "Fehler beim Laden des Tagebucheintrags. Bitte versuchen Sie es erneut.",
-    "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut."
+    "errorMessage": "Fehler beim Laden des Tagebucheintrags. Bitte versuche es erneut.",
+    "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuche es erneut."
   },
   "edit": {
     "entryDate": "Einzugsdatum",
@@ -100,24 +100,24 @@
     "titlePlaceholder": "Nachtrag-Titel",
     "body": "Eintrag Text",
     "bodyRequired": "Eintragstext ist erforderlich",
-    "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
+    "bodyDescription": "Füge weitere relevante Informationen hinzu",
     "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
     "siteVisitInspectorNameRequired": "Name des Inspektors ist erforderlich",
     "issueSeverityRequired": "Schweregrad ist erforderlich",
     "issueResolutionStatusRequired": "Lösungsstatus ist erforderlich",
-    "signatureIncomplete": "Übernehmen oder entfernen Sie die nicht abgeschlossene Unterschrift vor dem Speichern.",
+    "signatureIncomplete": "Übernimm oder entferne die nicht abgeschlossene Unterschrift vor dem Speichern.",
     "submitButton": "Änderungen speichern",
     "submittingButton": "Wird gespeichert...",
     "cancelButton": "Abbrechen",
     "deleteButton": "Eintrag löschen",
     "deletingButton": "Wird gelöscht...",
     "deleteConfirm": "Eintrag löschen",
-    "deleteMessage": "Möchten Sie diesen Eintrag wirklich löschen?",
+    "deleteMessage": "Möchtest du diesen Eintrag wirklich löschen?",
     "deleteCancel": "Abbrechen",
     "deleteConfirmButton": "Eintrag löschen",
     "successMessage": "Tagebucheintrag erfolgreich aktualisiert",
-    "errorMessage": "Fehler beim Aktualisieren des Tagebucheintrags. Bitte versuchen Sie es erneut.",
-    "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut."
+    "errorMessage": "Fehler beim Aktualisieren des Tagebucheintrags. Bitte versuche es erneut.",
+    "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuche es erneut."
   },
   "entryCard": {
     "viewButton": "Ansicht",
@@ -148,7 +148,7 @@
     "inspectorPlaceholder": "Namen des Inspektors eingeben",
     "inspectionOutcome": "Inspektionsergebnis",
     "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
-    "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
+    "bodyDescription": "Füge weitere relevante Informationen hinzu",
     "outcomeOptions": {
       "pass": "Bestanden",
       "fail": "Fehlgeschlagen",
@@ -235,8 +235,8 @@
     "typeCardSiteVisitDesc": "Inspektion mit Inspektoreninformation und Ergebnis dokumentieren",
     "typeCardDeliveryDesc": "Lieferung von Materialien oder Ausrüstung dokumentieren",
     "typeCardIssueDesc": "Problem oder Anliegen auf der Website melden",
-    "typeCardGeneralNoteDesc": "Fügen Sie weitere relevante Informationen hinzu",
-    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+    "typeCardGeneralNoteDesc": "Füge weitere relevante Informationen hinzu",
+    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuche es erneut."
   },
   "detailPage": {
     "edit": "Bearbeiten",
@@ -249,7 +249,7 @@
     "created": "Erstellt:",
     "updated": "Aktualisiert:",
     "deleteSuccess": "Tagebucheintrag erfolgreich gelöscht",
-    "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
+    "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuche es erneut.",
     "sourceType": {
       "work_item": "Arbeitspaket",
       "invoice": "Rechnung",
@@ -260,7 +260,7 @@
   },
   "editPage": {
     "loadingError": "Eintrag wird geladen...",
-    "notFoundMessage": "Der Tagebucheintrag, den Sie suchen, existiert nicht.",
+    "notFoundMessage": "Der Tagebucheintrag, den du suchst, existiert nicht.",
     "errorTitle": "Fehler beim Laden des Eintrags",
     "deleteButton": "Eintrag löschen",
     "cancel": "Abbrechen",
@@ -268,16 +268,16 @@
     "saveChanges": "Änderungen speichern",
     "photosHeading": "Fotos",
     "signedEntriesError": "Signierte Einträge können nicht bearbeitet werden",
-    "loadError": "Fehler beim Laden des Tagebucheintrags. Bitte versuchen Sie es erneut.",
+    "loadError": "Fehler beim Laden des Tagebucheintrags. Bitte versuche es erneut.",
     "updateSuccess": "Tagebucheintrag erfolgreich aktualisiert",
-    "updateError": "Fehler beim Aktualisieren des Tagebucheintrags. Bitte versuchen Sie es erneut.",
+    "updateError": "Fehler beim Aktualisieren des Tagebucheintrags. Bitte versuche es erneut.",
     "deleteSuccess": "Tagebucheintrag erfolgreich gelöscht",
-    "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
+    "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuche es erneut.",
     "autoSaveSaving": "Wird gespeichert...",
     "autoSaveSaved": "Gespeichert",
     "autoSaveError": "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht",
     "discardDraftButton": "Entwurf verwerfen",
-    "discardDraftMessage": "Möchten Sie diesen Entwurf wirklich verwerfen? Alle eingegebenen Inhalte und hochgeladenen Fotos werden dauerhaft gelöscht.",
+    "discardDraftMessage": "Möchtest du diesen Entwurf wirklich verwerfen? Alle eingegebenen Inhalte und hochgeladenen Fotos werden dauerhaft gelöscht.",
     "promoteButton": "Speichern",
     "promoting": "Wird gespeichert..."
   },
@@ -307,7 +307,7 @@
     "signedBy": "Unterzeichnet von",
     "signaturesLabel": "Unterschriften",
     "addSignature": "+ Unterschrift hinzufügen",
-    "limitReached": "Sie können bis zu {{max}} Unterschriften hinzufügen.",
+    "limitReached": "Du kannst bis zu {{max}} Unterschriften hinzufügen.",
     "signerTypeLabel": "Unterzeichnertyp",
     "signerTypeSelf": "Selbst",
     "signerTypeVendor": "Auftragnehmer",

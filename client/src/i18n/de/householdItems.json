@@ -67,9 +67,9 @@
   },
   "empty": {
     "noItems": "Noch keine Haushaltsartikel",
-    "noItemsMessage": "Erstellen Sie Ihren ersten Haushaltsartikel zum Verfolgen.",
-    "noResults": "Keine Haushaltsartikel entsprechen Ihren Filtern",
-    "noResultsMessage": "Versuchen Sie, Ihre Such- oder Filterkriterien anzupassen.",
+    "noItemsMessage": "Erstelle deinen ersten Haushaltsartikel zum Verfolgen.",
+    "noResults": "Keine Haushaltsartikel entsprechen deinen Filtern",
+    "noResultsMessage": "Versuche, deine Such- oder Filterkriterien anzupassen.",
     "createFirstItem": "Ersten Artikel erstellen",
     "clearAllFilters": "Alle Filter löschen"
   },
@@ -87,8 +87,8 @@
     "next": "Weiter →"
   },
   "loading": "Haushaltsartikel werden geladen...",
-  "error": "Fehler beim Laden der Haushaltsartikel. Bitte versuchen Sie es erneut.",
-  "deleteError": "Fehler beim Löschen des Haushaltsartikels. Bitte versuchen Sie es erneut.",
+  "error": "Fehler beim Laden der Haushaltsartikel. Bitte versuche es erneut.",
+  "deleteError": "Fehler beim Löschen des Haushaltsartikels. Bitte versuche es erneut.",
   "keyboard": {
     "newItem": "Neuer Haushaltsartikel",
     "focusSearch": "Suchfeld fokussieren",
@@ -100,7 +100,7 @@
   },
   "create": {
     "errors": {
-      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuche es erneut."
     },
     "form": {
       "name": {
@@ -164,10 +164,10 @@
   },
   "edit": {
     "errors": {
-      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuche es erneut."
     },
     "loading": "Wird geladen...",
-    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
+    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuche es erneut.",
     "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht.",
     "form": {
       "name": {
@@ -241,7 +241,7 @@
       "title": "Bereich",
       "label": "Bereich",
       "updated": "Bereich erfolgreich aktualisiert",
-      "updateFailed": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+      "updateFailed": "Bereich konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "datesDelivery": {
       "title": "Daten & Lieferung",
@@ -262,7 +262,7 @@
     },
     "dependencies": {
       "title": "Abhängigkeiten",
-      "noDependencies": "Noch keine Abhängigkeiten. Fügen Sie eine Abhängigkeit hinzu, um diesen Artikel zu planen.",
+      "noDependencies": "Noch keine Abhängigkeiten. Füge eine Abhängigkeit hinzu, um diesen Artikel zu planen.",
       "workItem": "Arbeitspaket",
       "milestone": "Meilenstein",
       "removeDependency": "Abhängigkeit entfernen von",
@@ -270,7 +270,7 @@
       "confirm": "Entfernen",
       "removing": "Wird entfernt…",
       "search": "Arbeitspakete oder Meilensteine zum Hinzufügen durchsuchen...",
-      "noMatches": "Keine Artikel entsprechen Ihrer Suche",
+      "noMatches": "Keine Artikel entsprechen deiner Suche",
       "failedAdd": "Fehler beim Hinzufügen der Abhängigkeit",
       "failedRemove": "Fehler beim Entfernen der Abhängigkeit",
       "addedSuccess": "Abhängigkeit erfolgreich hinzugefügt",
@@ -290,7 +290,7 @@
     },
     "budget": {
       "title": "Budget",
-      "emptyState": "Noch keine Budgetpositionen. Fügen Sie die erste Position hinzu, um Kosten zu verfolgen.",
+      "emptyState": "Noch keine Budgetpositionen. Füge die erste Position hinzu, um Kosten zu verfolgen.",
       "addLineButton": "+ Zeile hinzufügen",
       "linkInvoiceButton": "Mit Rechnung verknüpfen",
       "confidenceLabel": "Konfidenz:",
@@ -300,8 +300,8 @@
     },
     "errors": {
       "itemNotFound": "Artikel nicht gefunden",
-      "loadFailed": "Haushaltsartikel konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+      "loadFailed": "Haushaltsartikel konnte nicht geladen werden. Bitte versuche es erneut.",
+      "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuche es erneut.",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
       "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
       "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",

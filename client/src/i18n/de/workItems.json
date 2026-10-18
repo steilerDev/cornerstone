@@ -32,11 +32,11 @@
       "updatedAt": "Aktualisiert"
     },
     "empty": {
-      "noMatchTitle": "Keine Arbeitspakete entsprechen Ihren Filtern",
-      "noMatchText": "Versuchen Sie, Ihre Suche oder Filterkriterien anzupassen.",
+      "noMatchTitle": "Keine Arbeitspakete entsprechen deinen Filtern",
+      "noMatchText": "Versuche, deine Suche oder Filterkriterien anzupassen.",
       "clearFilters": "Alle Filter löschen",
       "noItemsTitle": "Noch keine Arbeitspakete",
-      "noItemsText": "Erstellen Sie Ihr erstes Arbeitspaket, um Bauaufgaben zu verfolgen.",
+      "noItemsText": "Erstelle dein erstes Arbeitspaket, um Bauaufgaben zu verfolgen.",
       "createFirst": "Erstes Arbeitspaket erstellen"
     },
     "table": {
@@ -92,7 +92,7 @@
       "titlePlaceholder": "Titel des Arbeitspakets eingeben",
       "titleRequiredError": "Titel ist erforderlich",
       "description": "Beschreibung",
-      "descriptionPlaceholder": "Beschreiben Sie die zu erledigende Arbeit",
+      "descriptionPlaceholder": "Beschreibe die zu erledigende Arbeit",
       "status": "Status",
       "assignedTo": "Zugewiesen an",
       "unassigned": "Nicht zugewiesen",
@@ -169,7 +169,7 @@
       "placeholder": "Notiz hinzufügen...",
       "adding": "Wird hinzugefügt...",
       "addNote": "Notiz hinzufügen",
-      "noNotes": "Noch keine Notizen. Fügen Sie oben eine hinzu.",
+      "noNotes": "Noch keine Notizen. Füge oben eine hinzu.",
       "save": "Speichern",
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
@@ -180,7 +180,7 @@
       "placeholder": "Teilaufgabe hinzufügen...",
       "adding": "Wird hinzugefügt...",
       "add": "Hinzufügen",
-      "noSubtasks": "Noch keine Teilaufgaben. Fügen Sie oben eine hinzu.",
+      "noSubtasks": "Noch keine Teilaufgaben. Füge oben eine hinzu.",
       "save": "Speichern",
       "cancel": "Abbrechen",
       "moveUp": "Nach oben",

@@ -337,7 +337,10 @@ test.describe('Photo orientations — delete (Scenario 7)', { tag: '@responsive'
     testPrefix,
   }) => {
     const name = `${testPrefix} ToDelete`;
+    // The list may hold no other orientation (a fresh install): bring our own neighbour
+    const neighbour = `${testPrefix} Neighbour`;
     const orientationId = await createOrientationViaApi(page, { name });
+    const neighbourId = await createOrientationViaApi(page, { name: neighbour });
     const entryId = await createDiaryEntryViaApi(page, {
       entryType: 'general_note',
       entryDate: '2026-01-15',
@@ -349,10 +352,13 @@ test.describe('Photo orientations — delete (Scenario 7)', { tag: '@responsive'
 
     try {
       await setup.goto();
+      await expect(list.row(neighbour)).toBeVisible();
+      // Focus moves to the row after the deleted one, else the one before (other workers' rows
+      // may sit around ours, so read the live order)
       const names = await list.orderOfNames();
       const index = names.indexOf(name);
-      const neighbour = names[index + 1] ?? names[index - 1];
-      expect(neighbour, 'a neighbouring row exists').toBeDefined();
+      const focusTarget = names[index + 1] ?? names[index - 1];
+      expect(focusTarget, 'a neighbouring row exists').toBeDefined();
 
       await list.openDelete(name);
       await expect(list.deleteDialog.dialog).toHaveAccessibleName(`Delete ${name}?`);
@@ -365,10 +371,11 @@ test.describe('Photo orientations — delete (Scenario 7)', { tag: '@responsive'
       await list.deleteDialog.confirmAndWaitClosed();
       await expect(list.row(name)).toHaveCount(0);
       await expect(setup.statusRegion).toHaveText(`${name} deleted.`);
-      await expect(list.menuTrigger(neighbour!)).toBeFocused();
+      await expect(list.menuTrigger(focusTarget!)).toBeFocused();
     } finally {
       await deleteDiaryEntryViaApi(page, entryId);
       await deleteOrientationViaApi(page, orientationId);
+      await deleteOrientationViaApi(page, neighbourId);
     }
   });
 
@@ -552,43 +559,50 @@ test.describe('Photo orientations — reorder failure (Scenario 9)', { tag: '@re
   });
 });
 
-test.describe('Photo orientations — reorder persistence (real backend)', () => {
-  test('Move up keeps the order after a reload', async ({ page, testPrefix }) => {
-    test.skip(test.info().project.name !== 'desktop', 'real reorder runs once, on the desktop');
-    const first = `${testPrefix} Persist One`;
-    const second = `${testPrefix} Persist Two`;
-    const firstId = await createOrientationViaApi(page, { name: first });
-    const secondId = await createOrientationViaApi(page, { name: second });
-    const setup = new ProjectSetupPage(page);
-    const list = setup.orientations;
+// The only real reorder of the global list: the lock keeps repeated or parallel copies of it from
+// overwriting each other's order (each reorder rewrites the whole list)
+test.describe(
+  'Photo orientations — reorder persistence (real backend)',
+  { lock: 'orientations-reorder' },
+  () => {
+    test('Move up keeps the order after a reload', async ({ page, testPrefix }) => {
+      test.skip(test.info().project.name !== 'desktop', 'real reorder runs once, on the desktop');
+      const first = `${testPrefix} Persist One`;
+      const second = `${testPrefix} Persist Two`;
+      const firstId = await createOrientationViaApi(page, { name: first });
+      const secondId = await createOrientationViaApi(page, { name: second });
+      const setup = new ProjectSetupPage(page);
+      const list = setup.orientations;
 
-    try {
-      // Other workers share this list: a reorder racing a create or delete answers 409, which is
-      // legitimate. Reload and try once more.
-      await expect(async () => {
-        await setup.goto();
-        const before = await list.orderOfNames((name) => name === first || name === second);
-        expect(before).toEqual([first, second]);
-        const reorder = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/orientations/reorder') && resp.request().method() === 'PATCH',
-        );
-        await list.clickMenuItem(second, 'Move up');
-        expect((await reorder).status()).toBe(200);
-      }).toPass({ intervals: [500], timeout: 20_000 });
+      try {
+        // Other workers share this list: a reorder racing a create or delete answers 409, which is
+        // legitimate. Reload and try once more.
+        await expect(async () => {
+          await setup.goto();
+          const before = await list.orderOfNames((name) => name === first || name === second);
+          expect(before).toEqual([first, second]);
+          const reorder = page.waitForResponse(
+            (resp) =>
+              resp.url().includes('/api/orientations/reorder') &&
+              resp.request().method() === 'PATCH',
+          );
+          await list.clickMenuItem(second, 'Move up');
+          expect((await reorder).status()).toBe(200);
+        }).toPass({ intervals: [500], timeout: 20_000 });
 
-      await page.goto(page.url());
-      await setup.waitForLoaded();
-      expect(await list.orderOfNames((name) => name === first || name === second)).toEqual([
-        second,
-        first,
-      ]);
-    } finally {
-      await deleteOrientationViaApi(page, firstId);
-      await deleteOrientationViaApi(page, secondId);
-    }
-  });
-});
+        await page.goto(page.url());
+        await setup.waitForLoaded();
+        expect(await list.orderOfNames((name) => name === first || name === second)).toEqual([
+          second,
+          first,
+        ]);
+      } finally {
+        await deleteOrientationViaApi(page, firstId);
+        await deleteOrientationViaApi(page, secondId);
+      }
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 10: dialog stacking
