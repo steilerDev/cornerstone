@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -160,6 +160,95 @@ describe('SetupPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
     expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+  });
+
+  it('titles the tab with the error heading while the check has failed, then with the setup title', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    const user = userEvent.setup();
+    renderPage();
+    const retry = await screen.findByRole('button', { name: enCommon.authGuard.retry });
+    await waitFor(() =>
+      expect(document.title).toBe(`${enCommon.authGuard.errorHeading} · Cornerstone`),
+    );
+
+    await user.click(retry);
+
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+    await waitFor(() => expect(document.title).toBe(`${enAuth.setup.title} · Cornerstone`));
+  });
+
+  it('shows the retrying line while Try again is pending and the failed line if it fails', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    let failRetry!: () => void;
+    mockGetAuthMe.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          failRetry = () => reject(new Error('still down'));
+        }),
+    );
+    renderPage();
+    const retry = await screen.findByRole('button', { name: enCommon.authGuard.retry });
+
+    fireEvent.click(retry);
+
+    expect(await screen.findByText(enCommon.authGuard.retrying)).toBeInTheDocument();
+    expect(retry).toBeInTheDocument();
+    expect(retry).not.toHaveAttribute('disabled');
+
+    await act(async () => {
+      failRetry();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(enCommon.authGuard.retryFailed),
+    );
+    expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
+  });
+
+  it('ignores extra clicks on Try again while a retry is in flight', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    let finish!: () => void;
+    mockGetAuthMe.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ user: null, setupRequired: true, oidcEnabled: false });
+        }),
+    );
+    renderPage();
+    const retry = await screen.findByRole('button', { name: enCommon.authGuard.retry });
+
+    await act(async () => {
+      fireEvent.click(retry);
+      fireEvent.click(retry);
+      fireEvent.click(retry);
+    });
+
+    // Provider mount check plus exactly one retry.
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      finish();
+    });
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+  });
+
+  it('moves focus to the email field after a successful retry, never leaving it on body', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    const retry = await screen.findByRole('button', { name: enCommon.authGuard.retry });
+    retry.focus();
+    expect(retry).toHaveFocus();
+
+    fireEvent.click(retry);
+
+    const email = await screen.findByLabelText(enAuth.setup.emailLabel);
+    expect(email).toHaveFocus();
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it('does not steal focus on the first load when the check succeeds', async () => {
+    renderPage();
+    const email = await screen.findByLabelText(enAuth.setup.emailLabel);
+    expect(email).not.toHaveFocus();
   });
 
   it('Try again re-checks the session and shows the form once setup is required', async () => {

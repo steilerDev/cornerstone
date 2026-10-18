@@ -1,8 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import { EmptyState } from '../../components/EmptyState/EmptyState.js';
+import { AuthCheckFailed } from '../../components/AuthGuard/AuthCheckFailed.js';
 import { Logo } from '../../components/Logo/Logo.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { setup } from '../../lib/authApi.js';
@@ -21,11 +21,23 @@ interface FormErrors {
 
 export function SetupPage() {
   const navigate = useNavigate();
-  const { refreshAuth, status, error: sessionError } = useAuth();
+  const { refreshAuth, status } = useAuth();
   const { t: tCommon } = useTranslation('common');
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
-  useDocumentTitle(t('setup.title'), { section: false, house: false });
+  useDocumentTitle(status === 'error' ? tCommon('authGuard.errorHeading') : t('setup.title'), {
+    section: false,
+    house: false,
+  });
+  const emailRef = useRef<HTMLInputElement>(null);
+  const previousStatusRef = useRef(status);
+
+  // When a retry succeeds the error panel (with the focused button) is replaced by the form.
+  useLayoutEffect(() => {
+    const previous = previousStatusRef.current;
+    previousStatusRef.current = status;
+    if (previous === 'error' && status === 'setupRequired') emailRef.current?.focus();
+  }, [status]);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -100,12 +112,7 @@ export function SetupPage() {
     return (
       <div className={sharedStyles.container}>
         <div className={sharedStyles.card}>
-          <EmptyState
-            messageAs="h1"
-            message={tCommon('authGuard.errorHeading')}
-            description={sessionError ?? undefined}
-            action={{ label: tCommon('authGuard.retry'), onClick: () => void refreshAuth() }}
-          />
+          <AuthCheckFailed embedded />
         </div>
       </div>
     );
@@ -141,6 +148,7 @@ export function SetupPage() {
               {t('setup.emailLabel')}
             </label>
             <input
+              ref={emailRef}
               type="email"
               id="email"
               value={email}
