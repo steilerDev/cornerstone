@@ -5,7 +5,7 @@ import type { OidcLoginErrorCode } from '@cornerstone/shared';
 import { OIDC_LOGIN_ERROR_CODES, routeUrl } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { Logo } from '../../components/Logo/Logo.js';
-import { login, getAuthMe, oidcLoginUrl } from '../../lib/authApi.js';
+import { login, oidcLoginUrl } from '../../lib/authApi.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { readNextParam } from '../../navigation/nextParam.js';
@@ -38,7 +38,7 @@ interface FormErrors {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshAuth } = useAuth();
+  const { refreshAuth, status, oidcEnabled } = useAuth();
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   const [email, setEmail] = useState('');
@@ -51,34 +51,22 @@ export function LoginPage() {
   const bannerError =
     apiError || (oidcErrorCode ? t(I18N_UNION_KEYS.oidcLoginError.key(oidcErrorCode)) : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [oidcEnabled, setOidcEnabled] = useState(false);
-  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const isLoadingConfig = status === 'loading';
   useDocumentTitle(t('login.title'), { section: false, house: false });
 
   // Where to land after signing in: the deep link the user asked for, else Home
   const next = useMemo(() => readNextParam(location.search), [location.search]);
   const target = next ?? routeUrl('home');
 
+  // The session check belongs to AuthContext: react to its outcome.
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const authMeResponse = await getAuthMe();
-        // If user is already authenticated, redirect to home
-        if (authMeResponse.user) {
-          navigate(target, { replace: true });
-          return;
-        }
-        setOidcEnabled(authMeResponse.oidcEnabled);
-      } catch {
-        // If getAuthMe fails, OIDC is not enabled
-        setOidcEnabled(false);
-      } finally {
-        setIsLoadingConfig(false);
-      }
-    };
-
-    void loadConfig();
-  }, [navigate, target]);
+    if (status === 'authenticated') {
+      // Already signed in: go where the user was headed
+      navigate(target, { replace: true });
+    } else if (status === 'setupRequired') {
+      navigate(routeUrl('setup'), { replace: true });
+    }
+  }, [status, navigate, target]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};

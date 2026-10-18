@@ -72,7 +72,14 @@
   }
 
   .action {
+    min-height: var(--touch-target-min);
     padding: var(--spacing-1-5) var(--spacing-3);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (pointer: coarse) {
+  .action {
+    min-height: var(--touch-target-min);
   }
 }

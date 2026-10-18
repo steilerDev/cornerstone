@@ -33,6 +33,11 @@
   background-color: var(--color-bg-page);
 }
 
+/* main is only a programmatic focus target (e.g. after the session retry): no ring. */
+.pageContent:focus-visible {
+  outline: none;
+}
+
 /* Phones: the shell owns the one 16px side gutter; PageLayout adds none of its own. */
 @media (max-width: 767px) {
   .pageContent {

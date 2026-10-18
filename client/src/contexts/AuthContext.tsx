@@ -53,17 +53,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error: null,
   });
   const controllerRef = useRef<AbortController | null>(null);
+  // Set once logout starts: no session check may change the state afterwards.
+  const signingOutRef = useRef(false);
   // Latest translate functions: keeps loadAuth stable so the mount check runs exactly once.
   const translateRef = useRef({ t, tErrors, tCommon });
   translateRef.current = { t, tErrors, tCommon };
 
   const loadAuth = useCallback(async () => {
+    if (signingOutRef.current) return;
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
     try {
       const response: AuthMeResponse = await getAuthMe({ signal: controller.signal });
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || signingOutRef.current) return;
       setAuthState({
         user: response.user,
         status: response.setupRequired
@@ -75,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
       });
     } catch (error) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || signingOutRef.current) return;
       if (isSignedOutError(error)) {
         setAuthState({ user: null, status: 'signedOut', oidcEnabled: false, error: null });
         return;
@@ -113,13 +116,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
+    signingOutRef.current = true;
+    controllerRef.current?.abort();
+    setAuthState({ user: null, status: 'signingOut', oidcEnabled: false, error: null });
     try {
       await logoutApi();
     } catch {
       // Ignore errors - clear local state even if server logout fails (e.g., session expired)
     } finally {
       setAuthState({ user: null, status: 'signingOut', oidcEnabled: false, error: null });
-      // Force full page reload to /login so AuthGuard re-runs its mount check
+      // Force a full page reload to /login so the session check starts from scratch
       window.location.assign(routeUrl('login'));
     }
   };

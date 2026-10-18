@@ -528,15 +528,15 @@ describe('LoginPage', () => {
       let finishRefresh: (() => void) | undefined;
       mockGetAuthMe.mockImplementation(() => {
         calls += 1;
-        // Calls 1 and 2 are the provider mount and the page's own check; call 3 is refreshAuth.
-        if (calls < 3) return Promise.resolve(SIGNED_OUT);
+        // Call 1 is the provider mount check; call 2 is refreshAuth.
+        if (calls < 2) return Promise.resolve(SIGNED_OUT);
         return new Promise((resolve) => {
           finishRefresh = () => resolve(SIGNED_OUT);
         });
       });
       mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
       const log = renderRecorded('/login?next=%2Fdiary');
-      await waitFor(() => expect(calls).toBe(2));
+      await waitFor(() => expect(calls).toBe(1));
 
       await submitCredentials();
       await waitFor(() => expect(finishRefresh).toBeDefined());
@@ -593,6 +593,33 @@ describe('LoginPage', () => {
       const log = renderRecorded('/login');
 
       await waitFor(() => expect(log.actions).toContain('REPLACE /'));
+    });
+
+    it('sends a first-run visitor to setup with replace', async () => {
+      mockGetAuthMe.mockResolvedValue({ ...SIGNED_OUT, setupRequired: true });
+
+      const log = renderRecorded('/login?next=%2Fdiary');
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /setup']));
+    });
+
+    it('reads the session from the context and makes no check of its own', async () => {
+      const log = renderRecorded('/login');
+
+      await screen.findByRole('button', { name: /sign in/i });
+      expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+      expect(log.actions).toEqual([]);
+    });
+
+    it('stays on the sign-in form without redirecting when the session check failed', async () => {
+      mockGetAuthMe.mockRejectedValue(new Error('offline'));
+
+      const log = renderRecorded('/login');
+
+      await screen.findByRole('button', { name: /sign in/i });
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalledTimes(1));
+      expect(log.actions).toEqual([]);
+      expect(screen.queryByRole('button', { name: /login with sso/i })).not.toBeInTheDocument();
     });
 
     it('starts SSO with the deep link as the redirect parameter', async () => {

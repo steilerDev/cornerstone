@@ -814,6 +814,103 @@ describe('AuthContext session status (failed checks never sign the user out)', (
     consoleError.mockRestore();
   });
 
+  describe('logout fence', () => {
+    let consoleError: ReturnType<typeof jest.spyOn>;
+
+    beforeEach(() => {
+      // logout() ends in window.location.assign, which jsdom reports as not implemented.
+      consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockLogout.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      consoleError.mockRestore();
+    });
+
+    async function startPendingLoadThenLogout() {
+      mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+      renderProbe();
+      await expectStatus('authenticated');
+      const pending = deferred<MeResponse>();
+      mockGetAuthMe.mockReturnValueOnce(pending.promise);
+      await clickRefresh();
+      await act(async () => {
+        screen.getByRole('button', { name: 'Logout' }).click();
+      });
+      return pending;
+    }
+
+    it('stays signingOut when a pending check resolves with a user after logout started', async () => {
+      const pending = await startPendingLoadThenLogout();
+      expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+
+      await act(async () => {
+        pending.resolve(SIGNED_IN);
+      });
+
+      expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+      expect(screen.getByTestId('user')).toHaveTextContent('No user');
+    });
+
+    it('stays signingOut, with no error panel, when a pending check fails after logout started', async () => {
+      const pending = await startPendingLoadThenLogout();
+
+      await act(async () => {
+        pending.reject(abortError());
+      });
+
+      expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+      expect(screen.getByTestId('error')).toHaveTextContent('No error');
+    });
+
+    it('aborts the pending check as soon as logout starts', async () => {
+      await startPendingLoadThenLogout();
+
+      const signal = mockGetAuthMe.mock.calls[1]?.[0]?.signal;
+      expect(signal?.aborted).toBe(true);
+    });
+
+    it('ignores a check that starts after logout began and fails', async () => {
+      mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+      renderProbe();
+      await expectStatus('authenticated');
+      const pendingLogout = deferred<void>();
+      mockLogout.mockReturnValueOnce(pendingLogout.promise);
+      await act(async () => {
+        screen.getByRole('button', { name: 'Logout' }).click();
+      });
+
+      mockGetAuthMe.mockRejectedValueOnce(abortError());
+      await clickRefresh();
+
+      expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+      expect(screen.getByTestId('error')).toHaveTextContent('No error');
+      await act(async () => {
+        pendingLogout.resolve();
+      });
+    });
+
+    it('ignores a check that starts after logout began, whatever it returns', async () => {
+      mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+      renderProbe();
+      await expectStatus('authenticated');
+      const pendingLogout = deferred<void>();
+      mockLogout.mockReturnValueOnce(pendingLogout.promise);
+      await act(async () => {
+        screen.getByRole('button', { name: 'Logout' }).click();
+      });
+
+      mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+      await clickRefresh();
+
+      expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+      expect(screen.getByTestId('user')).toHaveTextContent('No user');
+      await act(async () => {
+        pendingLogout.resolve();
+      });
+    });
+  });
+
   it('moves to signingOut on logout', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);

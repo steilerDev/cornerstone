@@ -8,6 +8,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enAuth from '../../i18n/en/auth.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
@@ -117,10 +118,77 @@ describe('SetupPage', () => {
     expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
   });
 
-  it('still renders the form when the setup check itself fails', async () => {
+  it('redirects a signed-in visitor to login too, without showing the form', async () => {
+    mockGetAuthMe.mockResolvedValue({
+      user: { id: 'u' } as never,
+      setupRequired: false,
+      oidcEnabled: false,
+    });
+    renderPage();
+    expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
+    expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
+  });
+
+  it('shows the loading copy, never the form, while the session check is pending', () => {
+    mockGetAuthMe.mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByText(enAuth.setup.loading)).toBeInTheDocument();
+    expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
+  });
+
+  it('shows the retry card, not the form and not a redirect, when the session check fails', async () => {
     mockGetAuthMe.mockRejectedValue(new Error('boom'));
     renderPage();
-    expect(await screen.findByRole('heading', { name: enAuth.setup.title })).toBeInTheDocument();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: enCommon.authGuard.errorHeading }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(enAuth.session.loadError)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: enCommon.authGuard.retry })).toBeInTheDocument();
+    expect(screen.queryByLabelText(enAuth.setup.emailLabel)).not.toBeInTheDocument();
+    expect(screen.queryByText('LOGIN PAGE')).not.toBeInTheDocument();
+  });
+
+  it('shows the translated error in the retry card, never the server text', async () => {
+    mockGetAuthMe.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: enCommon.authGuard.errorHeading }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+  });
+
+  it('Try again re-checks the session and shows the form once setup is required', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    const user = userEvent.setup();
+    renderPage();
+    const retry = await screen.findByRole('button', { name: enCommon.authGuard.retry });
+
+    await user.click(retry);
+
+    expect(await screen.findByLabelText(enAuth.setup.emailLabel)).toBeInTheDocument();
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(2);
+  });
+
+  it('Try again redirects to login when the retry shows setup is already done', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(new Error('boom'));
+    mockGetAuthMe.mockResolvedValueOnce({ user: null, setupRequired: false, oidcEnabled: false });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: enCommon.authGuard.retry }));
+
+    expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
+  });
+
+  it('makes no session check of its own: only the provider calls getAuthMe on mount', async () => {
+    renderPage();
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
   });
 
   it('validates required fields', async () => {

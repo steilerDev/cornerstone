@@ -2,9 +2,10 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Logo } from '../../components/Logo/Logo.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { setup, getAuthMe } from '../../lib/authApi.js';
+import { setup } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../shared/AuthPage.module.css';
@@ -20,7 +21,8 @@ interface FormErrors {
 
 export function SetupPage() {
   const navigate = useNavigate();
-  const { refreshAuth } = useAuth();
+  const { refreshAuth, status, error: sessionError } = useAuth();
+  const { t: tCommon } = useTranslation('common');
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(t('setup.title'), { section: false, house: false });
@@ -31,25 +33,14 @@ export function SetupPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
 
+  // The session check belongs to AuthContext: react to its outcome.
   useEffect(() => {
-    const checkSetupRequired = async () => {
-      try {
-        const response = await getAuthMe();
-        if (!response.setupRequired) {
-          // Setup already complete, redirect to login
-          navigate(routeUrl('login'), { replace: true });
-        }
-      } catch {
-        // If API call fails, allow setup form to render
-      } finally {
-        setIsCheckingSetup(false);
-      }
-    };
-
-    void checkSetupRequired();
-  }, [navigate]);
+    if (status === 'authenticated' || status === 'signedOut') {
+      // Setup already complete, redirect to login
+      navigate(routeUrl('login'), { replace: true });
+    }
+  }, [status, navigate]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -105,7 +96,22 @@ export function SetupPage() {
     }
   };
 
-  if (isCheckingSetup) {
+  if (status === 'error') {
+    return (
+      <div className={sharedStyles.container}>
+        <div className={sharedStyles.card}>
+          <EmptyState
+            messageAs="h1"
+            message={tCommon('authGuard.errorHeading')}
+            description={sessionError ?? undefined}
+            action={{ label: tCommon('authGuard.retry'), onClick: () => void refreshAuth() }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (status !== 'setupRequired') {
     return (
       <div className={sharedStyles.container}>
         <div className={sharedStyles.card}>
