@@ -13,9 +13,9 @@
  * 2.  "Purchases" breadcrumb navigates to /project/household-items
  * 3.  Edit button navigates to /project/household-items/:id/edit
  * 4.  Budget section is visible on the detail page
- * 5.  Documents section heading "Documents" is visible
- * 6.  "+  Add Document" button is disabled when Paperless is not configured
- * 7.  "Not configured" banner is shown in Documents section
+ * 5.  Documents section heading "Documents" is visible (Paperless connected, mocked)
+ * 6.  Paperless off, no links: no Documents section, no Add button, no setup text
+ * 7.  Paperless off, kept links: read-only notice (admin gets the Integrations link)
  * 8.  404 / error state for non-existent item ID
  * 9.  Responsive — no horizontal scroll on current viewport
  * 10. Dark mode rendering
@@ -25,6 +25,12 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { createHouseholdItemViaApi, deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  expectNoDocumentsSection,
+  mockKeptDocumentLinks,
+  mockPaperlessConfigured,
+  openAndSettle,
+} from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Page loads with item name as heading
@@ -177,6 +183,7 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       createdId = await createHouseholdItemViaApi(page, {
         name: `${testPrefix} HI Doc Section Heading`,
       });
+      await mockPaperlessConfigured(page);
 
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
@@ -187,7 +194,7 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
     }
   });
 
-  test('"+ Add Document" button is disabled when Paperless is not configured', async ({
+  test('With Paperless off and no links the section, the Add button and the setup text are absent', async ({
     page,
     testPrefix,
   }) => {
@@ -195,21 +202,20 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
 
     try {
       createdId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Doc Add Btn Test`,
+        name: `${testPrefix} HI Doc Absent`,
       });
 
       const detailPage = new HouseholdItemDetailPage(page);
-      await detailPage.goto(createdId);
+      await openAndSettle(page, () => detailPage.goto(createdId as string));
 
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeVisible({ timeout: 10000 });
-      await expect(addDocButton).toBeDisabled();
+      await expect(detailPage.heading).toBeVisible();
+      await expectNoDocumentsSection(page);
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 
-  test('"Not configured" banner is shown in Documents section on HI detail', async ({
+  test('With Paperless off and kept links a read-only notice replaces the Add button', async ({
     page,
     testPrefix,
   }) => {
@@ -217,14 +223,20 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
 
     try {
       createdId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Doc Not Configured`,
+        name: `${testPrefix} HI Doc Kept`,
       });
+      await mockKeptDocumentLinks(page, 'household_item', createdId, 1);
 
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
 
-      const notConfiguredText = page.getByText('Paperless-ngx is not configured');
-      await expect(notConfiguredText).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('documents-paperless-off')).toContainText(
+        'Paperless is not connected. 1 link is kept.',
+      );
+      await expect(page.getByTestId('documents-integrations-link')).toBeVisible();
+      await expect(page.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
+        0,
+      );
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -240,6 +252,7 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       createdId = await createHouseholdItemViaApi(page, {
         name: `${testPrefix} HI Doc A11y Title`,
       });
+      await mockPaperlessConfigured(page);
 
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
@@ -339,6 +352,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       createdId = await createHouseholdItemViaApi(page, {
         name: `${testPrefix} HI Doc Dark Mode`,
       });
+      await mockPaperlessConfigured(page);
 
       await page.goto(`/project/household-items/${createdId}`);
       await page.evaluate(() => {
@@ -352,7 +366,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
 
       const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
       await expect(addDocButton).toBeVisible();
-      await expect(addDocButton).toBeDisabled();
+      await expect(addDocButton).toBeEnabled();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }

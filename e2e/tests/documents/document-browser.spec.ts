@@ -15,7 +15,9 @@
  * 3.  Paperless configured + reachable: tag filter strip renders tags
  * 4.  Paperless configured + reachable: empty search shows "no documents match"
  * 5.  Paperless configured but unreachable: error state with retry button
- * 6.  Paperless not configured: "Not Configured" info state
+ * 6.  Paperless not connected (status turns off after the section loaded): the browser says
+ *     "Paperless is not connected", names no environment variable and, for an admin, links to
+ *     Settings > Integrations > Paperless
  * 7.  Document detail panel opens when a card is clicked
  * 8.  Responsive: document browser renders without horizontal scroll
  *
@@ -34,6 +36,7 @@ import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHe
 import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
 import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
+import { ROUTES } from '../../fixtures/testData.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -388,6 +391,69 @@ test.describe(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6: Paperless not connected — info state without setup instructions (#2217)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Document Browser — not connected (Scenario 6)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test('The browser names no environment variable and links admins to Integrations', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser Not Connected Test`,
+      });
+
+      // The section sees a configured Paperless (so Add Document opens the picker); the browser
+      // then asks again and finds it switched off.
+      let calls = 0;
+      await page.route('**/api/paperless/status', async (route: Route) => {
+        calls += 1;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            calls === 1
+              ? MOCK_STATUS_CONFIGURED
+              : {
+                  configured: false,
+                  reachable: false,
+                  error: null,
+                  paperlessUrl: null,
+                  filterTag: null,
+                },
+          ),
+        });
+      });
+
+      await page.goto(`/project/work-items/${createdId}`);
+      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
+      await expect(addDocButton).toBeEnabled();
+      await addDocButton.click();
+
+      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+      await expect(pickerModal.getByText('Paperless is not connected')).toBeVisible();
+      await expect(
+        pickerModal.getByText('Documents come from Paperless, which is not connected right now.'),
+      ).toBeVisible();
+      await expect(pickerModal.getByText(/PAPERLESS_URL|PAPERLESS_API_TOKEN|restart/i)).toHaveCount(
+        0,
+      );
+      await expect(pickerModal.getByTestId('document-browser-integrations-link')).toHaveAttribute(
+        'href',
+        `${ROUTES.integrations}#paperless`,
+      );
+    } finally {
+      await cleanupPaperlessMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Responsive — no horizontal scroll

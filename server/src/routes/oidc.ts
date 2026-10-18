@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { requestOrigin } from '../services/publicAddress.js';
 import { routeUrl, safeAppPath, type OidcLoginErrorCode } from '@cornerstone/shared';
 import {
   AppError,
@@ -44,16 +45,16 @@ export const OIDC_CALLBACK_PATH = '/api/auth/oidc/callback';
  * the authorization request and the token exchange must send the identical value.
  *
  * @param externalUrl - Configured EXTERNAL_URL, if any
- * @param requestOrigin - Origin derived from the incoming request (protocol://host)
+ * @param origin - Origin derived from the incoming request (protocol://host)
  * @returns The callback URL (without query string)
  */
-export function buildOidcRedirectUri(externalUrl: string | undefined, requestOrigin: string): URL {
-  return new URL(`${externalUrl || requestOrigin}${OIDC_CALLBACK_PATH}`);
+export function buildOidcRedirectUri(externalUrl: string | undefined, origin: string): URL {
+  return new URL(`${externalUrl || origin}${OIDC_CALLBACK_PATH}`);
 }
 
 export default async function oidcRoutes(fastify: FastifyInstance) {
   const redirectUriFor = (request: FastifyRequest): URL =>
-    buildOidcRedirectUri(fastify.config.externalUrl, `${request.protocol}://${request.host}`);
+    buildOidcRedirectUri(fastify.config.externalUrl, requestOrigin(request));
 
   /**
    * GET /api/auth/oidc/login

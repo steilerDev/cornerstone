@@ -181,6 +181,30 @@ const expanded = rows.flatMap(([theme, fg, bg, min]) =>
   ),
 );
 
+/**
+ * Settings > Integrations (#2217, UX section 8): card text on the secondary surface (names,
+ * purposes, facts, env names), muted hints, and the primary-coloured links on the page surface.
+ * The same pairs sit in `rows` for other stories; they are named here so this page keeps its
+ * own guard if those rows change.
+ */
+const integrationsRows: Row[] = [
+  ['both', '--color-text-primary', '--color-bg-secondary', 4.5],
+  ['both', '--color-text-muted', '--color-bg-secondary', 4.5],
+  ['both', '--color-primary', '--color-bg-primary', 4.5],
+];
+
+describe('Integrations page token contrast (#2217)', () => {
+  const pairs = integrationsRows.flatMap(([theme, fg, bg, min]) =>
+    (theme === 'both' ? (['light', 'dark'] as const) : [theme]).map(
+      (t) => [t, fg, bg, min] as [Theme, string, string, number],
+    ),
+  );
+
+  it.each(pairs)('%s: %s on %s is at least %s:1', (theme, fg, bg, min) => {
+    expect(tokenRatio(theme, fg, bg)).toBeGreaterThanOrEqual(min);
+  });
+});
+
 describe('design token contrast (D-26)', () => {
   it.each(expanded)('%s: %s on %s is at least %s:1', (theme, fg, bg, min) => {
     expect(tokenRatio(theme, fg, bg)).toBeGreaterThanOrEqual(min);

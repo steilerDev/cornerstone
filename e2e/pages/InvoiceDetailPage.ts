@@ -610,7 +610,8 @@ export class InvoiceDetailPage {
   readonly convertAiRetry: Locator;
   readonly convertAiSuccess: Locator;
   readonly convertAiMismatch: Locator;
-  readonly convertPaperlessUnavailable: Locator;
+  /** The "Source document" section; only rendered while Paperless is connected (#2217). */
+  readonly convertSourceSection: Locator;
   readonly convertLinesEmpty: Locator;
   /** The convert modal dialog (only present while the form view is open). */
   readonly convertDialog: Locator;
@@ -913,7 +914,7 @@ export class InvoiceDetailPage {
     this.convertAiRetry = page.getByTestId('convert-ai-retry');
     this.convertAiSuccess = page.getByTestId('convert-ai-success');
     this.convertAiMismatch = page.getByTestId('convert-ai-mismatch');
-    this.convertPaperlessUnavailable = page.getByTestId('convert-paperless-unavailable');
+    this.convertSourceSection = page.getByTestId('convert-source-section');
     this.convertLinesEmpty = page.getByTestId('convert-lines-empty');
     this.convertDialog = page
       .getByRole('dialog')

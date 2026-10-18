@@ -52,4 +52,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Project setup specs](project-setup-specs.md) — suppressed in-use details, page-served query maps = interim 'page', routeUrl on planned ids, `to` in arrays, glossary-noun templates
 - [Search service specs](search-service-specs.md) — fold fn on every connection, fold-then-escape, Paperless timeout helper, no UI words from server, planned-route interim mapper, phone literals vs scan
 - [Server-search picker specs](server-search-picker-specs.md) — capped-list → SearchPicker: focus-to-body on select, entity filter vs portaled listbox, enum vs eq, baseline sim
+- [Integrations page specs](integrations-page-specs.md) — statusVocabulary leaves = glossary terms, new components/ dir = baseline rise, NavAnchor uncounted, admin-only fields on member screens, userinfo in URLs
 - [Auth gate specs](auth-gate-specs.md) — /auth/me never 401s; only 401 or user:null signs out; no catch-alls; refresh keeps user; fail-closed; abort E2E recipe

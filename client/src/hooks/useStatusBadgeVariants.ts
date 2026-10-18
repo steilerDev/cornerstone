@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  buildBackupRunVariants,
+  buildIntegrationStatusVariants,
   buildDefectStatusVariants,
   buildFundingSourceStatusVariants,
   buildGrantStatusVariants,
@@ -18,6 +20,8 @@ export function useStatusBadgeVariants() {
   const { t } = useTranslation('common');
   return useMemo(
     () => ({
+      integration: buildIntegrationStatusVariants(t),
+      backupRun: buildBackupRunVariants(t),
       invoice: buildInvoiceStatusVariants(t),
       progressPayment: buildProgressPaymentStatusVariants(t),
       task: buildTaskStatusVariants(t),

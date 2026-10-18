@@ -389,6 +389,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       { name: 'Account', path: () => ROUTES.profile, h1: 'Account' },
       { name: 'Users', path: () => ROUTES.userManagement, h1: 'Users' },
       { name: 'Backups', path: () => ROUTES.backups, h1: 'Backups' },
+      { name: 'Integrations', path: () => ROUTES.integrations, h1: 'Integrations' },
     ] as const;
 
     for (const c of SETTINGS_CASES) {

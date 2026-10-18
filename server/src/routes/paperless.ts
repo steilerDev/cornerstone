@@ -15,6 +15,7 @@
 import type { FastifyInstance } from 'fastify';
 import { AppError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as paperlessService from '../services/paperlessService.js';
+import { publicUrlWithoutCredentials } from '../services/publicAddress.js';
 import type { PaperlessDocumentListQuery } from '@cornerstone/shared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -129,7 +130,9 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
     );
     return reply.status(200).send({
       ...status,
-      paperlessUrl: fastify.config.paperlessExternalUrl ?? fastify.config.paperlessUrl ?? null,
+      paperlessUrl: publicUrlWithoutCredentials(
+        fastify.config.paperlessExternalUrl ?? fastify.config.paperlessUrl,
+      ),
     });
   });
 

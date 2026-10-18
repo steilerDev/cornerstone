@@ -56,6 +56,7 @@ import type { Page, Route } from '@playwright/test';
 import type { ExtractedLine } from '@cornerstone/shared';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import { mockPaperlessConfigured } from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers (mirrors existing invoice E2E patterns)
@@ -229,6 +230,9 @@ async function mockDocumentLinks(
   invoiceId: string,
   docs: { linkId: string; docId: number; title: string }[],
 ): Promise<void> {
+  // With Paperless off (#2217) kept links are read-only: no Itemize, no Details. These links
+  // carry documents, so Paperless is connected for the page too.
+  await mockPaperlessConfigured(page);
   await page.route(
     (url) =>
       url.pathname.endsWith('/api/document-links') &&

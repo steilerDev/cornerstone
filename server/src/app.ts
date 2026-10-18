@@ -9,6 +9,7 @@ import fastifyCookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import { sql } from 'drizzle-orm';
 import type { ApiErrorResponse } from '@cornerstone/shared';
+import { MULTIPART_FILE_SIZE_CAP_MB } from './constants.js';
 import configPlugin from './plugins/config.js';
 import dbPlugin from './plugins/db.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
@@ -98,7 +99,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Multipart form data parsing (for file uploads)
   await app.register(multipart, {
     limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB hard cap; actual limit enforced per config in route
+      fileSize: MULTIPART_FILE_SIZE_CAP_MB * 1024 * 1024, // hard cap; effective photo limit is min(config, cap)
     },
   });
 

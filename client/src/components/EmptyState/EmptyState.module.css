@@ -30,6 +30,12 @@
   color: var(--color-text-primary);
 }
 
+.messageHeading:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
 .description {
   margin: 0;
   font-size: var(--font-size-xs);

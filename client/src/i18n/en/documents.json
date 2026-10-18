@@ -2,8 +2,8 @@
   "browser": {
     "title": "Document Browser",
     "checkingConnection": "Checking Paperless-ngx connection...",
-    "notConfigured": "Paperless-ngx Not Configured",
-    "notConfiguredMessage": "To use the document browser, configure your Paperless-ngx integration by setting the PAPERLESS_URL and PAPERLESS_API_TOKEN environment variables and restarting Cornerstone.",
+    "notConfigured": "Paperless is not connected",
+    "notConfiguredMessage": "Documents come from Paperless, which is not connected right now.",
     "unreachable": "Paperless-ngx Unreachable",
     "unreachableMessage": "Unable to connect to your Paperless-ngx instance. Please check your configuration and ensure Paperless-ngx is running.",
     "tryAgain": "Try Again",
@@ -45,8 +45,6 @@
     "noDocumentsLinked": "No documents linked yet",
     "documentCount": "{{count}} documents linked",
     "linkedDocumentsLabel": "Linked documents",
-    "paperlessNotConfigured": "Paperless-ngx is not configured",
-    "configureMessage": "Set PAPERLESS_URL and PAPERLESS_API_TOKEN environment variables and restart Cornerstone to enable document linking.",
     "retry": "Retry",
     "dismiss": "Dismiss",
     "documentLinked": "Document linked: {{title}}",
@@ -75,7 +73,9 @@
     "subsidyProgramEmpty": "Link application forms, approval letters, and related documents from Paperless-ngx to keep everything in one place.",
     "attachmentTypeLabel": "Document Type (optional)",
     "attachmentTypeChanged": "{{title}} tagged as {{type}}",
-    "failedToUpdateAttachmentType": "Failed to update document type. Please try again."
+    "failedToUpdateAttachmentType": "Failed to update document type. Please try again.",
+    "paperlessOff_one": "Paperless is not connected. {{count}} link is kept.",
+    "paperlessOff_other": "Paperless is not connected. {{count}} links are kept."
   },
   "documentCard": {
     "documentLabel": "Document: {{title}}{{date}}",

@@ -8,7 +8,8 @@
  * 4. Delete backup confirmation modal — cancel closes without deleting; delete removes row
  * 5. Restore confirmation modal shows warning text; cancel closes modal
  * 6. Scheduler status section (Issue #1804):
- *    6a. Real (unmocked) environment shows Disabled state with hint (no BACKUP_CADENCE configured)
+ *    6a. Real (unmocked) environment shows the Off chip with the off hint and the admin
+ *        Integrations link (no backup schedule configured)
  *    6b. Mocked enabled + successful last run + two next runs
  *    6c. Mocked enabled + failed last run shows Failed badge
  *    6d. Mocked enabled + lastRun null shows "no runs yet" message
@@ -21,7 +22,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BackupsPage } from '../../pages/BackupsPage.js';
-import { API } from '../../fixtures/testData.js';
+import { API, ROUTES } from '../../fixtures/testData.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared mock backup data
@@ -346,7 +347,7 @@ test.describe('Backups page — mocked API responses', () => {
 test.describe('Backups page — scheduler status section', () => {
   // ─── 6a: Real (unmocked) default environment ──────────────────────────────
 
-  test('Scheduler section shows Disabled state by default (no BACKUP_CADENCE configured)', async ({
+  test('Scheduler section shows the Off state by default (no backup schedule configured)', async ({
     page,
   }) => {
     // No mock — exercises the real GET /api/backups/scheduler-status endpoint against
@@ -357,8 +358,12 @@ test.describe('Backups page — scheduler status section', () => {
     await backupsPage.waitForSchedulerLoaded();
 
     await expect(backupsPage.schedulerHeading).toBeVisible();
-    await expect(backupsPage.schedulerStatusValue).toContainText('Disabled');
-    await expect(backupsPage.schedulerDisabledHint).toBeVisible();
+    await expect(backupsPage.schedulerStatusValue).toContainText('Off');
+    await expect(backupsPage.schedulerDisabledHint).toContainText('Automatic backups are off.');
+    await expect(backupsPage.schedulerIntegrationsLink).toHaveAttribute(
+      'href',
+      `${ROUTES.integrations}#automatic-backups`,
+    );
 
     // The last-run/next-run rows only render when enabled — must not be present
     await expect(backupsPage.schedulerLastRunValue).not.toBeVisible();
@@ -380,7 +385,7 @@ test.describe('Backups page — scheduler status section', () => {
     await backupsPage.goto();
     await backupsPage.waitForSchedulerLoaded();
 
-    await expect(backupsPage.schedulerStatusValue).toContainText('Enabled');
+    await expect(backupsPage.schedulerStatusValue).toContainText('On');
     await expect(backupsPage.schedulerDisabledHint).not.toBeVisible();
 
     // Last run row: succeeded badge + formatted timestamp (assert the year rather than

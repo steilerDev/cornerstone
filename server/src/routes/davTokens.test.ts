@@ -106,6 +106,59 @@ describe('DAV Token Routes', () => {
       expect(body.hasToken).toBe(false);
     });
 
+    it('includes davUrl built from the request origin when EXTERNAL_URL is unset (Story #2217)', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/dav/token',
+        headers: { cookie, host: 'house.example.test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ davUrl: string }>().davUrl).toBe('http://house.example.test/dav/');
+    });
+
+    it('includes davUrl from EXTERNAL_URL without credentials, query or hash', async () => {
+      await app.close();
+      process.env.EXTERNAL_URL = 'https://u5:p5@house.example.test/cs?q=1#h';
+      app = await buildApp();
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/dav/token',
+        headers: { cookie, host: 'internal.local:3000' },
+      });
+
+      expect(response.json<{ davUrl: string }>().davUrl).toBe('https://house.example.test/cs/dav/');
+      for (const leak of ['u5', 'p5', '?q=1', '#h', 'internal.local']) {
+        expect(response.body).not.toContain(leak);
+      }
+    });
+
+    it('includes davUrl whether or not a token exists, and never returns the token', async () => {
+      const { cookie } = await createUserWithSession();
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/users/me/dav/token',
+        headers: { cookie },
+      });
+      const { token } = created.json<{ token: string }>();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/dav/token',
+        headers: { cookie },
+      });
+
+      const body = response.json<Record<string, unknown>>();
+      expect(body.hasToken).toBe(true);
+      expect(typeof body.davUrl).toBe('string');
+      expect(Object.keys(body).sort()).toEqual(['createdAt', 'davUrl', 'hasToken']);
+      expect(response.body).not.toContain(token);
+    });
+
     it('returns 401 without session', async () => {
       const response = await app.inject({
         method: 'GET',

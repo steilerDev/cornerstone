@@ -337,16 +337,12 @@
       "heading": "Automatic Backup Schedule",
       "loading": "Loading scheduler status…",
       "statusLabel": "Automatic backups",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "disabledHint": "Set the BACKUP_CADENCE environment variable to enable automatic backups.",
       "lastRunLabel": "Last scheduled run",
-      "lastRunSuccess": "Succeeded",
-      "lastRunFailure": "Failed",
       "noRunsYet": "No automatic backups have run yet",
       "nextRunLabel": "Next scheduled run",
       "thenLabel": "then",
-      "loadError": "Failed to load scheduler status. Please try again."
+      "loadError": "Failed to load scheduler status. Please try again.",
+      "off": "Automatic backups are off."
     }
   },
   "vendors": {
@@ -428,6 +424,114 @@
       "confirm": "Delete",
       "busy": "Deleting…",
       "done": "{{name}} deleted"
+    }
+  },
+  "integrations": {
+    "intro": "This page shows how Cornerstone is connected. You can't change these settings here: they are set when Cornerstone starts. To change one, edit its environment variable and restart Cornerstone.",
+    "loading": "Loading {{name}}",
+    "yes": "Yes",
+    "no": "No",
+    "setup": {
+      "heading": "How to set it up",
+      "required": "Required",
+      "optional": "Optional",
+      "noServerSetup": "No setup needed on the server."
+    },
+    "docs": {
+      "link": "Read the setup guide",
+      "linkLabel": "Read the setup guide for {{name}} (opens in a new tab)"
+    },
+    "loadError": {
+      "heading": "Couldn't load the integrations",
+      "retry": "Try again",
+      "retrying": "Trying again…",
+      "retryFailed": "Still not working. Try again in a moment."
+    },
+    "paperless": {
+      "title": "Paperless",
+      "purpose": "Link invoices and other records to documents stored in Paperless.",
+      "hint": "Add the address and an access token from Paperless, then restart Cornerstone.",
+      "address": "Address",
+      "filterTag": "Filter tag",
+      "filterTagNone": "None",
+      "checking": "Checking the connection to Paperless",
+      "unreachable": "Cornerstone can't connect to Paperless right now. Linked documents show as numbers until it is back. Check that the address is right and that Paperless is running.",
+      "tagNotFound": "Cornerstone can't find the filter tag “{{tag}}” in Paperless, so no documents are shown until the tag exists.",
+      "recheck": "Check again",
+      "rechecking": "Checking…",
+      "connectedAnnouncement": "Paperless is connected.",
+      "stillUnreachableAnnouncement": "Still can't connect to Paperless."
+    },
+    "ai": {
+      "title": "AI",
+      "purpose": "Reads documents and helps write report text. Reading documents also needs Paperless.",
+      "hint": "Add the address, a key and a model name from your AI provider, then restart Cornerstone.",
+      "provider": "Provider",
+      "providerGeneric": "Other (OpenAI-compatible)",
+      "model": "Model",
+      "address": "Address"
+    },
+    "singleSignOn": {
+      "title": "Single sign-on",
+      "purpose": "Let people sign in with an outside login service instead of a password.",
+      "hint": "Register the redirect address below with your login service, then add its details and restart Cornerstone.",
+      "signInService": "Sign-in service",
+      "newAccounts": "New accounts",
+      "newAccountsJit": "Created at first sign-in",
+      "newAccountsLinkOnly": "Only people who already have an account",
+      "redirectAddress": "Redirect address"
+    },
+    "calendarContacts": {
+      "title": "Calendar & contacts sync",
+      "purpose": "Each person connects a calendar or contacts app with a personal token.",
+      "hint": "Nothing to set up here. Each person creates a token in Account.",
+      "serverAddress": "Server address",
+      "accountLink": "Create your token in Account"
+    },
+    "automaticBackups": {
+      "title": "Automatic backups",
+      "purpose": "Saves a backup of your project on a schedule.",
+      "hint": "Set a schedule to turn automatic backups on, then restart Cornerstone.",
+      "schedule": "Schedule",
+      "invalidSchedule": "This schedule isn't valid, so automatic backups are off.",
+      "keeps": "Keeps",
+      "keepsLatest_one": "The latest backup",
+      "keepsLatest_other": "The latest {{count}} backups",
+      "keepsAll": "All backups",
+      "lastRun": "Last run",
+      "noRunsYet": "No automatic backups have run yet",
+      "nextRun": "Next run",
+      "backupsLink": "Go to Backups"
+    },
+    "history": {
+      "title": "History",
+      "purpose": "Records changes to your project automatically in History.",
+      "hint": "It is on unless you turn it off. To turn it off, set the variable to false and restart Cornerstone."
+    },
+    "money": {
+      "title": "Currency & VAT",
+      "purpose": "Sets the currency and the VAT rate used for amounts.",
+      "hint": "Change the currency or the VAT rate, then restart Cornerstone.",
+      "currency": "Currency",
+      "currencyValue": "{{code}}, for example {{example}}",
+      "vatRate": "VAT rate"
+    },
+    "photos": {
+      "title": "Photo storage",
+      "purpose": "Where photos are kept and how large one photo can be.",
+      "hint": "Change the folder or the size limit, then restart Cornerstone.",
+      "folder": "Folder",
+      "largestPhoto": "Largest photo"
+    },
+    "publicAddress": {
+      "title": "Public address and proxy",
+      "purpose": "The web address people use, and how Cornerstone trusts a proxy in front of it.",
+      "hint": "Set the public address if Cornerstone sits behind a proxy, then restart Cornerstone.",
+      "publicAddress": "Public address",
+      "notSet": "Not set. Cornerstone uses the address in your browser.",
+      "behindProxy": "Behind a proxy",
+      "secureCookies": "Secure cookies",
+      "secureCookiesOn": "Yes, HTTPS only"
     }
   }
 }

@@ -1,5 +1,8 @@
 import fp from 'fastify-plugin';
 import path from 'node:path';
+import { LLM_PROVIDERS } from '@cornerstone/shared';
+import type { IntegrationKey, LlmProvider } from '@cornerstone/shared';
+import { MULTIPART_FILE_SIZE_CAP_MB } from '../constants.js';
 
 // Type-safe configuration interface
 export interface AppConfig {
@@ -49,7 +52,7 @@ export interface AppConfig {
    * via `LLM_PROVIDER`, otherwise auto-detected from `LLM_BASE_URL`, with
    * fallback to `'generic'`. See `services/llmGateway/providerProfiles.ts`.
    */
-  llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
+  llmProvider: LlmProvider;
   autoItemizeEnabled: boolean;
   /** Alias of autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
   llmEnabled: boolean;
@@ -57,6 +60,50 @@ export interface AppConfig {
   authRateLimitMax: number;
   /** Time window for login rate limiting (ms library format, e.g. '15 minutes'). Default: '15 minutes'. */
   authRateLimitWindow: string;
+}
+
+/**
+ * Environment variable names each Settings > Integrations card shows. Every name here must be
+ * read by `getValue('...')` in `loadConfig` below (a test enforces it).
+ */
+export const INTEGRATION_ENV: {
+  readonly [K in IntegrationKey]: {
+    readonly required: readonly string[];
+    readonly optional: readonly string[];
+  };
+} = {
+  paperless: {
+    required: ['PAPERLESS_URL', 'PAPERLESS_API_TOKEN'],
+    optional: ['PAPERLESS_EXTERNAL_URL', 'PAPERLESS_FILTER_TAG'],
+  },
+  // LLM_API_KEY is required: llmEnabled needs all three (also for a local provider).
+  ai: {
+    required: ['LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL'],
+    optional: ['LLM_PROVIDER', 'LLM_REQUEST_TIMEOUT_MS', 'LLM_MAX_TOKENS'],
+  },
+  singleSignOn: {
+    required: ['OIDC_ISSUER', 'OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET'],
+    optional: ['OIDC_JIT_PROVISIONING'],
+  },
+  calendarContacts: { required: [], optional: [] },
+  backups: { required: ['BACKUP_CADENCE'], optional: ['BACKUP_RETENTION', 'BACKUP_DIR'] },
+  diaryEvents: { required: [], optional: ['DIARY_AUTO_EVENTS'] },
+  money: { required: [], optional: ['CURRENCY', 'VAT_RATE'] },
+  photos: { required: [], optional: ['PHOTO_STORAGE_PATH', 'PHOTO_MAX_FILE_SIZE_MB'] },
+  publicAddress: { required: [], optional: ['EXTERNAL_URL', 'TRUST_PROXY', 'SECURE_COOKIES'] },
+};
+
+/** The photo upload limit uploads really enforce: min(setting, multipart cap), in bytes. */
+export function effectivePhotoMaxFileSizeBytes(
+  config: Pick<AppConfig, 'photoMaxFileSizeMb'>,
+): number {
+  return Math.min(config.photoMaxFileSizeMb, MULTIPART_FILE_SIZE_CAP_MB) * 1024 * 1024;
+}
+
+/** Startup warning text when PHOTO_MAX_FILE_SIZE_MB exceeds the multipart cap, else null. */
+export function photoLimitWarning(config: Pick<AppConfig, 'photoMaxFileSizeMb'>): string | null {
+  if (config.photoMaxFileSizeMb <= MULTIPART_FILE_SIZE_CAP_MB) return null;
+  return `PHOTO_MAX_FILE_SIZE_MB=${config.photoMaxFileSizeMb} exceeds the ${MULTIPART_FILE_SIZE_CAP_MB} MB upload cap; photo uploads are limited to ${MULTIPART_FILE_SIZE_CAP_MB} MB`;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -353,13 +400,12 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Resolve LLM provider: explicit env var wins, otherwise auto-detect from URL,
   // fall back to 'generic' when both are unavailable.
   const llmProviderEnv = getValue('LLM_PROVIDER');
-  const validProviders = ['openai', 'anthropic', 'gemini', 'ollama', 'generic'] as const;
-  type ProviderTuple = typeof validProviders;
-  let llmProvider: ProviderTuple[number] = 'generic';
+  const validProviders = LLM_PROVIDERS;
+  let llmProvider: LlmProvider = 'generic';
   if (llmProviderEnv) {
     const normalized = llmProviderEnv.trim().toLowerCase();
     if ((validProviders as readonly string[]).includes(normalized)) {
-      llmProvider = normalized as ProviderTuple[number];
+      llmProvider = normalized as LlmProvider;
     } else {
       errors.push(
         `LLM_PROVIDER must be one of ${validProviders.join(', ')}, got: ${llmProviderEnv}`,
@@ -447,6 +493,9 @@ export default fp(
   async function configPlugin(fastify) {
     // Load and validate configuration
     const config = loadConfig(process.env);
+
+    const photoWarning = photoLimitWarning(config);
+    if (photoWarning) fastify.log.warn(photoWarning);
 
     // Log the configuration (excluding sensitive values like oidcClientSecret, llmApiKey)
     fastify.log.info(

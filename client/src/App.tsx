@@ -79,6 +79,7 @@ const ManagePage = lazy(() => import('./pages/ManagePage/ManagePage.js'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
 const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
+const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage/IntegrationsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
@@ -240,6 +241,10 @@ function RoutedApp() {
                 <Route element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}>
                   <Route path={routePattern('settingsUsers')} element={<UserManagementPage />} />
                   <Route path={routePattern('settingsBackups')} element={<BackupsPage />} />
+                  <Route
+                    path={routePattern('settingsIntegrations')}
+                    element={<IntegrationsPage />}
+                  />
                 </Route>
                 {/* Redirects generated from the shared route map (legacy URLs, section roots) */}
                 {LIVE_REDIRECT_ROUTES.map((r) => (

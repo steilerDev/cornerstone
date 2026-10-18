@@ -2,8 +2,8 @@
   "browser": {
     "title": "Dokumentbrowser",
     "checkingConnection": "Paperless-ngx-Verbindung wird überprüft...",
-    "notConfigured": "Paperless-ngx nicht konfiguriert",
-    "notConfiguredMessage": "Um den Dokumentbrowser zu nutzen, konfiguriere deine Paperless-ngx-Integration, indem du die Umgebungsvariablen PAPERLESS_URL und PAPERLESS_API_TOKEN setzt und Cornerstone neu startest.",
+    "notConfigured": "Paperless ist nicht verbunden",
+    "notConfiguredMessage": "Die Dokumente stammen aus Paperless, das gerade nicht verbunden ist.",
     "unreachable": "Paperless-ngx nicht erreichbar",
     "unreachableMessage": "Es ist keine Verbindung zu deiner Paperless-ngx-Instanz möglich. Überprüfe deine Konfiguration und stelle sicher, dass Paperless-ngx ausgeführt wird.",
     "tryAgain": "Erneut versuchen",
@@ -45,8 +45,6 @@
     "noDocumentsLinked": "Noch keine Dokumente verknüpft",
     "documentCount": "{{count}} Dokumente verknüpft",
     "linkedDocumentsLabel": "Verknüpfte Dokumente",
-    "paperlessNotConfigured": "Paperless-ngx ist nicht konfiguriert",
-    "configureMessage": "Setze die Umgebungsvariablen PAPERLESS_URL und PAPERLESS_API_TOKEN und starte Cornerstone neu, um die Dokumentverknüpfung zu aktivieren.",
     "retry": "Erneut versuchen",
     "dismiss": "Schließen",
     "documentLinked": "Dokument verknüpft: {{title}}",
@@ -75,7 +73,9 @@
     "subsidyProgramEmpty": "Verknüpfe Antragsformulare, Genehmigungsschreiben und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
     "attachmentTypeLabel": "Dokumenttyp (optional)",
     "attachmentTypeChanged": "{{title}} als {{type}} gekennzeichnet",
-    "failedToUpdateAttachmentType": "Dokumenttyp konnte nicht aktualisiert werden. Bitte versuche es erneut."
+    "failedToUpdateAttachmentType": "Dokumenttyp konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+    "paperlessOff_one": "Paperless ist nicht verbunden. {{count}} Verknüpfung bleibt erhalten.",
+    "paperlessOff_other": "Paperless ist nicht verbunden. {{count}} Verknüpfungen bleiben erhalten."
   },
   "documentCard": {
     "documentLabel": "Dokument: {{title}}{{date}}",

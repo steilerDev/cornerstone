@@ -16,7 +16,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { ProfilePage } from '../../pages/ProfilePage.js';
+import { MOCK_DAV_URL, ProfilePage } from '../../pages/ProfilePage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,6 +344,32 @@ test.describe('Calendar & contacts sync — dialogs and focus (mocked token endp
     await expect(profilePage.copyStatus).toBeEmpty();
   });
 
+  test('The server address shown for manual setup is the server davUrl, not the browser origin', async ({
+    page,
+  }) => {
+    const profilePage = new ProfilePage(page);
+    await profilePage.mockTokenEndpoints('e2e-synthetic-token-0004', false, MOCK_DAV_URL);
+
+    await profilePage.goto();
+
+    await expect(profilePage.syncServerUrl).toHaveText(MOCK_DAV_URL);
+    expect(MOCK_DAV_URL).not.toContain(new URL(page.url()).host);
+  });
+
+  test('The real server reports a davUrl ending in /dav/ that the card shows verbatim', async ({
+    page,
+  }) => {
+    const profilePage = new ProfilePage(page);
+    const response = await page.request.get('/api/users/me/dav/token');
+    expect(response.ok()).toBeTruthy();
+    const { davUrl } = (await response.json()) as { davUrl: string };
+    expect(davUrl).toMatch(/^https?:\/\/[^/@]+\/dav\/$/);
+
+    await profilePage.goto();
+
+    await expect(profilePage.syncServerUrl).toHaveText(davUrl);
+  });
+
   test('Busy buttons stay focusable: aria-disabled, never natively disabled', async ({ page }) => {
     const profilePage = new ProfilePage(page);
     // Hold the POST so the busy state can be observed
@@ -364,7 +390,7 @@ test.describe('Calendar & contacts sync — dialogs and focus (mocked token endp
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ hasToken: false }),
+          body: JSON.stringify({ hasToken: false, davUrl: MOCK_DAV_URL }),
         });
       }
     });

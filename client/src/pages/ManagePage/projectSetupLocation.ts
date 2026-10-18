@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isRouteServed } from '@cornerstone/shared';
+import { useSectionHashFocus } from '../../hooks/useSectionHashFocus.js';
 import { navHref } from '../../navigation/navActive.js';
 import { useRealLocationKey } from '../../navigation/realLocation.js';
 
@@ -39,10 +40,6 @@ export function resolveLegacyTab(tab: string | null, areasServed: boolean): Lega
   return { kind: 'drop' };
 }
 
-function isProjectSetupAnchor(value: string): boolean {
-  return PROJECT_SETUP_ANCHORS.some((anchor) => anchor === value);
-}
-
 /**
  * Location behaviour of the Project setup page. A legacy `?tab=x` becomes `#x` by history
  * replace; a section hash moves focus to that section's heading and scrolls it into view (again
@@ -53,7 +50,6 @@ export function useProjectSetupLocation({ settled }: { settled: boolean }): void
   const { pathname, search, hash, key } = useLocation();
   const navigate = useNavigate();
   const realKey = useRealLocationKey();
-  const handledHashRef = useRef<string | null>(null);
 
   useEffect(() => {
     // A dialog route open over this page has a different real location: replacing now would close it.
@@ -73,29 +69,5 @@ export function useProjectSetupLocation({ settled }: { settled: boolean }): void
     }
   }, [realKey, key, pathname, search, hash, navigate]);
 
-  useEffect(() => {
-    const anchor = hash.slice(1);
-    if (!isProjectSetupAnchor(anchor)) {
-      handledHashRef.current = null;
-      return;
-    }
-    // After focusPageHeadingWhenReady's first frame, so this focus wins.
-    const frame = window.requestAnimationFrame(() => {
-      const element =
-        document.getElementById(`${anchor}-heading`) ?? document.getElementById(anchor);
-      if (!element) return;
-      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-      const scroll = () =>
-        element.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
-      if (handledHashRef.current === hash) {
-        // Re-run after the page settled: only re-scroll while the user has not moved on.
-        if (document.activeElement === element) scroll();
-        return;
-      }
-      handledHashRef.current = hash;
-      element.focus({ preventScroll: true });
-      scroll();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [hash, settled]);
+  useSectionHashFocus(PROJECT_SETUP_ANCHORS, settled);
 }

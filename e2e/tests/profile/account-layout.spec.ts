@@ -136,6 +136,9 @@ test.describe('Account page layout', { tag: '@responsive' }, () => {
       await expect(section).toHaveAttribute('aria-labelledby', /.+/);
     }
 
+    // Calendar & contacts sync shows the server's address for manual setup
+    await expect(profilePage.syncServerUrl).toHaveText(/^https?:\/\/[^/@]+\/dav\/$/);
+
     // Profile: facts and the display name field
     await expect(profilePage.profileSection.locator('dt', { hasText: 'Email' })).toBeVisible();
     await expect(profilePage.profileSection.locator('dt', { hasText: 'Role' })).toBeVisible();

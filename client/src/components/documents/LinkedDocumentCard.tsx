@@ -13,11 +13,13 @@ import badgeStyles from '../Badge/Badge.module.css';
 interface LinkedDocumentCardProps {
   link: DocumentLinkWithMetadata;
   paperlessBaseUrl: string | null;
-  onView: (link: DocumentLinkWithMetadata) => void;
-  onUnlink: (link: DocumentLinkWithMetadata) => void;
+  onView?: (link: DocumentLinkWithMetadata) => void;
+  onUnlink?: (link: DocumentLinkWithMetadata) => void;
   onItemize?: (link: DocumentLinkWithMetadata) => void;
   onAttachmentTypeChange?: (link: DocumentLinkWithMetadata, type: AttachmentType | null) => void;
   isUpdatingAttachmentType?: boolean;
+  /** Paperless is off: show the link only, with no View, Unlink, Itemize or type control. */
+  readOnly?: boolean;
 }
 
 /** Badge class per attachment type; a Record so a new member is a type error, not a missing badge. */
@@ -35,6 +37,7 @@ export function LinkedDocumentCard({
   onItemize,
   onAttachmentTypeChange,
   isUpdatingAttachmentType,
+  readOnly = false,
 }: LinkedDocumentCardProps) {
   const { t } = useTranslation('documents');
   const [thumbError, setThumbError] = useState(false);
@@ -71,15 +74,17 @@ export function LinkedDocumentCard({
           </div>
         )}
         {/* Overlay unlink button — always rendered (visible on hover/focus/touch) */}
-        <button
-          type="button"
-          className={styles.unlinkOverlayButton}
-          onClick={() => onUnlink(link)}
-          aria-label={`Unlink document: ${title}`}
-          title={t('documentCard.removeLink')}
-        >
-          ✕
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            className={styles.unlinkOverlayButton}
+            onClick={() => onUnlink?.(link)}
+            aria-label={`Unlink document: ${title}`}
+            title={t('documentCard.removeLink')}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <div className={styles.body}>
@@ -87,7 +92,7 @@ export function LinkedDocumentCard({
 
         {created && <p className={styles.meta}>{formatDate(created)}</p>}
 
-        {onAttachmentTypeChange && (
+        {onAttachmentTypeChange && !readOnly && (
           <div className={styles.attachmentTypeRow}>
             {link.attachmentType && (
               <Badge
@@ -131,18 +136,18 @@ export function LinkedDocumentCard({
       </div>
 
       <div className={styles.actions}>
-        {hasDocument && (
+        {hasDocument && !readOnly && (
           <button
             type="button"
             className={styles.viewButton}
-            onClick={() => onView(link)}
+            onClick={() => onView?.(link)}
             aria-label={t('documentCard.detailsAriaLabel', { title })}
           >
             {t('documentCard.details')}
           </button>
         )}
 
-        {hasDocument && onItemize && (
+        {hasDocument && !readOnly && onItemize && (
           <button
             type="button"
             className={styles.itemizeButton}

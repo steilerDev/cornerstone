@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
 import { UnauthorizedError, NotFoundError } from '../errors/AppError.js';
 import * as davTokenService from '../services/davTokenService.js';
+import { buildDavUrl, requestOrigin } from '../services/publicAddress.js';
 
 /**
  * Convert a UUID string to the standard UUID format: 8-4-4-4-12
@@ -143,7 +144,10 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
     }
 
     const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
-    return reply.status(200).send(status);
+    return reply.status(200).send({
+      ...status,
+      davUrl: buildDavUrl(fastify.config.externalUrl, requestOrigin(request)),
+    });
   });
 
   /**

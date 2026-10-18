@@ -1,9 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
-import { loadConfig } from './config.js';
+import {
+  INTEGRATION_ENV,
+  effectivePhotoMaxFileSizeBytes,
+  loadConfig,
+  photoLimitWarning,
+} from './config.js';
+import { MULTIPART_FILE_SIZE_CAP_MB } from '../constants.js';
 import type { FastifyInstance } from 'fastify';
 
 describe('Configuration Module - loadConfig() Pure Function', () => {
@@ -1475,5 +1481,84 @@ describe('Configuration Module - Fastify Plugin Integration', () => {
       await expect(buildApp()).rejects.toThrow('Configuration validation failed');
       await expect(buildApp()).rejects.toThrow('PORT must be in range 0-65535');
     });
+  });
+});
+
+// ─── Story #2217: Settings > Integrations support ────────────────────────────
+
+describe('INTEGRATION_ENV drift guard', () => {
+  const source = readFileSync(new URL('./config.ts', import.meta.url), 'utf8');
+  const names = Object.values(INTEGRATION_ENV).flatMap((card) => [
+    ...card.required,
+    ...card.optional,
+  ]);
+
+  it('lists nine cards', () => {
+    expect(Object.keys(INTEGRATION_ENV).sort()).toEqual([
+      'ai',
+      'backups',
+      'calendarContacts',
+      'diaryEvents',
+      'money',
+      'paperless',
+      'photos',
+      'publicAddress',
+      'singleSignOn',
+    ]);
+  });
+
+  it.each(names)('%s is read by the config parser', (name) => {
+    expect(source).toContain(`getValue('${name}')`);
+  });
+
+  it('names no variable twice', () => {
+    expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('effectivePhotoMaxFileSizeBytes', () => {
+  const MIB = 1024 * 1024;
+
+  it.each([
+    [1, 1 * MIB],
+    [50, 50 * MIB],
+    [51, 50 * MIB],
+    [500, 50 * MIB],
+  ])('for %i MB the effective limit is %i bytes', (mb, bytes) => {
+    expect(effectivePhotoMaxFileSizeBytes({ photoMaxFileSizeMb: mb })).toBe(bytes);
+  });
+
+  it('agrees with the cap constant', () => {
+    expect(MULTIPART_FILE_SIZE_CAP_MB).toBe(50);
+  });
+
+  it('follows the loaded config', () => {
+    expect(effectivePhotoMaxFileSizeBytes(loadConfig({ PHOTO_MAX_FILE_SIZE_MB: '75' }))).toBe(
+      50 * MIB,
+    );
+  });
+});
+
+describe('photoLimitWarning', () => {
+  it.each([1, 20, 50])('is null at %i MB', (mb) => {
+    expect(photoLimitWarning({ photoMaxFileSizeMb: mb })).toBeNull();
+  });
+
+  it('names the setting, the cap and the effective limit above 50', () => {
+    const warning = photoLimitWarning({ photoMaxFileSizeMb: 51 });
+    expect(warning).toContain('PHOTO_MAX_FILE_SIZE_MB=51');
+    expect(warning).toContain('50 MB');
+  });
+});
+
+describe('LLM_PROVIDER validation (shared provider list)', () => {
+  it('still rejects an unknown provider and lists all five', () => {
+    expect(() => loadConfig({ LLM_PROVIDER: 'nope' })).toThrow(
+      'LLM_PROVIDER must be one of openai, anthropic, gemini, ollama, generic, got: nope',
+    );
+  });
+
+  it.each(['openai', 'anthropic', 'gemini', 'ollama', 'generic'])('accepts %s', (provider) => {
+    expect(loadConfig({ LLM_PROVIDER: provider }).llmProvider).toBe(provider);
   });
 });

@@ -15,6 +15,7 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
+import { IntegrationsLink } from '../../navigation/IntegrationsLink.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
@@ -288,6 +289,12 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     [hook, t, tErrors],
   );
 
+  // Nothing until the Paperless status is known. With Paperless off, a section with no links has
+  // nothing to show (no heading, no disabled button, no setup text).
+  const paperlessOff = paperlessStatus !== null && !paperlessStatus.configured;
+  if (paperlessStatus === null) return null;
+  if (paperlessOff && (hook.isLoading || (!hook.error && hook.links.length === 0))) return null;
+
   return (
     <section aria-labelledby="documents-section-title" className={styles.section}>
       <div className={styles.sectionHeader}>
@@ -302,22 +309,21 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             </span>
           )}
         </h2>
-        <button
-          type="button"
-          ref={addButtonRef}
-          className={styles.addButton}
-          disabled={!paperlessStatus?.configured || hook.isLoading}
-          onClick={() => {
-            setPendingAttachmentType(null);
-            setShowPicker(true);
-            setLinkError(null);
-          }}
-          title={
-            !paperlessStatus?.configured ? t('linkedDocuments.paperlessNotConfigured') : undefined
-          }
-        >
-          {t('linkedDocuments.addDocumentButton')}
-        </button>
+        {!paperlessOff && (
+          <button
+            type="button"
+            ref={addButtonRef}
+            className={styles.addButton}
+            disabled={hook.isLoading}
+            onClick={() => {
+              setPendingAttachmentType(null);
+              setShowPicker(true);
+              setLinkError(null);
+            }}
+          >
+            {t('linkedDocuments.addDocumentButton')}
+          </button>
+        )}
       </div>
 
       {/* Live region for screen reader announcements */}
@@ -357,17 +363,12 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         </div>
       )}
 
-      {/* Not configured state */}
-      {paperlessStatus && !paperlessStatus.configured && !hook.isLoading && !hook.error && (
-        <div className={styles.notConfiguredBanner}>
-          <span className={styles.notConfiguredIcon}>ℹ️</span>
-          <div>
-            <p className={styles.notConfiguredTitle}>
-              {t('linkedDocuments.paperlessNotConfigured')}
-            </p>
-            <p className={styles.notConfiguredBody}>{t('linkedDocuments.configureMessage')}</p>
-          </div>
-        </div>
+      {/* Paperless off, links kept: read-only notice */}
+      {paperlessOff && !hook.isLoading && !hook.error && (
+        <p className={styles.notConfiguredBody} data-testid="documents-paperless-off">
+          {t('linkedDocuments.paperlessOff', { count: hook.links.length })}{' '}
+          <IntegrationsLink anchor="paperless" testId="documents-integrations-link" />
+        </p>
       )}
 
       {/* Empty state */}
@@ -413,6 +414,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                   entityType === 'invoice' ? handleAttachmentTypeChange : undefined
                 }
                 isUpdatingAttachmentType={updatingAttachmentTypeId === link.id}
+                readOnly={paperlessOff}
               />
             </div>
           ))}

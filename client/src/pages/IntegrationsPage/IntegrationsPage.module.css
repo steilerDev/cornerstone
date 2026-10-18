@@ -1,0 +1,186 @@
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-width: 40rem;
+}
+
+.intro {
+  margin: 0 0 var(--spacing-6);
+  max-width: 40rem;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.card {
+  composes: card from '../../styles/shared.module.css';
+  scroll-margin-top: calc(var(--topbar-height) + var(--spacing-4));
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2) var(--spacing-3);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  scroll-margin-top: calc(var(--topbar-height) + var(--spacing-4));
+}
+
+.cardTitle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.purpose {
+  margin: var(--spacing-2) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.notice {
+  composes: bannerWarning from '../../styles/shared.module.css';
+  margin-top: var(--spacing-4);
+}
+
+.noticeText {
+  margin: 0;
+}
+
+.recheckButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  margin-top: var(--spacing-3);
+}
+
+.facts {
+  composes: factList from '../../styles/shared.module.css';
+  margin-top: var(--spacing-4);
+}
+
+.factRow {
+  composes: factRow from '../../styles/shared.module.css';
+}
+
+.factLabel {
+  composes: factLabel from '../../styles/shared.module.css';
+}
+
+.factValue {
+  composes: factValue from '../../styles/shared.module.css';
+}
+
+.setup {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+}
+
+.setupTitle {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.hint {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.envGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin: 0 0 var(--spacing-3);
+}
+
+.envGroupLabel {
+  margin-bottom: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.envGroupValue {
+  margin: 0;
+}
+
+.envList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.envName,
+.codeValue {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.docsLink,
+.pointer {
+  display: inline-block;
+  margin-top: var(--spacing-3);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+.docsLink:hover,
+.pointer:hover {
+  text-decoration: underline;
+}
+
+.docsLink:focus-visible,
+.pointer:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 767px) {
+  .card {
+    padding: var(--spacing-4);
+  }
+
+  .docsLink,
+  .pointer {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .recheckButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (pointer: coarse) {
+  .docsLink,
+  .pointer {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .recheckButton {
+    min-height: var(--touch-target-min);
+  }
+}

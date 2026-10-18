@@ -582,6 +582,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       ]);
       await expect(appShell.viewLink('settingsUsers')).toHaveCount(0);
       await expect(appShell.viewLink('settingsBackups')).toHaveCount(0);
+      await expect(appShell.viewLink('settingsIntegrations')).toHaveCount(0);
     });
 
     test('S8: nothing sits under the bottom bar when scrolled to the bottom', async ({ page }) => {

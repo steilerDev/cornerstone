@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useHref, useLinkClickHandler } from 'react-router-dom';
 import styles from './EmptyState.module.css';
 
@@ -19,8 +19,10 @@ export interface EmptyStateProps {
   action?: EmptyStateAction;
   /** Additional CSS class */
   className?: string;
-  /** Element for the message: 'p' (default) or 'h1' when the empty state is the whole page. */
-  messageAs?: 'p' | 'h1';
+  /** Element for the message: 'p' (default), 'h1' when the empty state is the whole page, or 'h2'. */
+  messageAs?: 'p' | 'h1' | 'h2';
+  /** Ref to the message element. When set, the message is programmatically focusable. */
+  messageRef?: Ref<HTMLHeadingElement | HTMLParagraphElement>;
 }
 
 /** Real anchor (middle-click works) that navigates in-app on a plain click. */
@@ -41,10 +43,15 @@ export function EmptyState({
   action,
   className,
   messageAs,
+  messageRef,
 }: EmptyStateProps) {
-  const Message = messageAs === 'h1' ? 'h1' : 'p';
+  const Message = messageAs === 'h1' || messageAs === 'h2' ? messageAs : 'p';
   const messageClass =
-    messageAs === 'h1' ? `${styles.message} ${styles.messageHeading}` : styles.message;
+    Message === 'p' ? styles.message : `${styles.message} ${styles.messageHeading}`;
+  const messageProps = {
+    className: messageClass,
+    ...(messageRef ? { ref: messageRef as Ref<HTMLHeadingElement>, tabIndex: -1 } : {}),
+  };
   if (action?.href) {
     return (
       <div className={`${styles.emptyState} ${className || ''}`}>
@@ -54,7 +61,7 @@ export function EmptyState({
           </div>
         )}
 
-        <Message className={messageClass}>{message}</Message>
+        <Message {...messageProps}>{message}</Message>
 
         {description && <p className={styles.description}>{description}</p>}
 
@@ -71,7 +78,7 @@ export function EmptyState({
         </div>
       )}
 
-      <Message className={messageClass}>{message}</Message>
+      <Message {...messageProps}>{message}</Message>
 
       {description && <p className={styles.description}>{description}</p>}
 

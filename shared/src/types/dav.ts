@@ -6,6 +6,8 @@
 export interface DavTokenStatus {
   hasToken: boolean;
   createdAt?: string;
+  /** `${EXTERNAL_URL || request origin}/dav/`, user info removed. */
+  davUrl: string;
 }
 
 export interface DavTokenResponse {

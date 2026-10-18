@@ -28,7 +28,11 @@ let hookState: Partial<UseDavTokenResult> = {};
 
 jest.unstable_mockModule('../../hooks/useDavToken.js', () => ({
   useDavToken: (): UseDavTokenResult => ({
-    status: { hasToken: true, createdAt: '2026-03-01T10:00:00.000Z' },
+    status: {
+      hasToken: true,
+      createdAt: '2026-03-01T10:00:00.000Z',
+      davUrl: 'https://house.example.test/cs/dav/',
+    },
     isLoading: false,
     error: null,
     newToken: null,
@@ -92,7 +96,13 @@ describe('DavAccessCard layout and states (#2214)', () => {
   });
 
   it('labels the section by its h2 and tells the user when there is no token yet', () => {
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     renderCard();
     expect(screen.getByTestId('account-sync')).toHaveAttribute('aria-labelledby', 'calendar-sync');
     expect(heading()).toHaveAttribute('id', 'calendar-sync');
@@ -118,22 +128,54 @@ describe('DavAccessCard layout and states (#2214)', () => {
     expect(link).toHaveAttribute('href', '/api/users/me/dav/profile');
     expect(link).toHaveAttribute('download');
     cleanup();
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     renderCard();
     expect(screen.queryByRole('link', { name: 'Download Apple profile' })).toBeNull();
   });
 
-  it('labels the server URL without a colon and ends it with /dav/', () => {
+  it('labels the server URL without a colon and shows the server-provided davUrl', () => {
     renderCard();
     const label = screen.getByText('Server URL for manual setup');
     expect(label.textContent).not.toMatch(/:\s*$/);
-    expect(screen.getByText(/\/dav\/$/)).toHaveTextContent(`${window.location.origin}/dav/`);
+    expect(screen.getByText(/\/dav\/$/)).toHaveTextContent('https://house.example.test/cs/dav/');
+  });
+
+  it('never shows the browser origin as the server URL (Story #2217)', () => {
+    renderCard();
+    expect(document.body.textContent).not.toContain(`${window.location.origin}/dav/`);
+  });
+
+  it('shows no server URL panel until the status has loaded', () => {
+    hookState = { isLoading: true, status: null };
+    renderCard();
+    expect(screen.queryByText('Server URL for manual setup')).toBeNull();
+    expect(screen.queryByText(/\/dav\/$/)).toBeNull();
+  });
+
+  it('shows the server URL even when no token exists yet', () => {
+    hookState = {
+      status: { hasToken: false, createdAt: undefined, davUrl: 'http://other.example.test/dav/' },
+    };
+    renderCard();
+    expect(screen.getByText('http://other.example.test/dav/')).toBeInTheDocument();
   });
 });
 
 describe('DavAccessCard generate (#2214)', () => {
   it('moves focus to Copy once the new token is shown', async () => {
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     generateIssuesToken();
     renderCard();
     fireEvent.click(screen.getByTestId('account-sync-generate'));
@@ -160,7 +202,13 @@ describe('DavAccessCard generate (#2214)', () => {
   it('keeps focus on Generate and swallows the rejection when generating fails', async () => {
     const unhandled = jest.fn();
     process.on('unhandledRejection', unhandled);
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     mockGenerate.mockRejectedValue(new Error('boom'));
     renderCard();
     const button = screen.getByTestId('account-sync-generate');
@@ -178,7 +226,13 @@ describe('DavAccessCard generate (#2214)', () => {
   });
 
   it('ignores a second Generate click while one is running', async () => {
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     let resolve!: () => void;
     mockGenerate.mockImplementation(() => new Promise<void>((r) => (resolve = r)));
     renderCard();
@@ -340,7 +394,13 @@ describe('DavAccessCard revoke confirmation (#2209, #2214)', () => {
   });
 
   it('without a token the card offers Generate and no Revoke', () => {
-    hookState = { status: { hasToken: false, createdAt: undefined } };
+    hookState = {
+      status: {
+        hasToken: false,
+        createdAt: undefined,
+        davUrl: 'https://house.example.test/cs/dav/',
+      },
+    };
     renderCard();
     expect(screen.queryByRole('button', { name: 'Revoke token' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Generate token' })).toBeInTheDocument();

@@ -8,6 +8,7 @@
  * Auth required: Yes (session cookie) on all endpoints.
  */
 
+import { effectivePhotoMaxFileSizeBytes } from '../plugins/config.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
@@ -231,10 +232,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     }
 
     // Validate file size against config limit
-    const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
+    const maxFileSizeBytes = effectivePhotoMaxFileSizeBytes(fastify.config);
     if (fileBuffer.length > maxFileSizeBytes) {
       throw new PayloadTooLargeError(
-        `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
+        `File size exceeds maximum of ${maxFileSizeBytes / (1024 * 1024)}MB`,
       );
     }
 
@@ -533,10 +534,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
       const webpBuffer = await file.toBuffer();
 
-      const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
+      const maxFileSizeBytes = effectivePhotoMaxFileSizeBytes(fastify.config);
       if (webpBuffer.length > maxFileSizeBytes) {
         throw new PayloadTooLargeError(
-          `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
+          `File size exceeds maximum of ${maxFileSizeBytes / (1024 * 1024)}MB`,
         );
       }
 

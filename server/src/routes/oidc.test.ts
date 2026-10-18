@@ -651,6 +651,25 @@ describe('OIDC Routes', () => {
       expect(leg1).toBe('http://app.local:3000/api/auth/oidc/callback');
       expect(stripped(leg2)).toBe(leg1);
     });
+
+    it('keeps the redirectUri value unchanged by the shared origin helper (Story #2217)', async () => {
+      delete process.env.EXTERNAL_URL;
+      process.env.TRUST_PROXY = 'true';
+      app = await buildApp();
+
+      await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/login',
+        headers: {
+          host: 'internal.local:3000',
+          'x-forwarded-proto': 'https',
+          'x-forwarded-host': 'public.example.test',
+        },
+      });
+
+      const leg1 = (mockBuildAuthorizationUrl.mock.calls[0] as unknown[])[1] as string;
+      expect(leg1).toBe('https://public.example.test/api/auth/oidc/callback');
+    });
   });
 
   describe('buildOidcRedirectUri', () => {
