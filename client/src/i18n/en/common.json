@@ -1,4 +1,10 @@
 {
+  "authGuard": {
+    "errorHeading": "Can't check that you're signed in",
+    "retry": "Try again",
+    "retrying": "Trying again…",
+    "retryFailed": "Still can't reach the server. Try again in a moment."
+  },
   "navigation": {
     "home": "Home",
     "tasks": "Tasks",

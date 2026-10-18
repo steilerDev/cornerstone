@@ -123,6 +123,8 @@ describe('UserManagementPage', () => {
     mockUseAuth.mockReturnValue({
       user: adminUser,
       oidcEnabled: false,
+      status: 'authenticated',
+      setupRequired: false,
       isLoading: false,
       error: null,
       refreshAuth: jest.fn<() => Promise<void>>(),
@@ -957,6 +959,8 @@ describe('UserManagementPage', () => {
       mockUseAuth.mockReturnValue({
         user: adminUser,
         oidcEnabled,
+        status: 'authenticated',
+        setupRequired: false,
         isLoading: false,
         error: null,
         refreshAuth: jest.fn<() => Promise<void>>(),
@@ -1010,6 +1014,8 @@ describe('UserManagementPage', () => {
       mockUseAuth.mockReturnValue({
         user: makeUser({ id: 'm', role: 'member' }),
         oidcEnabled: true,
+        status: 'authenticated',
+        setupRequired: false,
         isLoading: false,
         error: null,
         refreshAuth: jest.fn<() => Promise<void>>(),

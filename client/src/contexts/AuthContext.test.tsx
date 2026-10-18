@@ -9,6 +9,8 @@ import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import enErrors from '../i18n/en/errors.json';
 import enAuth from '../i18n/en/auth.json';
 import enCommon from '../i18n/en/common.json';
+import deCommon from '../i18n/de/common.json';
+import i18n from '../i18n/index.js';
 import type * as AuthApiModule from '../lib/authApi.js';
 import type * as AuthContextModule from './AuthContext.js';
 
@@ -478,5 +480,353 @@ describe('AuthContext', () => {
       );
       expect(navError).toBeDefined();
     });
+  });
+});
+
+describe('AuthContext session status (failed checks never sign the user out)', () => {
+  const USER = {
+    id: 'user-1',
+    email: 'member@example.test',
+    displayName: 'Test Member',
+    role: 'member' as const,
+    authProvider: 'local' as const,
+    oidcLinked: false,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    deactivatedAt: null,
+  };
+  const SIGNED_IN = { user: USER, setupRequired: false, oidcEnabled: false };
+  const SIGNED_OUT = { user: null, setupRequired: false, oidcEnabled: false };
+  type MeResponse = Awaited<ReturnType<typeof AuthApiModule.getAuthMe>>;
+
+  const renderedStatuses: string[] = [];
+  const renderedLoading: boolean[] = [];
+
+  function StatusProbe() {
+    const { status, user, error, setupRequired, isLoading, refreshAuth, logout } = useAuth();
+    renderedStatuses.push(status);
+    renderedLoading.push(isLoading);
+    return (
+      <div>
+        <div data-testid="status">{status}</div>
+        <div data-testid="user">{user ? user.email : 'No user'}</div>
+        <div data-testid="error">{error ?? 'No error'}</div>
+        <div data-testid="setup">{String(setupRequired)}</div>
+        <button onClick={() => void refreshAuth()}>Refresh</button>
+        <button onClick={() => void logout()}>Logout</button>
+      </div>
+    );
+  }
+
+  function renderProbe() {
+    return render(
+      <AuthProvider>
+        <StatusProbe />
+      </AuthProvider>,
+    );
+  }
+
+  function abortError() {
+    return new NetworkError('aborted', new DOMException('aborted', 'AbortError'));
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  async function clickRefresh() {
+    await act(async () => {
+      screen.getByRole('button', { name: 'Refresh' }).click();
+    });
+  }
+
+  async function expectStatus(status: string) {
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent(status));
+  }
+
+  beforeEach(() => {
+    renderedStatuses.length = 0;
+    renderedLoading.length = 0;
+  });
+
+  it('checks the session exactly once at mount, even after a language change re-renders the provider', async () => {
+    mockGetAuthMe.mockResolvedValue(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+
+    try {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+      expect(mockGetAuthMe.mock.calls[0]?.[0]?.signal?.aborted).toBe(false);
+      expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
+  it('uses the current language for the error copy after a language change', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_OUT);
+    await clickRefresh();
+    await expectStatus('signedOut');
+
+    try {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      mockGetAuthMe.mockRejectedValueOnce(abortError());
+      await clickRefresh();
+      await expectStatus('error');
+      expect(screen.getByTestId('error')).toHaveTextContent(deCommon.requestErrors.network);
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
+  it('starts as loading', () => {
+    mockGetAuthMe.mockImplementation(() => new Promise(() => {}));
+    renderProbe();
+    expect(screen.getByTestId('status')).toHaveTextContent('loading');
+  });
+
+  it('reports signedOut with no error when the session check says there is no user', async () => {
+    mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+    renderProbe();
+    await expectStatus('signedOut');
+    expect(screen.getByTestId('error')).toHaveTextContent('No error');
+    expect(screen.getByTestId('setup')).toHaveTextContent('false');
+  });
+
+  it('reports authenticated when a user comes back', async () => {
+    mockGetAuthMe.mockResolvedValue(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+    expect(screen.getByTestId('user')).toHaveTextContent(USER.email);
+  });
+
+  it('reports setupRequired (and the setupRequired flag) on first run', async () => {
+    mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: true, oidcEnabled: false });
+    renderProbe();
+    await expectStatus('setupRequired');
+    expect(screen.getByTestId('setup')).toHaveTextContent('true');
+  });
+
+  it('lets setupRequired win over a user in the same response', async () => {
+    mockGetAuthMe.mockResolvedValue({ user: USER, setupRequired: true, oidcEnabled: false });
+    renderProbe();
+    await expectStatus('setupRequired');
+  });
+
+  it('reports error (not signedOut) with the network copy when the first check is aborted', async () => {
+    mockGetAuthMe.mockRejectedValue(abortError());
+    renderProbe();
+    await expectStatus('error');
+    expect(screen.getByTestId('user')).toHaveTextContent('No user');
+    expect(screen.getByTestId('error')).toHaveTextContent(enCommon.requestErrors.network);
+  });
+
+  it('reports error with the translated copy on a 500, never signedOut', async () => {
+    mockGetAuthMe.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    );
+    renderProbe();
+    await expectStatus('error');
+    expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+  });
+
+  it('reports error with the fallback copy for a non-API failure', async () => {
+    mockGetAuthMe.mockRejectedValue(new Error('RAW-LOCAL'));
+    renderProbe();
+    await expectStatus('error');
+    expect(screen.getByTestId('error')).toHaveTextContent(enAuth.session.loadError);
+  });
+
+  it('reports signedOut without an error when the first check is a real 401', async () => {
+    mockGetAuthMe.mockRejectedValue(
+      new ApiClientError(401, { code: 'UNAUTHORIZED', message: 'nope' }),
+    );
+    renderProbe();
+    await expectStatus('signedOut');
+    expect(screen.getByTestId('error')).toHaveTextContent('No error');
+  });
+
+  it('keeps the user and status when a refresh of a signed-in session fails transiently', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+
+    mockGetAuthMe.mockRejectedValueOnce(abortError());
+    await clickRefresh();
+
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('user')).toHaveTextContent(USER.email);
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('error')).toHaveTextContent('No error');
+  });
+
+  it('keeps the user when a refresh fails with a 500', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+
+    mockGetAuthMe.mockRejectedValueOnce(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+    );
+    await clickRefresh();
+
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('user')).toHaveTextContent(USER.email);
+  });
+
+  it('signs the user out when a refresh is a real 401', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+
+    mockGetAuthMe.mockRejectedValueOnce(
+      new ApiClientError(401, { code: 'UNAUTHORIZED', message: 'nope' }),
+    );
+    await clickRefresh();
+
+    expect(screen.getByTestId('status')).toHaveTextContent('signedOut');
+    expect(screen.getByTestId('user')).toHaveTextContent('No user');
+  });
+
+  it('signs the user out when a refresh resolves with no user', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    renderProbe();
+    await expectStatus('authenticated');
+
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_OUT);
+    await clickRefresh();
+
+    expect(screen.getByTestId('status')).toHaveTextContent('signedOut');
+    expect(screen.getByTestId('user')).toHaveTextContent('No user');
+  });
+
+  it('never returns to loading during a refresh, from error or from authenticated', async () => {
+    mockGetAuthMe.mockRejectedValueOnce(abortError());
+    renderProbe();
+    await expectStatus('error');
+
+    const pending = deferred<MeResponse>();
+    mockGetAuthMe.mockReturnValueOnce(pending.promise);
+    const before = renderedStatuses.length;
+    await clickRefresh();
+    expect(screen.getByTestId('status')).toHaveTextContent('error');
+    await act(async () => {
+      pending.resolve(SIGNED_IN);
+    });
+    await expectStatus('authenticated');
+
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    await clickRefresh();
+
+    expect(renderedStatuses.slice(before)).not.toContain('loading');
+    expect(renderedLoading.slice(before)).not.toContain(true);
+  });
+
+  it('lets the newest check win and aborts the superseded one', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_OUT);
+    renderProbe();
+    await expectStatus('signedOut');
+
+    const first = deferred<MeResponse>();
+    const second = deferred<MeResponse>();
+    mockGetAuthMe.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+    await clickRefresh();
+    await clickRefresh();
+
+    const firstSignal = mockGetAuthMe.mock.calls[1]?.[0]?.signal;
+    const secondSignal = mockGetAuthMe.mock.calls[2]?.[0]?.signal;
+    expect(firstSignal?.aborted).toBe(true);
+    expect(secondSignal?.aborted).toBe(false);
+
+    await act(async () => {
+      second.resolve(SIGNED_IN);
+    });
+    await expectStatus('authenticated');
+
+    // The stale (first) response arrives late and must not overwrite the newer result.
+    await act(async () => {
+      first.resolve(SIGNED_OUT);
+    });
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('user')).toHaveTextContent(USER.email);
+  });
+
+  it('ignores a stale rejection that arrives after a newer success', async () => {
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_OUT);
+    renderProbe();
+    await expectStatus('signedOut');
+
+    const first = deferred<MeResponse>();
+    mockGetAuthMe.mockReturnValueOnce(first.promise).mockResolvedValueOnce(SIGNED_IN);
+    await clickRefresh();
+    await clickRefresh();
+    await expectStatus('authenticated');
+
+    await act(async () => {
+      first.reject(new ApiClientError(401, { code: 'UNAUTHORIZED', message: 'late' }));
+    });
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+  });
+
+  it('aborts the in-flight check on unmount and ignores a later rejection', async () => {
+    const pending = deferred<MeResponse>();
+    mockGetAuthMe.mockReturnValue(pending.promise);
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = renderProbe();
+
+    const signal = mockGetAuthMe.mock.calls[0]?.[0]?.signal;
+    expect(signal).toBeDefined();
+    expect(signal?.aborted).toBe(false);
+
+    unmount();
+    expect(signal?.aborted).toBe(true);
+
+    const rendersAtUnmount = renderedStatuses.length;
+    await act(async () => {
+      pending.reject(abortError());
+    });
+    expect(renderedStatuses.length).toBe(rendersAtUnmount);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('moves to signingOut on logout', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetAuthMe.mockResolvedValueOnce(SIGNED_IN);
+    mockLogout.mockResolvedValue(undefined);
+    renderProbe();
+    await expectStatus('authenticated');
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Logout' }).click();
+    });
+
+    expect(screen.getByTestId('status')).toHaveTextContent('signingOut');
+    expect(screen.getByTestId('user')).toHaveTextContent('No user');
+    consoleError.mockRestore();
   });
 });

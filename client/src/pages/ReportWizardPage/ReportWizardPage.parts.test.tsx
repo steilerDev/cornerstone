@@ -249,6 +249,8 @@ beforeEach(async () => {
   mockUseAuth.mockReturnValue({
     user: null,
     oidcEnabled: false,
+    status: 'signedOut',
+    setupRequired: false,
     isLoading: false,
     error: null,
     refreshAuth: jest.fn(async () => {}),

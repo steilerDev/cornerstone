@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { Logo } from '../../components/Logo/Logo.js';
+import { useAuth } from '../../contexts/AuthContext.js';
 import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -19,6 +20,7 @@ interface FormErrors {
 
 export function SetupPage() {
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(t('setup.title'), { section: false, house: false });
@@ -88,6 +90,8 @@ export function SetupPage() {
 
     try {
       await setup({ email, displayName, password });
+      // Refresh the auth context first: it still says setupRequired until re-checked
+      await refreshAuth();
       // Setup complete, redirect to login
       navigate(routeUrl('login'), { replace: true });
     } catch (error) {

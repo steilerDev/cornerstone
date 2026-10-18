@@ -10,6 +10,7 @@ import enErrors from '../../i18n/en/errors.json';
 import enAuth from '../../i18n/en/auth.json';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as SetupPageTypes from './SetupPage.js';
 
 const mockSetup = jest.fn<typeof AuthApiTypes.setup>();
@@ -26,11 +27,13 @@ jest.unstable_mockModule('../../lib/authApi.js', () => ({
 describe('SetupPage', () => {
   let SetupPage: typeof SetupPageTypes.SetupPage;
   let ThemeProvider: typeof ThemeContextTypes.ThemeProvider;
+  let AuthProvider: typeof AuthContextTypes.AuthProvider;
 
   beforeEach(async () => {
     if (!SetupPage) {
       ({ SetupPage } = await import('./SetupPage.js'));
       ({ ThemeProvider } = await import('../../contexts/ThemeContext.js'));
+      ({ AuthProvider } = await import('../../contexts/AuthContext.js'));
     }
     mockSetup.mockReset();
     mockGetAuthMe.mockReset();
@@ -45,10 +48,12 @@ describe('SetupPage', () => {
     return render(
       <MemoryRouter initialEntries={['/setup']}>
         <ThemeProvider>
-          <Routes>
-            <Route path="/setup" element={<SetupPage />} />
-            <Route path="/login" element={<div>LOGIN PAGE</div>} />
-          </Routes>
+          <AuthProvider>
+            <Routes>
+              <Route path="/setup" element={<SetupPage />} />
+              <Route path="/login" element={<div>LOGIN PAGE</div>} />
+            </Routes>
+          </AuthProvider>
         </ThemeProvider>
       </MemoryRouter>,
     );
@@ -151,6 +156,60 @@ describe('SetupPage', () => {
         password: 'a-long-password-123',
       });
     });
+    expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
+  });
+
+  it('refreshes the session after setup succeeds and only then navigates to login', async () => {
+    mockSetup.mockResolvedValue({ user: { id: 'u' } } as never);
+    const user = userEvent.setup();
+    renderPage();
+    await fillForm(user);
+    // Provider mount check + the page's own check have run by now.
+    const callsBefore = mockGetAuthMe.mock.calls.length;
+    let finishRefresh!: () => void;
+    mockGetAuthMe.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = () => resolve({ user: null, setupRequired: false, oidcEnabled: false });
+        }),
+    );
+
+    await user.click(screen.getByRole('button', { name: enAuth.setup.submitButton }));
+
+    await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalledTimes(callsBefore + 1));
+    // The refresh is the call made after setup(), and navigation waits for it.
+    const refreshOrder = mockGetAuthMe.mock.invocationCallOrder.at(-1) ?? 0;
+    expect(mockSetup.mock.invocationCallOrder[0]).toBeLessThan(refreshOrder);
+    expect(screen.queryByText('LOGIN PAGE')).not.toBeInTheDocument();
+
+    finishRefresh();
+    expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
+  });
+
+  it('does not refresh the session when setup fails', async () => {
+    mockSetup.mockRejectedValue(new Error('RAW-LOCAL'));
+    const user = userEvent.setup();
+    renderPage();
+    await fillForm(user);
+    const callsBefore = mockGetAuthMe.mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: enAuth.setup.submitButton }));
+
+    expect(await screen.findByText(enAuth.setup.error)).toBeInTheDocument();
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(callsBefore);
+    expect(screen.queryByText('LOGIN PAGE')).not.toBeInTheDocument();
+  });
+
+  it('still navigates to login when the refresh itself fails, as the context absorbs it', async () => {
+    mockSetup.mockResolvedValue({ user: { id: 'u' } } as never);
+    const user = userEvent.setup();
+    renderPage();
+    await fillForm(user);
+    mockGetAuthMe.mockRejectedValueOnce(new Error('offline'));
+
+    await user.click(screen.getByRole('button', { name: enAuth.setup.submitButton }));
+
+    // loadAuth swallows the failure into AuthContext state, so navigation still proceeds.
     expect(await screen.findByText('LOGIN PAGE')).toBeInTheDocument();
   });
 

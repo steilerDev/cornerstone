@@ -1,4 +1,10 @@
 {
+  "authGuard": {
+    "errorHeading": "Deine Anmeldung kann nicht geprüft werden",
+    "retry": "Erneut versuchen",
+    "retrying": "Wird erneut versucht…",
+    "retryFailed": "Der Server ist weiterhin nicht erreichbar. Versuche es gleich erneut."
+  },
   "navigation": {
     "home": "Start",
     "tasks": "Aufgaben",
