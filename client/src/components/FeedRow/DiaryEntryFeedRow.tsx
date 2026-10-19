@@ -8,7 +8,6 @@ import { useFormatters } from '../../lib/formatters.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { AreaBreadcrumb } from '../AreaBreadcrumb/AreaBreadcrumb.js';
 import { Badge } from '../Badge/Badge.js';
-import badgeStyles from '../Badge/Badge.module.css';
 import { FeedRow } from './FeedRow.js';
 
 export interface DiaryEntryFeedRowProps {
@@ -32,7 +31,7 @@ export function DiaryEntryFeedRow({ entry, as }: DiaryEntryFeedRowProps) {
   const { formatDate, formatDayMonth } = useFormatters();
   const originState = useOriginState();
   const title = useDiaryEntryTitle(entry) ?? '';
-  const { diaryType } = useStatusBadgeVariants();
+  const { diaryType, diaryStatus } = useStatusBadgeVariants();
 
   const isDraft = entry.status === 'draft';
   const metadata = (entry.metadata ?? {}) as DailyLogMetadata & DeliveryMetadata;
@@ -62,11 +61,7 @@ export function DiaryEntryFeedRow({ entry, as }: DiaryEntryFeedRowProps) {
       typeBadge={diaryType[entry.entryType]}
       badges={
         isDraft ? (
-          <Badge
-            variants={{ draft: { label: t('draft.badgeLabel'), className: badgeStyles.draft } }}
-            value="draft"
-            testId={`draft-badge-${entry.id}`}
-          />
+          <Badge variants={diaryStatus} value="draft" testId={`draft-badge-${entry.id}`} />
         ) : null
       }
       title={title}

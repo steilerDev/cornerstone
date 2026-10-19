@@ -222,7 +222,7 @@ test.describe('site_visit outcome badge (Scenario 5)', () => {
       // site_visit metadata wrapper should be visible
       await expect(detailPage.siteVisitMetadata).toBeVisible();
 
-      // Outcome badge with data-testid="outcome-pass" from DiaryOutcomeBadge
+      // Outcome badge with data-testid="outcome-pass" on the diary outcome Badge map (inside Site details)
       await expect(detailPage.outcomeBadge('pass')).toBeVisible();
       await expect(detailPage.outcomeBadge('pass')).toHaveText('Pass');
     } finally {
@@ -278,7 +278,7 @@ test.describe('issue severity badge (Scenario 6)', () => {
       // Issue metadata wrapper should be visible
       await expect(detailPage.issueMetadata).toBeVisible();
 
-      // Severity badge: data-testid="severity-critical" from DiarySeverityBadge
+      // Severity badge: data-testid="severity-critical" on the diary severity Badge map (inside Site details)
       await expect(detailPage.severityBadge('critical')).toBeVisible();
       await expect(detailPage.severityBadge('critical')).toHaveText('Critical');
     } finally {

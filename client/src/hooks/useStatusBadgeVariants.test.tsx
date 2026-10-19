@@ -16,6 +16,7 @@ describe('useStatusBadgeVariants', () => {
       'defect',
       'diaryOutcome',
       'diarySeverity',
+      'diaryStatus',
       'diaryType',
       'fundingSource',
       'grant',
@@ -87,6 +88,7 @@ describe('useStatusBadgeVariants', () => {
         'work_item_status',
       ].sort(),
     );
+    expect(Object.keys(result.current.diaryStatus)).toEqual(['draft']);
     expect(Object.keys(result.current.diaryOutcome).sort()).toEqual([
       'conditional',
       'fail',

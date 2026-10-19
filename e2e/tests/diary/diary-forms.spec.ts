@@ -187,7 +187,7 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
       await capture.saveEntry();
       await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
-      // DiaryMetadataSummary for daily_log renders the weather and the workers count
+      // Site details for daily_log renders the weather and the workers count
       await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.dailyLogMetadata).toBeVisible();
       const metadataText = await detailPage.dailyLogMetadata.textContent();

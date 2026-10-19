@@ -163,7 +163,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 178,
+      "count": 176,
       "values": [
         "% allocated",
         "(refund)",
@@ -185,7 +185,6 @@
         "available funds",
         "available on this invoice",
         "budget",
-        "budget breach",
         "budget breakdown",
         "budget breakdown: no data",
         "budget details",
@@ -328,7 +327,6 @@
         "subsidy programs",
         "subsidy reduction",
         "subsidy savings",
-        "subsidy status",
         "this budget source",
         "this subsidy program",
         "to pay",

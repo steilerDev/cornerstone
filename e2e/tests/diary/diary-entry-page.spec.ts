@@ -2,7 +2,7 @@
  * E2E: the Site diary entry page, re-laid out in #2225 (EPIC-21 P2.6).
  *
  * Order (manual entry): actions bar (Edit, Add photos, "..." menu) -> photos first -> meta line
- * (type badge - date - "by <name>") -> h1 -> text -> Site details -> signatures (only when
+ * (type badge · date · "by <name>") -> h1 -> text -> Site details -> signatures (only when
  * present) -> Areas chips -> "Related to" -> History (collapsed).
  *
  * Scenarios:
@@ -46,7 +46,7 @@ test.describe('Diary entry page (#2225)', { tag: '@responsive' }, () => {
       expect(titleBox).not.toBeNull();
       if (photoBox && titleBox) expect(photoBox.y).toBeLessThan(titleBox.y);
 
-      // The title is the entry's title; the meta line reads "<Type> - <date> - by <name>"
+      // The title is the entry's title; the meta line reads "<Type> · <date> · by <name>"
       await expect(entry.heading).toHaveText(seed.photoNoteTitle);
       await expect(entry.typeBadge).toHaveText('Note');
       await expect(entry.metaLine).toContainText(/by .+/);
@@ -66,7 +66,7 @@ test.describe('Diary entry page (#2225)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('E1b: an entry without a title falls back to "<Type> - <date>"', async ({
+  test('E1b: an entry without a title falls back to "<Type> · <date>"', async ({
     page,
     testPrefix,
   }) => {

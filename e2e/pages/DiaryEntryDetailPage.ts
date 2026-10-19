@@ -7,8 +7,8 @@
  *    (`diary-entry-more`, aria-label "More actions for this entry") holding "Delete"
  *    (`diary-entry-delete`). Signed entries are locked: no Edit / Add photos, only the menu.
  * 2. The card: photos first (PhotoGrid, or the dashed `diary-entry-no-photos` placeholder; a
- *    visually hidden h2 "Photos, n"), then the meta line (type badge `diary-type-badge-<type>` -
- *    date - "by <name>"), the h1 title (fallback "<Type> - <date>"), the text, "Site details"
+ *    visually hidden h2 "Photos, n"), then the meta line (type badge `diary-type-badge-<type>` ·
+ *    date · "by <name>"), the h1 title (fallback "<Type> · <date>"), the text, "Site details"
  *    (`diary-entry-site-details`, a <dl> carrying `daily-log-metadata` / `site-visit-metadata` /
  *    `delivery-metadata` / `issue-metadata`, plus `outcome-*`, `severity-*`, `defect-status`),
  *    signatures (only when present), the Areas chips (`diary-entry-areas`, each
@@ -58,14 +58,14 @@ export class DiaryEntryDetailPage {
   readonly entryDate: Locator;
   readonly entryAuthor: Locator;
 
-  /** The meta line: type badge - date - "by <name>". */
+  /** The meta line: type badge · date · "by <name>". */
   readonly metaLine: Locator;
   readonly typeBadge: Locator;
 
   // Site details (outer container)
   readonly metadataSection: Locator;
 
-  // Type-specific metadata test ids (inner wrappers from DiaryMetadataSummary)
+  // Type-specific metadata test ids (the <dl> inside Site details (SiteDetails))
   readonly dailyLogMetadata: Locator;
   readonly siteVisitMetadata: Locator;
   readonly deliveryMetadata: Locator;

@@ -131,7 +131,7 @@
   padding: var(--spacing-1) var(--spacing-3);
   border-radius: var(--radius-full);
   background-color: var(--color-bg-tertiary);
-  color: var(--color-primary);
+  color: var(--color-primary-hover);
   font-size: var(--font-size-xs);
   text-decoration: none;
 }

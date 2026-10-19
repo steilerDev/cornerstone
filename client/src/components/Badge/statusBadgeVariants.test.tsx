@@ -31,6 +31,7 @@ import {
   buildBackupRunVariants,
   buildDiaryOutcomeVariants,
   buildDiarySeverityVariants,
+  buildDiaryStatusVariants,
   buildDiaryTypeVariants,
   buildUserAccountStatusVariants,
   buildDefectStatusVariants,
@@ -488,6 +489,24 @@ describe('buildDiaryTypeVariants (#2225)', () => {
   it('renders a chip with the label as its text', () => {
     render(<Badge variants={variants} value="delivery" testId="chip" />);
     expect(screen.getByTestId('chip').textContent).toBe('Delivery');
+  });
+});
+
+describe('buildDiaryStatusVariants (#2225)', () => {
+  it('has only a draft chip, labelled "Draft" with the draft class', () => {
+    const variants = buildDiaryStatusVariants(diaryT('en'));
+    expect(Object.keys(variants)).toEqual(['draft']);
+    expect(variants.draft.label).toBe('Draft');
+    expect(variants.draft.className).toBe('draft');
+  });
+
+  it('is translated to German', () => {
+    expect(buildDiaryStatusVariants(diaryT('de')).draft.label).toBe('Entwurf');
+  });
+
+  it('renders as a chip with the label as its text', () => {
+    render(<Badge variants={buildDiaryStatusVariants(diaryT('en'))} value="draft" testId="chip" />);
+    expect(screen.getByTestId('chip').textContent).toBe('Draft');
   });
 });
 

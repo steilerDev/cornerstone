@@ -103,12 +103,15 @@
 }
 
 .entryRow:hover {
-  background-color: var(--color-bg-hover);
+  border-left-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .entryRow {
-    transition: background-color var(--transition-fast);
+    transition:
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
   }
 }
 

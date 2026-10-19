@@ -362,6 +362,13 @@ export function buildDiaryTypeVariants(t: StatusLabelT): Record<DiaryEntryType, 
   return result;
 }
 
+/** Diary entry status chips: a draft is the only one shown on a row. */
+export function buildDiaryStatusVariants(t: StatusLabelT): { draft: BadgeVariant } {
+  return {
+    draft: { label: t('draft.badgeLabel', { ns: 'diary' }), className: badgeStyles.draft! },
+  };
+}
+
 export function buildDiaryOutcomeVariants(
   t: StatusLabelT,
 ): Record<DiaryInspectionOutcome, BadgeVariant> {

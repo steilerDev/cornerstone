@@ -213,6 +213,16 @@ function assertValidEntryDate(value: string): void {
   }
 }
 
+/** Number of photos attached to a diary entry. */
+function countEntryPhotos(db: DbType, id: string): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(photos)
+    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
+    .get();
+  return row?.count ?? 0;
+}
+
 /**
  * Content rule for saved entries (#2220): a title, text or at least one photo.
  * @throws ValidationError otherwise
@@ -1107,11 +1117,7 @@ export function updateDiaryEntry(
   const nextBody = data.body !== undefined ? data.body.trim() : entry.body;
 
   if (entry.status === 'saved') {
-    assertHasContent(
-      nextTitle,
-      nextBody,
-      loadDiaryPhotoExtras(db, [id], new Map()).get(id)?.photoCount ?? 0,
-    );
+    assertHasContent(nextTitle, nextBody, countEntryPhotos(db, id));
   }
 
   // Update entry (created_by is never touched)
@@ -1334,11 +1340,7 @@ export function promoteDiaryEntry(
     });
   }
 
-  assertHasContent(
-    finalTitle,
-    finalBody,
-    loadDiaryPhotoExtras(db, [id], new Map()).get(id)?.photoCount ?? 0,
-  );
+  assertHasContent(finalTitle, finalBody, countEntryPhotos(db, id));
 
   // Validate type-specific required metadata
   const entryType = entry.entryType;

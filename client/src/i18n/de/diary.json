@@ -53,7 +53,7 @@
   },
   "emptyFiltered": {
     "title": "Keine Einträge entsprechen diesen Filtern",
-    "clear": "Filter entfernen"
+    "clear": "Filter zurücksetzen"
   },
   "entryPage": {
     "photosHeading": "Fotos, {{count}}",
