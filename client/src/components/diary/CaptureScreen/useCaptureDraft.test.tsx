@@ -41,11 +41,12 @@ function setup(
   mode: 'new' | 'draft' | 'saved',
   loaded: DiaryEntryDetail | null = null,
   prefillDate: string | null = null,
+  prefillType: 'daily_log' | 'general_note' | 'delivery' | null = null,
 ) {
   const onDraftCreated = jest.fn();
   const announce = jest.fn();
   const view = renderHook(() =>
-    useCaptureDraft({ mode, entry: loaded, prefillDate, onDraftCreated, announce }),
+    useCaptureDraft({ mode, entry: loaded, prefillDate, prefillType, onDraftCreated, announce }),
   );
   return { ...view, onDraftCreated, announce };
 }
@@ -1000,5 +1001,33 @@ describe('useCaptureDraft: discard', () => {
     });
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useCaptureDraft: prefillType (#2222 Log now)', () => {
+  it('starts a new entry with the prefilled type, clean, and writes nothing', async () => {
+    const { result } = setup('new', null, null, 'general_note');
+    await advance(5000);
+
+    expect(result.current.form.entryType).toBe('general_note');
+    expect(result.current.dirty).toBe(false);
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('defaults to a daily log without a prefill type', () => {
+    expect(setup('new', null, null, null).result.current.form.entryType).toBe('daily_log');
+  });
+
+  it('keeps the prefilled date alongside the type', () => {
+    const { result } = setup('new', null, '2026-10-01', 'delivery');
+    expect(result.current.form).toMatchObject({ entryType: 'delivery', entryDate: '2026-10-01' });
+  });
+
+  it('ignores the prefill type when an entry is loaded', () => {
+    const { result } = setup('draft', entry({ entryType: 'daily_log' }), null, 'general_note');
+    expect(result.current.form.entryType).toBe('daily_log');
+    const saved = setup('saved', entry({ entryType: 'issue', status: 'saved' }), null, 'delivery');
+    expect(saved.result.current.form.entryType).toBe('issue');
   });
 });

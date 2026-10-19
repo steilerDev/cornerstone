@@ -758,6 +758,9 @@ describe('AppShell', () => {
           .getAllByRole('link')
           .map((a) => a.getAttribute('data-testid')),
       ).toEqual([
+        'quick-log-photo',
+        'quick-log-note',
+        'quick-log-delivery',
         'create-sheet-diaryEntry',
         'create-sheet-task',
         'create-sheet-purchase',

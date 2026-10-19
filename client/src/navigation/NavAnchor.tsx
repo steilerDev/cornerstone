@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ReactNode, Ref } from 'react';
 import { useHref, useLinkClickHandler } from 'react-router-dom';
 import { isPlainLeftClick } from '../lib/plainClick.js';
 
@@ -16,6 +16,8 @@ export interface NavAnchorProps extends Omit<
    * anchor without a `target`. Modified and middle clicks open elsewhere and leave the page as is.
    */
   readonly onNavigate?: () => void;
+  /** The anchor element (React 19 passes `ref` as a prop). */
+  readonly ref?: Ref<HTMLAnchorElement>;
   readonly children: ReactNode;
 }
 

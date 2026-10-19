@@ -1176,3 +1176,109 @@ describe('useCapturePhotos: summary values', () => {
     expect(result.current.hasMemoryOnlyItems).toBe(false);
   });
 });
+
+describe('useCapturePhotos: cameraKnown and openLiveCamera (#2222)', () => {
+  function setDevices(value: unknown) {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value });
+  }
+
+  describe('cameraKnown', () => {
+    it('is true at once on a coarse pointer, before the device list resolves', () => {
+      media.set('(pointer: coarse)', true);
+      setDevices({ enumerateDevices: () => new Promise(() => {}) });
+      const { result } = setup();
+      expect(result.current.inputs.cameraKnown).toBe(true);
+    });
+
+    it('is false on a fine pointer until the device list resolves', async () => {
+      let resolve!: (value: unknown[]) => void;
+      setDevices({
+        enumerateDevices: () =>
+          new Promise<unknown[]>((res) => {
+            resolve = res;
+          }),
+      });
+      const { result } = setup();
+      expect(result.current.inputs.cameraKnown).toBe(false);
+      await act(async () => {
+        resolve([{ kind: 'videoinput' }]);
+      });
+      expect(result.current.inputs.cameraKnown).toBe(true);
+    });
+
+    it('is true after the device list rejects', async () => {
+      setDevices({ enumerateDevices: () => Promise.reject(new Error('blocked')) });
+      const { result } = setup();
+      await waitFor(() => expect(result.current.inputs.cameraKnown).toBe(true));
+      expect(result.current.inputs.showTakePhotos).toBe(false);
+    });
+
+    it('is true at once without enumerateDevices', () => {
+      setDevices(undefined);
+      expect(setup().result.current.inputs.cameraKnown).toBe(true);
+      setDevices({});
+      expect(setup().result.current.inputs.cameraKnown).toBe(true);
+    });
+  });
+
+  describe('openLiveCamera', () => {
+    it('opens the camera and returns true when supported, not denied and Take photos is shown', () => {
+      media.set('(pointer: coarse)', true);
+      const { result } = setup();
+      let opened = false;
+      act(() => {
+        opened = result.current.inputs.openLiveCamera();
+      });
+      expect(opened).toBe(true);
+      expect(result.current.camera.open).toBe(true);
+    });
+
+    it('opens on a fine pointer once a video input is known', async () => {
+      setDevices({ enumerateDevices: async () => [{ kind: 'videoinput' }] });
+      const { result } = setup();
+      await waitFor(() => expect(result.current.inputs.showTakePhotos).toBe(true));
+      let opened = false;
+      act(() => {
+        opened = result.current.inputs.openLiveCamera();
+      });
+      expect(opened).toBe(true);
+      expect(result.current.camera.open).toBe(true);
+    });
+
+    it('returns false and stays closed when the live camera is unsupported', () => {
+      media.set('(pointer: coarse)', true);
+      mockLiveSupported.mockReturnValue(false);
+      const { result } = setup();
+      let opened = true;
+      act(() => {
+        opened = result.current.inputs.openLiveCamera();
+      });
+      expect(opened).toBe(false);
+      expect(result.current.camera.open).toBe(false);
+    });
+
+    it('returns false and stays closed when the camera was denied this session', () => {
+      media.set('(pointer: coarse)', true);
+      mockCameraDenied.mockReturnValue(true);
+      const { result } = setup();
+      let opened = true;
+      act(() => {
+        opened = result.current.inputs.openLiveCamera();
+      });
+      expect(opened).toBe(false);
+      expect(result.current.camera.open).toBe(false);
+    });
+
+    it('returns false on a fine pointer without a video input', async () => {
+      setDevices({ enumerateDevices: async () => [{ kind: 'audioinput' }] });
+      const { result } = setup();
+      await waitFor(() => expect(result.current.inputs.cameraKnown).toBe(true));
+      let opened = true;
+      act(() => {
+        opened = result.current.inputs.openLiveCamera();
+      });
+      expect(opened).toBe(false);
+      expect(result.current.camera.open).toBe(false);
+    });
+  });
+});

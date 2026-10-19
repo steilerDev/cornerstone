@@ -45,6 +45,8 @@ export interface UseCaptureDraftOptions {
   entry: DiaryEntryDetail | null;
   /** Pre-selected date (`?date=`). */
   prefillDate: string | null;
+  /** Type of a new entry (`?start=`); ignored when an entry is loaded. */
+  prefillType?: ManualDiaryEntryType | null;
   /** Called once when this screen created the draft. */
   onDraftCreated: (id: string) => void;
   /** Text for the status region of the sticky bar. */
@@ -60,9 +62,9 @@ export type TypeSwitchRequest =
   | { kind: 'failed' };
 
 function initialForm(
-  options: Pick<UseCaptureDraftOptions, 'entry' | 'prefillDate'>,
+  options: Pick<UseCaptureDraftOptions, 'entry' | 'prefillDate' | 'prefillType'>,
 ): CaptureFormValues {
-  const { entry, prefillDate } = options;
+  const { entry, prefillDate, prefillType } = options;
   if (entry) {
     const { fields, signatures } = fieldsFromEntry(entry);
     return {
@@ -75,7 +77,7 @@ function initialForm(
     };
   }
   return {
-    entryType: 'daily_log',
+    entryType: prefillType ?? 'daily_log',
     entryDate: prefillDate ?? todayLocalIsoDate(),
     title: '',
     body: '',
@@ -110,6 +112,7 @@ export function useCaptureDraft({
   mode: initialMode,
   entry,
   prefillDate,
+  prefillType,
   onDraftCreated,
   announce,
 }: UseCaptureDraftOptions) {
@@ -117,7 +120,9 @@ export function useCaptureDraft({
   const { t: tErrors } = useTranslation('errors');
   const isSaved = initialMode === 'saved';
 
-  const [form, setForm] = useState<CaptureFormValues>(() => initialForm({ entry, prefillDate }));
+  const [form, setForm] = useState<CaptureFormValues>(() =>
+    initialForm({ entry, prefillDate, prefillType }),
+  );
   const formRef = useRef(form);
   const [draftId, setDraftId] = useState<string | null>(
     initialMode === 'draft' && entry ? entry.id : null,

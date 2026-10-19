@@ -58,8 +58,8 @@ export class DiaryPage {
   readonly dateToInput: Locator;
   readonly clearFiltersButton: Locator;
 
-  // "New Entry" button
-  readonly newEntryButton: Locator;
+  // "Log today" link (#2222; formerly "New Entry")
+  readonly logTodayLink: Locator;
 
   // Timeline and entry cards
   readonly timeline: Locator;
@@ -105,7 +105,7 @@ export class DiaryPage {
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
-    this.newEntryButton = page.getByRole('link', { name: 'New Entry', exact: true });
+    this.logTodayLink = page.getByRole('link', { name: 'Log today', exact: true });
 
     this.timeline = page.locator('[class*="timeline"]');
 

@@ -2,6 +2,9 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { StrictMode } from 'react';
+import { createRouterLog, RecordingRouter } from '../../../test/recordingRouter.js';
+import type { QuickLogMode } from '../../../navigation/createQuery.js';
 import type { DiaryEntryDetail, DiaryEntryLookupMatch } from '@cornerstone/shared';
 import {
   AREAS,
@@ -39,6 +42,7 @@ const mockShowToast = jest.fn();
 const mockShowUndoToast = jest.fn<(options: ShowUndoToastOptions) => void>();
 const mockMove = jest.fn<typeof MoveTypes.moveToEntry>();
 const mockLiveSupported = jest.fn(() => false);
+const mockDenied = jest.fn(() => false);
 
 jest.unstable_mockModule('../../../contexts/LocaleContext.js', () => ({
   useLocale: () => ({
@@ -180,7 +184,7 @@ jest.unstable_mockModule('../../photos/TagChips/TagChips.js', () => ({
 }));
 jest.unstable_mockModule('../../RapidCamera/RapidCamera.js', () => ({
   isLiveCameraSupported: mockLiveSupported,
-  isCameraDeniedThisSession: () => false,
+  isCameraDeniedThisSession: mockDenied,
   RapidCamera: (props: { onClose: () => void; children: React.ReactNode }) => (
     <div data-testid="rapid-camera">
       {props.children}
@@ -304,6 +308,7 @@ beforeEach(async () => {
   mockListWorkItems.mockResolvedValue({ items: [] });
   mockGetPhotos.mockResolvedValue([]);
   mockLiveSupported.mockReturnValue(false);
+  mockDenied.mockReturnValue(false);
   media = installMatchMedia();
   jest.useFakeTimers({
     now: new Date(2026, 9, 19, 10, 0, 0),
@@ -1694,5 +1699,224 @@ describe('CaptureScreen: accessibility', () => {
     expect(screen.getByTestId('sticky-action-bar-status')).toBeInTheDocument();
     expect(screen.getByLabelText('Title text')).toBe(screen.getByTestId('capture-title-input'));
     expect(screen.getByLabelText('Text (optional)')).toBe(screen.getByTestId('capture-text-input'));
+  });
+});
+
+// ── Log now start (#2222) ───────────────────────────────────────────────────────────────────────
+
+describe('CaptureScreen: ?start= from a Log now tile', () => {
+  const originalDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+
+  function setDevices(devices: ReadonlyArray<{ kind: string }> | 'reject' | null) {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value:
+        devices === null
+          ? undefined
+          : {
+              enumerateDevices: () =>
+                devices === 'reject' ? Promise.reject(new Error('no')) : Promise.resolve(devices),
+            },
+    });
+  }
+
+  afterEach(() => {
+    if (originalDevices) Object.defineProperty(navigator, 'mediaDevices', originalDevices);
+    else delete (navigator as unknown as Record<string, unknown>).mediaDevices;
+  });
+
+  interface StartOptions {
+    start?: QuickLogMode | null;
+    mode?: 'new' | 'draft' | 'saved';
+    entry?: DiaryEntryDetail | null;
+    url?: string;
+    strict?: boolean;
+  }
+
+  function renderStart(options: StartOptions = {}) {
+    const log = createRouterLog();
+    const mode = options.mode ?? 'new';
+    const tree = (
+      <RecordingRouter
+        entries={[
+          {
+            url: options.url ?? '/diary/new?areaId=bath&date=2026-10-10&start=note',
+            state: { origin: { to: '/diary' } },
+          },
+        ]}
+        log={log}
+      >
+        <CaptureScreen
+          mode={mode}
+          entry={options.entry ?? null}
+          photos={[]}
+          prefill={{ areaId: 'bath', date: '2026-10-10' }}
+          breadcrumbs={<nav data-testid="crumbs" />}
+          onDraftCreated={jest.fn()}
+          start={options.start === undefined ? 'note' : options.start}
+        />
+      </RecordingRouter>
+    );
+    const view = render(options.strict ? <StrictMode>{tree}</StrictMode> : tree);
+    return { log, ...view };
+  }
+
+  const frame = () =>
+    act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  it('note: sets the Note type, focuses the title and writes nothing', async () => {
+    renderStart({ start: 'note' });
+    await frame();
+
+    expect(screen.getByTestId('capture-type-more')).toHaveTextContent('Note');
+    expect(screen.getByTestId('capture-type-more')).toHaveAttribute('data-current', 'true');
+    expect(screen.getByTestId('capture-title-input')).toHaveFocus();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Site details' })).toBeNull();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('delivery: presses the Delivery chip, shows its fields and focuses the title', async () => {
+    renderStart({ start: 'delivery', url: '/diary/new?start=delivery' });
+    await frame();
+
+    expect(screen.getByTestId('capture-type-delivery')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('capture-company')).toBeInTheDocument();
+    expect(screen.getByTestId('capture-materials')).toBeInTheDocument();
+    expect(screen.getByTestId('capture-title-input')).toHaveFocus();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('photo with a supported live camera on a coarse pointer opens it without a draft', async () => {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(true);
+    renderStart({ start: 'photo' });
+
+    expect(await screen.findByTestId('rapid-camera')).toBeInTheDocument();
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('capture-type-daily_log')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('photo with an unsupported camera focuses "Take photos"', async () => {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(false);
+    renderStart({ start: 'photo' });
+    await frame();
+
+    expect(screen.queryByTestId('rapid-camera')).toBeNull();
+    expect(screen.getByTestId('capture-take-photos')).toHaveFocus();
+  });
+
+  it('photo with the camera denied this session focuses "Take photos"', async () => {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(true);
+    mockDenied.mockReturnValue(true);
+    renderStart({ start: 'photo' });
+    await frame();
+
+    expect(screen.queryByTestId('rapid-camera')).toBeNull();
+    expect(screen.getByTestId('capture-take-photos')).toHaveFocus();
+  });
+
+  it('photo on a fine pointer without a video input focuses the library button once devices are known', async () => {
+    mockLiveSupported.mockReturnValue(true);
+    setDevices([{ kind: 'audioinput' }]);
+    renderStart({ start: 'photo' });
+    await frame();
+
+    await waitFor(() => expect(screen.getByTestId('capture-choose-photos')).toHaveFocus());
+    expect(screen.queryByTestId('rapid-camera')).toBeNull();
+    expect(screen.queryByTestId('capture-take-photos')).toBeNull();
+  });
+
+  it('photo on a fine pointer with a video input opens the camera after the device list resolves', async () => {
+    mockLiveSupported.mockReturnValue(true);
+    setDevices([{ kind: 'videoinput' }]);
+    renderStart({ start: 'photo' });
+
+    expect(await screen.findByTestId('rapid-camera')).toBeInTheDocument();
+  });
+
+  it('consumes start with exactly one REPLACE that keeps the other params and the origin', async () => {
+    const { log } = renderStart({ start: 'note' });
+    await frame();
+
+    expect(log.actions).toEqual(['REPLACE /diary/new?areaId=bath&date=2026-10-10']);
+    expect(log.states).toEqual([{ origin: { to: '/diary' } }]);
+  });
+
+  it('consumes a lone start down to a bare path', async () => {
+    const { log } = renderStart({ start: 'delivery', url: '/diary/new?start=delivery' });
+    await frame();
+
+    expect(log.actions).toEqual(['REPLACE /diary/new']);
+  });
+
+  it('under StrictMode still replaces once and opens the camera once', async () => {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(true);
+    const { log } = renderStart({ start: 'photo', strict: true });
+
+    expect(await screen.findAllByTestId('rapid-camera')).toHaveLength(1);
+    await frame();
+    expect(log.actions).toEqual(['REPLACE /diary/new?areaId=bath&date=2026-10-10']);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not reapply after the consume replace: closing the camera keeps it closed', async () => {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(true);
+    const user = userEvent.setup();
+    renderStart({ start: 'photo' });
+    await user.click(await screen.findByRole('button', { name: 'camera done' }));
+    await frame();
+
+    expect(screen.queryByTestId('rapid-camera')).toBeNull();
+  });
+
+  it('ignores start in draft mode: no replace, type from the entry', async () => {
+    const { log } = renderStart({
+      start: 'delivery',
+      mode: 'draft',
+      entry: entryFixture({ entryType: 'daily_log' }),
+    });
+    await frame();
+
+    expect(log.actions).toEqual([]);
+    expect(screen.getByTestId('capture-type-daily_log')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('capture-type-delivery')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('ignores start in saved mode', async () => {
+    const { log } = renderStart({
+      start: 'note',
+      mode: 'saved',
+      entry: entryFixture({ entryType: 'daily_log', status: 'saved' }),
+    });
+    await frame();
+
+    expect(log.actions).toEqual([]);
+    expect(heading()).toHaveTextContent('Edit entry');
+    expect(screen.queryByTestId('capture-type-more')).toBeNull();
+    expect(screen.getByTestId('capture-title-input')).not.toHaveFocus();
+  });
+
+  it('does nothing without a start', async () => {
+    const { log } = renderStart({ start: null, url: '/diary/new' });
+    await frame();
+
+    expect(log.actions).toEqual([]);
+    expect(screen.getByTestId('capture-title-input')).not.toHaveFocus();
+  });
+
+  it('after a Note start, a same-date title match still offers "Add to that entry instead"', async () => {
+    const user = userEvent.setup();
+    mockLookup.mockResolvedValue({ matches: [match({ entryType: 'general_note' })] });
+    renderStart({ start: 'note' });
+    await frame();
+
+    await user.type(screen.getByTestId('capture-title-input'), 'Screed');
+
+    const button = await screen.findByTestId('capture-add-to-that', undefined, { timeout: 3000 });
+    expect(button).toHaveTextContent('Add to that entry instead');
   });
 });

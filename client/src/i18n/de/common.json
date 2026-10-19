@@ -120,6 +120,15 @@
     "attention": "Braucht dich",
     "accountMenu": "Kontomenü für {{name}}"
   },
+  "createSheet": {
+    "logNow": "Jetzt erfassen",
+    "quickLog": {
+      "photo": "Foto",
+      "note": "Notiz",
+      "delivery": "Lieferung"
+    },
+    "lastUsed": "{{label}}, zuletzt verwendet"
+  },
   "createMenu": {
     "entry": {
       "diaryEntry": "Tagebucheintrag",

@@ -51,6 +51,7 @@ import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationSta
 import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
+import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
@@ -224,4 +225,6 @@ export const I18N_UNION_KEYS = {
   userAccountStatus: unionKeySet('common', 'userAccountStatus', USER_ACCOUNT_STATUSES),
   /** common — New menu / New sheet entry label. */
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
+  /** common — Log now tile label in the New sheet. */
+  quickLogMode: unionKeySet('common', 'createSheet.quickLog', QUICK_LOG_MODES),
 } as const;

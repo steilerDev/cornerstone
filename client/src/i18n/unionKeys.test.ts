@@ -79,8 +79,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 43 registered sets', () => {
-    expect(SETS).toHaveLength(43);
+  it('iterates all 44 registered sets', () => {
+    expect(SETS).toHaveLength(44);
   });
 });
 
@@ -200,6 +200,7 @@ describe('I18N_UNION_KEYS registry', () => {
       'backupRun',
       'userAccountStatus',
       'createMenuEntry',
+      'quickLogMode',
     ]);
   });
 
@@ -252,6 +253,12 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.createMenuEntry.key('fundingSource')).toBe(
       'createMenu.entry.fundingSource',
     );
+  });
+
+  it('builds the #2222 Log now tile keys from the quick log modes, in the common namespace', () => {
+    expect(I18N_UNION_KEYS.quickLogMode.members).toEqual(['photo', 'note', 'delivery']);
+    expect(I18N_UNION_KEYS.quickLogMode.ns).toBe('common');
+    expect(I18N_UNION_KEYS.quickLogMode.key('note')).toBe('createSheet.quickLog.note');
   });
 
   it('builds the #2211 command search keys from the shared tuples, in the common namespace', () => {

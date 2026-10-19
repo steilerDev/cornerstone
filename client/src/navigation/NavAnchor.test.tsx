@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest } from '@jest/globals';
+import { createRef } from 'react';
 import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createRouterLog, RecordingRouter } from '../test/recordingRouter';
@@ -105,5 +106,12 @@ describe('NavAnchor state (#2212)', () => {
     const { log, anchor } = setup();
     fireEvent.click(anchor);
     expect(log.states[0] ?? null).toBeNull();
+  });
+
+  it('passes ref to the anchor element', () => {
+    const ref = createRef<HTMLAnchorElement>();
+    const { anchor } = setup({ ref });
+    expect(ref.current).toBe(anchor);
+    expect(ref.current?.tagName).toBe('A');
   });
 });

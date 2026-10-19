@@ -71,6 +71,14 @@ describe('CreateMenu', () => {
     expect(screen.getByRole('menu').querySelector('[role="separator"]')).toBeNull();
   });
 
+  it('has no Log now tile group in the desktop panel (tiles are phone/tablet only)', () => {
+    setup();
+    open();
+    expect(screen.queryByTestId('quick-log')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Log now' })).toBeNull();
+    expect(document.querySelector('[data-testid^="quick-log-"]')).toBeNull();
+  });
+
   it('adds Funding source and Grant after a separator on Money pages', () => {
     setup({ money: true });
     open();
@@ -90,7 +98,9 @@ describe('CreateMenu', () => {
       routeUrl('householdItemNew', undefined, { areaId: 'a1', companyId: 'c1' }),
     );
     expect(href('milestone')).toBe(routeUrl('milestoneNew', undefined, { date: '2026-03-01' }));
-    expect(href('diaryEntry')).toBe(routeUrl('diaryEntryNew', undefined, { date: '2026-03-01' }));
+    expect(href('diaryEntry')).toBe(
+      routeUrl('diaryEntryNew', undefined, { areaId: 'a1', date: '2026-03-01' }),
+    );
     expect(href('offer')).toBe(
       routeUrl('invoices', undefined, { create: '1', kind: 'offer', companyId: 'c1' }),
     );

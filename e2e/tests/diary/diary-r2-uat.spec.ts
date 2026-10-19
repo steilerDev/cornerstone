@@ -3,7 +3,7 @@
  *
  * Issues addressed:
  * - #866-A: Mode filter chips (All/Manual/Automatic) added to DiaryFilterBar
- * - #866-C: "New Entry" button text no longer has a "+" prefix
+ * - #866-C: the diary header link has no "+" prefix (#2222: "Log today", formerly "New Entry")
  * - #867:   Photo upload on creation form; post-create navigation to detail page
  * - #868:   Automatic events section is now a flat bordered div (not collapsible details/summary)
  * - #869:   Signed badge visible on diary entry cards where isSigned=true
@@ -13,7 +13,7 @@
  * 2.  Manual mode hides automatic type chips, shows only manual type chips
  * 3.  Automatic mode hides manual type chips, shows only automatic type chips
  * 4.  Clicking "All" from Manual mode restores all type chips
- * 5.  [smoke] "New Entry" button text is "New Entry" (no "+" prefix)
+ * 5.  [smoke] header link text is "Log today" (no "+" prefix)
  * 6.  Automatic events section is a flat bordered div, not a collapsible details element
  * 7.  [smoke] Signed badge is visible on cards with isSigned=true
  * 8.  Photo file input is present on the capture screen
@@ -307,23 +307,23 @@ test.describe('All mode restores all type chips (Scenario 4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: "New Entry" button text
+// Scenario 5: "Log today" link text (#2222; formerly "New Entry")
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('New Entry button text (Scenario 5)', { tag: '@responsive' }, () => {
+test.describe('Log today link text (Scenario 5)', { tag: '@responsive' }, () => {
   test(
-    'The create entry button text is "New Entry" without a "+" prefix',
+    'The create entry link text is "Log today" without a "+" prefix',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
 
       await diaryPage.goto();
 
-      // The "New Entry" button must be present with the exact text (no "+" prefix)
-      await expect(diaryPage.newEntryButton).toBeVisible();
-      await expect(diaryPage.newEntryButton).toHaveText('New Entry');
+      // The "Log today" link must be present with the exact text (no "+" prefix)
+      await expect(diaryPage.logTodayLink).toBeVisible();
+      await expect(diaryPage.logTodayLink).toHaveText('Log today');
 
       // Verify there is no button with a "+" prefix (old text)
-      const plusButton = page.getByRole('link', { name: '+ New Entry', exact: true });
+      const plusButton = page.getByRole('link', { name: '+ Log today', exact: true });
       await expect(plusButton).not.toBeVisible();
     },
   );

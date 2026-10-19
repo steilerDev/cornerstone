@@ -302,7 +302,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['areaId', 'date'],
+    carries: ['areaId', 'date', 'start'],
     stage: 'done',
     parent: 'diary',
   },

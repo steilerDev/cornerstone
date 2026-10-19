@@ -5,15 +5,25 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { routeUrl } from '@cornerstone/shared';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
 import type React from 'react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import {
+  CreateMenuProvider,
+  useCreateContext,
+} from '../../components/CreateMenu/CreateMenuContext.js';
 import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 
 /** Renders the current URL's search string into the DOM so tests can assert on
  * which query params are present/absent without reaching into router internals. */
+function DateContext() {
+  useCreateContext({ date: '2026-03-01', areaId: 'a1' });
+  return null;
+}
+
 function LocationDisplay() {
   const location = useLocation();
   return <div data-testid="location-search">{location.search}</div>;
@@ -306,6 +316,26 @@ describe('DiaryPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/create your first entry/i)).toBeInTheDocument();
     });
+  });
+
+  it('the empty-state CTA is a date-free link to /diary/new that pushes the origin on click', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+        <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
+          <DateContext />
+          <DiaryPage />
+        </CreateMenuProvider>
+      </RecordingRouter>,
+    );
+    const link = await screen.findByRole('link', { name: /create your first entry/i });
+    expect(link).toHaveAttribute('href', '/diary/new');
+
+    fireEvent.click(link);
+
+    expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
   });
 
   // ─── Error state ─────────────────────────────────────────────────────────────
@@ -911,13 +941,51 @@ describe('DiaryPage', () => {
 
   // ─── Filter mode changes call API ──────────────────────────────────────────
 
-  // ─── New Entry button ─────────────────────────────────────────────────────
+  // ─── Log today link (#2222) ───────────────────────────────────────────────
 
-  it('renders a "+ New Entry" link pointing to /diary/new', async () => {
+  it('renders a "Log today" link to /diary/new, and no "New Entry" button', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    const newEntryLink = screen.getByRole('link', { name: /new entry/i });
-    expect(newEntryLink).toHaveAttribute('href', '/diary/new');
+    const link = screen.getByRole('link', { name: 'Log today' });
+    expect(link).toHaveAttribute('href', routeUrl('diaryEntryNew'));
+    expect(link).toHaveAttribute('href', '/diary/new');
+    expect(screen.queryByRole('link', { name: /new entry/i })).toBeNull();
+    expect(screen.queryByText('New Entry')).toBeNull();
+  });
+
+  it('pushes the capture screen with the diary page (and its filters) as origin on click', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+        <DiaryPage />
+      </RecordingRouter>,
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Log today' }));
+
+    expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    expect(log.states[0]).not.toHaveProperty('background');
+  });
+
+  it('never carries a registered create-context date or area: href is exactly /diary/new', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+        <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
+          <DateContext />
+          <DiaryPage />
+        </CreateMenuProvider>
+      </RecordingRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Log today' });
+    expect(link.getAttribute('href')).toBe('/diary/new');
+
+    fireEvent.click(link);
+
+    expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
   });
 
   // ─── Export functionality removed ─────────────────────────────────────────

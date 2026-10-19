@@ -15,6 +15,8 @@ import { ApiClientError } from '../../../lib/apiClient.js';
 import { translateApiError } from '../../../lib/errorTranslation.js';
 import { useFormatters } from '../../../lib/formatters.js';
 import { todayLocalIsoDate } from '../../../lib/localDate.js';
+import { START_PARAM } from '../../../navigation/createQuery.js';
+import type { QuickLogMode } from '../../../navigation/createQuery.js';
 import { withFocusHeading } from '../../../navigation/focusHeading.js';
 import {
   forwardOriginState,
@@ -69,7 +71,15 @@ export interface CaptureScreenProps {
   breadcrumbs: ReactNode;
   /** The screen created the draft (the page must not reload it). */
   onDraftCreated: (id: string) => void;
+  /** `?start=` (Log now tile): applied once on a new entry. */
+  start?: QuickLogMode | null;
 }
+
+const START_ENTRY_TYPE: Readonly<Record<QuickLogMode, ManualDiaryEntryType>> = {
+  photo: 'daily_log',
+  note: 'general_note',
+  delivery: 'delivery',
+};
 
 const DROPPED_LABEL_KEYS: Readonly<Record<DroppedKey, string>> = {
   signatures: 'capture.dropped.signatures',
@@ -142,6 +152,7 @@ export function CaptureScreen({
   prefill,
   breadcrumbs,
   onDraftCreated,
+  start = null,
 }: CaptureScreenProps) {
   const { t } = useTranslation('diary');
   const { t: tCommon } = useTranslation('common');
@@ -185,10 +196,18 @@ export function CaptureScreen({
     });
   };
 
+  const [startMode] = useState<QuickLogMode | null>(() => (initialMode === 'new' ? start : null));
+  const [arrival] = useState(() => ({
+    search: location.search,
+    hash: location.hash,
+    state: location.state,
+  }));
+
   const draft = useCaptureDraft({
     mode: initialMode,
     entry,
     prefillDate: prefill.date,
+    prefillType: startMode ? START_ENTRY_TYPE[startMode] : null,
     onDraftCreated: handleCreated,
     announce: setAnnouncement,
   });
@@ -208,6 +227,42 @@ export function CaptureScreen({
     nullItemIdsRef,
     announce: setAnnouncement,
   });
+
+  // `?start=` is consumed once: removed from the URL (replace, no remount) so a reload does not
+  // reopen the camera or reset the type.
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (!startMode || consumedRef.current) return;
+    consumedRef.current = true;
+    const params = new URLSearchParams(arrival.search);
+    params.delete(START_PARAM);
+    const search = params.toString();
+    void navigate(
+      { search: search ? `?${search}` : '', hash: arrival.hash },
+      { replace: true, state: arrival.state },
+    );
+  }, [startMode, arrival, navigate]);
+
+  // ... and applied once: photo opens the live camera (or focuses "Take photos"), note and
+  // delivery focus the title. Nothing is written.
+  const appliedRef = useRef(false);
+  const { cameraKnown, openLiveCamera, takeButtonRef, chooseButtonRef } = photos.inputs;
+  useEffect(() => {
+    if (!startMode || appliedRef.current) return undefined;
+    if (startMode === 'photo') {
+      if (!cameraKnown) return undefined;
+      if (openLiveCamera()) {
+        appliedRef.current = true;
+        return undefined;
+      }
+    }
+    const frame = window.requestAnimationFrame(() => {
+      appliedRef.current = true;
+      if (startMode === 'photo') (takeButtonRef.current ?? chooseButtonRef.current)?.focus();
+      else focusField('capture-title');
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [startMode, cameraKnown, openLiveCamera, takeButtonRef, chooseButtonRef]);
 
   const floorId = floorOf(photos.chips.areaId ?? photos.mostCommonAreaId, areas);
   const suggestions = useCaptureSuggestions(floorId);

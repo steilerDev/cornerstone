@@ -49,6 +49,15 @@ export const CREATE_ENTRY_LABELS: Readonly<Record<CreateEntryId, string>> = {
   grant: 'Grant',
 };
 
+export type QuickLogMode = 'photo' | 'note' | 'delivery';
+
+/** English "Log now" tile labels (common.createSheet.quickLog.*), default order. */
+export const QUICK_LOG_LABELS: Readonly<Record<QuickLogMode, string>> = {
+  photo: 'Photo',
+  note: 'Note',
+  delivery: 'Delivery',
+};
+
 export class CreateMenu {
   readonly page: Page;
   /** Desktop trigger (top bar, >= 1024px). */
@@ -70,6 +79,25 @@ export class CreateMenu {
     this.sheet = page.getByTestId('create-sheet');
     this.sheetDialog = page.getByRole('dialog', { name: 'New', exact: true });
     this.sheetClose = page.getByTestId('create-sheet-close');
+  }
+
+  /** The "Log now" tile group of the New sheet (#2222; below 1024px only). */
+  get quickLogGroup(): Locator {
+    return this.page.getByRole('group', { name: 'Log now' });
+  }
+
+  quickLogTile(mode: QuickLogMode): Locator {
+    return this.page.getByTestId(`quick-log-${mode}`);
+  }
+
+  quickLogTiles(): Locator {
+    return this.quickLogGroup.getByRole('link');
+  }
+
+  /** Open the sheet, then tap one Log now tile. */
+  async chooseQuickLog(mode: QuickLogMode): Promise<void> {
+    await this.open();
+    await this.quickLogTile(mode).click();
   }
 
   /** True below the shell breakpoint, where the plus + sheet replace the top-bar menu. */
