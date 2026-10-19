@@ -238,9 +238,7 @@ export function DataTable<T, C = unknown>({
   // without overwriting text the user is still typing.
   useEffect(() => {
     if (searchPendingRef.current) return;
-    /* eslint-disable @eslint-react/set-state-in-effect -- mirror external search changes into the draft */
     setSearchDraft(tableState.search);
-    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [tableState.search]);
 
   // Expansion state for parent/child rows — component-local, never persisted to

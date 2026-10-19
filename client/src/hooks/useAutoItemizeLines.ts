@@ -188,13 +188,11 @@ export function useAutoItemizeLines({
     const firstSourceId = sources[0]?.id;
     if (!firstSourceId) return;
     if (!linesRef.current.some((l) => !l.budgetSourceId && !l.assignedBudgetLineId)) return;
-    /* eslint-disable @eslint-react/set-state-in-effect */
     setLines((prev) =>
       prev.map((l) =>
         l.budgetSourceId || l.assignedBudgetLineId ? l : { ...l, budgetSourceId: firstSourceId },
       ),
     );
-    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [picker.pickerState.budgetSources]);
 
   const visiblePicker = useMemo<UseBudgetLinePickerReturn>(() => {

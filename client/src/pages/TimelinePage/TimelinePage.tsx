@@ -209,9 +209,7 @@ export function TimelinePage() {
   useEffect(() => {
     const el = chartAreaRef.current;
     const areaWidth = el ? el.clientWidth - SIDEBAR_WIDTH : 0; // sidebar width from ganttUtils
-    /* eslint-disable @eslint-react/set-state-in-effect -- setColumnWidth is called synchronously to initialize column width based on zoom and container size */
     setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
-    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [zoom]);
 
   // Keyboard Ctrl+= / Ctrl+- for zoom in/out
