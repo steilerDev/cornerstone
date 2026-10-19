@@ -6,6 +6,10 @@ import type {
   CreateAreaRequest,
   UpdateAreaRequest,
   AreaListQuery,
+  AreaListWithCountsResponse,
+  AreaWithCounts,
+  DeleteAreaResponse,
+  ReorderAreasRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -22,6 +26,23 @@ export function fetchAreas(params?: AreaListQuery): Promise<AreaListResponse> {
   const path = queryString ? `/areas?${queryString}` : '/areas';
 
   return get<AreaListResponse>(path);
+}
+
+/**
+ * Fetches every area with its direct counts (tasks, purchases, photos).
+ */
+export function fetchAreasWithCounts(): Promise<AreaWithCounts[]> {
+  return get<AreaListWithCountsResponse>('/areas?include=counts').then((r) => r.areas);
+}
+
+/**
+ * Atomically reorders the children of `parentId` (`null` = top level): `ids` is every one of
+ * them exactly once, in the new order.
+ * @throws {ApiClientError} with code REORDER_SET_MISMATCH (409) when the set of ids is stale.
+ */
+export async function reorderAreas(body: ReorderAreasRequest): Promise<AreaResponse[]> {
+  const response = await patch<AreaListResponse>('/areas/reorder', body);
+  return response.areas;
 }
 
 /**
@@ -46,9 +67,9 @@ export function updateArea(id: string, data: UpdateAreaRequest): Promise<AreaRes
 }
 
 /**
- * Deletes an area.
+ * Deletes an area with its sub-areas. The response carries the Undo token.
  * @throws {ApiClientError} with statusCode 409 if the area is in use.
  */
-export function deleteArea(id: string): Promise<void> {
-  return del<void>(`/areas/${id}`);
+export function deleteArea(id: string): Promise<DeleteAreaResponse> {
+  return del<DeleteAreaResponse>(`/areas/${id}`);
 }

@@ -41,7 +41,6 @@ const TERM_EXTRAS: readonly TermExtra[] = [
   { term: 'Delivery scheduled', route: 'householdItems', query: { status: 'scheduled' } },
   { term: 'Delivered', route: 'householdItems', query: { status: 'arrived' } },
   // Interim extras (see INTERIM_UNTIL): they stand in for a NavConfig entry whose route is still planned.
-  { term: 'Area', route: 'settingsManage', query: { tab: 'areas' } },
   { term: 'History', route: 'diary', query: { filterMode: 'automatic' } },
   { term: 'Daily log', route: 'diary', query: { types: 'daily_log' } },
   { term: 'Site visit', route: 'diary', query: { types: 'site_visit' } },
@@ -60,10 +59,10 @@ const TERM_EXTRAS: readonly TermExtra[] = [
 /**
  * Interim extras and the route whose story removes them: once that route is served, NavConfig
  * carries the term itself and the extra would duplicate it, so it is skipped.
- * 'Area' is replaced by the Areas list page (route `areas`, the route NavConfig uses), 'History' by the History page (route `history`).
+ * 'History' is replaced by the History page (route `history`).
  */
 const INTERIM_UNTIL: ReadonlyMap<string, RouteId> = new Map<string, RouteId>(
-  Object.entries({ Area: 'areas', History: 'history' }) as [string, RouteId][],
+  Object.entries({ History: 'history' }) as [string, RouteId][],
 );
 
 const NO_PAGE = 'a detail of another page, not a destination of its own';

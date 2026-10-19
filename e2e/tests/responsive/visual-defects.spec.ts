@@ -12,8 +12,8 @@
  *   4.  AC4  — photo viewer: next arrow never sits under the details panel (desktop) or the
  *              open bottom sheet (phone), and stays clickable.
  *   5.  AC5  — empty-state links navigate in-app (no full page reload).
- *   6.  AC6  — area / trade delete copy comes from the rewritten locale values, and an area in
- *              use cannot be deleted (conflict text shown, area still exists).
+ *   6.  AC6  — area / trade delete copy comes from the locale values, and an area in
+ *              use is blocked on the Areas index (no Delete action, area still exists).
  *   7.  AC7  — diary "Created" time uses the locale's own time format (no " at ", 24 h in German).
  *   8.  AC8  — viewport meta allows pinch-zoom.
  *   9.  AC10 — Sources > Show lines rows and Report wizard step 3 rows never overlap their cells.
@@ -52,6 +52,7 @@ import {
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
 } from '../../fixtures/apiHelpers.js';
+import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
@@ -102,7 +103,7 @@ test.afterEach(async ({ page }) => {
 
 const I18N_DIR = fileURLToPath(new URL('../../../client/src/i18n/', import.meta.url));
 
-/** Reads one string value from a locale file, e.g. i18nValue('en', 'settings', 'manage.areas.deleteWarning'). */
+/** Reads one string value from a locale file, e.g. i18nValue('en', 'areas', 'index.delete.blocked'). */
 function i18nValue(lang: 'en' | 'de', namespace: string, key: string): string {
   const json = JSON.parse(readFileSync(`${I18N_DIR}${lang}/${namespace}.json`, 'utf8')) as Record<
     string,
@@ -390,7 +391,7 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
 
       // Every section fits the viewport width, including the last one after scrolling to it
       const viewportWidth = page.viewportSize()!.width;
-      for (const section of setup.sectionsInOrder(true)) {
+      for (const section of setup.sectionsInOrder()) {
         if ((await section.count()) === 0) continue;
         await section.scrollIntoViewIfNeeded();
         const box = await section.boundingBox();
@@ -638,28 +639,7 @@ test.describe('Visual defects — empty-state links (AC5)', { tag: '@responsive'
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@responsive' }, () => {
-  async function openDeleteDialog(
-    page: Page,
-    tab: 'areas',
-    name: string,
-  ): Promise<{ dialog: Locator; confirm: Locator }> {
-    await page.goto(`${ROUTES.manage}?tab=${tab}`);
-    await page
-      .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
-      .waitFor({ state: 'visible' });
-    const panel = page.getByTestId(`project-setup-${tab}`);
-    const row = panel.locator('[class*="itemRow"]').filter({ hasText: name });
-    const button = row.getByRole('button', { name: 'Delete', exact: true });
-    await button.waitFor({ state: 'visible' });
-    await button.click();
-    // #2209: the shared ConfirmDialog (alertdialog); test-id prefix is per host
-    const prefix = 'area-delete';
-    const dialog = page.getByRole('alertdialog', { name: `Delete ${name}?` });
-    await expect(dialog).toBeVisible();
-    return { dialog, confirm: dialog.getByTestId(`${prefix}-confirm`) };
-  }
-
-  test('Area delete dialog shows the rewritten warning; an area in use cannot be deleted', async ({
+  test('Area delete dialog (Areas index): an area in use is blocked with the rewritten copy', async ({
     page,
     testPrefix,
   }) => {
@@ -668,23 +648,20 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     cleanups.push(() => deleteAreaViaApi(page, areaId));
     await makeWorkItem(page, `${testPrefix} Test Task In Cellar`, { areaId });
 
-    const { dialog, confirm } = await openDeleteDialog(page, 'areas', areaName);
-    await expect(dialog).toContainText(i18nValue('en', 'settings', 'manage.areas.deleteWarning'));
+    const areas = new AreasIndexPage(page);
+    await areas.goto();
+    await areas.chooseMenuItem(areaId, 'delete');
 
-    const deleteResponse = page.waitForResponse(
-      (resp) =>
-        resp.url().includes(`${API.areas}/${areaId}`) && resp.request().method() === 'DELETE',
+    const dialog = areas.deleteDialog;
+    await dialog.waitForOpen();
+    await expect(dialog.dialog).toContainText(
+      i18nValue('en', 'areas', 'index.delete.blocked').replace('{{path}}', areaName),
     );
-    await confirm.click();
-    expect((await deleteResponse).status()).toBe(409);
-
-    // The conflict message is shown inside the dialog and the Delete action is hidden (409)
-    await expect(
-      dialog.getByRole('alert').filter({
-        hasText: i18nValue('en', 'settings', 'manage.areas.messages.deleteConflict'),
-      }),
-    ).toBeVisible();
-    await expect(confirm).toBeHidden();
+    await expect(dialog.dialog).toContainText(i18nValue('en', 'areas', 'index.delete.moveFirst'));
+    // Blocked before confirm: no Delete action, only Close
+    await expect(dialog.confirmButton).toHaveCount(0);
+    await expect(dialog.cancelButton).toHaveText(i18nValue('en', 'areas', 'index.delete.close'));
+    await dialog.cancel();
 
     // The area still exists
     const stillThere = await page.request.get(`${API.areas}/${areaId}`);

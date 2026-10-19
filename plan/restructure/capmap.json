@@ -3966,7 +3966,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index 'New area'; inline 'New area' in pickers; Project setup 'Areas' row.",
-    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
+    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2218: Areas index 'New area' and row ⋯ > Add sub-area."
   },
   "PLT-094": {
     "name": "View the area hierarchy",
@@ -3975,7 +3975,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index tree with counts; Area page sections with roll-up rules.",
-    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags. #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
+    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags. #2218: Areas index tree with direct counts rolled up; quiet 'Whole … (no …)' rows."
   },
   "PLT-095": {
     "name": "Edit an area inline (name, colour, sort order, description)",
@@ -3984,25 +3984,25 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page section Edit; Areas index row ⋯ > Edit.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit (ObjectForm)."
   },
   "PLT-096": {
     "name": "Move an area under a different parent area",
     "from": "/settings/manage?tab=areas > row \"Edit\" > Parent Area picker",
-    "to": "Areas > Area page > section Edit > Parent area",
+    "to": "Areas > Area page > section Edit > Parent area; Areas > Areas index > row ⋯ > Edit > Part of",
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page section Edit > Parent area.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit > Part of."
   },
   "PLT-097": {
     "name": "Delete an area together with its sub-areas",
     "from": "/settings/manage?tab=areas > row \"Delete\" > dialog \"Delete Area\" > \"Delete Area\" | Settings > Manage > Areas > \"Delete\" > confirm | /settings/manage?tab=areas > area \"Delete\" -> blocked with \"This area cannot be deleted because it is currently in use.\" (counts household items)",
-    "to": "Areas > Area page > header ⋯ > Delete (modal lists affected tasks, purchases and photos)",
+    "to": "Areas > Area page > header ⋯ > Delete (modal lists affected tasks, purchases and photos); Areas > Areas index > row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page ⋯ > Delete with consequences modal.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2218: Areas index row ⋯ > Delete (blocked with counts and 'Show these tasks/purchases'; Undo)."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
@@ -4117,7 +4117,7 @@
     "to": "Areas > Areas index and Settings > Project setup lists > drag to reorder, or row ⋯ > Move up / Move down (sort number kept, '#N' no longer shown) — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Areas; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Areas; only the shared page template, the words and the navigation around it change (rare use). #2218: siblings reorder by drag, ↑/↓ or ⋯ Move up/down; one request per move."
   },
   "PLT-112": {
     "name": "See all money amounts in the instance currency",

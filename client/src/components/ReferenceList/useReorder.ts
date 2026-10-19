@@ -20,7 +20,17 @@ export interface UseReorderOptions {
   /** Page-level polite announcement. */
   readonly onAnnounce: (message: string) => void;
   readonly labelOf: (id: string) => string;
+  /**
+   * Replaces the common announcement text for a step (e.g. to name the parent of a tree level).
+   * Return `undefined` to use the common keys.
+   */
+  readonly formatAnnouncement?: (
+    kind: ReorderAnnouncementKind,
+    values: { name: string; position: number; total: number },
+  ) => string | undefined;
 }
+
+export type ReorderAnnouncementKind = 'pickedUp' | 'position' | 'dropped' | 'reorderCanceled';
 
 export interface DragState {
   readonly id: string;
@@ -75,6 +85,7 @@ export function useReorder({
   onCommit,
   onAnnounce,
   labelOf,
+  formatAnnouncement,
 }: UseReorderOptions): UseReorderResult {
   const { t } = useTranslation('common');
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -86,7 +97,10 @@ export function useReorder({
   const handlesRef = useRef(new Map<string, HTMLButtonElement>());
 
   const rowRects = useCallback(() => {
-    const rows = Array.from(listRef.current?.children ?? []);
+    // Rows marked data-reorder-skip (a tree's quiet row) are not part of the order.
+    const rows = Array.from(listRef.current?.children ?? []).filter(
+      (row) => !row.hasAttribute('data-reorder-skip'),
+    );
     return rows.map((row) => row.getBoundingClientRect());
   }, [listRef]);
 
@@ -144,13 +158,11 @@ export function useReorder({
     setDrag(null);
   }, [stopAutoScroll]);
 
-  const announcePosition = (
-    kind: 'pickedUp' | 'position' | 'dropped' | 'reorderCanceled',
-    id: string,
-    list: readonly string[],
-  ) => {
+  const announcePosition = (kind: ReorderAnnouncementKind, id: string, list: readonly string[]) => {
     const values = { name: labelOf(id), ...positionOf(list, id) };
-    if (kind === 'pickedUp') onAnnounce(t('referenceList.pickedUp', values));
+    const custom = formatAnnouncement?.(kind, values);
+    if (custom !== undefined) onAnnounce(custom);
+    else if (kind === 'pickedUp') onAnnounce(t('referenceList.pickedUp', values));
     else if (kind === 'position') onAnnounce(t('referenceList.position', values));
     else if (kind === 'dropped') onAnnounce(t('referenceList.dropped', values));
     else onAnnounce(t('referenceList.reorderCanceled', values));

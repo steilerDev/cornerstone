@@ -14,8 +14,13 @@ import { __resetLedgerForTests } from '../services/statusEventLedger.js';
 import { undoStore } from '../services/undoService.js';
 import { UNDO_WINDOW_MS } from '@cornerstone/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ApiErrorResponse, UndoResponse, WorkItemDetail } from '@cornerstone/shared';
-import { diaryEntries, workItems } from '../db/schema.js';
+import type {
+  ApiErrorResponse,
+  DeleteAreaResponse,
+  UndoResponse,
+  WorkItemDetail,
+} from '@cornerstone/shared';
+import { areas, diaryEntries, workItems } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 const FAKE_EXCEPT_DATE = [
@@ -282,6 +287,139 @@ describe('Undo Routes', () => {
       const res = await undo(cookie, issued.token);
 
       expect(res.statusCode).toBe(200);
+    });
+  });
+
+  describe('area delete (restore kind, #2218)', () => {
+    const NOW = '2026-08-07T10:00:00.000Z';
+
+    function addArea(id: string, name: string, parentId: string | null = null): void {
+      app.db
+        .insert(areas)
+        .values({ id, name, parentId, sortOrder: 2, createdAt: NOW, updatedAt: NOW })
+        .run();
+    }
+
+    async function deleteArea(cookie: string, id: string): Promise<string> {
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/areas/${id}`,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      return res.json<DeleteAreaResponse>().undo.token;
+    }
+
+    function areaIds(): string[] {
+      return app.db
+        .select({ id: areas.id })
+        .from(areas)
+        .all()
+        .map((r) => r.id)
+        .sort();
+    }
+
+    it('restores the deleted subtree with its original ids and updated_at', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-root', 'Ground floor');
+      addArea('area-kid', 'Kitchen', 'area-root');
+      const token = await deleteArea(cookie, 'area-root');
+      expect(areaIds()).toEqual([]);
+
+      const res = await undo(cookie, token);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json<UndoResponse>()).toEqual({
+        restored: [{ type: 'area', id: 'area-root' }],
+        retractedEventIds: [],
+      });
+      expect(areaIds()).toEqual(['area-kid', 'area-root']);
+      const kid = app.db.select().from(areas).where(eq(areas.id, 'area-kid')).get()!;
+      expect(kid).toMatchObject({ parentId: 'area-root', sortOrder: 2, updatedAt: NOW });
+    });
+
+    it('returns 404 on the second use', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-root', 'Garden');
+      const token = await deleteArea(cookie, 'area-root');
+      expect((await undo(cookie, token)).statusCode).toBe(200);
+
+      const second = await undo(cookie, token);
+
+      expect(second.statusCode).toBe(404);
+      expect(areaIds()).toEqual(['area-root']);
+    });
+
+    it('answers 409 CONFLICT with details.changed when a same-named area took its place, and consumes the token', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-root', 'Garden');
+      const token = await deleteArea(cookie, 'area-root');
+      addArea('area-new', 'garden');
+
+      const conflict = await undo(cookie, token);
+
+      expect(conflict.statusCode).toBe(409);
+      const body = conflict.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.details).toEqual({ changed: [{ type: 'area', id: 'area-root' }] });
+      expect(areaIds()).toEqual(['area-new']);
+      expect(undoStore.snapshots.has(token)).toBe(false);
+      expect((await undo(cookie, token)).statusCode).toBe(404);
+    });
+
+    it('answers 409 when the parent was deleted in the meantime', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-parent', 'Ground floor');
+      addArea('area-sub', 'Kitchen', 'area-parent');
+      const token = await deleteArea(cookie, 'area-sub');
+      await deleteArea(cookie, 'area-parent');
+
+      const conflict = await undo(cookie, token);
+
+      expect(conflict.statusCode).toBe(409);
+      expect(conflict.json<ApiErrorResponse>().error.details).toEqual({
+        changed: [{ type: 'area', id: 'area-sub' }],
+      });
+      expect(areaIds()).toEqual([]);
+    });
+
+    it('another signed-in user gets 404 and the area stays deleted; the owner can still undo', async () => {
+      const owner = await session('a@example.com');
+      const other = await session('b@example.com');
+      addArea('area-root', 'Garden');
+      const token = await deleteArea(owner.cookie, 'area-root');
+
+      const foreign = await undo(other.cookie, token);
+
+      expect(foreign.statusCode).toBe(404);
+      expect(areaIds()).toEqual([]);
+      expect((await undo(owner.cookie, token)).statusCode).toBe(200);
+      expect(areaIds()).toEqual(['area-root']);
+    });
+
+    it('returns 404 once the 30 s window has passed', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-root', 'Garden');
+      const token = await deleteArea(cookie, 'area-root');
+
+      jest.useFakeTimers({
+        now: Date.now() + UNDO_WINDOW_MS + 1,
+        doNotFake: FAKE_EXCEPT_DATE as never,
+      });
+      const res = await undo(cookie, token);
+
+      expect(res.statusCode).toBe(404);
+      expect(areaIds()).toEqual([]);
+    });
+
+    it('returns 401 without a session and does not consume the token', async () => {
+      const { cookie } = await session('a@example.com');
+      addArea('area-root', 'Garden');
+      const token = await deleteArea(cookie, 'area-root');
+
+      expect((await undo(undefined, token)).statusCode).toBe(401);
+
+      expect(undoStore.snapshots.has(token)).toBe(true);
     });
   });
 

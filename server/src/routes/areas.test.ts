@@ -6,8 +6,18 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type { AreaListResponse, AreaSingleResponse, ApiErrorResponse } from '@cornerstone/shared';
-import { areas, workItems, householdItems } from '../db/schema.js';
+import { UNDO_WINDOW_MS } from '@cornerstone/shared';
+import type {
+  AreaListResponse,
+  AreaListWithCountsResponse,
+  AreaSingleResponse,
+  ApiErrorResponse,
+  DeleteAreaResponse,
+  UndoResponse,
+} from '@cornerstone/shared';
+import { eq } from 'drizzle-orm';
+import { undoStore } from '../services/undoService.js';
+import { areas, workItems, householdItems, photos, diaryEntries } from '../db/schema.js';
 
 describe('Area Routes', () => {
   let app: FastifyInstance;
@@ -133,6 +143,131 @@ describe('Area Routes', () => {
   // ─── GET /api/areas ────────────────────────────────────────────────────────
 
   describe('GET /api/areas', () => {
+    describe('include=counts', () => {
+      function addDiaryEntry(entryDate: string, status: 'draft' | 'saved' = 'saved'): string {
+        const id = `de-${Math.random().toString(36).substring(7)}`;
+        const now = new Date().toISOString();
+        app.db
+          .insert(diaryEntries)
+          .values({
+            id,
+            entryType: 'daily_log',
+            entryDate,
+            body: 'Note',
+            status,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        return id;
+      }
+
+      function addPhoto(areaId: string, entityId: string): void {
+        const id = `ph-${Math.random().toString(36).substring(7)}`;
+        const now = new Date().toISOString();
+        app.db
+          .insert(photos)
+          .values({
+            id,
+            entityType: 'diary_entry',
+            entityId,
+            filename: `${id}.jpg`,
+            originalFilename: 'p.jpg',
+            mimeType: 'image/jpeg',
+            fileSize: 10,
+            areaId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      it('returns 401 without authentication', async () => {
+        const response = await app.inject({ method: 'GET', url: '/api/areas?include=counts' });
+
+        expect(response.statusCode).toBe(401);
+      });
+
+      it('adds direct counts to every area', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        const kitchen = createTestArea('Kitchen');
+        const empty = createTestArea('Empty');
+        createTestWorkItem(kitchen.id);
+        createTestWorkItem(kitchen.id);
+        createTestHouseholdItem(kitchen.id);
+        addPhoto(kitchen.id, addDiaryEntry('2026-02-02'));
+        addPhoto(kitchen.id, addDiaryEntry('2026-04-04'));
+        addPhoto(kitchen.id, addDiaryEntry('2026-12-12', 'draft'));
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/areas?include=counts',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AreaListWithCountsResponse>();
+        const byId = new Map(body.areas.map((a) => [a.id, a.counts]));
+        expect(byId.get(kitchen.id)).toEqual({
+          workItems: { total: 2, open: 2 },
+          householdItems: { total: 1, open: 1 },
+          photos: { total: 2, latestDate: '2026-04-04' },
+        });
+        expect(byId.get(empty.id)).toEqual({
+          workItems: { total: 0, open: 0 },
+          householdItems: { total: 0, open: 0 },
+          photos: { total: 0, latestDate: null },
+        });
+      });
+
+      it('can be combined with search', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        const kitchen = createTestArea('Kitchen');
+        createTestArea('Bathroom');
+        createTestWorkItem(kitchen.id);
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/areas?include=counts&search=kitch',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AreaListWithCountsResponse>();
+        expect(body.areas.map((a) => a.name)).toEqual(['Kitchen']);
+        expect(body.areas[0]!.counts.workItems.total).toBe(1);
+      });
+
+      it('returns no counts key without the include parameter', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        createTestArea('Kitchen');
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/areas',
+          headers: { cookie },
+        });
+
+        expect(response.json<AreaListResponse>().areas[0]).not.toHaveProperty('counts');
+      });
+
+      it.each(['subtree', 'COUNTS', 'counts,more', ''])(
+        'returns 400 VALIDATION_ERROR for include=%j',
+        async (value) => {
+          const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+          const response = await app.inject({
+            method: 'GET',
+            url: `/api/areas?include=${encodeURIComponent(value)}`,
+            headers: { cookie },
+          });
+
+          expect(response.statusCode).toBe(400);
+          expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+        },
+      );
+    });
+
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -472,6 +607,112 @@ describe('Area Routes', () => {
     });
   });
 
+  // ─── PATCH /api/areas/reorder ──────────────────────────────────────────────
+
+  describe('PATCH /api/areas/reorder', () => {
+    function reorder(cookie: string | undefined, payload: unknown) {
+      return app.inject({
+        method: 'PATCH',
+        url: '/api/areas/reorder',
+        headers: cookie ? { cookie } : {},
+        payload: payload as Record<string, unknown>,
+      });
+    }
+
+    it('returns 401 without authentication', async () => {
+      const response = await reorder(undefined, { parentId: null, ids: ['a'] });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('reorders the top level and returns the full list in the new order (200)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const a = createTestArea('A', { sortOrder: 0 });
+      const b = createTestArea('B', { sortOrder: 1 });
+      const c = createTestArea('C', { sortOrder: 2 });
+
+      const response = await reorder(cookie, { parentId: null, ids: [c.id, a.id, b.id] });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AreaListResponse>();
+      expect(body.areas.map((x) => x.id)).toEqual([c.id, a.id, b.id]);
+      expect(body.areas.map((x) => x.sortOrder)).toEqual([0, 1, 2]);
+      expect(body.areas[0]).not.toHaveProperty('counts');
+    });
+
+    it('is not shadowed by /:id and persists the order for GET', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const parent = createTestArea('Parent');
+      const x = createTestArea('X', { parentId: parent.id, sortOrder: 0 });
+      const y = createTestArea('Y', { parentId: parent.id, sortOrder: 1 });
+
+      const response = await reorder(cookie, { parentId: parent.id, ids: [y.id, x.id] });
+
+      expect(response.statusCode).toBe(200);
+      const got = await app.inject({
+        method: 'GET',
+        url: `/api/areas/${y.id}`,
+        headers: { cookie },
+      });
+      expect(got.json<AreaSingleResponse>().area.sortOrder).toBe(0);
+    });
+
+    it('returns 400 VALIDATION_ERROR "Parent area does not exist" for an unknown parent', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await reorder(cookie, { parentId: 'nope', ids: ['a'] });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toBe('Parent area does not exist');
+    });
+
+    it('returns 409 REORDER_SET_MISMATCH with missingIds and unknownIds', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const a = createTestArea('A');
+      const b = createTestArea('B');
+
+      const response = await reorder(cookie, { parentId: null, ids: [a.id, 'ghost'] });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('REORDER_SET_MISMATCH');
+      expect(body.error.details).toEqual({ missingIds: [b.id], unknownIds: ['ghost'] });
+    });
+
+    it('returns 409 when the ids belong to a different level', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const top = createTestArea('Top');
+      const parent = createTestArea('Parent');
+      const child = createTestArea('Child', { parentId: parent.id });
+
+      const response = await reorder(cookie, { parentId: parent.id, ids: [child.id, top.id] });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('REORDER_SET_MISMATCH');
+    });
+
+    it.each([
+      ['parentId missing', { ids: ['a'] }],
+      ['parentId a number', { parentId: 5, ids: ['a'] }],
+      ['parentId longer than 64 characters', { parentId: 'p'.repeat(65), ids: ['a'] }],
+      ['ids missing', { parentId: null }],
+      ['ids empty', { parentId: null, ids: [] }],
+      ['ids duplicated', { parentId: null, ids: ['a', 'a'] }],
+      ['an id empty', { parentId: null, ids: [''] }],
+      ['an id longer than 64 characters', { parentId: null, ids: ['x'.repeat(65)] }],
+    ])('returns 400 VALIDATION_ERROR when %s', async (_label, payload) => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await reorder(cookie, payload);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
   // ─── GET /api/areas/:id ────────────────────────────────────────────────────
 
   describe('GET /api/areas/:id', () => {
@@ -773,6 +1014,58 @@ describe('Area Routes', () => {
     });
   });
 
+  describe('append and move (#2218)', () => {
+    it('POST without sortOrder appends after the highest sibling', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      createTestArea('First', { sortOrder: 0 });
+      createTestArea('Second', { sortOrder: 5 });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/areas',
+        headers: { cookie },
+        payload: { name: 'Third' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json<AreaSingleResponse>().area.sortOrder).toBe(6);
+    });
+
+    it('PATCH of only parentId appends to the new siblings', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const target = createTestArea('Target');
+      createTestArea('Existing', { parentId: target.id, sortOrder: 2 });
+      const moving = createTestArea('Moving');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/areas/${moving.id}`,
+        headers: { cookie },
+        payload: { parentId: target.id },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<AreaSingleResponse>().area.sortOrder).toBe(3);
+    });
+
+    it('PATCH of only parentId onto a same-named sibling is 409 CONFLICT, not a 500', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const target = createTestArea('Target');
+      createTestArea('Kitchen', { parentId: target.id });
+      const moving = createTestArea('Kitchen');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/areas/${moving.id}`,
+        headers: { cookie },
+        payload: { parentId: target.id },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('CONFLICT');
+    });
+  });
+
   // ─── DELETE /api/areas/:id ─────────────────────────────────────────────────
 
   describe('DELETE /api/areas/:id', () => {
@@ -787,7 +1080,7 @@ describe('Area Routes', () => {
       expect(body.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('deletes an area successfully (204)', async () => {
+    it('deletes an area successfully (200 with an undo token)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const area = createTestArea('Delete Me Area');
 
@@ -797,8 +1090,92 @@ describe('Area Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(Object.keys(response.json<DeleteAreaResponse>())).toEqual(['undo']);
+      expect(app.db.select().from(areas).where(eq(areas.id, area.id)).get()).toBeUndefined();
+    });
+
+    it('returns an undo token whose expiry is 30 s ahead', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const area = createTestArea('Tokened');
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/areas/${area.id}`,
+        headers: { cookie },
+      });
+
+      const { undo } = response.json<DeleteAreaResponse>();
+      expect(undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+      const ttl = new Date(undo.expiresAt).getTime() - Date.now();
+      expect(ttl).toBeGreaterThan(UNDO_WINDOW_MS - 5000);
+      expect(ttl).toBeLessThanOrEqual(UNDO_WINDOW_MS);
+    });
+
+    it('does not issue a token when the delete is blocked (409 AREA_IN_USE)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const area = createTestArea('Busy');
+      createTestWorkItem(area.id);
+      const before = undoStore.snapshots.size;
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/areas/${area.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('AREA_IN_USE');
+      expect(response.json<ApiErrorResponse>().error.details).toBeUndefined();
+      expect(undoStore.snapshots.size).toBe(before);
+    });
+
+    it('Undo (POST /api/undo/:token) brings back the subtree and its photos', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const parent = createTestArea('Ground floor');
+      const child = createTestArea('Kitchen', { parentId: parent.id, sortOrder: 3 });
+      const photoId = `ph-${Math.random().toString(36).substring(7)}`;
+      const now = new Date().toISOString();
+      app.db
+        .insert(photos)
+        .values({
+          id: photoId,
+          entityType: 'diary_entry',
+          entityId: 'e1',
+          filename: 'p.jpg',
+          originalFilename: 'p.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 1,
+          areaId: child.id,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const del = await app.inject({
+        method: 'DELETE',
+        url: `/api/areas/${parent.id}`,
+        headers: { cookie },
+      });
+      const { undo } = del.json<DeleteAreaResponse>();
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/undo/${undo.token}`,
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json<UndoResponse>()).toEqual({
+        restored: [{ type: 'area', id: parent.id }],
+        retractedEventIds: [],
+      });
+      const list = await app.inject({ method: 'GET', url: '/api/areas', headers: { cookie } });
+      const restored = list.json<AreaListResponse>().areas;
+      expect(restored.map((a) => a.id).sort()).toEqual([parent.id, child.id].sort());
+      expect(restored.find((a) => a.id === child.id)!.sortOrder).toBe(3);
+      expect(app.db.select().from(photos).where(eq(photos.id, photoId)).get()!.areaId).toBe(
+        child.id,
+      );
     });
 
     it('area no longer accessible after deletion', async () => {
@@ -916,7 +1293,8 @@ describe('Area Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
+      expect(response.json<DeleteAreaResponse>().undo.token).toMatch(/^u_/);
     });
   });
 });

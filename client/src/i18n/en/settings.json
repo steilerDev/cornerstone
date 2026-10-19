@@ -125,45 +125,6 @@
     }
   },
   "manage": {
-    "areas": {
-      "loading": "Loading areas...",
-      "errorTitle": "Error",
-      "retry": "Retry",
-      "loadError": "Failed to load areas. Please try again.",
-      "createTitle": "Create New Area",
-      "createDescription": "Areas help you organize work items by location or space (e.g., Kitchen, Master Bedroom, Bathroom). Areas can have sub-areas.",
-      "nameLabel": "Area Name",
-      "namePlaceholder": "e.g., Kitchen, Master Bedroom, Bathroom",
-      "parentLabel": "Parent Area",
-      "colorLabel": "Color",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "Optional description",
-      "sortOrderLabel": "Sort Order",
-      "createButton": "Create Area",
-      "creating": "Creating...",
-      "existingTitle": "Existing Areas ({{count}})",
-      "emptyState": "No areas yet. Create your first area to start organizing your work items.",
-      "save": "Save",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "edit": "Edit",
-      "delete": "Delete",
-      "deleteWarning": "Its sub-areas are deleted with it, and photos in these areas lose their area. An area that a task or purchase uses, directly or through a sub-area, cannot be deleted.",
-      "validation": {
-        "nameRequired": "Area name is required",
-        "nameTooLong": "Area name must be 100 characters or less"
-      },
-      "messages": {
-        "created": "Area \"{{name}}\" created successfully",
-        "updated": "Area \"{{name}}\" updated successfully",
-        "deleted": "Area \"{{name}}\" deleted successfully",
-        "createError": "Failed to create area. Please try again.",
-        "updateError": "Failed to update area. Please try again.",
-        "deleteError": "Failed to delete area. Please try again.",
-        "deleteConflict": "This area cannot be deleted because a task or purchase uses it or one of its sub-areas.",
-        "duplicateName": "An area with this name already exists at this level."
-      }
-    },
     "trades": {
       "loadError": "Failed to load trades. Please try again."
     },
@@ -221,9 +182,6 @@
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
       "duplicateName": "An orientation with this name already exists."
-    },
-    "areas": {
-      "title": "Areas"
     },
     "pointers": {
       "title": "Managed on other pages",

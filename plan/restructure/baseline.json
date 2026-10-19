@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "measured": {
     "screens": {
+      "AreasPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 1 },
       "AutoItemizePage": { "destinations": 1, "primaryButtons": 11, "searchFields": 0 },
       "BackupsPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "BudgetOverviewPage": { "destinations": 2, "primaryButtons": 3, "searchFields": 0 },
@@ -18,7 +19,7 @@
       "InvoiceDetailPage": { "destinations": 2, "primaryButtons": 16, "searchFields": 1 },
       "InvoicesPage": { "destinations": 3, "primaryButtons": 7, "searchFields": 2 },
       "LoginPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
-      "ManagePage": { "destinations": 0, "primaryButtons": 4, "searchFields": 0 },
+      "ManagePage": { "destinations": 0, "primaryButtons": 2, "searchFields": 0 },
       "MilestoneDetailPage": { "destinations": 4, "primaryButtons": 6, "searchFields": 0 },
       "MilestonesPage": { "destinations": 0, "primaryButtons": 6, "searchFields": 1 },
       "NoAccessPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
@@ -39,7 +40,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 118,
+      "count": 119,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -105,6 +106,7 @@
         "TopBar/TopBar",
         "TradePicker/TradePicker",
         "TradesManager/TradesManager",
+        "TreeTable/TreeTable",
         "TriStateCheckbox/TriStateCheckbox",
         "UserMenu/UserMenu",
         "WizardStepper/WizardStepper",
@@ -368,7 +370,6 @@
       "UndoToast",
       "EntityPicker",
       "ObjectList",
-      "TreeTable",
       "DocumentsPanel"
     ]
   },

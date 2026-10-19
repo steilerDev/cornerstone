@@ -6,6 +6,7 @@ import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { FormError } from '../FormError/FormError.js';
+import { ColorField } from '../ObjectForm/ColorField.js';
 import { Modal } from '../Modal/Modal.js';
 import { Sheet } from '../Modal/Sheet.js';
 import type {
@@ -15,9 +16,6 @@ import type {
   ReferenceListValues,
 } from './ReferenceList.js';
 import styles from './ReferenceListDialog.module.css';
-
-/** The colour a "No color" box starts from once unchecked: the browser's own default. */
-const BROWSER_DEFAULT_COLOR = '#000000';
 
 export interface ReferenceListDialogProps {
   readonly mode: 'new' | 'edit';
@@ -66,8 +64,7 @@ export function ReferenceListDialog({
 
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
-  const [noColor, setNoColor] = useState(initialColor === null);
-  const [colorValue, setColorValue] = useState(initialColor ?? BROWSER_DEFAULT_COLOR);
+  const [color, setColor] = useState<string | null>(initialColor);
   const [busy, setBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -75,7 +72,7 @@ export function ReferenceListDialog({
 
   const hasDescription = fields.descriptionMaxLength !== undefined;
   const hasColor = fields.color === true;
-  const effectiveColor = noColor ? null : colorValue;
+  const effectiveColor = color;
   const dirty =
     name !== initialName ||
     (hasDescription && description !== initialDescription) ||
@@ -220,26 +217,13 @@ export function ReferenceListDialog({
           <label htmlFor={colorId} className={styles.label}>
             {t('referenceList.colorLabel')}
           </label>
-          <div className={styles.colorRow}>
-            <input
-              id={colorId}
-              type="color"
-              className={styles.colorInput}
-              value={colorValue}
-              disabled={noColor}
-              onChange={(event) => setColorValue(event.target.value)}
-              data-testid={`${testIdPrefix}-color`}
-            />
-            <label className={styles.checkLabel}>
-              <input
-                type="checkbox"
-                checked={noColor}
-                onChange={(event) => setNoColor(event.target.checked)}
-                data-testid={`${testIdPrefix}-no-color`}
-              />
-              {t('referenceList.noColor')}
-            </label>
-          </div>
+          <ColorField
+            id={colorId}
+            value={color}
+            onChange={setColor}
+            noColorLabel={t('referenceList.noColor')}
+            testIdPrefix={testIdPrefix}
+          />
         </div>
       )}
     </form>

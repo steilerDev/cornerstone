@@ -1,0 +1,37 @@
+.colorRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.colorInput {
+  width: 3rem;
+  height: var(--touch-target-min);
+  padding: var(--spacing-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.colorInput:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.colorInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.checkLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}

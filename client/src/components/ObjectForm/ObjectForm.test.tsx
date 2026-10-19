@@ -416,6 +416,119 @@ describe('server errors (never render server text)', () => {
     expect(document.body.textContent).not.toContain('server text');
   });
 
+  describe('schema.mapError', () => {
+    const conflict = () => new ApiClientError(409, { code: 'CONFLICT', message: 'server text' });
+
+    it('turns a mapped code into a field error with our own text, focus and no banner', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
+      const mapError = jest.fn((code: string, values: ObjectFormValues) =>
+        code === 'CONFLICT' ? { title: `"${String(values.title)}" is taken.` } : null,
+      );
+      setup({ schema: makeSchema({ submit, mapError }) });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByText('"Hello" is taken.')).toBeInTheDocument();
+      expect(mapError).toHaveBeenCalledWith(
+        'CONFLICT',
+        expect.objectContaining({ title: 'Hello' }),
+      );
+      expect(title()).toHaveAttribute('aria-invalid', 'true');
+      expect(title()).toHaveFocus();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(document.body.textContent).not.toContain('server text');
+      expect(save()).toHaveTextContent('Save');
+    });
+
+    it('expands More details when the mapped field is hidden there', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
+      setup({
+        schema: makeSchema({ submit, mapError: () => ({ notes: 'Notes clash.' }) }),
+      });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByText('Notes clash.')).toBeInTheDocument();
+      expect(screen.getByTestId('object-form-more')).toHaveAttribute('aria-expanded', 'true');
+      await waitFor(() => expect(screen.getByLabelText(/Notes/)).toHaveFocus());
+    });
+
+    it.each([
+      ['null', null],
+      ['an empty map', {}],
+      ['only undefined messages', { title: undefined }],
+    ])('falls through to the generic banner when it returns %s', async (_name, result) => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
+      setup({ schema: makeSchema({ submit, mapError: () => result }) });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'A conflict occurred. The resource may already exist.',
+      );
+      expect(title()).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('is also consulted before the generic validation-error handling', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(
+        new ApiClientError(400, {
+          code: 'VALIDATION_ERROR',
+          message: 'm',
+          details: { fields: [{ path: '/title' }] },
+        }),
+      );
+      setup({
+        schema: makeSchema({
+          submit,
+          mapError: (code) => (code === 'VALIDATION_ERROR' ? { title: 'Mapped first.' } : null),
+        }),
+      });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByText('Mapped first.')).toBeInTheDocument();
+      expect(screen.queryByText('Check this value.')).toBeNull();
+    });
+
+    it('is not consulted for a non-API failure', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(new Error('offline'));
+      const mapError = jest.fn(() => ({ title: 'x' }));
+      setup({ schema: makeSchema({ submit, mapError }) });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        "Couldn't save. Check your connection and try again.",
+      );
+      expect(mapError).not.toHaveBeenCalled();
+    });
+
+    it('clears an earlier banner once a retry maps to a field error', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
+      let mapped = false;
+      setup({
+        schema: makeSchema({
+          submit,
+          mapError: () => (mapped ? { title: 'Taken.' } : null),
+        }),
+      });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+      mapped = true;
+      await user.click(save());
+      expect(await screen.findByText('Taken.')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
   it('shows saveFailed for a network error and lets the user retry', async () => {
     const user = userEvent.setup();
     const submit = jest

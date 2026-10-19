@@ -40,6 +40,7 @@ let capturedRenderSelectedLabel: ((item: any) => string) | null = null;
 let capturedSpecialOptions: any[] | undefined = undefined;
 let capturedOnChange: ((id: string) => void) | null = null;
 let capturedInitialTitle: string | undefined = undefined;
+let capturedExcludeIds: string[] | undefined = undefined;
 
 jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +52,7 @@ jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
     capturedSpecialOptions = props.specialOptions;
     capturedOnChange = props.onChange;
     capturedInitialTitle = props.initialTitle;
+    capturedExcludeIds = props.excludeIds;
     return (
       <div
         data-testid="search-picker-mock"
@@ -83,6 +85,7 @@ beforeEach(async () => {
   capturedSpecialOptions = undefined;
   capturedOnChange = null;
   capturedInitialTitle = undefined;
+  capturedExcludeIds = undefined;
 });
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -385,5 +388,95 @@ describe('AreaPicker', () => {
     });
 
     expect(results.map((n: TreeNode) => n.area.id)).toContain('leaf');
+  });
+  // ─── excludeIds ───────────────────────────────────────────────────────────
+
+  describe('excludeIds', () => {
+    it('is passed through to the SearchPicker', () => {
+      render(
+        <AreaPicker
+          areas={THREE_LEVEL_AREAS}
+          value=""
+          onChange={jest.fn()}
+          excludeIds={['mid', 'leaf']}
+        />,
+      );
+      expect(capturedExcludeIds).toEqual(['mid', 'leaf']);
+    });
+
+    it('defaults to an empty list', () => {
+      render(<AreaPicker areas={THREE_LEVEL_AREAS} value="" onChange={jest.fn()} />);
+      expect(capturedExcludeIds).toEqual([]);
+    });
+
+    it('removes the excluded areas from an empty-query search', async () => {
+      render(
+        <AreaPicker
+          areas={THREE_LEVEL_AREAS}
+          value=""
+          onChange={jest.fn()}
+          excludeIds={['mid', 'leaf']}
+        />,
+      );
+      let results: TreeNode[] = [];
+      await act(async () => {
+        results = (await capturedSearchFn?.('')) ?? [];
+      });
+      expect(results.map((n: TreeNode) => n.area.id).sort()).toEqual(['root', 'sibling']);
+    });
+
+    it('removes an excluded area from a text search too', async () => {
+      render(
+        <AreaPicker
+          areas={THREE_LEVEL_AREAS}
+          value=""
+          onChange={jest.fn()}
+          excludeIds={['leaf']}
+        />,
+      );
+      let results: TreeNode[] = [];
+      await act(async () => {
+        results = (await capturedSearchFn?.('Bedroom')) ?? [];
+      });
+      expect(results).toEqual([]);
+    });
+
+    it('filters nothing for an empty exclusion list', async () => {
+      render(
+        <AreaPicker areas={THREE_LEVEL_AREAS} value="" onChange={jest.fn()} excludeIds={[]} />,
+      );
+      let results: TreeNode[] = [];
+      await act(async () => {
+        results = (await capturedSearchFn?.('')) ?? [];
+      });
+      expect(results).toHaveLength(4);
+    });
+  });
+
+  // ─── nullLabel ────────────────────────────────────────────────────────────
+
+  describe('nullLabel', () => {
+    it('replaces the label of the special option', () => {
+      render(
+        <AreaPicker
+          areas={[]}
+          value=""
+          onChange={jest.fn()}
+          nullable
+          nullLabel="Top level (no parent)"
+        />,
+      );
+      expect(capturedSpecialOptions).toEqual([{ id: '', label: 'Top level (no parent)' }]);
+    });
+
+    it('keeps the default label without nullLabel', () => {
+      render(<AreaPicker areas={[]} value="" onChange={jest.fn()} nullable />);
+      expect(capturedSpecialOptions).toEqual([{ id: '', label: 'aria.noArea' }]);
+    });
+
+    it('is ignored when the picker is not nullable', () => {
+      render(<AreaPicker areas={[]} value="" onChange={jest.fn()} nullLabel="Nothing" />);
+      expect(capturedSpecialOptions).toBeUndefined();
+    });
   });
 });

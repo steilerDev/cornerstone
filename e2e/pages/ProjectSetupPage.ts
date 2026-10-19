@@ -2,14 +2,14 @@
  * Page Object Model for Settings > Project setup (#2215, EPIC-21).
  *
  * One page (`/settings/manage`) of sections, in this order: House, Cost categories, Purchase
- * categories, Photo orientations, [the interim Areas card while `areas` is unserved], then
- * "Managed on other pages" (Trades, and Areas once served). A section is a `#anchor` target.
+ * categories, Photo orientations, then
+ * "Managed on other pages" (Trades and Areas pointer rows). A section is a `#anchor` target.
  * The old `?tab=` links are rewritten to anchors by history replace.
  *
  * Section test ids: `project-setup-house`, `-cost-categories`, `-purchase-categories`,
- * `-photo-orientations`, `-areas` (interim card), `-pointers`. Anchors (heading ids
+ * `-photo-orientations`, `-pointers`. Anchors (heading ids
  * `<anchor>-heading`): `house`, `cost-categories`, `purchase-categories`, `orientations`,
- * `areas`, `pointers`.
+ * `pointers`.
  *
  * The three reference lists share the `ReferenceList` component, wrapped here by
  * `ReferenceListControl` (`costCategories`, `purchaseCategories`, `orientations`):
@@ -227,7 +227,6 @@ export class ProjectSetupPage {
   readonly houseSave: Locator;
   readonly houseSaved: Locator;
   readonly houseSaveError: Locator;
-  readonly areasCard: Locator;
   readonly pointers: Locator;
   readonly pointerTrades: Locator;
   readonly pointerAreas: Locator;
@@ -247,7 +246,6 @@ export class ProjectSetupPage {
     this.houseSave = page.getByTestId('project-setup-house-save');
     this.houseSaved = this.house.locator('[role="status"]');
     this.houseSaveError = this.house.locator('[role="alert"]');
-    this.areasCard = page.getByTestId('project-setup-areas');
     this.pointers = page.getByTestId('project-setup-pointers');
     this.pointerTrades = page.getByTestId('project-setup-pointer-trades');
     this.pointerAreas = page.getByTestId('project-setup-pointer-areas');
@@ -275,13 +273,12 @@ export class ProjectSetupPage {
   }
 
   /** The section test ids in page order. */
-  sectionsInOrder(withAreasCard: boolean): Locator[] {
+  sectionsInOrder(): Locator[] {
     return [
       this.house,
       this.costCategories.section,
       this.purchaseCategories.section,
       this.orientations.section,
-      ...(withAreasCard ? [this.areasCard] : []),
       this.pointers,
     ];
   }

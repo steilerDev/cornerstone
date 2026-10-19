@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
@@ -201,6 +201,20 @@ describe('ReferenceListDialog', () => {
         description: 'Bathroom floor',
         color: '#000000',
       });
+    });
+
+    it('unticking No color after picking one restores the picked colour (shared ColorField)', async () => {
+      const user = userEvent.setup();
+      renderDialog({ mode: 'edit', item: { ...ITEM, color: '#336699' } });
+
+      fireEvent.change(colorInput(), { target: { value: '#aabbcc' } });
+      await user.click(noColor());
+      expect(colorInput()).toBeDisabled();
+      await user.click(noColor());
+
+      expect(colorInput().value).toBe('#aabbcc');
+      await user.click(screen.getByTestId('sample-save'));
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ color: '#aabbcc' }));
     });
 
     it('sends only name and colour when there is no description field', async () => {

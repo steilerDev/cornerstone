@@ -34,6 +34,11 @@ export type {
   CreateAreaRequest,
   UpdateAreaRequest,
   AreaListQuery,
+  AreaCounts,
+  AreaWithCounts,
+  AreaListWithCountsResponse,
+  ReorderAreasRequest,
+  DeleteAreaResponse,
 } from './types/area.js';
 
 // Trades

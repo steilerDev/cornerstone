@@ -551,7 +551,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: [],
-    stage: 'planned',
+    stage: 'done',
   },
   {
     id: 'area',
@@ -901,8 +901,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: '/settings/manage',
+    stage: 'done',
   },
   {
     from: '/profile',

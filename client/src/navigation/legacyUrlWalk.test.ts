@@ -104,7 +104,7 @@ const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
   '/settings': '/settings/manage',
   '/settings/vendors': '/companies',
   '/settings/vendors/:id': '/companies/:id',
-  '/tags': '/settings/manage',
+  '/tags': '/areas',
   '/timeline': '/schedule/gantt',
   '/work-items': '/project/work-items',
   '/work-items/:id': '/project/work-items/:id',

@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isRouteServed, routeUrl } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { ReferenceList } from '../../components/ReferenceList/ReferenceList.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useReferenceListData } from '../../hooks/useReferenceListData.js';
-import { navHref } from '../../navigation/navActive.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import sharedStyles from '../../styles/shared.module.css';
-import { AreasInterimCard } from './AreasInterimCard.js';
 import { HouseSection } from './HouseSection.js';
 import { useProjectSetupLocation } from './projectSetupLocation.js';
 import {
@@ -49,19 +47,13 @@ export function ManagePage() {
     [orientations.rows],
   );
 
-  // Interim page content (Architecture › interim page content): #2218 serves 'areas' and deletes
-  // the Areas card branch below.
-  const areasServed = isRouteServed('areas');
   const [houseSettled, setHouseSettled] = useState(false);
-  const [areasSettled, setAreasSettled] = useState(false);
   const onHouseSettled = useCallback(() => setHouseSettled(true), []);
-  const onAreasSettled = useCallback(() => setAreasSettled(true), []);
   const settled =
     houseSettled &&
     costCategories.status !== 'loading' &&
     purchaseCategories.status !== 'loading' &&
-    orientations.status !== 'loading' &&
-    (areasServed || areasSettled);
+    orientations.status !== 'loading';
   useProjectSetupLocation({ settled });
 
   // One always-mounted polite region. Clearing first makes a repeated message read again.
@@ -183,8 +175,6 @@ export function ManagePage() {
           onAnnounce={announce}
         />
 
-        {!areasServed && <AreasInterimCard onSettled={onAreasSettled} />}
-
         <section
           id="pointers"
           aria-labelledby="pointers-heading"
@@ -213,26 +203,22 @@ export function ManagePage() {
                 </span>
               </NavAnchor>
             </li>
-            {areasServed && (
-              <li>
-                <NavAnchor
-                  id="areas"
-                  to={navHref('areas')}
-                  className={styles.pointerRow}
-                  data-testid="project-setup-pointer-areas"
-                >
-                  <span className={styles.pointerText}>
-                    <span className={styles.pointerName}>{t('projectSetup.pointers.areas')}</span>
-                    <span className={styles.pointerHint}>
-                      {t('projectSetup.pointers.areasHint')}
-                    </span>
-                  </span>
-                  <span aria-hidden="true" className={styles.chevron}>
-                    ›
-                  </span>
-                </NavAnchor>
-              </li>
-            )}
+            <li>
+              <NavAnchor
+                id="areas"
+                to={routeUrl('areas')}
+                className={styles.pointerRow}
+                data-testid="project-setup-pointer-areas"
+              >
+                <span className={styles.pointerText}>
+                  <span className={styles.pointerName}>{t('projectSetup.pointers.areas')}</span>
+                  <span className={styles.pointerHint}>{t('projectSetup.pointers.areasHint')}</span>
+                </span>
+                <span aria-hidden="true" className={styles.chevron}>
+                  ›
+                </span>
+              </NavAnchor>
+            </li>
           </ul>
         </section>
       </div>

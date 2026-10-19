@@ -4,6 +4,9 @@
  * Areas can have parent-child relationships (e.g., Kitchen > Kitchen Cabinets).
  */
 
+import type { ReorderReferenceListRequest } from './referenceList.js';
+import type { UndoToken } from './undo.js';
+
 /**
  * A single ancestor entry in the area parent chain.
  * Contains only the fields needed for breadcrumb rendering.
@@ -84,4 +87,35 @@ export interface UpdateAreaRequest {
  */
 export interface AreaListQuery {
   search?: string;
+  /** `counts` adds the direct per-area counts (contract 10). */
+  include?: 'counts';
+}
+
+/** Direct (not roll-up) counts of what is attached to one area. */
+export interface AreaCounts {
+  /** `open` = status <> 'completed'. */
+  workItems: { total: number; open: number };
+  /** `open` = status <> 'arrived'. */
+  householdItems: { total: number; open: number };
+  /** Photos of saved diary entries only; `latestDate` = latest entry date (YYYY-MM-DD). */
+  photos: { total: number; latestDate: string | null };
+}
+
+export interface AreaWithCounts extends AreaResponse {
+  counts: AreaCounts;
+}
+
+/** Response for GET /api/areas?include=counts. */
+export interface AreaListWithCountsResponse {
+  areas: AreaWithCounts[];
+}
+
+/** Request body for PATCH /api/areas/reorder: the children of `parentId`, in the new order. */
+export interface ReorderAreasRequest extends ReorderReferenceListRequest {
+  parentId: string | null;
+}
+
+/** Response for DELETE /api/areas/:id. */
+export interface DeleteAreaResponse {
+  undo: UndoToken;
 }

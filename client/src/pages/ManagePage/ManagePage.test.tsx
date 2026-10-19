@@ -287,7 +287,7 @@ describe('ManagePage (Settings > Project setup)', () => {
     const sectionHeadings = () =>
       screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
 
-    it('shows House, Cost categories, Purchase categories, Photo orientations, Areas, then pointers', async () => {
+    it('shows House, Cost categories, Purchase categories, Photo orientations, then pointers', async () => {
       await loaded();
 
       expect(sectionHeadings()).toEqual([
@@ -295,22 +295,13 @@ describe('ManagePage (Settings > Project setup)', () => {
         'Cost categories',
         'Purchase categories',
         'Photo orientations',
-        'Areas',
         'Managed on other pages',
       ]);
     });
 
-    it('drops the interim Areas card once the Areas page is served', async () => {
-      served.add('areas');
+    it('no longer renders an Areas list or card here (the Areas page owns it)', async () => {
       await loaded();
 
-      expect(sectionHeadings()).toEqual([
-        'House',
-        'Cost categories',
-        'Purchase categories',
-        'Photo orientations',
-        'Managed on other pages',
-      ]);
       expect(screen.queryByTestId('project-setup-areas')).toBeNull();
       expect(mockUseAreas).not.toHaveBeenCalled();
     });
@@ -343,19 +334,13 @@ describe('ManagePage (Settings > Project setup)', () => {
       expect(within(link).getByText('Managed on Companies')).toBeInTheDocument();
     });
 
-    it('has no Areas pointer while Areas is only an interim card', async () => {
-      await loaded();
-
-      expect(screen.queryByTestId('project-setup-pointer-areas')).toBeNull();
-      expect(screen.getByTestId('project-setup-areas')).toBeInTheDocument();
-    });
-
-    it('shows the Areas pointer, and not the card, once Areas is served', async () => {
-      served.add('areas');
+    it('always points Areas at the Areas page, keeping the #areas anchor on the row', async () => {
       await loaded();
 
       const link = screen.getByTestId('project-setup-pointer-areas');
+      expect(link.tagName).toBe('A');
       expect(link).toHaveAttribute('href', '/areas');
+      expect(link).toHaveAttribute('id', 'areas');
       expect(screen.queryByTestId('project-setup-areas')).toBeNull();
     });
 
@@ -392,7 +377,6 @@ describe('ManagePage (Settings > Project setup)', () => {
       ['budget-categories', '#cost-categories'],
       ['hi-categories', '#purchase-categories'],
       ['trades', '#trades'],
-      ['areas', '#areas'],
     ])('replaces ?tab=%s with %s and does not grow the history', async (tab, hash) => {
       const { log } = await loaded(`/settings/manage?tab=${tab}`);
 
@@ -406,8 +390,7 @@ describe('ManagePage (Settings > Project setup)', () => {
       expect(log.actions).toEqual(['REPLACE /settings/manage?x=1']);
     });
 
-    it('sends ?tab=areas to the Areas page once it is served', async () => {
-      served.add('areas');
+    it('sends ?tab=areas to the Areas page', async () => {
       const { log } = renderPage('/settings/manage?tab=areas');
       await screen.findByTestId('project-setup-house');
 
@@ -848,24 +831,6 @@ describe('ManagePage (Settings > Project setup)', () => {
       expect(
         within(screen.getByTestId('cost-categories-row-bc-2')).getByText('Tiles'),
       ).not.toHaveAttribute('lang');
-    });
-  });
-
-  describe('interim Areas card', () => {
-    it('shows the card with the areas list while Areas is not a page', async () => {
-      await loaded();
-
-      const card = screen.getByTestId('project-setup-areas');
-      expect(within(card).getByText('Kitchen')).toBeInTheDocument();
-      expect(mockUseAreas).toHaveBeenCalled();
-    });
-
-    it('settles the page when the card has loaded, so a #areas hash can scroll', async () => {
-      await loaded('/settings/manage#areas');
-
-      await waitFor(() =>
-        expect(document.activeElement).toBe(document.getElementById('areas-heading')),
-      );
     });
   });
 

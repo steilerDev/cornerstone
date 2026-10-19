@@ -85,7 +85,7 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   ['/invoices/:id', '/budget/invoices/:id'],
   ['/timeline', '/schedule/gantt'],
   ['/manage', '/settings/manage'],
-  ['/tags', '/settings/manage'],
+  ['/tags', '/areas'],
   ['/profile', '/settings/profile'],
   ['/admin/users', '/settings/users'],
   ['/budget/categories', '/settings/manage'],
@@ -108,8 +108,9 @@ const TARGET_HASH: Readonly<Record<string, string>> = {
 };
 
 /**
- * The six `?tab=` links the Project setup page serves itself (#2215), written out by hand: each
- * lands on its section anchor with `tab` removed.
+ * The five `?tab=` links the Project setup page serves as section anchors (#2215), written out by
+ * hand: each lands on its section anchor with `tab` removed. The sixth, `?tab=areas`, leaves the
+ * page for `/areas` (#2218); it has its own test.
  */
 const PROJECT_SETUP_TABS: ReadonlyArray<readonly [string, string]> = [
   ['household', '#house'],
@@ -117,7 +118,6 @@ const PROJECT_SETUP_TABS: ReadonlyArray<readonly [string, string]> = [
   ['budget-categories', '#cost-categories'],
   ['hi-categories', '#purchase-categories'],
   ['trades', '#trades'],
-  ['areas', '#areas'],
 ];
 
 const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
@@ -519,7 +519,7 @@ test.describe('Legacy URL walk (route map)', () => {
   // E1c — the six ?tab= links the Project setup page serves itself (#2215)
   // ───────────────────────────────────────────────────────────────────────────
 
-  test('E1c: the route map marks the six Project setup tab links as served by the page', () => {
+  test('E1c: the route map marks the six Project setup tab links as served by the page (areas leaves it)', () => {
     const served = ENTRIES.filter(
       (entry) =>
         entry.from.startsWith('/settings/manage?tab=') &&
@@ -527,8 +527,26 @@ test.describe('Legacy URL walk (route map)', () => {
         entry.interim === 'page',
     );
     expect(served.map((entry) => entry.from).sort()).toEqual(
-      PROJECT_SETUP_TABS.map(([tab]) => `/settings/manage?tab=${tab}`).sort(),
+      [...PROJECT_SETUP_TABS.map(([tab]) => tab), 'areas']
+        .map((tab) => `/settings/manage?tab=${tab}`)
+        .sort(),
     );
+  });
+
+  test('E1c: ?tab=areas replaces to the Areas page in a single hop (#2218)', async ({ page }) => {
+    await installRouteLog(page);
+    await page.goto(routeUrl('settingsManage', undefined, { tab: 'areas' }));
+    await waitForShell(page);
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('areas') && !url.searchParams.has('tab'),
+    );
+    await expect(page.getByRole('heading', { level: 1, name: 'Areas', exact: true })).toBeVisible();
+
+    const log = await readRouteLog(page);
+    expect(
+      log.map((entry) => entry.kind),
+      '?tab=areas is rewritten by exactly one replaceState',
+    ).toEqual(['replaceState']);
   });
 
   test('E1c: each Project setup tab link lands on its section anchor with one replaceState', async ({

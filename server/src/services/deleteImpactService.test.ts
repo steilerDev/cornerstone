@@ -226,6 +226,18 @@ describe('deleteImpactService', () => {
       expect(count('areas')).toBe(3 - 1 - impact.childAreas!);
       expect(count('photos', 'area_id IS NULL')).toBe(1 + impact.photosLoseArea!);
     });
+
+    it('parity: the delete snapshot holds exactly the counted descendants and photos', () => {
+      const { root, child, grandchild } = seedArea();
+      const impact = kinds(getDeleteImpact(db, 'area', root).effects);
+
+      const snapshot = areaService.deleteArea(db, root);
+
+      expect(snapshot.rows.map((r) => r.id)).toEqual([root, child, grandchild]);
+      expect(snapshot.rows.length - 1).toBe(impact.childAreas);
+      expect(snapshot.photos).toHaveLength(impact.photosLoseArea!);
+      expect(snapshot.photos.every((p) => [root, child].includes(p.areaId))).toBe(true);
+    });
   });
 
   describe('orientation', () => {

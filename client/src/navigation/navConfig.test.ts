@@ -359,11 +359,17 @@ describe('navSections', () => {
     expect(shown).toEqual(expected);
   });
 
-  it('hides planned sections: areas, history, documents', () => {
+  it('hides planned sections: history, documents', () => {
     const shown = ids(navSections(ADMIN));
-    for (const planned of ['areas', 'history', 'documents'] as const) {
+    for (const planned of ['history', 'documents'] as const) {
       expect(shown).not.toContain(planned);
     }
+  });
+
+  it('shows Areas, now served, as the only quiet (secondary) section', () => {
+    const sections = navSections(ADMIN);
+    expect(sections.filter((s) => s.group === 'secondary').map((s) => s.id)).toEqual(['areas']);
+    expect(sections.find((s) => s.id === 'areas')?.route).toBe('areas');
   });
 
   it('keeps companies, whose route is served', () => {

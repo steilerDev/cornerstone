@@ -90,11 +90,15 @@ describe('searchResultTarget', () => {
   });
 
   describe('interim targets (routes not yet served)', () => {
-    it('area opens the Manage areas tab while route `area` is planned', () => {
+    it('area opens the Areas index while route `area` (detail) is planned', () => {
       expect(getRouteEntry('area').stage).toBe('planned');
-      const href = routeUrl('settingsManage', undefined, { tab: 'areas' });
-      expect(href).toContain('tab=areas');
-      expect(searchResultTarget('area', item(), NO_PAPERLESS)).toEqual({ kind: 'app', href });
+      expect(getRouteEntry('areas').stage).toBe('done');
+      const href = routeUrl('areas');
+      expect(href).toBe('/areas');
+      expect(searchResultTarget('area', item({ id: 'a-7' }), NO_PAPERLESS)).toEqual({
+        kind: 'app',
+        href,
+      });
     });
 
     it('paperless documents open in Paperless while route `documents` is planned', () => {

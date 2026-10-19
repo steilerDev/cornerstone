@@ -3,6 +3,7 @@
     { "path": "*", "guard": "member", "kind": "page", "element": "NotFoundPage" },
     { "path": "/", "guard": "member", "kind": "redirect", "target": "/project/overview" },
     { "path": "/admin/users", "guard": "member", "kind": "redirect", "target": "/settings/users" },
+    { "path": "/areas", "guard": "member", "kind": "page", "element": "AreasPage" },
     { "path": "/budget", "guard": "member", "kind": "redirect", "target": "/budget/overview" },
     {
       "path": "/budget/categories",
@@ -210,7 +211,7 @@
       "target": "/companies/:id"
     },
     { "path": "/setup", "guard": "public", "kind": "page", "element": "SetupPage" },
-    { "path": "/tags", "guard": "member", "kind": "redirect", "target": "/settings/manage" },
+    { "path": "/tags", "guard": "member", "kind": "redirect", "target": "/areas" },
     { "path": "/timeline", "guard": "member", "kind": "redirect", "target": "/schedule/gantt" },
     {
       "path": "/work-items",

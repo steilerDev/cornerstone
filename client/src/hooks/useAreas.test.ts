@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import enErrors from '../i18n/en/errors.json';
 import enCommon from '../i18n/en/common.json';
-import enSettings from '../i18n/en/settings.json';
+import enAreas from '../i18n/en/areas.json';
 
 const mockFetchAreas = jest.fn<() => Promise<unknown>>();
 const mockCreateArea = jest.fn<() => Promise<unknown>>();
@@ -141,7 +141,7 @@ describe('useAreas', () => {
 
     const { result } = renderHook(() => useAreas());
 
-    await waitFor(() => expect(result.current.error).toBe(enSettings.manage.areas.loadError));
+    await waitFor(() => expect(result.current.error).toBe(enAreas.index.loadFailed));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -330,8 +330,9 @@ describe('useAreas', () => {
       expect(mockDeleteArea).toHaveBeenCalledWith('a1');
     });
 
-    it('resolves to undefined on successful delete', async () => {
-      mockDeleteArea.mockResolvedValueOnce(undefined);
+    it('resolves to the delete response with the Undo token', async () => {
+      const response = { undo: { token: 'tok', expiresAt: '2026-01-01T00:00:30.000Z' } };
+      mockDeleteArea.mockResolvedValueOnce(response);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
       const { result } = renderHook(() => useAreas());
@@ -342,7 +343,7 @@ describe('useAreas', () => {
         returned = await result.current.deleteArea('a1');
       });
 
-      expect(returned).toBeUndefined();
+      expect(returned).toEqual(response);
     });
 
     it('triggers a refetch after successful delete', async () => {

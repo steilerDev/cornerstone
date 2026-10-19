@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormError } from '../FormError/FormError.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
+import { ColorField } from './ColorField.js';
 import styles from './ObjectForm.module.css';
 import type { ObjectFormChild, ObjectFormField as FieldDef } from './types.js';
 
@@ -60,6 +61,18 @@ export function ObjectFormField({
       describedBy,
       createChild,
     });
+  } else if (kind === 'color') {
+    control = (
+      <ColorField
+        id={name}
+        value={typeof value === 'string' && value !== '' ? value : null}
+        onChange={(next) => onChange(next)}
+        disabled={busy}
+        noColorLabel={t('referenceList.noColor')}
+        testIdPrefix={field.testId}
+        describedBy={describedBy}
+      />
+    );
   } else if (kind === 'select') {
     control = (
       <select

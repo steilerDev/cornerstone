@@ -1,4 +1,91 @@
 {
   "noArea": "Kein Bereich",
-  "pathLabel": "Bereichspfad"
+  "pathLabel": "Bereichspfad",
+  "index": {
+    "loadFailed": "Bereiche konnten nicht geladen werden.",
+    "description": "Die Teile deines Hauses: Gebäude, Etagen und Räume. Aufgaben, Anschaffungen und Fotos ordnest du jeweils einem Bereich zu.",
+    "new": "Neuer Bereich",
+    "filter": "Bereiche filtern",
+    "clearFilter": "Filter löschen",
+    "retry": "Erneut versuchen",
+    "tree": "Bereiche",
+    "topLevelName": "Bereiche",
+    "columns": {
+      "name": "Bereich",
+      "tasks": "Aufgaben",
+      "purchases": "Anschaffungen",
+      "photos": "Fotos"
+    },
+    "count": {
+      "openOfTotal": "{{open}} von {{total}} offen",
+      "none": "Keine",
+      "photos_one": "{{count}} Foto",
+      "photos_other": "{{count}} Fotos",
+      "latest": "Zuletzt {{date}}",
+      "photosPhone": "{{count}}, zuletzt {{date}}",
+      "photosPhoneNoDate": "{{count}}"
+    },
+    "quiet": {
+      "building": "Ganzes Gebäude (ohne Etage)",
+      "floor": "Ganze Etage (ohne Raum)",
+      "other": "{{name}} selbst (ohne Unterbereich)"
+    },
+    "row": {
+      "subAreas": "Unterbereiche von {{name}}",
+      "group": "Teile von {{name}}",
+      "reorder": "{{name}} neu anordnen",
+      "actions": "Aktionen für {{name}}"
+    },
+    "menu": {
+      "edit": "Bearbeiten",
+      "addSub": "Unterbereich hinzufügen",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "delete": "Löschen"
+    },
+    "form": {
+      "titleNew": "Neuer Bereich",
+      "titleEdit": "Bereich bearbeiten",
+      "name": "Name",
+      "partOf": "Gehört zu",
+      "color": "Farbe",
+      "description": "Beschreibung",
+      "topLevel": "Oberste Ebene (kein übergeordneter Bereich)",
+      "partOfHint": "Das Gebäude oder die Etage, zu der dieser Bereich gehört.",
+      "nameRequired": "Bitte gib einen Namen ein.",
+      "duplicate": "Es gibt bereits einen Bereich namens {{name}} in {{parent}}.",
+      "duplicateTop": "Es gibt bereits einen Bereich namens {{name}} auf oberster Ebene."
+    },
+    "delete": {
+      "blocked": "{{path}} kann noch nicht gelöscht werden.",
+      "blockedTasks_one": "{{count}} Aufgabe ist hier oder in einem Unterbereich eingeplant.",
+      "blockedTasks_other": "{{count}} Aufgaben sind hier oder in einem Unterbereich eingeplant.",
+      "blockedPurchases_one": "{{count}} Anschaffung ist hier oder in einem Unterbereich eingeplant.",
+      "blockedPurchases_other": "{{count}} Anschaffungen sind hier oder in einem Unterbereich eingeplant.",
+      "blockedBoth": "{{tasks}} und {{purchases}} sind hier oder in einem Unterbereich eingeplant.",
+      "taskCount_one": "{{count}} Aufgabe",
+      "taskCount_other": "{{count}} Aufgaben",
+      "purchaseCount_one": "{{count}} Anschaffung",
+      "purchaseCount_other": "{{count}} Anschaffungen",
+      "moveFirst": "Verschiebe oder lösche sie zuerst.",
+      "showTasks": "Diese Aufgaben anzeigen",
+      "showPurchases": "Diese Anschaffungen anzeigen",
+      "close": "Schließen"
+    },
+    "toast": {
+      "deleted": "{{name}} gelöscht",
+      "restored": "{{name}} wiederhergestellt"
+    },
+    "status": {
+      "added": "{{name}} hinzugefügt",
+      "saved": "{{name}} gespeichert",
+      "matches_one": "{{count}} Bereich passt",
+      "matches_other": "{{count}} Bereiche passen",
+      "noMatches": "Kein Bereich passt zu {{query}}."
+    },
+    "reorderHint": "Lösche den Filter, um die Reihenfolge zu ändern.",
+    "empty": "Noch keine Bereiche. Lege zuerst dein Gebäude an, danach die Etagen und Räume.",
+    "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "position": "{{name}}, Position {{position}} von {{total}} in {{parent}}."
+  }
 }

@@ -191,16 +191,17 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await expect(appShell.moreSheet).not.toHaveAttribute('inert', /.*/);
       await expect(appShell.moreButton).toHaveAttribute('aria-expanded', 'true');
 
-      // Areas, History (route-map stage planned) and Documents (Paperless) appear once served;
+      // History (route-map stage planned) and Documents (Paperless) appear once served;
       // an empty group renders no list and no separator.
       await expect(appShell.moreSheet.locator('[data-testid^="more-sheet-section-"]')).toHaveText([
         'Tasks',
         'Purchases',
         'Money',
         'Companies',
+        'Areas',
         'Settings',
       ]);
-      await expect(appShell.moreSheet.getByRole('navigation').getByRole('list')).toHaveCount(2);
+      await expect(appShell.moreSheet.getByRole('navigation').getByRole('list')).toHaveCount(3);
 
       // User block, top to bottom: Account, Theme, Language, Help, About (GitHub), Log out
       const order = [

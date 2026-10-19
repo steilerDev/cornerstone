@@ -90,7 +90,7 @@ describe('Sidebar', () => {
   const hasView = (route: string) => screen.queryByTestId(`sidebar-view-${route}`) !== null;
 
   describe('structure', () => {
-    it('lists Home, Tasks, Purchases, Site diary, Photos, Money and Companies in order', () => {
+    it('lists Home, Tasks, Purchases, Site diary, Photos, Money and Companies, then the quiet Areas, in order', () => {
       renderAt('/budget/overview');
 
       expect(sectionLinks(mainNav()).map((l) => l.textContent)).toEqual([
@@ -101,6 +101,7 @@ describe('Sidebar', () => {
         'Photos',
         'Money',
         'Companies',
+        'Areas',
       ]);
     });
 
@@ -110,12 +111,14 @@ describe('Sidebar', () => {
       expect(screen.queryByRole('link', { name: /^schedule$/i })).not.toBeInTheDocument();
     });
 
-    it('renders no separator and no quiet group while Areas, History and Documents are planned', () => {
+    it('renders the separator and a quiet group with only Areas while History and Documents are planned', () => {
       const { container } = renderAt('/project/work-items');
 
-      expect(container.querySelector('[aria-hidden="true"][class*="navSeparator"]')).toBeNull();
-      expect(container.querySelector('[class*="navLinkQuiet"]')).toBeNull();
-      for (const id of ['areas', 'history', 'documents']) {
+      expect(container.querySelector('[aria-hidden="true"][class*="navSeparator"]')).not.toBeNull();
+      expect(container.querySelectorAll('[class*="navLinkQuiet"]')).toHaveLength(1);
+      expect(screen.getByTestId('sidebar-section-areas')).toBeInTheDocument();
+      expect(screen.getByTestId('sidebar-section-areas')).toHaveAttribute('href', '/areas');
+      for (const id of ['history', 'documents']) {
         expect(screen.queryByTestId(`sidebar-section-${id}`)).not.toBeInTheDocument();
       }
     });
