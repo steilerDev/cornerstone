@@ -5,11 +5,12 @@
   "type": "module",
   "main": "./dist/server.js",
   "scripts": {
-    "dev": "node --watch src/server.ts",
-    "build": "tsc",
+    "dev": "tsc -b && npm run copy-migrations && concurrently -k -n tsc,node -c yellow,blue \"tsc -b --watch --preserveWatchOutput\" \"node --watch dist/server.js\"",
+    "build": "tsc && npm run copy-migrations",
+    "copy-migrations": "node scripts/copyMigrations.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node dist/db/runMigrate.js"
+    "db:migrate": "npm run copy-migrations && node dist/db/runMigrate.js"
   },
   "dependencies": {
     "@cornerstone/shared": "*",

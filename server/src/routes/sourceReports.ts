@@ -92,11 +92,11 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
           additionalProperties: false,
           anyOf: [
             {
-              properties: { invoiceIds: { minItems: 1 } },
+              properties: { invoiceIds: { type: 'array', minItems: 1 } },
               required: ['invoiceIds'],
             },
             {
-              properties: { depositIds: { minItems: 1 } },
+              properties: { depositIds: { type: 'array', minItems: 1 } },
               required: ['depositIds'],
             },
           ],

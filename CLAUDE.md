@@ -590,7 +590,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 | Command                    | Description                                                                     |
 | -------------------------- | ------------------------------------------------------------------------------- |
 | `npm run dev`              | Start both server and client in watch mode                                      |
-| `npm run dev:server`       | Start only the Fastify server (node --watch)                                    |
+| `npm run dev:server`       | Start only the Fastify server (tsc --watch + node --watch dist/server.js)       |
 | `npm run dev:client`       | Start only the Webpack dev server                                               |
 | `npm run build`            | Build all packages (shared -> client -> server)                                 |
 | `npm test`                 | Run all tests                                                                   |
@@ -613,7 +613,7 @@ Docusaurus site in `docs/` deployed to GitHub Pages on stable releases via `.git
 
 ### Database Migrations
 
-Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction.
+Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction. The runner reads `server/dist/db/migrations/`; `build`, `dev` and `db:migrate` copy the `.sql` files there with `npm run copy-migrations -w server` (`tsc` does not). A migration added while `npm run dev` is running needs a dev restart (or a `copy-migrations` run).
 
 ### Environment Variables
 

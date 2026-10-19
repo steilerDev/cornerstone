@@ -426,3 +426,33 @@ describe('App - Not-Found Handler (production mode with client/dist)', () => {
     expect(cc).toContain('immutable');
   });
 });
+
+describe('App - schema compilation', () => {
+  let app: FastifyInstance | undefined;
+  let tempDir: string;
+  let warn: jest.SpiedFunction<typeof console.warn>;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    warn.mockRestore();
+    if (app) await app.close();
+    app = undefined;
+    rmSync(tempDir, { recursive: true, force: true });
+    delete process.env.DATABASE_URL;
+  });
+
+  it('compiles every route schema without Ajv strict-mode warnings', async () => {
+    app = await buildApp();
+    await app.ready();
+
+    const strictWarnings = warn.mock.calls
+      .map((args: unknown[]) => args[0])
+      .filter((first: unknown) => typeof first === 'string' && first.startsWith('strict mode:'));
+    expect(strictWarnings).toEqual([]);
+  });
+});
