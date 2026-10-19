@@ -372,6 +372,8 @@ export interface AppFormatters extends Formatters {
   formatHours: (hours: number) => string;
   formatDateTimeWithZone: (date: Date) => string;
   formatDayMonth: (dateStr: string | null | undefined, fallback?: string) => string;
+  /** Range of two `YYYY-MM-DD` dates: "October 12 – 18, 2026". */
+  formatDayRange: (start: string, end: string) => string;
 }
 
 import type { ResolvedLocale } from '../contexts/LocaleContext.js';
@@ -423,6 +425,9 @@ export function createFormatters(locale: string, currency: string): AppFormatter
      */
     formatDayMonth: (dateStr: string | null | undefined, fallback?: string) =>
       formatDayMonth(dateStr, locale, fallback),
+
+    formatDayRange: (start: string, end: string) =>
+      formatDayRange(new Date(`${start}T00:00:00Z`), new Date(`${end}T00:00:00Z`), locale),
 
     /**
      * Format a time string using the bound locale.

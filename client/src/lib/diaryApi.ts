@@ -6,6 +6,7 @@ import type {
   DiaryEntryDetail,
   DiaryEntryListResponse,
   DiaryEntryListQuery,
+  DiaryFilterOptions,
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
   PromoteDiaryEntryRequest,
@@ -44,11 +45,25 @@ export function listDiaryEntries(params?: DiaryEntryListQuery): Promise<DiaryEnt
   if (params?.q) {
     queryParams.set('q', params.q);
   }
+  if (params?.areaId) {
+    queryParams.set('areaId', params.areaId);
+  }
+  if (params?.vendorId) {
+    queryParams.set('vendorId', params.vendorId);
+  }
 
   const queryString = queryParams.toString();
   const path = queryString ? `/diary-entries?${queryString}` : '/diary-entries';
 
   return get<DiaryEntryListResponse>(path);
+}
+
+/**
+ * Fetches what the Site diary Filters sheet offers: the manual types in use, the areas tagged on
+ * diary photos and the companies used in entries.
+ */
+export function fetchDiaryFilterOptions(): Promise<DiaryFilterOptions> {
+  return get<DiaryFilterOptions>('/diary-entries/filter-options');
 }
 
 /**

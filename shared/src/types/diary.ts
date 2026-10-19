@@ -205,6 +205,16 @@ export interface DiaryEntrySummary {
   /** History only: set on a submission row (batch collapse). */
   batch?: SystemEventBatchSummary;
   photoCount: number;
+  /**
+   * #2225: the first DIARY_LIST_THUMBNAIL_LIMIT photos in photo order (sort_order, created_at, id).
+   * Always sent by the server ([] without photos); optional only for older client fixtures.
+   */
+  thumbnails?: DiaryPhotoThumbnail[];
+  /**
+   * #2225: distinct areas tagged on the entry's photos, each with its ancestors, sorted by path
+   * (ancestor names then name, case-insensitive). Always sent by the server ([] when none).
+   */
+  photoAreas?: AreaSummary[];
   createdBy: DiaryUserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -285,6 +295,32 @@ export interface PromoteDiaryEntryRequest {
   metadata?: DiaryEntryMetadata | null;
 }
 
+/** Most thumbnails a diary summary carries (list rows show these plus a "+n" tile). */
+export const DIARY_LIST_THUMBNAIL_LIMIT = 5;
+
+/** One photo thumbnail of a diary entry (#2225). */
+export interface DiaryPhotoThumbnail {
+  id: string;
+  /** Cache-busted, e.g. `/api/photos/<id>/thumbnail?v=...` (same as Photo.thumbnailUrl). */
+  thumbnailUrl: string;
+}
+
+/** A company offered by the diary Filters sheet (#2225). */
+export interface DiaryFilterCompany {
+  id: string;
+  name: string;
+}
+
+/** Response of GET /api/diary-entries/filter-options (#2225); saved manual entries only. */
+export interface DiaryFilterOptions {
+  /** Manual types with at least one saved entry, in MANUAL_DIARY_ENTRY_TYPES order. */
+  types: ManualDiaryEntryType[];
+  /** Areas tagged on photos of saved manual entries, with ancestors, sorted by path. */
+  areas: AreaSummary[];
+  /** Companies used in saved entries (daily log company or delivery company by name), sorted by name. */
+  companies: DiaryFilterCompany[];
+}
+
 // ─── Query & List Response ────────────────────────────────────────────────────
 
 /** Query parameters for GET /api/diary-entries. */
@@ -304,6 +340,13 @@ export interface DiaryEntryListQuery {
    */
   status?: DiaryEntryStatus;
   q?: string;
+  /** #2225: entries with at least one photo tagged with this area or one of its descendants. */
+  areaId?: string;
+  /**
+   * #2225: daily logs whose metadata.vendorId is this company, or deliveries whose free-text
+   * metadata.vendor equals the company's name after fold().
+   */
+  vendorId?: string;
   /** Also return the system events display rule R1 hides, each with `hidden: true` (R2 still applies). */
   showHidden?: boolean;
 }

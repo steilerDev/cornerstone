@@ -18,6 +18,10 @@
  * 10. Responsive — no horizontal scroll on current viewport (@responsive)
  * 11. Dark mode — page renders without layout overflow
  * 12. The list request carries automatic=false and there are no mode chips (@smoke, #2224)
+ *
+ * #2225: the list is a feed of week groups and photo-first rows (see diary-feed-rows.spec.ts),
+ * drafts leave the feed (the "Unfinished" row makes a second request, `status=draft`; mocks stub it
+ * with `stubUnfinishedEmpty`), and the type chips live in the Filters surface.
  */
 
 import type { Page } from '@playwright/test';
@@ -28,6 +32,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 import { defined } from '../../fixtures/assertions.js';
+import { stubFilterOptions, stubUnfinishedEmpty } from '../../fixtures/diaryMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — minimal mock entry shapes used for API route mocks
@@ -156,6 +161,7 @@ test.describe('Empty state (Scenario 3)', () => {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -165,11 +171,10 @@ test.describe('Empty state (Scenario 3)', () => {
       const text = await diaryPage.emptyState.textContent();
       expect(text?.toLowerCase()).toContain('no diary entries');
 
-      // CTA link to create first entry
-      const ctaLink = diaryPage.emptyState.getByRole('link', {
-        name: /create your first entry/i,
-      });
-      await expect(ctaLink).toBeVisible();
+      // The one CTA is "Log today"
+      await expect(
+        diaryPage.nothingAtAllState.getByRole('link', { name: 'Log today' }),
+      ).toBeVisible();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -238,15 +243,18 @@ test.describe(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Date grouping — entries on different dates render separate headers
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Date grouping (Scenario 5)', () => {
-  test('Entries on different dates are grouped under separate date headers (mock)', async ({
+test.describe('Week grouping (Scenario 5)', () => {
+  test('Entries in different ISO weeks are grouped under separate week headings (mock)', async ({
     page,
   }) => {
     const diaryPage = new DiaryPage(page);
 
+    // 2026-03-14 is a Saturday (week of Monday 2026-03-09); 2026-03-12 is the same week;
+    // 2026-03-02 is the Monday of the week before.
     const entries = [
       makeMockEntry({ id: 'entry-a', entryDate: '2026-03-14', title: 'Entry A' }),
       makeMockEntry({ id: 'entry-b', entryDate: '2026-03-12', title: 'Entry B' }),
+      makeMockEntry({ id: 'entry-c', entryDate: '2026-03-02', title: 'Entry C' }),
     ];
 
     await page.route('**/api/diary-entries*', async (route) => {
@@ -254,28 +262,27 @@ test.describe('Date grouping (Scenario 5)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 2 })),
+          body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 3 })),
         });
       } else {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      // Each date should have its own date group section
-      const group14 = page.getByTestId('date-group-2026-03-14');
-      const group12 = page.getByTestId('date-group-2026-03-12');
-
-      await expect(group14).toBeVisible();
-      await expect(group12).toBeVisible();
-
-      // The two groups are separate — check that we have at least 2 date groups
-      const groups = diaryPage.dateGroups();
-      const groupCount = await groups.count();
-      expect(groupCount).toBeGreaterThanOrEqual(2);
+      // One heading per week: the two March 9-15 entries share a group
+      await expect(diaryPage.weekGroups()).toHaveCount(2);
+      const week = diaryPage.weekGroup('2026-03-09');
+      const previousWeek = diaryPage.weekGroup('2026-03-02');
+      await expect(week.getByRole('heading', { level: 2 })).toContainText('Week of');
+      await expect(week.locator('li[data-testid^="diary-entry-"]')).toHaveCount(2);
+      await expect(previousWeek.locator('li[data-testid^="diary-entry-"]')).toHaveCount(1);
+      await expect(week.locator('li[data-testid="diary-entry-entry-a"]')).toBeVisible();
+      await expect(previousWeek.locator('li[data-testid="diary-entry-entry-c"]')).toBeVisible();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -425,6 +432,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
             body: JSON.stringify(body),
           });
         });
+        await stubUnfinishedEmpty(page);
 
         try {
           await diaryPage.goto();
@@ -490,6 +498,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(body),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -560,23 +569,24 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 50, totalPages: 2 })),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
       // Exactly one error surface, with the generic translated text (not the raw server message)
-      await expect(diaryPage.footerError).toBeVisible();
-      await expect(diaryPage.footerError).toContainText(
+      await expect(diaryPage.errorBanner).toBeVisible();
+      await expect(diaryPage.errorBanner).toContainText(
         'Failed to load diary entries. Please try again.',
       );
       await expect(page.getByRole('alert')).toHaveCount(1);
       await expect(page.getByText('Server error')).toHaveCount(0);
-      await expect(diaryPage.loadMoreButton).toHaveText('Retry');
+      await expect(diaryPage.retryButton).toHaveText('Retry');
 
       // Keyboard-only activation
-      await diaryPage.loadMoreButton.focus();
-      await expect(diaryPage.loadMoreButton).toBeFocused();
+      await diaryPage.retryButton.focus();
+      await expect(diaryPage.retryButton).toBeFocused();
       const retryResponse = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
@@ -588,15 +598,15 @@ test.describe('Infinite scroll (Scenario 7)', () => {
 
       expect(requestedPages).toEqual(['1', '1']);
       await expect(diaryPage.entryCard('retry-p1-0')).toBeVisible();
-      await expect(diaryPage.footerError).toBeHidden();
+      await expect(diaryPage.errorBanner).toBeHidden();
+      await expect(diaryPage.retryButton).toHaveCount(0);
       await expect(diaryPage.loadMoreButton).toHaveText('Load more');
-      await expect(diaryPage.loadMoreButton).toBeFocused();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
   });
 
-  test('first-batch failure followed by an empty Retry result focuses the empty-state CTA', async ({
+  test('first-batch failure followed by an empty Retry result focuses the empty-state message', async ({
     page,
   }) => {
     const diaryPage = new DiaryPage(page);
@@ -623,18 +633,20 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(makePaginatedResponse([])),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
-      await expect(diaryPage.footerError).toBeVisible();
+      await expect(diaryPage.errorBanner).toBeVisible();
 
-      await diaryPage.loadMoreButton.focus();
+      await diaryPage.retryButton.focus();
       await page.keyboard.press('Enter');
 
-      await expect(diaryPage.emptyState).toBeVisible();
-      await expect(diaryPage.emptyState.getByRole('link')).toBeFocused();
-      await expect(diaryPage.footerError).toBeHidden();
+      // The empty state's message takes focus (it is programmatically focusable)
+      await expect(diaryPage.nothingAtAllState).toBeVisible();
+      await expect(diaryPage.nothingAtAllState.getByText('No diary entries yet.')).toBeFocused();
+      await expect(diaryPage.errorBanner).toBeHidden();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -688,6 +700,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         ),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -733,6 +746,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 5, totalPages: 1 })),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -762,6 +776,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -818,6 +833,8 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(body),
       });
     });
+    await stubUnfinishedEmpty(page);
+    await stubFilterOptions(page);
 
     try {
       await diaryPage.goto();
@@ -827,7 +844,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       await expect(diaryPage.entryCard('flt-man1-0')).toBeVisible();
       await expect(diaryPage.entryCard('flt-man2-0')).toBeVisible();
 
-      await diaryPage.openFiltersIfCollapsed();
+      await diaryPage.openFilters();
       const filteredResponsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
@@ -835,6 +852,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       );
       await diaryPage.typeFilterChip('daily_log').click();
       await filteredResponsePromise;
+      await diaryPage.closeFilters();
       await diaryPage.waitForLoaded();
 
       // Old unfiltered batches are discarded, not just visually hidden.
@@ -877,6 +895,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(body),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -936,6 +955,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         ),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
@@ -997,6 +1017,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
         body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 5, totalPages: 1 })),
       });
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await page.goto(`${DIARY_ROUTE}?page=3`);
@@ -1061,6 +1082,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
           ),
         });
       });
+      await stubUnfinishedEmpty(page);
 
       try {
         await page.goto(DIARY_ROUTE);
@@ -1134,8 +1156,8 @@ test.describe('Entry card navigation (Scenario 8)', () => {
       await diaryPage.search(`${testPrefix} Card Nav Test`);
       await expect(diaryPage.entryCard(createdId)).toBeVisible();
 
-      // Click the card — it is rendered as a <Link> so clicking navigates
-      await diaryPage.entryCard(createdId).click();
+      // Click the row title link (stretched over the whole row)
+      await diaryPage.entryLink(createdId).click();
 
       await page.waitForURL(`**/diary/${createdId}`);
       expect(page.url()).toContain(`/diary/${createdId}`);
@@ -1150,7 +1172,7 @@ test.describe('Entry card navigation (Scenario 8)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Type chip filter (Scenario 9)', () => {
   // UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) was removed.
-  // Filtering is now done via individual type chip buttons in the filter bar.
+  // Filtering is done via individual type chip buttons in the Filters surface (#2225).
   test('Clicking "daily_log" type chip sends correct type parameter to the API', async ({
     page,
   }) => {
@@ -1163,6 +1185,8 @@ test.describe('Type chip filter (Scenario 9)', () => {
         body: JSON.stringify(makePaginatedResponse([])),
       });
     });
+    await stubUnfinishedEmpty(page);
+    await stubFilterOptions(page);
 
     try {
       await diaryPage.goto();
@@ -1181,7 +1205,8 @@ test.describe('Type chip filter (Scenario 9)', () => {
         return !!typeParam && typeParam.includes('daily_log');
       });
 
-      // Click the "daily_log" type chip filter button
+      // Open the Filters surface, then click the "daily_log" type chip
+      await diaryPage.openFilters();
       const typeChip = diaryPage.typeFilterChip('daily_log');
       await typeChip.waitFor({ state: 'visible' });
       await typeChip.click();
@@ -1196,11 +1221,13 @@ test.describe('Type chip filter (Scenario 9)', () => {
     }
   });
 
-  test('Type chip filter buttons are visible in the filter bar', async ({ page }) => {
+  test('Type chip filter buttons are visible in the Filters surface', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
+    await stubFilterOptions(page);
     await diaryPage.goto();
     await diaryPage.waitForLoaded();
+    await diaryPage.openFilters();
 
     // UAT fix #840: type chips replace the old type switcher tabs.
     // Verify that the manual entry type chips are visible in the filter bar.
@@ -1228,12 +1255,13 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Filter bar is visible on all viewports', async ({ page }) => {
+  test('Search field and Filters button are visible on all viewports', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
     await diaryPage.goto();
 
-    await expect(diaryPage.filterBar).toBeVisible();
+    await expect(diaryPage.searchInput).toBeVisible();
+    await expect(diaryPage.filtersButton).toBeVisible();
   });
 });
 
@@ -1267,7 +1295,7 @@ test.describe('Dark mode rendering (Scenario 11)', { tag: '@responsive' }, () =>
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('People entries only (Scenario 12)', () => {
   test(
-    'The initial list request asks for automatic=false and the filter bar has no mode chips',
+    'The initial list requests ask for automatic=false and the page has no mode chips',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
@@ -1283,11 +1311,11 @@ test.describe('People entries only (Scenario 12)', () => {
           body: JSON.stringify(makePaginatedResponse([])),
         });
       });
+      await stubUnfinishedEmpty(page);
 
       try {
         await diaryPage.goto();
         await diaryPage.waitForLoaded();
-        await diaryPage.openFiltersIfCollapsed();
 
         await expect(diaryPage.modeChips).toHaveCount(0);
 

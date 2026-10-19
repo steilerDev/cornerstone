@@ -14,7 +14,7 @@
  * - the hidden-notes line (`history-hidden-note`, `history-show-hidden`)
  * - two visually hidden `role="status"` regions (`history-hidden-status`, `history-result-status`)
  * - `history-feed`: day groups `date-group-<YYYY-MM-DD>` (an h2 plus a list), each row an `li`
- *   `system-event-<id>` (or a `diary-card-<id>` card for a saved manual entry)
+ *   `system-event-<id>` (or a `diary-entry-<id>` DiaryEntryFeedRow for a saved manual entry)
  * - the `InfiniteScrollFooter` (`history-footer`, `history-sentinel`, `history-load-more-button`,
  *   `history-end-of-list`) once at least one row is loaded
  * - empty states through `EmptyState` (no testid; found by their message text), the first-load
@@ -119,7 +119,7 @@ export class HistoryPage {
 
   /** Every saved manual entry card shown through the include toggle. */
   diaryCards(): Locator {
-    return this.feed.locator('[data-testid^="diary-card-"]');
+    return this.feed.locator('li[data-testid^="diary-entry-"]');
   }
 
   /** A system event row by entry id. */
@@ -165,6 +165,20 @@ export class HistoryPage {
   /** The type chip group (`role="group"`, scrolls sideways below 768px). */
   get typeChipGroup(): Locator {
     return this.filters.getByRole('group', { name: 'Filter by type', exact: true });
+  }
+
+  /**
+   * Set (or, with '', clear) the From or To date and wait until the change has landed in the URL.
+   * Filling a native date input fires a change per edited segment (WebKit most visibly), and the
+   * inputs are driven by the URL: the next edit made before the URL settled can be overwritten by
+   * the previous value. So assert the input value, then the URL param, before returning.
+   */
+  async setDate(which: 'from' | 'to', value: string): Promise<void> {
+    const input = which === 'from' ? this.dateFromInput : this.dateToInput;
+    const param = which === 'from' ? 'dateFrom' : 'dateTo';
+    await input.fill(value);
+    await expect(input).toHaveValue(value);
+    await expect(this.page).toHaveURL((url) => (url.searchParams.get(param) ?? '') === value);
   }
 
   /**

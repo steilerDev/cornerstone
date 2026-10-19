@@ -148,6 +148,22 @@ describe('AnchoredPanel', () => {
       expect(onDismiss).not.toHaveBeenCalled();
     });
 
+    it('a press inside a SearchPicker dropdown (portaled outside the panel) is not an outside press', () => {
+      const onDismiss = jest.fn();
+      render(
+        <>
+          <Host onDismiss={onDismiss} />
+          <div data-search-picker-dropdown>
+            <span data-testid="picker-option">Area A</span>
+          </div>
+        </>,
+      );
+      fireEvent.mouseDown(screen.getByTestId('picker-option'));
+      expect(onDismiss).not.toHaveBeenCalled();
+      fireEvent.mouseDown(screen.getByTestId('elsewhere'));
+      expect(onDismiss).toHaveBeenCalledWith('outside');
+    });
+
     it('a changed closeSignal while open dismisses with reason "route"', () => {
       const onDismiss = jest.fn();
       const { rerender } = render(<Host closeSignal="a" onDismiss={onDismiss} />);

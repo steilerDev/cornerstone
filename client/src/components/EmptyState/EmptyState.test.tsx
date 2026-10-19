@@ -4,7 +4,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { EmptyState } from './EmptyState.js';
 
 // CSS modules are mocked via identity-obj-proxy (classNames returned as-is)
@@ -119,6 +119,35 @@ describe('EmptyState', () => {
     const notPrevented = fireEvent.click(link);
     expect(notPrevented).toBe(false);
     expect(screen.getByRole('heading', { name: 'Diary form page' })).toBeInTheDocument();
+  });
+
+  it('passes the action state to the destination location on a plain click', () => {
+    function Destination() {
+      const location = useLocation();
+      return <h1>{`Destination ${JSON.stringify(location.state)}`}</h1>;
+    }
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <EmptyState
+                message="No items"
+                action={{ label: 'Add entry', href: '/diary/new', state: { logToday: true } }}
+              />
+            }
+          />
+          <Route path="/diary/new" element={<Destination />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'Add entry' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Destination {"logToday":true}' }),
+    ).toBeInTheDocument();
   });
 
   it.each([

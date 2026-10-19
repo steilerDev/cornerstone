@@ -208,7 +208,7 @@ test.describe('No Edit/Delete for automatic entries (Scenario 4)', () => {
 
       // Edit and Delete must NOT be rendered for automatic entries
       await expect(detailPage.editButton).not.toBeVisible();
-      await expect(detailPage.deleteButton).not.toBeVisible();
+      await expect(detailPage.moreMenu).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');

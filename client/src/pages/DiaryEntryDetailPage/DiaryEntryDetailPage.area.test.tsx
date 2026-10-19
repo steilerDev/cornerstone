@@ -10,7 +10,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail } from '@cornerstone/shared';
@@ -190,9 +190,12 @@ describe('DiaryEntryDetailPage — area breadcrumb', () => {
     mockGetDiaryEntry.mockResolvedValueOnce(entry);
     renderDetailPage();
 
+    // The area shows in the source section (compact breadcrumb) and as an Areas chip.
     await waitFor(() => {
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+      expect(screen.getAllByText('Kitchen')).toHaveLength(2);
     });
+    const sourceSection = screen.getByText('Related to:').parentElement as HTMLElement;
+    expect(within(sourceSection).getByText('Kitchen')).toBeInTheDocument();
   });
 
   it('work_item source with null area → "No area" visible in source section', async () => {

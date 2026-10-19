@@ -25,6 +25,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { mockSystemEvent } from '../../fixtures/systemEventMocks.js';
+import { stubFilterOptions, stubUnfinishedEmpty } from '../../fixtures/diaryMocks.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { HistoryPage } from '../../pages/HistoryPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
@@ -79,7 +80,7 @@ function makePaginatedResponse(entries: Record<string, unknown>[]): Record<strin
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('No mode chips, History link (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'The filter bar has no All/Manual/History mode chips and starts with a "History" link',
+    'The page has no All/Manual/History mode chips and shows a "History" link',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
@@ -95,12 +96,10 @@ test.describe('No mode chips, History link (Scenario 1)', { tag: '@responsive' }
           await route.continue();
         }
       });
+      await stubUnfinishedEmpty(page);
 
       try {
         await diaryPage.goto();
-
-        // On mobile the filter panel may be collapsed behind a toggle button
-        await diaryPage.openFiltersIfCollapsed();
 
         await expect(diaryPage.historyLink).toBeVisible();
         await expect(diaryPage.historyLink).toContainText('History');
@@ -129,11 +128,13 @@ test.describe('Manual type chips only (Scenario 2)', () => {
         body: JSON.stringify(makePaginatedEmpty()),
       });
     });
+    await stubUnfinishedEmpty(page);
+    await stubFilterOptions(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
-      await diaryPage.openFiltersIfCollapsed();
+      await diaryPage.openFilters();
 
       await expect(diaryPage.typeFilterChip('daily_log')).toBeVisible();
       await expect(diaryPage.typeFilterChip('general_note')).toBeVisible();
@@ -165,7 +166,6 @@ test.describe('History link opens History (Scenario 3)', { tag: '@responsive' },
     const history = new HistoryPage(page);
 
     await diaryPage.goto();
-    await diaryPage.openFiltersIfCollapsed();
     await diaryPage.historyLink.click();
 
     await expect(page).toHaveURL(/\/history$/);
@@ -241,7 +241,7 @@ test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive'
 
         // Both entries are visible in the same date group (interleaved)
         await expect(history.systemEventRow('mock-auto-r2-001')).toBeVisible();
-        await expect(page.getByTestId('diary-card-mock-manual-r2-001')).toBeVisible();
+        await expect(page.getByTestId('diary-entry-mock-manual-r2-001')).toBeVisible();
         await expect(history.dateGroups()).toHaveCount(1);
       } finally {
         await page.unroute('**/api/history*');
@@ -280,6 +280,7 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
           await route.continue();
         }
       });
+      await stubUnfinishedEmpty(page);
 
       try {
         const diaryPage = new DiaryPage(page);
@@ -291,11 +292,10 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
         const entryCard = diaryPage.entryCard(signedEntryId);
         await expect(entryCard).toBeVisible();
 
-        // The signed badge must be visible on the card
-        // data-testid="signed-badge-{id}" with text "✓ Signed"
-        const signedBadge = page.getByTestId(`signed-badge-${signedEntryId}`);
-        await expect(signedBadge).toBeVisible();
-        await expect(signedBadge).toContainText('Signed');
+        // The row carries a "Signed" marker: data-testid="diary-entry-{id}-signed" (#2225)
+        const signedMarker = diaryPage.signedMarker(signedEntryId);
+        await expect(signedMarker).toBeVisible();
+        await expect(signedMarker).toContainText('Signed');
       } finally {
         await page.unroute('**/api/diary-entries*');
       }
@@ -323,6 +323,7 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       const diaryPage = new DiaryPage(page);
@@ -331,8 +332,8 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
       await diaryPage.waitForLoaded();
 
       // Badge must not be present for unsigned entries
-      const signedBadge = page.getByTestId(`signed-badge-${unsignedEntryId}`);
-      await expect(signedBadge).not.toBeVisible();
+      await expect(diaryPage.entryCard(unsignedEntryId)).toBeVisible();
+      await expect(diaryPage.signedMarker(unsignedEntryId)).toHaveCount(0);
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -390,6 +391,7 @@ test.describe('Diary list request carries automatic=false (Scenario 9)', () => {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
+      // The feed and the Unfinished row both ask for automatic=false
       expect(requests.length).toBeGreaterThan(0);
       for (const url of requests) {
         expect(url.searchParams.get('automatic'), url.toString()).toBe('false');
@@ -414,11 +416,13 @@ test.describe('Manual type chip API parameter (Scenario 10)', () => {
         body: JSON.stringify(makePaginatedEmpty()),
       });
     });
+    await stubUnfinishedEmpty(page);
+    await stubFilterOptions(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
-      await diaryPage.openFiltersIfCollapsed();
+      await diaryPage.openFilters();
 
       // The listener is registered before the click and predicated on the type param, so a
       // trailing response from the initial load can never satisfy it.

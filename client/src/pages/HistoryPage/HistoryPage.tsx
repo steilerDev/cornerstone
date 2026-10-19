@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary, HistoryObjectRef } from '@cornerstone/shared';
-import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
+import { DiaryEntryFeedRow } from '../../components/FeedRow/DiaryEntryFeedRow.js';
+import { FeedGroup } from '../../components/FeedRow/FeedGroup.js';
+import { SystemEventFeedRow } from '../../components/FeedRow/SystemEventFeedRow.js';
 import { previousIsoDate } from '../../components/DateChips/DateChips.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FormError } from '../../components/FormError/FormError.js';
@@ -341,21 +343,29 @@ export default function HistoryPage() {
 
           {entries.length > 0 &&
             groups.map(([key, dayEntries]) => (
-              <DiaryDateGroup
+              <FeedGroup
                 key={key}
-                date={key}
-                entries={dayEntries}
-                // P4.11 wires "Revert submission" here for rows with `batch`; nothing renders today.
-                renderActions={() => undefined}
+                testId={`date-group-${key}`}
                 heading={
                   key === today
                     ? t('day.today')
                     : key === yesterday
                       ? t('day.yesterday')
-                      : undefined
+                      : formatDate(key)
                 }
                 headingDetail={key === today || key === yesterday ? formatDate(key) : undefined}
-              />
+              >
+                {[...dayEntries]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((entry) =>
+                    entry.isAutomatic ? (
+                      // P4.11 wires "Revert submission" here for rows with `batch`; nothing renders today.
+                      <SystemEventFeedRow key={entry.id} entry={entry} actions={undefined} />
+                    ) : (
+                      <DiaryEntryFeedRow key={entry.id} entry={entry} />
+                    ),
+                  )}
+              </FeedGroup>
             ))}
         </div>
 

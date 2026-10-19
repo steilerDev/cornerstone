@@ -260,21 +260,69 @@ describe('PhotoViewer', () => {
 
   // ─── Annotate button ───────────────────────────────────────────────────────
 
-  it('annotate button is visible', () => {
+  it('annotate button is visible with the visible name "Annotate" and no aria-label override', () => {
     renderViewer([makePhoto()]);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    expect(btn).toBeInTheDocument();
+    expect(btn).toHaveAccessibleName('Annotate');
+    expect(btn).toHaveTextContent('Annotate');
+    expect(btn).not.toHaveAttribute('aria-label');
+    expect(btn).not.toHaveAttribute('title');
+  });
+
+  it('annotate button is aria-disabled (not disabled) when photo has no width or height', () => {
+    const photo = makePhoto({ width: null, height: null });
+    renderViewer([photo]);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).not.toBeDisabled();
+  });
+
+  it('shows the missing-dimensions reason as visible text tied to the button', () => {
+    renderViewer([makePhoto({ width: null, height: null })]);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    const reason = screen.getByText('Cannot annotate: photo dimensions are missing');
+    expect(reason).toBeVisible();
+    expect(btn).toHaveAttribute('aria-describedby', reason.id);
+    expect(btn).toHaveAccessibleDescription('Cannot annotate: photo dimensions are missing');
+  });
+
+  it('annotate button is enabled, with no reason, when photo has width and height', () => {
+    const photo = makePhoto({ width: 800, height: 600 });
+    renderViewer([photo]);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    expect(btn).not.toBeDisabled();
+    expect(btn).not.toHaveAttribute('aria-disabled');
+    expect(btn).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText(/cannot be annotated|Cannot annotate/)).not.toBeInTheDocument();
+  });
+
+  it('clicking a disabled annotate button (missing dimensions) does not open the annotator', () => {
+    renderViewer([makePhoto({ width: null, height: null })]);
+    fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+    expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
     expect(screen.getByTestId('photo-viewer-annotate')).toBeInTheDocument();
   });
 
-  it('annotate button is disabled when photo has no width or height', () => {
-    const photo = makePhoto({ width: null, height: null });
-    renderViewer([photo]);
-    expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
+  it('clicking a disabled annotate button (signed entry) does not open the annotator', () => {
+    renderViewer([makePhoto({ width: 800, height: 600 })], 0, false);
+    fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+    expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
   });
 
-  it('annotate button is enabled when photo has width and height', () => {
-    const photo = makePhoto({ width: 800, height: 600 });
-    renderViewer([photo]);
-    expect(screen.getByTestId('photo-viewer-annotate')).not.toBeDisabled();
+  it('the signed-entry reason wins over missing dimensions', () => {
+    renderViewer([makePhoto({ width: null, height: null })], 0, false);
+    expect(screen.getByText('Signed entries cannot be annotated')).toBeInTheDocument();
+    expect(screen.queryByText(/photo dimensions are missing/)).not.toBeInTheDocument();
+  });
+
+  it('the annotate reason follows the photo when stepping to one with missing dimensions', () => {
+    const photos = [makePhoto({ id: 'p1' }), makePhoto({ id: 'p2', width: null, height: null })];
+    renderViewer(photos);
+    expect(screen.queryByText(/photo dimensions are missing/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('photo-viewer-next'));
+    expect(screen.getByText('Cannot annotate: photo dimensions are missing')).toBeInTheDocument();
+    expect(screen.getByTestId('photo-viewer-annotate')).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('clicking annotate shows the PhotoAnnotator (mock)', () => {
@@ -286,17 +334,22 @@ describe('PhotoViewer', () => {
     expect(screen.getByTestId('mock-photo-annotator')).toBeInTheDocument();
   });
 
-  it('annotate button is disabled when editable=false', () => {
-    const photo = makePhoto({ width: 800, height: 600 });
-    renderViewer([photo], 0, false);
-    expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
-  });
-
-  it('annotate button has signed entry tooltip when editable=false', () => {
+  it('annotate button is aria-disabled when editable=false', () => {
     const photo = makePhoto({ width: 800, height: 600 });
     renderViewer([photo], 0, false);
     const btn = screen.getByTestId('photo-viewer-annotate');
-    expect(btn).toHaveAttribute('title', expect.stringContaining('cannot be annotated'));
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).not.toBeDisabled();
+  });
+
+  it('shows the signed-entry reason as visible text tied to the button when editable=false', () => {
+    const photo = makePhoto({ width: 800, height: 600 });
+    renderViewer([photo], 0, false);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    const reason = screen.getByText('Signed entries cannot be annotated');
+    expect(reason).toBeVisible();
+    expect(btn).toHaveAttribute('aria-describedby', reason.id);
+    expect(btn).not.toHaveAttribute('title');
   });
 
   it('navigation arrows are hidden while annotating', () => {
@@ -634,8 +687,9 @@ describe('PhotoViewer', () => {
 
   it('starts in view mode when startInAnnotator=true but editable=false', () => {
     renderViewer([makePhoto({ width: 800, height: 600 })], 0, false, true);
-    // Should stay in view mode — annotate button disabled, navigation visible
-    expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
+    // Should stay in view mode — annotate button aria-disabled, no annotator
+    expect(screen.getByTestId('photo-viewer-annotate')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
   });
 
   // ─── Metadata Sidepanel (always visible) ──────────────────────────────────

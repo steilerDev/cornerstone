@@ -32,5 +32,6 @@
   "deleteConfirmTitle": "Foto löschen?",
   "deleteConfirmBody": "Dieses Foto wird dauerhaft entfernt.",
   "deleteConfirmAction": "Löschen",
-  "metadataToggle": "Foto-Metadaten ein-/ausblenden"
+  "metadataToggle": "Foto-Metadaten ein-/ausblenden",
+  "annotateLabel": "Annotieren"
 }

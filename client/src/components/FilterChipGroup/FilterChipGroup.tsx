@@ -23,6 +23,8 @@ export interface FilterChipOption {
 export interface FilterChipGroupProps {
   options: FilterChipOption[];
   value: string;
+  /** Multi-select: pressed = selectedValues.includes(value); a click calls onChange(value) and the host toggles. */
+  selectedValues?: readonly string[];
   onChange: (value: string) => void;
   /** One of `ariaLabel` / `labelledBy` should be given. */
   ariaLabel?: string;
@@ -40,6 +42,7 @@ export interface FilterChipGroupProps {
 export function FilterChipGroup({
   options,
   value,
+  selectedValues,
   onChange,
   ariaLabel,
   labelledBy,
@@ -86,7 +89,7 @@ export function FilterChipGroup({
             </button>
           );
         }
-        const pressed = opt.value === value;
+        const pressed = selectedValues ? selectedValues.includes(opt.value) : opt.value === value;
         return (
           <button
             key={opt.value}
@@ -96,7 +99,7 @@ export function FilterChipGroup({
             data-testid={testId}
             aria-label={opt.ariaLabel}
             aria-pressed={pressed}
-            onClick={() => onChange(deselectable && pressed ? '' : opt.value)}
+            onClick={() => onChange(deselectable && pressed && !selectedValues ? '' : opt.value)}
           >
             {content}
           </button>

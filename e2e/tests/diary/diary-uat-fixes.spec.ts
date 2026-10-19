@@ -12,8 +12,8 @@
  * 1.  [smoke] Diary list page renders without export button
  * 2.  [smoke] Diary detail "Site diary" breadcrumb navigates to /diary
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
- * 4.  System event row names its subject and offers "Open task" (#2223; was "Go to related item")
- * 5.  System events and manual entries are interleaved in one date group
+ * 4.  System event row (on History) names its subject and offers "Open task" (#2223)
+ * 5.  The Site diary lists manual entries only (#2224; system events live on History)
  * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — capture flow:
  *     first character → POST draft → /diary/:id/edit → Save entry → /diary/:id
  * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
@@ -23,6 +23,8 @@
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { mockDiaryList, mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
+import { HistoryPage } from '../../pages/HistoryPage.js';
+import { stubUnfinishedEmpty } from '../../fixtures/diaryMocks.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
@@ -140,6 +142,9 @@ test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: a system event names its subject and links to it (#2223: replaces "Go to related item")
+//
+// System events live on History since #2224 (the Site diary lists people's entries only), so the
+// row is asserted there, with a mocked GET /api/history.
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('System event subject and link (Scenario 4)', () => {
   test('A system event row names the task and offers "Open task" instead of "Go to related item"', async ({
@@ -148,20 +153,21 @@ test.describe('System event subject and link (Scenario 4)', () => {
     const mockEntryId = 'mock-uat-source-001';
     const mockWorkItemTitle = 'Foundation Waterproofing';
 
-    await page.route('**/api/diary-entries*', async (route) => {
+    await page.route('**/api/history*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(
-            mockDiaryList([
+          body: JSON.stringify({
+            ...mockDiaryList([
               mockSystemEvent({
                 id: mockEntryId,
                 sourceEntityId: 'wi-mock-001',
                 sourceEntityTitle: mockWorkItemTitle,
               }),
             ]),
-          ),
+            object: null,
+          }),
         });
       } else {
         await route.continue();
@@ -169,29 +175,30 @@ test.describe('System event subject and link (Scenario 4)', () => {
     });
 
     try {
-      await page.goto(DIARY_ROUTE);
-      const diaryPage = new DiaryPage(page);
-      await diaryPage.heading.waitFor({ state: 'visible' });
+      const history = new HistoryPage(page);
+      await history.goto();
 
-      await expect(diaryPage.systemEventRow(mockEntryId)).toContainText(
+      await expect(history.systemEventRow(mockEntryId)).toContainText(
         `${mockWorkItemTitle} went from Not started to In progress`,
       );
-      await expect(diaryPage.systemEventLink(mockEntryId)).toHaveText(/Open task/);
+      await expect(history.systemEventLink(mockEntryId)).toHaveText(/Open task/);
       await expect(page.getByText('Go to related item')).toHaveCount(0);
       await expect(page.getByTestId('source-link-wi-mock-001')).toHaveCount(0);
     } finally {
-      await page.unroute('**/api/diary-entries*');
+      await page.unroute('**/api/history*');
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Automatic events are in a collapsible section
+// Scenario 5: the Site diary never mixes system events in (#2224; was "interleaved")
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Automatic and manual entries are interleaved in the same date group', async ({ page }) => {
+test.describe('No system events on the Site diary (Scenario 5)', { tag: '@responsive' }, () => {
+  test('A manual entry is a row; the list asks for people entries only', async ({ page }) => {
+    const requests: URL[] = [];
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
+        requests.push(new URL(route.request().url()));
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -204,29 +211,28 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
                 title: 'Manual note',
                 body: 'Some manual note content',
                 metadata: null,
+                status: 'saved',
                 isAutomatic: false,
+                isSigned: false,
                 sourceEntityType: null,
                 sourceEntityId: null,
                 sourceEntityTitle: null,
                 photoCount: 0,
+                thumbnails: [],
+                photoAreas: [],
                 createdBy: null,
                 createdAt: '2026-03-14T09:00:00.000Z',
                 updatedAt: '2026-03-14T09:00:00.000Z',
               },
-              mockSystemEvent({
-                id: 'mock-auto-001',
-                createdAt: '2026-03-14T08:00:00.000Z',
-                sourceEntityId: 'wi-auto-001',
-                sourceEntityTitle: 'Auto Work Item',
-              }),
             ],
-            pagination: { total: 2, page: 1, pageSize: 25, totalPages: 1, totalItems: 2 },
+            pagination: { total: 1, page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
           }),
         });
       } else {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await page.goto(DIARY_ROUTE);
@@ -234,9 +240,10 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
       await diaryPage.heading.waitFor({ state: 'visible' });
       await diaryPage.waitForLoaded();
 
-      // Both entries should be visible in the same date group
       await expect(diaryPage.entryCard('mock-manual-001')).toBeVisible();
-      await expect(diaryPage.systemEventRow('mock-auto-001')).toBeVisible();
+      await expect(diaryPage.systemEventRowsAny()).toHaveCount(0);
+      expect(requests.length).toBeGreaterThan(0);
+      for (const url of requests) expect(url.searchParams.get('automatic')).toBe('false');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }

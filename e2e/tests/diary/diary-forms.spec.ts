@@ -410,10 +410,10 @@ test.describe('Delete from detail page (Scenario 8)', { tag: '@responsive' }, ()
       await detailPage.goto(createdId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // The delete button should be visible for non-automatic entries
-      await expect(detailPage.deleteButton).toBeVisible();
+      // Delete lives in the "..." menu for non-automatic entries
+      await expect(detailPage.moreMenu).toBeVisible();
 
-      // Open modal and confirm delete
+      // Open the menu, then the modal, and confirm delete
       await detailPage.openDeleteModal();
       await expect(detailPage.deleteModal).toBeVisible();
       await detailPage.confirmDelete();
@@ -541,7 +541,7 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
 
       // Edit and Delete buttons must NOT be visible for automatic entries
       await expect(detailPage.editButton).not.toBeVisible();
-      await expect(detailPage.deleteButton).not.toBeVisible();
+      await expect(detailPage.moreMenu).toHaveCount(0);
     } finally {
       await page.unroute(`/api/diary-entries/${mockId}`);
     }

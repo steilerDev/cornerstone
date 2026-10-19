@@ -5,9 +5,9 @@ import { describe, it, expect } from '@jest/globals';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createRouterLog, RecordingRouter } from '../../test/recordingRouter.js';
 import { FeedRow } from './FeedRow.js';
-import type { FeedRowProps } from './FeedRow.js';
+import type { FeedRowEntryProps, FeedRowEventProps } from './FeedRow.js';
 
-function setup(props: Partial<FeedRowProps> = {}, wrapInList = true) {
+function setup(props: Partial<FeedRowEventProps> = {}, wrapInList = true) {
   const log = createRouterLog();
   const row = (
     <FeedRow
@@ -182,5 +182,165 @@ describe('FeedRow', () => {
       setup({ compact: true, actions: <span>Act</span> });
       expect(screen.queryByTestId('row-1-actions')).toBeNull();
     });
+  });
+});
+
+function setupEntry(props: Partial<FeedRowEntryProps> = {}, as: 'li' | 'div' = 'li') {
+  const log = createRouterLog();
+  const row = (
+    <FeedRow
+      variant="entry"
+      as={as}
+      typeBadge={{ label: 'Daily log', className: 'x' }}
+      title="Entry A"
+      titleLink={{ to: '/diary/e1', ariaLabel: 'Entry A, 12 Oct 2026', state: { origin: 'diary' } }}
+      dateLabel="Oct 12"
+      testId="entry-1"
+      {...props}
+    />
+  );
+  render(
+    <RecordingRouter entries={['/diary']} log={log}>
+      {as === 'li' ? <ul>{row}</ul> : row}
+    </RecordingRouter>,
+  );
+  return { log, root: screen.getByTestId('entry-1') };
+}
+
+const thumbs = (n: number) =>
+  Array.from({ length: n }, (_v, i) => ({ id: `p${i}`, src: `/thumb/${i}.jpg` }));
+
+describe('FeedRow variant="entry"', () => {
+  it('renders an li by default and a div with as="div"', () => {
+    expect(setupEntry().root.tagName).toBe('LI');
+    document.body.innerHTML = '';
+    expect(setupEntry({}, 'div').root.tagName).toBe('DIV');
+  });
+
+  it('shows the type badge, the date and the title as the one link with the given name', () => {
+    const { root } = setupEntry();
+    expect(screen.getByTestId('entry-1-type')).toHaveTextContent('Daily log');
+    expect(root).toHaveTextContent('Oct 12');
+    const link = screen.getByTestId('entry-1-link');
+    expect(link).toHaveAttribute('href', '/diary/e1');
+    expect(link).toHaveAttribute('aria-label', 'Entry A, 12 Oct 2026');
+    expect(link).toHaveTextContent('Entry A');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('navigates with the origin state on a plain click', () => {
+    const { log } = setupEntry();
+    fireEvent.click(screen.getByTestId('entry-1-link'));
+    expect(log.actions).toEqual(['PUSH /diary/e1']);
+    expect(log.states[0]).toEqual({ origin: 'diary' });
+  });
+
+  it('renders extra badges after the type badge', () => {
+    setupEntry({ badges: <span data-testid="extra">Draft</span> });
+    const type = screen.getByTestId('entry-1-type');
+    expect(
+      type.compareDocumentPosition(screen.getByTestId('extra')) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shows no strip, sentence, facts or areas when none are given', () => {
+    const { root } = setupEntry();
+    expect(screen.queryByTestId('entry-1-thumbs')).toBeNull();
+    expect(screen.queryByTestId('entry-1-areas')).toBeNull();
+    expect(screen.queryByTestId('entry-1-signed')).toBeNull();
+    expect(root.querySelector('p')).toBeNull();
+    expect(root).not.toHaveAttribute('data-has-strip');
+  });
+
+  it('shows the one-line sentence', () => {
+    setupEntry({ sentence: 'Poured the slab' });
+    expect(screen.getByText('Poured the slab').tagName).toBe('P');
+  });
+
+  describe('thumbnail strip', () => {
+    it('shows at most 5 decorative images in an aria-hidden strip', () => {
+      const { root } = setupEntry({ thumbnails: thumbs(7) });
+      const strip = screen.getByTestId('entry-1-thumbs');
+      expect(strip).toHaveAttribute('aria-hidden', 'true');
+      const imgs = strip.querySelectorAll('img');
+      expect(imgs).toHaveLength(5);
+      imgs.forEach((img) => expect(img).toHaveAttribute('alt', ''));
+      expect(root).toHaveAttribute('data-has-strip', 'true');
+    });
+
+    it('shows the +n tile only when more photos exist', () => {
+      setupEntry({
+        thumbnails: thumbs(5),
+        thumbnailsMore: 3,
+        thumbnailsMoreLabel: (n) => `+${n} more`,
+      });
+      expect(screen.getByTestId('entry-1-thumbs-more')).toHaveTextContent('+3 more');
+    });
+
+    it('falls back to a plain +n when no label function is given', () => {
+      setupEntry({ thumbnails: thumbs(2), thumbnailsMore: 4 });
+      expect(screen.getByTestId('entry-1-thumbs-more')).toHaveTextContent('+4');
+    });
+
+    it('omits the +n tile when nothing is hidden', () => {
+      setupEntry({ thumbnails: thumbs(3), thumbnailsMore: 0 });
+      expect(screen.queryByTestId('entry-1-thumbs-more')).toBeNull();
+    });
+
+    it('adds a visually hidden photo count sentence outside the strip', () => {
+      setupEntry({ thumbnails: thumbs(1), thumbnailsLabel: '3 photos' });
+      const label = screen.getByText('3 photos');
+      expect(screen.getByTestId('entry-1-thumbs')).not.toContainElement(label);
+    });
+  });
+
+  describe('facts and signed', () => {
+    it('joins facts with a middle dot', () => {
+      setupEntry({ facts: ['Company A', '2 workers'] });
+      expect(screen.getByText('Company A · 2 workers')).toBeInTheDocument();
+    });
+
+    it('shows Signed after the facts with an aria-hidden check icon', () => {
+      setupEntry({ facts: ['Company A'], signedLabel: 'Signed' });
+      const signed = screen.getByTestId('entry-1-signed');
+      expect(signed).toHaveTextContent('· Signed');
+      expect(signed.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('shows Signed alone without a leading separator', () => {
+      setupEntry({ signedLabel: 'Signed' });
+      expect(screen.getByTestId('entry-1-signed').textContent?.trim()).toBe('Signed');
+    });
+  });
+
+  describe('area chips', () => {
+    const areas = (n: number) =>
+      Array.from({ length: n }, (_v, i) => ({ id: `a${i}`, content: `Area ${i}` }));
+
+    it('shows up to 3 chips as plain list items', () => {
+      setupEntry({ areas: areas(3), areasMoreLabel: (n) => `+${n}` });
+      const list = screen.getByTestId('entry-1-areas');
+      expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+    });
+
+    it('collapses the rest into one +n chip', () => {
+      setupEntry({ areas: areas(6), areasMoreLabel: (n) => `+${n}` });
+      const items = within(screen.getByTestId('entry-1-areas')).getAllByRole('listitem');
+      expect(items).toHaveLength(4);
+      expect(items[3]).toHaveTextContent('+3');
+    });
+
+    it('falls back to a plain +n without a label function', () => {
+      setupEntry({ areas: areas(4) });
+      const items = within(screen.getByTestId('entry-1-areas')).getAllByRole('listitem');
+      expect(items[3]).toHaveTextContent('+1');
+    });
+  });
+
+  it('nests nothing interactive inside the link', () => {
+    const { root } = setupEntry({ thumbnails: thumbs(2), sentence: 'x', signedLabel: 'Signed' });
+    const link = screen.getByTestId('entry-1-link');
+    expect(link.querySelector('a, button, input')).toBeNull();
+    expect(root.querySelectorAll('button')).toHaveLength(0);
   });
 });

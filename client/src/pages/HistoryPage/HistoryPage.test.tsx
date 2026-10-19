@@ -35,6 +35,15 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   const formatters = {
     formatCurrency: (n: number) => `EUR ${n.toFixed(2)}`,
     formatDate: fmtDate,
+    formatDayMonth: (d: string | null | undefined, fallback = '—') => {
+      if (!d) return fallback;
+      const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+      if (!year || !month || !day) return fallback;
+      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    },
     formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
     formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
@@ -368,10 +377,40 @@ describe('HistoryPage', () => {
         within(screen.getByTestId('date-group-2026-03-11')).getByTestId('system-event-t-1'),
       ).toBeInTheDocument();
       expect(
-        within(screen.getByTestId('date-group-2026-03-09')).getByTestId('diary-card-n-1'),
+        within(screen.getByTestId('date-group-2026-03-09')).getByTestId('diary-entry-n-1'),
       ).toBeInTheDocument();
       expect(screen.queryByTestId('date-group-2020-01-01')).toBeNull();
       expect(screen.queryByTestId('date-group-2026-03-14')).toBeNull();
+    });
+
+    it('renders each day as a FeedGroup section whose manual rows are diary entry rows and whose events are system rows', async () => {
+      mockListHistory.mockResolvedValue(
+        response([
+          note('n-1', '2026-03-14', at(14, 8)),
+          task('t-1', at(14, 10)),
+          note('n-2', '2026-03-14', at(14, 12)),
+        ]),
+      );
+      renderPage();
+      await screen.findByTestId('system-event-t-1');
+
+      const group = screen.getByTestId('date-group-2026-03-14');
+      expect(group.tagName).toBe('SECTION');
+      expect(group).toHaveAttribute('aria-labelledby', within(group).getByRole('heading').id);
+      // Newest createdAt first inside the day, whatever the row kind.
+      expect(
+        within(group)
+          .getAllByRole('listitem')
+          .map((li) => li.getAttribute('data-testid')),
+      ).toEqual(['diary-entry-n-2', 'system-event-t-1', 'diary-entry-n-1']);
+      const manual = within(group).getByTestId('diary-entry-n-1');
+      expect(manual.tagName).toBe('LI');
+      expect(within(manual).getByTestId('diary-entry-n-1-link')).toHaveAttribute(
+        'href',
+        '/diary/n-1',
+      );
+      expect(within(manual).getByTestId('diary-entry-n-1-type')).toHaveTextContent('Daily log');
+      expect(screen.queryByTestId('diary-card-n-1')).toBeNull();
     });
 
     it('merges one day split over two pages into a single group', async () => {

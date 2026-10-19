@@ -7,13 +7,13 @@
  * Scenarios covered:
  * 1.  [smoke] Photo section heading is rendered on the diary entry detail page
  * 2.  Photo empty state shown when no photos are attached
- * 3.  Photo count indicator shown on entry card when photoCount > 0 (mock API)
+ * 3.  Photo strip (up to 5 thumbnails + "+n") on the entry row when photoCount > 0 (mock API)
  * 4.  "Add photos" link navigates from detail page to edit page (for non-signed entries)
  * 5.  Photo controls are visible on the capture screen (edit URL)
  * 6.  [responsive] Photo section renders without horizontal scroll
  * 7.  Signature section is NOT shown when entry has no signatures
  * 8.  Signature section is rendered when entry metadata contains signatures (mock API)
- * 9.  Edit/Delete buttons are hidden for a signed entry (mock API — isSigned=true)
+ * 9.  Edit / Add photos are hidden for a signed entry; Delete stays in the "..." menu (mock API)
  * 10. "Add photos" link is hidden for signed entries (isSigned=true)
  * 11. Unfinished signature blocks promote client-side (#2088)
  * 12. [responsive] Signed draft survives leave-and-return, promotes, then locks (#2124)
@@ -25,6 +25,7 @@ import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { API } from '../../fixtures/testData.js';
+import { stubUnfinishedEmpty } from '../../fixtures/diaryMocks.js';
 import {
   createDiaryEntryViaApi,
   createDraftDiaryEntryViaApi,
@@ -72,11 +73,21 @@ function makeMockListEntry(
     sourceEntityType: null,
     sourceEntityId: null,
     photoCount: 3,
+    thumbnails: [],
+    photoAreas: [],
     createdBy: { id: 'user-1', displayName: 'E2E Admin' },
     createdAt: '2026-03-14T10:00:00.000Z',
     updatedAt: '2026-03-14T10:00:00.000Z',
     ...overrides,
   };
+}
+
+/** n thumbnail descriptors as the list endpoint sends them (the images need not exist). */
+function mockThumbnails(count: number): Array<{ id: string; thumbnailUrl: string }> {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `mock-thumb-${i}`,
+    thumbnailUrl: `/api/photos/mock-thumb-${i}/thumbnail`,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,11 +158,18 @@ test.describe('Photo empty state (Scenario 2)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Photo count indicator on entry card when photoCount > 0 (mock)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Photo count indicator on entry card (Scenario 3)', () => {
-  test('Entry card shows photo count badge when photoCount > 0 (mock API)', async ({ page }) => {
+test.describe('Photo strip on the entry row (Scenario 3)', () => {
+  test('A row with photos shows up to 5 thumbnails and a "+n" tile (mock API)', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
     const mockId = 'mock-entry-photos-001';
-    const mockEntry = makeMockListEntry({ id: mockId, photoCount: 3 });
+    // 8 photos, 5 thumbnails sent by the list endpoint
+    const mockEntry = makeMockListEntry({
+      id: mockId,
+      photoCount: 8,
+      thumbnails: mockThumbnails(5),
+    });
 
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
@@ -167,26 +185,24 @@ test.describe('Photo count indicator on entry card (Scenario 3)', () => {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      // The entry card should be visible
       await expect(diaryPage.entryCard(mockId)).toBeVisible();
-
-      // Photo count badge must be visible with count text
-      await expect(diaryPage.photoCountBadge(mockId)).toBeVisible();
-      const badgeText = await diaryPage.photoCountBadge(mockId).textContent();
-      expect(badgeText).toContain('3');
+      await expect(diaryPage.thumbs(mockId)).toBeVisible();
+      await expect(diaryPage.thumbImages(mockId)).toHaveCount(5);
+      await expect(diaryPage.thumbs(mockId)).toContainText('+3');
+      // The strip is decorative; the row announces the photo count in text
+      await expect(diaryPage.entryCard(mockId)).toContainText('8 photos');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
   });
 
-  test('Entry card does NOT show photo count badge when photoCount is 0 (mock API)', async ({
-    page,
-  }) => {
+  test('A row without photos has no strip (mock API)', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
     const mockId = 'mock-entry-no-photos-002';
     const mockEntry = makeMockListEntry({ id: mockId, photoCount: 0 });
@@ -205,15 +221,14 @@ test.describe('Photo count indicator on entry card (Scenario 3)', () => {
         await route.continue();
       }
     });
+    await stubUnfinishedEmpty(page);
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
       await expect(diaryPage.entryCard(mockId)).toBeVisible();
-
-      // Badge must NOT be rendered when photoCount === 0
-      await expect(diaryPage.photoCountBadge(mockId)).not.toBeVisible();
+      await expect(diaryPage.thumbs(mockId)).toHaveCount(0);
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -241,8 +256,9 @@ test.describe('"Add photos" link navigation (Scenario 4)', () => {
       await detailPage.goto(createdId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // The "Add photos" link should be visible in the photo empty state
-      const addPhotosLink = page.getByRole('link', { name: /Add photos/i });
+      // The actions bar and the empty photo placeholder both offer "Add photos" (same target)
+      await expect(detailPage.photoEmptyState).toBeVisible();
+      const addPhotosLink = detailPage.addPhotosButton;
       await expect(addPhotosLink).toBeVisible();
 
       // Clicking navigates to the edit page
@@ -460,8 +476,11 @@ test.describe('Edit hidden for signed entries (Scenario 9)', () => {
       // Edit must NOT be rendered for signed entries (cannot edit a signed entry)
       await expect(detailPage.editButton).not.toBeVisible();
 
-      // Delete IS still rendered for signed entries (UAT fix #837 — signed entries can be deleted)
-      await expect(detailPage.deleteButton).toBeVisible();
+      // Delete IS still offered for signed entries (UAT fix #837), now inside the "..." menu
+      await expect(detailPage.addPhotosButton).not.toBeVisible();
+      await expect(detailPage.moreMenu).toBeVisible();
+      await detailPage.moreMenu.click();
+      await expect(detailPage.deleteItem).toBeVisible();
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
@@ -668,7 +687,7 @@ test.describe('Signed draft survives leave-and-return (#2124)', { tag: '@respons
 
       // Leave and return via the draft card on the list
       await diaryPage.filterDraftsOnly();
-      await diaryPage.entryCard(id).click();
+      await diaryPage.entryLink(id).click();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
       await capture.waitForForm();
       await expect(capture.textArea).toHaveValue(`${testPrefix} signed draft body`);

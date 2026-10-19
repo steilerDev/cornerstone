@@ -33,7 +33,7 @@ import {
 } from '../errors/AppError.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
 import { isValidIsoDate } from './shared/validators.js';
-import { deletePhotosForEntity } from './photoService.js';
+import { buildPhotoAssetUrls, deletePhotosForEntity } from './photoService.js';
 import type {
   DiaryEntrySummary,
   DiaryEntryDetail,
@@ -41,6 +41,8 @@ import type {
   UpdateDiaryEntryRequest,
   PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
+  DiaryFilterOptions,
+  DiaryPhotoThumbnail,
   DiaryEntryLookupQuery,
   DiaryEntryLookupMatch,
   DiaryEntryLookupResponse,
@@ -74,9 +76,16 @@ import {
   DIARY_WEATHERS,
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_SEVERITIES,
+  DIARY_LIST_THUMBNAIL_LIMIT,
+  MANUAL_DIARY_ENTRY_TYPES,
 } from '@cornerstone/shared';
 import { listDisplayRows, type DisplayRow } from './systemEventDisplay.js';
-import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
+import {
+  getDescendantIds,
+  loadAreaMap,
+  resolveAreaAncestors,
+  type AreaMapEntry,
+} from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -202,16 +211,6 @@ function assertValidEntryDate(value: string): void {
       field: 'entryDate',
     });
   }
-}
-
-/** Number of photos attached to a diary entry. */
-function countEntryPhotos(db: DbType, id: string): number {
-  const row = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(photos)
-    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
-    .get();
-  return row?.count ?? 0;
 }
 
 /**
@@ -386,6 +385,91 @@ function getAreaWithAncestors(
   );
 }
 
+/** Sort key of an area: ancestor names then its own name, joined (#2225). */
+function areaPathKey(area: AreaSummary): string {
+  return [...(area.ancestors ?? []).map((a) => a.name), area.name].join(' \u203A ');
+}
+
+function compareAreaPaths(a: AreaSummary, b: AreaSummary): number {
+  return (
+    areaPathKey(a).localeCompare(areaPathKey(b), undefined, { sensitivity: 'base' }) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
+/** Resolve distinct area ids to summaries with ancestors, sorted by path. */
+function resolveSortedAreas(
+  areaIds: Iterable<string>,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary[] {
+  const result: AreaSummary[] = [];
+  for (const areaId of new Set(areaIds)) {
+    const summary = getAreaWithAncestors(areaId, areaMap);
+    if (summary) result.push(summary);
+  }
+  return result.sort(compareAreaPaths);
+}
+
+export interface DiaryPhotoExtras {
+  photoCount: number;
+  thumbnails: DiaryPhotoThumbnail[];
+  photoAreas: AreaSummary[];
+}
+
+/**
+ * Photo count, first thumbnails and distinct photo areas for a set of diary entries, from a
+ * single photos query (#2225). Photo order: sort_order, created_at, id.
+ */
+export function loadDiaryPhotoExtras(
+  db: DbType,
+  entryIds: readonly string[],
+  areaMap: Map<string, AreaMapEntry>,
+): Map<string, DiaryPhotoExtras> {
+  const result = new Map<string, DiaryPhotoExtras>();
+  if (entryIds.length === 0) return result;
+
+  const rows = db
+    .select({
+      id: photos.id,
+      entityId: photos.entityId,
+      areaId: photos.areaId,
+      annotatedAt: photos.annotatedAt,
+      updatedAt: photos.updatedAt,
+    })
+    .from(photos)
+    .where(and(eq(photos.entityType, 'diary_entry'), inArray(photos.entityId, [...entryIds])))
+    .orderBy(photos.entityId, photos.sortOrder, photos.createdAt, photos.id)
+    .all();
+
+  const areaIdsByEntry = new Map<string, Set<string>>();
+  for (const row of rows) {
+    let extras = result.get(row.entityId);
+    if (!extras) {
+      extras = { photoCount: 0, thumbnails: [], photoAreas: [] };
+      result.set(row.entityId, extras);
+    }
+    extras.photoCount += 1;
+    if (extras.thumbnails.length < DIARY_LIST_THUMBNAIL_LIMIT) {
+      extras.thumbnails.push({
+        id: row.id,
+        thumbnailUrl: buildPhotoAssetUrls(row.id, row.annotatedAt, row.updatedAt).thumbnailUrl,
+      });
+    }
+    if (row.areaId) {
+      let set = areaIdsByEntry.get(row.entityId);
+      if (!set) {
+        set = new Set();
+        areaIdsByEntry.set(row.entityId, set);
+      }
+      set.add(row.areaId);
+    }
+  }
+  for (const [entryId, areaIds] of areaIdsByEntry) {
+    result.get(entryId)!.photoAreas = resolveSortedAreas(areaIds, areaMap);
+  }
+  return result;
+}
+
 /**
  * Resolve the area of a source entity based on its type and ID.
  * Returns null if source entity is not a work_item or entity is not found.
@@ -421,6 +505,8 @@ function toDiarySummary(
     sourceEntityExists?: boolean;
     repeat?: SystemEventRepeat | null;
     hidden?: boolean;
+    thumbnails?: DiaryPhotoThumbnail[];
+    photoAreas?: AreaSummary[];
   } = {},
 ): DiaryEntrySummary {
   const metadata = parseMetadata(entry.metadata);
@@ -458,6 +544,8 @@ function toDiarySummary(
     ...(extras.repeat ? { repeat: extras.repeat } : {}),
     ...(extras.hidden ? { hidden: true } : {}),
     photoCount,
+    thumbnails: extras.thumbnails ?? [],
+    photoAreas: extras.photoAreas ?? [],
     createdBy: toDiaryUserSummary(user),
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
@@ -628,26 +716,13 @@ export function toDiarySummaries(db: DbType, rows: readonly DisplayRow[]): Diary
     return row ? [row] : [];
   });
 
-  // Batch query photo counts
   const entryIds = entryRows.map((row) => row.entry.id);
-
-  let photoCountMap: Map<string, number> = new Map();
-  if (entryIds.length > 0) {
-    const photoCounts = db
-      .select({
-        entityId: photos.entityId,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(photos)
-      .where(and(eq(photos.entityType, 'diary_entry'), inArray(photos.entityId, entryIds)))
-      .groupBy(photos.entityId)
-      .all();
-
-    photoCountMap = new Map(photoCounts.map((r) => [r.entityId, r.count]));
-  }
 
   // Load area map once
   const areaMap = loadAreaMap(db);
+
+  // One photos query for counts, thumbnails and photo areas (#2225)
+  const photoExtras = loadDiaryPhotoExtras(db, entryIds, areaMap);
 
   // Resolve source entity titles and areas for all entries
   const items = entryRows.map((row) => {
@@ -662,7 +737,7 @@ export function toDiarySummaries(db: DbType, rows: readonly DisplayRow[]): Diary
     return toDiarySummary(
       row.entry,
       row.user,
-      photoCountMap.get(row.entry.id) ?? 0,
+      photoExtras.get(row.entry.id)?.photoCount ?? 0,
       source.title,
       sourceEntityArea,
       db,
@@ -670,6 +745,8 @@ export function toDiarySummaries(db: DbType, rows: readonly DisplayRow[]): Diary
         sourceEntityExists: source.exists,
         repeat: displayRow?.repeat ?? null,
         hidden: displayRow?.hidden ?? false,
+        thumbnails: photoExtras.get(row.entry.id)?.thumbnails ?? [],
+        photoAreas: photoExtras.get(row.entry.id)?.photoAreas ?? [],
       },
     );
   });
@@ -720,6 +797,30 @@ export function listDiaryEntries(
     conditions.push(eq(diaryEntries.status, query.status));
   }
 
+  if (query.areaId) {
+    const areaIds = getDescendantIds(db, query.areaId);
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM photos p WHERE p.entity_type = 'diary_entry' AND p.entity_id = ${diaryEntries.id} AND p.area_id IN (${sql.join(
+        areaIds.map((areaId) => sql`${areaId}`),
+        sql`, `,
+      )}))`,
+    );
+  }
+
+  if (query.vendorId) {
+    const vendor = db
+      .select({ name: vendors.name })
+      .from(vendors)
+      .where(eq(vendors.id, query.vendorId))
+      .get();
+    const dailyLog = sql`(${diaryEntries.entryType} = 'daily_log' AND json_valid(${diaryEntries.metadata}) AND json_extract(${diaryEntries.metadata}, '$.vendorId') = ${query.vendorId})`;
+    conditions.push(
+      vendor
+        ? sql`(${dailyLog} OR (${diaryEntries.entryType} = 'delivery' AND json_valid(${diaryEntries.metadata}) AND fold(json_extract(${diaryEntries.metadata}, '$.vendor')) = fold(${vendor.name})))`
+        : dailyLog,
+    );
+  }
+
   if (query.q) {
     const pattern = toLikeContainsPattern(query.q);
     conditions.push(
@@ -758,6 +859,55 @@ export function listDiaryEntries(
 }
 
 /**
+ * Sources of the diary Filters sheet (#2225): manual types in use, areas tagged on diary photos
+ * and companies used in entries. Saved manual entries only.
+ */
+export function getDiaryFilterOptions(db: DbType): DiaryFilterOptions {
+  const typeRows = db
+    .selectDistinct({ entryType: diaryEntries.entryType })
+    .from(diaryEntries)
+    .where(and(eq(diaryEntries.isAutomatic, false), eq(diaryEntries.status, 'saved')))
+    .all();
+  const usedTypes = new Set<string>(typeRows.map((r) => r.entryType));
+  const types = MANUAL_DIARY_ENTRY_TYPES.filter((t) => usedTypes.has(t));
+
+  const areaRows = db
+    .selectDistinct({ areaId: photos.areaId })
+    .from(photos)
+    .innerJoin(diaryEntries, eq(diaryEntries.id, photos.entityId))
+    .where(
+      and(
+        eq(photos.entityType, 'diary_entry'),
+        sql`${photos.areaId} IS NOT NULL`,
+        eq(diaryEntries.isAutomatic, false),
+        eq(diaryEntries.status, 'saved'),
+      ),
+    )
+    .all();
+  const areas = resolveSortedAreas(
+    areaRows.flatMap((r) => (r.areaId ? [r.areaId] : [])),
+    loadAreaMap(db),
+  );
+
+  const companyRows = db
+    .selectDistinct({ id: vendors.id, name: vendors.name })
+    .from(vendors)
+    .where(
+      sql`EXISTS (
+        SELECT 1 FROM diary_entries d
+        WHERE d.is_automatic = 0 AND d.status = 'saved' AND json_valid(d.metadata) AND (
+          (d.entry_type = 'daily_log' AND json_extract(d.metadata, '$.vendorId') = ${vendors.id})
+          OR (d.entry_type = 'delivery' AND fold(json_extract(d.metadata, '$.vendor')) = fold(${vendors.name}))
+        )
+      )`,
+    )
+    .orderBy(sql`${vendors.name} COLLATE NOCASE`, vendors.id)
+    .all();
+
+  return { types, areas, companies: companyRows.map((r) => ({ id: r.id, name: r.name })) };
+}
+
+/**
  * Get a single diary entry by ID.
  * @throws NotFoundError if entry does not exist
  */
@@ -776,11 +926,11 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     throw new NotFoundError('Diary entry not found');
   }
 
-  const photoCount = countEntryPhotos(db, id);
+  const areaMap = loadAreaMap(db);
+  const photoExtras = loadDiaryPhotoExtras(db, [id], areaMap).get(id);
+  const photoCount = photoExtras?.photoCount ?? 0;
 
   const source = resolveSourceEntity(db, row.entry.sourceEntityType, row.entry.sourceEntityId);
-
-  const areaMap = loadAreaMap(db);
   const sourceEntityArea = resolveSourceEntityArea(
     db,
     row.entry.sourceEntityType,
@@ -790,6 +940,8 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
 
   return toDiarySummary(row.entry, row.user, photoCount, source.title, sourceEntityArea, db, {
     sourceEntityExists: source.exists,
+    thumbnails: photoExtras?.thumbnails ?? [],
+    photoAreas: photoExtras?.photoAreas ?? [],
   });
 }
 
@@ -955,7 +1107,11 @@ export function updateDiaryEntry(
   const nextBody = data.body !== undefined ? data.body.trim() : entry.body;
 
   if (entry.status === 'saved') {
-    assertHasContent(nextTitle, nextBody, countEntryPhotos(db, id));
+    assertHasContent(
+      nextTitle,
+      nextBody,
+      loadDiaryPhotoExtras(db, [id], new Map()).get(id)?.photoCount ?? 0,
+    );
   }
 
   // Update entry (created_by is never touched)
@@ -987,11 +1143,11 @@ export function updateDiaryEntry(
     .where(eq(diaryEntries.id, id))
     .get();
 
-  const photoCount = countEntryPhotos(db, id);
+  const areaMap = loadAreaMap(db);
+  const photoExtras = loadDiaryPhotoExtras(db, [id], areaMap).get(id);
+  const photoCount = photoExtras?.photoCount ?? 0;
 
   const source = resolveSourceEntity(db, row!.entry.sourceEntityType, row!.entry.sourceEntityId);
-
-  const areaMap = loadAreaMap(db);
   const sourceEntityArea = resolveSourceEntityArea(
     db,
     row!.entry.sourceEntityType,
@@ -1001,6 +1157,8 @@ export function updateDiaryEntry(
 
   return toDiarySummary(row!.entry, row!.user, photoCount, source.title, sourceEntityArea, db, {
     sourceEntityExists: source.exists,
+    thumbnails: photoExtras?.thumbnails ?? [],
+    photoAreas: photoExtras?.photoAreas ?? [],
   });
 }
 
@@ -1176,7 +1334,11 @@ export function promoteDiaryEntry(
     });
   }
 
-  assertHasContent(finalTitle, finalBody, countEntryPhotos(db, id));
+  assertHasContent(
+    finalTitle,
+    finalBody,
+    loadDiaryPhotoExtras(db, [id], new Map()).get(id)?.photoCount ?? 0,
+  );
 
   // Validate type-specific required metadata
   const entryType = entry.entryType;

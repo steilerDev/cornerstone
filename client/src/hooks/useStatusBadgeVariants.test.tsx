@@ -14,6 +14,9 @@ describe('useStatusBadgeVariants', () => {
     expect(Object.keys(result.current).sort()).toEqual([
       'backupRun',
       'defect',
+      'diaryOutcome',
+      'diarySeverity',
+      'diaryType',
       'fundingSource',
       'grant',
       'integration',
@@ -68,6 +71,33 @@ describe('useStatusBadgeVariants', () => {
     expect(Object.keys(result.current.backupRun).sort()).toEqual(['failed', 'succeeded']);
     expect(Object.keys(result.current.userAccount)).toEqual(['active', 'locked', 'deactivated']);
     expect(Object.keys(result.current.defect).sort()).toEqual(['in_progress', 'open', 'resolved']);
+    expect(Object.keys(result.current.diaryType).sort()).toEqual(
+      [
+        'auto_reschedule',
+        'budget_breach',
+        'daily_log',
+        'delivery',
+        'general_note',
+        'invoice_created',
+        'invoice_status',
+        'issue',
+        'milestone_delay',
+        'site_visit',
+        'subsidy_status',
+        'work_item_status',
+      ].sort(),
+    );
+    expect(Object.keys(result.current.diaryOutcome).sort()).toEqual([
+      'conditional',
+      'fail',
+      'pass',
+    ]);
+    expect(Object.keys(result.current.diarySeverity).sort()).toEqual([
+      'critical',
+      'high',
+      'low',
+      'medium',
+    ]);
   });
 
   it('every variant has a non-empty label and a class', () => {

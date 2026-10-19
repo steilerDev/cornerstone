@@ -26,6 +26,57 @@ describe('FilterChipGroup', () => {
     expect(screen.getByRole('button', { name: 'Bath' })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  describe('selectedValues (multi-select)', () => {
+    it('marks every chip in selectedValues as pressed, regardless of value', () => {
+      render(
+        <FilterChipGroup
+          options={OPTIONS}
+          value=""
+          selectedValues={['a', 'b']}
+          onChange={() => {}}
+          ariaLabel="Groups"
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Kitchen' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getByRole('button', { name: 'Bath' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('ignores value for the pressed state when selectedValues is given', () => {
+      render(
+        <FilterChipGroup
+          options={OPTIONS}
+          value="all"
+          selectedValues={[]}
+          onChange={() => {}}
+          ariaLabel="Groups"
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('calls onChange with the clicked value, also for an already pressed chip (the host toggles)', () => {
+      const onChange = jest.fn();
+      render(
+        <FilterChipGroup
+          options={OPTIONS}
+          value=""
+          selectedValues={['a']}
+          deselectable
+          onChange={onChange}
+          ariaLabel="Groups"
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Kitchen' }));
+      expect(onChange).toHaveBeenLastCalledWith('a');
+      fireEvent.click(screen.getByRole('button', { name: 'Bath' }));
+      expect(onChange).toHaveBeenLastCalledWith('b');
+    });
+  });
+
   it('calls onChange with the clicked option value', () => {
     const onChange = jest.fn();
     render(

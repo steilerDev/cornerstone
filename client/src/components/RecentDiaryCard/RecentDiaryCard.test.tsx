@@ -166,6 +166,19 @@ describe('RecentDiaryCard', () => {
     expect(link).toHaveAttribute('href', '/diary/de-42');
   });
 
+  it('shows each entry type as a text chip, without an emoji', () => {
+    renderCard({
+      entries: [
+        makeEntry('de-1', { entryType: 'delivery' }),
+        makeEntry('de-2', { entryType: 'general_note' }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+    expect(screen.getByTestId('diary-type-badge-delivery').textContent).toBe('Delivery');
+    expect(screen.getByTestId('diary-type-badge-general_note').textContent).toBe('Note');
+  });
+
   it('renders entry title text', () => {
     renderCard({
       entries: [makeEntry('de-1', { title: 'Concrete Pour Day' })],

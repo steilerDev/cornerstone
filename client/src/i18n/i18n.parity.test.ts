@@ -376,11 +376,14 @@ describe('#2196 visual-defects keys', () => {
   >;
 
   for (const [locale, b] of Object.entries(bundles)) {
-    it(`${locale}: diary metadata has both plural forms and the aria-label templates`, () => {
+    it(`${locale}: diary metadata has both worker-count plural forms`, () => {
       expect(b.diary.metadata.workerCount_one).toContain('{{count}}');
       expect(b.diary.metadata.workerCount_other).toContain('{{count}}');
-      expect(b.diary.metadata.outcomeAriaLabel).toContain('{{label}}');
-      expect(b.diary.metadata.severityAriaLabel).toContain('{{label}}');
+    });
+
+    it(`${locale}: the retired outcome/severity aria-label templates are gone (#2225)`, () => {
+      expect(b.diary.metadata).not.toHaveProperty('outcomeAriaLabel');
+      expect(b.diary.metadata).not.toHaveProperty('severityAriaLabel');
     });
 
     it(`${locale}: the retired diary metadata.workers key is gone`, () => {

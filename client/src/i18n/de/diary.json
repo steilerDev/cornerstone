@@ -1,13 +1,86 @@
 {
   "page": {
     "logToday": "Heute erfassen",
-    "entryCountSingular": "Eintrag",
-    "entryCountPlural": "Einträge",
-    "timelineAriaLabel": "Einträge im Bautagebuch"
+    "entryCount_one": "{{count}} Eintrag",
+    "entryCount_other": "{{count}} Einträge",
+    "timelineAriaLabel": "Einträge im Bautagebuch",
+    "historyLinkAriaLabel": "Verlauf, die automatische Aufzeichnung der Änderungen"
+  },
+  "unfinished": {
+    "heading": "Nicht fertig",
+    "continue": "Fortsetzen",
+    "discard": "Verwerfen",
+    "continueAria": "{{title}} fortsetzen",
+    "discardAria": "{{title}} verwerfen",
+    "showAll": "Alle {{count}} anzeigen",
+    "discarded": "Entwurf verworfen"
+  },
+  "filters": {
+    "button": "Filter",
+    "buttonActive": "Filter, {{count}} aktiv",
+    "searchLabel": "Suchen",
+    "searchPlaceholder": "Einträge durchsuchen...",
+    "searchAriaLabel": "Tagebucheinträge durchsuchen",
+    "type": "Typ",
+    "area": "Bereich",
+    "company": "Firma",
+    "dates": "Zeitraum",
+    "from": "Von",
+    "to": "Bis",
+    "fromChip": "Von {{date}}",
+    "toChip": "Bis {{date}}",
+    "areaPlaceholder": "Bereiche suchen",
+    "companyPlaceholder": "Firmen suchen",
+    "rangeError": "Das Startdatum muss vor dem Enddatum liegen.",
+    "activeLabel": "Aktive Filter",
+    "clearAll": "Alle zurücksetzen",
+    "done": "Fertig",
+    "removeChip": "Filter {{label}} entfernen"
+  },
+  "week": {
+    "thisWeek": "Diese Woche",
+    "lastWeek": "Letzte Woche",
+    "weekOf": "Woche vom {{date}}",
+    "srCount_one": ", {{count}} Eintrag",
+    "srCount_other": ", {{count}} Einträge"
+  },
+  "row": {
+    "photos_one": "{{count}} Foto",
+    "photos_other": "{{count}} Fotos",
+    "signed": "Unterschrieben",
+    "linkName": "{{title}}, {{date}}",
+    "more": "+{{count}}"
+  },
+  "emptyFiltered": {
+    "title": "Keine Einträge entsprechen diesen Filtern",
+    "clear": "Filter entfernen"
+  },
+  "entryPage": {
+    "photosHeading": "Fotos, {{count}}",
+    "byAuthor": "von {{name}}",
+    "siteDetails": "Baustellendetails",
+    "areas": "Bereiche",
+    "history": "Verlauf",
+    "moreActions": "Weitere Aktionen für diesen Eintrag"
+  },
+  "siteDetails": {
+    "weather": "Wetter",
+    "temperature": "Temperatur",
+    "temperatureValue": "{{value}} °C",
+    "workers": "Arbeitskräfte",
+    "company": "Firma",
+    "start": "Beginn",
+    "end": "Ende",
+    "duration": "Dauer",
+    "inspector": "Inspektor",
+    "materials": "Materialien",
+    "outcome": "Ergebnis",
+    "severity": "Schweregrad",
+    "status": "Status"
   },
   "empty": {
     "title": "Noch keine Tagebucheinträge.",
-    "createButton": "Erstelle deinen ersten Eintrag"
+    "hint": "Fotos, Notizen und Lieferungen von der Baustelle erscheinen hier, neueste Woche zuerst."
   },
   "loading": "Einträge werden geladen...",
   "error": "Fehler beim Laden von Tagebucheinträgen. Bitte versuche es erneut.",
@@ -25,27 +98,6 @@
     "batchAppendedAndEndAnnouncement_one": "{{count}} weiterer Eintrag geladen. Du hast das Ende erreicht.",
     "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Einträge geladen. Du hast das Ende erreicht."
   },
-  "filterBar": {
-    "search": "Einträge durchsuchen...",
-    "filtersToggle": "Filter",
-    "dateFrom": "Von",
-    "dateTo": "Bis",
-    "filterModeDrafts": "Entwürfe",
-    "draftsChipGroupLabel": "Nach Entwurfsstatus filtern",
-    "entryTypes": "Eintragstypen",
-    "clearAll": "Alles löschen",
-    "noTypeOptions": "Keine Typen verfügbar",
-    "searchLabel": "Suchen",
-    "searchPlaceholder": "Einträge durchsuchen...",
-    "fromLabel": "Von",
-    "toLabel": "Bis",
-    "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen",
-    "toggleFiltersAriaLabel": "Filter ein-/ausblenden",
-    "searchAriaLabel": "Tagebucheinträge durchsuchen",
-    "typeGroupAriaLabel": "Nach Eintragstyp filtern",
-    "historyLinkAriaLabel": "Verlauf, die automatische Aufzeichnung der Änderungen"
-  },
   "entryTypes": {
     "work_item_status": "Aufgabenstatus",
     "invoice_status": "Rechnungsstatus",
@@ -55,49 +107,13 @@
     "auto_reschedule": "Zeitplanänderung",
     "subsidy_status": "Förderstatus"
   },
-  "create": {
-    "backLink": "← Tagebuch",
-    "entryDate": "Einzugsdatum",
-    "entryDateRequired": "Einzugsdatum ist erforderlich",
-    "entryType": "Eintragstyp",
-    "entryTypeRequired": "Eintragstyp ist erforderlich",
-    "title": "Titel",
-    "titlePlaceholder": "Nachtrag-Titel",
-    "body": "Eintrag Text",
-    "bodyRequired": "Eintragstext ist erforderlich",
-    "bodyDescription": "Füge weitere relevante Informationen hinzu",
-    "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
-    "submitButton": "Eintrag erstellen",
-    "submittingButton": "Wird erstellt...",
-    "cancelButton": "Abbrechen",
-    "successMessage": "Tagebucheintrag erfolgreich erstellt",
-    "errorMessage": "Fehler beim Erstellen des Tagebucheintrags. Bitte versuche es erneut.",
-    "photoUploadError": "Eintrag erstellt, aber einige Fotos konnten nicht hochgeladen werden"
-  },
   "detail": {
-    "editButton": "Bearbeiten",
-    "deleteButton": "Eintrag löschen",
     "loading": "Eintrag wird geladen...",
     "notFoundMessage": "Der gesuchte Tagebucheintrag existiert nicht.",
-    "deletingButton": "Wird gelöscht...",
-    "deleteConfirm": "Eintrag löschen",
-    "deleteMessage": "Möchtest du diesen Eintrag wirklich löschen?",
-    "deleteCancel": "Abbrechen",
-    "deleteConfirmButton": "Eintrag löschen",
-    "errorMessage": "Fehler beim Laden des Tagebucheintrags. Bitte versuche es erneut.",
-    "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuche es erneut."
+    "errorMessage": "Fehler beim Laden des Tagebucheintrags. Bitte versuche es erneut."
   },
   "edit": {
     "signatureIncomplete": "Übernimm oder entferne die nicht abgeschlossene Unterschrift vor dem Speichern."
-  },
-  "entryCard": {
-    "viewButton": "Ansicht",
-    "editButton": "Bearbeiten",
-    "by": "von",
-    "signed": "✓ Signiert"
-  },
-  "dateGroup": {
-    "groupLabel": "Einträge am {{date}}"
   },
   "form": {
     "weatherOptions": {
@@ -121,58 +137,11 @@
     }
   },
   "metadata": {
-    "summary": "Eintragsinformationen",
-    "type": "Typ",
-    "date": "Datum",
-    "createdBy": "Erstellt von",
-    "createdAt": "Erstellt",
-    "updatedAt": "Aktualisiert",
-    "weather": "Wetter",
-    "temperature": "Temperatur:",
-    "outcomeAriaLabel": "Ergebnis: {{label}}",
-    "severityAriaLabel": "Schweregrad: {{label}}",
     "workerCount_one": "{{count}} Arbeiter",
-    "workerCount_other": "{{count}} Arbeiter",
-    "inspector": "Inspektor",
-    "outcome": "Ergebnis",
-    "vendor": "Auftragnehmer:",
-    "workStart": "Beginn:",
-    "workEnd": "Ende:",
-    "materials": "Materialien",
-    "severity": "Schweregrad"
-  },
-  "entryTypeBadge": {
-    "ariaLabel": "Eintragstyp: {{type}}"
-  },
-  "typeBadge": {
-    "dailyLog": "Tagesbericht",
-    "siteVisit": "Begehung",
-    "delivery": "Lieferung",
-    "issue": "Mangel",
-    "generalNote": "Notiz",
-    "workItemStatus": "Arbeitspaketstatus",
-    "invoiceStatus": "Rechnungsstatus",
-    "invoiceCreated": "Rechnung erstellt",
-    "milestoneDelay": "Meilenstein-Verzögerung",
-    "budgetBreach": "Budgetüberschreitung",
-    "autoReschedule": "Automatische Umplanung",
-    "subsidyStatus": "Förderprogrammstatus"
-  },
-  "outcomeBadge": {
-    "pass": "Bestanden",
-    "fail": "Fehlgeschlagen",
-    "conditional": "Bedingt"
-  },
-  "severityBadge": {
-    "low": "Niedrig",
-    "medium": "Mittel",
-    "high": "Hoch",
-    "critical": "Kritisch"
+    "workerCount_other": "{{count}} Arbeiter"
   },
   "detailPage": {
     "edit": "Bearbeiten",
-    "delete": "Löschen",
-    "photosHeading": "Fotos ({{count}})",
     "photosEmpty": "Noch keine Fotos hinzugefügt.",
     "addPhotos": "Fotos hinzufügen",
     "relatedTo": "Bezogen auf:",
@@ -187,28 +156,6 @@
       "budget_source": "Budgetquellen",
       "subsidy_program": "Förderprogramme"
     }
-  },
-  "entryForm": {
-    "entryDate": "Einzugsdatum",
-    "required": "*",
-    "title": "Titel",
-    "titlePlaceholder": "Optionaler Titel für diesen Eintrag",
-    "body": "Eintrag",
-    "weather": "Wetter",
-    "temperature": "Temperatur",
-    "temperatureCelsius": "Temperatur (°C)",
-    "workers": "Arbeiter",
-    "inspectorName": "Name des Inspektors",
-    "outcome": "Ergebnis",
-    "vendor": "Auftragnehmer",
-    "vendorLabel": "Auftragnehmer:",
-    "materialsLabel": "Artikel:",
-    "materials": "Materialien",
-    "severity": "Schweregrad",
-    "resolutionStatus": "Lösungsstatus",
-    "resolutionStatusOpen": "Offen",
-    "resolutionStatusInProgress": "In Bearbeitung",
-    "resolutionStatusResolved": "Gelöst"
   },
   "signature": {
     "signedBy": "Unterzeichnet von",
@@ -236,11 +183,7 @@
     "altText": "Unterschrift von {{name}}"
   },
   "draft": {
-    "badgeLabel": "Entwurf",
-    "filterChipLabel": "Entwurf"
-  },
-  "validation": {
-    "workTimeEndBeforeStart": "Die Endzeit muss nach der Startzeit liegen"
+    "badgeLabel": "Entwurf"
   },
   "capture": {
     "titleNew": "Neuer Tagebucheintrag · {{date}}",

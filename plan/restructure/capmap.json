@@ -2456,7 +2456,7 @@
     "to": "Site diary > Site diary list (grouped by week; photo-first cards)",
     "change": "same",
     "gate": "none",
-    "note": "One header per week instead of per entry (P30). #2204: h1 \"Site diary\"; filter changes use history replace."
+    "note": "One header per week instead of per entry (P30). #2204: h1 \"Site diary\"; filter changes use history replace. #2225: week groups (This week, Last week, Week of …), photo-first FeedRow rows (variant entry); drafts are not in the feed."
   },
   "JRN-002": {
     "name": "Load older diary entries progressively (infinite scroll, \"Load more\", retry)",
@@ -2464,7 +2464,7 @@
     "to": "Site diary > Site diary list > loads every entry up to 100, beyond that InfiniteScrollFooter (load more, Retry)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2225: unchanged mechanics; groups merge across pages by week."
   },
   "JRN-003": {
     "name": "Switch the diary between Manual (default), All and Automatic entries",
@@ -2478,10 +2478,10 @@
   "JRN-004": {
     "name": "Show or hide draft entries in the diary list",
     "from": "/diary > filter panel > \"Drafts\" chip (pressed = drafts shown; unpressed adds ?status=saved)",
-    "to": "Site diary > Site diary list > 'Unfinished drafts' row at the top; Site diary > Site diary list > Filters sheet > Drafts",
+    "to": "Site diary > Site diary list > 'Unfinished' row (Continue · Discard; 'Show all n' lists drafts only)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2225: the Drafts chip and the draft badge in cards are gone; drafts are listed only in the Unfinished row or with ?status=draft."
   },
   "JRN-005": {
     "name": "Filter diary entries by one or more entry types",
@@ -2489,7 +2489,7 @@
     "to": "Site diary > Site diary list > Filters > Type",
     "change": "same",
     "gate": "none",
-    "note": "Only types in use offered first (VRS-11). #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3)."
+    "note": "Only types in use offered first (VRS-11). #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2225: Filters › Type offers only the types in use (multi-select, ?types=); hidden when only one type is in use."
   },
   "JRN-006": {
     "name": "Search diary entries by text in title and body",
@@ -2497,7 +2497,7 @@
     "to": "Site diary > Site diary list > search; also Global search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2210: GET /api/search (German-aware folding) covers this object for the global search. #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2210: GET /api/search (German-aware folding) covers this object for the global search. #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2225: the search field stays in the toolbar (data-page-search)."
   },
   "JRN-007": {
     "name": "Filter diary entries by a date range",
@@ -2505,7 +2505,7 @@
     "to": "Site diary > Site diary list > Filters > From / To",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2225: Filters › Dates (From / To); an invalid range shows an error and sends no request."
   },
   "JRN-008": {
     "name": "Clear all diary filters at once",
@@ -2513,7 +2513,7 @@
     "to": "Site diary > Site diary list > Filters > Clear all",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2225: active filters show as removable chips with 'Clear all' under the toolbar; 'Clear filters' on the filtered-empty state."
   },
   "JRN-009": {
     "name": "Open and close the diary filter panel on phones",
@@ -2521,7 +2521,7 @@
     "to": "Site diary > Site diary list > 'Filters' button opens a sheet (collapsed by default at every width)",
     "change": "same",
     "gate": "none",
-    "note": "Frees 39% of the first desktop screen (P30)."
+    "note": "Frees 39% of the first desktop screen (P30). #2225: 'Filters' button at every width: bottom sheet below 768px, anchored panel from 768px."
   },
   "JRN-010": {
     "name": "Scan entry cards: type, title, time and author, signed flag, body, type-specific summary, photo count",
@@ -2529,7 +2529,7 @@
     "to": "Site diary > Site diary list > entry card (photo strip, title, date, company, area, workers)",
     "change": "same",
     "gate": "none",
-    "note": "Plural fix (D-25). #2196: worker count is pluralised; outcome, severity and weather labels are translated."
+    "note": "Plural fix (D-25). #2196: worker count is pluralised; outcome, severity and weather labels are translated. #2225: row = up to 5 thumbnails + '+n', type, title (link), date, one-line text, company, workers (plural), Signed, area chips from photo tags."
   },
   "JRN-011": {
     "name": "Jump from an automatic diary event to the record that triggered it",
@@ -2706,7 +2706,7 @@
     "gate": "none",
     "clicks": 0,
     "clickPath": "Entry page shows Signatures when present",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use). #2225: Signed fact on list rows; Signatures section on the entry page only when present."
   },
   "JRN-031": {
     "name": "Read a diary entry in full on its detail page",
@@ -2714,7 +2714,7 @@
     "to": "Site diary > Entry page (/diary/:id)",
     "change": "same",
     "gate": "none",
-    "note": "Photos first. #2204: h1 = entry title, else \"‹Type› · ‹date›\"; breadcrumb \"Site diary\"; Home and spot-viewer openers pass origin (\"Back to Home\" / \"Back to ‹spot›\")."
+    "note": "Photos first. #2204: h1 = entry title, else \"‹Type› · ‹date›\"; breadcrumb \"Site diary\"; Home and spot-viewer openers pass origin (\"Back to Home\" / \"Back to ‹spot›\"). #2225: entry page order: photos, type · date · author, title, text, Site details, Signatures, Areas (chips; they open the Areas index until route `area` is served by P5.7, then the area page), Related to, History (collapsed)."
   },
   "JRN-032": {
     "name": "Edit a saved diary entry",
@@ -2722,7 +2722,7 @@
     "to": "Site diary > Entry page > Edit -> Site diary > Capture (/diary/new, /diary/:id/edit)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step. #2209: Site diary › entry edit (saved entry) has no defect Status field (Defect StatusMenu on the entry page); drafts keep it. #2221: built. Saved-entry edit uses the capture screen without autosave ('Save changes', Cancel asks 'Discard changes?'); signed or automatic entries show a message instead of the form."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step. #2209: Site diary › entry edit (saved entry) has no defect Status field (Defect StatusMenu on the entry page); drafts keep it. #2221: built. Saved-entry edit uses the capture screen without autosave ('Save changes', Cancel asks 'Discard changes?'); signed or automatic entries show a message instead of the form. #2225: Edit is the entry page's primary action."
   },
   "JRN-033": {
     "name": "Delete a diary entry and its photos",
@@ -2730,7 +2730,7 @@
     "to": "Site diary > Entry page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry page / entry edit › Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry page / entry edit › Delete (ConfirmDialog with counts). #2225: Delete moved into the entry page's ⋯ menu (ConfirmDialog unchanged)."
   },
   "JRN-034": {
     "name": "Log work-item status changes to the diary automatically",
@@ -2832,7 +2832,7 @@
     "to": "Site diary > Entry page > Photos (first section); Site diary > Site diary list > photo strip",
     "change": "same",
     "gate": "none",
-    "note": "Thumbnails on list cards (P30). #2221: built. Unchanged."
+    "note": "Thumbnails on list cards (P30). #2221: built. Unchanged. #2225: list rows show the first 5 thumbnails (GET /api/diary-entries `thumbnails`); entry page shows the grid first."
   },
   "JRN-047": {
     "name": "Delete a photo directly from the edit-page grid",

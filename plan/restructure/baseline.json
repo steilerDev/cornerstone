@@ -9,9 +9,9 @@
       "BudgetSourcesPage": { "destinations": 2, "primaryButtons": 7, "searchFields": 1 },
       "DashboardPage": { "destinations": 16, "primaryButtons": 2, "searchFields": 0 },
       "DiaryCapturePage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
-      "DiaryEntryDetailPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 0 },
-      "DiaryPage": { "destinations": 2, "primaryButtons": 5, "searchFields": 1 },
-      "HistoryPage": { "destinations": 2, "primaryButtons": 1, "searchFields": 1 },
+      "DiaryEntryDetailPage": { "destinations": 0, "primaryButtons": 6, "searchFields": 0 },
+      "DiaryPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 1 },
+      "HistoryPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 1 },
       "HouseholdItemDetailPage": { "destinations": 3, "primaryButtons": 12, "searchFields": 1 },
       "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "HouseholdItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
@@ -40,7 +40,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 123,
+      "count": 118,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -136,11 +136,6 @@
         "calendar/MonthGrid",
         "calendar/WeekGrid",
         "diary/CaptureScreen/CaptureScreen",
-        "diary/DiaryDateGroup/DiaryDateGroup",
-        "diary/DiaryEntryCard/DiaryEntryCard",
-        "diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge",
-        "diary/DiaryFilterBar/DiaryFilterBar",
-        "diary/DiaryMetadataSummary/DiaryMetadataSummary",
         "diary/SignatureCapture/SignatureCapture",
         "diary/SignatureDisplay/SignatureDisplay",
         "diary/SignatureSection/SignatureSection",
@@ -168,7 +163,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 179,
+      "count": 178,
       "values": [
         "% allocated",
         "(refund)",
@@ -287,7 +282,6 @@
         "no subsidies linked",
         "no subsidy programs found",
         "no subsidy programs yet",
-        "no types available",
         "not invoiced",
         "of budget sources selected",
         "of total",

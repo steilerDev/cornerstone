@@ -257,6 +257,30 @@ describe('DiaryEntryDetailPage — arriving from the capture screen', () => {
     expect(other).toHaveFocus();
   });
 
+  it('a language change reloads the entry but does not pull focus back to the h1', async () => {
+    const { default: i18n } = await import('../../i18n/index.js');
+    renderDetailPage({ focusHeading: true });
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'Foundation Work' });
+    await waitFor(() => expect(h1).toHaveFocus());
+    const other = screen.getByRole('button', { name: 'arrive again' });
+    act(() => other.focus());
+    const loadsBefore = mockGetDiaryEntry.mock.calls.length;
+
+    try {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      // The entry reloads (isLoading flips) under the same location.key.
+      await waitFor(() => expect(mockGetDiaryEntry.mock.calls.length).toBeGreaterThan(loadsBefore));
+      await screen.findByRole('heading', { level: 1, name: 'Foundation Work' });
+      expect(other).toHaveFocus();
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
   it('focuses again for a new navigation that carries the flag', async () => {
     renderDetailPage({ focusHeading: true });
     const h1 = await screen.findByRole('heading', { level: 1, name: 'Foundation Work' });

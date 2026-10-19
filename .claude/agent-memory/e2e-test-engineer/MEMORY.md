@@ -60,3 +60,4 @@
 - [story-2222-entry-points.md](story-2222-entry-points.md) — #2222 Log now tiles/?start=/Log today: POM additions, Q1-Q11 spec, verified facts.
 - [story-2223-system-events.md](story-2223-system-events.md) — #2223 system events: FeedRow ids, v1 mock builders, History filter, payment link, phone-hidden chip trap.
 - [story-2224-history-page.md](story-2224-history-page.md) — #2224 History POM/ids, per-test uniq tag, moved diary filters, 1.64.1 image + docker disk, checkbox quirk.
+- [story-2225-diary-feed-row.md](story-2225-diary-feed-row.md) — #2225 diary feed rows/Filters/entry page POMs, mock stubs, sequential-run rule, 2 production defects.

@@ -272,7 +272,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
 
       // List -> entry -> Edit, so the history holds exactly: list, entry, edit
       await page.goto(`${ROUTES.diary}?q=${encodeURIComponent(NAMES.titled)}`);
-      await list.entryCard(seed.titledId).click();
+      await list.entryLink(seed.titledId).click();
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('diaryEntry', { id: seed.titledId }),
       );
@@ -565,7 +565,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await mockHouseName(page);
 
       await page.goto(`${ROUTES.diary}?q=${encodeURIComponent(NAMES.titled)}`);
-      await list.entryCard(seed.titledId).click();
+      await list.entryLink(seed.titledId).click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('diaryEntry', { id: seed.titledId }),

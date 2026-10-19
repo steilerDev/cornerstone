@@ -7,6 +7,7 @@ import {
   deleteDiaryEntry,
   promoteDiaryEntry,
   lookupDiaryEntries,
+  fetchDiaryFilterOptions,
 } from './diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntryDetail } from '@cornerstone/shared';
 
@@ -169,6 +170,30 @@ describe('diaryApi', () => {
       await listDiaryEntries({ q: 'foundation' });
 
       expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries?q=foundation', expect.any(Object));
+    });
+
+    it('includes areaId and vendorId params when provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => emptyListResponse,
+      } as Response);
+
+      await listDiaryEntries({ areaId: 'area-1', vendorId: 'company-1' });
+
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
+      expect(callUrl).toContain('areaId=area-1');
+      expect(callUrl).toContain('vendorId=company-1');
+    });
+
+    it('omits areaId and vendorId when empty', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => emptyListResponse,
+      } as Response);
+
+      await listDiaryEntries({ areaId: '', vendorId: '' });
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries', expect.any(Object));
     });
 
     it('includes multiple params when provided', async () => {
@@ -531,6 +556,34 @@ describe('diaryApi', () => {
   });
 
   // ─── lookupDiaryEntries ────────────────────────────────────────────────────
+
+  describe('fetchDiaryFilterOptions (#2225)', () => {
+    it('GETs /api/diary-entries/filter-options and returns the parsed options', async () => {
+      const options = {
+        types: ['daily_log'],
+        areas: [{ id: 'area-1', name: 'Room 1', ancestors: [{ id: 'area-0', name: 'Area A' }] }],
+        companies: [{ id: 'company-1', name: 'Company A' }],
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => options } as Response);
+
+      const result = await fetchDiaryFilterOptions();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries/filter-options',
+        expect.any(Object),
+      );
+      expect(result).toEqual(options);
+    });
+
+    it('rejects when the request fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'boom' } }),
+      } as Response);
+      await expect(fetchDiaryFilterOptions()).rejects.toThrow();
+    });
+  });
 
   describe('lookupDiaryEntries', () => {
     const lookupResponse = { matches: [] };

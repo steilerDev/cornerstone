@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom';
 import type { To } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { AreaSummary, OrientationSummary, PhotoSpotPhoto } from '@cornerstone/shared';
-import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { Badge } from '../Badge/Badge.js';
 import { SpotHistoryList } from './SpotHistoryList.js';
 import type { OriginState } from '../../navigation/origin.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -123,6 +124,7 @@ export function SpotViewer({
   headingRef,
 }: SpotViewerProps) {
   const { t } = useTranslation('photos');
+  const { diaryType } = useStatusBadgeVariants();
   const { formatDate } = useFormatters();
   const prevRef = useRef<HTMLButtonElement | null>(null);
   const nextRef = useRef<HTMLButtonElement | null>(null);
@@ -290,7 +292,11 @@ export function SpotViewer({
         <div className={styles.entryCard}>
           <h2 className={styles.cardHeading}>{t('viewer.fromDiaryEntry')}</h2>
           <div className={styles.entryRow}>
-            <DiaryEntryTypeBadge entryType={entry.entryType} />
+            <Badge
+              variants={diaryType}
+              value={entry.entryType}
+              testId={`diary-type-badge-${entry.entryType}`}
+            />
             <span className={styles.entryTitle}>
               {entry.title?.trim() || t('viewer.untitledEntry')}
             </span>

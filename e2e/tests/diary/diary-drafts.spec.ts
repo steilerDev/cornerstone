@@ -19,7 +19,7 @@
  * 10. Promote draft — an empty draft cannot be saved (Save is aria-disabled with a reason)
  * 11. Discard draft (⋯ → Discard entry → "Discard this entry?" dialog → /diary, entry gone)
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
- * 13. Drafts chip (default pressed; click → hides drafts, saved visible; click again → drafts restored)
+ * 13. Drafts leave the feed (saved feed has none; Unfinished row; ?status=draft; ?status=saved like none)
  * 14. Clicking draft in list navigates to /diary/:id/edit
  * 15. Dashboard excludes drafts; shows entry after promote
  * 16. [responsive] Draft edit page on mobile (menu, Save entry, no scroll)
@@ -493,7 +493,7 @@ test.describe('Discard draft (Scenario 11)', { tag: '@responsive' }, () => {
 
       // The entry no longer exists and is not in the list
       await waitForDiaryListLoaded(diaryPage);
-      await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
+      await expect(diaryPage.entryCard(draftId)).toHaveCount(0);
       await expect.poll(() => entryStatus(page, draftId!)).toBe(404);
 
       // Mark deleted so finally block doesn't try again
@@ -569,65 +569,58 @@ test.describe('Draft badge in list view (Scenario 12)', { tag: '@responsive' }, 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13: Drafts chip (#1446)
+// Scenario 13: Drafts leave the feed (#2225; replaces the Drafts chip of #1446)
+//
+// The feed requests status=saved unless the URL has status=draft; drafts live in the
+// "Unfinished" row above it (Continue / Discard; see diary-feed-rows.spec.ts L4).
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Drafts chip (Scenario 13)', () => {
-  test('Drafts chip — default pressed; click hides drafts; click again restores them', async ({
+test.describe('Drafts leave the feed (Scenario 13)', () => {
+  test('The saved feed has no drafts; the Unfinished row and ?status=draft show them', async ({
     page,
     testPrefix,
   }) => {
     const diaryPage = new DiaryPage(page);
+    const tag = `${testPrefix}-${Date.now().toString(36)}`;
     let draftId: string | null = null;
     let savedId: string | null = null;
 
     try {
-      // Create one draft and one saved entry
-      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      // A far-future date keeps the draft among the three newest the Unfinished row shows
+      draftId = await createDraftDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2099-12-31',
+        body: `${tag} draft body`,
+      });
       savedId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-05-16',
-        body: `${testPrefix} saved entry for drafts-chip test`,
+        body: `${tag} saved entry for the drafts test`,
       });
 
-      await diaryPage.goto();
+      // Feed (status=saved): the saved entry, never the draft
+      await page.goto(`/diary?q=${encodeURIComponent(tag)}`);
+      await diaryPage.heading.waitFor({ state: 'visible' });
       await waitForDiaryListLoaded(diaryPage);
-      // The filter panel is collapsed by default on mobile — expand it so
-      // the Drafts chip is interactable across all viewports.
-      await diaryPage.openFiltersIfCollapsed();
+      await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      await expect(diaryPage.entryCard(draftId)).toHaveCount(0);
+      // The draft is in the Unfinished row instead
+      await expect(diaryPage.unfinishedRow(draftId)).toBeVisible();
 
-      // ── Default: chip is pressed (aria-pressed="true"), both entries visible ──
-      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'true');
+      // The legacy ?status=saved link behaves like no status
+      await page.goto(`/diary?status=saved&q=${encodeURIComponent(tag)}`);
+      await diaryPage.heading.waitFor({ state: 'visible' });
+      await waitForDiaryListLoaded(diaryPage);
+      await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      await expect(diaryPage.entryCard(draftId)).toHaveCount(0);
+
+      // ?status=draft ("Show all"): drafts only, the saved entry is gone, no Unfinished row
+      await page.goto(`/diary?status=draft&q=${encodeURIComponent(tag)}`);
+      await diaryPage.heading.waitFor({ state: 'visible' });
+      await waitForDiaryListLoaded(diaryPage);
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
-      await expect(diaryPage.entryCard(savedId)).toBeVisible();
-
-      // ── Click chip → hide drafts; URL gets ?status=saved ──
-      const savedFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.draftsChip.scrollIntoViewIfNeeded();
-      await diaryPage.draftsChip.click();
-      await savedFilterResponse;
-      await waitForDiaryListLoaded(diaryPage);
-
-      // Chip should now be un-pressed
-      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'false');
-      // URL should contain status=saved
-      expect(page.url()).toContain('status=saved');
-      // Draft card should NOT be visible; saved card should be visible
-      await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
-      await expect(diaryPage.entryCard(savedId)).toBeVisible();
-
-      // ── Click chip again → restore drafts; status param removed ──
-      const allFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.draftsChip.click();
-      await allFilterResponse;
-      await waitForDiaryListLoaded(diaryPage);
-
-      // Chip should be pressed again
-      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'true');
-      // URL should NOT contain status=saved
-      expect(page.url()).not.toContain('status=saved');
-      // Both cards should be visible again
-      await expect(diaryPage.entryCard(draftId)).toBeVisible();
-      await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      await expect(diaryPage.getDraftBadge(draftId)).toBeVisible();
+      await expect(diaryPage.entryCard(savedId)).toHaveCount(0);
+      await expect(diaryPage.unfinished).toHaveCount(0);
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
       if (savedId) await deleteDiaryEntryViaApi(page, savedId);
@@ -676,7 +669,7 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
         { timeout: 15_000 },
       );
 
-      await diaryPage.entryCard(draftId).click();
+      await diaryPage.entryLink(draftId).click();
 
       // Should navigate to /diary/:id/edit. On loaded CI runners the SPA router +
       // React re-render after the click can exceed the default 10s navigationTimeout.
@@ -718,7 +711,12 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
     let draftId: string | null = null;
 
     try {
-      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      // A far-future date keeps the promoted entry among the five newest the Recent Diary card
+      // shows, however many entries other tests create dated today (#2225 specs do).
+      draftId = await createDraftDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2099-12-29',
+      });
 
       // Navigate to dashboard — register diary entries API listener BEFORE goto() to avoid
       // race where the response arrives before the listener is attached.

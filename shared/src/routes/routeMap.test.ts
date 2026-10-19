@@ -234,6 +234,22 @@ describe('Areas index rollout (#2218)', () => {
   });
 });
 
+describe('Site diary list route (#2225)', () => {
+  it('carries the list search, type, date, area, company and status params', () => {
+    const entry = ENTRIES.find((e) => e.id === 'diary');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.carries).toEqual([
+      'q',
+      'types',
+      'dateFrom',
+      'dateTo',
+      'areaId',
+      'companyId',
+      'status',
+    ]);
+  });
+});
+
 describe('History page rollout (#2224)', () => {
   it('serves /history', () => {
     const entry = ENTRIES.find((e) => e.id === 'history');

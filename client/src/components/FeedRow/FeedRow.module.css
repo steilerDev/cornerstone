@@ -87,3 +87,152 @@
     align-items: center;
   }
 }
+
+/* variant="entry": a manual diary entry (#2225). The title link is stretched over the row. */
+.entryRow {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border-left: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+  overflow-wrap: anywhere;
+  list-style: none;
+}
+
+.entryRow:hover {
+  background-color: var(--color-bg-hover);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .entryRow {
+    transition: background-color var(--transition-fast);
+  }
+}
+
+.entryRow:has(.titleLink:focus-visible) {
+  box-shadow: var(--shadow-focus);
+}
+
+.entryBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.titleLink {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.titleLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.titleLink:focus-visible {
+  outline: none;
+}
+
+/* Fallback for engines without :has() */
+@supports not selector(:has(*)) {
+  .titleLink:focus-visible::after {
+    box-shadow: var(--shadow-focus);
+    border-radius: var(--radius-md);
+  }
+}
+
+.oneLine {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.facts {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--spacing-1);
+  align-content: start;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  max-width: 4rem;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  outline: 1px solid var(--color-border);
+}
+
+.thumbMore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 4rem;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (min-width: 768px) {
+  .entryRow[data-has-strip='true'] {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-4);
+  }
+
+  .strip {
+    display: flex;
+    gap: var(--spacing-1);
+  }
+
+  .thumb,
+  .thumbMore {
+    width: 3.5rem;
+    height: 3.5rem;
+    max-width: none;
+  }
+}

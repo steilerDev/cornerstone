@@ -1,13 +1,14 @@
 {
   "page": {
     "logToday": "Log today",
-    "entryCountSingular": "entry",
-    "entryCountPlural": "entries",
-    "timelineAriaLabel": "Site diary entries"
+    "timelineAriaLabel": "Site diary entries",
+    "entryCount_one": "{{count}} entry",
+    "entryCount_other": "{{count}} entries",
+    "historyLinkAriaLabel": "History, the automatic record of changes"
   },
   "empty": {
     "title": "No diary entries yet.",
-    "createButton": "Create your first entry"
+    "hint": "Photos, notes and deliveries from site show up here, newest week first."
   },
   "loading": "Loading entries...",
   "error": "Failed to load diary entries. Please try again.",
@@ -25,30 +26,6 @@
     "batchAppendedAndEndAnnouncement_one": "{{count}} more entry loaded. You've reached the end.",
     "batchAppendedAndEndAnnouncement_other": "{{count}} more entries loaded. You've reached the end."
   },
-  "filterBar": {
-    "filtersToggle": "Filters",
-    "search": "Search entries...",
-    "dateFrom": "From",
-    "dateTo": "To",
-    "filterModeDrafts": "Drafts",
-    "draftsChipGroupLabel": "Filter by draft status",
-    "entryTypes": "Entry Types",
-    "clearAll": "Clear All",
-    "noTypeOptions": "No types available",
-    "searchLabel": "Search",
-    "searchPlaceholder": "Search entries...",
-    "fromLabel": "From",
-    "toLabel": "To",
-    "entryTypesLabel": "Entry Types",
-    "clearAllButton": "Clear all",
-    "toggleFiltersAriaLabel": "Toggle filters",
-    "searchAriaLabel": "Search diary entries",
-    "typeGroupAriaLabel": "Filter by entry type",
-    "historyLinkAriaLabel": "History, the automatic record of changes"
-  },
-  "entryTypeBadge": {
-    "ariaLabel": "Entry type: {{type}}"
-  },
   "entryTypes": {
     "work_item_status": "Task status",
     "invoice_status": "Invoice status",
@@ -58,49 +35,13 @@
     "auto_reschedule": "Schedule update",
     "subsidy_status": "Grant status"
   },
-  "create": {
-    "backLink": "← Diary",
-    "entryDate": "Entry Date",
-    "entryDateRequired": "Entry date is required",
-    "entryType": "Entry Type",
-    "entryTypeRequired": "Entry type is required",
-    "title": "Title",
-    "titlePlaceholder": "Entry title",
-    "body": "Entry Text",
-    "bodyRequired": "Entry text is required",
-    "bodyDescription": "Add any other relevant information",
-    "inspectionOutcomeRequired": "Inspection outcome is required",
-    "submitButton": "Create Entry",
-    "submittingButton": "Creating...",
-    "cancelButton": "Cancel",
-    "successMessage": "Diary entry created successfully",
-    "errorMessage": "Failed to create diary entry. Please try again.",
-    "photoUploadError": "Entry created but some photos failed to upload"
-  },
   "detail": {
-    "editButton": "Edit",
-    "deleteButton": "Delete Entry",
     "loading": "Loading entry...",
     "notFoundMessage": "The diary entry you're looking for doesn't exist.",
-    "deletingButton": "Deleting...",
-    "deleteConfirm": "Delete Entry",
-    "deleteMessage": "Are you sure you want to delete this entry?",
-    "deleteCancel": "Cancel",
-    "deleteConfirmButton": "Delete Entry",
-    "errorMessage": "Failed to load diary entry. Please try again.",
-    "deleteErrorMessage": "Failed to delete diary entry. Please try again."
+    "errorMessage": "Failed to load diary entry. Please try again."
   },
   "edit": {
     "signatureIncomplete": "Accept or remove the unfinished signature before saving."
-  },
-  "entryCard": {
-    "viewButton": "View",
-    "editButton": "Edit",
-    "by": "by",
-    "signed": "✓ Signed"
-  },
-  "dateGroup": {
-    "groupLabel": "Entries on {{date}}"
   },
   "form": {
     "weatherOptions": {
@@ -124,55 +65,11 @@
     }
   },
   "metadata": {
-    "summary": "Entry Information",
-    "type": "Type",
-    "date": "Date",
-    "createdBy": "Created by",
-    "createdAt": "Created",
-    "updatedAt": "Updated",
-    "weather": "Weather",
-    "temperature": "Temperature:",
-    "outcomeAriaLabel": "Outcome: {{label}}",
-    "severityAriaLabel": "Severity: {{label}}",
     "workerCount_one": "{{count}} worker",
-    "workerCount_other": "{{count}} workers",
-    "vendor": "Vendor:",
-    "workStart": "Start:",
-    "workEnd": "End:",
-    "inspector": "Inspector",
-    "outcome": "Outcome",
-    "materials": "Materials",
-    "severity": "Severity"
-  },
-  "typeBadge": {
-    "dailyLog": "Daily Log",
-    "siteVisit": "Site Visit",
-    "delivery": "Delivery",
-    "issue": "Issue",
-    "generalNote": "General Note",
-    "workItemStatus": "Work Item Status",
-    "invoiceStatus": "Invoice Status",
-    "invoiceCreated": "Invoice Created",
-    "milestoneDelay": "Milestone Delay",
-    "budgetBreach": "Budget Breach",
-    "autoReschedule": "Auto Reschedule",
-    "subsidyStatus": "Subsidy Status"
-  },
-  "outcomeBadge": {
-    "pass": "Pass",
-    "fail": "Fail",
-    "conditional": "Conditional"
-  },
-  "severityBadge": {
-    "low": "Low",
-    "medium": "Medium",
-    "high": "High",
-    "critical": "Critical"
+    "workerCount_other": "{{count}} workers"
   },
   "detailPage": {
     "edit": "Edit",
-    "delete": "Delete",
-    "photosHeading": "Photos ({{count}})",
     "photosEmpty": "No photos attached yet.",
     "addPhotos": "Add photos",
     "relatedTo": "Related to:",
@@ -187,28 +84,6 @@
       "budget_source": "Budget Sources",
       "subsidy_program": "Subsidy Programs"
     }
-  },
-  "entryForm": {
-    "entryDate": "Entry Date",
-    "required": "*",
-    "title": "Title",
-    "titlePlaceholder": "Optional title for this entry",
-    "body": "Entry",
-    "weather": "Weather",
-    "temperature": "Temperature",
-    "temperatureCelsius": "Temperature (°C)",
-    "workers": "Workers",
-    "inspectorName": "Inspector Name",
-    "outcome": "Outcome",
-    "vendor": "Vendor",
-    "vendorLabel": "Vendor:",
-    "materialsLabel": "Items:",
-    "materials": "Materials",
-    "severity": "Severity",
-    "resolutionStatus": "Resolution Status",
-    "resolutionStatusOpen": "Open",
-    "resolutionStatusInProgress": "In Progress",
-    "resolutionStatusResolved": "Resolved"
   },
   "signature": {
     "signedBy": "Signed by",
@@ -236,11 +111,7 @@
     "altText": "Signature of {{name}}"
   },
   "draft": {
-    "badgeLabel": "Draft",
-    "filterChipLabel": "Draft"
-  },
-  "validation": {
-    "workTimeEndBeforeStart": "End time must be after start time"
+    "badgeLabel": "Draft"
   },
   "capture": {
     "titleNew": "New entry · {{date}}",
@@ -451,5 +322,77 @@
       "invoices_other": "Invoices {{numbers}}",
       "invoicesMore": "Invoices {{numbers}} and {{more}} more"
     }
+  },
+  "unfinished": {
+    "heading": "Unfinished",
+    "continue": "Continue",
+    "discard": "Discard",
+    "continueAria": "Continue {{title}}",
+    "discardAria": "Discard {{title}}",
+    "showAll": "Show all {{count}}",
+    "discarded": "Draft discarded"
+  },
+  "filters": {
+    "button": "Filters",
+    "buttonActive": "Filters, {{count}} active",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Search entries…",
+    "searchAriaLabel": "Search diary entries",
+    "type": "Type",
+    "area": "Area",
+    "company": "Company",
+    "dates": "Dates",
+    "from": "From",
+    "to": "To",
+    "fromChip": "From {{date}}",
+    "toChip": "To {{date}}",
+    "areaPlaceholder": "Search areas",
+    "companyPlaceholder": "Search companies",
+    "rangeError": "The start date must be before the end date.",
+    "activeLabel": "Active filters",
+    "clearAll": "Clear all",
+    "done": "Done",
+    "removeChip": "Remove filter {{label}}"
+  },
+  "week": {
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "weekOf": "Week of {{date}}",
+    "srCount_one": ", {{count}} entry",
+    "srCount_other": ", {{count}} entries"
+  },
+  "row": {
+    "photos_one": "{{count}} photo",
+    "photos_other": "{{count}} photos",
+    "signed": "Signed",
+    "linkName": "{{title}}, {{date}}",
+    "more": "+{{count}}"
+  },
+  "emptyFiltered": {
+    "title": "No entries match these filters",
+    "clear": "Clear filters"
+  },
+  "entryPage": {
+    "photosHeading": "Photos, {{count}}",
+    "byAuthor": "by {{name}}",
+    "siteDetails": "Site details",
+    "areas": "Areas",
+    "history": "History",
+    "moreActions": "More actions for this entry"
+  },
+  "siteDetails": {
+    "weather": "Weather",
+    "temperature": "Temperature",
+    "temperatureValue": "{{value}} °C",
+    "workers": "Workers",
+    "company": "Company",
+    "start": "Start",
+    "end": "End",
+    "duration": "Duration",
+    "inspector": "Inspector",
+    "materials": "Materials",
+    "outcome": "Outcome",
+    "severity": "Severity",
+    "status": "Status"
   }
 }

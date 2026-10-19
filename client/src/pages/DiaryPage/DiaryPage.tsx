@@ -8,24 +8,37 @@ import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { originStateFor } from '../../navigation/origin.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { diaryHistoryRedirectTarget } from '../../navigation/diaryHistoryRedirect.js';
-import { MANUAL_DIARY_ENTRY_TYPES } from '@cornerstone/shared';
-import type { DiaryEntryType, DiaryEntrySummary, DiaryEntryStatus } from '@cornerstone/shared';
-import { listDiaryEntries } from '../../lib/diaryApi.js';
+import type { DiaryEntrySummary, DiaryFilterOptions } from '@cornerstone/shared';
+import { fetchDiaryFilterOptions, listDiaryEntries } from '../../lib/diaryApi.js';
+import { groupByWeek, weekEnd, weekKind } from '../../lib/feedWeeks.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { todayLocalIsoDate } from '../../lib/localDate.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
 import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
 import { useInfiniteScrollAnnouncements } from '../../hooks/useInfiniteScrollAnnouncements.js';
-import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
-import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
+import { SearchEverywhereRow } from '../../components/CommandSearch/SearchEverywhereRow.js';
+import { DiaryEntryFeedRow } from '../../components/FeedRow/DiaryEntryFeedRow.js';
+import { FeedGroup } from '../../components/FeedRow/FeedGroup.js';
+import { EmptyState } from '../../components/EmptyState/EmptyState.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import { InfiniteScrollFooter } from '../../components/InfiniteScrollFooter/InfiniteScrollFooter.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import shared from '../../styles/shared.module.css';
+import { DiaryActiveFilters, DiaryFilters } from './DiaryFilters.js';
+import { DiaryUnfinished } from './DiaryUnfinished.js';
+import {
+  EMPTY_DIARY_FILTERS,
+  hasAnyFilter,
+  readDiaryFilters,
+  writeDiaryFilters,
+} from './diaryQuery.js';
+import type { DiaryFilterState } from './diaryQuery.js';
 import styles from './DiaryPage.module.css';
 
-interface GroupedEntries {
-  [date: string]: DiaryEntrySummary[];
-}
-
 const PAGE_SIZE = 25;
+const SKELETON_ROWS = 3;
+const SKELETON_THUMBS = 6;
 
 /** The Site diary lists people's entries; the old ?filterMode links go to History first. */
 export default function DiaryPage() {
@@ -38,6 +51,7 @@ export default function DiaryPage() {
 function DiaryListPage() {
   const { t } = useTranslation('diary');
   const { t: tc } = useTranslation('common');
+  const { formatDayMonth, formatDayRange } = useFormatters();
   const pageTitle = tc('navigation.siteDiary');
   useDocumentTitle(pageTitle);
   const openCreate = useOpenCreate();
@@ -57,6 +71,7 @@ function DiaryListPage() {
   // "Log today" is today by definition: no date or area from the page's create context.
   const logTodayState = originStateFor(location);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const filtersButtonRef = useRef<HTMLButtonElement>(null);
   const focusedKeyRef = useRef<string | null>(null);
 
   // Arriving after Discard: the heading takes focus once per navigation.
@@ -69,22 +84,32 @@ function DiaryListPage() {
 
   const [totalItems, setTotalItems] = useState(0);
   const [firstBatchFailed, setFirstBatchFailed] = useState(false);
-  const focusEmptyStateAfterRetryRef = useRef(false);
-  const emptyStateCtaRef = useRef<HTMLAnchorElement>(null);
+  const focusAfterRetryRef = useRef(false);
+  const emptyMessageRef = useRef<HTMLHeadingElement | HTMLParagraphElement>(null);
+
+  // What the Filters surface offers: loaded once; a failure leaves Area and Company hidden.
+  const [filterOptions, setFilterOptions] = useState<DiaryFilterOptions | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchDiaryFilterOptions()
+      .then((options) => {
+        if (!cancelled) setFilterOptions(options);
+      })
+      .catch(() => {
+        if (!cancelled) setFilterOptions(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Filter state from URL
-  const searchQuery = searchParams.get('q') || '';
-  const dateFrom = searchParams.get('dateFrom') || '';
-  const dateTo = searchParams.get('dateTo') || '';
-  const typeFilterStr = searchParams.get('types') || '';
-  const activeTypes: DiaryEntryType[] = typeFilterStr
-    ? (typeFilterStr
-        .split(',')
-        .filter((type) =>
-          (MANUAL_DIARY_ENTRY_TYPES as readonly string[]).includes(type),
-        ) as DiaryEntryType[])
-    : [];
-  const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
+  const filters = useMemo(() => readDiaryFilters(searchParams), [searchParams]);
+  const searchQuery = filters.q;
+
+  const applyFilters = (patch: Partial<DiaryFilterState>) => {
+    setSearchParams((prev) => writeDiaryFilters(prev, patch), { replace: true });
+  };
 
   const [searchInput, setSearchInput] = useState(searchQuery);
 
@@ -97,25 +122,16 @@ function DiaryListPage() {
     if (searchQuery !== debouncedSearchInput) setSearchInput(searchQuery);
   }
   const isFirstSearchSyncRef = useRef(true);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isFirstSearchSyncRef.current) {
       isFirstSearchSyncRef.current = false;
       return;
     }
-    setSearchParams(
-      (prev) => {
-        const newParams = new URLSearchParams(prev);
-        if (debouncedSearchInput) {
-          newParams.set('q', debouncedSearchInput);
-        } else {
-          newParams.delete('q');
-        }
-        newParams.delete('page');
-        return newParams;
-      },
-      { replace: true },
-    );
+    setSearchParams((prev) => writeDiaryFilters(prev, { q: debouncedSearchInput }), {
+      replace: true,
+    });
   }, [debouncedSearchInput, setSearchParams]);
 
   const fetchDiaryPage = async (
@@ -124,12 +140,15 @@ function DiaryListPage() {
     const response = await listDiaryEntries({
       page,
       pageSize: PAGE_SIZE,
-      q: searchQuery || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
+      q: filters.q || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
       automatic: false,
-      type: activeTypes.length > 0 ? activeTypes.join(',') : undefined,
-      status: statusFilter || undefined,
+      type: filters.types.length > 0 ? filters.types.join(',') : undefined,
+      // Drafts leave the feed; "Show all" lists drafts only.
+      status: filters.drafts ? 'draft' : 'saved',
+      areaId: filters.areaId || undefined,
+      vendorId: filters.companyId || undefined,
     });
 
     return {
@@ -141,7 +160,15 @@ function DiaryListPage() {
     };
   };
 
-  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${typeFilterStr}|${statusFilter}`;
+  const resetKey = [
+    filters.q,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.types.join(','),
+    filters.areaId,
+    filters.companyId,
+    filters.drafts,
+  ].join('|');
 
   const {
     items: entries,
@@ -186,90 +213,41 @@ function DiaryListPage() {
     /* eslint-disable @eslint-react/set-state-in-effect -- reset per-query state when the query changes */
     setFirstBatchFailed(false);
     /* eslint-enable @eslint-react/set-state-in-effect */
-    focusEmptyStateAfterRetryRef.current = false;
+    focusAfterRetryRef.current = false;
   }, [resetKey]);
 
   const handleRetry = () => {
-    if (entries.length === 0) focusEmptyStateAfterRetryRef.current = true;
+    focusAfterRetryRef.current = true;
     retry();
   };
 
+  // After a retry the Retry button is gone: focus the empty message, or the heading when rows came.
   useLayoutEffect(() => {
     if (status === 'loading') return;
-    if (focusEmptyStateAfterRetryRef.current && status === 'done' && entries.length === 0) {
-      emptyStateCtaRef.current?.focus();
+    if (focusAfterRetryRef.current && status !== 'error') {
+      (entries.length === 0 ? emptyMessageRef.current : headingRef.current)?.focus();
     }
-    focusEmptyStateAfterRetryRef.current = false;
+    focusAfterRetryRef.current = false;
   }, [status, entries.length]);
 
-  const groupedEntries = useMemo(() => {
-    const grouped: GroupedEntries = {};
-    entries.forEach((entry) => {
-      const date = entry.entryDate;
-      if (!grouped[date]) {
-        grouped[date] = [];
-      }
-      grouped[date].push(entry);
-    });
-    return grouped;
-  }, [entries]);
-
-  const handleSearchChange = (query: string) => {
-    setSearchInput(query);
-  };
-
-  const handleDateFromChange = (date: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (date) {
-      newParams.set('dateFrom', date);
-    } else {
-      newParams.delete('dateFrom');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
-  };
-
-  const handleDateToChange = (date: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (date) {
-      newParams.set('dateTo', date);
-    } else {
-      newParams.delete('dateTo');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
-  };
-
-  const handleTypesChange = (types: DiaryEntryType[]) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (types.length > 0) {
-      newParams.set('types', types.join(','));
-    } else {
-      newParams.delete('types');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
-  };
-
-  const draftsVisible = statusFilter !== 'saved';
-
-  const handleDraftsVisibleChange = (visible: boolean) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (visible) {
-      newParams.delete('status');
-    } else {
-      newParams.set('status', 'saved');
-    }
-    newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
-  };
+  const today = todayLocalIsoDate();
+  const weeks = useMemo(() => groupByWeek(entries), [entries]);
 
   const handleClearAll = () => {
     setSearchInput('');
-    setSearchParams(new URLSearchParams(), { replace: true });
+    setSearchParams((prev) => writeDiaryFilters(prev, EMPTY_DIARY_FILTERS), { replace: true });
   };
 
-  const sortedDates = Object.keys(groupedEntries).sort().reverse();
+  const anythingSet = hasAnyFilter(filters);
+  const showEmpty =
+    !showInitialLoading && entries.length === 0 && !firstBatchFailed && status !== 'error';
+
+  const weekHeading = (monday: string): string => {
+    const kind = weekKind(monday, today);
+    if (kind === 'thisWeek') return t('week.thisWeek');
+    if (kind === 'lastWeek') return t('week.lastWeek');
+    return t('week.weekOf', { date: formatDayMonth(monday) });
+  };
 
   return (
     <div className={styles.page}>
@@ -279,9 +257,17 @@ function DiaryListPage() {
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
               {pageTitle}
             </h1>
-            <p className={styles.subtitle}>
-              {totalItems}{' '}
-              {totalItems === 1 ? t('page.entryCountSingular') : t('page.entryCountPlural')}
+            <p className={styles.subtitle} data-testid="diary-entry-count">
+              {t('page.entryCount', { count: totalItems })}
+              <NavAnchor
+                to={routeUrl('history')}
+                className={styles.historyLink}
+                aria-label={t('page.historyLinkAriaLabel')}
+                data-testid="diary-history-link"
+              >
+                {tc('navigation.history')}
+                <span aria-hidden="true"> ›</span>
+              </NavAnchor>
             </p>
           </div>
           <NavAnchor
@@ -295,43 +281,115 @@ function DiaryListPage() {
         </div>
       </header>
 
-      <DiaryFilterBar
-        searchQuery={searchInput}
-        onSearchChange={handleSearchChange}
-        dateFrom={dateFrom}
-        onDateFromChange={handleDateFromChange}
-        dateTo={dateTo}
-        onDateToChange={handleDateToChange}
-        activeTypes={activeTypes}
-        onTypesChange={handleTypesChange}
+      {!filters.drafts ? (
+        <DiaryUnfinished onShowAll={() => applyFilters({ drafts: true })} headingRef={headingRef} />
+      ) : null}
+
+      <div className={styles.toolbar}>
+        <div className={styles.search}>
+          <label htmlFor="diary-search" className={shared.srOnly}>
+            {t('filters.searchLabel')}
+          </label>
+          <input
+            ref={searchInputRef}
+            data-page-search=""
+            id="diary-search"
+            type="text"
+            className={shared.input}
+            placeholder={t('filters.searchPlaceholder')}
+            value={searchInput}
+            onChange={(e) => {
+              e.stopPropagation();
+              setSearchInput(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Escape' && searchInput) {
+                setSearchInput('');
+              }
+            }}
+            aria-label={t('filters.searchAriaLabel')}
+            data-testid="diary-search-input"
+          />
+          <SearchEverywhereRow query={searchInput} returnFocusRef={searchInputRef} />
+        </div>
+        <DiaryFilters
+          state={filters}
+          onChange={applyFilters}
+          onClearAll={handleClearAll}
+          options={filterOptions}
+          buttonRef={filtersButtonRef}
+        />
+      </div>
+
+      <DiaryActiveFilters
+        state={filters}
+        options={filterOptions}
+        onChange={applyFilters}
         onClearAll={handleClearAll}
-        draftsVisible={draftsVisible}
-        onDraftsVisibleChange={handleDraftsVisibleChange}
+        buttonRef={filtersButtonRef}
       />
 
-      {showInitialLoading && <div className={shared.loading}>{t('loading')}</div>}
-
-      {!showInitialLoading && entries.length === 0 && !firstBatchFailed && status !== 'error' && (
-        <div
-          className={shared.emptyState}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 'var(--spacing-3)',
-          }}
-        >
-          <p>{t('empty.title')}</p>
-          <NavAnchor
-            to={routeUrl('diaryEntryNew')}
-            state={logTodayState}
-            className={shared.btnPrimary}
-            ref={emptyStateCtaRef}
-          >
-            {t('empty.createButton')}
-          </NavAnchor>
+      {showInitialLoading && (
+        <div className={styles.skeletonList} aria-busy="true" data-testid="diary-loading">
+          {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+            <div key={row} className={styles.skeletonRow}>
+              <div className={styles.skeletonStrip} aria-hidden="true">
+                {Array.from({ length: SKELETON_THUMBS }, (_, cell) => (
+                  <span key={cell} className={styles.skeletonCell} />
+                ))}
+              </div>
+              <Skeleton lines={3} loadingLabel={t('loading')} />
+            </div>
+          ))}
         </div>
       )}
+
+      {firstBatchFailed && entries.length === 0 && (
+        <div className={styles.errorBlock}>
+          <FormError message={t('error')} />
+          <button
+            type="button"
+            className={shared.btnSecondaryCompact}
+            onClick={handleRetry}
+            data-testid="diary-retry"
+          >
+            {t('infiniteScroll.retryButton')}
+          </button>
+        </div>
+      )}
+
+      {showEmpty &&
+        (anythingSet ? (
+          <div data-testid="diary-filtered-empty">
+            <EmptyState
+              icon="🔍"
+              message={t('emptyFiltered.title')}
+              messageRef={emptyMessageRef}
+              action={{
+                label: t('emptyFiltered.clear'),
+                onClick: () => {
+                  handleClearAll();
+                  filtersButtonRef.current?.focus();
+                },
+              }}
+            />
+          </div>
+        ) : (
+          <div data-testid="diary-empty">
+            <EmptyState
+              icon="📷"
+              message={t('empty.title')}
+              description={t('empty.hint')}
+              messageRef={emptyMessageRef}
+              action={{
+                label: t('page.logToday'),
+                href: routeUrl('diaryEntryNew'),
+                state: logTodayState,
+              }}
+            />
+          </div>
+        ))}
 
       {entries.length > 0 && (
         <div
@@ -340,8 +398,18 @@ function DiaryListPage() {
           aria-label={t('page.timelineAriaLabel')}
           aria-busy={status === 'loading'}
         >
-          {sortedDates.map((date) => (
-            <DiaryDateGroup key={date} date={date} entries={groupedEntries[date]!} />
+          {weeks.map(([monday, rows]) => (
+            <FeedGroup
+              key={monday}
+              testId={`diary-week-${monday}`}
+              heading={weekHeading(monday)}
+              headingDetail={formatDayRange(monday, weekEnd(monday))}
+              srSuffix={t('week.srCount', { count: rows.length })}
+            >
+              {rows.map((entry) => (
+                <DiaryEntryFeedRow key={entry.id} entry={entry} />
+              ))}
+            </FeedGroup>
           ))}
         </div>
       )}
@@ -349,18 +417,18 @@ function DiaryListPage() {
       {/* Live region for announcements */}
       <div ref={announcementRef} className={styles.liveRegion} role="status" aria-atomic="true" />
 
-      {(entries.length > 0 || firstBatchFailed) && (
+      {entries.length > 0 && (
         <InfiniteScrollFooter
           status={status}
           loadingLabel={t('infiniteScroll.loadingMore')}
           loadingAriaLabel={t('infiniteScroll.loadingMoreAriaLabel')}
           loadMoreLabel={t('infiniteScroll.loadMoreButton')}
           retryLabel={t('infiniteScroll.retryButton')}
-          errorMessage={entries.length === 0 ? t('error') : t('infiniteScroll.errorMessage')}
+          errorMessage={t('infiniteScroll.errorMessage')}
           endOfListMessage={t('infiniteScroll.endOfList')}
           sentinelRef={sentinelRef}
           onLoadMore={loadMore}
-          onRetry={handleRetry}
+          onRetry={retry}
           testIdPrefix="diary"
         />
       )}
