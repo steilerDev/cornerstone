@@ -1006,7 +1006,7 @@ describe('RapidCamera', () => {
     const review = () => screen.getByTestId('rapid-camera-review');
     const SAVING = 'Saving photos…';
 
-    /** After the first announcement something else is announced; a repeat would replace it. */
+    /** After the first announcement something else is announced (a camera switch); a repeat would replace it. */
     async function expectAnnouncedOnce(
       props: RapidCameraProps,
       startClose: () => Promise<unknown>,
@@ -1015,16 +1015,20 @@ describe('RapidCamera', () => {
       await startClose();
       expect(props.onClose).not.toHaveBeenCalled();
       expect(status()).toHaveTextContent(SAVING);
-      await userEvent.click(screen.getByTestId('rapid-camera-remove-last'));
-      expect(status()).toHaveTextContent('Last photo removed.');
+      await userEvent.click(await screen.findByTestId('rapid-camera-switch'));
+      expect(status()).toHaveTextContent('Using the front camera.');
 
       await closeAgain();
 
-      expect(status()).toHaveTextContent('Last photo removed.');
+      expect(status()).toHaveTextContent('Using the front camera.');
       expect(status()).not.toHaveTextContent(SAVING);
     }
 
     const saving = { shotCount: 1, savingCount: 1 };
+
+    beforeEach(() => {
+      enumerateDevices.mockResolvedValue([{ kind: 'videoinput' }, { kind: 'videoinput' }]);
+    });
 
     it('Escape on the Sheet announces once', async () => {
       const { props } = await renderLive({ ...saving, onRemoveLast: jest.fn() });
@@ -1115,6 +1119,72 @@ describe('RapidCamera', () => {
       await userEvent.click(review());
       expect(props.onClose).toHaveBeenCalledTimes(1);
       expect(status()).toHaveTextContent(SAVING);
+    });
+  });
+
+  describe('Remove last while shots are saving', () => {
+    const remove = () => screen.getByTestId('rapid-camera-remove-last');
+
+    it('is shown but aria-disabled while a shot is saving, and a press does nothing', async () => {
+      const onRemoveLast = jest.fn();
+      const { props } = await renderLive({ shotCount: 2, savingCount: 1, onRemoveLast });
+      await userEvent.click(screen.getByTestId('rapid-camera-shutter'));
+      await waitFor(() =>
+        expect(screen.getByTestId('rapid-camera-tray').querySelectorAll('img')).toHaveLength(1),
+      );
+      const announcedBefore = status().textContent;
+      revokeObjectURL.mockClear();
+
+      expect(remove()).toHaveAttribute('aria-disabled', 'true');
+      await userEvent.click(remove());
+
+      expect(onRemoveLast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('rapid-camera-tray').querySelectorAll('img')).toHaveLength(1);
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      expect(status().textContent).toBe(announcedBefore);
+      expect(props.onClose).not.toHaveBeenCalled();
+    });
+
+    it('removes as before once nothing is saving', async () => {
+      const onRemoveLast = jest.fn();
+      const { rerender, props } = await renderLive({
+        shotCount: 2,
+        savingCount: 1,
+        onRemoveLast,
+      });
+      await userEvent.click(screen.getByTestId('rapid-camera-shutter'));
+      await waitFor(() =>
+        expect(screen.getByTestId('rapid-camera-tray').querySelectorAll('img')).toHaveLength(1),
+      );
+      await userEvent.click(remove());
+      expect(onRemoveLast).not.toHaveBeenCalled();
+
+      rerender(
+        <RapidCamera {...props} shotCount={3} savingCount={0} onRemoveLast={onRemoveLast} />,
+      );
+      expect(remove()).not.toHaveAttribute('aria-disabled');
+      await userEvent.click(remove());
+
+      expect(onRemoveLast).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('rapid-camera-tray').querySelectorAll('img')).toHaveLength(0);
+      expect(status()).toHaveTextContent('Last photo removed. 2 photos.');
+    });
+
+    it('is not disabled with shots stored and nothing saving', async () => {
+      await renderLive({ shotCount: 2, onRemoveLast: jest.fn() });
+      expect(remove()).not.toHaveAttribute('aria-disabled');
+    });
+  });
+
+  describe('Use camera app label', () => {
+    it('keeps the exact accessible name and description with the label wrapped for ellipsis', async () => {
+      await renderLive();
+      const button = screen.getByRole('button', { name: 'Use camera app' });
+      expect(button).toBe(screen.getByTestId('rapid-camera-use-app'));
+      expect(button.querySelector('.labelClip')).toHaveTextContent(/^Use camera app$/);
+      expect(button).toHaveAccessibleDescription(
+        "Opens your phone's camera. Photos are full size and kept in your camera roll.",
+      );
     });
   });
 

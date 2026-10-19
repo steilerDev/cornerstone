@@ -187,6 +187,8 @@ function CameraStage({
   };
 
   const handleRemoveLast = () => {
+    // The tray drops the newest thumbnail but the host removes the newest stored shot: wait.
+    if (savingCount > 0) return;
     const [newest, ...rest] = trayRef.current;
     if (newest) {
       URL.revokeObjectURL(newest);
@@ -247,7 +249,7 @@ function CameraStage({
               aria-describedby={descId}
               data-testid="rapid-camera-use-app"
             >
-              {t('camera.useCameraApp')}
+              <span className={styles.labelClip}>{t('camera.useCameraApp')}</span>
             </button>
             <span id={descId} className={styles.srOnly}>
               {t('camera.useCameraAppDescription')}
@@ -346,6 +348,7 @@ function CameraStage({
             <button
               type="button"
               className={styles.textButton}
+              aria-disabled={savingCount > 0 ? true : undefined}
               onClick={handleRemoveLast}
               data-testid="rapid-camera-remove-last"
             >

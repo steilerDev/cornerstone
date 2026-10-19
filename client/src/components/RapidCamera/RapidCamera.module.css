@@ -89,6 +89,12 @@
 
 .topBar .textButton {
   flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The button is inline-flex, so the ellipsis lives on the label span */
+.labelClip {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -164,6 +170,11 @@
 .shutter:focus-visible {
   outline: 2px solid var(--color-photo-focus-ring);
   outline-offset: 2px;
+}
+
+.textButton[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .roundButton {
