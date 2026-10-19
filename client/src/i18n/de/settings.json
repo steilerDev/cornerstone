@@ -62,14 +62,16 @@
       "localAndOidc": "Lokal + OIDC",
       "oidcPending": "OIDC (wartet auf erste Anmeldung)"
     },
-    "status": {
-      "active": "Aktiv",
-      "deactivated": "Deaktiviert"
-    },
+    "lockedUntil": "Bis {{when}}",
     "actions": {
       "edit": "Bearbeiten",
+      "unlock": "Entsperren",
       "deactivate": "Deaktivieren",
-      "menuAriaLabel": "Menü für Benutzeraktionen"
+      "menuAriaLabel": "Aktionen für {{name}}"
+    },
+    "unlock": {
+      "success": "{{name}} wurde entsperrt. Die Person kann sich wieder anmelden.",
+      "error": "{{name}} konnte nicht entsperrt werden. Versuch es erneut."
     },
     "editModal": {
       "title": "Benutzer bearbeiten",

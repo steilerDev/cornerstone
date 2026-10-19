@@ -12,6 +12,8 @@ export { ERROR_CODES } from './types/errors.js';
 export type {
   User,
   UserResponse,
+  UserListItem,
+  UserListResponse,
   UserRole,
   AuthProvider,
   OidcLoginErrorCode,

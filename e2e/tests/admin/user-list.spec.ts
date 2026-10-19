@@ -77,6 +77,31 @@ test.describe('User List Display', { lock: 'admin-account' }, () => {
     if (adminRow) {
       const menuButton = adminRow.getByTestId(/^user-menu-button-/);
       await expect(menuButton).toBeVisible();
+      // #2219: the trigger names its user
+      await expect(menuButton).toHaveAccessibleName(`Actions for ${TEST_ADMIN.displayName}`);
+    }
+  });
+
+  test('Row menu of an active, unlocked user offers Edit and Deactivate only', async ({ page }) => {
+    const userManagementPage = new UserManagementPage(page);
+    await userManagementPage.goto();
+
+    // #2219: OverflowMenu items are menuitems in a portal, and Unlock only exists for a lock
+    await userManagementPage.openRowMenu(TEST_ADMIN.email);
+    await expect(userManagementPage.rowMenu.getByRole('menuitem')).toHaveText([
+      'Edit',
+      'Deactivate',
+    ]);
+    await expect(userManagementPage.menuItem('Unlock')).toHaveCount(0);
+  });
+
+  test('Status filter offers Active, Locked and Deactivated', async ({ page }) => {
+    const userManagementPage = new UserManagementPage(page);
+    await userManagementPage.goto();
+
+    await page.getByRole('button', { name: 'Filter by Status' }).click();
+    for (const label of ['Active', 'Locked', 'Deactivated']) {
+      await expect(page.getByRole('checkbox', { name: label, exact: true })).toBeVisible();
     }
   });
 

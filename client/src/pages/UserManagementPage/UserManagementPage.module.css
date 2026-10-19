@@ -1,86 +1,3 @@
-.actionsMenu {
-  position: relative;
-  display: inline-block;
-}
-
-.menuButton {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-normal);
-}
-
-.menuButton:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.menuButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.menuDropdown {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: var(--spacing-1);
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 120px;
-  z-index: var(--z-dropdown);
-}
-
-.menuItem {
-  display: block;
-  width: 100%;
-  padding: var(--spacing-2-5) var(--spacing-4);
-  text-align: left;
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: var(--transition-normal);
-}
-
-.menuItem:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-}
-
-.menuItem:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-primary);
-}
-
-.menuItem:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
-.menuItem:first-child {
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.menuItem:last-child {
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-.menuItemDanger {
-  color: var(--color-danger);
-}
-
-.menuItemDanger:hover:not(:disabled) {
-  background-color: var(--color-danger-bg-strong);
-}
-
 .modalForm {
   display: flex;
   flex-direction: column;
@@ -155,12 +72,14 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .menuButton {
-    transition: none;
-  }
+.statusCell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-0-5);
+}
 
-  .menuItem {
-    transition: none;
-  }
+.lockedUntil {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }

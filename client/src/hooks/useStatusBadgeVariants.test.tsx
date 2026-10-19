@@ -24,6 +24,7 @@ describe('useStatusBadgeVariants', () => {
       'refund',
       'scheduleSignal',
       'task',
+      'userAccount',
     ]);
     expect(Object.keys(result.current.invoice).sort()).toEqual([
       'claimed',
@@ -65,6 +66,7 @@ describe('useStatusBadgeVariants', () => {
       'unreachable',
     ]);
     expect(Object.keys(result.current.backupRun).sort()).toEqual(['failed', 'succeeded']);
+    expect(Object.keys(result.current.userAccount)).toEqual(['active', 'locked', 'deactivated']);
     expect(Object.keys(result.current.defect).sort()).toEqual(['in_progress', 'open', 'resolved']);
   });
 

@@ -2624,6 +2624,59 @@ describe('Account Lockout Functions', () => {
     return id;
   }
 
+  describe('toUserListItem()', () => {
+    const baseRow: typeof schema.users.$inferSelect = {
+      id: 'user-list-1',
+      email: 'list@example.com',
+      displayName: 'List User',
+      role: 'member',
+      authProvider: 'local',
+      passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
+      oidcSubject: null,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-02T00:00:00.000Z',
+      deactivatedAt: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      davToken: null,
+    };
+
+    it('without lock state equals toUserResponse and has no lockedUntil key', () => {
+      const future = new Date(Date.now() + 600_000).toISOString();
+      const row = { ...baseRow, lockedUntil: future, failedLoginAttempts: 10 };
+      const item = userService.toUserListItem(row, false);
+      expect(item).toEqual(userService.toUserResponse(row));
+      expect(item).not.toHaveProperty('lockedUntil');
+    });
+
+    it('with lock state returns the ISO time of an active lock', () => {
+      const future = new Date(Date.now() + 600_000).toISOString();
+      const item = userService.toUserListItem({ ...baseRow, lockedUntil: future }, true);
+      expect(item.lockedUntil).toBe(future);
+      expect(item).toMatchObject(userService.toUserResponse(baseRow));
+    });
+
+    it('with lock state returns null for an expired lock even at 10 failed attempts', () => {
+      const past = new Date(Date.now() - 600_000).toISOString();
+      const item = userService.toUserListItem(
+        { ...baseRow, lockedUntil: past, failedLoginAttempts: 10 },
+        true,
+      );
+      expect(item).toHaveProperty('lockedUntil', null);
+    });
+
+    it('with lock state returns null when never locked', () => {
+      const item = userService.toUserListItem(baseRow, true);
+      expect(item).toHaveProperty('lockedUntil', null);
+    });
+
+    it('never leaks passwordHash or oidcSubject', () => {
+      const item = userService.toUserListItem({ ...baseRow, oidcSubject: 'sub-x' }, true);
+      expect(item).not.toHaveProperty('passwordHash');
+      expect(item).not.toHaveProperty('oidcSubject');
+    });
+  });
+
   describe('getAccountLockStatus()', () => {
     it('returns undefined when lockedUntil is null', () => {
       // Given: User with no lockout

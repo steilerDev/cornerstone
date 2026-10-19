@@ -45,7 +45,7 @@
  *
  * Deposits Section (Issue #1404):
  * - Section: <section aria-labelledby="deposits-title">
- * - Add button: type="button", aria-label="Add deposit", className=sharedStyles.btnPrimary
+ * - Add button: type="button", aria-label="Add deposit", className=sharedStyles.btnSecondary
  * - Empty state: <button type="button">Add deposit</button> (EmptyState CTA)
  * - Modals use the shared Modal component which generates a dynamic id via useId().
  *   Locate modals by getByRole('dialog') filtered to the visible one, or by heading text.

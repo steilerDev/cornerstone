@@ -234,7 +234,7 @@ export function InvoiceDepositsSection({
         <button
           ref={addButtonRef}
           type="button"
-          className={sharedStyles.btnPrimary}
+          className={sharedStyles.btnSecondary}
           onClick={openAddModal}
           disabled={isMutating}
           aria-label={t('budget:invoiceDetail.deposits.addButton')}

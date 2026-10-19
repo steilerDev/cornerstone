@@ -5,7 +5,7 @@ import { eq, isNull, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { users } from '../db/schema.js';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserResponse, UserListItem } from '@cornerstone/shared';
 import {
   ConflictError,
   OidcEmailUnverifiedError,
@@ -252,6 +252,16 @@ export function toUserResponse(row: typeof users.$inferSelect): UserResponse {
     deactivatedAt: row.deactivatedAt,
     oidcLinked: row.oidcSubject !== null,
   };
+}
+
+/** GET /api/users row; adds the active lock end for admin callers only (#2219). */
+export function toUserListItem(
+  row: typeof users.$inferSelect,
+  includeLockState: boolean,
+): UserListItem {
+  const base = toUserResponse(row);
+  if (!includeLockState) return base;
+  return { ...base, lockedUntil: getAccountLockStatus(row) ?? null };
 }
 
 /**

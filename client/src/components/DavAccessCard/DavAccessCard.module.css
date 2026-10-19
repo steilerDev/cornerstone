@@ -102,10 +102,6 @@
   composes: btnSecondaryCompact from '../../styles/shared.module.css';
 }
 
-.primaryButton {
-  composes: btnPrimary from '../../styles/shared.module.css';
-}
-
 .secondaryButton {
   composes: btnSecondary from '../../styles/shared.module.css';
 }
@@ -118,14 +114,9 @@
   text-decoration: none;
 }
 
-.primaryButton[aria-disabled='true'],
 .secondaryButton[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-button.primaryButton[aria-disabled='true']:hover {
-  background-color: var(--color-primary);
 }
 
 button.secondaryButton[aria-disabled='true']:hover {
@@ -143,7 +134,6 @@ button.secondaryButton[aria-disabled='true']:hover {
   }
 
   .compactButton,
-  .primaryButton,
   .secondaryButton,
   .linkButton {
     width: 100%;

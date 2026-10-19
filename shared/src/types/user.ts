@@ -31,6 +31,19 @@ export interface UserResponse {
 }
 
 /**
+ * A row of GET /api/users (#2219). `lockedUntil` is present only for admin callers: the ISO end of an
+ * active login lockout, or null. Members never receive the key. Never part of UserResponse.
+ */
+export interface UserListItem extends UserResponse {
+  lockedUntil?: string | null;
+}
+
+/** GET /api/users response. */
+export interface UserListResponse {
+  users: UserListItem[];
+}
+
+/**
  * Every `?error=` code the OIDC callback redirects to `/login` with. Runtime source of truth: the
  * server types its redirects against it and the client's I18N_UNION_KEYS.oidcLoginError set
  * enumerates it, so `unionKeys.test.ts` fails if a code lacks a translation (#2136).
