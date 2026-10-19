@@ -92,9 +92,9 @@ On phones the spot viewer fills the whole screen, without the app's top and bott
 
 The Photos page lists photos from **saved** diary entries. To add photos to it:
 
-1. Open the **Diary** page
-2. Create or edit a manual entry (Daily Log, Site Visit, or Delivery)
-3. Add photos with **+ Add Photo**
+1. Open the **Site diary** page
+2. Create or edit a manual entry (Daily Log, Site Visit, or Delivery). Use **Take photos** on the capture screen to shoot with the in-app camera, or **Choose from library** to pick photos you already have. You can also start from **＋ › Log now › Photo**
+3. Save the entry. Photos are listed here once their entry is saved
 4. Tag each photo with an **Area** and an **Orientation**, or leave them untagged and set them later from the No area group
 
 Photos with no area appear in the No area group. Photos with an area but no orientation appear in the No orientation column. A photo is listed once its entry is saved.

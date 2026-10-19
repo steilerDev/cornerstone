@@ -22,9 +22,13 @@
  *                  newTagDialog (ObjectFormDialog, test id tag-create-form)
  * Photo sheet      sheet.{dialog,previous,next,done,annotate,remove,caption,areaInput,
  *                  orientationInput} · sheet.setArea(name) · annotator.{dialog,draw()}
- * Camera           camera.{dialog,shutter,done,useCameraApp,counter,removeLast,errorPanel,
- *                  errorUseApp,status,areaChip(name),orientationChip(name)}
- *                  openCamera() · shoot(n) · closeCamera()
+ * Camera           camera.{dialog,shutter,exit,topBar,useCameraApp,waiting,lowResHint,
+ *                  lowResUseApp,lowResDismiss,allowHint,removeLast,errorPanel,errorUseApp,
+ *                  errorClose,status,areaChip(name),orientationChip(name)} (#2227: `exit` is the
+ *                  top-bar button, "Close" with no shots, "Review (n)" after, "Saving photos…"
+ *                  while it waits; there is no "Done" and no counter pill)
+ *                  camera.shotCount() (parses `exit`) · openCamera() · shoot(n) · closeCamera()
+ *                  startFromPlus('photo' | 'diaryEntry') (counted: ＋ and the tile / row)
  * Date             dateChip('today'|'yesterday'|'pick') · dateInput · pickDate(iso) · dateHint
  * Title / text     titleChip(title) · titleInput · textArea · typeTitle(text) · typeText(text)
  *                  setTitleChip(title) · lookupRows · addToThatButton
@@ -47,8 +51,9 @@
  *                  discardEntry() (menu -> Discard entry -> confirm)
  * Toasts           toasts (ToastRegion)
  * Tap counter      taps (number) · resetTaps() · tap(locator). EVERY user-intent method goes
- *                  through tap(); typing (typeTitle/typeText) is not a tap. A native file-picker
- *                  confirm (chooseFromLibrary) counts as one tap. Raw locators do not count.
+ *                  through tap(); typing (typeTitle/typeText) is not a tap. The native file
+ *                  picker counts files + 1 (one tap per picked photo plus Add, #2227), on top of
+ *                  the tap that opens it. Raw locators do not count.
  *
  * Test ids come from the built components: capture-* (CaptureScreen), photo-strip-<key>-*
  * (PhotoStrip), capture-tag-chips / camera-tag-chips (TagChips idPrefix), rapid-camera-*
@@ -61,6 +66,7 @@ import { expect } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import type { CapturePhotoFile } from '../fixtures/capturePhotos.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { CreateMenu } from './components/CreateMenu.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 import { ObjectFormDialog } from './components/ObjectFormDialog.js';
@@ -335,20 +341,26 @@ export class DiaryCapturePage {
 
   // ── Photos ────────────────────────────────────────────────────────────────────────────────
 
-  /** Tap "Choose from library", confirm the native picker with `files` (2 taps in total: 1 + 1). */
+  /**
+   * Tap "Choose from library" (1), then pick `files` in the native picker: one tap per photo plus
+   * Add = files + 1 (#2227, plan 5.6).
+   */
   async chooseFromLibrary(files: CapturePhotoFile[]): Promise<void> {
     const chooser = this.page.waitForEvent('filechooser');
     await this.tap(this.chooseButton);
     await (await chooser).setFiles(files);
-    this.taps += 1;
+    this.taps += files.length + 1;
   }
 
-  /** Tap "Take photos" when it opens the native camera input (no viewfinder) and pick `files` (that input takes one file). */
+  /**
+   * Tap "Take photos" when it opens the native camera input (no viewfinder) and pick `files`
+   * (that input takes one file); the picker counts files + 1.
+   */
   async takePhotosViaApp(files: CapturePhotoFile[]): Promise<void> {
     const chooser = this.page.waitForEvent('filechooser');
     await this.tap(this.takePhotosButton);
     await (await chooser).setFiles(files);
-    this.taps += 1;
+    this.taps += files.length + 1;
   }
 
   /** Set files on the hidden library input directly (not a tap). */
@@ -614,28 +626,73 @@ export class DiaryCapturePage {
   async openCamera(): Promise<void> {
     await this.tap(this.takePhotosButton);
     await this.camera.dialog.waitFor({ state: 'visible' });
-    await expect(this.camera.shutter).not.toHaveAttribute('aria-disabled', 'true');
+    await this.camera.waitForLive();
   }
 
-  /** Tap the shutter `count` times, waiting for the counter after each shot (150 ms cooldown). */
+  /**
+   * Tap the shutter `count` times, waiting for "(n)" in the exit label after each shot (locale-agnostic: "Prüfen (n)" in German) (150 ms cooldown).
+   * `n` counts the shots being written too, so it moves at the press.
+   */
   async shoot(count: number): Promise<void> {
     const start = await this.camera.shotCount();
     for (let i = 1; i <= count; i++) {
       const total = start + i;
-      const expected = `${total} ${total === 1 ? 'photo' : 'photos'}`;
       // The shutter ignores a press within 150 ms of the previous shot: retry an ignored press.
       // It is still one tap for the counter.
-      await expect(async () => {
-        await this.camera.shutter.click();
-        await expect(this.camera.counter).toHaveText(expected, { timeout: 1000 });
-      }).toPass({ intervals: [200] });
+      try {
+        await expect(async () => {
+          await this.camera.shutter.click();
+          await expect(this.camera.exit).toHaveText(new RegExp(`\\(${total}\\)$`), {
+            timeout: 1000,
+          });
+        }).toPass({ intervals: [200], timeout: 20_000 });
+      } catch (error) {
+        const video = await this.page
+          .getByTestId('rapid-camera-video')
+          .evaluate((el: HTMLVideoElement) => ({
+            readyState: el.readyState,
+            width: el.videoWidth,
+            paused: el.paused,
+            tracks: (el.srcObject as MediaStream | null)
+              ?.getTracks()
+              .map((track) => track.readyState),
+          }))
+          .catch(() => 'no video element');
+        throw new Error(`Shot ${total} never registered; video: ${JSON.stringify(video)}`, {
+          cause: error,
+        });
+      }
       this.taps += 1;
     }
   }
 
+  /** Tap the top-bar exit ("Close" / "Review (n)") and wait for the camera to go away. */
   async closeCamera(): Promise<void> {
-    await this.tap(this.camera.done);
+    await this.tap(this.camera.exit);
     await this.camera.dialog.waitFor({ state: 'hidden' });
+  }
+
+  /**
+   * Phone / tablet ＋ sheet (below 1024px), counted: ＋ (1), then the Log now Photo tile (1; the
+   * camera opens with no further tap, shutter ready) or the "Diary entry" row (1; the capture
+   * screen). The page must already be loaded (a `goto` is never counted).
+   */
+  async startFromPlus(mode: 'photo' | 'diaryEntry'): Promise<void> {
+    const menu = new CreateMenu(this.page);
+    await this.tap(menu.plusButton);
+    await menu.sheetDialog.waitFor({ state: 'visible' });
+    // Wait for the sheet animation as CreateMenu.open does: a moving target misses the click.
+    await menu.sheet.evaluate((el) =>
+      Promise.all(el.getAnimations().map((animation) => animation.finished)),
+    );
+    if (mode === 'photo') {
+      await this.tap(menu.quickLogTile('photo'));
+      await this.camera.dialog.waitFor({ state: 'visible' });
+      await this.camera.waitForLive();
+    } else {
+      await this.tap(menu.row('diaryEntry'));
+      await this.waitForForm();
+    }
   }
 }
 
@@ -643,26 +700,39 @@ class CameraControls {
   readonly dialog: Locator;
   readonly stage: Locator;
   readonly shutter: Locator;
-  readonly done: Locator;
+  readonly exit: Locator;
+  readonly topBar: Locator;
   readonly useCameraApp: Locator;
-  readonly counter: Locator;
+  readonly waiting: Locator;
+  readonly lowResHint: Locator;
+  readonly lowResUseApp: Locator;
+  readonly lowResDismiss: Locator;
+  readonly allowHint: Locator;
   readonly removeLast: Locator;
   readonly errorPanel: Locator;
   readonly errorUseApp: Locator;
+  readonly errorClose: Locator;
   readonly status: Locator;
   readonly chips: Locator;
 
   constructor(private readonly owner: DiaryCapturePage) {
     const page = owner.page;
-    this.dialog = page.getByRole('dialog', { name: 'Camera', exact: true });
     this.stage = page.getByTestId('rapid-camera');
+    // Located by its content, not its English name: the German run reads "Kamera".
+    this.dialog = page.getByRole('dialog').filter({ has: this.stage });
     this.shutter = page.getByTestId('rapid-camera-shutter');
-    this.done = page.getByTestId('rapid-camera-done');
+    this.exit = page.getByTestId('rapid-camera-review');
+    this.topBar = this.exit.locator('..');
     this.useCameraApp = page.getByTestId('rapid-camera-use-app');
-    this.counter = page.getByTestId('rapid-camera-count');
+    this.waiting = page.getByTestId('rapid-camera-waiting');
+    this.lowResHint = page.getByTestId('rapid-camera-lowres');
+    this.lowResUseApp = page.getByTestId('rapid-camera-lowres-use-app');
+    this.lowResDismiss = page.getByTestId('rapid-camera-lowres-dismiss');
+    this.allowHint = page.getByTestId('rapid-camera-allow-hint');
     this.removeLast = page.getByTestId('rapid-camera-remove-last');
     this.errorPanel = page.getByTestId('rapid-camera-error');
     this.errorUseApp = page.getByTestId('rapid-camera-error-use-app');
+    this.errorClose = page.getByTestId('rapid-camera-error-close');
     this.status = page.getByTestId('rapid-camera-status');
     this.chips = page.getByTestId('camera-tag-chips');
   }
@@ -680,10 +750,19 @@ class CameraControls {
       .getByRole('button', { name, exact: true });
   }
 
-  /** Number of shots the counter pill shows ("3 photos" -> 3). */
+  /**
+   * Wait for the shutter to be enabled. Production keeps it aria-disabled until the first video
+   * frame (loadeddata / playing / readyState >= 2, or a 1500 ms fallback), so enabled means a
+   * press produces a shot.
+   */
+  async waitForLive(): Promise<void> {
+    await expect(this.shutter).not.toHaveAttribute('aria-disabled', 'true');
+  }
+
+  /** Shots in the exit label ("Review (3)" or "Prüfen (3)" -> 3; "Close" or "Saving photos…" -> 0). */
   async shotCount(): Promise<number> {
-    const text = (await this.counter.textContent()) ?? '';
-    return Number.parseInt(text, 10) || 0;
+    const text = ((await this.exit.textContent()) ?? '').trim();
+    return Number.parseInt(/\((\d+)\)$/.exec(text)?.[1] ?? '0', 10);
   }
 
   async setArea(name: string): Promise<void> {

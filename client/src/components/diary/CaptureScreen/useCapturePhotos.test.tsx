@@ -172,6 +172,8 @@ interface SetupOptions {
   prefillAreaId?: string | null;
   areasReady?: boolean;
   areas?: AreaResponse[];
+  /** Called with the hook value on every render (to record intermediate states). */
+  onRender?: (value: ReturnType<typeof HookModule.useCapturePhotos>) => void;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -184,8 +186,8 @@ function setup(options: SetupOptions = {}) {
     return 'draft-new';
   });
   const view = renderHook(
-    (props: { draftId: string | null }) =>
-      useCapturePhotos({
+    (props: { draftId: string | null }) => {
+      const value = useCapturePhotos({
         draftId: props.draftId,
         getDraftId: () => draftRef.current,
         initialPhotos: options.initialPhotos ?? [],
@@ -197,7 +199,10 @@ function setup(options: SetupOptions = {}) {
         ensureDraft,
         nullItemIdsRef,
         announce,
-      }),
+      });
+      options.onRender?.(value);
+      return value;
+    },
     { initialProps: { draftId } },
   );
   return { ...view, announce, ensureDraft, nullItemIdsRef, draftRef };
@@ -592,7 +597,7 @@ describe('useCapturePhotos: adding photos', () => {
     engine.add.mockResolvedValue(['shot-1']);
     const { result } = setup({ prefillAreaId: 'kitchen' });
 
-    await act(async () => result.current.camera.onShot(file('shot.jpg')));
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
 
     expect(engine.add.mock.calls[0]![1]).toMatchObject({
       source: 'camera',
@@ -1106,8 +1111,8 @@ describe('useCapturePhotos: photo sheet, annotation and camera', () => {
     engine.items = [item('s1'), item('s2', { createdAt: '2026-10-19T10:01:00.000Z' })];
     const { result } = setup();
     act(() => result.current.inputs.takePhotos());
-    await act(async () => result.current.camera.onShot(new File(['x'], 's1.jpg')));
-    await act(async () => result.current.camera.onShot(new File(['x'], 's2.jpg')));
+    await act(async () => result.current.camera.onShot(Promise.resolve(new File(['x'], 's1.jpg'))));
+    await act(async () => result.current.camera.onShot(Promise.resolve(new File(['x'], 's2.jpg'))));
     expect(result.current.camera.shotCount).toBe(2);
     expect(result.current.camera.lastShotUrl).toBe('blob:s2');
 
@@ -1123,6 +1128,322 @@ describe('useCapturePhotos: photo sheet, annotation and camera', () => {
     act(() => result.current.camera.onRemoveLast());
 
     expect(engine.remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('useCapturePhotos: camera shots saving', () => {
+  const file = (name = 'a.jpg') => new File(['x'], name, { type: 'image/jpeg' });
+
+  /** A frame the test resolves by hand, so the press and the encoding can be told apart. */
+  function deferredFrame() {
+    let resolve!: (f: File) => void;
+    let reject!: (e: Error) => void;
+    const promise = new Promise<File>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it('counts a shot as saving from the press (synchronously), before it is even encoded', () => {
+    const { result } = setup();
+    const frame = deferredFrame();
+
+    act(() => result.current.camera.onShot(frame.promise));
+
+    expect(result.current.camera.savingCount).toBe(1);
+    expect(result.current.savingCount).toBe(1);
+    expect(result.current.camera.shotCount).toBe(0);
+    expect(engine.add).not.toHaveBeenCalled();
+  });
+
+  it('moves a shot from saving to stored in one render, never counting it twice', async () => {
+    engine.add.mockResolvedValue(['s1']);
+    const sums: number[] = [];
+    const { result } = setup({
+      onRender: (v) => sums.push(v.camera.savingCount + v.camera.shotCount),
+    });
+    const frame = deferredFrame();
+    act(() => result.current.camera.onShot(frame.promise));
+
+    await act(async () => frame.resolve(file('shot.jpg')));
+
+    expect(result.current.camera.savingCount).toBe(0);
+    expect(result.current.savingCount).toBe(0);
+    expect(result.current.camera.shotCount).toBe(1);
+    expect(Math.max(...sums)).toBe(1);
+  });
+
+  it('a rejected frame releases the saving count and adds nothing', async () => {
+    const { result } = setup();
+    const frame = deferredFrame();
+    act(() => result.current.camera.onShot(frame.promise));
+    expect(result.current.camera.savingCount).toBe(1);
+
+    await act(async () => frame.reject(new Error('no frame')));
+
+    expect(result.current.camera.savingCount).toBe(0);
+    expect(result.current.camera.shotCount).toBe(0);
+    expect(engine.add).not.toHaveBeenCalled();
+  });
+
+  it('a failing store releases the saving count without recording a shot', async () => {
+    engine.add.mockRejectedValueOnce(new Error('disk full'));
+    const { result } = setup();
+
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
+
+    expect(result.current.camera.savingCount).toBe(0);
+    expect(result.current.camera.shotCount).toBe(0);
+  });
+
+  it('a hung write keeps the shot saving', async () => {
+    engine.add.mockImplementationOnce(() => new Promise(() => undefined));
+    const { result } = setup();
+
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
+
+    expect(result.current.camera.savingCount).toBe(1);
+    expect(result.current.camera.shotCount).toBe(0);
+  });
+
+  it('releases exactly once per press: a stored shot does not eat another one saving count', async () => {
+    engine.add.mockResolvedValueOnce(['s1']);
+    const { result } = setup();
+    const first = deferredFrame();
+    const second = deferredFrame();
+    act(() => result.current.camera.onShot(first.promise));
+    act(() => result.current.camera.onShot(second.promise));
+    expect(result.current.camera.savingCount).toBe(2);
+
+    await act(async () => first.resolve(file('a.jpg')));
+
+    expect(result.current.camera.savingCount).toBe(1);
+    expect(result.current.camera.shotCount).toBe(1);
+  });
+
+  it('tags the shot with the chips as they were at the shutter press', async () => {
+    engine.add.mockResolvedValue(['s1']);
+    const { result } = setup();
+    act(() => result.current.chips.onAreaChange('kitchen'));
+    const frame = deferredFrame();
+    act(() => result.current.camera.onShot(frame.promise));
+
+    // The user taps another chip while the frame is still being encoded.
+    act(() => result.current.chips.onAreaChange('bath'));
+    await act(async () => frame.resolve(file('shot.jpg')));
+
+    expect(engine.add.mock.calls[0]![1]).toMatchObject({
+      source: 'camera',
+      tags: { areaId: 'kitchen', areaSource: 'live' },
+    });
+  });
+
+  it('a library add still reads the current chips', async () => {
+    const { result } = setup();
+    act(() => result.current.chips.onAreaChange('kitchen'));
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [file()] });
+    await act(async () => {
+      result.current.inputs.onLibraryChange({ target: input } as never);
+    });
+    expect(engine.add.mock.calls[0]![1]).toMatchObject({
+      source: 'library',
+      tags: { areaId: 'kitchen', areaSource: 'added' },
+    });
+  });
+
+  it('the first shot before the draft exists is queued and creates the draft', async () => {
+    engine.add.mockResolvedValue(['n1']);
+    const { result, ensureDraft, nullItemIdsRef } = setup({ draftId: null });
+
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
+
+    expect(engine.add.mock.calls[0]![1].draftId).toBeNull();
+    expect(nullItemIdsRef.current).toEqual(['n1']);
+    expect(ensureDraft).toHaveBeenCalledTimes(1);
+    expect(result.current.camera.savingCount).toBe(0);
+  });
+
+  it('a shot whose draft appeared during the write is assigned to it', async () => {
+    const { result, draftRef, ensureDraft } = setup({ draftId: null });
+    engine.add.mockImplementationOnce(async () => {
+      draftRef.current = 'draft-fast';
+      return ['n1'];
+    });
+
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
+
+    expect(engine.assignDraft).toHaveBeenCalledWith(['n1'], 'draft-fast');
+    expect(ensureDraft).not.toHaveBeenCalled();
+  });
+
+  it('a shot taken with a draft already in place needs no assign or draft creation', async () => {
+    engine.add.mockResolvedValue(['s1']);
+    const { result, ensureDraft } = setup();
+
+    await act(async () => result.current.camera.onShot(Promise.resolve(file('shot.jpg'))));
+
+    expect(engine.add.mock.calls[0]![1].draftId).toBe('draft-1');
+    expect(engine.assignDraft).not.toHaveBeenCalled();
+    expect(ensureDraft).not.toHaveBeenCalled();
+  });
+
+  it('exposes the draft pending count as waitingCount (camera) and pendingCount', () => {
+    engine.items = [item('i1'), item('i2'), item('other', { draftId: 'draft-2' })];
+    const { result } = setup();
+
+    expect(result.current.camera.waitingCount).toBe(2);
+    expect(result.current.pendingCount).toBe(2);
+  });
+
+  it('waitingCount is 0 with nothing pending', () => {
+    const { result } = setup();
+    expect(result.current.camera.waitingCount).toBe(0);
+  });
+});
+
+describe('useCapturePhotos: tags, sheet and device edge cases', () => {
+  it('a camera shot keeps its place in the camera session when its upload finishes', async () => {
+    engine.add.mockResolvedValueOnce(['s1']).mockResolvedValueOnce(['s2']);
+    engine.items = [item('s1'), item('s2', { createdAt: '2026-10-19T10:01:00.000Z' })];
+    const { result } = setup();
+    await act(async () => result.current.camera.onShot(Promise.resolve(new File(['x'], '1.jpg'))));
+    await act(async () => result.current.camera.onShot(Promise.resolve(new File(['x'], '2.jpg'))));
+    expect(result.current.camera.shotCount).toBe(2);
+
+    act(() => {
+      engine.emit({ itemId: 's1', draftId: 'draft-1', photo: photo('server-1') });
+    });
+
+    // Both shots are still counted; the uploaded one is now addressed by its server id.
+    expect(result.current.camera.shotCount).toBe(2);
+    await act(async () => result.current.camera.onRemoveLast());
+    expect(engine.remove).toHaveBeenCalledWith('s2');
+    expect(result.current.camera.shotCount).toBe(1);
+  });
+
+  it('a server photo with an orientation shows its name, an unknown orientation shows none', () => {
+    const { result } = setup({
+      initialPhotos: [
+        photo('p1', { orientationId: 'north' }),
+        photo('p2', { sortOrder: 1, orientationId: 'ghost' }),
+      ],
+    });
+
+    expect(result.current.tiles[0]).toMatchObject({ orientationLabel: 'North' });
+    expect(result.current.tiles[1]).toMatchObject({ orientationLabel: null });
+  });
+
+  it('ignores a camera-app input without a file list', async () => {
+    const { result } = setup();
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: null });
+
+    await act(async () => {
+      result.current.inputs.onCameraInputChange({ target: input } as never);
+    });
+
+    expect(engine.add).not.toHaveBeenCalled();
+  });
+
+  it('a device list that arrives after unmount changes nothing', async () => {
+    let resolveDevices!: (devices: unknown[]) => void;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { enumerateDevices: () => new Promise((res) => (resolveDevices = res)) },
+    });
+    const { result, unmount } = setup();
+    unmount();
+
+    await act(async () => resolveDevices([{ kind: 'videoinput' }]));
+
+    expect(result.current.inputs.showTakePhotos).toBe(false);
+    expect(result.current.inputs.cameraKnown).toBe(false);
+  });
+
+  it('a failing device list that arrives after unmount changes nothing', async () => {
+    let rejectDevices!: (error: Error) => void;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { enumerateDevices: () => new Promise((_, rej) => (rejectDevices = rej)) },
+    });
+    const { result, unmount } = setup();
+    unmount();
+
+    await act(async () => rejectDevices(new Error('nope')));
+
+    expect(result.current.inputs.cameraKnown).toBe(false);
+  });
+
+  it('Undo without a draft id skips the reload', async () => {
+    mockDeletePhoto.mockResolvedValue({ undo: { token: 'u_tok', expiresAt: 'x' } } as never);
+    const { result } = setup({ draftId: null, initialPhotos: [photo('p1')] });
+    await act(async () => result.current.removeTile('p1'));
+
+    await act(async () => mockShowUndoToast.mock.calls[0]![0].onUndo());
+
+    expect(mockUndoChange).toHaveBeenCalledWith('u_tok');
+    expect(mockGetPhotos).not.toHaveBeenCalled();
+  });
+
+  it('removing a photo that is not open in the sheet leaves the sheet open', async () => {
+    mockDeletePhoto.mockResolvedValue(undefined as never);
+    const { result } = setup({ initialPhotos: [photo('p1'), photo('p2', { sortOrder: 1 })] });
+    act(() => result.current.openTile('p1'));
+
+    await act(async () => result.current.removeTile('p2'));
+
+    expect(result.current.sheet.props?.photo.key).toBe('p1');
+    expect(result.current.tiles.map((t) => t.key)).toEqual(['p1']);
+  });
+
+  it('moves back to the previous photo from the sheet', () => {
+    const { result } = setup({
+      initialPhotos: [photo('p1'), photo('p2', { sortOrder: 1 })],
+    });
+    act(() => result.current.openTile('p2'));
+
+    act(() => result.current.sheet.props?.onPrevious());
+
+    expect(result.current.sheet.props?.photo.key).toBe('p1');
+  });
+
+  it('a saved caption replaces only that photo, leaving the others untouched', async () => {
+    const { result } = setup({
+      initialPhotos: [photo('p1'), photo('p2', { sortOrder: 1, caption: 'Keep' })],
+    });
+    act(() => result.current.openTile('p1'));
+
+    await act(async () => result.current.sheet.props?.onCaptionCommit('New'));
+
+    act(() => result.current.openTile('p2'));
+    expect(result.current.sheet.props?.photo.caption).toBe('Keep');
+    act(() => result.current.openTile('p1'));
+    expect(result.current.sheet.props?.photo.caption).toBe('New');
+  });
+
+  it('an annotated photo replaces only itself in the strip', () => {
+    const { result } = setup({
+      initialPhotos: [photo('p1'), photo('p2', { sortOrder: 1 })],
+    });
+
+    act(() =>
+      result.current.annotate.onSaved(photo('p1', { annotatedAt: '2026-10-19T11:00:00.000Z' })),
+    );
+
+    expect(result.current.tiles.map((t) => t.annotated)).toEqual([true, false]);
+  });
+
+  it('a tag change on one photo leaves the others untouched', async () => {
+    const { result } = setup({
+      initialPhotos: [photo('p1'), photo('p2', { sortOrder: 1, areaId: 'bath' })],
+    });
+    act(() => result.current.openTile('p1'));
+
+    await act(async () => result.current.sheet.props?.onAreaChange('kitchen'));
+
+    expect(result.current.tiles.map((t) => t.areaLabel)).toEqual(['Kitchen', 'Bathroom']);
   });
 });
 

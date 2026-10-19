@@ -43,6 +43,12 @@ const mockShowUndoToast = jest.fn<(options: ShowUndoToastOptions) => void>();
 const mockMove = jest.fn<typeof MoveTypes.moveToEntry>();
 const mockLiveSupported = jest.fn(() => false);
 const mockDenied = jest.fn(() => false);
+/** The frame the mocked camera hands to `onShot` on "camera shoot". */
+const mockNextFrame = jest.fn<() => Promise<File>>();
+const mockRefetchAreas = jest.fn();
+const mockRefetchOrientations = jest.fn();
+let mockTagsLoading = false;
+let mockUser: { id: string; displayName: string; email: string } | null = null;
 
 jest.unstable_mockModule('../../../contexts/LocaleContext.js', () => ({
   useLocale: () => ({
@@ -56,15 +62,17 @@ jest.unstable_mockModule('../../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 jest.unstable_mockModule('../../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({
-    user: { id: 'user-1', displayName: 'Alex Owner', email: 'alex@example.test' },
-  }),
+  useAuth: () => ({ user: mockUser }),
 }));
 jest.unstable_mockModule('../../../hooks/useAreas.js', () => ({
-  useAreas: () => ({ areas: AREAS, isLoading: false }),
+  useAreas: () => ({ areas: AREAS, isLoading: mockTagsLoading, refetch: mockRefetchAreas }),
 }));
 jest.unstable_mockModule('../../../hooks/useOrientations.js', () => ({
-  useOrientations: () => ({ orientations: ORIENTATIONS, isLoading: false }),
+  useOrientations: () => ({
+    orientations: ORIENTATIONS,
+    isLoading: false,
+    refetch: mockRefetchOrientations,
+  }),
 }));
 jest.unstable_mockModule('../../../capture/captureUploadsContext.js', () => ({
   useCaptureUploads: () => engine.api,
@@ -179,15 +187,42 @@ jest.unstable_mockModule('../../photos/TagChips/TagChips.js', () => ({
       <button type="button" onClick={() => props.onOrientationChange('north')}>
         {props.idPrefix} orientation north
       </button>
+      <button type="button" onClick={() => props.onAreaChange('new-area')}>
+        {props.idPrefix} area new
+      </button>
+      <button type="button" onClick={() => props.onOrientationChange('fresh-dir')}>
+        {props.idPrefix} orientation fresh
+      </button>
+      <button type="button" onClick={() => props.onOrientationChange('none')}>
+        {props.idPrefix} orientation none
+      </button>
+      <button type="button" onClick={() => props.onOrientationChange(null)}>
+        {props.idPrefix} orientation unset
+      </button>
     </div>
   ),
 }));
 jest.unstable_mockModule('../../RapidCamera/RapidCamera.js', () => ({
   isLiveCameraSupported: mockLiveSupported,
   isCameraDeniedThisSession: mockDenied,
-  RapidCamera: (props: { onClose: () => void; children: React.ReactNode }) => (
-    <div data-testid="rapid-camera">
+  RapidCamera: (props: {
+    onClose: () => void;
+    onShot: (frame: Promise<File>) => void;
+    shotCount: number;
+    savingCount: number;
+    waitingCount: number;
+    children: React.ReactNode;
+  }) => (
+    <div
+      data-testid="rapid-camera"
+      data-shots={props.shotCount}
+      data-saving={props.savingCount}
+      data-waiting={props.waitingCount}
+    >
       {props.children}
+      <button type="button" onClick={() => props.onShot(mockNextFrame())}>
+        camera shoot
+      </button>
       <button type="button" onClick={props.onClose}>
         camera done
       </button>
@@ -296,6 +331,8 @@ const saveButton = () => screen.getByTestId('capture-save');
 beforeEach(async () => {
   engine = makeEngine();
   jest.clearAllMocks();
+  mockTagsLoading = false;
+  mockUser = { id: 'user-1', displayName: 'Alex Owner', email: 'alex@example.test' };
   sessionStorage.clear();
   localStorage.clear();
   document.title = '';
@@ -309,6 +346,9 @@ beforeEach(async () => {
   mockGetPhotos.mockResolvedValue([]);
   mockLiveSupported.mockReturnValue(false);
   mockDenied.mockReturnValue(false);
+  mockNextFrame.mockImplementation(() =>
+    Promise.resolve(new File(['x'], 'shot.jpg', { type: 'image/jpeg' })),
+  );
   media = installMatchMedia();
   jest.useFakeTimers({
     now: new Date(2026, 9, 19, 10, 0, 0),
@@ -1920,5 +1960,202 @@ describe('CaptureScreen: ?start= from a Log now tile', () => {
 
     const button = await screen.findByTestId('capture-add-to-that', undefined, { timeout: 3000 });
     expect(button).toHaveTextContent('Add to that entry instead');
+  });
+});
+
+// ── Rapid camera: leave rules (#2227) ───────────────────────────────────────────────────────────
+
+describe('CaptureScreen: rapid camera saving and leaving', () => {
+  function deferredFrame() {
+    let resolve!: (f: File) => void;
+    const promise = new Promise<File>((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  }
+
+  const unload = () => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  async function openCamera(user: ReturnType<typeof userEvent.setup>) {
+    media.set('(pointer: coarse)', true);
+    mockLiveSupported.mockReturnValue(true);
+    await user.click(screen.getByTestId('capture-take-photos'));
+    return screen.getByTestId('rapid-camera');
+  }
+
+  it('passes the saving and waiting counts and the stored shot count to the camera', async () => {
+    const user = userEvent.setup();
+    engine.items = [item('w1'), item('w2')];
+    const frame = deferredFrame();
+    mockNextFrame.mockReturnValueOnce(frame.promise);
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+    const camera = await openCamera(user);
+    expect(camera).toHaveAttribute('data-waiting', '2');
+    expect(camera).toHaveAttribute('data-saving', '0');
+
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+    expect(screen.getByTestId('rapid-camera')).toHaveAttribute('data-saving', '1');
+    expect(screen.getByTestId('rapid-camera')).toHaveAttribute('data-shots', '0');
+
+    await act(async () => frame.resolve(new File(['x'], 'a.jpg', { type: 'image/jpeg' })));
+    expect(screen.getByTestId('rapid-camera')).toHaveAttribute('data-saving', '0');
+    expect(screen.getByTestId('rapid-camera')).toHaveAttribute('data-shots', '1');
+  });
+
+  it('warns before the browser unloads while a shot is saving, not once it is stored', async () => {
+    const user = userEvent.setup();
+    const frame = deferredFrame();
+    mockNextFrame.mockReturnValueOnce(frame.promise);
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+    await openCamera(user);
+    expect(unload()).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+    expect(unload()).toBe(true);
+
+    await act(async () => frame.resolve(new File(['x'], 'a.jpg', { type: 'image/jpeg' })));
+    expect(unload()).toBe(false);
+  });
+
+  it('keeps warning while the write hangs', async () => {
+    const user = userEvent.setup();
+    engine.add.mockImplementation(() => new Promise(() => undefined));
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+    await openCamera(user);
+
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+    await act(async () => {});
+
+    expect(unload()).toBe(true);
+  });
+
+  it('a failed frame stops the warning again', async () => {
+    const user = userEvent.setup();
+    mockNextFrame.mockReturnValueOnce(Promise.reject(new Error('no frame')));
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+    await openCamera(user);
+
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+    await act(async () => {});
+
+    expect(unload()).toBe(false);
+  });
+
+  function renderRecorded() {
+    const log = createRouterLog();
+    const onDraftCreated = jest.fn();
+    const view = render(
+      <RecordingRouter
+        entries={[{ url: '/diary/new', state: { origin: { to: '/diary' } } }]}
+        log={log}
+      >
+        <CaptureScreen
+          mode="new"
+          entry={null}
+          photos={[]}
+          prefill={{ areaId: null, date: null }}
+          breadcrumbs={<nav data-testid="crumbs" />}
+          onDraftCreated={onDraftCreated}
+        />
+      </RecordingRouter>,
+    );
+    return { log, onDraftCreated, ...view };
+  }
+
+  it('a first shot stored while the screen is open creates the draft, joins it and moves to it', async () => {
+    const user = userEvent.setup();
+    engine.add.mockResolvedValue(['n1']);
+    const { log, onDraftCreated } = renderRecorded();
+    await openCamera(user);
+
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+
+    await waitFor(() => expect(engine.assignDraft).toHaveBeenCalledWith(['n1'], 'draft-1'));
+    expect(onDraftCreated).toHaveBeenCalledWith('draft-1');
+    expect(log.actions).toEqual(['REPLACE /diary/draft-1/edit']);
+  });
+
+  it('a first shot whose draft is created after the user left still joins it but never pulls them back', async () => {
+    const user = userEvent.setup();
+    engine.add.mockResolvedValue(['n1']);
+    let resolveCreate!: (e: ReturnType<typeof entryFixture>) => void;
+    mockCreate.mockReturnValue(new Promise((res) => (resolveCreate = res)));
+    const { log, onDraftCreated, unmount } = renderRecorded();
+    await openCamera(user);
+    await user.click(screen.getByRole('button', { name: 'camera shoot' }));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+
+    unmount();
+    await act(async () => resolveCreate(entryFixture({ id: 'draft-1', title: null, body: '' })));
+
+    await waitFor(() => expect(engine.assignDraft).toHaveBeenCalledWith(['n1'], 'draft-1'));
+    expect(onDraftCreated).not.toHaveBeenCalled();
+    expect(log.actions).toEqual([]);
+  });
+});
+
+// ── Tag chips, status bar and the signed-in user ────────────────────────────────────────────────
+
+describe('CaptureScreen: tag chips refetch, loading and status', () => {
+  it('refetches the area list only when a chip picks an area that is not loaded yet', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(screen.getByRole('button', { name: 'capture area kitchen' }));
+    expect(mockRefetchAreas).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'capture area new' }));
+    expect(mockRefetchAreas).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches the orientation list only for an orientation that is not loaded yet', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(screen.getByRole('button', { name: 'capture orientation north' }));
+    await user.click(screen.getByRole('button', { name: 'capture orientation none' }));
+    await user.click(screen.getByRole('button', { name: 'capture orientation unset' }));
+    expect(mockRefetchOrientations).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'capture orientation fresh' }));
+    expect(mockRefetchOrientations).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a skeleton instead of the chips while areas and orientations load', () => {
+    mockTagsLoading = true;
+    renderScreen();
+    expect(screen.queryByTestId('tag-chips-capture')).not.toBeInTheDocument();
+  });
+
+  it('shows the chips once they are loaded', () => {
+    renderScreen();
+    expect(screen.getByTestId('tag-chips-capture')).toBeInTheDocument();
+  });
+
+  it('shows "Saving…" in the bar while a save is slow', async () => {
+    const user = userEvent.setup();
+    mockUpdate.mockReturnValue(new Promise(() => {}));
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+
+    await user.type(screen.getByTestId('capture-title-input'), 'S');
+
+    // A save that takes longer than the slow-save threshold shows in the bar.
+    expect(await screen.findByText('Saving…', undefined, { timeout: 4000 })).toBeInTheDocument();
+  });
+
+  it('renders for a signed-in user whose display name is blank', () => {
+    mockUser = { id: 'user-2', displayName: '   ', email: 'blank@example.test' };
+    renderScreen();
+    expect(heading()).toBeInTheDocument();
+  });
+
+  it('renders when no user is available yet', () => {
+    mockUser = null;
+    renderScreen();
+    expect(heading()).toBeInTheDocument();
   });
 });

@@ -159,3 +159,4 @@ General rule: when a glossary term overshoots a measured PDF column, prefer the 
 ## Photos spots / tags (#2226)
 
 - [Photo tags = Zuordnung](photo-tags-zuordnung-2226.md) — "Tags" has no glossary term; German is "Zuordnung" across photos.json
+- [Camera review/close labels](camera-review-close-labels.md) — "Review (n)" = Prüfen (n), "Close" = Schließen, phone camera roll = phone-neutral "auf deinem Telefon gespeichert" (#2227)

@@ -205,6 +205,8 @@ test.describe('Diary entry page (#2225)', { tag: '@responsive' }, () => {
 
       await entry.editButton.click();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('diaryEntryEdit', { id }));
+      // Let the capture screen settle: a goto while it still replaces its URL is interrupted.
+      await page.getByTestId('capture-screen').waitFor({ state: 'visible' });
 
       await entry.goto(id);
       await entry.addPhotosButton.click();

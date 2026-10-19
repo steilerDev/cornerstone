@@ -2791,7 +2791,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q19",
-    "note": "Persistence rule (R-M13): shots go to IndexedDB at once, the draft is created on the first shot, uploads resume after a reload, and the screen shows 'n photos waiting'. #2221: built. Built (RapidCamera); camera-app fallback when access is denied or unavailable; shots stored in IndexedDB first (memory-only when storage is unavailable)."
+    "note": "Persistence rule (R-M13): shots go to IndexedDB at once, the draft is created on the first shot, uploads resume after a reload, and the screen shows 'n photos waiting'. #2221: built. Built (RapidCamera); camera-app fallback when access is denied or unavailable; shots stored in IndexedDB first (memory-only when storage is unavailable). #2227: exit button 'Review (n)' / 'Close' (never 'Done'); 'n photos waiting to upload' in the viewfinder; Review, Close and Escape wait until every shot is stored, the browser's leave warning covers shots not yet stored, and a shot stored after leaving the screen still joins its draft; 'Use camera app' (full size, a copy in the camera roll) is always in the top bar, and a resolution check suggests it when the in-app stills are below 8 MP. Tap counts (E2E): 12 for 5 photos at one spot, 15 for the median entry, 20 via the library."
   },
   "JRN-042": {
     "name": "Pick several photos from the phone library into a diary entry",
