@@ -304,7 +304,7 @@ export {
   MANUAL_DIARY_ENTRY_TYPES,
   AUTOMATIC_DIARY_ENTRY_TYPES,
 } from './types/diary.js';
-export { PHOTO_SPOT_NONE } from './types/photo.js';
+export { PHOTO_SPOT_NONE, PHOTO_SPOT_ANY } from './types/photo.js';
 
 // Milestones
 export type {
@@ -421,6 +421,9 @@ export type {
   Photo,
   DeletePhotoResponse,
   UpdatePhotoRequest,
+  UpdatePhotoResponse,
+  UpdatePhotoTagsRequest,
+  UpdatePhotoTagsResponse,
   ReorderPhotosRequest,
   PhotoSpotSummary,
   PhotoSpotsResponse,

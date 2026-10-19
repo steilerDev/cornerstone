@@ -2062,3 +2062,11 @@ Also: `ref ??= fetch().catch(() => [])` caches a transient failure for the page'
 `npm run plan:check` exits 0 while printing `baseline is behind: run npm run plan:build` (e.g. money
 labels deleted along with a retired component's i18n keys). CLAUDE.md requires lowered counts to be
 re-baselined in the same PR, so read the pattern-baseline block of the output, not just the last line.
+
+## `?.` → `!` coverage cleanups: find the callback's caller (PR #2323)
+
+Swapping `ref.current?.focus()` for `ref.current!.focus()` (to drop uncovered branches) is safe only on
+synchronous paths. Trace each callback to its caller: `PhotoViewer.handleAnnotationSave` looked sync,
+but `PhotoAnnotator` calls `onSave` after `await uploadAnnotation`; an unmount mid-await nulls the ref
+and the annotator's `catch` swallows the TypeError. Also: contract prose like "registered before /:id"
+is unneeded and easy to get wrong — find-my-way ranks static segments over params in any order.

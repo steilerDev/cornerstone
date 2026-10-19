@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Phase 0 defects (plan \u00a711) and the tests that cover them. plan:check verifies every listed file exists and contains the id token.",
+    "description": "Phase 0 defects (plan §11) and the tests that cover them. plan:check verifies every listed file exists and contains the id token.",
     "phase": "0"
   },
   "defects": [
@@ -242,16 +242,20 @@
         "client/src/lib/scheduleDates.test.ts",
         "e2e/tests/timeline/scheduler-truth.spec.ts"
       ]
+    },
+    {
+      "id": "D-31",
+      "story": 2226,
+      "tests": [
+        "client/src/pages/PhotoSpotViewerPage/PhotoSpotViewerPage.test.tsx",
+        "e2e/tests/photos/photo-browser.spec.ts"
+      ]
     }
   ],
   "later": [
     {
       "id": "D-30",
       "story": "4.6"
-    },
-    {
-      "id": "D-31",
-      "story": "2.7"
     }
   ]
 }

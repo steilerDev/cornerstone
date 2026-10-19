@@ -534,6 +534,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
 
       await viewer.goto(seed.areaId, seed.orientationId);
       await expect(viewer.position).toHaveText('1 of 1');
+      await viewer.openDetails();
       await viewer.diaryLink.click();
 
       await expect(page).toHaveURL(

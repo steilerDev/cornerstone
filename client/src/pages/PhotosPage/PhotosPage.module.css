@@ -12,5 +12,15 @@
 }
 
 .retryButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.barButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.setTagsButton {
   composes: btnPrimary from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
 }

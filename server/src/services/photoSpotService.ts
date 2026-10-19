@@ -13,7 +13,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { photos, diaryEntries, areas, orientations } from '../db/schema.js';
 import { NotFoundError } from '../errors/AppError.js';
-import { PHOTO_SPOT_NONE } from '@cornerstone/shared';
+import { PHOTO_SPOT_ANY, PHOTO_SPOT_NONE } from '@cornerstone/shared';
 import type {
   AreaSummary,
   OrientationSummary,
@@ -24,7 +24,7 @@ import type {
 } from '@cornerstone/shared';
 import { listAreas, loadAreaMap, resolveAreaAncestors } from './areaService.js';
 import { listOrientations } from './orientationService.js';
-import { buildPhotoAssetUrls } from './photoService.js';
+import { buildPhotoAssetUrls, isDiaryRowSignatureLocked } from './photoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -90,14 +90,15 @@ export function listPhotoSpots(db: DbType): PhotoSpotsResponse {
 
 /**
  * List every diary photo of exactly one spot, newest first.
- * A null id selects photos without an area / orientation.
+ * A null id selects photos without an area / orientation; PHOTO_SPOT_ANY as orientation
+ * applies no orientation filter (response `orientation` is null).
  *
  * @throws NotFoundError if the area or orientation does not exist
  */
 export function listSpotPhotos(
   db: DbType,
   areaId: string | null,
-  orientationId: string | null,
+  orientationId: string | null | typeof PHOTO_SPOT_ANY,
 ): PhotoSpotPhotosResponse {
   let area: AreaSummary | null = null;
   if (areaId !== null) {
@@ -114,7 +115,7 @@ export function listSpotPhotos(
   }
 
   let orientation: OrientationSummary | null = null;
-  if (orientationId !== null) {
+  if (orientationId !== null && orientationId !== PHOTO_SPOT_ANY) {
     const orientationRow = db
       .select()
       .from(orientations)
@@ -136,8 +137,14 @@ export function listSpotPhotos(
       caption: photos.caption,
       width: photos.width,
       height: photos.height,
+      areaId: photos.areaId,
+      orientationId: photos.orientationId,
       annotatedAt: photos.annotatedAt,
       updatedAt: photos.updatedAt,
+      orientationName: orientations.name,
+      orientationDescription: orientations.description,
+      entryStatus: diaryEntries.status,
+      entryMetadata: diaryEntries.metadata,
       entryId: diaryEntries.id,
       entryType: diaryEntries.entryType,
       entryTitle: diaryEntries.title,
@@ -145,13 +152,16 @@ export function listSpotPhotos(
     })
     .from(photos)
     .innerJoin(diaryEntries, eq(diaryEntries.id, photos.entityId))
+    .leftJoin(orientations, eq(orientations.id, photos.orientationId))
     .where(
       and(
         DIARY_PHOTO_SCOPE,
         areaId === null ? isNull(photos.areaId) : eq(photos.areaId, areaId),
-        orientationId === null
-          ? isNull(photos.orientationId)
-          : eq(photos.orientationId, orientationId),
+        orientationId === PHOTO_SPOT_ANY
+          ? undefined
+          : orientationId === null
+            ? isNull(photos.orientationId)
+            : eq(photos.orientationId, orientationId),
       ),
     )
     .orderBy(...SPOT_ORDER)
@@ -166,11 +176,26 @@ export function listSpotPhotos(
       height: row.height,
       fileUrl: urls.fileUrl,
       thumbnailUrl: urls.thumbnailUrl,
+      areaId: row.areaId,
+      orientationId: row.orientationId,
+      orientation:
+        row.orientationId && row.orientationName !== null
+          ? {
+              id: row.orientationId,
+              name: row.orientationName,
+              description: row.orientationDescription,
+            }
+          : null,
+      annotatedAt: row.annotatedAt,
       diaryEntry: {
         id: row.entryId,
         entryType: row.entryType,
         title: row.entryTitle,
         entryDate: row.entryDate,
+        isSigned: isDiaryRowSignatureLocked({
+          status: row.entryStatus,
+          metadata: row.entryMetadata,
+        }),
       },
     };
   });

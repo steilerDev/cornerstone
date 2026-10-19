@@ -255,6 +255,29 @@
   }
 }
 
+/* Photo details: a dark side column from 768px; inside the bottom sheet below */
+.detailsPanel {
+  padding: var(--spacing-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-photo-panel-bg);
+  color: var(--color-photo-text);
+}
+
+.detailsColumn {
+  width: 20rem;
+  max-height: 100%;
+  overflow-y: auto;
+  border-radius: 0;
+  border-left: 1px solid var(--color-photo-panel-border);
+  z-index: var(--z-dropdown);
+}
+
+@media (min-width: 1024px) {
+  .detailsColumn {
+    width: 25rem;
+  }
+}
+
 /* Responsive design */
 @media (max-width: 767px) {
   .container {
@@ -284,15 +307,8 @@
     right: var(--spacing-2);
   }
 
-  /* The open details sheet covers the bottom 60vh; keep arrows in the visible part above it. */
-  .mainViewer[data-sheet-open='true'] .navButton {
-    top: 20vh;
-  }
-
   .infoBar {
     padding: var(--spacing-3);
-    /* Clear the fixed details toggle (44px + its 16px offset) in the bottom-right corner. */
-    padding-inline-end: calc(var(--touch-target-min) + var(--spacing-4) + var(--spacing-2));
     flex-direction: column;
     align-items: flex-start;
   }

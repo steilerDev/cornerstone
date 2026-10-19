@@ -48,6 +48,20 @@ describe('useFocusTrap', () => {
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
+  it('consumes Escape (defaultPrevented) so outer keyboard handlers skip it', () => {
+    render(<Harness active onEscape={() => {}} />);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not prevent Escape while inactive', () => {
+    render(<Harness active={false} onEscape={() => {}} />);
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('is inactive when active is false (no Escape handling, no Tab wrapping)', async () => {
     const onEscape = jest.fn();
     render(<Harness active={false} onEscape={onEscape} />);

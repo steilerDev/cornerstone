@@ -296,7 +296,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["area"],
-    "note": "Photos (spots). Photos without an area form a neutral 'No area' group (§2.0 #24): no Unsorted banner, no Tidy-up row; area tags can be set in place (multi-select) and in the viewer. ?area= filters rows."
+    "note": "Photos (spots). Photos without an area form a neutral 'No area' group, shown last (§2.0 #24): no Unsorted banner, no Tidy-up row; 'Select photos' in that group sets area and/or orientation in place (bulk, Undo); Edit tags in the viewer; area row headers link to the Areas index until /areas/:id is served (#2226). ?area= filters rows."
   },
   {
     "from": "/photos/spot/:areaKey/:orientationKey",
@@ -308,7 +308,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["photo"],
-    "note": "Spot viewer (visible title; 'n of N', newest = 1). ?photo= kept. none/none is the 'No area · No orientation' spot and stays a page (§2.0 #24)."
+    "note": "Spot viewer (visible title; 'n of N', newest = 1; Annotate; full screen without the shell bars below 768px). ?photo= kept. none/none is the 'No area' group (every photo without an area, D-31, #2226), not a spot; none/<orientation> lists the no-area photos of that orientation."
   },
   {
     "from": "/settings/profile",
@@ -488,7 +488,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list). Interim consumers to switch when served: command-search area results (`searchResultTarget.ts`) and the diary entry page's area chips (#2225)."
+    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list). Interim consumers to switch when served: command-search area results (`searchResultTarget.ts`) and the diary entry page's area chips (#2225), and AreaLink (Photos page area rows, spot viewer and entry photo viewer details, #2226)."
   },
   {
     "from": "/history",

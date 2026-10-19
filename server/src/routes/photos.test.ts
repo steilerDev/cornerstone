@@ -62,22 +62,45 @@ jest.unstable_mockModule('../services/photoAnnotationService.js', () => ({
   clearAnnotation: mockClearAnnotation,
 }));
 
-jest.unstable_mockModule('../services/photoService.js', () => ({
-  uploadPhoto: mockUploadPhoto,
-  getPhoto: mockGetPhoto,
-  getPhotosForEntity: mockGetPhotosForEntity,
-  updatePhoto: mockUpdatePhoto,
-  reorderPhotos: mockReorderPhotos,
-  deletePhoto: mockDeletePhoto,
-  trashPhoto: mockTrashPhoto,
-  restoreTrashedPhoto: mockRestoreTrashedPhoto,
-  purgeTrashedPhoto: mockPurgeTrashedPhoto,
-  purgePhotoTrash: jest.fn(async () => undefined),
-  deletePhotosForEntity: mockDeletePhotosForEntity,
-  getPhotoFilePath: mockGetPhotoFilePath,
-  // Imported by photoSpotService (Story #2162); never invoked in this file
-  buildPhotoAssetUrls: jest.fn(),
-}));
+jest.unstable_mockModule('../services/photoService.js', async () => {
+  const shared = await import('@cornerstone/shared');
+  return {
+    // The signature-lock rule moved into photoService (#2226); mirror its real body so the
+    // route's lock decisions stay under test while the rest of the service is mocked.
+    isDiaryRowSignatureLocked: (entry: { status: 'draft' | 'saved'; metadata: string | null }) => {
+      let parsed: unknown;
+      try {
+        parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
+      } catch {
+        return false;
+      }
+      return shared.isDiaryEntrySignatureLocked({
+        isSigned: shared.hasDiarySignatures(parsed),
+        status: entry.status,
+      });
+    },
+    ...photoServiceMockExports(),
+  };
+});
+
+function photoServiceMockExports() {
+  return {
+    uploadPhoto: mockUploadPhoto,
+    getPhoto: mockGetPhoto,
+    getPhotosForEntity: mockGetPhotosForEntity,
+    updatePhoto: mockUpdatePhoto,
+    reorderPhotos: mockReorderPhotos,
+    deletePhoto: mockDeletePhoto,
+    trashPhoto: mockTrashPhoto,
+    restoreTrashedPhoto: mockRestoreTrashedPhoto,
+    purgeTrashedPhoto: mockPurgeTrashedPhoto,
+    purgePhotoTrash: jest.fn(async () => undefined),
+    deletePhotosForEntity: mockDeletePhotosForEntity,
+    getPhotoFilePath: mockGetPhotoFilePath,
+    // Imported by photoSpotService (Story #2162); never invoked in this file
+    buildPhotoAssetUrls: jest.fn(),
+  };
+}
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
 

@@ -13,14 +13,21 @@
   padding: var(--spacing-4);
 }
 
+/* ---- Top bar: Back + n of N on row 1, the visible title on row 2 (one row from 1024px) ---- */
+
 .topBar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'back position'
+    'title title';
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
+  gap: var(--spacing-1) var(--spacing-4);
 }
 
 .backLink {
+  grid-area: back;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
@@ -41,7 +48,24 @@
   box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
 }
 
+.title {
+  grid-area: title;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-photo-text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.title:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}
+
 .position {
+  grid-area: position;
   color: var(--color-photo-text-secondary);
   font-size: var(--font-size-sm);
 }
@@ -50,6 +74,8 @@
   width: 1.25rem;
   height: 1.25rem;
 }
+
+/* ---- Photo ---- */
 
 .photoRow {
   position: relative;
@@ -69,7 +95,7 @@
 .image {
   display: block;
   max-width: 100%;
-  max-height: calc(100dvh - 12rem - var(--topbar-height) - var(--shell-bottom-height));
+  max-height: calc(100dvh - 15rem - var(--topbar-height) - var(--shell-bottom-height));
   object-fit: contain;
 }
 
@@ -129,6 +155,90 @@
   cursor: not-allowed;
 }
 
+/* ---- Toolbar: Annotate, View original, Details (phone) ---- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 2.75rem;
+  padding-inline: var(--spacing-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.textButton:hover {
+  background: var(--color-photo-item-hover-bg);
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}
+
+.textButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.textButton[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.toolIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--spacing-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-photo-text);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-photo-item-hover-bg);
+}
+
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}
+
+.iconButtonActive {
+  background: var(--color-photo-active-bg);
+}
+
+.detailsButton {
+  margin-left: auto;
+}
+
+.reason {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .keyHint {
   display: none;
   margin: 0;
@@ -137,7 +247,7 @@
   text-align: center;
 }
 
-/* ---- Details panel ---- */
+/* ---- Details panel host ---- */
 
 .details {
   display: flex;
@@ -149,70 +259,6 @@
   color: var(--color-photo-text);
 }
 
-.dateBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.label {
-  color: var(--color-photo-text-muted);
-  font-size: var(--font-size-2xs);
-}
-
-.dateValue {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-}
-
-.facts {
-  display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
-  gap: var(--spacing-2) var(--spacing-3);
-  margin: 0;
-}
-
-.factLabel {
-  color: var(--color-photo-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.factValue {
-  margin: 0;
-  color: var(--color-photo-text);
-  font-size: var(--font-size-sm);
-  overflow-wrap: anywhere;
-}
-
-.areaValue {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.dot {
-  flex-shrink: 0;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: var(--radius-circle);
-  background: var(--area-color, var(--color-photo-text-muted));
-}
-
-.muted {
-  color: var(--color-photo-text-muted);
-}
-
-.entryCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-  padding: var(--spacing-4);
-  border: 1px solid var(--color-photo-panel-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-photo-stage-bg);
-}
-
-.cardHeading,
 .sectionHeading {
   margin: 0;
   color: var(--color-photo-text-secondary);
@@ -220,42 +266,54 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.entryRow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
+/* ---- Phone: the viewer fills the screen; top bar, arrows and toolbar are an overlay ---- */
 
-.entryTitle {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  overflow-wrap: anywhere;
-}
+@media (max-width: 767px) {
+  .stage {
+    min-height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
+    padding: 0;
+  }
 
-.entryMeta {
-  color: var(--color-photo-text-muted);
-  font-size: var(--font-size-2xs);
-}
+  .topBar,
+  .toolbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: var(--z-raised);
+    background: var(--color-photo-bar-bg);
+    padding: var(--spacing-2) var(--spacing-4);
+    transition: opacity var(--transition-normal);
+  }
 
-.entryLink {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  min-height: 2.75rem;
-  color: var(--color-photo-link);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-}
+  .topBar {
+    top: 0;
+    padding-top: calc(var(--spacing-2) + env(safe-area-inset-top, 0rem));
+  }
 
-.entryLink:hover {
-  text-decoration: underline;
-}
+  .toolbar {
+    bottom: 0;
+    padding-bottom: calc(var(--spacing-2) + env(safe-area-inset-bottom, 0rem));
+  }
 
-.entryLink:focus-visible {
-  outline: none;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+  .navButton {
+    transition:
+      background var(--transition-fast),
+      opacity var(--transition-normal);
+  }
+
+  .image {
+    max-height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
+  }
+
+  .keyHint {
+    display: none;
+  }
+
+  /* Hidden chrome stays focusable (keyboard and screen readers); focus reveals it again. */
+  .chromeHidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 @media (min-width: 768px) {
@@ -302,6 +360,12 @@
     min-height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
   }
 
+  .topBar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'back title position';
+    gap: var(--spacing-4);
+  }
+
   .details {
     overflow-y: auto;
   }
@@ -312,7 +376,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .navButton {
+  .navButton,
+  .topBar,
+  .toolbar {
     transition: none;
   }
 }

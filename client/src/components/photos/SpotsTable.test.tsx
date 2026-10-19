@@ -1,9 +1,10 @@
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
+import { createRef } from 'react';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OriginState } from '../../navigation/origin.js';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
-import type { SpotsTable as SpotsTableType } from './SpotsTable.js';
+import type { SpotsTable as SpotsTableType, NoAreaSelectProps } from './SpotsTable.js';
 import { buildSpotGroups } from '../../lib/photoSpots.js';
 import {
   makeArea,
@@ -160,5 +161,163 @@ describe('SpotsTable', () => {
     renderTable();
     fireEvent.click(screen.getByTestId('spot-cell-a1:o1'));
     expect(probedOrigin()).toBeNull();
+  });
+});
+
+describe('SpotsTable area links and the No area group (#2226)', () => {
+  const areas = [
+    makeArea('house', 'House'),
+    makeArea('kitchen', 'Kitchen', { parentId: 'house' }),
+    makeArea('garden', 'Garden', { color: null }),
+  ];
+  const spots = [
+    makeSpot('kitchen', 'o1', { photoCount: 3, latestPhotoId: 'pK' }),
+    makeSpot(null, 'o1', { photoCount: 2, latestPhotoId: 'pN1' }),
+    makeSpot(null, 'o2', { photoCount: 4, latestPhotoId: 'pN2' }),
+    makeSpot(null, null, { photoCount: 1, latestPhotoId: 'pN3' }),
+  ];
+
+  function renderNoArea(noArea?: NoAreaSelectProps, linkState?: OriginState) {
+    const groups = buildSpotGroups(areas, orientations, spots);
+    return render(
+      <MemoryRouter initialEntries={['/photos']}>
+        <SpotsTable
+          groups={groups}
+          orientations={orientations}
+          linkState={linkState}
+          noArea={noArea}
+        />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  function selectProps(overrides: Partial<NoAreaSelectProps> = {}): NoAreaSelectProps {
+    return {
+      selecting: false,
+      onToggleSelect: jest.fn(),
+      toggleRef: createRef<HTMLButtonElement>(),
+      selectContent: <div data-testid="select-content">tiles</div>,
+      ...overrides,
+    };
+  }
+
+  it('makes a row header an AreaLink to the Areas index, outside the colour dot', () => {
+    renderNoArea();
+    const link = screen.getByTestId('area-link-kitchen');
+    expect(link).toHaveAttribute('href', '/areas');
+    expect(link).toHaveAccessibleName('Kitchen, open in Areas');
+    expect(link.closest('th')).toHaveAttribute('scope', 'row');
+    fireEvent.click(link);
+    expect(probedPath()).toBe('/areas');
+    expect(probedOrigin()?.to).toBe('/photos');
+  });
+
+  it('makes the root band label an AreaLink', () => {
+    const { container } = renderNoArea();
+    const band = container.querySelector('th[scope="rowgroup"]')!;
+    expect(within(band as HTMLElement).getByTestId('area-link-house')).toHaveAttribute(
+      'href',
+      '/areas',
+    );
+  });
+
+  it('shows the No area band as plain text, last, without a link', () => {
+    const { container } = renderNoArea();
+    const bands = container.querySelectorAll('th[scope="rowgroup"]');
+    const last = bands[bands.length - 1] as HTMLElement;
+    expect(last).toHaveTextContent('No area');
+    expect(within(last).queryByRole('link')).not.toBeInTheDocument();
+    expect(last).toHaveAttribute('colspan', String(orientations.length + 2));
+  });
+
+  it('shows the photo count of the group as a plain row header', () => {
+    const { container } = renderNoArea();
+    const rows = container.querySelectorAll('tbody:last-of-type tr');
+    const header = rows[rows.length - 1]!.querySelector('th[scope="row"]') as HTMLElement;
+    expect(header).toHaveTextContent('7 photos');
+    expect(within(header).queryByRole('link')).not.toBeInTheDocument();
+    expect(header.querySelector('span[style*="--area-color"]')).toBeNull();
+  });
+
+  it('uses the singular for a group of one photo', () => {
+    const groups = buildSpotGroups(areas, orientations, [
+      makeSpot(null, 'o1', { photoCount: 1, latestPhotoId: 'pOnly' }),
+    ]);
+    render(
+      <MemoryRouter>
+        <SpotsTable groups={groups} orientations={orientations} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('1 photo')).toBeInTheDocument();
+  });
+
+  it('links every No area cell to the group viewer at that cell latest photo (D-31)', () => {
+    renderNoArea();
+    expect(screen.getByTestId('spot-cell-none:o1')).toHaveAttribute(
+      'href',
+      '/photos/spot/none/none?photo=pN1',
+    );
+    expect(screen.getByTestId('spot-cell-none:o2')).toHaveAttribute(
+      'href',
+      '/photos/spot/none/none?photo=pN2',
+    );
+    expect(screen.getByTestId('spot-cell-none:none')).toHaveAttribute(
+      'href',
+      '/photos/spot/none/none?photo=pN3',
+    );
+    expect(screen.getByTestId('spot-cell-none:o1')).toHaveAttribute('id', 'spot-none:o1');
+  });
+
+  it('still links a real area cell to its own spot viewer', () => {
+    renderNoArea();
+    expect(screen.getByTestId('spot-cell-kitchen:o1')).toHaveAttribute(
+      'href',
+      '/photos/spot/kitchen/o1?photo=pK',
+    );
+  });
+
+  it('carries the origin on a No area cell link', () => {
+    renderNoArea(undefined, { origin: { to: '/photos' } });
+    fireEvent.click(screen.getByTestId('spot-cell-none:o1'));
+    expect(probedPath()).toBe('/photos/spot/none/none');
+    expect(probedOrigin()).toEqual({ to: '/photos' });
+  });
+
+  it('without the noArea slot there is no Select photos toggle', () => {
+    renderNoArea();
+    expect(screen.queryByTestId('no-area-select-toggle')).not.toBeInTheDocument();
+  });
+
+  it('with the slot, the band ends in a text button "Select photos" wired to the host ref', () => {
+    const props = selectProps();
+    renderNoArea(props);
+    const toggle = screen.getByTestId('no-area-select-toggle');
+    expect(toggle).toHaveTextContent('Select photos');
+    expect(toggle).toHaveAttribute('type', 'button');
+    expect(toggle).not.toHaveAttribute('aria-pressed');
+    expect(props.toggleRef.current).toBe(toggle);
+    expect(toggle.closest('th')).toHaveAttribute('scope', 'rowgroup');
+
+    fireEvent.click(toggle);
+    expect(props.onToggleSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the spot row and its cells while not selecting', () => {
+    renderNoArea(selectProps());
+    expect(screen.queryByTestId('select-content')).not.toBeInTheDocument();
+    expect(screen.getByTestId('spot-cell-none:o1')).toBeInTheDocument();
+  });
+
+  it('while selecting, the label turns into Done and the select content replaces the spot row', () => {
+    const { container } = renderNoArea(selectProps({ selecting: true }));
+    expect(screen.getByTestId('no-area-select-toggle')).toHaveTextContent('Done');
+    const content = screen.getByTestId('select-content');
+    expect(content.closest('td')).toHaveAttribute('colspan', String(orientations.length + 2));
+    expect(screen.queryByTestId('spot-cell-none:o1')).not.toBeInTheDocument();
+    expect(screen.queryByText('7 photos')).not.toBeInTheDocument();
+    // Other groups are untouched
+    expect(screen.getByTestId('spot-cell-kitchen:o1')).toBeInTheDocument();
+    expect(container.querySelectorAll('tbody')).toHaveLength(3);
   });
 });

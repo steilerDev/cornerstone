@@ -1,9 +1,11 @@
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
+import { createRef } from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OriginState } from '../../navigation/origin.js';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { SpotsGrid as SpotsGridType } from './SpotsGrid.js';
+import type { NoAreaSelectProps } from './SpotsTable.js';
 import { buildSpotGroups } from '../../lib/photoSpots.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import {
@@ -173,5 +175,110 @@ describe('SpotsGrid', () => {
     renderGrid();
     fireEvent.click(screen.getByTestId('spot-card-kitchen:o1'));
     expect(probedOrigin()).toBeNull();
+  });
+});
+
+describe('SpotsGrid area links and the No area section (#2226)', () => {
+  function renderWith(noArea?: NoAreaSelectProps, linkState?: OriginState) {
+    const groups = buildSpotGroups(areas, orientations, spots);
+    return render(
+      <MemoryRouter initialEntries={['/photos']}>
+        <SpotsGrid groups={groups} linkState={linkState} noArea={noArea} />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  function selectProps(overrides: Partial<NoAreaSelectProps> = {}): NoAreaSelectProps {
+    return {
+      selecting: false,
+      onToggleSelect: jest.fn(),
+      toggleRef: createRef<HTMLButtonElement>(),
+      selectContent: <div data-testid="select-content">tiles</div>,
+      ...overrides,
+    };
+  }
+
+  it('makes each area heading an AreaLink to the Areas index with the origin', () => {
+    renderWith();
+    const link = screen.getByTestId('area-link-kitchen');
+    expect(link).toHaveAttribute('href', '/areas');
+    expect(link.closest('h2')).not.toBeNull();
+    fireEvent.click(link);
+    expect(probedPath()).toBe('/areas');
+    expect(probedOrigin()?.to).toBe('/photos');
+  });
+
+  it('renders the No area heading as plain text with a muted photo count beside it', () => {
+    renderWith();
+    const heading = screen.getByRole('heading', { level: 2, name: 'No area' });
+    expect(within(heading).queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('2 photos')).toBeInTheDocument();
+    expect(heading.className).not.toMatch(/muted/i);
+  });
+
+  it('uses the singular count for one photo', () => {
+    const groups = buildSpotGroups(areas, orientations, [
+      makeSpot(null, 'o1', { photoCount: 1, latestPhotoId: 'pOnly' }),
+    ]);
+    render(
+      <MemoryRouter>
+        <SpotsGrid groups={groups} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('1 photo')).toBeInTheDocument();
+  });
+
+  it('links the No area card to the group viewer at its latest photo (D-31)', () => {
+    renderWith();
+    expect(screen.getByTestId('spot-card-none:o2')).toHaveAttribute(
+      'href',
+      '/photos/spot/none/none?photo=pN',
+    );
+  });
+
+  it('shows no Select photos toggle without the noArea slot and no count outside the group', () => {
+    renderWith();
+    expect(screen.queryByTestId('no-area-select-toggle')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/\d+ photos?$/)).toHaveLength(1);
+  });
+
+  it('with the slot, the heading row ends in a Select photos text button wired to the host', () => {
+    const props = selectProps();
+    renderWith(props);
+    const toggle = screen.getByTestId('no-area-select-toggle');
+    expect(toggle).toHaveTextContent('Select photos');
+    expect(toggle).not.toHaveAttribute('aria-pressed');
+    expect(props.toggleRef.current).toBe(toggle);
+    expect(toggle.closest('section')).toContainElement(
+      screen.getByRole('heading', { level: 2, name: 'No area' }),
+    );
+
+    fireEvent.click(toggle);
+    expect(props.onToggleSelect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('select-content')).not.toBeInTheDocument();
+  });
+
+  it('while selecting, Done replaces the label and the select content replaces the cards', () => {
+    renderWith(selectProps({ selecting: true }));
+    expect(screen.getByTestId('no-area-select-toggle')).toHaveTextContent('Done');
+    expect(screen.getByTestId('select-content')).toBeInTheDocument();
+    expect(screen.queryByTestId('spot-card-none:o2')).not.toBeInTheDocument();
+    // other groups keep their cards
+    expect(screen.getByTestId('spot-card-kitchen:o1')).toBeInTheDocument();
+  });
+
+  it('the No area section survives filtering to its chip', () => {
+    renderWith(selectProps());
+    fireEvent.click(screen.getByTestId('spot-group-chip-none'));
+    expect(screen.getByTestId('no-area-select-toggle')).toBeInTheDocument();
+    expect(screen.queryByTestId('spot-card-kitchen:o1')).not.toBeInTheDocument();
+  });
+
+  it('carries the origin on a No area card link', () => {
+    renderWith(undefined, { origin: { to: '/photos' } });
+    fireEvent.click(screen.getByTestId('spot-card-none:o2'));
+    expect(probedPath()).toBe('/photos/spot/none/none');
+    expect(probedOrigin()).toEqual({ to: '/photos' });
   });
 });

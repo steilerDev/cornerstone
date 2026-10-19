@@ -8,6 +8,8 @@ import {
   buildSpotViewerPath,
   formatAreaPath,
   buildSpotGroups,
+  areaPathFromList,
+  TAG_KEEP,
 } from './photoSpots.js';
 import { makeArea, makeOrientation, makeSpot } from '../test/photoSpotFixtures.js';
 
@@ -166,7 +168,7 @@ describe('buildSpotGroups', () => {
     const last = groups[1]!;
     expect(last.id).toBe(SPOT_URL_NONE);
     expect(last.name).toBeNull();
-    expect(last.hasHeader).toBe(false);
+    expect(last.hasHeader).toBe(true);
     expect(last.rows).toHaveLength(1);
     expect(last.rows[0]!.areaId).toBeNull();
     expect(last.rows[0]!.cells[0]!.spot).not.toBeNull();
@@ -186,5 +188,85 @@ describe('buildSpotGroups', () => {
 
     expect(rows[0]!.name).toBe('Shed');
     expect(rows[0]!.color).toBe('#aa0000');
+  });
+});
+
+describe('buildSpotGroups photoCount', () => {
+  const orientations = [makeOrientation('o1', 'Ceiling', 1), makeOrientation('o2', 'Floor', 2)];
+
+  it('sums the photo counts of all spots in a single-row group', () => {
+    const groups = buildSpotGroups([makeArea('r', 'Garden')], orientations, [
+      makeSpot('r', 'o1', { photoCount: 3 }),
+      makeSpot('r', null, { photoCount: 4 }),
+    ]);
+    expect(groups[0]!.photoCount).toBe(7);
+  });
+
+  it('sums over every row of a group with children and counts empty cells as zero', () => {
+    const areas = [
+      makeArea('r', 'House'),
+      makeArea('c1', 'Kitchen', { parentId: 'r' }),
+      makeArea('c2', 'Bath', { parentId: 'r' }),
+    ];
+    const groups = buildSpotGroups(areas, orientations, [
+      makeSpot('c1', 'o1', { photoCount: 2 }),
+      makeSpot('c2', 'o2', { photoCount: 5 }),
+      makeSpot('c2', null, { photoCount: 1 }),
+    ]);
+    expect(groups[0]!.photoCount).toBe(8);
+  });
+
+  it('gives a group without photos a count of zero', () => {
+    expect(buildSpotGroups([makeArea('r', 'Garden')], orientations, [])[0]!.photoCount).toBe(0);
+  });
+
+  it('counts the no-area group and gives it a header with no name', () => {
+    const groups = buildSpotGroups([makeArea('r', 'Garden')], orientations, [
+      makeSpot(null, 'o1', { photoCount: 6 }),
+      makeSpot(null, null, { photoCount: 2 }),
+    ]);
+    const none = groups[1]!;
+    expect(none.id).toBe(SPOT_URL_NONE);
+    expect(none.name).toBeNull();
+    expect(none.hasHeader).toBe(true);
+    expect(none.photoCount).toBe(8);
+  });
+});
+
+describe('areaPathFromList', () => {
+  const areas = [
+    makeArea('r', 'House'),
+    makeArea('c', 'Ground', { parentId: 'r' }),
+    makeArea('k', 'Kitchen', { parentId: 'c' }),
+  ];
+
+  it('joins the parent chain from the root down with the path separator', () => {
+    expect(areaPathFromList(areas, 'k')).toBe(
+      `House${AREA_PATH_SEPARATOR}Ground${AREA_PATH_SEPARATOR}Kitchen`,
+    );
+  });
+
+  it('returns only the name for a root area', () => {
+    expect(areaPathFromList(areas, 'r')).toBe('House');
+  });
+
+  it('returns null for an unknown id', () => {
+    expect(areaPathFromList(areas, 'ghost')).toBeNull();
+  });
+
+  it('stops at a missing parent', () => {
+    expect(areaPathFromList([makeArea('o', 'Orphan', { parentId: 'ghost' })], 'o')).toBe('Orphan');
+  });
+
+  it('terminates on a parent cycle', () => {
+    const cyclic = [makeArea('a', 'A', { parentId: 'b' }), makeArea('b', 'B', { parentId: 'a' })];
+    expect(areaPathFromList(cyclic, 'a')).toBe(`B${AREA_PATH_SEPARATOR}A`);
+    expect(areaPathFromList(cyclic, 'a')?.match(/A/g)).toHaveLength(1);
+  });
+});
+
+describe('TAG_KEEP', () => {
+  it('is the client-only leave-as-is sentinel', () => {
+    expect(TAG_KEEP).toBe('__keep__');
   });
 });

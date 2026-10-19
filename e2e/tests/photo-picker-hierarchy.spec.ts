@@ -8,11 +8,11 @@
  * 3. Searching a shared leaf name (same name on two floors) returns two results,
  *    each disambiguated by a DIFFERENT secondary line (ancestor path showing floor).
  * 4. Clearing the search restores the full tree.
- * 5. Select an area in the sidepanel → Save → reload → area persists; chip shows bare name
+ * 5. Edit tags in the details panel: select an area → Save tags → reload → persists; chip shows bare name
  *    (no em-dash prefix on the selected chip).
  * 6. Orientation: search by description-only text → matching orientation appears.
  *    Search by name → still appears (no regression).
- * 7. Mobile viewport: open sidepanel via toggle, open area picker, two-line rows visible;
+ * 7. Mobile viewport: open the Details sheet, Edit tags, open area picker, two-line rows visible;
  *    option row height meets 44px touch target minimum.
  *
  * Test environment:
@@ -25,7 +25,7 @@
  * - All tests tagged @responsive run across desktop, tablet, and mobile Playwright projects.
  * - Scenario 7 (mobile touch target) uses runtime viewport checks so it can validate
  *   the 44px requirement on mobile while still running (and being trivially valid) on
- *   desktop where the sidepanel is always visible.
+ *   desktop where the details panel is always visible.
  */
 
 import type { Page } from '@playwright/test';
@@ -120,7 +120,7 @@ test.describe(
 
           await openPhotoViewer(page, draftId, photoId);
           const viewer = new PhotoViewerPage(page);
-          await viewer.openSidepanelIfMobile();
+          await viewer.openTagsEditor();
 
           // Open the area picker
           await viewer.openAreaPicker();
@@ -202,7 +202,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // Open area picker and search by part of the floor name
         await viewer.openAreaPicker();
@@ -279,7 +279,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // Search by the shared leaf name (use part unique enough to match only these two)
         await viewer.openAreaPicker();
@@ -365,7 +365,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // 1. Open picker and verify both areas are in the full list
         await viewer.openAreaPicker();
@@ -414,7 +414,7 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Select area in sidepanel → Save → reload → persists;
+// Scenario 5: Edit tags: select area → Save tags → reload → persists;
 //             chip shows bare name (no em-dash)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -446,7 +446,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // Open area picker and select the nested room
         await viewer.openAreaPicker();
@@ -473,16 +473,13 @@ test.describe(
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        const saveButton = page.locator('#photo-metadata-sidepanel').getByRole('button', {
-          name: 'Save',
-          exact: true,
-        });
-        await saveButton.click();
+        await viewer.saveTagsButton.click();
         const savedResp = await patchResponse;
         const savedBody = (await savedResp.json()) as { photo: { areaId: string | null } };
         expect(savedBody.photo.areaId, 'Saved photo should have the correct areaId').toBe(roomId);
 
-        // Close viewer and reload
+        // Close viewer and reload (phones: the Details sheet first)
+        await viewer.closeDetailsIfPhone();
         await page.getByTestId('photo-viewer-close').click();
         await expect(page.getByTestId('photo-viewer')).not.toBeVisible();
         await page.reload();
@@ -496,19 +493,21 @@ test.describe(
           .click();
         await page.getByTestId('photo-viewer').waitFor({ state: 'visible' });
         const viewerAfter = new PhotoViewerPage(page);
-        await viewerAfter.openSidepanelIfMobile();
+        await viewerAfter.openDetails();
 
-        // After reload, the AreaPicker receives initialTitle (the saved area name) and
-        // shows the selectedDisplay chip with the bare name — no em-dash.
-        // We wait for the sidepanel to be attached before reading the chip.
-        const sidepanelAfter = page.locator('#photo-metadata-sidepanel');
-        await sidepanelAfter.waitFor({ state: 'attached' });
+        // Read mode names the saved area by its path (bare names inside the path, no em-dash)
+        await expect(viewerAfter.detailsPanel.getByTestId('photo-details-area')).toContainText(
+          roomName,
+        );
 
+        // After reload, the editor's AreaPicker shows the selectedDisplay chip with the bare name.
+        await viewerAfter.openTagsEditor();
+        await expect
+          .poll(() => viewerAfter.getAreaSelectedDisplayText(), {
+            message: 'After reload, area chip should still show the bare area name',
+          })
+          .toContain(roomName);
         const chipTextAfter = await viewerAfter.getAreaSelectedDisplayText();
-        expect(
-          chipTextAfter,
-          'After reload, area chip should still show the bare area name',
-        ).toContain(roomName);
         expect(
           chipTextAfter,
           'After reload, area chip must NOT start with em-dash prefix',
@@ -557,7 +556,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // Open orientation picker — search by the description text (not the name)
         await viewer.openOrientationPicker();
@@ -610,7 +609,7 @@ test.describe(
 
         await openPhotoViewer(page, draftId, photoId);
         const viewer = new PhotoViewerPage(page);
-        await viewer.openSidepanelIfMobile();
+        await viewer.openTagsEditor();
 
         // Search by name (not description) — must still work
         await viewer.openOrientationPicker();
@@ -633,21 +632,21 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Mobile — open sidepanel via toggle, two-line rows visible,
+// Scenario 7: Mobile — open the Details sheet, two-line rows visible,
 //             option row height ≥ 44px touch target
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Area picker on mobile — toggle opens sidepanel, two-line rows visible, touch target ≥ 44px (Scenario 7)',
+  'Area picker on mobile — Details opens the panel, two-line rows visible, touch target ≥ 44px (Scenario 7)',
   { tag: '@responsive' },
   () => {
-    test('Mobile: open sidepanel via toggle, area picker shows two-line rows with touch-target height', async ({
+    test('Mobile: open the Details sheet, area picker shows two-line rows with touch-target height', async ({
       page,
       testPrefix,
     }) => {
       const viewportWidth = page.viewportSize()?.width ?? 1920;
       // Mobile-only: skip on desktop (viewport > 767px).
-      // Tablet (768px) and above show the sidepanel without a toggle.
+      // Tablet (768px) and above show the details panel without a Details button.
       // We still run on tablet/desktop but skip the mobile-specific toggle assertion.
       const isMobile = viewportWidth < 768;
 
@@ -673,33 +672,25 @@ test.describe(
         const viewer = new PhotoViewerPage(page);
 
         if (isMobile) {
-          // On mobile: sidepanel is hidden by default. Toggle must be visible.
-          const toggle = viewer.metadataToggle;
-          await expect(toggle, 'Mobile toggle must be visible').toBeVisible();
-          await expect(toggle, 'Toggle must start expanded=false').toHaveAttribute(
-            'aria-expanded',
-            'false',
-          );
-
-          // Tap toggle to open sidepanel
-          await toggle.click();
-          await expect(toggle, 'Toggle must become expanded=true').toHaveAttribute(
-            'aria-expanded',
-            'true',
-          );
-
-          // Sidepanel now visible
+          // On mobile: the details panel lives in a sheet behind the Details button.
+          await expect(viewer.detailsButton, 'Mobile Details button must be visible').toBeVisible();
+          await expect(viewer.detailsPanel, 'Panel starts closed on mobile').toHaveCount(0);
+          await viewer.detailsButton.click();
           await expect(
-            page.locator('#photo-metadata-sidepanel'),
-            'Sidepanel must be visible after toggle',
+            viewer.detailsPanel,
+            'Details panel must be visible after Details',
           ).toBeVisible();
         } else {
-          // Desktop/tablet: sidepanel is always visible, toggle is hidden
+          // Desktop/tablet: the panel is always visible, there is no Details button
           await expect(
-            page.locator('#photo-metadata-sidepanel'),
-            'Sidepanel must always be visible on desktop/tablet',
+            viewer.detailsPanel,
+            'Details panel must always be visible on desktop/tablet',
           ).toBeVisible();
+          await expect(viewer.detailsButton).toHaveCount(0);
         }
+
+        // Enter the editor
+        await viewer.openTagsEditor();
 
         // Open area picker
         await viewer.openAreaPicker();

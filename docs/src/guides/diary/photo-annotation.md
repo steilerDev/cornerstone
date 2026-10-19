@@ -14,6 +14,8 @@ Annotations are launched from the **photo viewer**, which opens when you select 
 - **Annotate** -- the text button in the viewer's toolbar opens the photo on a drawing canvas with the tool palette
 - **Annotate** pencil -- a small pencil button on each photo in the entry's photo grid. It appears when you hover over the photo or move the keyboard focus to it, and opens the viewer straight in the annotator, so you skip the intermediate step
 
+The same **Annotate** button is also in the spot viewer on the [Photos](/guides/photos) page.
+
 If a photo has already been annotated, the viewer shows toggles for **View original** and **View annotated** so you can compare them. Selecting **Annotate** on an annotated photo opens the annotator with your previous shapes in place -- you can continue editing where you left off.
 
 ### When Annotate is unavailable

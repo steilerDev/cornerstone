@@ -9,7 +9,7 @@ import { useWideDialog } from '../../../hooks/useWideDialog.js';
 import styles from './PhotoAnnotateDialog.module.css';
 
 export interface PhotoAnnotateDialogProps {
-  photo: Photo;
+  photo: Pick<Photo, 'id' | 'width' | 'height'>;
   onSaved: (photo: Photo) => void;
   onClose: () => void;
   returnFocusRef: RefObject<HTMLElement | null>;

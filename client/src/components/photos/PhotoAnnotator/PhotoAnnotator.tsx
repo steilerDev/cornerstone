@@ -41,7 +41,7 @@ import { translateApiError } from '../../../lib/errorTranslation.js';
 import styles from './PhotoAnnotator.module.css';
 
 interface PhotoAnnotatorProps {
-  photo: Photo;
+  photo: Pick<Photo, 'id' | 'width' | 'height'>;
   onSave: (updatedPhoto: Photo) => void;
   onCancel: () => void;
 }

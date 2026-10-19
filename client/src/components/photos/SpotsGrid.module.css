@@ -20,8 +20,43 @@
   color: var(--color-text-primary);
 }
 
-.headingMuted {
-  color: var(--color-text-muted);
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.headingLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.textButton {
+  margin-left: auto;
+  min-height: 2.75rem;
+  padding: 0 var(--spacing-3);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.textButton:hover {
+  text-decoration: underline;
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .dot {

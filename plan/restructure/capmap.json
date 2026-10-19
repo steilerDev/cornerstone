@@ -2856,7 +2856,7 @@
     "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > full screen, ‹ ›, keys",
     "change": "same",
     "gate": "none",
-    "note": "One viewer component everywhere. #2196: photo arrows no longer overlap the details panel or the open phone sheet."
+    "note": "One viewer component everywhere. #2196: photo arrows no longer overlap the details panel or the open phone sheet. #2226: details in PhotoDetailsPanel (side column; 'Details' sheet below 768px)."
   },
   "JRN-050": {
     "name": "Compare an annotated photo with its original",
@@ -2866,16 +2866,16 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Photo viewer > View original / annotated toggle (1)",
-    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use). #2226: also in the spot viewer toolbar."
   },
   "JRN-051": {
     "name": "Edit a photo's description, area and orientation after upload",
     "from": "photo viewer > \"Photo Metadata\" side panel (phones: chevron toggle opens a bottom sheet) > Description, Area, Orientation > \"Save\"",
-    "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > Details > 'Edit tags'; Photos > Spots > multi-select (any group, incl. the neutral 'No area' group) > Set area / Set orientation",
+    "to": "Photo viewer (spot viewer and diary entry photos) > Details > 'Edit tags' (area, orientation, caption; Undo when the tags change); Photos > Spots > 'No area' group > Select photos > Set tags (area and/or orientation for the selection; Undo)",
     "change": "promoted",
     "gate": "none",
     "decision": "Q16a, Q16b (approved, PLAN §2.0 #24)",
-    "note": "Q16 approved (owner, 7 Oct): tags are edited in the viewer and in place on Spots. Photos without an area are normal and form a neutral 'No area' group, not an Unsorted mode."
+    "note": "Q16 approved (owner, 7 Oct): tags are edited in the viewer and in place on Spots. Photos without an area are normal and form a neutral 'No area' group, not an Unsorted mode. #2226: built; the photo metadata side panel is retired and caption editing moved into Edit tags."
   },
   "JRN-052": {
     "name": "Delete a photo from the viewer with confirmation",
@@ -2893,7 +2893,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Photo viewer > 'Annotate' (1); from the entry page: photo (1) > Annotate (2)",
-    "note": "0 real annotations; quick-action pencil removed from thumbnails."
+    "note": "0 real annotations; quick-action pencil removed from thumbnails. #2226: also in the spot viewer toolbar."
   },
   "JRN-054": {
     "name": "Mark up a photo with rectangles, highlights, arrows, lines and ellipses",
@@ -2992,7 +2992,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q16a, Q16c (approved, PLAN §2.0 #24)",
-    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct). #2204: h1 \"Photos\", tab title \"Photos · ‹house›\"."
+    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct). #2204: h1 \"Photos\", tab title \"Photos · ‹house›\". #2226: the 'No area' group is the last group (band 'No area', '‹n› photos', Select photos), never a warning; area row headers link to the Areas index until route `area` is served (P5.7)."
   },
   "JRN-064": {
     "name": "See per spot the photo count, latest diary date and latest thumbnail",
@@ -3016,7 +3016,7 @@
     "to": "Photos > Spot viewer > earlier / later, 'n of N' in list order (1 = newest, as decided on 1 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as the owner decided; D-31 is reduced to the hidden title, and the 'No area' spot is an ordinary spot series (PLAN §2.0 #24). #2204: the viewer's top-bar link reads \"Photos\" (restores the spots filter) or \"Back to ‹origin›\"; tab title \"‹spot› · Photos · ‹house›\"."
+    "note": "Kept as the owner decided. #2226 (D-31): the title is visible; /photos/spot/none/none is the 'No area' group (every photo without an area), titled 'No area', and 'n of N' counts the group. #2204: the viewer's top-bar link reads \"Photos\" (restores the spots filter) or \"Back to ‹origin›\"; tab title \"‹spot› · Photos · ‹house›\"."
   },
   "JRN-067": {
     "name": "See a spot photo's diary date, area path, orientation and caption",
@@ -3024,15 +3024,15 @@
     "to": "Photos > Spot viewer > details panel (diary date, area path as link, orientation, caption)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Photos; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Photos; only the shared page template, the words and the navigation around it change (monthly use). #2226: one PhotoDetailsPanel for the spot viewer and the entry photo viewer; the area path links to the Areas index until route `area` (P5.7)."
   },
   "JRN-068": {
     "name": "Jump between photos of the same spot via a history list",
     "from": "spot viewer > \"Same spot over time\" list (thumbnail, date, type – title)",
-    "to": "Photos > Spot viewer > 'Same spot over time' (newest first, as decided); the 'No area · No orientation' spot (/photos/spot/none/none) is an ordinary spot series",
+    "to": "Photos > Spot viewer > 'Same spot over time' (newest first, as decided); for the 'No area' group (/photos/spot/none/none) the list is 'Photos with no area' (D-31)",
     "change": "same",
     "gate": "none",
-    "note": "Photos without an area are normal (owner, 7 Oct, PLAN §2.0 #24): their spot keeps the same viewer and series; no Unsorted mode and no separate unsorted page."
+    "note": "Photos without an area are normal (owner, 7 Oct, PLAN §2.0 #24). #2226: their group keeps the viewer and its list under the heading 'Photos with no area'; no Unsorted mode and no separate page."
   },
   "JRN-069": {
     "name": "Open the diary entry a spot photo came from",

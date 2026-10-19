@@ -5,53 +5,99 @@ title: Photos
 
 # Photos Browser
 
-The Photos page organizes all diary photos by their location and compass orientation, letting you see at a glance how each spot has changed over time. Every photo tagged with an area and orientation in your diary entries is indexed here.
+The Photos page shows the photos from your saved diary entries by **area** and **orientation**, so you can see at a glance how each spot has changed over time. Photos that have no area are kept together in their own **No area** group at the end of the page.
 
 ## Overview
 
 The Photos page provides:
 
-- **Spots Grid** (mobile) -- Shows photos grouped by area, with chip-style navigation between area groups
-- **Spots Table** (desktop) -- Rows are areas, columns are compass orientations; each cell shows the photo count and the date of the most recent photo
-- **Spot Viewer** -- Open any spot to step through its photos chronologically, with keyboard navigation and a "Same spot over time" history list linking back to the diary entries
-- **Visual Documentation** -- Compare how a room, facade, or landscape changed week by week or month by month
+- **Spots by area and orientation** -- A table on desktop, and cards with area chips on phones
+- **No area group** -- Photos you added without an area, collected in one place so you can tag them in bulk
+- **Select photos** -- Choose several photos in the No area group and set their area and orientation together, with Undo
+- **Spot viewer** -- Open any spot to step through its photos, with the photo's details and an Edit tags editor
 
-## Spots Table (Desktop)
+## Spots by Area and Orientation
 
-The table organizes all photos you've captured by **area** and **orientation**. Each cell shows:
+On a desktop screen the page shows a table. Rows are areas and columns are orientations, such as *North side* or *From the street*. Each cell shows:
 
-- **Photo Count** -- how many photos exist for this spot
-- **Latest Diary Date** -- when the most recent photo was captured
+- **Photo count** -- how many photos are at that spot
+- **Latest diary date** -- when the most recent photo was taken
 - **Thumbnail** -- the latest photo at that spot
 
-Click a cell to open the **Spot Viewer** and step through all photos at that spot chronologically.
+A cell with no photos shows **No photos**. Click a cell with photos to open the **Spot viewer** at its latest photo.
 
-## Spots Grid (Mobile)
+On a phone the same spots appear as cards with their area and orientation names. Use the **area chips** at the top to show one area, or **All** to see every spot.
 
-On mobile devices, photos are shown in a card grid with area and orientation labels. Use the **Area** chips at the top to filter to a specific area or see all spots across your project.
+Photos from diary entries that have no orientation appear in the **No orientation** column.
 
-Click any card to open the **Spot Viewer**.
+## No Area Group
+
+Not every photo has an area. A delivery, a bag of materials, or a quick snapshot may be taken before you know where it belongs. These photos are not dropped from the page. They are listed in the **No area** group, which always comes last:
+
+- The group has a **No area** band and a count of its photos, such as *12 photos*
+- Every cell in its row opens the group in the spot viewer, at the cell's latest photo
+- Opening the group shows all photos without an area, newest first, under the heading **Photos with no area**
+- When the group is empty, the viewer shows **No photos without an area**
+
+Nothing about the group is a warning. It is simply where untagged photos wait until you give them an area.
+
+## Setting Area and Orientation for Several Photos
+
+You can tag many photos at once from the No area group:
+
+1. Open the **No area** group and select **Select photos**
+2. Tap the photos you want. A bar shows how many are selected, with **Select all**, **Clear**, and **Set tags**
+3. Select **Set tags**. In the dialog, choose an **Area**, an **Orientation**, or both
+4. Select **Save**
+
+Each field starts at **Leave as is**, so a field you do not touch keeps its current value. For orientation you can also choose **No orientation** to clear it. The dialog explains that photos move to their spot when you save.
+
+After saving, a message confirms the move (for example, *3 photos moved to Garden wall, North side*), with an **Undo** button. Select **Undo** to put the photos back where they were. Undo does not restore a photo whose area or orientation has been changed again since, so that later change is kept.
+
+Photos from signed diary entries cannot be changed. They are marked **Signed entry** and cannot be selected. Select **Done** to leave select mode.
 
 ## Spot Viewer
 
 When you open a spot, the viewer shows:
 
-- **Current Photo** -- The selected photo in full view
-- **Navigation** -- Use **Earlier Photo** / **Later Photo** buttons to step through photos at this spot by diary date
-- **Keyboard Shortcuts** -- Press Left/Right arrows to navigate, or Esc to return to the spots list
-- **Photo Details** -- Area, orientation, and the diary entry's caption and date
-- **Same Spot Over Time** -- A list of all diary entries with photos at this spot, in reverse chronological order. Click any entry to jump to that photo in the viewer
+- **Title** -- The spot's area and orientation, such as *Garden wall · North side*. In the No area group the title is **No area**
+- **Position** -- *n of N*, where *1 of N* is the newest photo. The list is ordered newest first
+- **Photo** -- The selected photo in full view
+- **Earlier photo** and **Later photo** buttons, or the Left and Right arrow keys, to step through the photos. Press Esc to go back to the Photos page
+- **Annotate** -- Opens the photo in the annotator. It is unavailable on signed entries and on photos whose size is not known yet, and the reason is shown next to the button
+- **View original** and **View annotated** -- Shown when the photo has been annotated, so you can compare the two
+- **Details** -- The photo's diary date, its area, orientation and caption, with **Edit tags** (see below)
+- **Same spot over time** -- A list of the diary entries with photos at this spot, newest first. Select an entry to jump to that photo. In the No area group this list is called **Photos with no area**
+
+Area names link to the Areas page.
+
+### Editing Tags for One Photo
+
+Select **Edit tags** in the details to change a single photo:
+
+- **Area** -- Pick an area, or clear it
+- **Orientation** -- Pick an orientation, or clear it
+- **Caption** -- Add or change the description
+- **Save tags** saves your changes. **Cancel** discards them
+
+Only the fields you changed are saved. If the new area or orientation moves the photo to a different spot, the viewer moves on to the next photo and shows *Photo moved to ...* with an **Undo** button. The caption is not part of the undo: only the area and orientation are restored.
+
+Signed entries show **Edit tags** as unavailable, with the reason *Signed entries can't be changed*.
+
+### Viewing on a Phone
+
+On phones the spot viewer fills the whole screen, without the app's top and bottom bars. Tap the photo to show or hide the arrows and buttons. Select **Details** to open the details panel in a sheet from the bottom of the screen. Select **Back** to return to the Photos page.
 
 ## Relationship to Diary
 
-Every photo in the Photos page came from a diary entry. To add photos to the Photos index:
+The Photos page lists photos from **saved** diary entries. To add photos to it:
 
 1. Open the **Diary** page
 2. Create or edit a manual entry (Daily Log, Site Visit, or Delivery)
 3. Add photos with **+ Add Photo**
-4. Tag each photo with an **Area** and **Orientation** (compass direction or Ceiling/Floor)
+4. Tag each photo with an **Area** and an **Orientation**, or leave them untagged and set them later from the No area group
 
-Photos without an area or orientation are skipped by the Photos index and only appear in the diary entry itself.
+Photos with no area appear in the No area group. Photos with an area but no orientation appear in the No orientation column. A photo is listed once its entry is saved.
 
 See the [Photo Capture guide](../diary/photo-capture) for details on capturing and organizing photos.
 

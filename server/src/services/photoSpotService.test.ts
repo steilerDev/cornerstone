@@ -10,6 +10,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
+import { PHOTO_SPOT_ANY } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 import { DIARY_PHOTO_SCOPE, listPhotoSpots, listSpotPhotos } from './photoSpotService.js';
 
@@ -376,12 +377,14 @@ describe('photoSpotService', () => {
         entryType: 'daily_log',
         title: 'Fresh',
         entryDate: '2026-09-20',
+        isSigned: false,
       });
       expect(photos[1]!.diaryEntry).toEqual({
         id: older,
         entryType: 'issue',
         title: null,
         entryDate: '2026-09-01',
+        isSigned: false,
       });
       expect(photos[1]!.caption).toBe('cap');
       expect(photos[1]!.width).toBe(800);
@@ -438,6 +441,114 @@ describe('photoSpotService', () => {
         .map((r) => r.id);
 
       expect(ids).toEqual([inScope]);
+    });
+  });
+
+  describe('listSpotPhotos: orientation ANY and per-photo fields (#2226)', () => {
+    const SIGNED = JSON.stringify({
+      signatures: [{ signerName: 'A', signerType: 'self', signatureDataUrl: 'data:x' }],
+    });
+
+    function setMetadata(entryId: string, metadata: string | null): void {
+      db.update(schema.diaryEntries)
+        .set({ metadata })
+        .where(eq(schema.diaryEntries.id, entryId))
+        .run();
+    }
+
+    it('returns every no-area photo across orientations in canonical order with orientation null', () => {
+      const area = insertArea('Kitchen');
+      const north = insertOrientation('North');
+      const south = insertOrientation('South');
+      const older = insertEntry({ entryDate: '2026-09-01' });
+      const newer = insertEntry({ entryDate: '2026-09-20' });
+      const a = insertPhoto({ entityId: older, areaId: null, orientationId: north });
+      const b = insertPhoto({ entityId: newer, areaId: null, orientationId: null });
+      const c = insertPhoto({ entityId: newer, areaId: null, orientationId: south, sortOrder: 1 });
+      insertPhoto({ entityId: newer, areaId: area, orientationId: north });
+
+      const result = listSpotPhotos(db, null, PHOTO_SPOT_ANY);
+
+      expect(result.area).toBeNull();
+      expect(result.orientation).toBeNull();
+      expect(result.photos.map((p) => p.id)).toEqual([b, c, a]);
+    });
+
+    it('does not look up the orientation for ANY (a real area still resolves)', () => {
+      const area = insertArea('Kitchen');
+      const north = insertOrientation('North');
+      const entry = insertEntry();
+      const p = insertPhoto({ entityId: entry, areaId: area, orientationId: north });
+      insertPhoto({ entityId: entry, areaId: area, orientationId: null });
+
+      const result = listSpotPhotos(db, area, PHOTO_SPOT_ANY);
+
+      expect(result.area?.id).toBe(area);
+      expect(result.orientation).toBeNull();
+      expect(result.photos).toHaveLength(2);
+      expect(result.photos.map((x) => x.id)).toContain(p);
+    });
+
+    it('still excludes drafts under ANY', () => {
+      const draft = insertEntry({ status: 'draft' });
+      insertPhoto({ entityId: draft });
+
+      expect(listSpotPhotos(db, null, PHOTO_SPOT_ANY).photos).toEqual([]);
+    });
+
+    it('carries areaId, orientationId, a per-photo orientation summary and annotatedAt', () => {
+      const area = insertArea('Kitchen');
+      const north = insertOrientation('North');
+      const entry = insertEntry();
+      const tagged = insertPhoto({
+        entityId: entry,
+        areaId: area,
+        orientationId: north,
+        annotatedAt: '2026-09-12T10:00:00.000Z',
+      });
+      const bare = insertPhoto({
+        entityId: entry,
+        areaId: area,
+        orientationId: null,
+        sortOrder: 1,
+      });
+
+      const photos = listSpotPhotos(db, area, PHOTO_SPOT_ANY).photos;
+      const taggedPhoto = photos.find((p) => p.id === tagged)!;
+      const barePhoto = photos.find((p) => p.id === bare)!;
+
+      expect(taggedPhoto).toMatchObject({
+        areaId: area,
+        orientationId: north,
+        annotatedAt: '2026-09-12T10:00:00.000Z',
+        orientation: { id: north, name: 'North' },
+      });
+      expect(barePhoto).toMatchObject({
+        areaId: area,
+        orientationId: null,
+        orientation: null,
+        annotatedAt: null,
+      });
+    });
+
+    it('reports isSigned true only for a saved entry with signatures', () => {
+      const plain = insertEntry({ entryDate: '2026-09-01' });
+      const signed = insertEntry({ entryDate: '2026-09-02' });
+      const empty = insertEntry({ entryDate: '2026-09-03' });
+      const broken = insertEntry({ entryDate: '2026-09-04' });
+      setMetadata(signed, SIGNED);
+      setMetadata(empty, JSON.stringify({ signatures: [] }));
+      setMetadata(broken, '{not json');
+      const ids = [plain, signed, empty, broken].map((entityId) => insertPhoto({ entityId }));
+
+      const byId = new Map(listSpotPhotos(db, null, null).photos.map((p) => [p.id, p]));
+
+      expect(ids.map((id) => byId.get(id)!.diaryEntry.isSigned)).toEqual([
+        false,
+        true,
+        false,
+        false,
+      ]);
     });
   });
 });

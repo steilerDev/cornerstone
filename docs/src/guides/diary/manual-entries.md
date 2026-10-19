@@ -75,7 +75,7 @@ Each entry can record the weather conditions at the time. This is useful for tra
 
 ## Photo Attachments
 
-You can attach photos directly while you are creating or editing a diary entry. Cornerstone's photo flow is mobile-first: snap a photo with your phone camera on site, tag it with a caption, [area](/guides/work-items/areas-and-trades), and compass [orientation](photo-capture#orientations), and it uploads straight to the entry. Photos upload as soon as you pick them -- the upload queue shows progress for each file and lets you retry failed uploads without re-selecting them. There is no separate "attach" or "submit" step; uploaded photos are immediately part of the entry.
+You can attach photos directly while you are creating or editing a diary entry. Cornerstone's photo flow is mobile-first: snap a photo with your phone camera on site, tag it with a caption, [area](/guides/work-items/areas-and-trades), and [orientation](photo-capture#orientations), and it uploads straight to the entry. Photos upload as soon as you pick them -- the upload queue shows progress for each file and lets you retry failed uploads without re-selecting them. There is no separate "attach" or "submit" step; uploaded photos are immediately part of the entry.
 
 See [Capturing Photos](photo-capture) for the full capture-and-tag flow.
 
@@ -83,7 +83,7 @@ On the entry page, the photos come first. Select a photo to open the photo viewe
 
 - Move between the photos with **Previous** and **Next**
 - Switch between **View original** and **View annotated** when the photo has been annotated, and use **Clear annotations** to remove the markup
-- Edit the photo's description, area, and orientation in the **Photo Metadata** panel, then select **Save**
+- Edit the photo's caption, area, and orientation with **Edit tags** in the photo details (beside the photo on wide screens, or under **Details** on phones), then select **Save tags**
 - [Annotate the photo](photo-annotation) with rectangles, arrows, text, measurements, and other markup
 - Select **Delete photo** to remove it. This is only offered while the entry can still be changed
 

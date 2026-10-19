@@ -2084,4 +2084,272 @@ describe('photoService', () => {
       });
     });
   });
+
+  describe('tag changes (#2226)', () => {
+    const SIGNED = JSON.stringify({
+      signatures: [{ signerName: 'A', signerType: 'self', signatureDataUrl: 'data:x' }],
+    });
+    const NOW = '2026-03-14T08:00:00.000Z';
+
+    function seedTagArea(id: string): void {
+      db.insert(schema.areas)
+        .values({ id, name: `Area ${id}`, sortOrder: 0, createdAt: NOW, updatedAt: NOW })
+        .run();
+    }
+    function seedTagOrientation(id: string): void {
+      db.insert(schema.orientations)
+        .values({ id, name: `Ori ${id}`, sortOrder: 0, createdAt: NOW, updatedAt: NOW })
+        .run();
+    }
+    function seedTagEntry(
+      id: string,
+      overrides: Partial<typeof schema.diaryEntries.$inferInsert> = {},
+    ) {
+      db.insert(schema.diaryEntries)
+        .values({
+          id,
+          entryType: 'daily_log',
+          entryDate: '2026-03-14',
+          title: 'Synthetic entry',
+          body: 'Body',
+          metadata: null,
+          status: 'saved',
+          isAutomatic: false,
+          createdBy: null,
+          createdAt: NOW,
+          updatedAt: NOW,
+          ...overrides,
+        })
+        .run();
+    }
+    function seedTagPhoto(id: string, overrides: Partial<typeof schema.photos.$inferInsert> = {}) {
+      db.insert(schema.photos)
+        .values({
+          id,
+          entityType: 'diary_entry',
+          entityId: 'entry-t',
+          filename: 'original.jpg',
+          originalFilename: 'site.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 10,
+          areaId: null,
+          orientationId: null,
+          sortOrder: 0,
+          createdAt: NOW,
+          updatedAt: NOW,
+          ...overrides,
+        })
+        .run();
+    }
+    function tags(id: string) {
+      const r = db.select().from(schema.photos).where(eq(schema.photos.id, id)).get()!;
+      return { areaId: r.areaId, orientationId: r.orientationId };
+    }
+    function restoreTags(entries: ReturnType<typeof photoService.updatePhotoTags>): void {
+      db.transaction((tx) => photoService.restorePhotoTags(tx, entries));
+    }
+
+    describe('isDiaryRowSignatureLocked()', () => {
+      it.each([
+        ['saved with signatures', 'saved', SIGNED, true],
+        ['draft with signatures', 'draft', SIGNED, false],
+        ['saved with empty signatures', 'saved', JSON.stringify({ signatures: [] }), false],
+        ['saved without metadata', 'saved', null, false],
+        ['saved with unparseable metadata (fails open)', 'saved', '{not json', false],
+      ] as const)('%s', (_label, status, metadata, expected) => {
+        expect(photoService.isDiaryRowSignatureLocked({ status, metadata })).toBe(expected);
+      });
+    });
+
+    describe('updatePhotoTags()', () => {
+      it('returns a before/after snapshot in request order and applies only the present keys', () => {
+        seedTagArea('a1');
+        seedTagArea('a2');
+        seedTagOrientation('o1');
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1', { areaId: 'a2', orientationId: 'o1' });
+        seedTagPhoto('p2');
+
+        const snapshot = photoService.updatePhotoTags(db, { photoIds: ['p2', 'p1'], areaId: 'a1' });
+
+        expect(snapshot).toEqual([
+          {
+            photoId: 'p2',
+            before: { areaId: null, orientationId: null },
+            after: { areaId: 'a1', orientationId: null },
+          },
+          {
+            photoId: 'p1',
+            before: { areaId: 'a2', orientationId: 'o1' },
+            after: { areaId: 'a1', orientationId: 'o1' },
+          },
+        ]);
+        expect(tags('p1')).toEqual({ areaId: 'a1', orientationId: 'o1' });
+      });
+
+      it('clears the orientation with null', () => {
+        seedTagOrientation('o1');
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1', { orientationId: 'o1' });
+
+        const snapshot = photoService.updatePhotoTags(db, {
+          photoIds: ['p1'],
+          orientationId: null,
+        });
+
+        expect(snapshot[0]!.after).toEqual({ areaId: null, orientationId: null });
+        expect(tags('p1').orientationId).toBeNull();
+      });
+
+      it('throws ValidationError with unknownAreaIds / unknownOrientationIds', () => {
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1');
+
+        expect(() =>
+          photoService.updatePhotoTags(db, { photoIds: ['p1'], areaId: 'nope' }),
+        ).toThrow(expect.objectContaining({ details: { unknownAreaIds: ['nope'] } }));
+        expect(() =>
+          photoService.updatePhotoTags(db, { photoIds: ['p1'], orientationId: 'nope' }),
+        ).toThrow(expect.objectContaining({ details: { unknownOrientationIds: ['nope'] } }));
+        expect(() =>
+          photoService.updatePhotoTags(db, { photoIds: ['p1'], areaId: 'nope' }),
+        ).toThrow(ValidationError);
+      });
+
+      it('throws NotFoundError with missingPhotoIds', () => {
+        expect(() =>
+          photoService.updatePhotoTags(db, { photoIds: ['x1', 'x2'], areaId: null }),
+        ).toThrow(expect.objectContaining({ details: { missingPhotoIds: ['x1', 'x2'] } }));
+      });
+
+      it('throws ImmutableEntryError with lockedPhotoIds and leaves all rows untouched', () => {
+        seedTagArea('a1');
+        seedTagEntry('entry-t');
+        seedTagEntry('entry-signed', { metadata: SIGNED });
+        seedTagPhoto('p1');
+        seedTagPhoto('p2', { entityId: 'entry-signed' });
+
+        expect(() =>
+          photoService.updatePhotoTags(db, { photoIds: ['p1', 'p2'], areaId: 'a1' }),
+        ).toThrow(
+          expect.objectContaining({ code: 'IMMUTABLE_ENTRY', details: { lockedPhotoIds: ['p2'] } }),
+        );
+        expect(tags('p1').areaId).toBeNull();
+      });
+
+      it('does not lock non-diary photos', () => {
+        seedTagArea('a1');
+        seedTagPhoto('p1', { entityType: 'work_item', entityId: 'wi-1' });
+
+        expect(photoService.updatePhotoTags(db, { photoIds: ['p1'], areaId: 'a1' })).toHaveLength(
+          1,
+        );
+      });
+    });
+
+    describe('restorePhotoTags()', () => {
+      it('restores the before values of every entry', () => {
+        seedTagArea('a1');
+        seedTagArea('a2');
+        seedTagOrientation('o1');
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1', { areaId: 'a2', orientationId: 'o1' });
+        seedTagPhoto('p2');
+        const snapshot = photoService.updatePhotoTags(db, {
+          photoIds: ['p1', 'p2'],
+          areaId: 'a1',
+          orientationId: null,
+        });
+
+        restoreTags(snapshot);
+
+        expect(tags('p1')).toEqual({ areaId: 'a2', orientationId: 'o1' });
+        expect(tags('p2')).toEqual({ areaId: null, orientationId: null });
+      });
+
+      it('nulls a before-area that no longer exists', () => {
+        seedTagArea('a1');
+        seedTagArea('a2');
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1', { areaId: 'a2' });
+        const snapshot = photoService.updatePhotoTags(db, { photoIds: ['p1'], areaId: 'a1' });
+        db.delete(schema.areas).where(eq(schema.areas.id, 'a2')).run();
+
+        restoreTags(snapshot);
+
+        expect(tags('p1')).toEqual({ areaId: null, orientationId: null });
+      });
+
+      it('throws ConflictError listing every changed photo and restores none', () => {
+        seedTagArea('a1');
+        seedTagArea('a2');
+        seedTagEntry('entry-t');
+        seedTagPhoto('p1');
+        seedTagPhoto('p2');
+        seedTagPhoto('p3');
+        const snapshot = photoService.updatePhotoTags(db, {
+          photoIds: ['p1', 'p2', 'p3'],
+          areaId: 'a1',
+        });
+        db.update(schema.photos).set({ areaId: 'a2' }).where(eq(schema.photos.id, 'p2')).run();
+        db.delete(schema.photos).where(eq(schema.photos.id, 'p3')).run();
+
+        let error: unknown;
+        try {
+          restoreTags(snapshot);
+        } catch (err) {
+          error = err;
+        }
+
+        expect(error).toBeInstanceOf(ConflictError);
+        expect((error as ConflictError).details).toEqual({
+          changed: [
+            { type: 'photo', id: 'p2' },
+            { type: 'photo', id: 'p3' },
+          ],
+        });
+        expect(tags('p1').areaId).toBe('a1');
+      });
+
+      it('conflicts when the entry is now signed or gone', () => {
+        seedTagArea('a1');
+        seedTagEntry('entry-t');
+        seedTagEntry('entry-b');
+        seedTagPhoto('p1');
+        seedTagPhoto('p2', { entityId: 'entry-b' });
+        const snapshot = photoService.updatePhotoTags(db, { photoIds: ['p1', 'p2'], areaId: 'a1' });
+        db.update(schema.diaryEntries)
+          .set({ metadata: SIGNED })
+          .where(eq(schema.diaryEntries.id, 'entry-t'))
+          .run();
+        db.update(schema.photos)
+          .set({ entityId: 'vanished' })
+          .where(eq(schema.photos.id, 'p2'))
+          .run();
+
+        let error: unknown;
+        try {
+          restoreTags(snapshot);
+        } catch (err) {
+          error = err;
+        }
+        expect((error as ConflictError).details).toEqual({
+          changed: [
+            { type: 'photo', id: 'p1' },
+            { type: 'photo', id: 'p2' },
+          ],
+        });
+      });
+
+      it('restores non-diary photos without an entry check', () => {
+        seedTagArea('a1');
+        seedTagPhoto('p1', { entityType: 'work_item', entityId: 'wi-1' });
+        const snapshot = photoService.updatePhotoTags(db, { photoIds: ['p1'], areaId: 'a1' });
+
+        restoreTags(snapshot);
+
+        expect(tags('p1').areaId).toBeNull();
+      });
+    });
+  });
 });

@@ -252,7 +252,9 @@ test('Caption persists across lightbox navigation (detail page)', async ({
     // ── Save a caption on photo 1 ──────────────────────────────────────────
     const captionText = `${testPrefix} detail caption persistence`;
     await viewer.saveCaption(captionText, photo1Id);
-    await expect(viewer.saveMetadataButton).not.toBeVisible();
+    await expect(viewer.tagsSavedNote).toHaveText('Tags saved');
+
+    await viewer.closeDetailsIfPhone();
 
     // ── Navigate to photo 2 then back ──────────────────────────────────────
     await viewer.nextButton.click();
@@ -262,8 +264,8 @@ test('Caption persists across lightbox navigation (detail page)', async ({
     await expect(viewer.modal.getByText('1 / 2')).toBeVisible();
 
     // ── Assert caption is still present ───────────────────────────────────
-    await viewer.openSidepanelIfMobile();
-    await expect(viewer.captionField).toHaveValue(captionText);
+    await viewer.openDetails();
+    await expect(viewer.captionValue).toHaveText(captionText);
   } finally {
     if (photo1Id) await deletePhotoViaApi(page, photo1Id).catch(() => {});
     if (photo2Id) await deletePhotoViaApi(page, photo2Id).catch(() => {});

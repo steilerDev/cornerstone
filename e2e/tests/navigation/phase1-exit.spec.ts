@@ -264,6 +264,16 @@ test.describe('Phase 1 exit checks (#2219)', { tag: '@responsive' }, () => {
         const search = new CommandSearchPanel(page);
         await page.goto(PATHS[id]!());
 
+        if (id === 'photoSpot') {
+          // The phone photo viewer is full screen (#2226): the shell bars are not rendered, Back
+          // leads to Photos, whose top bar has the search button.
+          const back = page.getByTestId('spot-viewer-back');
+          await expect(back).toBeVisible();
+          await expect(search.topBarButton).toHaveCount(0);
+          await back.click();
+          await expect(page).toHaveURL((u) => u.pathname === routeUrl('photos'));
+        }
+
         await expect(search.topBarButton).toBeVisible();
         const box = await search.topBarButton.boundingBox();
         const viewport = page.viewportSize();

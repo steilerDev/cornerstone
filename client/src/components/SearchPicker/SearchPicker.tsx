@@ -81,6 +81,11 @@ export interface SearchPickerProps<T> {
    * selected display — the input stays, empties and keeps focus (quietly; no reopen).
    */
   clearOnSelect?: boolean;
+  /**
+   * Focus the picker when it mounts, without opening its dropdown (it opens on typing, click or
+   * ArrowDown as usual). The input takes focus; with a selection shown, the Clear button does.
+   */
+  autoFocus?: boolean;
 }
 
 export function SearchPicker<T>({
@@ -108,6 +113,7 @@ export function SearchPicker<T>({
   renderTrailing,
   getOptionTestId,
   clearOnSelect = false,
+  autoFocus = false,
 }: SearchPickerProps<T>) {
   const { t } = useTranslation('common');
   const resolvedPlaceholder = placeholder ?? t('search.placeholder');
@@ -143,6 +149,16 @@ export function SearchPicker<T>({
   const pendingFocusRef = useRef<'clear' | 'input' | null>(null);
   const pendingFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressFocusOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    if (inputRef.current) {
+      suppressFocusOpenRef.current = true;
+      inputRef.current.focus();
+    } else {
+      clearButtonRef.current?.focus();
+    }
+  }, [autoFocus]);
   const searchControllerRef = useRef<AbortController | null>(null);
 
   const { refs, floatingStyles, isPositioned } = useFloating({
@@ -251,6 +267,17 @@ export function SearchPicker<T>({
       suppressFocusOpenRef.current = false;
       return;
     }
+    if (showItemsOnFocus || specialOptions || createAction) {
+      setIsOpen(true);
+      fetchInitialResults();
+    } else if (searchTerm.trim()) {
+      setIsOpen(true);
+    }
+  };
+
+  // A click on the already focused, closed input opens it like focus would (no focus event fires)
+  const handleClick = () => {
+    if (isOpen) return;
     if (showItemsOnFocus || specialOptions || createAction) {
       setIsOpen(true);
       fetchInitialResults();
@@ -540,6 +567,7 @@ export function SearchPicker<T>({
         value={searchTerm}
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={handleFocus}
+        onClick={handleClick}
         onKeyDown={handleInputKeyDown}
         disabled={disabled}
         {...inputAriaProps}

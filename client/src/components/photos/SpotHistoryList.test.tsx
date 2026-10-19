@@ -20,7 +20,13 @@ afterEach(() => {
 
 function photo(id: string, title: string | null, type: PhotoSpotPhoto['diaryEntry']['entryType']) {
   return makeSpotPhoto(id, {
-    diaryEntry: { id: `e-${id}`, entryType: type, title, entryDate: '2026-09-11' },
+    diaryEntry: {
+      id: `e-${id}`,
+      entryType: type,
+      title,
+      entryDate: '2026-09-11',
+      isSigned: false,
+    },
   });
 }
 

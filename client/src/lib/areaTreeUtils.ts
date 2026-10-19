@@ -54,8 +54,11 @@ export function getAncestorPath(areas: AreaResponse[], areaId: string): string {
   const names: string[] = [];
   const current = areaMap.get(areaId);
   if (!current) return '';
+  // A repeat (a cyclic parent chain) ends the walk, the area itself included
+  const visited = new Set<string>([current.id]);
   let parentId = current.parentId;
-  while (parentId) {
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
     const parent = areaMap.get(parentId);
     if (!parent) break;
     names.unshift(parent.name);

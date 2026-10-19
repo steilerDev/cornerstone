@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -249,6 +250,94 @@ describe('Photo spot routes', () => {
 
       expect(body.photos.map((p) => p.id)).toEqual([target]);
       expect(body.photos[0]!.diaryEntry.id).toBe(entry);
+    });
+  });
+
+  describe('GET /api/photos/spots/photos: __any__ sentinel and new fields (#2226)', () => {
+    it('lists every saved no-area photo across orientations with orientation null', async () => {
+      const entry = insertEntry('saved', '2026-09-11');
+      const draft = insertEntry('draft', '2026-09-12');
+      const area = insertArea('Kitchen');
+      const o = insertOrientation('North');
+      const withO = insertPhoto(entry, null, o);
+      const without = insertPhoto(entry, null, null);
+      insertPhoto(entry, area, o);
+      insertPhoto(draft, null, null);
+
+      const res = await getSpotPhotos('?areaId=__none__&orientationId=__any__');
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json<PhotoSpotPhotosResponse>();
+      expect(body.area).toBeNull();
+      expect(body.orientation).toBeNull();
+      expect(body.photos.map((p) => p.id).sort()).toEqual([withO, without].sort());
+    });
+
+    it('returns 400 VALIDATION_ERROR for areaId=__any__', async () => {
+      const res = await getSpotPhotos('?areaId=__any__&orientationId=__none__');
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 for areaId=__any__ even with orientationId=__any__', async () => {
+      const res = await getSpotPhotos('?areaId=__any__&orientationId=__any__');
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('adds areaId, orientationId, orientation, annotatedAt and isSigned to each photo', async () => {
+      const entry = insertEntry('saved', '2026-09-11');
+      const signedEntry = insertEntry('saved', '2026-09-12');
+      const brokenEntry = insertEntry('saved', '2026-09-13');
+      app.db
+        .update(schema.diaryEntries)
+        .set({
+          metadata: JSON.stringify({
+            signatures: [{ signerName: 'A', signerType: 'self', signatureDataUrl: 'data:x' }],
+          }),
+        })
+        .where(eq(schema.diaryEntries.id, signedEntry))
+        .run();
+      app.db
+        .update(schema.diaryEntries)
+        .set({ metadata: '{not json' })
+        .where(eq(schema.diaryEntries.id, brokenEntry))
+        .run();
+      const area = insertArea('Kitchen');
+      const o = insertOrientation('North');
+      const plain = insertPhoto(entry, area, o);
+      const signed = insertPhoto(signedEntry, area, o);
+      const broken = insertPhoto(brokenEntry, area, o);
+
+      const body = (
+        await getSpotPhotos(`?areaId=${area}&orientationId=${o}`)
+      ).json<PhotoSpotPhotosResponse>();
+      const byId = new Map(body.photos.map((p) => [p.id, p]));
+
+      expect(byId.get(plain)).toMatchObject({
+        areaId: area,
+        orientationId: o,
+        orientation: { id: o, name: 'North' },
+        annotatedAt: null,
+        diaryEntry: { id: entry, isSigned: false },
+      });
+      expect(byId.get(signed)!.diaryEntry.isSigned).toBe(true);
+      expect(byId.get(broken)!.diaryEntry.isSigned).toBe(false);
+    });
+
+    it('keeps the existing __none__ / id behaviour (orientation resolved, not null)', async () => {
+      const entry = insertEntry('saved', '2026-09-11');
+      const area = insertArea('Kitchen');
+      const o = insertOrientation('North');
+      insertPhoto(entry, area, o);
+
+      const body = (
+        await getSpotPhotos(`?areaId=${area}&orientationId=${o}`)
+      ).json<PhotoSpotPhotosResponse>();
+
+      expect(body.orientation?.id).toBe(o);
+      expect(body.photos).toHaveLength(1);
     });
   });
 

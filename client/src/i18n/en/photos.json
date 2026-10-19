@@ -19,7 +19,11 @@
     "groupsLabel": "Area groups",
     "allGroups": "All",
     "groupAnnouncement_one": "Showing {{group}}: {{count}} spot",
-    "groupAnnouncement_other": "Showing {{group}}: {{count}} spots"
+    "groupAnnouncement_other": "Showing {{group}}: {{count}} spots",
+    "noAreaCount_one": "{{count}} photo",
+    "noAreaCount_other": "{{count}} photos",
+    "areaLinkSuffix": ", open in Areas",
+    "noAreaGroupLabel": "Photos with no area"
   },
   "viewer": {
     "spotHeading": "{{area}} · {{orientation}}",
@@ -48,7 +52,18 @@
     "notFoundTitle": "This spot no longer exists",
     "notFoundDescription": "Its area or orientation may have been deleted.",
     "emptyTitle": "No photos at this spot",
-    "emptyDescription": "The photos for this spot may have been removed from their diary entries."
+    "emptyDescription": "The photos for this spot may have been removed from their diary entries.",
+    "noAreaOverTime": "Photos with no area",
+    "noAreaEmptyTitle": "No photos without an area",
+    "noAreaEmptyDescription": "Photos you add to diary entries without an area appear here.",
+    "details": "Details",
+    "editTags": "Edit tags",
+    "editTagsDisabledSigned": "Signed entries can't be changed",
+    "saveTags": "Save tags",
+    "savingTags": "Saving…",
+    "tagsSaved": "Tags saved",
+    "tagsError": "The tags could not be saved.",
+    "photoMoved": "Photo moved to {{spot}}"
   },
   "tile": {
     "name": "Photo {{n}} of {{total}}",
@@ -127,5 +142,32 @@
     "usingFront": "Using the front camera.",
     "usingBack": "Using the back camera.",
     "previewLabel": "Latest photos"
+  },
+  "select": {
+    "start": "Select photos",
+    "done": "Done",
+    "selected_one": "{{count}} photo selected",
+    "selected_other": "{{count}} photos selected",
+    "all": "Select all",
+    "clear": "Clear",
+    "setTags": "Set tags",
+    "tileLabel": "Photo from {{date}}, {{orientation}}",
+    "locked": "Signed entry",
+    "loading": "Loading photos with no area",
+    "loadError": "These photos could not be loaded."
+  },
+  "bulk": {
+    "title_one": "Set tags for {{count}} photo",
+    "title_other": "Set tags for {{count}} photos",
+    "area": "Area",
+    "orientation": "Orientation",
+    "leaveAsIs": "Leave as is",
+    "hint": "Choose an area, an orientation, or both. Photos move to their spot when saved.",
+    "saving": "Saving…",
+    "error": "The tags could not be saved. Nothing was changed.",
+    "movedTo_one": "{{count}} photo moved to {{spot}}",
+    "movedTo_other": "{{count}} photos moved to {{spot}}",
+    "orientationSet_one": "Orientation set on {{count}} photo",
+    "orientationSet_other": "Orientation set on {{count}} photos"
   }
 }
