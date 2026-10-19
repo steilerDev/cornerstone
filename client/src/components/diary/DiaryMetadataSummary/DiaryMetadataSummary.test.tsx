@@ -298,57 +298,34 @@ describe('DiaryMetadataSummary', () => {
     });
   });
 
-  // ─── automatic entry types (auto-event branch) ───────────────────────────
+  // ─── automatic entry types (#2223: no branch; FeedRow renders system events) ─────────────
 
   describe('automatic entry types', () => {
-    it('renders auto-event-summary testid for work_item_status', () => {
-      render(
+    it.each([
+      'work_item_status',
+      'invoice_status',
+      'invoice_created',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
+    ] as const)('renders nothing for %s, whatever its metadata', (entryType) => {
+      const { container } = render(
         <DiaryMetadataSummary
-          entryType="work_item_status"
-          metadata={{ changeSummary: 'Status changed to completed', newValue: 'completed' }}
+          entryType={entryType}
+          metadata={{
+            changeSummary: 'Status changed to completed',
+            newValue: 'completed',
+            v: 1,
+            event: 'status_changed',
+            from: 'pending',
+            to: 'paid',
+          }}
         />,
       );
-      expect(document.querySelector('[data-testid="auto-event-summary"]')).toBeInTheDocument();
-      expect(screen.getByText('Status changed to completed')).toBeInTheDocument();
-    });
-
-    it('renders StatusPill with newValue for invoice_status', () => {
-      render(<DiaryMetadataSummary entryType="invoice_status" metadata={{ newValue: 'paid' }} />);
-      expect(screen.getByText('paid')).toBeInTheDocument();
-    });
-
-    it('renders auto-event-summary for budget_breach', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="budget_breach"
-          metadata={{ changeSummary: 'Budget exceeded' }}
-        />,
-      );
-      expect(document.querySelector('[data-testid="auto-event-summary"]')).toBeInTheDocument();
-    });
-
-    it('StatusPill renders "failed" newValue (danger color branch)', () => {
-      render(
-        <DiaryMetadataSummary entryType="work_item_status" metadata={{ newValue: 'failed' }} />,
-      );
-      expect(screen.getByText('failed')).toBeInTheDocument();
-    });
-
-    it('StatusPill renders "in_progress" newValue (in-progress color branch)', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="work_item_status"
-          metadata={{ newValue: 'in_progress' }}
-        />,
-      );
-      expect(screen.getByText('in_progress')).toBeInTheDocument();
-    });
-
-    it('StatusPill renders "completed" newValue (success color branch)', () => {
-      render(
-        <DiaryMetadataSummary entryType="work_item_status" metadata={{ newValue: 'completed' }} />,
-      );
-      expect(screen.getByText('completed')).toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
+      expect(document.querySelector('[data-testid="auto-event-summary"]')).toBeNull();
+      expect(screen.queryByText('Status changed to completed')).not.toBeInTheDocument();
     });
   });
 

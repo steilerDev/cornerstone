@@ -129,4 +129,13 @@ describe('IntegrationCard', () => {
     expect(link.getAttribute('aria-label')?.startsWith(visible)).toBe(true);
     expect(link.getAttribute('aria-label')).toContain('AI features');
   });
+
+  it('omits the docs link when docs is false, and shows it by default', () => {
+    const { unmount } = renderCard({ docs: false });
+    expect(screen.queryByTestId('integration-ai-docs')).toBeNull();
+    expect(screen.getByText('Set these and restart.')).toBeInTheDocument();
+    unmount();
+    renderCard();
+    expect(screen.getByTestId('integration-ai-docs')).toBeInTheDocument();
+  });
 });

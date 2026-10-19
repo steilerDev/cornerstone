@@ -452,7 +452,6 @@ export type {
   DeliveryMetadata,
   IssueMetadata,
   GeneralNoteMetadata,
-  AutoEventMetadata,
   DiaryEntryMetadata,
   DiarySourceEntityType,
   DiaryUserSummary,
@@ -627,6 +626,19 @@ export type {
 
 // Global search (story #2210)
 export { foldSearchText, searchDigits } from './lib/searchFold.js';
+
+// System events (ADR-040)
+export type {
+  StatusChangedMetadataV1,
+  MilestoneDelayedMetadataV1,
+  InvoiceCreatedMetadataV1,
+  LegacyEventMetadataV1,
+  SystemEventMetadataV1,
+  SystemEventMetadata,
+  SystemEventRepeat,
+} from './types/systemEvent.js';
+export { SYSTEM_EVENT_NAMES, isSystemEventMetadataV1 } from './lib/systemEvent.js';
+export type { SystemEventName } from './lib/systemEvent.js';
 export {
   SEARCH_RESULT_TYPES,
   SEARCH_MATCHED_FIELDS,

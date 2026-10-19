@@ -1,15 +1,15 @@
 ---
 sidebar_position: 2
-title: Automatic Events
+title: System Events
 ---
 
-# Automatic System Events
+# System Events
 
-Cornerstone automatically creates diary entries when significant changes happen elsewhere in the application. These events give you a chronological audit trail of your project without any manual effort.
+Cornerstone records significant changes elsewhere in the application as diary entries, so you get a chronological History of your project without any manual effort. System events are always recorded; there is no setting to turn them off.
 
 ## How It Works
 
-When you perform certain actions in Cornerstone -- such as changing a work item's status, creating an invoice, or triggering a schedule recalculation -- the system automatically generates a diary entry recording what happened. These entries appear in the diary timeline alongside your manual entries, sorted by date.
+When something changes -- for example a work item's status, an invoice, a schedule recalculation, or a subsidy -- Cornerstone writes a History entry describing it. These entries appear in the diary timeline alongside your manual entries, sorted by date.
 
 ## Event Types
 
@@ -23,21 +23,20 @@ When you perform certain actions in Cornerstone -- such as changing a work item'
 | **Schedule** | The project schedule is recalculated (e.g., after auto-scheduling or dependency changes) |
 | **Subsidy** | A subsidy program's status or amount changes |
 
-## Reading Automatic Events
+## Reading System Events
 
-Each automatic event includes:
+- **Language** -- Events are written in the language you are using in Cornerstone.
+- **Repeats** -- When the same change happens several times in a row, the repeats are collapsed into one entry that shows the count and the date range.
+- **Hidden delay notes** -- A milestone delay logged after the milestone was already reached is hidden by default. Click **Show hidden** in the diary to display these notes, and **Hide again** to collapse them.
+- **Related item** -- Each event links to the item that changed. A progress-payment event opens its payment directly.
 
-- **Title** -- A summary of what changed (e.g., "Work item 'Install kitchen cabinets' moved to In Progress")
-- **Body** -- Additional context about the change (no "[Source]" prefix -- the body contains plain descriptive text)
-- **Related item link** -- A "Go to related item" link that navigates directly to the entity that triggered the event (work item, invoice, milestone, etc.)
-
-Automatic events do not have metadata, weather, or photo attachments.
+System events do not have metadata, weather, or photo attachments.
 
 ## Filtering
 
-On the diary page, use the filter chips to isolate automatic events:
+On the diary page, use the filter chips to isolate system events:
 
-1. Select the **Automatic** chip to show only system-generated entries
+1. Select the **History** chip to show only system-generated entries
 2. Additional type-specific chips appear for finer filtering:
    - **Work Item** -- Work item status changes
    - **Invoice** -- Both invoice creation and invoice status changes
@@ -48,5 +47,5 @@ On the diary page, use the filter chips to isolate automatic events:
 
 ## Limitations
 
-- Automatic events **cannot be edited or deleted** -- they are system-generated records
+- System events **cannot be edited or deleted** -- they are system-generated records
 - Events are created at the time the triggering action occurs; they are not retroactively generated for past changes

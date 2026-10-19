@@ -66,8 +66,109 @@ describe('useDiaryEntryTitle', () => {
   it('uses the diary automatic label for an automatic type', () => {
     // Mutation: resolving every type through the manual key set yields a missing-key string.
     expect(titleOf({ title: null, entryType: 'work_item_status', entryDate: thisYearDate })).toBe(
-      'Work Item Status · Mar 14',
+      'Task status · Mar 14',
     );
+  });
+
+  describe('automatic entries name their subject (#2223)', () => {
+    const base = { title: null, entryDate: thisYearDate, isAutomatic: true } as const;
+    const status = (metadata: Record<string, unknown>) => ({
+      v: 1,
+      event: 'status_changed',
+      from: 'not_started',
+      to: 'completed',
+      subjectLabel: 'Snapshot name',
+      ...metadata,
+    });
+
+    it('uses the live subject name for a task event', () => {
+      expect(
+        titleOf({
+          ...base,
+          entryType: 'work_item_status',
+          metadata: status({}),
+          sourceEntityTitle: 'Kitchen tiling',
+        } as Entry),
+      ).toBe('Kitchen tiling');
+    });
+
+    it('falls back to the snapshot name when the live name is gone', () => {
+      expect(
+        titleOf({
+          ...base,
+          entryType: 'work_item_status',
+          metadata: status({}),
+          sourceEntityTitle: null,
+        } as Entry),
+      ).toBe('Snapshot name');
+    });
+
+    it('headings an invoice event "Invoice <number>"', () => {
+      expect(
+        titleOf({
+          ...base,
+          entryType: 'invoice_status',
+          metadata: status({ from: 'pending', to: 'paid' }),
+          sourceEntityTitle: '2026-014',
+        } as Entry),
+      ).toBe('Invoice 2026-014');
+    });
+
+    it('headings an offer "Offer <number>"', () => {
+      expect(
+        titleOf({
+          ...base,
+          entryType: 'invoice_created',
+          metadata: {
+            v: 1,
+            event: 'invoice_created',
+            subjectLabel: 'Q-7',
+            vendorId: null,
+            vendorName: null,
+            invoiceStatus: 'quotation',
+          },
+          sourceEntityTitle: 'Q-7',
+        } as Entry),
+      ).toBe('Offer Q-7');
+    });
+
+    it('a legacy automatic entry keeps its stored title, then the type and date fallback', () => {
+      expect(
+        titleOf({
+          ...base,
+          title: 'Stored legacy title',
+          entryType: 'budget_breach',
+          metadata: null,
+        } as Entry),
+      ).toBe('Stored legacy title');
+      expect(titleOf({ ...base, entryType: 'budget_breach', metadata: null } as Entry)).toBe(
+        'Over budget · Mar 14',
+      );
+    });
+
+    it('ignores a stored title on a v1 event (parameters only)', () => {
+      expect(
+        titleOf({
+          ...base,
+          title: 'Tampered English text',
+          entryType: 'work_item_status',
+          metadata: status({}),
+          sourceEntityTitle: 'Kitchen tiling',
+        } as Entry),
+      ).toBe('Kitchen tiling');
+    });
+
+    it('a manual entry with event-like fields is untouched', () => {
+      expect(
+        titleOf({
+          title: null,
+          entryType: 'daily_log',
+          entryDate: thisYearDate,
+          isAutomatic: false,
+          sourceEntityTitle: 'Kitchen tiling',
+        } as Entry),
+      ).toBe('Daily log · Mar 14');
+    });
   });
 
   it('adds the year when the entry is from another year', () => {

@@ -12,8 +12,8 @@
  * 1.  [smoke] Diary list page renders without export button
  * 2.  [smoke] Diary detail "Site diary" breadcrumb navigates to /diary
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
- * 4.  Source entity title displayed in diary card source link
- * 5.  Automatic events are in a flat "Automated Events" section (UAT R2 #868: changed from collapsible) per date group
+ * 4.  System event row names its subject and offers "Open task" (#2223; was "Go to related item")
+ * 5.  System events and manual entries are interleaved in one date group
  * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — capture flow:
  *     first character → POST draft → /diary/:id/edit → Save entry → /diary/:id
  * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
@@ -21,6 +21,7 @@
  */
 
 import { test, expect } from '../../fixtures/isolatedUser.js';
+import { mockDiaryList, mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
@@ -138,11 +139,12 @@ test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Source entity title shown in diary card source link
+// Scenario 4: a system event names its subject and links to it (#2223: replaces "Go to related item")
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Source entity title in diary card (Scenario 4)', () => {
-  test('Diary entry card shows sourceEntityTitle in the source link', async ({ page }) => {
-    // Mock the diary list to return an automatic entry with a sourceEntityTitle
+test.describe('System event subject and link (Scenario 4)', () => {
+  test('A system event row names the task and offers "Open task" instead of "Go to related item"', async ({
+    page,
+  }) => {
     const mockEntryId = 'mock-uat-source-001';
     const mockWorkItemTitle = 'Foundation Waterproofing';
 
@@ -151,27 +153,15 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
+          body: JSON.stringify(
+            mockDiaryList([
+              mockSystemEvent({
                 id: mockEntryId,
-                entryType: 'work_item_status',
-                entryDate: '2026-03-14',
-                title: null,
-                body: 'Work item status changed to in_progress',
-                metadata: null,
-                isAutomatic: true,
-                sourceEntityType: 'work_item',
                 sourceEntityId: 'wi-mock-001',
                 sourceEntityTitle: mockWorkItemTitle,
-                photoCount: 0,
-                createdBy: null,
-                createdAt: '2026-03-14T09:00:00.000Z',
-                updatedAt: '2026-03-14T09:00:00.000Z',
-              },
-            ],
-            pagination: { total: 1, page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
-          }),
+              }),
+            ]),
+          ),
         });
       } else {
         await route.continue();
@@ -183,11 +173,12 @@ test.describe('Source entity title in diary card (Scenario 4)', () => {
       const diaryPage = new DiaryPage(page);
       await diaryPage.heading.waitFor({ state: 'visible' });
 
-      // UAT R7: automatic entries are interleaved in chronological order
-      // Automatic entries show "Go to related item" as link text (UAT fix #876)
-      const sourceLink = page.getByTestId(`source-link-wi-mock-001`);
-      await expect(sourceLink).toBeVisible();
-      await expect(sourceLink).toHaveText('Go to related item');
+      await expect(diaryPage.systemEventRow(mockEntryId)).toContainText(
+        `${mockWorkItemTitle} went from Not started to In progress`,
+      );
+      await expect(diaryPage.systemEventLink(mockEntryId)).toHaveText(/Open task/);
+      await expect(page.getByText('Go to related item')).toHaveCount(0);
+      await expect(page.getByTestId('source-link-wi-mock-001')).toHaveCount(0);
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -222,22 +213,12 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
                 createdAt: '2026-03-14T09:00:00.000Z',
                 updatedAt: '2026-03-14T09:00:00.000Z',
               },
-              {
+              mockSystemEvent({
                 id: 'mock-auto-001',
-                entryType: 'work_item_status',
-                entryDate: '2026-03-14',
-                title: null,
-                body: 'Work item status changed automatically.',
-                metadata: null,
-                isAutomatic: true,
-                sourceEntityType: 'work_item',
+                createdAt: '2026-03-14T08:00:00.000Z',
                 sourceEntityId: 'wi-auto-001',
                 sourceEntityTitle: 'Auto Work Item',
-                photoCount: 0,
-                createdBy: null,
-                createdAt: '2026-03-14T08:00:00.000Z',
-                updatedAt: '2026-03-14T08:00:00.000Z',
-              },
+              }),
             ],
             pagination: { total: 2, page: 1, pageSize: 25, totalPages: 1, totalItems: 2 },
           }),
@@ -255,7 +236,7 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
 
       // Both entries should be visible in the same date group
       await expect(diaryPage.entryCard('mock-manual-001')).toBeVisible();
-      await expect(diaryPage.entryCard('mock-auto-001')).toBeVisible();
+      await expect(diaryPage.systemEventRow('mock-auto-001')).toBeVisible();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }

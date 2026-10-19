@@ -49,9 +49,6 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
   const sourceLabel = entry.sourceEntityType
     ? getSourceEntityLabel(entry.sourceEntityType, t)
     : null;
-  const cardClassName = [styles.card, entry.isAutomatic && styles.automatic]
-    .filter(Boolean)
-    .join(' ');
 
   const cardLink =
     entry.status === 'draft'
@@ -61,7 +58,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
   return (
     <Link
       to={cardLink}
-      className={cardClassName}
+      className={styles.card}
       aria-label={`${entry.title || 'Diary entry'} on ${formatDate(entry.entryDate)}`}
       data-testid={`diary-card-${entry.id}`}
     >
@@ -76,42 +73,26 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
         )}
         <div className={styles.headerText}>
           {entry.title && <div className={styles.title}>{entry.title}</div>}
-          {!entry.isAutomatic && (
-            <div className={styles.timestamp}>
-              {formatTime(entry.createdAt)}
-              {entry.createdBy && (
-                <span className={styles.author}>
-                  {' '}
-                  {t('entryCard.by')} {entry.createdBy.displayName}
-                </span>
-              )}
-              {entry.isSigned && (
-                <span className={styles.signedBadgeInline} data-testid={`signed-badge-${entry.id}`}>
-                  {t('entryCard.signed')}
-                </span>
-              )}
-            </div>
-          )}
-          {entry.isAutomatic && route && (
-            <div className={styles.autoEntityLink}>
-              <Link
-                to={route}
-                state={originState}
-                className={styles.sourceLink}
-                onClick={(e) => e.stopPropagation()}
-                title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
-                data-testid={`source-link-${entry.sourceEntityId}`}
-              >
-                {t('entryCard.goToRelatedItem')}
-              </Link>
-            </div>
-          )}
+          <div className={styles.timestamp}>
+            {formatTime(entry.createdAt)}
+            {entry.createdBy && (
+              <span className={styles.author}>
+                {' '}
+                {t('entryCard.by')} {entry.createdBy.displayName}
+              </span>
+            )}
+            {entry.isSigned && (
+              <span className={styles.signedBadgeInline} data-testid={`signed-badge-${entry.id}`}>
+                {t('entryCard.signed')}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       <div className={styles.body}>{entry.body}</div>
 
-      {!entry.isAutomatic && entry.metadata && (
+      {entry.metadata && (
         <DiaryMetadataSummary entryType={entry.entryType} metadata={entry.metadata} />
       )}
 
@@ -122,7 +103,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
           </span>
         )}
 
-        {!entry.isAutomatic && route && (
+        {route && (
           <Link
             to={route}
             state={originState}

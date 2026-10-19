@@ -117,6 +117,12 @@ describe('DiaryFilterBar', () => {
     expect(onFilterModeChange).toHaveBeenCalledWith('manual');
   });
 
+  it('the automatic mode chip reads "History" and no chip reads "Automatic" (#2223)', () => {
+    renderFilterBar();
+    expect(screen.getByTestId('mode-filter-automatic')).toHaveTextContent(/^History$/);
+    expect(screen.queryByText('Automatic')).not.toBeInTheDocument();
+  });
+
   it('clicking Automatic mode chip calls onFilterModeChange with "automatic"', async () => {
     const user = userEvent.setup();
     const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
@@ -362,9 +368,11 @@ describe('DiaryFilterBar', () => {
   it('shows one word per type: canonical for manual, diary:entryTypes for automatic', () => {
     renderFilterBar();
     expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Note$/);
-    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice Status$/);
-    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
-      /^Work Item Status$/,
+    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice status$/);
+    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(/^Task status$/);
+    expect(screen.getByTestId('type-filter-subsidy_status')).toHaveTextContent(/^Grant status$/);
+    expect(screen.getByTestId('type-filter-milestone_delay')).toHaveTextContent(
+      /^Milestone moved$/,
     );
     expect(screen.getByTestId('type-filter-issue')).toHaveTextContent(/^Defect$/);
     expect(screen.getByTestId('type-filter-daily_log')).toHaveTextContent(/^Daily log$/);
@@ -396,7 +404,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar();
       expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Notiz$/);
       expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
-        /^Arbeitspaketstatus$/,
+        /^Aufgabenstatus$/,
       );
       expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(
         /^Rechnungsstatus$/,

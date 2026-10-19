@@ -2,14 +2,14 @@
  * E2E tests for UAT Round 2 fixes for the Site diary (EPIC-13).
  *
  * Issues addressed:
- * - #866-A: Mode filter chips (All/Manual/Automatic) added to DiaryFilterBar
+ * - #866-A: Mode filter chips (All/Manual/History) added to DiaryFilterBar
  * - #866-C: the diary header link has no "+" prefix (#2222: "Log today", formerly "New Entry")
  * - #867:   Photo upload on creation form; post-create navigation to detail page
  * - #868:   Automatic events section is now a flat bordered div (not collapsible details/summary)
  * - #869:   Signed badge visible on diary entry cards where isSigned=true
  *
  * Scenarios covered:
- * 1.  [smoke] Mode filter chips "All", "Manual", "Automatic" are visible in the filter bar
+ * 1.  [smoke] Mode filter chips "All", "Manual", "History" (#2223; formerly "Automatic") are visible in the filter bar
  * 2.  Manual mode hides automatic type chips, shows only manual type chips
  * 3.  Automatic mode hides manual type chips, shows only automatic type chips
  * 4.  Clicking "All" from Manual mode restores all type chips
@@ -22,6 +22,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 
@@ -75,7 +76,7 @@ function makePaginatedResponse(entries: Record<string, unknown>[]): Record<strin
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'All three mode filter chips (All/Manual/Automatic) are visible in the filter bar',
+    'All three mode filter chips (All/Manual/History) are visible in the filter bar',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
@@ -110,7 +111,7 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
         // Their visible text labels
         await expect(allChip).toHaveText('All');
         await expect(manualChip).toHaveText('Manual');
-        await expect(automaticChip).toHaveText('Automatic');
+        await expect(automaticChip).toHaveText('History');
       } finally {
         await page.unroute('**/api/diary-entries*');
       }
@@ -346,14 +347,9 @@ test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive'
             contentType: 'application/json',
             body: JSON.stringify(
               makePaginatedResponse([
-                makeMockEntry({
+                mockSystemEvent({
                   id: 'mock-auto-r2-001',
-                  entryType: 'work_item_status',
-                  entryDate: mockDate,
-                  isAutomatic: true,
-                  createdBy: null,
-                  title: null,
-                  body: 'Status changed automatically',
+                  createdAt: `${mockDate}T09:00:00.000Z`,
                 }),
                 makeMockEntry({
                   id: 'mock-manual-r2-001',
@@ -376,7 +372,7 @@ test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive'
         await diaryPage.waitForLoaded();
 
         // Both entries should be visible in the same date group (interleaved)
-        await expect(diaryPage.entryCard('mock-auto-r2-001')).toBeVisible();
+        await expect(diaryPage.systemEventRow('mock-auto-r2-001')).toBeVisible();
         await expect(diaryPage.entryCard('mock-manual-r2-001')).toBeVisible();
       } finally {
         await page.unroute('**/api/diary-entries*');

@@ -823,6 +823,37 @@ describe('accessors with an injected glossary', () => {
     });
   });
 
+  describe('sentenceOne form key (#2223)', () => {
+    it('is accepted as a form key and kept on the term', () => {
+      const parsed = parseGlossary(
+        mutated((r) => {
+          r.terms.Widget.en.sentenceOne = '{{count}} widget';
+          r.terms.Widget.de.sentenceOne = '{{count}} Ding';
+        }),
+      );
+      const widget = parsed.terms.find((t) => t.canon === 'Widget')!;
+      expect(widget.en.sentenceOne).toBe('{{count}} widget');
+      expect(widget.de.sentenceOne).toBe('{{count}} Ding');
+    });
+
+    it('is not a search alias or searchable name', () => {
+      const parsed = parseGlossary(
+        mutated((r) => {
+          r.terms.Widget.en.sentenceOne = 'One widget phrase';
+        }),
+      );
+      const names = getSearchableNames(parsed.terms.find((t) => t.canon === 'Widget')!);
+      expect(names.map((n) => n.text)).not.toContain('One widget phrase');
+      expect(canons(findTermsByAlias('One widget phrase', parsed))).toEqual([]);
+    });
+
+    it('the real glossary carries it on Late in both locales (singular day late)', () => {
+      const late = term('Late');
+      expect(late.en.sentenceOne).toBe('{{count}} day late');
+      expect(late.de.sentenceOne).toContain('{{count}}');
+    });
+  });
+
   describe('getSearchableNames', () => {
     const named: Glossary = parseGlossary(
       (() => {

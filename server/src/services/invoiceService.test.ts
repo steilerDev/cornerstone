@@ -2290,4 +2290,73 @@ describe('Invoice Service', () => {
       expect(invoiceService.getInvoiceById(db, invoiceId).date).toBe('2026-01-01');
     });
   });
+
+  // ─── updateInvoice(): system event (#2223) ─────────────────────────────────
+
+  describe('updateInvoice() system event', () => {
+    function events() {
+      return db.select().from(schema.diaryEntries).all();
+    }
+
+    it('writes a v1 status event with the number, the amount after the update and the actor', () => {
+      const userId = createTestUser('actor@example.test', 'Actor');
+      const vendorId = createTestVendor('Company A');
+      const invoiceId = insertRawInvoice(vendorId, { invoiceNumber: 'INV-T-001', amount: 1000 });
+
+      invoiceService.updateInvoice(
+        db,
+        vendorId,
+        invoiceId,
+        { status: 'paid', amount: 1200 },
+        { userId, undoable: true },
+      );
+
+      const [event] = events();
+      expect(events()).toHaveLength(1);
+      expect(event!.entryType).toBe('invoice_status');
+      expect(event!.sourceEntityType).toBe('invoice');
+      expect(event!.sourceEntityId).toBe(invoiceId);
+      expect(event!.createdBy).toBe(userId);
+      expect(event!.title).toBeNull();
+      expect(event!.body).toBe('');
+      expect(JSON.parse(event!.metadata!)).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'paid',
+        subjectLabel: 'INV-T-001',
+        amount: 1200,
+      });
+    });
+
+    it('uses the stored amount when the update does not change it', () => {
+      const vendorId = createTestVendor('Company A');
+      const invoiceId = insertRawInvoice(vendorId, { invoiceNumber: 'INV-T-002', amount: 750 });
+
+      invoiceService.updateInvoice(db, vendorId, invoiceId, { status: 'claimed' });
+
+      const meta = JSON.parse(events()[0]!.metadata!) as { amount: number };
+      expect(meta.amount).toBe(750);
+      expect(events()[0]!.createdBy).toBeNull();
+    });
+
+    it('stores no label for an invoice without a number (no "N/A")', () => {
+      const vendorId = createTestVendor('Company A');
+      const invoiceId = insertRawInvoice(vendorId, { invoiceNumber: null });
+
+      invoiceService.updateInvoice(db, vendorId, invoiceId, { status: 'paid' });
+
+      expect(JSON.parse(events()[0]!.metadata!)).toMatchObject({ subjectLabel: null });
+    });
+
+    it('writes nothing when the status does not change', () => {
+      const vendorId = createTestVendor('Company A');
+      const invoiceId = insertRawInvoice(vendorId, { invoiceNumber: 'INV-T-003' });
+
+      invoiceService.updateInvoice(db, vendorId, invoiceId, { notes: 'Changed' });
+      invoiceService.updateInvoice(db, vendorId, invoiceId, { status: 'pending' });
+
+      expect(events()).toHaveLength(0);
+    });
+  });
 });

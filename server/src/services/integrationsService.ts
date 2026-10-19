@@ -73,9 +73,7 @@ export function buildIntegrationsStatus(input: {
       env: envFor('backups'),
     },
     diaryEvents: {
-      // Until #2223 removes DIARY_AUTO_EVENTS: then this becomes `enabled: true` permanently
-      // and `diaryEvents.env.optional` in INTEGRATION_ENV is emptied in the same PR.
-      enabled: config.diaryAutoEvents,
+      enabled: true,
       env: envFor('diaryEvents'),
     },
     money: {

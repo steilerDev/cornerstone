@@ -118,7 +118,8 @@
       "tests": [
         "server/src/services/diaryAutoEventService.test.ts",
         "server/src/services/schedulingEngine.dailyReschedule.test.ts",
-        "server/src/services/schedulingEngine.projection.test.ts"
+        "server/src/services/schedulingEngine.projection.test.ts",
+        "server/src/services/diaryAutoEventService.metadata.test.ts"
       ]
     },
     {

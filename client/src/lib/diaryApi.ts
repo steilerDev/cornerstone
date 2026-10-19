@@ -38,6 +38,9 @@ export function listDiaryEntries(params?: DiaryEntryListQuery): Promise<DiaryEnt
   if (params?.status) {
     queryParams.set('status', params.status);
   }
+  if (params?.showHidden) {
+    queryParams.set('showHidden', 'true');
+  }
   if (params?.q) {
     queryParams.set('q', params.q);
   }

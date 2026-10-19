@@ -10,6 +10,7 @@
 
 import type { PaginatedResponse } from './pagination.js';
 import type { AreaSummary } from './area.js';
+import type { SystemEventMetadata, SystemEventRepeat } from './systemEvent.js';
 
 // ─── Entry Types ──────────────────────────────────────────────────────────────
 
@@ -119,24 +120,6 @@ export interface GeneralNoteMetadata {
   [key: string]: unknown;
 }
 
-/** Metadata for automatic system event entries. */
-export interface AutoEventMetadata {
-  /** Human-readable summary of what changed. */
-  changeSummary?: string | null;
-  /** Previous value (for status changes). */
-  previousValue?: string | null;
-  /** New value (for status changes). */
-  newValue?: string | null;
-  /** Target date for milestone (used in milestone delay events). */
-  targetDate?: string;
-  /** Projected date for milestone (used in milestone delay events). */
-  projectedDate?: string;
-  /** Number of days delayed (used in milestone delay events). */
-  delayDays?: number;
-  /** Additional type-specific data. */
-  [key: string]: unknown;
-}
-
 /** Union of all metadata shapes. */
 export type DiaryEntryMetadata =
   | DailyLogMetadata
@@ -144,7 +127,7 @@ export type DiaryEntryMetadata =
   | DeliveryMetadata
   | IssueMetadata
   | GeneralNoteMetadata
-  | AutoEventMetadata;
+  | SystemEventMetadata;
 
 // ─── Source Entity Types ──────────────────────────────────────────────────────
 
@@ -209,6 +192,12 @@ export interface DiaryEntrySummary {
   sourceEntityId: string | null;
   sourceEntityArea: AreaSummary | null;
   sourceEntityTitle: string | null;
+  /** Set for work_item / invoice / milestone / subsidy_program subjects; false when the subject is gone. */
+  sourceEntityExists?: boolean;
+  /** Automatic rows only: set when R2 collapsed a run of exact repeats into this (newest) row. */
+  repeat?: SystemEventRepeat;
+  /** Only with showHidden=true: R1 would hide this row (logged after its milestone was reached). */
+  hidden?: boolean;
   photoCount: number;
   createdBy: DiaryUserSummary | null;
   createdAt: string;
@@ -309,10 +298,14 @@ export interface DiaryEntryListQuery {
    */
   status?: DiaryEntryStatus;
   q?: string;
+  /** Also return the system events display rule R1 hides, each with `hidden: true` (R2 still applies). */
+  showHidden?: boolean;
 }
 
-/** Paginated diary entry list response. */
-export type DiaryEntryListResponse = PaginatedResponse<DiaryEntrySummary>;
+/** Paginated diary entry list response; the server always sends `hiddenCount` (R1 rows after collapse). */
+export type DiaryEntryListResponse = PaginatedResponse<DiaryEntrySummary> & {
+  hiddenCount?: number;
+};
 
 // ─── Lookup (#2220) ───────────────────────────────────────────────────────────
 

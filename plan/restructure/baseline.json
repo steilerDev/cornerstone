@@ -10,7 +10,7 @@
       "DashboardPage": { "destinations": 16, "primaryButtons": 2, "searchFields": 0 },
       "DiaryCapturePage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
       "DiaryEntryDetailPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 0 },
-      "DiaryPage": { "destinations": 3, "primaryButtons": 8, "searchFields": 1 },
+      "DiaryPage": { "destinations": 2, "primaryButtons": 8, "searchFields": 1 },
       "HouseholdItemDetailPage": { "destinations": 3, "primaryButtons": 12, "searchFields": 1 },
       "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "HouseholdItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
@@ -39,7 +39,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 122,
+      "count": 123,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -67,6 +67,7 @@
         "DependencySentenceBuilder/DependencySentenceBuilder",
         "EditableField/EditableField",
         "EmptyState/EmptyState",
+        "FeedRow/FeedRow",
         "FileList/FileList",
         "FilterChipGroup/FilterChipGroup",
         "FormError/FormError",
@@ -166,7 +167,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 178,
+      "count": 179,
       "values": [
         "% allocated",
         "(refund)",
@@ -245,6 +246,7 @@
         "funding source",
         "funding sources",
         "grant",
+        "grant status",
         "grants",
         "headroom",
         "invoice amount",
@@ -357,7 +359,6 @@
       "SummaryStrip",
       "SectionCard",
       "RelatedList",
-      "FeedRow",
       "AttentionList",
       "StatTile",
       "MoneyFigure",

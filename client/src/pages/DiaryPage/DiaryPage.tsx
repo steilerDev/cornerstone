@@ -73,6 +73,9 @@ export default function DiaryPage() {
   }, [location.key, location.state]);
 
   const [totalItems, setTotalItems] = useState(0);
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [showHidden, setShowHidden] = useState(false);
+  const [hiddenStatus, setHiddenStatus] = useState('');
   const [firstBatchFailed, setFirstBatchFailed] = useState(false);
   const focusEmptyStateAfterRetryRef = useRef(false);
   const emptyStateCtaRef = useRef<HTMLAnchorElement>(null);
@@ -116,7 +119,9 @@ export default function DiaryPage() {
 
   const fetchDiaryPage = async (
     page: number,
-  ): Promise<InfiniteScrollPage<DiaryEntrySummary, { totalItems: number }>> => {
+  ): Promise<
+    InfiniteScrollPage<DiaryEntrySummary, { totalItems: number; hiddenCount: number }>
+  > => {
     // Determine which types to query based on filter mode
     let queriableTypes: DiaryEntryType[] = activeTypes;
     if (filterMode === 'manual') {
@@ -147,16 +152,20 @@ export default function DiaryPage() {
       dateTo: dateTo || undefined,
       type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
       status: statusFilter || undefined,
+      showHidden: showHidden || undefined,
     });
 
     return {
       items: response.items,
       hasMore: page < response.pagination.totalPages,
-      meta: { totalItems: response.pagination.totalItems },
+      meta: {
+        totalItems: response.pagination.totalItems,
+        hiddenCount: response.hiddenCount ?? 0,
+      },
     };
   };
 
-  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${filterMode}|${typeFilterStr}|${statusFilter}`;
+  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${filterMode}|${typeFilterStr}|${statusFilter}|${showHidden}`;
 
   const {
     items: entries,
@@ -166,11 +175,14 @@ export default function DiaryPage() {
     sentinelRef,
     loadMore,
     retry,
-  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number }>({
+  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number; hiddenCount: number }>({
     fetchPage: fetchDiaryPage,
     resetKey,
     onPageApplied: (meta) => {
-      if (meta) setTotalItems(meta.totalItems);
+      if (meta) {
+        setTotalItems(meta.totalItems);
+        setHiddenCount(meta.hiddenCount);
+      }
       setFirstBatchFailed(false);
     },
     onPageFailed: (_err, page) => {
@@ -333,6 +345,36 @@ export default function DiaryPage() {
         draftsVisible={draftsVisible}
         onDraftsVisibleChange={handleDraftsVisibleChange}
       />
+
+      {(hiddenCount > 0 || showHidden) && (
+        <div className={styles.hiddenNote} data-testid="diary-hidden-note">
+          <span>{t('event.hiddenNote', { count: hiddenCount })}</span>
+          <button
+            type="button"
+            className={styles.hiddenToggle}
+            aria-pressed={showHidden}
+            data-testid="diary-show-hidden"
+            onClick={() => {
+              setHiddenStatus(
+                showHidden
+                  ? t('event.hiddenHiddenAgain')
+                  : t('event.hiddenShown', { count: hiddenCount }),
+              );
+              setShowHidden(!showHidden);
+            }}
+          >
+            {showHidden ? t('event.hideHidden') : t('event.showHidden')}
+          </button>
+        </div>
+      )}
+      <div
+        className={styles.liveRegion}
+        role="status"
+        aria-atomic="true"
+        data-testid="diary-hidden-status"
+      >
+        {hiddenStatus}
+      </div>
 
       {showInitialLoading && <div className={shared.loading}>{t('loading')}</div>}
 

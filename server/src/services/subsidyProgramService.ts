@@ -20,7 +20,11 @@ import type {
   UserSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, SubsidyProgramInUseError } from '../errors/AppError.js';
-import { onSubsidyStatusChanged } from './diaryAutoEventService.js';
+import {
+  onSubsidyStatusChanged,
+  SYSTEM_CONTEXT,
+  type EventContext,
+} from './diaryAutoEventService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -266,14 +270,13 @@ export function createSubsidyProgram(
  * @param db - Database connection
  * @param id - Subsidy program ID
  * @param data - Update request data
- * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
+ * @param ctx - Event context for the status system event (acting user; undoable for PATCH routes)
  */
 export function updateSubsidyProgram(
   db: DbType,
   id: string,
   data: UpdateSubsidyProgramRequest,
-  diaryAutoEvents: boolean = true,
-  actorUserId: string | null = null,
+  ctx: EventContext = SYSTEM_CONTEXT,
 ): SubsidyProgram {
   // Check program exists
   const existing = db.select().from(subsidyPrograms).where(eq(subsidyPrograms.id, id)).get();
@@ -410,15 +413,7 @@ export function updateSubsidyProgram(
 
   // Log applicationStatus change to diary if enabled
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
-    onSubsidyStatusChanged(
-      db,
-      diaryAutoEvents,
-      id,
-      existing.name,
-      previousStatus,
-      newStatus,
-      actorUserId,
-    );
+    onSubsidyStatusChanged(db, id, existing.name, previousStatus, newStatus, ctx);
   }
 
   return getSubsidyProgramById(db, id);

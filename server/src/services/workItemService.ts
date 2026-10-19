@@ -27,7 +27,8 @@ import type { AreaMapEntry } from './areaService.js';
 import {
   onWorkItemStatusChanged,
   onMilestoneDelayed,
-  onAutoRescheduleCompleted,
+  SYSTEM_CONTEXT,
+  type EventContext,
 } from './diaryAutoEventService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateAreaId } from './shared/validators.js';
@@ -419,14 +420,13 @@ export function getWorkItemDetail(db: DbType, id: string): WorkItemDetail {
  * @param db - Database connection
  * @param id - Work item ID
  * @param data - Update request data
- * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
+ * @param ctx - Event context for the status system event (acting user; undoable for PATCH routes)
  */
 export function updateWorkItem(
   db: DbType,
   id: string,
   data: UpdateWorkItemRequest,
-  diaryAutoEvents: boolean = true,
-  actorUserId: string | null = null,
+  ctx: EventContext = SYSTEM_CONTEXT,
 ): WorkItemDetail {
   const workItem = findWorkItemById(db, id);
   if (!workItem) {
@@ -589,32 +589,14 @@ export function updateWorkItem(
   if (schedulingFieldChanged) {
     autoReschedule(db, {
       onMilestoneDelayed: (milestoneId, milestoneName, targetDate, projectedDate) => {
-        onMilestoneDelayed(
-          db,
-          diaryAutoEvents,
-          milestoneId,
-          milestoneName,
-          targetDate,
-          projectedDate,
-        );
-      },
-      onRescheduleCompleted: (updatedCount) => {
-        onAutoRescheduleCompleted(db, diaryAutoEvents, updatedCount);
+        onMilestoneDelayed(db, milestoneId, milestoneName, targetDate, projectedDate);
       },
     });
   }
 
-  // Log status change to diary if enabled
+  // Log status change as a system event
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
-    onWorkItemStatusChanged(
-      db,
-      diaryAutoEvents,
-      id,
-      workItem.title,
-      previousStatus,
-      newStatus,
-      actorUserId,
-    );
+    onWorkItemStatusChanged(db, id, workItem.title, previousStatus, newStatus, ctx);
   }
 
   // Fetch and return the updated work item

@@ -35,6 +35,7 @@ const listDiaryEntriesSchema = {
       automatic: { type: 'boolean' },
       status: { type: 'string', enum: ['draft', 'saved'] },
       q: { type: 'string' },
+      showHidden: { type: 'boolean' },
     },
     additionalProperties: false,
   },

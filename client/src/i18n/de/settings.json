@@ -473,7 +473,7 @@
     "history": {
       "title": "Verlauf",
       "purpose": "Hält Änderungen an deinem Projekt automatisch im Verlauf fest.",
-      "hint": "Er ist eingeschaltet, solange du ihn nicht ausschaltest. Zum Ausschalten setze die Variable auf false und starte Cornerstone neu."
+      "hint": "Der Verlauf ist immer eingeschaltet. Du kannst ihn nicht ausschalten."
     },
     "money": {
       "title": "Währung & Mehrwertsteuer",

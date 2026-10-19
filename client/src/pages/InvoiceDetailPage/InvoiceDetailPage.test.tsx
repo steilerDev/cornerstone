@@ -1880,4 +1880,98 @@ describe('InvoiceDetailPage', () => {
       );
     });
   });
+
+  describe('payment target from ?payment= (#2223)', () => {
+    function renderAt(search: string, state: unknown = { origin: { to: '/diary' } }) {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter
+          entries={[{ url: `/budget/invoices/${MOCK_INVOICE_ID}${search}`, state }]}
+          log={log}
+        >
+          <Routes>
+            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+          </Routes>
+        </RecordingRouter>,
+      );
+      return log;
+    }
+    const withPayment = () =>
+      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, deposits: [paidDeposit(400)] });
+    const paymentRows = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('[data-payment-id="dep-1"]'));
+
+    beforeEach(() => {
+      HTMLElement.prototype.scrollIntoView = jest.fn() as never;
+    });
+
+    afterEach(() => {
+      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    });
+
+    it('focuses and highlights the payment row, then drops the param keeping the origin', async () => {
+      withPayment();
+      const log = renderAt('?payment=dep-1');
+      await screen.findByTestId('invoice-payment-status');
+      await waitFor(() => expect(paymentRows().length).toBeGreaterThan(0));
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+
+      const [row] = paymentRows();
+      expect(row).toHaveFocus();
+      expect(row?.className).toContain('paymentTarget');
+      expect(row).toHaveAttribute('tabindex', '-1');
+      expect(log.actions[0]).toBe(`REPLACE /budget/invoices/${MOCK_INVOICE_ID}`);
+      expect(log.states[0]).toEqual({ origin: { to: '/diary' } });
+      expect(screen.getByTestId('invoice-payment-status')).toBeEmptyDOMElement();
+    });
+
+    it('keeps other params when dropping payment', async () => {
+      withPayment();
+      const log = renderAt('?tab=payments&payment=dep-1');
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.actions[0]).toBe(`REPLACE /budget/invoices/${MOCK_INVOICE_ID}?tab=payments`);
+    });
+
+    it('says the payment no longer exists for an unknown id, and Close clears it', async () => {
+      withPayment();
+      const log = renderAt('?payment=missing-id');
+
+      const region = await screen.findByTestId('invoice-payment-status');
+      await waitFor(() =>
+        expect(region).toHaveTextContent('That progress payment no longer exists.'),
+      );
+      expect(region).toHaveAttribute('role', 'status');
+      expect(log.actions).toEqual([`REPLACE /budget/invoices/${MOCK_INVOICE_ID}`]);
+      expect(paymentRows().some((r) => r.className.includes('paymentTarget'))).toBe(false);
+
+      fireEvent.click(within(region).getByRole('button', { name: 'Close' }));
+      expect(region).toBeEmptyDOMElement();
+    });
+
+    it('keeps an always-mounted empty status region without the param', async () => {
+      withPayment();
+      const log = renderAt('');
+      const region = await screen.findByTestId('invoice-payment-status');
+      expect(region).toHaveAttribute('role', 'status');
+      expect(region).toBeEmptyDOMElement();
+      expect(log.actions).toEqual([]);
+    });
+
+    it('does not run before the invoice has loaded', async () => {
+      let resolve!: (invoice: Invoice) => void;
+      mockFetchInvoiceById.mockImplementation(
+        () =>
+          new Promise((res) => {
+            resolve = res;
+          }),
+      );
+      const log = renderAt('?payment=dep-1');
+      expect(log.actions).toEqual([]);
+
+      await act(async () => {
+        resolve({ ...mockInvoice, deposits: [paidDeposit(400)] });
+      });
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+    });
+  });
 });

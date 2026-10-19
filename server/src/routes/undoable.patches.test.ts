@@ -370,8 +370,8 @@ describe('Undo token on PATCH routes', () => {
       app.db,
       'work_item_status',
       '2026-08-01',
-      't',
-      'b',
+      { v: 1, event: 'legacy' },
+      null,
       null,
       null,
     );

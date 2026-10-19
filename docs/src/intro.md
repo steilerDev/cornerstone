@@ -66,7 +66,7 @@ A customizable [dashboard](guides/dashboard) shows budget health, upcoming miles
 - [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
-- [Diary Guide](guides/diary) -- Construction diary with manual entries and automatic events
+- [Diary Guide](guides/diary) -- Construction diary with manual entries and system events
 - [Dashboard Guide](guides/dashboard) -- Project health overview and card customization
 - [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
 - [Backups](guides/backup) -- Manual and scheduled backups, restore

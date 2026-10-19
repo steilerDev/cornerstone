@@ -410,6 +410,35 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
+  // ─── #2223: payment target hooks for ?payment= ────────────────────────────
+
+  describe('payment target markers (#2223)', () => {
+    it('gives the table row and the mobile card of each deposit its id and a programmatic tab stop', () => {
+      renderSection([makeDeposit('dep-1'), makeDeposit('dep-2', { status: 'paid' })]);
+
+      for (const id of ['dep-1', 'dep-2']) {
+        const targets = Array.from(
+          document.querySelectorAll<HTMLElement>(`[data-payment-id="${id}"]`),
+        );
+        expect(targets).toHaveLength(2);
+        expect(targets.map((t) => t.tagName).sort()).toEqual(['DIV', 'TR']);
+        for (const target of targets) expect(target).toHaveAttribute('tabindex', '-1');
+      }
+    });
+
+    it('does not mark the Final Payment row as a payment target', () => {
+      renderSection([makeDeposit('dep-1')]);
+      expect(document.querySelectorAll('[data-payment-id]')).toHaveLength(2);
+    });
+
+    it('lets the target take script focus without joining the tab order', () => {
+      renderSection([makeDeposit('dep-1')]);
+      const row = document.querySelector<HTMLElement>('tr[data-payment-id="dep-1"]')!;
+      row.focus();
+      expect(row).toHaveFocus();
+    });
+  });
+
   // ─── Scenario 3: Final Payment row ────────────────────────────────────────
 
   describe('Scenario 3: Final Payment row', () => {

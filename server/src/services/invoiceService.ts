@@ -32,7 +32,11 @@ import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
-import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
+import {
+  onInvoiceStatusChanged,
+  SYSTEM_CONTEXT,
+  type EventContext,
+} from './diaryAutoEventService.js';
 import {
   aggregateInvoiceStatusBreakdown,
   aggregateClaimableBreakdown,
@@ -546,15 +550,14 @@ export function createInvoice(
  * @param vendorId - Vendor ID (source vendor, from path param)
  * @param invoiceId - Invoice ID
  * @param data - Update request data (may include target vendorId)
- * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
+ * @param ctx - Event context for the status system event (acting user; undoable for PATCH routes)
  */
 export function updateInvoice(
   db: DbType,
   vendorId: string,
   invoiceId: string,
   data: UpdateInvoiceRequest,
-  diaryAutoEvents: boolean = true,
-  actorUserId: string | null = null,
+  ctx: EventContext = SYSTEM_CONTEXT,
 ): Invoice {
   const vendorName = assertVendorExists(db, vendorId);
 
@@ -652,17 +655,11 @@ export function updateInvoice(
     tx.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
   });
 
-  // Log status change to diary if enabled
+  // Log status change as a system event
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
-    onInvoiceStatusChanged(
-      db,
-      diaryAutoEvents,
-      invoiceId,
-      existing.invoiceNumber || 'N/A',
-      previousStatus,
-      newStatus,
-      actorUserId,
-    );
+    onInvoiceStatusChanged(db, invoiceId, existing.invoiceNumber, previousStatus, newStatus, ctx, {
+      amount: data.amount ?? existing.amount,
+    });
   }
 
   const updated = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;

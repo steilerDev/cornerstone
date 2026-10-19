@@ -49,8 +49,13 @@ const CHIP_CARDS = [
   'history',
 ] as const;
 
-/** Cards that name environment variables (Calendar & contacts sync needs none). */
-const CARDS_WITH_ENV = INTEGRATION_ANCHORS.filter((anchor) => anchor !== 'calendar-contacts');
+/** Cards that name environment variables (Calendar & contacts sync and History need none). */
+const CARDS_WITH_ENV = INTEGRATION_ANCHORS.filter(
+  (anchor) => anchor !== 'calendar-contacts' && anchor !== 'history',
+);
+
+/** Cards with a setup guide link (History is always on and has none, #2223). */
+const CARDS_WITH_DOCS = INTEGRATION_ANCHORS.filter((anchor) => anchor !== 'history');
 
 /** Wait until the cards have loaded (the Paperless chip or its skeleton has resolved). */
 async function waitForCards(integrations: IntegrationsPage): Promise<void> {
@@ -104,6 +109,16 @@ test.describe('Integrations page (Story #2217)', { tag: '@responsive' }, () => {
     await expect(integrations.card('calendar-contacts')).toContainText(
       'No setup needed on the server.',
     );
+
+    // History (#2223): always on, nothing to set up, no setup guide
+    await expect(integrations.card('history')).toContainText(
+      "History is always on. It can't be turned off.",
+    );
+    await expect(integrations.card('history')).toContainText('No setup needed on the server.');
+    await expect(integrations.envList('history')).toHaveCount(0);
+    await expect(integrations.docsLink('history')).toHaveCount(0);
+    await expect(integrations.card('history')).not.toContainText('Read the setup guide');
+    await expect(integrations.card('history')).not.toContainText('DIARY_AUTO_EVENTS');
 
     // No secret anywhere: neither in the API body nor on the page
     const response = await page.request.get(API.integrations);
@@ -183,6 +198,23 @@ test.describe('Integrations page (Story #2217)', { tag: '@responsive' }, () => {
     await expect(integrations.tagNotice).toHaveCount(0);
     // (the phone and tablet title menu in the h1 is shell chrome, so look inside the cards)
     await expect(integrations.cards.getByRole('button')).toHaveCount(0);
+  });
+
+  test('History shows On even when the server reports it disabled', async ({ page }) => {
+    const integrations = new IntegrationsPage(page);
+    await integrations.mockStatus(
+      integrationsBody({ diaryEvents: { enabled: false, env: { required: [], optional: [] } } }),
+    );
+    await integrations.mockProbe(PAPERLESS_PROBE.reachable);
+
+    await integrations.goto();
+    await waitForCards(integrations);
+
+    await expect(integrations.chip('history')).toHaveText('On');
+    await expect(integrations.chip('history')).not.toHaveText('Off');
+    await expect(integrations.card('history')).toContainText(
+      "History is always on. It can't be turned off.",
+    );
   });
 
   test('An invalid backup schedule shows the Off chip, the schedule and a warning', async ({
@@ -394,15 +426,15 @@ test.describe('Integrations page (Story #2217)', { tag: '@responsive' }, () => {
     await expect(page.locator('main h2:focus')).toHaveCount(0);
   });
 
-  test('Links: Account and Backups pointers and a setup guide link on every card', async ({
+  test('Links: Account and Backups pointers and a setup guide link on every card but History', async ({
     page,
   }) => {
     const integrations = new IntegrationsPage(page);
     await integrations.goto();
     await waitForCards(integrations);
 
-    // Setup guides open in a new tab on the documentation site
-    for (const anchor of INTEGRATION_ANCHORS) {
+    // Setup guides open in a new tab on the documentation site (History has none)
+    for (const anchor of CARDS_WITH_DOCS) {
       const link = integrations.docsLink(anchor);
       await expect(link).toHaveAttribute('href', /^https:\/\/cornerstone\.steiler\.dev\//);
       await expect(link).toHaveAttribute('target', '_blank');

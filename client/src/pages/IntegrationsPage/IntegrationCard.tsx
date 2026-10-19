@@ -27,6 +27,8 @@ export interface IntegrationCardProps {
   /** Environment names from the server; null while loading. */
   env: IntegrationEnv | null;
   hint: string;
+  /** Show the docs link (default true). */
+  docs?: boolean;
   loading: boolean;
   loadingLabel: string;
 }
@@ -59,6 +61,7 @@ export function IntegrationCard({
   after,
   env,
   hint,
+  docs = true,
   loading,
   loadingLabel,
 }: IntegrationCardProps) {
@@ -113,17 +116,19 @@ export function IntegrationCard({
                   )}
                 </dl>
               ))}
-            <a
-              className={styles.docsLink}
-              href={integrationGuideUrl(anchor)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={t('integrations.docs.linkLabel', { name: title })}
-              data-testid={`integration-${anchor}-docs`}
-            >
-              {t('integrations.docs.link')}
-              <span aria-hidden="true"> ↗</span>
-            </a>
+            {docs && (
+              <a
+                className={styles.docsLink}
+                href={integrationGuideUrl(anchor)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t('integrations.docs.linkLabel', { name: title })}
+                data-testid={`integration-${anchor}-docs`}
+              >
+                {t('integrations.docs.link')}
+                <span aria-hidden="true"> ↗</span>
+              </a>
+            )}
           </div>
         </>
       )}

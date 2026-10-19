@@ -157,13 +157,10 @@ export default async function subsidyProgramRoutes(fastify: FastifyInstance) {
         undoStore,
         { userId, subject: { type: 'subsidy_program', id: request.params.id }, reschedules: false },
         () =>
-          subsidyProgramService.updateSubsidyProgram(
-            fastify.db,
-            request.params.id,
-            request.body,
-            fastify.config.diaryAutoEvents,
+          subsidyProgramService.updateSubsidyProgram(fastify.db, request.params.id, request.body, {
             userId,
-          ),
+            undoable: true,
+          }),
       );
       return reply.status(200).send(undo ? { subsidyProgram, undo } : { subsidyProgram });
     },

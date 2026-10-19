@@ -509,8 +509,8 @@ describe('DiaryEntryDetailPage', () => {
     const entryWithSource: DiaryEntryDetail = {
       ...baseDetail,
       id: 'de-src',
-      entryType: 'work_item_status',
-      isAutomatic: true,
+      entryType: 'daily_log',
+      isAutomatic: false,
       sourceEntityType: 'work_item',
       sourceEntityId: 'wi-kitchen',
       sourceEntityTitle: 'Kitchen Renovation',
@@ -527,8 +527,8 @@ describe('DiaryEntryDetailPage', () => {
     const entryNoTitle: DiaryEntryDetail = {
       ...baseDetail,
       id: 'de-src-notitle',
-      entryType: 'work_item_status',
-      isAutomatic: true,
+      entryType: 'daily_log',
+      isAutomatic: false,
       sourceEntityType: 'work_item',
       sourceEntityId: 'wi-kitchen',
       sourceEntityTitle: null,
@@ -651,31 +651,130 @@ describe('DiaryEntryDetailPage', () => {
     });
   });
 
-  // ─── Automatic entry badge ────────────────────────────────────────────────────
+  // ─── Automatic entries: event layout (#2223) ─────────────────────────────────
 
-  it('shows "Automatic" badge for automatic entries', async () => {
-    const autoEntry: DiaryEntryDetail = {
-      ...baseDetail,
-      id: 'de-auto',
-      entryType: 'work_item_status',
-      isAutomatic: true,
-      createdBy: null,
-    };
-    mockGetDiaryEntry.mockResolvedValueOnce(autoEntry);
-    renderDetailPage('de-auto');
-    await waitFor(() => {
-      expect(screen.getByText('Automatic')).toBeInTheDocument();
+  describe('automatic (system event) entries', () => {
+    const event = (overrides: Partial<DiaryEntryDetail> = {}): DiaryEntryDetail =>
+      ({
+        ...baseDetail,
+        id: 'de-auto',
+        entryType: 'work_item_status',
+        isAutomatic: true,
+        title: null,
+        body: '',
+        createdBy: null,
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-kitchen',
+        sourceEntityTitle: 'Kitchen tiling',
+        sourceEntityExists: true,
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'not_started',
+          to: 'completed',
+          subjectLabel: 'Kitchen tiling',
+        },
+        ...overrides,
+      }) as DiaryEntryDetail;
+
+    it('renders the FeedRow sentence as the body, with the subject as h1 and no time chip', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(event());
+      renderDetailPage('de-auto');
+      const row = await screen.findByTestId('system-event-de-auto');
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Kitchen tiling');
+      expect(row.tagName).toBe('DIV');
+      expect(row).toHaveTextContent('Kitchen tiling went from Not started to Done');
+      expect(row).toHaveTextContent('Status change');
+      expect(row.querySelector('[class*="time"]')).toBeNull();
+    });
+
+    it('has no "Automatic" badge, no metadata summary, no "Related to" block and no type badge', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(event());
+      renderDetailPage('de-auto');
+      await screen.findByTestId('system-event-de-auto');
+      expect(screen.queryByText('Automatic')).not.toBeInTheDocument();
+      expect(screen.queryByText(/related to/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('auto-event-summary')).toBeNull();
+      expect(screen.queryByTestId('diary-type-badge-work_item_status')).toBeNull();
+    });
+
+    it('opens the subject through the row link with the entry as origin', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(event());
+      renderDetailPage('de-auto');
+      const link = await screen.findByTestId('system-event-de-auto-link');
+      expect(link).toHaveAttribute('href', '/project/work-items/wi-kitchen');
+      expect(link).toHaveTextContent('Open task');
+    });
+
+    it('links a progress payment event to the payment row', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(
+        event({
+          entryType: 'invoice_status',
+          sourceEntityType: 'invoice',
+          sourceEntityId: 'inv-9',
+          sourceEntityTitle: '2026-014',
+          metadata: {
+            v: 1,
+            event: 'status_changed',
+            from: 'pending',
+            to: 'paid',
+            subjectLabel: '2026-014',
+            amount: 1200,
+            depositEntryType: 'deposit',
+            depositId: 'dep-3',
+          },
+        }),
+      );
+      renderDetailPage('de-auto');
+      const link = await screen.findByTestId('system-event-de-auto-link');
+      expect(link).toHaveAttribute('href', '/budget/invoices/inv-9?payment=dep-3');
+    });
+
+    it('says "No longer exists" instead of a link when the subject is gone', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(event({ sourceEntityExists: false }));
+      renderDetailPage('de-auto');
+      expect(await screen.findByTestId('system-event-de-auto-removed')).toHaveTextContent(
+        'No longer exists',
+      );
+      expect(screen.queryByTestId('system-event-de-auto-link')).toBeNull();
+    });
+
+    it('a legacy automatic entry shows its stored text, muted', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(
+        event({
+          title: 'Stored title',
+          body: 'Work item "Kitchen" changed status to in_progress.',
+          metadata: { changeSummary: 'Status changed to in_progress' } as never,
+        }),
+      );
+      renderDetailPage('de-auto');
+      expect(await screen.findByTestId('system-event-de-auto')).toHaveTextContent(
+        'Work item "Kitchen" changed status to in_progress.',
+      );
+      expect(screen.queryByText('Status changed to in_progress')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Stored title');
+    });
+
+    it('a manual entry is unchanged: body, type badge and metadata summary', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...baseDetail,
+        metadata: { weather: 'sunny' },
+      });
+      renderDetailPage();
+      expect(await screen.findByText(baseDetail.body)).toBeInTheDocument();
+      expect(screen.getByTestId('diary-type-badge-daily_log')).toBeInTheDocument();
+      expect(screen.queryByTestId('system-event-de-1')).toBeNull();
     });
   });
 
   // ─── Source entity link ───────────────────────────────────────────────────────
 
-  it('shows the source entity section for automatic entries', async () => {
+  it('shows the source entity section for manual entries with a source', async () => {
     const autoEntry: DiaryEntryDetail = {
       ...baseDetail,
       id: 'de-auto-link',
-      entryType: 'work_item_status',
-      isAutomatic: true,
+      entryType: 'daily_log',
+      isAutomatic: false,
       sourceEntityType: 'work_item',
       sourceEntityId: 'wi-kitchen',
       createdBy: null,
@@ -695,8 +794,8 @@ describe('DiaryEntryDetailPage', () => {
     const invoiceEntry: DiaryEntryDetail = {
       ...baseDetail,
       id: 'de-inv-link',
-      entryType: 'invoice_status',
-      isAutomatic: true,
+      entryType: 'daily_log',
+      isAutomatic: false,
       sourceEntityType: 'invoice',
       sourceEntityId: 'inv-999',
       createdBy: null,
@@ -1117,8 +1216,8 @@ describe('DiaryEntryDetailPage', () => {
       ({
         ...baseDetail,
         id: 'de-auto-src',
-        entryType: 'work_item_status',
-        isAutomatic: true,
+        entryType: 'daily_log',
+        isAutomatic: false,
         createdBy: null,
         sourceEntityType,
         sourceEntityId: 'src-1',
@@ -1164,8 +1263,8 @@ describe('DiaryEntryDetailPage', () => {
     mockGetDiaryEntry.mockResolvedValueOnce({
       ...baseDetail,
       id: 'de-origin',
-      entryType: 'work_item_status',
-      isAutomatic: true,
+      entryType: 'daily_log',
+      isAutomatic: false,
       sourceEntityType: 'work_item',
       sourceEntityId: 'wi-kitchen',
       sourceEntityTitle: 'Kitchen Renovation',
@@ -1361,9 +1460,10 @@ describe('DiaryEntryDetailPage', () => {
       expect(screen.queryByRole('menuitem')).toBeNull();
     });
 
-    it('an automatic defect is locked: a plain Badge, no menu', async () => {
+    it('an automatic entry renders no defect status control at all (event layout)', async () => {
       await load(defect({ isAutomatic: true }));
-      expect(screen.getByTestId('defect-status').tagName).toBe('SPAN');
+      expect(screen.queryByTestId('defect-status')).toBeNull();
+      expect(screen.queryByTestId('defect-status-badge')).toBeNull();
       expect(screen.queryByRole('menuitem')).toBeNull();
     });
 

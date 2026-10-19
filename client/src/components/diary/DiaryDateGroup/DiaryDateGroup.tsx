@@ -1,6 +1,7 @@
 import { useFormatters } from '../../../lib/formatters.js';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { DiaryEntryCard } from '../DiaryEntryCard/DiaryEntryCard.js';
+import { SystemEventFeedRow } from '../../FeedRow/SystemEventFeedRow.js';
 import styles from './DiaryDateGroup.module.css';
 
 interface DiaryDateGroupProps {
@@ -19,11 +20,17 @@ export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
     <section className={styles.group} data-testid={`date-group-${date}`}>
       <h2 className={styles.dateHeader}>{formatDate(date)}</h2>
 
-      <div className={styles.entriesList}>
-        {sortedEntries.map((entry) => (
-          <DiaryEntryCard key={entry.id} entry={entry} />
-        ))}
-      </div>
+      <ul className={styles.entriesList}>
+        {sortedEntries.map((entry) =>
+          entry.isAutomatic ? (
+            <SystemEventFeedRow key={entry.id} entry={entry} />
+          ) : (
+            <li key={entry.id}>
+              <DiaryEntryCard entry={entry} />
+            </li>
+          ),
+        )}
+      </ul>
     </section>
   );
 }

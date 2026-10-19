@@ -246,7 +246,7 @@ describe('IntegrationsPage', () => {
       );
     });
 
-    it('shows an Off chip, Off history and no facts for unconfigured cards', async () => {
+    it('shows an Off chip and no facts for unconfigured cards (History stays On)', async () => {
       const data = body({
         ai: { configured: false, provider: null, model: null, host: null, env: envOf('AI') },
         singleSignOn: {
@@ -271,10 +271,25 @@ describe('IntegrationsPage', () => {
       expect(screen.getByTestId('integration-single-sign-on-status')).toHaveTextContent('Off');
       expect(screen.queryByTestId('integration-single-sign-on-fact-sign-in-service')).toBeNull();
       expect(fact('single-sign-on', 'redirect-address')).toBeInTheDocument();
-      expect(screen.getByTestId('integration-history-status')).toHaveTextContent('Off');
+      expect(screen.getByTestId('integration-history-status')).toHaveTextContent('On');
+      expect(screen.getByTestId('integration-history-status')).not.toHaveTextContent('Off');
       expect(fact('public-address', 'public-address')).toHaveTextContent('Not set.');
       expect(fact('public-address', 'behind-proxy')).toHaveTextContent('No');
       expect(fact('public-address', 'secure-cookies')).toHaveTextContent('No');
+    });
+
+    it('History is always on: the chip ignores diaryEvents.enabled, the hint says so, no docs link (#2223)', async () => {
+      const data = body({ diaryEvents: { enabled: false, env: { required: [], optional: [] } } });
+      await renderLoaded(data);
+
+      const card = screen.getByTestId('integration-history');
+      expect(screen.getByTestId('integration-history-status')).toHaveTextContent('On');
+      expect(within(card).getByText("History is always on. It can't be turned off.")).toBeVisible();
+      expect(within(card).queryByText(/It is on unless you turn it off/)).not.toBeInTheDocument();
+      expect(within(card).getByText('No setup needed on the server.')).toBeInTheDocument();
+      expect(screen.queryByTestId('integration-history-docs')).toBeNull();
+      expect(screen.getByTestId('integration-single-sign-on-docs')).toBeInTheDocument();
+      expect(screen.getByTestId('integration-ai-docs')).toBeInTheDocument();
     });
 
     it('shows the JIT wording for new accounts', async () => {

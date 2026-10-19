@@ -19,7 +19,11 @@ import {
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
 import { PROGRESS_PAYMENT_TRANSITIONS, allowedTargets } from '@cornerstone/shared';
-import { onDepositStatusChanged } from './diaryAutoEventService.js';
+import {
+  onDepositStatusChanged,
+  SYSTEM_CONTEXT,
+  type EventContext,
+} from './diaryAutoEventService.js';
 import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
 
@@ -215,7 +219,6 @@ export function createDeposit(
   invoiceId: string,
   data: CreateDepositRequest,
   userId: string,
-  diaryAutoEvents: boolean = true,
 ): InvoiceDeposit {
   const invoice = assertInvoiceExists(db, invoiceId);
 
@@ -325,8 +328,14 @@ export function createDeposit(
 
   // Fire diary event if status changed to paid or claimed
   if (targetStatus === 'paid' || targetStatus === 'claimed') {
-    const invoiceNumber = invoice.invoiceNumber || 'N/A';
-    onDepositStatusChanged(db, diaryAutoEvents, id, invoiceNumber, 'pending', targetStatus);
+    onDepositStatusChanged(
+      db,
+      { id, invoiceId, amount: row.amount, entryType: row.entryType as 'deposit' | 'refund' },
+      invoice.invoiceNumber,
+      'pending',
+      targetStatus,
+      { userId },
+    );
   }
 
   return toInvoiceDeposit(db, row);
@@ -348,8 +357,7 @@ export function updateDeposit(
   invoiceId: string,
   depositId: string,
   data: UpdateDepositRequest,
-  diaryAutoEvents: boolean = true,
-  actorUserId: string | null = null,
+  ctx: EventContext = SYSTEM_CONTEXT,
 ): InvoiceDeposit {
   const invoice = assertInvoiceExists(db, invoiceId);
   const existing = assertDepositBelongsToInvoice(db, invoiceId, depositId);
@@ -359,7 +367,6 @@ export function updateDeposit(
   let effectiveNewStatus: InvoiceDepositStatus = existing.status as InvoiceDepositStatus;
   let effectiveNewPaidDate: string | null = existing.paidDate;
   let effectiveNewClaimedDate: string | null = existing.claimedDate;
-  const invoiceNumber = invoice.invoiceNumber || 'N/A';
 
   // Update amount if provided
   if (data.amount !== undefined) {
@@ -493,12 +500,16 @@ export function updateDeposit(
     const oldStatus = existing.status as InvoiceDepositStatus;
     onDepositStatusChanged(
       db,
-      diaryAutoEvents,
-      depositId,
-      invoiceNumber,
+      {
+        id: depositId,
+        invoiceId,
+        amount: row.amount,
+        entryType: row.entryType as 'deposit' | 'refund',
+      },
+      invoice.invoiceNumber,
       oldStatus,
       effectiveNewStatus,
-      actorUserId,
+      ctx,
     );
   }
 

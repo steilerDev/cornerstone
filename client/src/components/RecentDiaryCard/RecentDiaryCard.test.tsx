@@ -250,4 +250,66 @@ describe('RecentDiaryCard', () => {
       expect(probedOrigin()).toBeNull();
     });
   });
+
+  // ─── System events (#2223): compact, non-interactive rows ───────────────────
+
+  describe('automatic entries', () => {
+    const autoEntry = (id: string, overrides: Partial<DiaryEntrySummary> = {}) =>
+      makeEntry(id, {
+        entryType: 'work_item_status',
+        isAutomatic: true,
+        title: null,
+        body: '',
+        createdBy: null,
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-1',
+        sourceEntityTitle: 'Kitchen tiling',
+        sourceEntityExists: true,
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'not_started',
+          to: 'in_progress',
+          subjectLabel: 'Kitchen tiling',
+        },
+        ...overrides,
+      });
+
+    it('renders a compact row: sentence, no link, no "No longer exists", not an <a>', () => {
+      renderCard({ entries: [autoEntry('ev-1')], isLoading: false, error: null });
+
+      const row = screen.getByTestId('system-event-ev-1');
+      expect(row.tagName).toBe('DIV');
+      expect(row).toHaveTextContent('Kitchen tiling went from Not started to In progress');
+      expect(row.closest('a')).toBeNull();
+      expect(row.querySelector('a')).toBeNull();
+      expect(screen.queryByTestId('system-event-ev-1-link')).toBeNull();
+      expect(screen.queryByTestId('recent-diary-ev-1')).toBeNull();
+    });
+
+    it('stays compact when the subject is gone (no removed label)', () => {
+      renderCard({
+        entries: [autoEntry('ev-2', { sourceEntityExists: false })],
+        isLoading: false,
+        error: null,
+      });
+      expect(screen.queryByTestId('system-event-ev-2-removed')).toBeNull();
+      expect(screen.getByTestId('system-event-ev-2')).toBeInTheDocument();
+    });
+
+    it('never shows the "Show hidden" toggle', () => {
+      renderCard({ entries: [autoEntry('ev-3')], isLoading: false, error: null });
+      expect(screen.queryByTestId('diary-show-hidden')).toBeNull();
+    });
+
+    it('keeps a manual entry as a link next to an automatic row', () => {
+      renderCard({
+        entries: [autoEntry('ev-4'), makeEntry('de-1')],
+        isLoading: false,
+        error: null,
+      });
+      expect(screen.getByTestId('recent-diary-de-1').tagName).toBe('A');
+      expect(screen.getByTestId('system-event-ev-4')).toBeInTheDocument();
+    });
+  });
 });

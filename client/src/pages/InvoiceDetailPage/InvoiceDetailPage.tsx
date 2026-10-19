@@ -20,6 +20,9 @@ import { ConvertQuotationModal } from './ConvertQuotationModal.js';
 import { useConvertQuotation } from './useConvertQuotation.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import styles from './InvoiceDetailPage.module.css';
+import depositStyles from './InvoiceDepositsSection.module.css';
+import shared from '../../styles/shared.module.css';
+import { useQueryTargetHighlight } from '../../hooks/useQueryTargetHighlight.js';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
@@ -62,6 +65,7 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -274,6 +278,14 @@ export function InvoiceDetailPage() {
     }
   };
 
+  useQueryTargetHighlight({
+    param: 'payment',
+    ready: invoice !== null,
+    selector: (paymentId) => `[data-payment-id="${CSS.escape(paymentId)}"]`,
+    highlightClassName: depositStyles.paymentTarget ?? 'paymentTarget',
+    onMissing: () => setPaymentStatus(t('invoiceDetail.deposits.paymentGone')),
+  });
+
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -426,6 +438,21 @@ export function InvoiceDetailPage() {
             </div>
           </dl>
         </section>
+
+        <div role="status" aria-atomic="true" data-testid="invoice-payment-status">
+          {paymentStatus && (
+            <div className={`${shared.bannerInfo} ${shared.bannerRow}`}>
+              <span>{paymentStatus}</span>
+              <button
+                type="button"
+                className={shared.btnSecondaryCompact}
+                onClick={() => setPaymentStatus('')}
+              >
+                {tc('button.close')}
+              </button>
+            </div>
+          )}
+        </div>
 
         <InvoiceDepositsSection
           invoiceId={id!}

@@ -1,19 +1,15 @@
 /**
- * E2E tests for AreaBreadcrumb in diary entry source entity section (Story #1271)
+ * E2E tests for the diary entry source entity section (Story #1271), reworked for #2223.
  *
- * When a diary entry has sourceEntityType === 'work_item', the detail page renders a
- * compact AreaBreadcrumb below the source entity link. This test verifies:
+ * #2223 removed the nested "Related to" source section (source link and area breadcrumb) from
+ * system events: the event row carries one "Open <object>" link instead. This file now guards the
+ * removal, so the area breadcrumb cannot silently come back on automatic entries:
  *
- *   Scenario 1: work_item source with area → compact breadcrumb with area name visible
- *   Scenario 2: work_item source without area → "No area" text visible in source section
- *   Scenario 3: non-work_item source → no compact breadcrumb in source section
+ *   Scenario 1: work_item event for a task with an area -> link row only, no source section
+ *   Scenario 2: work_item event for a task without an area -> link row only, no "No area" text
+ *   Scenario 3: invoice event (mock) -> "Open invoice" link, no source section
  *
- * Automatic diary entries (sourceEntityType: 'work_item') are created by the server when
- * a work item's status changes via PATCH /api/work-items/:id. We trigger this in Scenarios
- * 1 and 2 by patching the work item status and then finding the resulting diary entry.
- *
- * Scenario 3 uses a mock response to avoid the complexity of triggering other automatic
- * event types (e.g. invoice_status) in a controlled manner.
+ * Scenarios 1 and 2 trigger the real event by patching the work item status.
  */
 
 import type { Page } from '@playwright/test';
@@ -25,6 +21,7 @@ import {
   createAreaViaApi,
   deleteAreaViaApi,
 } from '../../fixtures/apiHelpers.js';
+import { mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { API } from '../../fixtures/testData.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,8 +57,8 @@ async function findAutoDiaryEntryId(page: Page, workItemId: string): Promise<str
 // Scenario 1: work_item source with area → compact breadcrumb visible
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Diary source entity — work_item with area (Scenario 1)', () => {
-  test('Diary detail source section shows compact breadcrumb when work item has an area', async ({
+test.describe('System event link — work_item with area (Scenario 1)', () => {
+  test('Event detail shows the link row and no source section or area breadcrumb for a task with an area', async ({
     page,
     testPrefix,
   }) => {
@@ -94,18 +91,9 @@ test.describe('Diary source entity — work_item with area (Scenario 1)', () => 
       await detailPage.goto(diaryEntryId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // Source section must be visible (sourceEntityType = 'work_item')
-      await expect(detailPage.sourceSection).toBeVisible();
-
-      // The compact breadcrumb is a span[class*="compact"] inside the source section
-      const breadcrumbSpan = detailPage.sourceSection.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).toBeVisible();
-
-      const breadcrumbText = await breadcrumbSpan.textContent();
-      expect(breadcrumbText).toContain(rootName);
-      expect(breadcrumbText).toContain(childName);
-      // Separator character › (AreaBreadcrumb path separator)
-      expect(breadcrumbText).toContain('›');
+      await expect(detailPage.systemEventLink(diaryEntryId)).toHaveText(/Open task/);
+      await expect(detailPage.sourceSection).toHaveCount(0);
+      await expect(page.getByText(childName)).toHaveCount(0);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (childAreaId) await deleteAreaViaApi(page, childAreaId);
@@ -118,8 +106,8 @@ test.describe('Diary source entity — work_item with area (Scenario 1)', () => 
 // Scenario 2: work_item source without area → "No area" text visible
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Diary source entity — work_item without area (Scenario 2)', () => {
-  test('"No area" fallback text visible in source section when work item has no area', async ({
+test.describe('System event link — work_item without area (Scenario 2)', () => {
+  test('Event detail shows the link row and no "No area" text for a task without an area', async ({
     page,
     testPrefix,
   }) => {
@@ -144,16 +132,9 @@ test.describe('Diary source entity — work_item without area (Scenario 2)', () 
       await detailPage.goto(diaryEntryId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // Source section must be visible
-      await expect(detailPage.sourceSection).toBeVisible();
-
-      // Null area renders <span className={styles.muted}>No area</span> — not inside compact span.
-      // AreaBreadcrumb returns the muted span directly when area === null.
-      await expect(detailPage.sourceSection.getByText('No area', { exact: true })).toBeVisible();
-
-      // No compact breadcrumb span should be present when area is null
-      // (AreaBreadcrumb only renders [class*="compact"] when area !== null)
-      await expect(detailPage.sourceSection.locator('[class*="compact"]')).not.toBeVisible();
+      await expect(detailPage.systemEventLink(diaryEntryId)).toHaveText(/Open task/);
+      await expect(detailPage.sourceSection).toHaveCount(0);
+      await expect(page.getByText('No area', { exact: true })).toHaveCount(0);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
@@ -164,37 +145,29 @@ test.describe('Diary source entity — work_item without area (Scenario 2)', () 
 // Scenario 3: non-work_item source → no breadcrumb in source section
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Diary source entity — non-work_item source (Scenario 3)', () => {
-  test('No compact breadcrumb in source section for non-work_item source entity type', async ({
-    page,
-  }) => {
+test.describe('System event link — invoice source (Scenario 3)', () => {
+  test('An invoice event shows "Open invoice" and no source section', async ({ page }) => {
     const detailPage = new DiaryEntryDetailPage(page);
 
     // Use a mock to test a non-work_item source type (e.g., invoice_status)
     // The AreaBreadcrumb is only rendered when sourceEntityType === 'work_item'.
     const mockId = 'mock-diary-invoice-source-001';
-    const mockEntry = {
+    const mockEntry = mockSystemEvent({
       id: mockId,
       entryType: 'invoice_status',
       entryDate: '2026-01-15',
-      title: '[Invoice] Status changed to paid',
-      body: 'Invoice #INV-001 status changed from pending to paid.',
-      metadata: {
-        changeSummary: 'Status changed from pending to paid.',
-        previousValue: 'pending',
-        newValue: 'paid',
-      },
-      isAutomatic: true,
-      isSigned: false,
+      createdAt: '2026-01-15T09:00:00.000Z',
       sourceEntityType: 'invoice',
       sourceEntityId: 'invoice-001',
-      sourceEntityTitle: '#INV-001',
-      sourceEntityArea: null,
-      photoCount: 0,
-      createdBy: null,
-      createdAt: '2026-01-15T09:00:00.000Z',
-      updatedAt: '2026-01-15T09:00:00.000Z',
-    };
+      sourceEntityTitle: 'INV-001',
+      metadata: {
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'paid',
+        subjectLabel: 'INV-001',
+      },
+    });
 
     await page.route(`**/api/photos*`, async (route) => {
       if (route.request().method() === 'GET') {
@@ -224,12 +197,8 @@ test.describe('Diary source entity — non-work_item source (Scenario 3)', () =>
       await detailPage.goto(mockId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // Source section must be visible (there IS a source entity)
-      await expect(detailPage.sourceSection).toBeVisible();
-
-      // But no compact breadcrumb — AreaBreadcrumb is only rendered for work_item sourceType
-      const breadcrumbSpan = detailPage.sourceSection.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).not.toBeVisible();
+      await expect(detailPage.systemEventLink(mockId)).toHaveText(/Open invoice/);
+      await expect(detailPage.sourceSection).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
