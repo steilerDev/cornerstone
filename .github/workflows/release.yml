@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -212,7 +212,7 @@ jobs:
 
       - name: Docker Scout compare to latest
         if: matrix.platform == 'linux/amd64' && github.actor == 'steilerdev'
-        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
         with:
           command: compare
           image: registry://steilerdev/cornerstone@${{ steps.build.outputs.digest }}
@@ -225,7 +225,7 @@ jobs:
           summary: true
 
       - name: Upload digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: docker-digests-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
           path: /tmp/digests/*
@@ -246,7 +246,7 @@ jobs:
 
     steps:
       - name: Download digests
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: /tmp/digests
           pattern: docker-digests-*
@@ -340,7 +340,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker Scout CVE scan
-        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
         with:
           command: cves
           image: steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }}
@@ -348,7 +348,7 @@ jobs:
           summary: true
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         if: always()
         with:
           sarif_file: scout-results.sarif
@@ -464,7 +464,7 @@ jobs:
           docker tag steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }} cornerstone:e2e
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -480,7 +480,7 @@ jobs:
         run: npm run docs:screenshots
 
       - name: Upload screenshots artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: docs-screenshots
           path: docs/static/img/screenshots/
@@ -517,13 +517,13 @@ jobs:
           ref: v${{ needs.release.outputs.new-release-version }}
 
       - name: Download screenshots
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: docs-screenshots
           path: docs/static/img/screenshots/
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
