@@ -10,6 +10,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # @actions/cache (used by actions/cache and setup-node) keeps a step alive until its
+  # per-segment download timer fires, even after the restore already failed — 10 min by
+  # default. A healthy restore of our largest cache (~400 MB) takes <10s, so cap the
+  # stall at 2 min; a timed-out restore is a cache miss, never a failed step.
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+
 jobs:
   detect-changes:
     name: Detect Changes
@@ -590,19 +597,43 @@ jobs:
           retention-days: 7
 
   e2e:
-    name: E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    name: E2E Tests (${{ matrix.project }} ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     needs: [detect-changes, docker, e2e-warmup]
     if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
     timeout-minutes: 15
     strategy:
       fail-fast: ${{ github.base_ref == 'main' }}
+      # 16 jobs, sharded per Playwright project. A plain `--shard=n/16` splits the
+      # project-ordered test list (desktop -> tablet -> mobile) by test COUNT, so the
+      # first ~7 shards got only Chromium desktop tests (~1.2s avg, ~3.5m wall) and the
+      # last ~8 only WebKit tablet/mobile tests (~3.2s avg, 8-10m wall) — run 39268986051.
+      # Sharding each project on its own puts every job near the same wall time.
+      # Split is proportional to measured wall time per project (desktop ~22m,
+      # tablet ~32m, mobile ~34m on 2 workers). Re-balance the counts here when one
+      # project's shards drift >2m apart from the others'.
       matrix:
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        shardTotal: [16]
+        include:
+          - { project: desktop, shardIndex: 1, shardTotal: 4 }
+          - { project: desktop, shardIndex: 2, shardTotal: 4 }
+          - { project: desktop, shardIndex: 3, shardTotal: 4 }
+          - { project: desktop, shardIndex: 4, shardTotal: 4 }
+          - { project: tablet, shardIndex: 1, shardTotal: 6 }
+          - { project: tablet, shardIndex: 2, shardTotal: 6 }
+          - { project: tablet, shardIndex: 3, shardTotal: 6 }
+          - { project: tablet, shardIndex: 4, shardTotal: 6 }
+          - { project: tablet, shardIndex: 5, shardTotal: 6 }
+          - { project: tablet, shardIndex: 6, shardTotal: 6 }
+          - { project: mobile, shardIndex: 1, shardTotal: 6 }
+          - { project: mobile, shardIndex: 2, shardTotal: 6 }
+          - { project: mobile, shardIndex: 3, shardTotal: 6 }
+          - { project: mobile, shardIndex: 4, shardTotal: 6 }
+          - { project: mobile, shardIndex: 5, shardTotal: 6 }
+          - { project: mobile, shardIndex: 6, shardTotal: 6 }
     env:
       SHARD_INDEX: ${{ matrix.shardIndex }}
       SHARD_TOTAL: ${{ matrix.shardTotal }}
+      E2E_PROJECT: ${{ matrix.project }}
       E2E_FAIL_FAST: ${{ github.base_ref == 'main' && '1' || '' }}
 
     steps:
@@ -617,11 +648,15 @@ jobs:
       - name: Load image
         run: docker load -i cornerstone-e2e.tar
 
+      # No `cache: npm` here: the ~270 MB npm cache saved ~5s of `npm ci -w e2e` per
+      # job, but 16 parallel restores pushed the cache store over its egress limit, and
+      # the failed restore then held this step for 10 minutes (run 39268986051: shard
+      # 15 was killed by the job timeout while its tests were passing).
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
-          cache: npm
+          package-manager-cache: false
 
       - name: Install E2E dependencies
         run: npm ci -w e2e
@@ -686,14 +721,18 @@ jobs:
         run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
-      - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-        run: npm run test:e2e:shard
+      # `--project` also runs the `auth-setup` dependency. The blob file is named
+      # report-<project>-<n>.zip, so the merge job's merge-multiple download keeps
+      # every shard's report.
+      - name: Run E2E tests (${{ matrix.project }} shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+        run: npm run test:shard -- --project="$E2E_PROJECT"
+        working-directory: e2e
 
       - name: Upload blob report
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: e2e-blob-report-${{ matrix.shardIndex }}
+          name: e2e-blob-report-${{ matrix.project }}-${{ matrix.shardIndex }}
           path: e2e/blob-report/
           retention-days: 1
 
@@ -701,7 +740,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: e2e-test-output-${{ matrix.shardIndex }}
+          name: e2e-test-output-${{ matrix.project }}-${{ matrix.shardIndex }}
           path: |
             e2e/playwright-output/
             e2e/test-results/
