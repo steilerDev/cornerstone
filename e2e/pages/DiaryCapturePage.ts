@@ -5,7 +5,7 @@
  *
  * ── API (keep stable: E2E-2 migrates ~20 specs onto it) ───────────────────────────────────────
  *
- * Navigation       goto({ date?, areaId? }) · gotoEdit(id) · gotoLocked(id)
+ * Navigation       goto({ date?, areaId?, start? }) · gotoEdit(id) · gotoLocked(id)
  *                  waitForDraft() -> id of the draft (waits for /diary/<id>/edit)
  * Page             heading · breadcrumbs · lockedMessage (EmptyState of a signed/automatic entry)
  *                  notFoundMessage
@@ -278,13 +278,24 @@ export class DiaryCapturePage {
   // ── Navigation ────────────────────────────────────────────────────────────────────────────
 
   /** Open `/diary/new`; optional `date` (YYYY-MM-DD) and `areaId` query pre-selects. */
-  async goto(options: { date?: string; areaId?: string } = {}): Promise<void> {
+  /**
+   * Open the capture screen. `start` is the Log now tile query (#2222): `photo` may open the
+   * camera dialog over the page, so only the screen itself is awaited then.
+   */
+  async goto(
+    options: { date?: string; areaId?: string; start?: 'photo' | 'note' | 'delivery' } = {},
+  ): Promise<void> {
     const query: Record<string, string> = {};
     if (options.date) query.date = options.date;
     if (options.areaId) query.areaId = options.areaId;
+    if (options.start) query.start = options.start;
     const search = new URLSearchParams(query).toString();
     await this.page.goto(search ? `${DIARY_CAPTURE_NEW_ROUTE}?${search}` : DIARY_CAPTURE_NEW_ROUTE);
-    await this.waitForForm();
+    if (options.start === 'photo') {
+      await this.page.getByTestId('capture-screen').waitFor({ state: 'visible' });
+    } else {
+      await this.waitForForm();
+    }
   }
 
   async gotoEdit(id: string): Promise<void> {

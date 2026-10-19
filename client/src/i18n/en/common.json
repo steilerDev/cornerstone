@@ -120,6 +120,15 @@
     "attention": "Needs attention",
     "accountMenu": "Account menu for {{name}}"
   },
+  "createSheet": {
+    "logNow": "Log now",
+    "quickLog": {
+      "photo": "Photo",
+      "note": "Note",
+      "delivery": "Delivery"
+    },
+    "lastUsed": "{{label}}, last used"
+  },
   "createMenu": {
     "entry": {
       "diaryEntry": "Diary entry",

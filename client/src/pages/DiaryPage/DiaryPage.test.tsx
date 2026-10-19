@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { routeUrl } from '@cornerstone/shared';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
 import type React from 'react';
@@ -911,13 +912,31 @@ describe('DiaryPage', () => {
 
   // ─── Filter mode changes call API ──────────────────────────────────────────
 
-  // ─── New Entry button ─────────────────────────────────────────────────────
+  // ─── Log today link (#2222) ───────────────────────────────────────────────
 
-  it('renders a "+ New Entry" link pointing to /diary/new', async () => {
+  it('renders a "Log today" link to /diary/new, and no "New Entry" button', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    const newEntryLink = screen.getByRole('link', { name: /new entry/i });
-    expect(newEntryLink).toHaveAttribute('href', '/diary/new');
+    const link = screen.getByRole('link', { name: 'Log today' });
+    expect(link).toHaveAttribute('href', routeUrl('diaryEntryNew'));
+    expect(link).toHaveAttribute('href', '/diary/new');
+    expect(screen.queryByRole('link', { name: /new entry/i })).toBeNull();
+    expect(screen.queryByText('New Entry')).toBeNull();
+  });
+
+  it('pushes the capture screen with the diary page (and its filters) as origin on click', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+        <DiaryPage />
+      </RecordingRouter>,
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Log today' }));
+
+    expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    expect(log.states[0]).not.toHaveProperty('background');
   });
 
   // ─── Export functionality removed ─────────────────────────────────────────

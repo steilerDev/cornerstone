@@ -124,6 +124,15 @@ function GoToNew() {
   );
 }
 
+function GoToStart({ start }: { start: string }) {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(`/diary/new?start=${start}`)}>
+      go to start {start}
+    </button>
+  );
+}
+
 function renderPage(path: string, state?: unknown) {
   return render(
     <MemoryRouter
@@ -148,6 +157,8 @@ function renderPage(path: string, state?: unknown) {
       </Routes>
       <Probe />
       <GoToNew />
+      <GoToStart start="note" />
+      <GoToStart start="delivery" />
     </MemoryRouter>,
   );
 }
@@ -420,5 +431,86 @@ describe('DiaryCapturePage: not found and load errors', () => {
     renderPage('/diary/draft-1/edit');
 
     expect(await screen.findByText("Couldn't load this entry.")).toBeInTheDocument();
+  });
+});
+
+describe('DiaryCapturePage: Log now start (#2222)', () => {
+  const frame = () =>
+    act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  it('hands ?start= from the URL to the capture screen, then removes it from the URL', async () => {
+    renderPage('/diary/new?areaId=bath&start=note');
+    await frame();
+
+    expect(screen.getByTestId('capture-type-more')).toHaveAttribute('data-current', 'true');
+    expect(screen.getByTestId('capture-type-more')).toHaveTextContent('Note');
+    expect(screen.getByTestId('capture-title-input')).toHaveFocus();
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary/new?areaId=bath'),
+    );
+    expect(screen.getByTestId('location').textContent).not.toContain('start');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unknown start value', async () => {
+    renderPage('/diary/new?start=video');
+    await frame();
+
+    expect(screen.getByTestId('capture-type-daily_log')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('location')).toHaveTextContent('/diary/new?start=video');
+  });
+
+  it('remounts when a new start arrives on /diary/new and applies it', async () => {
+    const user = userEvent.setup();
+    renderPage('/diary/new');
+    await user.type(screen.getByTestId('capture-title-input'), 'x');
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    const mountsBefore = stripMounts;
+    expect(screen.getByTestId('capture-type-daily_log')).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'go to start delivery' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-type-delivery')).toHaveAttribute('aria-pressed', 'true'),
+    );
+    expect(stripMounts).toBe(mountsBefore + 1);
+  });
+
+  it('starting Note from an untouched /diary/new switches the type and focuses the title', async () => {
+    const user = userEvent.setup();
+    renderPage('/diary/new');
+
+    await user.click(screen.getByRole('button', { name: 'go to start note' }));
+    await frame();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('capture-type-more')).toHaveAttribute('data-current', 'true'),
+    );
+    expect(screen.getByTestId('capture-title-input')).toHaveFocus();
+  });
+
+  it('consuming start does not remount: a typed title survives and the screen mounts once', async () => {
+    const user = userEvent.setup();
+    renderPage('/diary/new?start=note');
+    await frame();
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/diary\/new$/));
+    const input = screen.getByTestId('capture-title-input');
+
+    await user.type(input, 'Screed');
+
+    expect(screen.getByTestId('capture-title-input')).toBe(input);
+    expect(input).toHaveValue('Screed');
+    expect(stripMounts).toBe(1);
+  });
+
+  it('does not remount when start goes back to null while typing', async () => {
+    const user = userEvent.setup();
+    renderPage('/diary/new?start=note');
+    await frame();
+    await user.type(screen.getByTestId('capture-title-input'), 'Abc');
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+
+    expect(screen.getByTestId('capture-title-input')).toHaveValue('Abc');
+    expect(stripMounts).toBe(1);
   });
 });

@@ -4,7 +4,8 @@ import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { useTranslation } from 'react-i18next';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
-import { useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { useCreateEntryLink, useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
 import type {
   DiaryEntryType,
   DiaryEntrySummary,
@@ -57,6 +58,7 @@ export default function DiaryPage() {
   useKeyboardShortcuts(listShortcuts);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const logToday = useCreateEntryLink('diaryEntry');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusedKeyRef = useRef<string | null>(null);
 
@@ -303,13 +305,14 @@ export default function DiaryPage() {
               {totalItems === 1 ? t('page.entryCountSingular') : t('page.entryCountPlural')}
             </p>
           </div>
-          <Link
-            to={routeUrl('diaryEntryNew')}
+          <NavAnchor
+            to={logToday.to}
+            state={logToday.state}
             className={`${shared.btnPrimary} ${styles.createButton}`}
-            style={{ textDecoration: 'none' }}
+            data-testid="diary-log-today"
           >
-            {t('page.newEntryButton')}
-          </Link>
+            {t('page.logToday')}
+          </NavAnchor>
         </div>
       </header>
 

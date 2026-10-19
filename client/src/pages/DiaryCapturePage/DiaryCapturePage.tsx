@@ -13,7 +13,7 @@ import { useDiaryEntryTitle } from '../../hooks/useDiaryEntryTitle.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { getDiaryEntry } from '../../lib/diaryApi.js';
 import { getPhotosForEntity } from '../../lib/photoApi.js';
-import { prefillFromSearch } from '../../navigation/createQuery.js';
+import { prefillFromSearch, startModeFromSearch } from '../../navigation/createQuery.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import styles from './DiaryCapturePage.module.css';
 
@@ -43,6 +43,14 @@ export default function DiaryCapturePage() {
   // The draft this page instance created: its URL change must not reload or reset the form.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [newKey, setNewKey] = useState(0);
+  const start = startModeFromSearch(searchParams);
+  // A new start mode arriving on /diary/new (New sheet while the screen is open) restarts it;
+  // consuming it (start -> null) must not.
+  const [prevStart, setPrevStart] = useState(start);
+  if (prevStart !== start) {
+    setPrevStart(start);
+    if (start !== null && routeId === null) setNewKey((key) => key + 1);
+  }
   const [prevRouteId, setPrevRouteId] = useState(routeId);
   if (prevRouteId !== routeId) {
     setPrevRouteId(routeId);
@@ -170,6 +178,7 @@ export default function DiaryCapturePage() {
         />
       }
       onDraftCreated={setCreatedId}
+      start={start}
     />
   );
 }

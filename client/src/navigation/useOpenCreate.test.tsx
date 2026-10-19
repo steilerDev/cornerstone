@@ -11,7 +11,13 @@ import {
   useCreateContext,
 } from '../components/CreateMenu/CreateMenuContext.js';
 import type { CreateEntryId } from './createEntries.js';
-import { createLinkFor, useCreateEntryLink, useOpenCreate } from './useOpenCreate.js';
+import type { QuickLogMode } from './createQuery.js';
+import {
+  createLinkFor,
+  useCreateEntryLink,
+  useOpenCreate,
+  useQuickLogLink,
+} from './useOpenCreate.js';
 
 const LOCATION = { pathname: '/schedule/gantt', search: '?q=1', hash: '', state: null, key: 'k0' };
 
@@ -151,5 +157,35 @@ describe('useCreateEntryLink', () => {
     expect(to).toBe(routeUrl('workItemNew', undefined, { areaId: 'a1' }));
     expect(state.createOpener).toBe(true);
     expect(state.background).toBeDefined();
+  });
+});
+
+function QuickProbe({ mode }: { mode: QuickLogMode }) {
+  const { to, state } = useQuickLogLink(mode);
+  return <output data-testid="quick">{JSON.stringify({ to, state })}</output>;
+}
+
+describe('useQuickLogLink', () => {
+  it('links to the capture screen with the page area and the origin, nothing else', () => {
+    setup(
+      <>
+        <Context areaId="a1" date="2026-03-01" />
+        <QuickProbe mode="note" />
+      </>,
+    );
+    const { to, state } = JSON.parse(screen.getByTestId('quick').textContent ?? '{}') as {
+      to: string;
+      state: Record<string, unknown>;
+    };
+    expect(to).toBe('/diary/new?areaId=a1&start=note');
+    expect(state).toMatchObject({ origin: { to: '/schedule/gantt?q=1' } });
+    expect(state).not.toHaveProperty('background');
+    expect(state).not.toHaveProperty('createOpener');
+  });
+
+  it('works without a provider (no area)', () => {
+    setup(<QuickProbe mode="photo" />, createRouterLog(), false);
+    const { to } = JSON.parse(screen.getByTestId('quick').textContent ?? '{}') as { to: string };
+    expect(to).toBe('/diary/new?start=photo');
   });
 });

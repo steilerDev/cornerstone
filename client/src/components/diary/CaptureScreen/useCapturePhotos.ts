@@ -119,6 +119,9 @@ export function useCapturePhotos({
   const [dragActive, setDragActive] = useState(false);
   const [recentVersion, setRecentVersion] = useState(0);
   const [hasVideoInput, setHasVideoInput] = useState(false);
+  const [devicesChecked, setDevicesChecked] = useState(
+    () => typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices,
+  );
   const [batch, setBatch] = useState({ total: 0, done: 0 });
   const [seen, setSeen] = useState({ inFlight: 0, failed: 0 });
 
@@ -454,16 +457,27 @@ export function useCapturePhotos({
     navigator.mediaDevices
       .enumerateDevices()
       .then((devices) => {
-        if (!cancelled) setHasVideoInput(devices.some((device) => device.kind === 'videoinput'));
+        if (cancelled) return;
+        setHasVideoInput(devices.some((device) => device.kind === 'videoinput'));
+        setDevicesChecked(true);
       })
       .catch(() => {
         // Without a device list the button stays hidden on a fine pointer.
+        if (!cancelled) setDevicesChecked(true);
       });
     return () => {
       cancelled = true;
     };
   }, []);
   const showTakePhotos = coarsePointer || hasVideoInput;
+
+  /** Opens the live viewfinder when it can be used; false when the caller must fall back. */
+  const openLiveCamera = useCallback((): boolean => {
+    if (!isLiveCameraSupported() || isCameraDeniedThisSession() || !showTakePhotos) return false;
+    setShotKeys([]);
+    setCameraOpen(true);
+    return true;
+  }, [showTakePhotos]);
 
   const takePhotos = () => {
     if (isLiveCameraSupported() && !isCameraDeniedThisSession()) {
@@ -686,6 +700,8 @@ export function useCapturePhotos({
       chooseFromLibrary: () => libraryInputRef.current?.click(),
       takePhotos,
       showTakePhotos,
+      cameraKnown: coarsePointer || devicesChecked,
+      openLiveCamera,
       dragActive,
       dropHandlers,
     },

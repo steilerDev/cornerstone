@@ -4,6 +4,7 @@ import {
   CREATE_MENU_ENTRY_IDS,
   CREATE_TARGETS,
   createHref,
+  quickLogHref,
   visibleCreateEntries,
 } from './createEntries.js';
 
@@ -67,7 +68,7 @@ describe('createEntries', () => {
         routeUrl('milestoneNew', undefined, { date: '2026-03-01' }),
       );
       expect(createHref('diaryEntry', all)).toBe(
-        routeUrl('diaryEntryNew', undefined, { date: '2026-03-01' }),
+        routeUrl('diaryEntryNew', undefined, { areaId: 'a1', date: '2026-03-01' }),
       );
       expect(createHref('company', all)).toBe(routeUrl('companyNew'));
       expect(createHref('fundingSource', all)).toBe(
@@ -106,5 +107,36 @@ describe('createEntries', () => {
       expect(createHref('milestone', { date: '2026-02-30' })).toBe(routeUrl('milestoneNew'));
       expect(createHref('task', { areaId: 'a/b' })).toBe(routeUrl('workItemNew'));
     });
+  });
+});
+
+describe('quickLogHref', () => {
+  const all = { areaId: 'a1', companyId: 'c1', date: '2026-03-01' };
+
+  it('keeps the area, drops date and company, and orders areaId before start', () => {
+    expect(quickLogHref('note', all)).toBe('/diary/new?areaId=a1&start=note');
+    expect(quickLogHref('note', all)).toBe(
+      routeUrl('diaryEntryNew', undefined, { areaId: 'a1', start: 'note' }),
+    );
+  });
+
+  it.each(['photo', 'note', 'delivery'] as const)(
+    'sends only start=%s without a context',
+    (mode) => {
+      expect(quickLogHref(mode, {})).toBe(`/diary/new?start=${mode}`);
+    },
+  );
+
+  it('never back-dates: a calendar page date is not carried', () => {
+    expect(quickLogHref('photo', { date: '2026-03-01' })).not.toContain('date');
+  });
+
+  it('drops an invalid area id', () => {
+    expect(quickLogHref('delivery', { areaId: 'a/b' })).toBe('/diary/new?start=delivery');
+  });
+
+  it('is served by a route that carries start, areaId and date', () => {
+    const entry = getRouteEntry('diaryEntryNew') as { carries?: readonly string[] };
+    expect(entry.carries).toEqual(expect.arrayContaining(['start', 'areaId', 'date']));
   });
 });

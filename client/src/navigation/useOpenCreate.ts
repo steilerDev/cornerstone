@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCreatePrefill } from '../components/CreateMenu/CreateMenuContext.js';
-import { CREATE_TARGETS, createHref } from './createEntries.js';
+import { CREATE_TARGETS, createHref, quickLogHref } from './createEntries.js';
 import type { CreateEntryId } from './createEntries.js';
-import type { CreatePrefill } from './createQuery.js';
+import type { CreatePrefill, QuickLogMode } from './createQuery.js';
 import { backgroundStateFor } from './dialogRoutes.js';
 import type { BackgroundLocation } from './dialogRoutes.js';
 import { originStateFor } from './origin.js';
@@ -62,5 +62,18 @@ export function useCreateEntryLink(id: CreateEntryId, options?: CreateOpenOption
   return useMemo(
     () => createLinkFor(id, prefill, { pathname, search, hash, state, key }, { createOpener }),
     [id, prefill, pathname, search, hash, state, key, createOpener],
+  );
+}
+
+/** `{ to, state }` of a Log now tile: the capture screen with the page's area and the origin. */
+export function useQuickLogLink(mode: QuickLogMode): CreateLink {
+  const { pathname, search, hash } = useLocation();
+  const prefill = useCreatePrefill();
+  return useMemo(
+    () => ({
+      to: quickLogHref(mode, prefill),
+      state: originStateFor({ pathname, search, hash }),
+    }),
+    [mode, prefill, pathname, search, hash],
   );
 }

@@ -41,3 +41,18 @@ export function prefillFromSearch(params: URLSearchParams): CreatePrefill {
     date: params.get('date') ?? undefined,
   });
 }
+
+/** `?start=` of the capture screen: which Log now tile opened it (applied once, then removed). */
+export const START_PARAM = 'start';
+export const QUICK_LOG_MODES = ['photo', 'note', 'delivery'] as const;
+export type QuickLogMode = (typeof QUICK_LOG_MODES)[number];
+
+export function isQuickLogMode(value: unknown): value is QuickLogMode {
+  return typeof value === 'string' && (QUICK_LOG_MODES as readonly string[]).includes(value);
+}
+
+/** The start mode of a query string; any other value is ignored (null). */
+export function startModeFromSearch(params: URLSearchParams): QuickLogMode | null {
+  const value = params.get(START_PARAM);
+  return isQuickLogMode(value) ? value : null;
+}

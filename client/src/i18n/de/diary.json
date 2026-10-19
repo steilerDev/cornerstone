@@ -1,6 +1,6 @@
 {
   "page": {
-    "newEntryButton": "Neuer Eintrag",
+    "logToday": "Heute erfassen",
     "entryCountSingular": "Eintrag",
     "entryCountPlural": "Einträge",
     "timelineAriaLabel": "Einträge im Bautagebuch"

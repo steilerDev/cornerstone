@@ -1,6 +1,6 @@
 {
   "page": {
-    "newEntryButton": "New Entry",
+    "logToday": "Log today",
     "entryCountSingular": "entry",
     "entryCountPlural": "entries",
     "timelineAriaLabel": "Site diary entries"

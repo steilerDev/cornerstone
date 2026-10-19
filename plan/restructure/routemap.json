@@ -259,8 +259,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["areaId", "date"],
-    "note": "Capture screen: no type-picker page; type selector inside; always a new entry (offers 'Add to that entry instead' when the same date and title exist); no draft until the first photo or character. Entry points: phone ＋, 'Log today', New menu."
+    "carries": ["areaId", "date", "start"],
+    "note": "Capture screen: no type-picker page; type selector inside; always a new entry (offers 'Add to that entry instead' when the same date and title exist); no draft until the first photo or character. Entry points: phone ＋, 'Log today', New menu. ?start=photo|note|delivery (from the New sheet's Log now tiles) sets the type / opens the camera and is removed on arrival (replace)."
   },
   {
     "from": "/diary/:id",

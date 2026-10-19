@@ -1,5 +1,11 @@
 import { describe, it, expect } from '@jest/globals';
-import { prefillFromSearch, sanitizePrefill } from './createQuery.js';
+import {
+  QUICK_LOG_MODES,
+  isQuickLogMode,
+  prefillFromSearch,
+  sanitizePrefill,
+  startModeFromSearch,
+} from './createQuery.js';
 
 describe('sanitizePrefill', () => {
   it('accepts a real calendar date and valid ids', () => {
@@ -43,5 +49,35 @@ describe('prefillFromSearch', () => {
       date: '2026-03-01',
     });
     expect(prefillFromSearch(new URLSearchParams(''))).toEqual({});
+  });
+});
+
+describe('isQuickLogMode', () => {
+  it('lists photo, note, delivery in order', () => {
+    expect(QUICK_LOG_MODES).toEqual(['photo', 'note', 'delivery']);
+  });
+
+  it.each(['photo', 'note', 'delivery'])('accepts %s', (mode) => {
+    expect(isQuickLogMode(mode)).toBe(true);
+  });
+
+  it.each(['video', '', null, undefined, 1, 'Photo'])('rejects %p', (value) => {
+    expect(isQuickLogMode(value)).toBe(false);
+  });
+});
+
+describe('startModeFromSearch', () => {
+  it('reads a valid start', () => {
+    expect(startModeFromSearch(new URLSearchParams('start=delivery'))).toBe('delivery');
+  });
+
+  it('ignores an invalid or missing start', () => {
+    expect(startModeFromSearch(new URLSearchParams('start=video'))).toBeNull();
+    expect(startModeFromSearch(new URLSearchParams('start='))).toBeNull();
+    expect(startModeFromSearch(new URLSearchParams('areaId=a1'))).toBeNull();
+  });
+
+  it('takes the first of a duplicated start', () => {
+    expect(startModeFromSearch(new URLSearchParams('start=note&start=photo'))).toBe('note');
   });
 });
