@@ -613,7 +613,7 @@ Docusaurus site in `docs/` deployed to GitHub Pages on stable releases via `.git
 
 ### Database Migrations
 
-Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction.
+Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g., `0001_create_users.sql`). Run `npm run db:migrate` to apply. The runner (`server/src/db/migrate.ts`) tracks applied migrations in `_migrations` and runs new ones in a transaction. The runner reads `server/dist/db/migrations/`; `build`, `dev` and `db:migrate` copy the `.sql` files there with `npm run copy-migrations -w server` (`tsc` does not). A migration added while `npm run dev` is running needs a dev restart (or a `copy-migrations` run).
 
 ### Environment Variables
 
