@@ -41,7 +41,7 @@ export interface ObjectFormField {
   readonly name: string;
   /** Already translated. */
   readonly label: string;
-  readonly kind: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select' | 'custom';
+  readonly kind: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select' | 'color' | 'custom';
   /** Shown before "More details". */
   readonly essential?: boolean;
   readonly required?: boolean;
@@ -80,6 +80,12 @@ export interface ObjectFormSchema {
   /** Cross-field validation; errors are keyed to a field name and already translated. */
   readonly validate: (values: ObjectFormValues) => ObjectFormErrors;
   readonly submit: (values: ObjectFormValues) => Promise<ObjectFormResult>;
+  /**
+   * Maps a failed request to field errors (already translated) before the generic handling,
+   * e.g. a 409 CONFLICT to a duplicate-name error on a field. Return `null` (or an empty map)
+   * to fall through; a non-empty result shows no banner.
+   */
+  readonly mapError?: (code: string, values: ObjectFormValues) => ObjectFormErrors | null;
   /** Text of the Add-another confirmation, e.g. "Task ‘X’ added." */
   readonly addedMessage?: (result: ObjectFormResult) => string;
 }

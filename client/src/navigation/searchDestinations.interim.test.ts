@@ -34,11 +34,12 @@ const ADMIN = { role: 'admin', paperlessConfigured: true } as const;
 const find = (word: string) => findSearchDestinations(word, ADMIN, label);
 
 describe('interim search targets', () => {
-  it('PIN: `area`, `areas` and `history` are still planned', () => {
-    // Fails when the Areas / History story serves them: update INTERIM_UNTIL, TERM_EXTRAS and these tests.
-    for (const id of ['area', 'areas', 'history'] as const) {
+  it('PIN: `area` and `history` are still planned; `areas` is served', () => {
+    // Fails when the History story serves `history`: update INTERIM_UNTIL, TERM_EXTRAS and these tests.
+    for (const id of ['area', 'history'] as const) {
       expect(getRouteEntryReal(id).stage).toBe('planned');
     }
+    expect(getRouteEntryReal('areas').stage).toBe('done');
   });
 
   it('NavConfig has entries for history and areas (the hand-over targets)', () => {
@@ -49,13 +50,16 @@ describe('interim search targets', () => {
     expect(NAV_SECTIONS.find((s) => s.route === 'areas')?.term).toBe('Area');
   });
 
-  it.each(['Room', 'Location', 'Area', 'Bereich'])('"%s" opens the Manage areas tab', (word) => {
-    expect(find(word)[0]).toMatchObject({
-      route: 'settingsManage',
-      query: { tab: 'areas' },
-      term: 'Area',
-    });
-  });
+  it.each(['Room', 'Location', 'Area', 'Bereich'])(
+    '"%s" opens the Areas page through NavConfig, with no interim extra',
+    (word) => {
+      const hits = find(word).filter((d) => d.term === 'Area');
+      expect(hits).toHaveLength(1);
+      expect(hits[0]).toMatchObject({ route: 'areas' });
+      expect(hits[0]!.query).toBeUndefined();
+      expect(find(word).some((d) => d.route === 'settingsManage')).toBe(false);
+    },
+  );
 
   it('"Automatic diary entries" opens the automatic diary entries', () => {
     expect(find('Automatic diary entries')[0]).toMatchObject({
@@ -68,13 +72,6 @@ describe('interim search targets', () => {
       route: 'diary',
       query: { filterMode: 'automatic' },
     });
-  });
-
-  it('skips the Area interim extra once route `areas` is served', () => {
-    served.add('areas');
-    for (const word of ['Room', 'Location']) {
-      expect(find(word).filter((d) => d.route === 'settingsManage')).toEqual([]);
-    }
   });
 
   it('skips the History interim extra once route `history` is served', () => {
@@ -92,21 +89,17 @@ describe('interim search targets', () => {
     expect(hits[0]!.query).toBeUndefined();
   });
 
-  it('serving `areas` alone gives exactly one Area hit, on the Areas page (no duplicate)', () => {
-    served.add('areas');
-    const hits = find('Room').filter((d) => d.term === 'Area');
-    expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ route: 'areas' });
-  });
-
-  it('serving `area` (detail) alone keeps the interim Area extra so search still resolves', () => {
+  it('serving `area` (detail) later does not add a second Area hit', () => {
     served.add('area');
-    expect(find('Room')[0]).toMatchObject({ route: 'settingsManage', query: { tab: 'areas' } });
     expect(find('Room').filter((d) => d.term === 'Area')).toHaveLength(1);
+    expect(find('Room')[0]).toMatchObject({ route: 'areas' });
   });
 
-  it('keeps one interim extra when only the other one is served', () => {
-    served.add('history');
-    expect(find('Room')[0]).toMatchObject({ route: 'settingsManage', query: { tab: 'areas' } });
+  it('keeps the History interim extra when only another route is served', () => {
+    served.add('area');
+    expect(find('Automatic diary entries')[0]).toMatchObject({
+      route: 'diary',
+      query: { filterMode: 'automatic' },
+    });
   });
 });

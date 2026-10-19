@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { areas, workItems, householdItems } from '../db/schema.js';
+import { areas, workItems, householdItems, photos } from '../db/schema.js';
 import type {
   CreateAreaRequest,
   UpdateAreaRequest,
@@ -16,8 +16,22 @@ import {
   AreaInUseError,
 } from '../errors/AppError.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
+import { assertSameIdSet, nextSortOrder } from './referenceListOrder.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/** The narrow slice of a database or transaction the area helpers need. */
+type AreaDb = Pick<DbType, 'select' | 'insert' | 'update'>;
+
+/** Next append position among the children of `parentId` (null = top level). */
+function nextSiblingSortOrder(db: AreaDb, parentId: string | null): number {
+  const row = db
+    .select({ max: sql<number | null>`MAX(${areas.sortOrder})` })
+    .from(areas)
+    .where(parentId === null ? sql`${areas.parentId} IS NULL` : eq(areas.parentId, parentId))
+    .get();
+  return nextSortOrder(row?.max);
+}
 
 /**
  * Convert database area row to AreaResponse shape.
@@ -306,6 +320,7 @@ export function createArea(db: DbType, data: CreateAreaRequest): AreaResponse {
   // Create area
   const id = randomUUID();
   const now = new Date().toISOString();
+  const sortOrder = data.sortOrder ?? nextSiblingSortOrder(db, data.parentId ?? null);
 
   db.insert(areas)
     .values({
@@ -314,7 +329,7 @@ export function createArea(db: DbType, data: CreateAreaRequest): AreaResponse {
       parentId: data.parentId ?? null,
       description: data.description ?? null,
       color: data.color ?? null,
-      sortOrder: data.sortOrder ?? 0,
+      sortOrder,
       createdAt: now,
       updatedAt: now,
     })
@@ -326,7 +341,7 @@ export function createArea(db: DbType, data: CreateAreaRequest): AreaResponse {
     parentId: data.parentId ?? null,
     description: data.description ?? null,
     color: data.color ?? null,
-    sortOrder: data.sortOrder ?? 0,
+    sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -366,31 +381,6 @@ export function updateArea(db: DbType, id: string, data: UpdateAreaRequest): Are
       throw new ValidationError('Area name must be between 1 and 200 characters');
     }
 
-    // Check for duplicate name among siblings, excluding current area
-    const parentId = data.parentId !== undefined ? data.parentId : existing.parentId;
-
-    // Handle NULL comparison properly
-    const duplicateQuery =
-      parentId === null
-        ? db
-            .select()
-            .from(areas)
-            .where(
-              sql`LOWER(${areas.name}) = LOWER(${trimmedName}) AND ${areas.parentId} IS NULL AND ${areas.id} != ${id}`,
-            )
-        : db
-            .select()
-            .from(areas)
-            .where(
-              sql`LOWER(${areas.name}) = LOWER(${trimmedName}) AND ${areas.parentId} = ${parentId} AND ${areas.id} != ${id}`,
-            );
-
-    const duplicate = duplicateQuery.get();
-
-    if (duplicate) {
-      throw new ConflictError('An area with this name already exists at this level');
-    }
-
     updates.name = trimmedName;
   }
 
@@ -410,6 +400,35 @@ export function updateArea(db: DbType, id: string, data: UpdateAreaRequest): Are
     }
 
     updates.parentId = data.parentId;
+  }
+
+  // Sibling-name duplicate check: runs when the name or the parent changes
+  if (data.name !== undefined || data.parentId !== undefined) {
+    const effectiveName = updates.name ?? existing.name;
+    const effectiveParentId = data.parentId !== undefined ? data.parentId : existing.parentId;
+
+    const duplicate = db
+      .select({ id: areas.id })
+      .from(areas)
+      .where(
+        effectiveParentId === null
+          ? sql`LOWER(${areas.name}) = LOWER(${effectiveName}) AND ${areas.parentId} IS NULL AND ${areas.id} != ${id}`
+          : sql`LOWER(${areas.name}) = LOWER(${effectiveName}) AND ${areas.parentId} = ${effectiveParentId} AND ${areas.id} != ${id}`,
+      )
+      .get();
+
+    if (duplicate) {
+      throw new ConflictError('An area with this name already exists at this level');
+    }
+  }
+
+  // A move without an explicit sortOrder appends to the new siblings
+  if (
+    data.parentId !== undefined &&
+    data.parentId !== existing.parentId &&
+    data.sortOrder === undefined
+  ) {
+    updates.sortOrder = nextSiblingSortOrder(db, data.parentId);
   }
 
   // Validate and add description if provided
@@ -449,54 +468,163 @@ export function updateArea(db: DbType, id: string, data: UpdateAreaRequest): Are
 }
 
 /**
+ * Everything needed to bring a deleted subtree back (undo "restore" snapshot).
+ */
+export interface DeletedAreaSnapshot {
+  /** Full rows of the deleted subtree, parents first (the first row is the deleted root). */
+  rows: Array<typeof areas.$inferSelect>;
+  /** Photos that pointed into the subtree, as (photoId, areaId) pairs. */
+  photos: Array<{ photoId: string; areaId: string }>;
+}
+
+/**
  * Delete an area and all its descendants.
  * Fails if any area in the deletion set is referenced by work items or household items.
+ * Returns a snapshot of the deleted subtree, read in the same transaction as the delete.
  * @throws NotFoundError if area does not exist
  * @throws AreaInUseError if area or its descendants are referenced by work items or household items
  */
-export function deleteArea(db: DbType, id: string): void {
-  // Check area exists
-  const existing = db.select().from(areas).where(eq(areas.id, id)).get();
-  if (!existing) {
-    throw new NotFoundError('Area not found');
-  }
+export function deleteArea(db: DbType, id: string): DeletedAreaSnapshot {
+  return db.transaction((tx) => {
+    // Check area exists
+    const existing = tx.select().from(areas).where(eq(areas.id, id)).get();
+    if (!existing) {
+      throw new NotFoundError('Area not found');
+    }
 
-  // Collect all descendant IDs (including the area itself)
-  const descendantIds = getDescendantIds(db, id);
+    // Collect all descendant IDs (including the area itself), parents first
+    const descendantIds = getDescendantIds(tx, id);
+    const idList = sql.join(
+      descendantIds.map((d) => sql`${d}`),
+      sql`, `,
+    );
 
-  // Count work item references
-  const workItemCountResult = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(workItems)
-    .where(
-      sql`${workItems.areaId} IN (${sql.join(
-        descendantIds.map((d) => sql`${d}`),
-        sql`, `,
-      )})`,
-    )
-    .get();
-  const workItemCount = workItemCountResult?.count ?? 0;
+    // Count work item references
+    const workItemCountResult = tx
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(workItems)
+      .where(sql`${workItems.areaId} IN (${idList})`)
+      .get();
+    const workItemCount = workItemCountResult?.count ?? 0;
 
-  // Count household item references
-  const householdItemCountResult = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(householdItems)
-    .where(
-      sql`${householdItems.areaId} IN (${sql.join(
-        descendantIds.map((d) => sql`${d}`),
-        sql`, `,
-      )})`,
-    )
-    .get();
-  const householdItemCount = householdItemCountResult?.count ?? 0;
+    // Count household item references
+    const householdItemCountResult = tx
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(householdItems)
+      .where(sql`${householdItems.areaId} IN (${idList})`)
+      .get();
+    const householdItemCount = householdItemCountResult?.count ?? 0;
 
-  if (workItemCount > 0 || householdItemCount > 0) {
-    throw new AreaInUseError('Area is in use and cannot be deleted', {
-      workItemCount,
-      householdItemCount,
+    if (workItemCount > 0 || householdItemCount > 0) {
+      throw new AreaInUseError('Area is in use and cannot be deleted', {
+        workItemCount,
+        householdItemCount,
+      });
+    }
+
+    // Snapshot the subtree (parents first) and the photos that will lose their area
+    const rowsById = new Map(
+      tx
+        .select()
+        .from(areas)
+        .where(sql`${areas.id} IN (${idList})`)
+        .all()
+        .map((row) => [row.id, row]),
+    );
+    const rows = descendantIds.flatMap((areaId) => {
+      const row = rowsById.get(areaId);
+      return row ? [row] : [];
     });
+    const photoPairs = tx
+      .select({ photoId: photos.id, areaId: photos.areaId })
+      .from(photos)
+      .where(sql`${photos.areaId} IN (${idList})`)
+      .all()
+      .flatMap((p) => (p.areaId === null ? [] : [{ photoId: p.photoId, areaId: p.areaId }]));
+
+    // Delete area (cascade will handle descendants due to CASCADE on parent_id FK)
+    tx.delete(areas).where(eq(areas.id, id)).run();
+
+    return { rows, photos: photoPairs };
+  });
+}
+
+/**
+ * Re-insert a deleted subtree (undo of deleteArea). Runs inside the undo transaction.
+ * Rows keep their original id, created_at, updated_at and sort_order. Photos get their area
+ * back only while their area_id is still NULL; their updated_at is not touched.
+ * @throws ConflictError when the root's parent is gone or a same-named sibling now exists
+ */
+export function restoreDeletedAreas(tx: AreaDb, snapshot: DeletedAreaSnapshot): void {
+  const root = snapshot.rows[0];
+  if (!root) return;
+  const changed = { changed: [{ type: 'area', id: root.id }] };
+
+  if (root.parentId !== null) {
+    const parent = tx.select({ id: areas.id }).from(areas).where(eq(areas.id, root.parentId)).get();
+    if (!parent) {
+      throw new ConflictError('The record changed after this action', changed);
+    }
   }
 
-  // Delete area (cascade will handle descendants due to CASCADE on parent_id FK)
-  db.delete(areas).where(eq(areas.id, id)).run();
+  const sibling = tx
+    .select({ id: areas.id })
+    .from(areas)
+    .where(
+      root.parentId === null
+        ? sql`LOWER(${areas.name}) = LOWER(${root.name}) AND ${areas.parentId} IS NULL`
+        : sql`LOWER(${areas.name}) = LOWER(${root.name}) AND ${areas.parentId} = ${root.parentId}`,
+    )
+    .get();
+  if (sibling) {
+    throw new ConflictError('The record changed after this action', changed);
+  }
+
+  for (const row of snapshot.rows) {
+    tx.insert(areas).values(row).run();
+  }
+
+  for (const { photoId, areaId } of snapshot.photos) {
+    tx.update(photos)
+      .set({ areaId })
+      .where(sql`${photos.id} = ${photoId} AND ${photos.areaId} IS NULL`)
+      .run();
+  }
+}
+
+/**
+ * Reorder the children of `parentId` (null = top level). The ids must be exactly the current
+ * children. Writes only rows whose position changed. Returns the full list as listAreas does.
+ * @throws ValidationError if the parent does not exist
+ * @throws ReorderSetMismatchError if the id set differs from the current children
+ */
+export function reorderAreas(
+  db: DbType,
+  parentId: string | null,
+  ids: readonly string[],
+): AreaResponse[] {
+  db.transaction((tx) => {
+    if (parentId !== null) {
+      const parent = tx.select({ id: areas.id }).from(areas).where(eq(areas.id, parentId)).get();
+      if (!parent) {
+        throw new ValidationError('Parent area does not exist');
+      }
+    }
+    const rows = tx
+      .select({ id: areas.id, sortOrder: areas.sortOrder })
+      .from(areas)
+      .where(parentId === null ? sql`${areas.parentId} IS NULL` : eq(areas.parentId, parentId))
+      .all();
+    assertSameIdSet(
+      rows.map((r) => r.id),
+      ids,
+    );
+    const current = new Map(rows.map((r) => [r.id, r.sortOrder]));
+    const now = new Date().toISOString();
+    ids.forEach((id, index) => {
+      if (current.get(id) === index) return;
+      tx.update(areas).set({ sortOrder: index, updatedAt: now }).where(eq(areas.id, id)).run();
+    });
+  });
+  return listAreas(db);
 }

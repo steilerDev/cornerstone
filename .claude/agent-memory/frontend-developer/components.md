@@ -117,3 +117,7 @@ MEMORY.md previously pointed at a `patterns.md` file that no longer exists in th
 - Pending focus is applied in a layout effect and skipped while a dialog is open (a dialog's own focus restore runs first); reorder requests are `sticky` until the request settles because moved keyed rows can blur.
 - `CATEGORY_IN_USE` details are suppressed server-side (#315): category delete-blocked dialogs use a fixed sentence per list, no counts.
 - Unserved routes (`areas`): guard `navHref()` with `isRouteServed()`; it throws otherwise.
+
+## TreeTable (#2218)
+
+`components/TreeTable/` is the generic nested-list tree (rows by parentId, `quiet` first-child rows with `data-reorder-skip`, per-sibling-group `useReorder` in `TreeTableGroup.tsx`). Phone vs wide cell layout is chosen by `useMediaQuery`, so only one variant is in the DOM. AreasPage owns area logic in `pages/AreasPage/areaTree.ts`. Colour control lives in `ObjectForm/ColorField.tsx` (not ReferenceListDialog: that file counts a primary button in the baseline).

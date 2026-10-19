@@ -1,6 +1,21 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fetchAreas, fetchArea, createArea, updateArea, deleteArea } from './areasApi.js';
-import type { AreaListResponse, AreaSingleResponse, AreaResponse } from '@cornerstone/shared';
+import {
+  fetchAreas,
+  fetchArea,
+  createArea,
+  updateArea,
+  deleteArea,
+  fetchAreasWithCounts,
+  reorderAreas,
+} from './areasApi.js';
+import type {
+  AreaListResponse,
+  AreaListWithCountsResponse,
+  AreaSingleResponse,
+  AreaResponse,
+  AreaWithCounts,
+  DeleteAreaResponse,
+} from '@cornerstone/shared';
 
 const makeArea = (overrides?: Partial<AreaResponse>): AreaResponse => ({
   id: 'area-1',
@@ -283,8 +298,8 @@ describe('areasApi', () => {
     it('sends DELETE request to /api/areas/:id', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: { token: 't', expiresAt: '2026-01-01T00:00:00.000Z' } }),
       } as Response);
 
       await deleteArea('area-1');
@@ -297,16 +312,19 @@ describe('areasApi', () => {
       );
     });
 
-    it('returns void on successful delete', async () => {
+    it('returns the Undo token of the delete', async () => {
+      const response: DeleteAreaResponse = {
+        undo: { token: 'undo-token-1', expiresAt: '2026-01-01T00:00:30.000Z' },
+      };
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => response,
       } as Response);
 
       const result = await deleteArea('area-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual(response);
     });
 
     it('throws error when area not found (404)', async () => {
@@ -329,6 +347,87 @@ describe('areasApi', () => {
       } as Response);
 
       await expect(deleteArea('area-1')).rejects.toThrow();
+    });
+  });
+  describe('fetchAreasWithCounts', () => {
+    it('requests /api/areas?include=counts and unwraps the areas', async () => {
+      const area: AreaWithCounts = {
+        ...makeArea(),
+        counts: {
+          workItems: { total: 3, open: 1 },
+          householdItems: { total: 0, open: 0 },
+          photos: { total: 2, latestDate: '2026-03-01' },
+        },
+      };
+      const body: AreaListWithCountsResponse = { areas: [area] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      const result = await fetchAreasWithCounts();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/areas?include=counts', expect.any(Object));
+      expect(result).toEqual([area]);
+    });
+
+    it('throws when the request fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'x' } }),
+      } as Response);
+
+      await expect(fetchAreasWithCounts()).rejects.toThrow();
+    });
+  });
+
+  describe('reorderAreas', () => {
+    it('sends PATCH /api/areas/reorder with the parent and the ids and returns the areas', async () => {
+      const reordered = [makeArea({ id: 'b', sortOrder: 0 }), makeArea({ id: 'a', sortOrder: 1 })];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ areas: reordered }),
+      } as Response);
+
+      const result = await reorderAreas({ parentId: 'p1', ids: ['b', 'a'] });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/areas/reorder',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ parentId: 'p1', ids: ['b', 'a'] }),
+        }),
+      );
+      expect(result).toEqual(reordered);
+    });
+
+    it('sends a null parent for the top level', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ areas: [] }),
+      } as Response);
+
+      await reorderAreas({ parentId: null, ids: ['a'] });
+
+      const init = mockFetch.mock.calls[0]![1] as RequestInit;
+      expect(JSON.parse(init.body as string)).toEqual({ parentId: null, ids: ['a'] });
+    });
+
+    it('rejects with the ApiClientError of a stale set (409)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: { code: 'REORDER_SET_MISMATCH', message: 'stale' } }),
+      } as Response);
+
+      await expect(reorderAreas({ parentId: null, ids: ['a'] })).rejects.toMatchObject({
+        statusCode: 409,
+        error: { code: 'REORDER_SET_MISMATCH' },
+      });
     });
   });
 });

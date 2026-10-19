@@ -1,4 +1,91 @@
 {
   "noArea": "No area",
-  "pathLabel": "Area path"
+  "pathLabel": "Area path",
+  "index": {
+    "loadFailed": "Couldn't load the areas.",
+    "description": "The parts of your house: buildings, floors and rooms. Tasks, purchases and photos each sit in one.",
+    "new": "New area",
+    "filter": "Filter areas",
+    "clearFilter": "Clear filter",
+    "retry": "Try again",
+    "tree": "Areas",
+    "topLevelName": "Areas",
+    "columns": {
+      "name": "Area",
+      "tasks": "Tasks",
+      "purchases": "Purchases",
+      "photos": "Photos"
+    },
+    "count": {
+      "openOfTotal": "{{open}} of {{total}} open",
+      "none": "None",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos",
+      "latest": "Latest {{date}}",
+      "photosPhone": "{{count}}, latest {{date}}",
+      "photosPhoneNoDate": "{{count}}"
+    },
+    "quiet": {
+      "building": "Whole building (no floor)",
+      "floor": "Whole floor (no room)",
+      "other": "{{name}} itself (no sub-area)"
+    },
+    "row": {
+      "subAreas": "Sub-areas of {{name}}",
+      "group": "Parts of {{name}}",
+      "reorder": "Reorder {{name}}",
+      "actions": "Actions for {{name}}"
+    },
+    "menu": {
+      "edit": "Edit",
+      "addSub": "Add sub-area",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "delete": "Delete"
+    },
+    "form": {
+      "titleNew": "New area",
+      "titleEdit": "Edit area",
+      "name": "Name",
+      "partOf": "Part of",
+      "color": "Color",
+      "description": "Description",
+      "topLevel": "Top level (no parent)",
+      "partOfHint": "The building or floor this area belongs to.",
+      "nameRequired": "Enter a name.",
+      "duplicate": "There is already an area called {{name}} in {{parent}}.",
+      "duplicateTop": "There is already a top-level area called {{name}}."
+    },
+    "delete": {
+      "blocked": "{{path}} can't be deleted yet.",
+      "blockedTasks_one": "{{count}} task is booked here or in a sub-area.",
+      "blockedTasks_other": "{{count}} tasks are booked here or in a sub-area.",
+      "blockedPurchases_one": "{{count}} purchase is booked here or in a sub-area.",
+      "blockedPurchases_other": "{{count}} purchases are booked here or in a sub-area.",
+      "blockedBoth": "{{tasks}} and {{purchases}} are booked here or in a sub-area.",
+      "taskCount_one": "{{count}} task",
+      "taskCount_other": "{{count}} tasks",
+      "purchaseCount_one": "{{count}} purchase",
+      "purchaseCount_other": "{{count}} purchases",
+      "moveFirst": "Move or delete them first.",
+      "showTasks": "Show these tasks",
+      "showPurchases": "Show these purchases",
+      "close": "Close"
+    },
+    "toast": {
+      "deleted": "{{name}} deleted",
+      "restored": "{{name}} restored"
+    },
+    "status": {
+      "added": "{{name}} added",
+      "saved": "{{name}} saved",
+      "matches_one": "{{count}} area matches",
+      "matches_other": "{{count}} areas match",
+      "noMatches": "No areas match {{query}}."
+    },
+    "reorderHint": "Clear the filter to reorder.",
+    "empty": "No areas yet. Add your building first, then its floors and rooms.",
+    "reorderFailed": "Couldn't save the new order. Try again.",
+    "position": "{{name}}, position {{position}} of {{total}} in {{parent}}."
+  }
 }

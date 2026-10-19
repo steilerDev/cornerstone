@@ -35,7 +35,7 @@ const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/invoices/:id', '/budget/invoices/:id'],
   ['/timeline', '/schedule/gantt'],
   ['/manage', '/settings/manage'],
-  ['/tags', '/settings/manage'],
+  ['/tags', '/areas'],
   ['/profile', '/settings/profile'],
   ['/admin/users', '/settings/users'],
   ['/budget/vendors', '/companies'],

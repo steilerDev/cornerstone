@@ -269,3 +269,44 @@ describe('loading options and custom fields', () => {
     expect(screen.getByText('Label')).toBeInTheDocument();
   });
 });
+
+describe('color field', () => {
+  it('renders the colour input and the "No color" checkbox for a colour value', () => {
+    setup({ kind: 'color', testId: 'area' }, { value: '#112233' });
+    const input = screen.getByTestId('area-color') as HTMLInputElement;
+    expect(input.type).toBe('color');
+    expect(input.value).toBe('#112233');
+    expect(input.id).toBe('f');
+    expect(screen.getByLabelText('Label')).toBe(input);
+    expect(screen.getByLabelText('No color')).not.toBeChecked();
+  });
+
+  it.each([
+    ['empty string', ''],
+    ['non-string', 5],
+    ['null', null],
+  ])('treats a %s value as "No color"', (_name, value) => {
+    setup({ kind: 'color', testId: 'area' }, { value });
+    expect(screen.getByTestId('area-no-color')).toBeChecked();
+    expect(screen.getByTestId('area-color')).toBeDisabled();
+  });
+
+  it('reports a picked colour and null when "No color" is ticked', () => {
+    const { onChange } = setup({ kind: 'color', testId: 'area' }, { value: '#112233' });
+    fireEvent.change(screen.getByTestId('area-color'), { target: { value: '#abcdef' } });
+    expect(onChange).toHaveBeenLastCalledWith('#abcdef');
+    fireEvent.click(screen.getByTestId('area-no-color'));
+    expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('is disabled while busy and wired to the hint and error', () => {
+    setup(
+      { kind: 'color', testId: 'area', hint: 'Pick one.' },
+      { value: '#112233', busy: true, error: 'Bad colour.' },
+    );
+    expect(screen.getByTestId('area-color')).toBeDisabled();
+    expect(screen.getByTestId('area-no-color')).toBeDisabled();
+    expect(screen.getByTestId('area-color').getAttribute('aria-describedby')).toContain('f-error');
+    expect(screen.getByText('Bad colour.')).toBeInTheDocument();
+  });
+});

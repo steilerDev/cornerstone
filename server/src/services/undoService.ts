@@ -39,6 +39,18 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 type TrackedValues = Record<string, unknown>;
 
+/** Subjects restored by re-applying tracked column values (everything except `restore` kinds). */
+type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area'>;
+
+/** A status-kind subject: the only kind `runUndoable` and the column snapshots handle. */
+interface StatusUndoRow {
+  type: StatusUndoSubjectType;
+  id: string;
+}
+
+/** The transaction handed to a restore callback. */
+export type UndoTransaction = Parameters<Parameters<DbType['transaction']>[0]>[0];
+
 interface SubjectConfig {
   readonly table: unknown;
   readonly idColumn: unknown;
@@ -49,7 +61,7 @@ interface SubjectConfig {
   readonly numericId?: boolean;
 }
 
-const SUBJECTS: Record<UndoSubjectType, SubjectConfig> = {
+const SUBJECTS: Record<StatusUndoSubjectType, SubjectConfig> = {
   work_item: {
     table: workItems,
     idColumn: workItems.id,
@@ -102,19 +114,31 @@ const SUBJECTS: Record<UndoSubjectType, SubjectConfig> = {
 };
 
 interface SnapshotRow {
-  type: UndoSubjectType;
+  type: StatusUndoSubjectType;
   id: string;
   before: TrackedValues;
   after: TrackedValues;
 }
 
-interface Snapshot {
+interface StatusSnapshot {
+  kind: 'status';
   userId: string;
   createdAt: number;
   rows: SnapshotRow[];
   written: string[];
   retracted: RetractedEvent[];
 }
+
+/** A snapshot whose undo re-creates deleted rows through a caller-supplied callback. */
+interface RestoreSnapshot {
+  kind: 'restore';
+  userId: string;
+  createdAt: number;
+  subject: UndoRow;
+  restore: (tx: UndoTransaction) => void;
+}
+
+type Snapshot = StatusSnapshot | RestoreSnapshot;
 
 export interface UndoStoreOptions {
   readonly now?: () => number;
@@ -162,7 +186,7 @@ function resolutionStatus(metadata: unknown): string | null {
   }
 }
 
-function readSubject(db: DbType, subject: UndoRow): TrackedValues | null {
+function readSubject(db: DbType, subject: StatusUndoRow): TrackedValues | null {
   const cfg = SUBJECTS[subject.type];
   const id = cfg.numericId ? Number(subject.id) : subject.id;
   const row = db
@@ -176,11 +200,11 @@ function readSubject(db: DbType, subject: UndoRow): TrackedValues | null {
 /** Tracked rows keyed `type:id`, for the subject and (when rescheduling) all schedule rows. */
 function readState(
   db: DbType,
-  subject: UndoRow,
+  subject: StatusUndoRow,
   reschedules: boolean,
 ): Map<string, SnapshotRowState> {
   const state = new Map<string, SnapshotRowState>();
-  const add = (type: UndoSubjectType, id: string, values: TrackedValues): void => {
+  const add = (type: StatusUndoSubjectType, id: string, values: TrackedValues): void => {
     state.set(`${type}:${id}`, { type, id, values });
   };
 
@@ -199,12 +223,12 @@ function readState(
 }
 
 interface SnapshotRowState {
-  type: UndoSubjectType;
+  type: StatusUndoSubjectType;
   id: string;
   values: TrackedValues;
 }
 
-function statusValues(type: UndoSubjectType, values: TrackedValues | undefined): string {
+function statusValues(type: StatusUndoSubjectType, values: TrackedValues | undefined): string {
   if (!values) return 'null';
   const cfg = SUBJECTS[type];
   if (type === 'diary_entry') return JSON.stringify(resolutionStatus(values.metadata));
@@ -215,7 +239,7 @@ function statusValues(type: UndoSubjectType, values: TrackedValues | undefined):
 
 export interface RunUndoableArgs {
   readonly userId: string;
-  readonly subject: UndoRow;
+  readonly subject: StatusUndoRow;
   readonly reschedules: boolean;
 }
 
@@ -264,6 +288,20 @@ export function runUndoable<T>(
   if (!statusChanged) return { result, undo: null };
 
   // The subject itself is always restored, even if only its status columns differ.
+  const undo = storeSnapshot(store, (createdAt) => ({
+    kind: 'status',
+    userId,
+    createdAt,
+    rows,
+    written: collection.written,
+    retracted: collection.retracted,
+  }));
+
+  return { result, undo };
+}
+
+/** Prune expired entries, enforce the size cap, store the snapshot and return its token. */
+function storeSnapshot(store: UndoStore, build: (createdAt: number) => Snapshot): UndoToken {
   const createdAt = store.now();
   pruneExpired(store, createdAt);
   while (store.snapshots.size >= store.maxEntries) {
@@ -273,18 +311,31 @@ export function runUndoable<T>(
   }
 
   const token = `u_${randomBytes(16).toString('hex')}`;
-  store.snapshots.set(token, {
+  store.snapshots.set(token, build(createdAt));
+  return { token, expiresAt: new Date(createdAt + UNDO_WINDOW_MS).toISOString() };
+}
+
+export interface IssueRestoreTokenArgs {
+  readonly userId: string;
+  /** The row reported as restored (and as changed on a conflict). */
+  readonly subject: UndoRow;
+  /** Re-creates the deleted rows inside the undo transaction; throws ConflictError to refuse. */
+  readonly restore: (tx: UndoTransaction) => void;
+}
+
+/**
+ * Issue a single-use token whose undo runs `restore` in one transaction. Same pruning, size
+ * cap and token format as status snapshots.
+ */
+export function issueRestoreToken(store: UndoStore, args: IssueRestoreTokenArgs): UndoToken {
+  const { userId, subject, restore } = args;
+  return storeSnapshot(store, (createdAt) => ({
+    kind: 'restore',
     userId,
     createdAt,
-    rows,
-    written: collection.written,
-    retracted: collection.retracted,
-  });
-
-  return {
-    result,
-    undo: { token, expiresAt: new Date(createdAt + UNDO_WINDOW_MS).toISOString() },
-  };
+    subject,
+    restore,
+  }));
 }
 
 function pruneExpired(store: UndoStore, now: number): void {
@@ -317,6 +368,11 @@ export function applyUndo(
     throw new NotFoundError('Undo is no longer available');
   }
   store.snapshots.delete(token);
+
+  if (snapshot.kind === 'restore') {
+    db.transaction((tx) => snapshot.restore(tx));
+    return { restored: [snapshot.subject], retractedEventIds: [] };
+  }
 
   const changed: UndoRow[] = [];
   for (const row of snapshot.rows) {

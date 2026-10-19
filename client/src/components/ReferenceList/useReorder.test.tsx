@@ -5,7 +5,7 @@ import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@j
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useRef } from 'react';
 import { useReorder } from './useReorder.js';
-import type { ReorderSource } from './useReorder.js';
+import type { ReorderAnnouncementKind, ReorderSource } from './useReorder.js';
 
 interface PointerInit extends MouseEventInit {
   pointerId?: number;
@@ -29,9 +29,22 @@ interface HarnessProps {
   disabled?: boolean;
   onCommit: (ids: string[], movedId: string, source: ReorderSource) => void;
   onAnnounce: (message: string) => void;
+  /** Renders a leading row marked `data-reorder-skip` (a tree's quiet row). */
+  skipRow?: boolean;
+  formatAnnouncement?: (
+    kind: ReorderAnnouncementKind,
+    values: { name: string; position: number; total: number },
+  ) => string | undefined;
 }
 
-function Harness({ ids, disabled = false, onCommit, onAnnounce }: HarnessProps) {
+function Harness({
+  ids,
+  disabled = false,
+  onCommit,
+  onAnnounce,
+  skipRow = false,
+  formatAnnouncement,
+}: HarnessProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const { orderedIds, drag, pickedId, handleProps } = useReorder({
     ids,
@@ -40,6 +53,7 @@ function Harness({ ids, disabled = false, onCommit, onAnnounce }: HarnessProps) 
     onCommit,
     onAnnounce,
     labelOf: (id) => `Item ${id}`,
+    ...(formatAnnouncement ? { formatAnnouncement } : {}),
   });
   return (
     <div>
@@ -48,6 +62,11 @@ function Harness({ ids, disabled = false, onCommit, onAnnounce }: HarnessProps) 
         {drag ? `${drag.id}:${drag.fromIndex}->${drag.overIndex}` : 'none'}
       </div>
       <ul ref={listRef}>
+        {skipRow && (
+          <li data-reorder-skip="true" data-testid="skip-row">
+            skipped
+          </li>
+        )}
         {orderedIds.map((id) => (
           <li key={id} data-testid={`row-${id}`}>
             <button type="button" data-testid={`handle-${id}`} {...handleProps(id)}>
@@ -556,6 +575,102 @@ describe('useReorder', () => {
       unmount();
 
       expect(cancelFrame).toHaveBeenCalled();
+    });
+  });
+  describe('data-reorder-skip rows', () => {
+    it('does not count a skipped leading row when working out the drop slot', () => {
+      renderList({ skipRow: true });
+      const handle = screen.getByTestId('handle-a');
+
+      // The skipped row is the first child, so the rects are shifted by one row height in the
+      // mock; with the skipped row filtered out the rects line up with the three real rows.
+      fireEvent.pointerDown(handle, { clientY: 60 });
+      fireEvent.pointerMove(handle, { clientY: 130 });
+      fireEvent.pointerUp(handle, { clientY: 130 });
+
+      expect(onCommit).toHaveBeenCalledTimes(1);
+      const [nextIds, movedId, source] = onCommit.mock.calls[0]!;
+      expect(movedId).toBe('a');
+      expect(source).toBe('drag');
+      expect(nextIds).toHaveLength(3);
+      expect(nextIds.indexOf('a')).toBeGreaterThan(0);
+    });
+
+    it('queries one rect per reorderable row only', () => {
+      const spy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+      renderList({ skipRow: true });
+      const handle = screen.getByTestId('handle-b');
+      spy.mockClear();
+
+      fireEvent.pointerDown(handle, { clientY: 100 });
+      fireEvent.pointerMove(handle, { clientY: 110 });
+
+      const skipRow = screen.getByTestId('skip-row');
+      const skippedCalls = spy.mock.contexts.filter((context) => context === skipRow);
+      expect(skippedCalls).toHaveLength(0);
+      expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  describe('formatAnnouncement', () => {
+    it('replaces the common text when it returns a string', () => {
+      const formatAnnouncement = jest.fn<NonNullable<HarnessProps['formatAnnouncement']>>(
+        (kind, values) => `${kind}:${values.name}:${values.position}/${values.total}`,
+      );
+      renderList({ formatAnnouncement });
+      const handle = screen.getByTestId('handle-a');
+
+      fireEvent.keyDown(handle, { key: ' ' });
+      fireEvent.keyDown(handle, { key: 'ArrowDown' });
+      fireEvent.keyDown(screen.getByTestId('handle-a'), { key: ' ' });
+
+      expect(onAnnounce.mock.calls.map((call) => call[0])).toEqual([
+        'pickedUp:Item a:1/3',
+        'position:Item a:2/3',
+        'dropped:Item a:2/3',
+      ]);
+    });
+
+    it('announces the canceled kind through the formatter too', () => {
+      const formatAnnouncement = jest.fn<NonNullable<HarnessProps['formatAnnouncement']>>(
+        (kind) => kind,
+      );
+      renderList({ formatAnnouncement });
+      const handle = screen.getByTestId('handle-a');
+
+      fireEvent.keyDown(handle, { key: ' ' });
+      fireEvent.keyDown(handle, { key: 'Escape' });
+
+      expect(onAnnounce).toHaveBeenLastCalledWith('reorderCanceled');
+    });
+
+    it('falls back to the common keys for kinds it returns undefined for', () => {
+      renderList({
+        formatAnnouncement: (kind, values) =>
+          kind === 'dropped' ? `custom ${values.name}` : undefined,
+      });
+      const handle = screen.getByTestId('handle-a');
+
+      fireEvent.keyDown(handle, { key: ' ' });
+      fireEvent.keyDown(handle, { key: 'ArrowDown' });
+      fireEvent.keyDown(screen.getByTestId('handle-a'), { key: ' ' });
+
+      expect(onAnnounce.mock.calls.map((call) => call[0])).toEqual([
+        'Item a picked up. Position 1 of 3.',
+        'Item a, position 2 of 3.',
+        'custom Item a',
+      ]);
+    });
+
+    it('announces a pointer drop through the formatter', () => {
+      renderList({ formatAnnouncement: (kind) => (kind === 'dropped' ? 'dropped!' : undefined) });
+      const handle = screen.getByTestId('handle-a');
+
+      fireEvent.pointerDown(handle, { clientY: 20 });
+      fireEvent.pointerMove(handle, { clientY: 110 });
+      fireEvent.pointerUp(handle, { clientY: 110 });
+
+      expect(onAnnounce).toHaveBeenLastCalledWith('dropped!');
     });
   });
 });

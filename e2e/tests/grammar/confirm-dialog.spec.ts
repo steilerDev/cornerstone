@@ -8,11 +8,11 @@
  *
  * Scenarios:
  *   1. Company with 2 contact persons: counts, initial focus on Cancel, Escape returns focus
- *   2. Area with a sub-area: count, confirm deletes both
+ *   2. Area with a sub-area (on the Areas index): count, confirm deletes both (200 with Undo)
  *   2b. After a confirmed area delete focus is not on the body
  *   3. Contact person delete asks via the dialog (no native confirm)
  *      (the DAV revoke dialog is covered in tests/profile/dav-access.spec.ts, Scenario 6b)
- *   4. Area in use: 409 shows inside the dialog and the Delete action is hidden
+ *   4. Area in use: the dialog is blocked before confirm (no Delete action, only Close)
  *   5. Diary draft discard: "Discard this entry?" with Keep entry / Discard
  *   6. Tasks list row Delete shows subtask, note and cost line counts; Cancel keeps focus
  *   7. Purchase cost line Delete opens exactly one dialog (no inline swap)
@@ -20,7 +20,6 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
-import { routeUrl } from '../../../shared/src/routes/index.js';
 import { API } from '../../fixtures/testData.js';
 import {
   createVendorViaApi,
@@ -40,9 +39,8 @@ import { ConfirmDialogControl } from '../../pages/components/ConfirmDialogContro
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
+import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
 import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
-
-const AREAS_TAB_URL = routeUrl('settingsManage', undefined, { tab: 'areas' });
 
 async function expectFocusNotOnBody(page: Page): Promise<void> {
   await expect
@@ -54,17 +52,13 @@ async function expectFocusNotOnBody(page: Page): Promise<void> {
     .toBe(true);
 }
 
-/** Open Project setup > Areas and click Delete on the row with this name. */
-async function clickAreaDelete(page: Page, areaName: string): Promise<void> {
-  await page.goto(AREAS_TAB_URL);
-  await page
-    .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
-    .waitFor({ state: 'visible' });
-  const row = page
-    .getByTestId('project-setup-areas')
-    .locator('[class*="itemRow"]')
-    .filter({ hasText: areaName });
-  await row.getByRole('button', { name: 'Delete', exact: true }).click();
+/** Open the Areas index and choose Delete in the ⋯ menu of the area with this id. */
+async function clickAreaDelete(page: Page, areaId: string): Promise<AreasIndexPage> {
+  const areas = new AreasIndexPage(page);
+  await areas.goto();
+  await expect(areas.row(areaId)).toBeVisible();
+  await areas.chooseMenuItem(areaId, 'delete');
+  return areas;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -134,9 +128,9 @@ test.describe('ConfirmDialog — area delete', { tag: '@responsive' }, () => {
     const childId = await createAreaViaApi(page, { name: childName, parentId });
 
     try {
-      await clickAreaDelete(page, parentName);
+      await clickAreaDelete(page, parentId);
 
-      const dialog = new ConfirmDialogControl(page, 'area-delete', `Delete ${parentName}?`);
+      const dialog = new ConfirmDialogControl(page, 'areas-delete-dialog', `Delete ${parentName}?`);
       await dialog.waitForOpen();
       await expect(dialog.consequence(/Sub-areas deleted with it/)).toContainText('1');
 
@@ -145,7 +139,7 @@ test.describe('ConfirmDialog — area delete', { tag: '@responsive' }, () => {
           resp.url().includes(`${API.areas}/${parentId}`) && resp.request().method() === 'DELETE',
       );
       await dialog.confirm();
-      expect((await deleted).status()).toBe(204);
+      expect((await deleted).status()).toBe(200);
       await expect(dialog.dialog).toBeHidden();
 
       // Both rows are gone and the server agrees
@@ -165,20 +159,20 @@ test.describe('ConfirmDialog — area delete', { tag: '@responsive' }, () => {
     const areaId = await createAreaViaApi(page, { name });
 
     try {
-      await clickAreaDelete(page, name);
+      await clickAreaDelete(page, areaId);
 
-      const dialog = new ConfirmDialogControl(page, 'area-delete', `Delete ${name}?`);
+      const dialog = new ConfirmDialogControl(page, 'areas-delete-dialog', `Delete ${name}?`);
       await dialog.waitForOpen();
       await dialog.confirmAndWaitClosed();
 
-      // The deleted row's Delete button is gone: focus must land on the section's fallback
+      // The deleted row is gone: focus must land on a neighbour's ⋯ or the New area button
       await expectFocusNotOnBody(page);
     } finally {
       await deleteAreaViaApi(page, areaId);
     }
   });
 
-  test('An area in use shows the conflict inside the dialog and hides the Delete action', async ({
+  test('An area in use is blocked before confirm: no Delete action, only Close', async ({
     page,
     testPrefix,
   }) => {
@@ -190,22 +184,17 @@ test.describe('ConfirmDialog — area delete', { tag: '@responsive' }, () => {
     });
 
     try {
-      await clickAreaDelete(page, name);
+      const areas = await clickAreaDelete(page, areaId);
 
-      const dialog = new ConfirmDialogControl(page, 'area-delete', `Delete ${name}?`);
+      const dialog = new ConfirmDialogControl(page, 'areas-delete-dialog', `Delete ${name}?`);
       await dialog.waitForOpen();
 
-      const deleted = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`${API.areas}/${areaId}`) && resp.request().method() === 'DELETE',
-      );
-      await dialog.confirm();
-      expect((await deleted).status()).toBe(409);
-
-      // The error is inside the dialog; the destructive action is gone, Cancel remains
-      await expect(dialog.dialog.getByRole('alert')).toContainText(/cannot be deleted/i);
-      await expect(dialog.confirmButton).toBeHidden();
-      await expect(dialog.cancelButton).toBeVisible();
+      // Blocked from the loaded counts: the destructive action is never offered
+      await expect(dialog.dialog).toContainText(`${name} can't be deleted yet.`);
+      await expect(dialog.dialog).toContainText('1 task is booked here or in a sub-area.');
+      await expect(dialog.confirmButton).toHaveCount(0);
+      await expect(dialog.cancelButton).toHaveText('Close');
+      await expect(areas.showTasksLink).toBeVisible();
 
       await dialog.cancel();
       expect((await page.request.get(`${API.areas}/${areaId}`)).ok()).toBe(true);

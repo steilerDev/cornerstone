@@ -112,6 +112,7 @@ const PHOTOS = 'sidebar-section-photos';
 const SETTINGS = 'sidebar-section-settings';
 const HOME = 'sidebar-section-home';
 const COMPANIES = 'sidebar-section-companies';
+const AREAS = 'sidebar-section-areas';
 
 const ROWS: SweepRow[] = [
   // Tasks
@@ -333,6 +334,15 @@ const ROWS: SweepRow[] = [
     title: new RegExp(`^Home · ${HOUSE}$`),
     crumbs: false,
     active: HOME,
+  },
+  // Areas (#2218): the tree index, a main view of its own section
+  {
+    id: 'areas',
+    path: () => routeUrl('areas'),
+    h1: 'Areas',
+    title: new RegExp(`^Areas · ${HOUSE}$`),
+    crumbs: false,
+    active: AREAS,
   },
   // Companies (#2213): the list, the New company dialog route over it, and a company page
   {

@@ -1,6 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
-import type { AreaResponse, CreateAreaRequest, UpdateAreaRequest } from '@cornerstone/shared';
+import type {
+  AreaResponse,
+  CreateAreaRequest,
+  DeleteAreaResponse,
+  UpdateAreaRequest,
+} from '@cornerstone/shared';
 import { fetchAreas, createArea, updateArea, deleteArea } from '../lib/areasApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import { translateApiError } from '../lib/errorTranslation.js';
@@ -12,7 +17,7 @@ export interface UseAreasResult {
   refetch: () => void;
   createArea: (data: CreateAreaRequest) => Promise<AreaResponse>;
   updateArea: (id: string, data: UpdateAreaRequest) => Promise<AreaResponse>;
-  deleteArea: (id: string) => Promise<void>;
+  deleteArea: (id: string) => Promise<DeleteAreaResponse>;
 }
 
 /**
@@ -21,7 +26,7 @@ export interface UseAreasResult {
  * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useAreas(): UseAreasResult {
-  const { t } = useTranslation('settings');
+  const { t } = useTranslation('areas');
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
   const [areas, setAreas] = useState<AreaResponse[]>([]);
@@ -48,7 +53,7 @@ export function useAreas(): UseAreasResult {
           } else if (err instanceof NetworkError) {
             setError(tCommon('requestErrors.network'));
           } else {
-            setError(t('manage.areas.loadError'));
+            setError(t('index.loadFailed'));
           }
         }
       } finally {
@@ -81,9 +86,10 @@ export function useAreas(): UseAreasResult {
     return area;
   }
 
-  async function handleDelete(id: string): Promise<void> {
-    await deleteArea(id);
+  async function handleDelete(id: string): Promise<DeleteAreaResponse> {
+    const response = await deleteArea(id);
     refetch();
+    return response;
   }
 
   return {

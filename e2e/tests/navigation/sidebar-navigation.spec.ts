@@ -50,6 +50,7 @@ const SECTION_LANDINGS = [
   { id: 'photos', path: () => routeUrl('photos') },
   { id: 'money', path: () => routeUrl('budgetOverview') },
   { id: 'companies', path: () => routeUrl('companies') },
+  { id: 'areas', path: () => routeUrl('areas') },
   { id: 'settings', path: () => routeUrl('settingsManage') },
 ] as const;
 
@@ -88,9 +89,16 @@ test.describe('Sidebar Navigation', () => {
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
       // Order, with Home first and no top-level Schedule
-      await expect(appShell.nav.locator('[data-testid^="sidebar-section-"]')).toHaveText([
+      // The nav's direct child lists (not the nested views list): the primary entries are the
+      // first, the quiet group (Areas) the second
+      const navLists = appShell.nav.locator(':scope > ul');
+      await expect(navLists).toHaveCount(2);
+      const primaryList = navLists.first();
+      const quietList = navLists.nth(1);
+      await expect(primaryList.locator('[data-testid^="sidebar-section-"]')).toHaveText([
         ...PRIMARY_LABELS,
       ]);
+      await expect(quietList.locator('[data-testid^="sidebar-section-"]')).toHaveText(['Areas']);
       await expect(appShell.nav.getByRole('link', { name: 'Schedule', exact: true })).toHaveCount(
         0,
       );

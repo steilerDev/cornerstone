@@ -55,3 +55,4 @@
 - [story-2214-account-relayout.md](story-2214-account-relayout.md) — #2214 Account POM/testids, token+preference mocking, aria-disabled assertion traps, DAV lock, phone gutter defect.
 - [fix-search-capped-choosers.md](fix-search-capped-choosers.md) — SearchPicker-chooser fix PR: SearchPickerControl/CompanyFilterControl POMs, settle-then-ArrowDown pick helper, focus-on-body defects A/B/C.
 - [story-2217-integrations.md](story-2217-integrations.md) — #2217 Integrations POM/test ids, Paperless-off Documents rules, shared mock helpers, run traps.
+- [story-2218-areas-index.md](story-2218-areas-index.md) — #2218 Areas index POM/test ids, per-test tag + cleanup order, 200 {undo} delete, skeleton locator.

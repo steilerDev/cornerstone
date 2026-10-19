@@ -29,8 +29,8 @@ export function searchResultTarget(
     case 'diary_entry':
       return app(routeUrl('diaryEntry', { id }));
     case 'area':
-      // Interim while route `area` is planned; the story that builds the Area page flips this to routeUrl('area', { id }).
-      return app(routeUrl('settingsManage', undefined, { tab: 'areas' }));
+      // Interim until route `area` (P5.7) → routeUrl('area', { id })
+      return app(routeUrl('areas'));
     case 'budget_line': {
       const parent = item.parent;
       if (!parent) return app(routeUrl('budgetOverview'));

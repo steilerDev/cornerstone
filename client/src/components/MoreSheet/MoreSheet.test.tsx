@@ -148,16 +148,17 @@ describe('MoreSheet', () => {
   describe('section groups', () => {
     it('lists the served sections in group order', () => {
       renderSheet();
-      expect(rowIds()).toEqual(['tasks', 'purchases', 'money', 'companies', 'settings']);
+      expect(rowIds()).toEqual(['tasks', 'purchases', 'money', 'companies', 'areas', 'settings']);
     });
 
-    it('renders one list per non-empty group and none for the empty middle group', () => {
-      // Areas, History and Documents are not served yet, so the middle group is empty.
+    it('renders one list per group', () => {
+      // Areas is served; History and Documents are still planned, so the middle group has one entry.
       renderSheet();
       const lists = within(screen.getByRole('navigation', { name: 'More' })).getAllByRole('list');
-      expect(lists).toHaveLength(2);
+      expect(lists).toHaveLength(3);
       expect(within(lists[0]!).getAllByRole('listitem')).toHaveLength(4);
       expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(1);
+      expect(within(lists[2]!).getAllByRole('listitem')).toHaveLength(1);
     });
 
     it('never lists a section the user cannot open', () => {

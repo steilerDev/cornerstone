@@ -10,6 +10,10 @@ export interface AreaPickerProps extends Omit<
   SearchPickerProps<TreeNode>,
   'searchFn' | 'renderItem' | 'excludeIds'
 > {
+  /** Area ids that cannot be picked (e.g. an area and its own sub-areas). */
+  excludeIds?: readonly string[];
+  /** Label of the empty-value option; default "No area". */
+  nullLabel?: string;
   areas: AreaResponse[];
   value: string;
   onChange: (id: string) => void;
@@ -23,6 +27,8 @@ export function AreaPicker({
   onChange,
   disabled = false,
   nullable = false,
+  excludeIds,
+  nullLabel,
   ...rest
 }: AreaPickerProps) {
   const { t } = useTranslation('common');
@@ -30,9 +36,12 @@ export function AreaPicker({
 
   const searchFn = useCallback(
     async (query: string): Promise<TreeNode[]> => {
-      return searchTree(tree, query);
+      const found = searchTree(tree, query);
+      return excludeIds && excludeIds.length > 0
+        ? found.filter((node) => !excludeIds.includes(node.area.id))
+        : found;
     },
-    [tree],
+    [tree, excludeIds],
   );
 
   const renderItem = (node: TreeNode) => {
@@ -56,7 +65,7 @@ export function AreaPicker({
     <SearchPicker<TreeNode>
       value={value}
       onChange={onChange}
-      excludeIds={[]}
+      excludeIds={excludeIds ? [...excludeIds] : []}
       disabled={disabled}
       searchFn={searchFn}
       renderItem={renderItem}
@@ -65,7 +74,7 @@ export function AreaPicker({
       initialTitle={initialTitle}
       showItemsOnFocus={true}
       placeholder={t('aria.selectArea')}
-      specialOptions={nullable ? [{ id: '', label: t('aria.noArea') }] : undefined}
+      specialOptions={nullable ? [{ id: '', label: nullLabel ?? t('aria.noArea') }] : undefined}
       {...rest}
     />
   );

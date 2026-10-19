@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isRouteServed } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import { useSectionHashFocus } from '../../hooks/useSectionHashFocus.js';
-import { navHref } from '../../navigation/navActive.js';
 import { useRealLocationKey } from '../../navigation/realLocation.js';
 
 /** Legacy ?tab= values → section anchors (route map query maps, served by this page). */
@@ -12,7 +11,6 @@ export const LEGACY_TAB_ANCHORS: Readonly<Record<string, string>> = {
   'budget-categories': 'cost-categories',
   'hi-categories': 'purchase-categories',
   trades: 'trades',
-  areas: 'areas',
 };
 
 export const PROJECT_SETUP_ANCHORS = [
@@ -31,9 +29,9 @@ export type LegacyTabResolution =
   | { readonly kind: 'anchor'; readonly anchor: string }
   | { readonly kind: 'areasPage' };
 
-export function resolveLegacyTab(tab: string | null, areasServed: boolean): LegacyTabResolution {
+export function resolveLegacyTab(tab: string | null): LegacyTabResolution {
   if (tab === null) return { kind: 'none' };
-  if (tab === 'areas' && areasServed) return { kind: 'areasPage' };
+  if (tab === 'areas') return { kind: 'areasPage' };
   if (Object.hasOwn(LEGACY_TAB_ANCHORS, tab)) {
     return { kind: 'anchor', anchor: LEGACY_TAB_ANCHORS[tab]! };
   }
@@ -55,13 +53,13 @@ export function useProjectSetupLocation({ settled }: { settled: boolean }): void
     // A dialog route open over this page has a different real location: replacing now would close it.
     if (realKey !== key) return;
     const params = new URLSearchParams(search);
-    const resolution = resolveLegacyTab(params.get('tab'), isRouteServed('areas'));
+    const resolution = resolveLegacyTab(params.get('tab'));
     if (resolution.kind === 'none') return;
     params.delete('tab');
     const rest = params.toString();
     const nextSearch = rest ? `?${rest}` : '';
     if (resolution.kind === 'areasPage') {
-      navigate(navHref('areas'), { replace: true });
+      navigate(routeUrl('areas'), { replace: true });
     } else if (resolution.kind === 'anchor') {
       navigate({ pathname, search: nextSearch, hash: `#${resolution.anchor}` }, { replace: true });
     } else {

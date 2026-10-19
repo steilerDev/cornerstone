@@ -1,0 +1,158 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.description {
+  margin: calc(-1 * var(--spacing-3)) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.newButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.newButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.newButton[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .newButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+.searchBox {
+  position: relative;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .searchBox {
+    max-width: 24rem;
+  }
+}
+
+.searchInput {
+  composes: searchInput from '../../components/DataTable/DataTable.module.css';
+  height: var(--touch-target-min);
+  padding-inline-end: var(--touch-target-min);
+  /* 16px: no iOS zoom on focus */
+  font-size: var(--font-size-base);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
+.searchClear {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target-min);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: var(--color-text-primary);
+}
+
+.searchClear:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.loadError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.retry {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .retry {
+    min-height: var(--touch-target-min);
+  }
+}
+
+.banner {
+  composes: bannerError from '../../styles/shared.module.css';
+}
+
+.noMatch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.noMatchText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.clearButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .clearButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+.blockedLead {
+  margin: 0 0 var(--spacing-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.blockedBody {
+  margin: 0;
+}
+
+.blockedLinks {
+  list-style: none;
+  margin: var(--spacing-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.blockedLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+}
+
+.blockedLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}

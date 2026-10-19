@@ -2,17 +2,16 @@
  * E2E tests for Settings > Project setup (#2215, EPIC-21; formerly the six-tab Manage page)
  *
  * /settings/manage is one page of sections, in this order: House, Cost categories, Purchase
- * categories, Photo orientations, [the interim Areas card while `areas` is unserved], then
- * "Managed on other pages" (Trades). Each section is a `#anchor`; the six old `?tab=` links
+ * categories, Photo orientations, then
+ * "Managed on other pages" (Trades, Areas). Each section is a `#anchor`; the six old `?tab=` links
  * land on their section by history replace.
  *
  * This file covers:
  * - AC1 layout: h1, sections in order, no tab row, no breadcrumb trail, no Back link
- * - Pointers: Trades opens the Trades sheet on Companies; the Areas card (interim)
+ * - Pointers: Trades opens the Trades sheet on Companies; the Areas pointer row (always shown)
  * - AC3 `?tab=` links: anchor, `tab` removed, heading focused, Back leaves in one step
  * - House (singleton settings): load, dirty-gated save, persistence, clearing, save failure
  * - AC4 'Language of your entries': value from the API, no write on load, persists, restored
- * - Interim Areas card CRUD (the old manager, unchanged; #2218 deletes it)
  * - AC5 responsive sizes (UX spec section 10, Style Guide P1-P10) and dark mode
  *
  * List behaviour of the three reference lists (create, edit, delete, reorder) lives in
@@ -25,15 +24,12 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
-import { isRouteServed, routeUrl } from '../../../shared/src/routes/index.js';
-import { createAreaViaApi, deleteAreaViaApi } from '../../fixtures/apiHelpers.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { ProfilePage } from '../../pages/ProfilePage.js';
 import { ProjectSetupPage } from '../../pages/ProjectSetupPage.js';
 import { VendorsPage } from '../../pages/VendorsPage.js';
-
-const AREAS_SERVED = isRouteServed('areas');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Household settings API helpers
@@ -98,9 +94,9 @@ test.describe('Project setup — layout (AC1)', { tag: '@responsive' }, () => {
     const setup = new ProjectSetupPage(page);
     await setup.goto();
 
-    // House < Cost < Purchase < Photo orientations < [Areas card] < pointers, by vertical position
+    // House < Cost < Purchase < Photo orientations < pointers, by vertical position
     const ys: number[] = [];
-    for (const section of setup.sectionsInOrder(!AREAS_SERVED)) {
+    for (const section of setup.sectionsInOrder()) {
       const box = await section.boundingBox();
       if (!box) throw new Error('a section has no box');
       ys.push(box.y);
@@ -133,7 +129,7 @@ test.describe('Project setup — layout (AC1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pointers (Managed on other pages) and the interim Areas card
+// Pointers (Managed on other pages)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Project setup — pointers', { tag: '@responsive' }, () => {
@@ -155,20 +151,15 @@ test.describe('Project setup — pointers', { tag: '@responsive' }, () => {
     await new VendorsPage(page).tradesSheet.waitForOpen();
   });
 
-  test('Areas: the interim card is shown while Areas has no page of its own', async ({ page }) => {
+  test('Areas: the pointer row is always shown and opens the Areas page', async ({ page }) => {
     const setup = new ProjectSetupPage(page);
     await setup.goto();
 
-    if (AREAS_SERVED) {
-      await expect(setup.areasCard).toHaveCount(0);
-      await expect(setup.pointerAreas).toBeVisible();
-    } else {
-      await expect(setup.pointerAreas).toHaveCount(0);
-      await expect(setup.areasCard).toBeVisible();
-      await expect(
-        setup.areasCard.getByRole('heading', { level: 2, name: 'Areas', exact: true }),
-      ).toBeVisible();
-    }
+    await expect(setup.pointerAreas).toBeVisible();
+    await expect(setup.pointerAreas).toHaveAttribute('href', routeUrl('areas'));
+    await setup.pointerAreas.click();
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('areas'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Areas', exact: true })).toBeVisible();
   });
 
   test('The House section links to the app language in Account', async ({ page }) => {
@@ -193,7 +184,6 @@ const TAB_LINKS: ReadonlyArray<readonly [string, string, string]> = [
   ['hi-categories', '#purchase-categories', 'purchase-categories-heading'],
   ['orientations', '#orientations', 'orientations-heading'],
   ['trades', '#trades', 'trades'],
-  ['areas', '#areas', 'areas-heading'],
 ];
 
 test.describe('Project setup — old ?tab= links (AC3)', { tag: '@responsive' }, () => {
@@ -441,101 +431,6 @@ test.describe('Project setup — House', { tag: '@responsive', lock: 'household-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Interim Areas card (#2218 deletes it once Areas has its own page)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Project setup — Areas card (interim)', { tag: '@responsive' }, () => {
-  test.beforeEach(() => {
-    test.skip(AREAS_SERVED, 'Areas has its own page; the interim card is gone');
-  });
-
-  test('Create area — area appears in the Existing Areas list', async ({ page, testPrefix }) => {
-    const areaName = `${testPrefix} Test Area`;
-    let areaId = '';
-    const setup = new ProjectSetupPage(page);
-
-    try {
-      await setup.goto('areas');
-      await expect(setup.areasCard.getByRole('heading', { name: 'Create New Area' })).toBeVisible();
-
-      await setup.areasCard.locator('#areaName').fill(areaName);
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/areas') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 201,
-      );
-      await setup.areasCard.getByRole('button', { name: 'Create Area', exact: true }).click();
-      const response = await responsePromise;
-      areaId = ((await response.json()) as { area: { id: string } }).area.id;
-
-      await expect(setup.areasCard.locator('[role="status"]').first()).toBeVisible();
-      await expect(
-        setup.areasCard.locator('[class*="itemName"]').filter({ hasText: areaName }),
-      ).toBeVisible();
-    } finally {
-      if (areaId) await deleteAreaViaApi(page, areaId);
-    }
-  });
-
-  test('Existing Areas heading is shown', async ({ page, testPrefix }) => {
-    let areaId = '';
-    try {
-      areaId = await createAreaViaApi(page, { name: `${testPrefix} Existing Area` });
-      const setup = new ProjectSetupPage(page);
-      await setup.goto('areas');
-      await expect(
-        setup.areasCard.getByRole('heading', { level: 3, name: /Existing Areas/ }),
-      ).toBeVisible();
-    } finally {
-      if (areaId) await deleteAreaViaApi(page, areaId);
-    }
-  });
-
-  test('Delete area — area removed from list after confirmation', async ({ page, testPrefix }) => {
-    const areaName = `${testPrefix} Delete Area`;
-    let areaId = '';
-    const setup = new ProjectSetupPage(page);
-
-    try {
-      areaId = await createAreaViaApi(page, { name: areaName });
-      await setup.goto('areas');
-
-      const itemRow = setup.areasCard.locator('[class*="itemRow"]').filter({ hasText: areaName });
-      await itemRow.getByRole('button', { name: 'Delete', exact: true }).click();
-
-      const modal = page.getByRole('alertdialog').filter({
-        has: page.getByTestId('area-delete-cancel'),
-      });
-      await modal.waitFor({ state: 'visible' });
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/areas/${areaId}`) && resp.request().method() === 'DELETE',
-      );
-      await modal.getByTestId('area-delete-confirm').click();
-      await responsePromise;
-      await modal.waitFor({ state: 'hidden' });
-
-      await expect(
-        setup.areasCard.locator('[class*="itemName"]').filter({ hasText: areaName }),
-      ).toHaveCount(0);
-      areaId = '';
-    } finally {
-      if (areaId) await deleteAreaViaApi(page, areaId);
-    }
-  });
-
-  test('Create area is disabled while the name is empty', async ({ page }) => {
-    const setup = new ProjectSetupPage(page);
-    await setup.goto('areas');
-    await expect(
-      setup.areasCard.getByRole('button', { name: 'Create Area', exact: true }),
-    ).toBeDisabled();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // AC5: responsive sizes (UX spec section 10, Style Guide P1-P10)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -563,7 +458,7 @@ test.describe('Project setup — responsive', { tag: '@responsive' }, () => {
     const box = await column.boundingBox();
     if (!box) throw new Error('sections column has no box');
     expect(Math.abs(box.width - 343), `column width ${box.width}`).toBeLessThanOrEqual(1);
-    for (const section of setup.sectionsInOrder(!AREAS_SERVED)) {
+    for (const section of setup.sectionsInOrder()) {
       const sectionBox = await section.boundingBox();
       if (!sectionBox) throw new Error('section has no box');
       expect(Math.abs(sectionBox.width - box.width)).toBeLessThanOrEqual(1);

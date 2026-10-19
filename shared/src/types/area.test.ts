@@ -15,6 +15,11 @@ import type {
   CreateAreaRequest,
   UpdateAreaRequest,
   AreaListQuery,
+  AreaCounts,
+  AreaWithCounts,
+  AreaListWithCountsResponse,
+  ReorderAreasRequest,
+  DeleteAreaResponse,
 } from './area.js';
 
 // ---------------------------------------------------------------------------
@@ -287,5 +292,82 @@ describe('AreaListQuery interface', () => {
   it('allows empty query (all fields optional)', () => {
     const query: AreaListQuery = {};
     expect(Object.keys(query)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Areas index types (#2218, contracts 10 and 11)
+// ---------------------------------------------------------------------------
+
+describe('AreaListQuery include', () => {
+  it('accepts include=counts alongside search', () => {
+    const query: AreaListQuery = { search: 'kitchen', include: 'counts' };
+    expect(query.include).toBe('counts');
+  });
+
+  it('rejects any other include value at compile time', () => {
+    // @ts-expect-error only 'counts' is a valid include value
+    const bad: AreaListQuery = { include: 'subtree' };
+    expect(bad.include).toBe('subtree');
+  });
+});
+
+describe('AreaCounts / AreaWithCounts / AreaListWithCountsResponse', () => {
+  it('carries direct counts next to the area fields', () => {
+    const counts: AreaCounts = {
+      workItems: { total: 3, open: 2 },
+      householdItems: { total: 1, open: 0 },
+      photos: { total: 4, latestDate: '2026-05-20' },
+    };
+    const area: AreaWithCounts = {
+      id: 'a1',
+      name: 'Kitchen',
+      parentId: null,
+      description: null,
+      color: null,
+      sortOrder: 0,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      counts,
+    };
+    const response: AreaListWithCountsResponse = { areas: [area] };
+
+    expect(response.areas[0]!.counts.photos.latestDate).toBe('2026-05-20');
+  });
+
+  it('allows a null latestDate for an area without photos', () => {
+    const counts: AreaCounts = {
+      workItems: { total: 0, open: 0 },
+      householdItems: { total: 0, open: 0 },
+      photos: { total: 0, latestDate: null },
+    };
+    expect(counts.photos.latestDate).toBeNull();
+  });
+});
+
+describe('ReorderAreasRequest', () => {
+  it('takes a parent id and the ordered child ids', () => {
+    const body: ReorderAreasRequest = { parentId: 'p1', ids: ['a', 'b'] };
+    expect(body).toEqual({ parentId: 'p1', ids: ['a', 'b'] });
+  });
+
+  it('allows a null parent for the top level', () => {
+    const body: ReorderAreasRequest = { parentId: null, ids: ['a'] };
+    expect(body.parentId).toBeNull();
+  });
+
+  it('requires parentId at compile time', () => {
+    // @ts-expect-error parentId is required
+    const body: ReorderAreasRequest = { ids: ['a'] };
+    expect(body.ids).toEqual(['a']);
+  });
+});
+
+describe('DeleteAreaResponse', () => {
+  it('wraps the undo token', () => {
+    const response: DeleteAreaResponse = {
+      undo: { token: `u_${'a'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' },
+    };
+    expect(response.undo.token).toMatch(/^u_[0-9a-f]{32}$/);
   });
 });

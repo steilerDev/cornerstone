@@ -24,8 +24,14 @@ import * as subsidyProgramService from './subsidyProgramService.js';
 import * as diaryService from './diaryService.js';
 import * as budgetSourceService from './budgetSourceService.js';
 import { __resetLedgerForTests, activeCollection } from './statusEventLedger.js';
-import { applyUndo, createUndoStore, runUndoable, undoStore } from './undoService.js';
-import type { UndoStore } from './undoService.js';
+import {
+  applyUndo,
+  createUndoStore,
+  issueRestoreToken,
+  runUndoable,
+  undoStore,
+} from './undoService.js';
+import type { UndoStore, UndoTransaction } from './undoService.js';
 
 const START = new Date('2026-08-07T10:00:00.000Z');
 const TOKEN_SHAPE = /^u_[0-9a-f]{32}$/;
@@ -81,6 +87,13 @@ describe('undoService', () => {
       { userId: actor ?? userA, subject: { type: 'work_item', id }, reschedules: true },
       () => workItemService.updateWorkItem(db, id, data, true, actor),
     );
+  }
+
+  /** The stored snapshot of a status token, narrowed from the status | restore union. */
+  function statusSnapshot(token: string) {
+    const snapshot = store.snapshots.get(token)!;
+    if (snapshot.kind !== 'status') throw new Error('expected a status snapshot');
+    return snapshot;
   }
 
   function getWorkItemRow(id: string) {
@@ -160,7 +173,7 @@ describe('undoService', () => {
 
       const succAfter = getWorkItemRow(succ.id);
       expect(succAfter.startDate).not.toBe(succBefore.startDate);
-      const snapshot = store.snapshots.get(undo!.token)!;
+      const snapshot = statusSnapshot(undo!.token);
       const ids = snapshot.rows.map((r) => `${r.type}:${r.id}`);
       expect(ids).toContain(`work_item:${pred.id}`);
       expect(ids).toContain(`work_item:${succ.id}`);
@@ -196,7 +209,7 @@ describe('undoService', () => {
       ).toThrow();
       // A later, unrelated undoable call must only carry its own events.
       const { undo } = patchWorkItem(wi.id, { status: 'in_progress' });
-      expect(store.snapshots.get(undo!.token)!.written).toHaveLength(1);
+      expect(statusSnapshot(undo!.token).written).toHaveLength(1);
     });
 
     it('collects the status event id and any milestone-delay event written in the same call', () => {
@@ -208,7 +221,7 @@ describe('undoService', () => {
       );
       workItemMilestoneService.addLinkedMilestone(db, wi.id, ms.id);
       const { undo } = patchWorkItem(wi.id, { status: 'in_progress' });
-      const snapshot = store.snapshots.get(undo!.token)!;
+      const snapshot = statusSnapshot(undo!.token);
       expect(statusEvents('milestone_delay')).toHaveLength(1);
       expect(snapshot.written).toHaveLength(2);
       for (const id of snapshot.written) {
@@ -253,7 +266,7 @@ describe('undoService', () => {
         () => milestoneService.deleteMilestone(db, ms.id),
       );
       expect(undo).not.toBeNull();
-      expect(store.snapshots.get(undo!.token)!.rows).toEqual([]);
+      expect(statusSnapshot(undo!.token).rows).toEqual([]);
     });
 
     describe('per subject type', () => {
@@ -494,7 +507,7 @@ describe('undoService', () => {
       );
       workItemMilestoneService.addLinkedMilestone(db, wi.id, ms.id);
       const { undo } = patchWorkItem(wi.id, { status: 'in_progress' });
-      const written = store.snapshots.get(undo!.token)!.written;
+      const written = statusSnapshot(undo!.token).written;
       expect(statusEvents('milestone_delay')).toHaveLength(1);
       expect(written).toHaveLength(2);
 
@@ -1081,7 +1094,7 @@ describe('undoService', () => {
       const originalEvent = statusEvents()[0]!;
       const back = revert(wi.id, 'in_progress', 'not_started');
       expect(statusEvents()).toHaveLength(0);
-      expect(store.snapshots.get(back.undo!.token)!.retracted).toHaveLength(1);
+      expect(statusSnapshot(back.undo!.token).retracted).toHaveLength(1);
 
       applyUndo(db, store, back.undo!.token, userA);
 
@@ -1119,7 +1132,7 @@ describe('undoService', () => {
       );
       expect(undo).not.toBeNull();
       expect(statusEvents()).toHaveLength(0);
-      expect(store.snapshots.get(undo!.token)!.written).toEqual([]);
+      expect(statusSnapshot(undo!.token).written).toEqual([]);
       expect(() => applyUndo(db, store, undo!.token, userA)).not.toThrow();
       expect(getWorkItemRow(wi.id).status).toBe('not_started');
     });
@@ -1174,6 +1187,114 @@ describe('undoService', () => {
     );
     return { invoiceId: invoice.id, depositId: deposit.id };
   }
+
+  describe('restore snapshots (issueRestoreToken)', () => {
+    const subject = { type: 'area' as const, id: 'area-1' };
+
+    function issue(restore: (tx: UndoTransaction) => void = () => undefined, user = userA) {
+      return issueRestoreToken(store, { userId: user, subject, restore });
+    }
+
+    it('issues a u_<32 hex> token that expires 30 s from now and stores a restore snapshot', () => {
+      const token = issue();
+
+      expect(token.token).toMatch(TOKEN_SHAPE);
+      expect(token.expiresAt).toBe(new Date(START.getTime() + UNDO_WINDOW_MS).toISOString());
+      const snapshot = store.snapshots.get(token.token)!;
+      expect(snapshot.kind).toBe('restore');
+      expect(snapshot.userId).toBe(userA);
+    });
+
+    it('status snapshots are tagged kind "status"', () => {
+      const wi = workItem('Walls');
+      const { undo } = patchWorkItem(wi.id, { status: 'in_progress' });
+      expect(store.snapshots.get(undo!.token)!.kind).toBe('status');
+    });
+
+    it('prunes expired snapshots and enforces the size cap like status snapshots', () => {
+      store = createUndoStore({ now: () => Date.now(), maxEntries: 2 });
+      const t1 = issue();
+      jest.setSystemTime(new Date(START.getTime() + 1000));
+      const t2 = issue();
+      jest.setSystemTime(new Date(START.getTime() + 2000));
+      const t3 = issue();
+
+      expect(store.snapshots.size).toBe(2);
+      expect(store.snapshots.has(t1.token)).toBe(false);
+      expect(store.snapshots.has(t2.token)).toBe(true);
+      expect(store.snapshots.has(t3.token)).toBe(true);
+
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS + 2000));
+      issue();
+      expect(store.snapshots.has(t2.token)).toBe(false);
+      expect(store.snapshots.has(t3.token)).toBe(false);
+    });
+
+    it('runs the callback in a transaction, returns restored=[subject] and consumes the token', () => {
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issue(restore);
+
+      const response = applyUndo(db, store, token, userA);
+
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(response).toEqual({ restored: [subject], retractedEventIds: [] });
+      expect(store.snapshots.has(token)).toBe(false);
+      expect(() => applyUndo(db, store, token, userA)).toThrow(NotFoundError);
+    });
+
+    it('consumes the token and propagates the 409 when the callback throws a ConflictError', () => {
+      const { token } = issue(() => {
+        throw new ConflictError('The record changed after this action', {
+          changed: [subject],
+        });
+      });
+
+      let error: unknown;
+      try {
+        applyUndo(db, store, token, userA);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({ changed: [subject] });
+      expect(store.snapshots.has(token)).toBe(false);
+      expect(() => applyUndo(db, store, token, userA)).toThrow(NotFoundError);
+    });
+
+    it('rolls back everything the callback wrote when it throws', () => {
+      const { token } = issue((tx) => {
+        tx.update(schema.users).set({ displayName: 'Changed' }).run();
+        throw new ConflictError('The record changed after this action');
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(ConflictError);
+
+      const names = db.select({ n: schema.users.displayName }).from(schema.users).all();
+      expect(names.map((r) => r.n).sort()).toEqual(['a@example.com', 'b@example.com']);
+    });
+
+    it('rejects a foreign user with 404 and keeps the token, without running the callback', () => {
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issue(restore, userA);
+
+      expect(() => applyUndo(db, store, token, userB)).toThrow(NotFoundError);
+
+      expect(restore).not.toHaveBeenCalled();
+      expect(store.snapshots.has(token)).toBe(true);
+    });
+
+    it('rejects an expired token with 404, without running the callback', () => {
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issue(restore);
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS));
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(NotFoundError);
+
+      expect(restore).not.toHaveBeenCalled();
+      expect(store.snapshots.has(token)).toBe(false);
+    });
+  });
 
   // keep `and` import used for event lookups
   void and;

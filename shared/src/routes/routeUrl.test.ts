@@ -41,7 +41,7 @@ describe('routePattern / getRouteEntry / isRouteServed', () => {
   it('reports served and planned routes', () => {
     expect(isRouteServed('workItems')).toBe(true);
     expect(isRouteServed('company')).toBe(true);
-    expect(isRouteServed('areas')).toBe(false);
+    expect(isRouteServed('area')).toBe(false);
   });
 });
 
@@ -124,7 +124,7 @@ describe('routeUrl', () => {
   });
 
   it('throws on a planned id', () => {
-    expect(() => looseRouteUrl('areas')).toThrow("Route 'areas' is not served");
+    expect(() => looseRouteUrl('area')).toThrow("Route 'area' is not served");
   });
 
   it('throws on notFound', () => {
@@ -145,7 +145,7 @@ describe('routeUrl types', () => {
   it('rejects planned ids, notFound, missing params and extra params at compile time', () => {
     const attempts = [
       // @ts-expect-error planned ids are not linkable
-      () => routeUrl('areas'),
+      () => routeUrl('area'),
       // @ts-expect-error notFound is not linkable
       () => routeUrl('notFound'),
       // @ts-expect-error a dynamic route needs its params
@@ -162,7 +162,7 @@ describe('routeUrl types', () => {
 
   it('exports the id types', () => {
     const served: ServedRouteId = 'workItem';
-    const any: RouteId = 'areas';
-    expect([served, any]).toEqual(['workItem', 'areas']);
+    const any: RouteId = 'area';
+    expect([served, any]).toEqual(['workItem', 'area']);
   });
 });

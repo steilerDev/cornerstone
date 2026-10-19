@@ -5,12 +5,13 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { NotFoundError } from '../errors/AppError.js';
-import { listPhotoSpots, listSpotPhotos } from './photoSpotService.js';
+import { DIARY_PHOTO_SCOPE, listPhotoSpots, listSpotPhotos } from './photoSpotService.js';
 
 describe('photoSpotService', () => {
   let sqlite: Database.Database;
@@ -417,6 +418,26 @@ describe('photoSpotService', () => {
       const area = insertArea('Kitchen');
       expect(() => listSpotPhotos(db, area, 'nope')).toThrow('Orientation not found');
       expect(() => listSpotPhotos(db, null, 'nope')).toThrow(NotFoundError);
+    });
+  });
+
+  describe('DIARY_PHOTO_SCOPE (shared with the area counts)', () => {
+    it('is exported and selects only photos of saved diary entries', () => {
+      const saved = insertEntry({ status: 'saved' });
+      const draft = insertEntry({ status: 'draft' });
+      const inScope = insertPhoto({ entityId: saved });
+      insertPhoto({ entityId: draft });
+      insertPhoto({ entityType: 'work_item', entityId: saved });
+
+      const ids = db
+        .select({ id: schema.photos.id })
+        .from(schema.photos)
+        .innerJoin(schema.diaryEntries, eq(schema.diaryEntries.id, schema.photos.entityId))
+        .where(DIARY_PHOTO_SCOPE)
+        .all()
+        .map((r) => r.id);
+
+      expect(ids).toEqual([inScope]);
     });
   });
 });

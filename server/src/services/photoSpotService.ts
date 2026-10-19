@@ -38,7 +38,7 @@ const SPOT_ORDER = [
 ];
 
 /** Scope: photos of saved diary entries only (drafts excluded). */
-const DIARY_PHOTO_SCOPE = and(
+export const DIARY_PHOTO_SCOPE = and(
   eq(photos.entityType, 'diary_entry'),
   eq(diaryEntries.status, 'saved'),
 );

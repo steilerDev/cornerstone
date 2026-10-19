@@ -258,7 +258,23 @@ export function ObjectForm({
     const failed = top;
     if (error instanceof ApiClientError) {
       const code = error.error.code;
-      if (code === 'VALIDATION_ERROR') {
+      const mappedErrors = schema.mapError?.(code, failed.values);
+      const mappedNames = Object.keys(mappedErrors ?? {}).filter(
+        (name) => mappedErrors?.[name] !== undefined,
+      );
+      if (mappedErrors && mappedNames.length > 0) {
+        const errors: Record<string, string | undefined> = {};
+        for (const name of mappedNames) errors[name] = mappedErrors[name];
+        const first = firstErrorField(schema.fields, errors);
+        const needsMore = schema.fields.some((f) => errors[f.name] !== undefined && isMoreField(f));
+        updateTop((step) => ({
+          ...step,
+          errors: { ...failed.errors, ...errors },
+          expanded: step.expanded || needsMore,
+        }));
+        if (first) pendingFocusRef.current = first.name;
+        setBanner(null);
+      } else if (code === 'VALIDATION_ERROR') {
         const mapped = serverFieldErrors(
           error.error.details,
           schema.fields.map((f) => f.name),

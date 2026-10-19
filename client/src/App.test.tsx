@@ -111,6 +111,18 @@ jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),
 }));
 
+// AreasPage (#2218) loads the tree with counts on mount; the other area helpers stay inert.
+const mockFetchAreasWithCounts = jest.fn<() => Promise<unknown[]>>();
+jest.unstable_mockModule('./lib/areasApi.js', () => ({
+  fetchAreas: jest.fn(async () => ({ areas: [] })),
+  fetchArea: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+  reorderAreas: jest.fn(),
+  fetchAreasWithCounts: mockFetchAreasWithCounts,
+}));
+
 // WorkItemsPage calls listUsers on mount for the assigned-to filter dropdown.
 // Mock to prevent fetch calls in the jsdom test environment.
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
@@ -298,6 +310,8 @@ describe('App', () => {
     mockFetchVendors.mockReset();
     mockFetchVendor.mockReset();
     mockListUsers.mockReset();
+    mockFetchAreasWithCounts.mockReset();
+    mockFetchAreasWithCounts.mockResolvedValue([]);
     mockListBackups.mockReset();
     mockGetSchedulerStatus.mockReset();
     mockGetIntegrationsStatus.mockReset();
@@ -557,6 +571,28 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^photos$/i, level: 1 })).toBeInTheDocument();
   });
+
+  it('renders the Areas page at /areas (Story #2218)', async () => {
+    window.history.pushState({}, 'Areas', '/areas');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('areas-page', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^areas$/i, level: 1 })).toBeInTheDocument();
+    await waitFor(() => expect(mockFetchAreasWithCounts).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.title).toContain('Areas'));
+  }, 15000);
+
+  it('lands the retired /tags path on the Areas page (Story #2218)', async () => {
+    window.history.pushState({}, 'Tags', '/tags');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('areas-page', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/areas');
+  }, 15000);
 
   it('renders the photo spot viewer at /photos/spot/:areaKey/:orientationKey (Story #2162)', async () => {
     window.history.pushState({}, 'Spot', '/photos/spot/none/none');

@@ -3,34 +3,17 @@
  */
 import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
 import { act, render } from '@testing-library/react';
-import type * as SharedTypes from '@cornerstone/shared';
 import type * as LocationTypes from './projectSetupLocation.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type { RouterLog } from '../../test/recordingRouter.js';
 import { RealLocationKeyContext } from '../../navigation/realLocation.js';
 
-type RouteId = Parameters<typeof SharedTypes.isRouteServed>[0];
-
-const served = new Set<string>();
 let useProjectSetupLocation: typeof LocationTypes.useProjectSetupLocation;
 let resolveLegacyTab: typeof LocationTypes.resolveLegacyTab;
 let LEGACY_TAB_ANCHORS: typeof LocationTypes.LEGACY_TAB_ANCHORS;
 let PROJECT_SETUP_ANCHORS: typeof LocationTypes.PROJECT_SETUP_ANCHORS;
 
 beforeAll(async () => {
-  const actual = await import('@cornerstone/shared');
-  jest.unstable_mockModule('@cornerstone/shared', () => ({
-    ...actual,
-    isRouteServed: (id: RouteId) => served.has(id) || actual.isRouteServed(id),
-    getRouteEntry: (id: RouteId) => {
-      const entry = actual.getRouteEntry(id);
-      return served.has(id) ? { ...entry, stage: 'done' } : entry;
-    },
-  }));
-  // routeUrl resolves stages inside the shared module, which the patched lookup above cannot reach.
-  jest.unstable_mockModule('../../navigation/navActive.js', () => ({
-    navHref: (id: string) => `/${id}`,
-  }));
   ({ useProjectSetupLocation, resolveLegacyTab, LEGACY_TAB_ANCHORS, PROJECT_SETUP_ANCHORS } =
     await import('./projectSetupLocation.js'));
 });
@@ -42,27 +25,26 @@ describe('resolveLegacyTab', () => {
     ['budget-categories', 'cost-categories'],
     ['hi-categories', 'purchase-categories'],
     ['trades', 'trades'],
-    ['areas', 'areas'],
-  ])('maps ?tab=%s to #%s while Areas is not a page', (tab, anchor) => {
-    expect(resolveLegacyTab(tab, false)).toEqual({ kind: 'anchor', anchor });
+  ])('maps ?tab=%s to #%s on this page', (tab, anchor) => {
+    expect(resolveLegacyTab(tab)).toEqual({ kind: 'anchor', anchor });
   });
 
-  it('sends ?tab=areas to the Areas page once it is served', () => {
-    expect(resolveLegacyTab('areas', true)).toEqual({ kind: 'areasPage' });
+  it('sends ?tab=areas to the Areas page', () => {
+    expect(resolveLegacyTab('areas')).toEqual({ kind: 'areasPage' });
   });
 
-  it('keeps the other legacy values on this page when Areas is served', () => {
-    expect(resolveLegacyTab('household', true)).toEqual({ kind: 'anchor', anchor: 'house' });
+  it('no longer keeps an Areas section anchor on this page', () => {
+    expect(Object.keys(LEGACY_TAB_ANCHORS)).not.toContain('areas');
   });
 
   it('does nothing without a tab', () => {
-    expect(resolveLegacyTab(null, false)).toEqual({ kind: 'none' });
+    expect(resolveLegacyTab(null)).toEqual({ kind: 'none' });
   });
 
   it.each(['foo', '', 'constructor', '__proto__', 'toString'])(
     'drops the unknown tab %p',
     (tab) => {
-      expect(resolveLegacyTab(tab, false)).toEqual({ kind: 'drop' });
+      expect(resolveLegacyTab(tab)).toEqual({ kind: 'drop' });
     },
   );
 
@@ -77,7 +59,6 @@ describe('useProjectSetupLocation', () => {
   let scrollIntoView: jest.Mock<(arg?: ScrollIntoViewOptions) => void>;
 
   beforeEach(() => {
-    served.clear();
     jest.useFakeTimers();
     scrollIntoView = jest.fn<(arg?: ScrollIntoViewOptions) => void>();
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -129,7 +110,6 @@ describe('useProjectSetupLocation', () => {
       ['budget-categories', '#cost-categories'],
       ['hi-categories', '#purchase-categories'],
       ['trades', '#trades'],
-      ['areas', '#areas'],
     ])('replaces ?tab=%s with %s and removes tab', (tab, hash) => {
       const { log } = renderAt(`/settings/manage?tab=${tab}`);
 
@@ -162,8 +142,7 @@ describe('useProjectSetupLocation', () => {
       expect(log.actions).toEqual(['REPLACE /settings/manage']);
     });
 
-    it('sends ?tab=areas to the Areas page while keeping nothing else, once Areas is served', () => {
-      served.add('areas');
+    it('sends ?tab=areas to the Areas page while keeping nothing else', () => {
       const { log } = renderAt('/settings/manage?tab=areas');
 
       expect(log.actions).toEqual(['REPLACE /areas']);

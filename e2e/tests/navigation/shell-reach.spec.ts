@@ -58,6 +58,7 @@ const AREAS = [
     ],
   },
   { area: 'Companies', rows: [{ route: 'companies' }] },
+  { area: 'Areas', rows: [{ route: 'areas' }] },
   {
     area: 'Settings',
     rows: [

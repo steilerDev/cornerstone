@@ -206,3 +206,24 @@ describe('legacy URLs stay one hop and permanent', () => {
     expect(live?.target).toBe('/settings/manage#cost-categories');
   });
 });
+
+describe('Areas index rollout (#2218)', () => {
+  const entry = (id: string) => ENTRIES.find((e) => e.id === id);
+
+  it('serves the Areas index and keeps the area detail planned', () => {
+    expect(entry('areas')?.stage).toBe('done');
+    expect(entry('area')?.stage).toBe('planned');
+  });
+
+  it('redirects /tags straight to the index with no interim form left', () => {
+    const tags = ENTRIES.find((e) => e.from === '/tags');
+    expect(tags?.stage).toBe('done');
+    expect(tags).not.toHaveProperty('interim');
+  });
+
+  it('keeps the Settings Areas tab entry interim, served by the page', () => {
+    const tab = ENTRIES.find((e) => e.from === '/settings/manage?tab=areas');
+    expect(tab?.stage).toBe('interim');
+    expect(tab?.interim).toBe('page');
+  });
+});

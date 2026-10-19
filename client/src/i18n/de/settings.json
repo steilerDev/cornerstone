@@ -125,45 +125,6 @@
     }
   },
   "manage": {
-    "areas": {
-      "loading": "Bereiche werden geladen...",
-      "errorTitle": "Fehler",
-      "retry": "Erneut versuchen",
-      "loadError": "Bereiche konnten nicht geladen werden. Bitte versuche es erneut.",
-      "createTitle": "Neuen Bereich erstellen",
-      "createDescription": "Bereiche helfen dir, Arbeitspakete nach Standort oder Raum zu organisieren (z. B. Küche, Schlafzimmer, Badezimmer). Bereiche können Unterbereiche haben.",
-      "nameLabel": "Bereichsname",
-      "namePlaceholder": "z. B. Küche, Schlafzimmer, Badezimmer",
-      "parentLabel": "Übergeordneter Bereich",
-      "colorLabel": "Farbe",
-      "descriptionLabel": "Beschreibung",
-      "descriptionPlaceholder": "Optionale Beschreibung",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "createButton": "Bereich erstellen",
-      "creating": "Wird erstellt...",
-      "existingTitle": "Vorhandene Bereiche ({{count}})",
-      "emptyState": "Noch keine Bereiche. Erstelle deinen ersten Bereich, um deine Arbeitspakete zu organisieren.",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "deleteWarning": "Seine Unterbereiche werden mit ihm gelöscht, und Fotos in diesen Bereichen verlieren ihre Bereichszuordnung. Ein Bereich, den eine Aufgabe oder Anschaffung direkt oder über einen Unterbereich verwendet, kann nicht gelöscht werden.",
-      "validation": {
-        "nameRequired": "Bereichsname ist erforderlich",
-        "nameTooLong": "Bereichsname darf maximal 100 Zeichen lang sein"
-      },
-      "messages": {
-        "created": "Bereich „{{name}}“ erfolgreich erstellt",
-        "updated": "Bereich „{{name}}“ erfolgreich aktualisiert",
-        "deleted": "Bereich „{{name}}“ erfolgreich gelöscht",
-        "createError": "Bereich konnte nicht erstellt werden. Bitte versuche es erneut.",
-        "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuche es erneut.",
-        "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuche es erneut.",
-        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da eine Aufgabe oder Anschaffung ihn oder einen seiner Unterbereiche verwendet.",
-        "duplicateName": "Ein Bereich mit diesem Namen existiert bereits auf dieser Ebene."
-      }
-    },
     "trades": {
       "loadError": "Gewerke konnten nicht geladen werden. Bitte versuche es erneut."
     },
@@ -221,9 +182,6 @@
       "empty": "Noch keine {{items}}.",
       "loadFailed": "Die {{items}} konnten nicht geladen werden.",
       "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
-    },
-    "areas": {
-      "title": "Bereiche"
     },
     "pointers": {
       "title": "Auf anderen Seiten",
