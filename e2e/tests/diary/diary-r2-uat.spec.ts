@@ -16,15 +16,14 @@
  * 5.  [smoke] "New Entry" button text is "New Entry" (no "+" prefix)
  * 6.  Automatic events section is a flat bordered div, not a collapsible details element
  * 7.  [smoke] Signed badge is visible on cards with isSigned=true
- * 8.  Photo file input is present on the create form
+ * 8.  Photo file input is present on the capture screen
  * 9.  Mode filter chip sends correct type parameter to the API when "Automatic" mode is selected
  * 10. Mode filter chip sends correct type parameter to the API when "Manual" mode is selected
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
-import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
-import { deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local mock helpers
@@ -476,52 +475,32 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Photo file input on edit page (reached via type-card click)
+// Scenario 8: Photo file input on the capture screen (#2221)
 //
-// AC1 of #1435 removed the intermediate create form entirely: clicking a type
-// card now fires POST /api/diary-entries immediately and navigates to
-// /diary/:id/edit. The old create-form photo input (data-testid="create-photo-input")
-// no longer exists. This test was migrated to verify the photo file input on
-// the edit page, which is the correct place for photo uploads post-#1435.
+// The type-card picker and the old PhotoUpload input are gone. /diary/new is the capture
+// screen itself: its library input exists before any draft does.
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Photo upload input on edit page (Scenario 8)', { tag: '@responsive' }, () => {
-  test('Edit page (reached via type-card click) includes a photo file input', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    let draftId: string | null = null;
+test.describe(
+  'Photo upload input on the capture screen (Scenario 8)',
+  { tag: '@responsive' },
+  () => {
+    test('The capture screen includes an image file input that takes several files', async ({
+      page,
+    }) => {
+      const capture = new DiaryCapturePage(page);
+      await capture.goto();
 
-    try {
-      await createPage.goto();
-
-      // Register the POST response listener BEFORE clicking the type card
-      const draftResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-      );
-
-      await createPage.selectType('general_note');
-
-      // Wait for the auto-draft POST to complete and navigate to /diary/:id/edit
-      await draftResponsePromise;
-      await page.waitForURL(/diary\/.+\/edit$/);
-
-      // Extract the draft ID from the URL for cleanup
-      const match = page.url().match(/diary\/([^/]+)\/edit$/);
-      draftId = match?.[1] ?? null;
-
-      // The photo file input must be present on the edit page.
-      // data-testid="photo-file-input" (PhotoUpload.tsx)
-      const photoInput = page.getByTestId('photo-file-input');
-      await expect(photoInput).toBeAttached();
+      // The library input is on the screen before any draft exists (#2221: no draft yet)
+      await expect(capture.libraryInput).toBeAttached();
 
       // Verify it accepts image files (accept="image/*")
-      await expect(photoInput).toHaveAttribute('accept', /image\/\*/i);
+      await expect(capture.libraryInput).toHaveAttribute('accept', /image\/\*/i);
 
       // Verify it supports multiple files (boolean attribute — present as empty string)
-      await expect(photoInput).toHaveAttribute('multiple', '');
-    } finally {
-      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-    }
-  });
-});
+      await expect(capture.libraryInput).toHaveAttribute('multiple', '');
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 9: Automatic mode sends only automatic types to API

@@ -32,7 +32,7 @@ import { API, TEST_ADMIN } from '../../fixtures/testData.js';
 import { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { HouseholdItemEditPage } from '../../pages/HouseholdItemEditPage.js';
 import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
@@ -423,19 +423,20 @@ test.describe('Company chooser - diary signature (S6)', { tag: '@responsive' }, 
     const companyId = await createCompany(page, company);
     const entryId = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
     try {
-      const edit = new DiaryEntryEditPage(page);
-      await edit.goto(entryId);
-      await edit.bodyTextarea.fill(`${testPrefix} daily log with a company signature`);
-      await edit.addSignatureButton.click();
+      const edit = new DiaryCapturePage(page);
+      await edit.gotoEdit(entryId);
+      await edit.typeText(`${testPrefix} daily log with a company signature`);
+      await edit.openMoreDetails();
+      await edit.tap(edit.addSignatureButton);
       await edit.vendorSignerRadio.check();
 
       await edit.chooseSignatureCompany(company);
       await expect(edit.signatureCompanyChip).toContainText(company);
       expect(await focusIsOnBody(page)).toBe(false);
       await edit.signatoryNameInput.fill(signatory);
-      await edit.drawSignature(0);
+      await edit.drawSignature();
 
-      await edit.submitButton.click();
+      await edit.saveEntry();
       await expect(page).toHaveURL(new RegExp(`/diary/${entryId}$`));
       await expect(new DiaryEntryDetailPage(page).signatureSection).toContainText(
         `${company} (${signatory})`,
@@ -451,19 +452,20 @@ test.describe('Company chooser - diary signature (S6)', { tag: '@responsive' }, 
     const signatory = 'Sam Signatory';
     const entryId = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
     try {
-      const edit = new DiaryEntryEditPage(page);
-      await edit.goto(entryId);
-      await edit.bodyTextarea.fill(`${testPrefix} daily log with a free-text signature`);
-      await edit.addSignatureButton.click();
+      const edit = new DiaryCapturePage(page);
+      await edit.gotoEdit(entryId);
+      await edit.typeText(`${testPrefix} daily log with a free-text signature`);
+      await edit.openMoreDetails();
+      await edit.tap(edit.addSignatureButton);
       await edit.vendorSignerRadio.check();
 
       await edit.chooseSignatureCompany('Other...');
       await expect(edit.signatureOtherCompanyInput).toBeVisible();
       await edit.signatureOtherCompanyInput.fill(freeText);
       await edit.signatoryNameInput.fill(signatory);
-      await edit.drawSignature(0);
+      await edit.drawSignature();
 
-      await edit.submitButton.click();
+      await edit.saveEntry();
       await expect(page).toHaveURL(new RegExp(`/diary/${entryId}$`));
       await expect(new DiaryEntryDetailPage(page).signatureSection).toContainText(
         `${freeText} (${signatory})`,
@@ -541,9 +543,10 @@ test.describe('Company chooser - signature layout (S9)', { tag: '@responsive' },
   }) => {
     const entryId = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
     try {
-      const edit = new DiaryEntryEditPage(page);
-      await edit.goto(entryId);
-      await edit.addSignatureButton.click();
+      const edit = new DiaryCapturePage(page);
+      await edit.gotoEdit(entryId);
+      await edit.openMoreDetails();
+      await edit.tap(edit.addSignatureButton);
       await edit.vendorSignerRadio.check();
       await edit.chooseSignatureCompany('Other...');
       await edit.signatureOtherCompanyInput.fill(`${testPrefix} A Rather Long Company Name Co`);

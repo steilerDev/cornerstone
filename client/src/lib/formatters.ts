@@ -133,6 +133,30 @@ export function formatTime(
 }
 
 /**
+ * Format a wall-clock `HH:mm` value (no date, no timezone) in the given locale.
+ *
+ * @param hhmm - A 24-hour `HH:mm` string.
+ * @param locale - The locale for formatting (default: 'en-US').
+ * @param fallback - Returned when `hhmm` is not a valid time. Defaults to '—'.
+ */
+export function formatClockTime(hhmm: string, locale = 'en-US', fallback = '—'): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!match) return fallback;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return fallback;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(2000, 0, 1, h, m)));
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Format an ISO timestamp as a localized date and time string.
  *
  * @param timestamp - An ISO timestamp string or null/undefined.
@@ -339,6 +363,7 @@ export interface Formatters {
 export interface AppFormatters extends Formatters {
   getCurrencySymbol: () => string;
   formatTime: (timestamp: string | null | undefined, fallback?: string) => string;
+  formatClockTime: (hhmm: string, fallback?: string) => string;
   formatDateTime: (timestamp: string | null | undefined, fallback?: string) => string;
   formatPercent: (rate: number, digits?: number) => string;
   formatWeekdayShort: (date: Date) => string;
@@ -404,6 +429,11 @@ export function createFormatters(locale: string, currency: string): AppFormatter
      */
     formatTime: (timestamp: string | null | undefined, fallback?: string) =>
       formatTime(timestamp, locale, fallback),
+
+    /**
+     * Format an `HH:mm` wall-clock value using the bound locale.
+     */
+    formatClockTime: (hhmm: string, fallback?: string) => formatClockTime(hhmm, locale, fallback),
 
     /**
      * Format a datetime string using the bound locale.

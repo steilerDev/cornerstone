@@ -32,16 +32,5 @@
   "deleteConfirmTitle": "Foto löschen?",
   "deleteConfirmBody": "Dieses Foto wird dauerhaft entfernt.",
   "deleteConfirmAction": "Löschen",
-  "metadataToggle": "Foto-Metadaten ein-/ausblenden",
-  "photoMetadataModal": {
-    "title": "Fotodetails hinzufügen",
-    "descriptionLabel": "Beschreibung",
-    "descriptionPlaceholder": "Beschreibung hinzufügen… (optional)",
-    "areaLabel": "Bereich",
-    "orientationLabel": "Ausrichtung",
-    "cancel": "Abbrechen",
-    "saveAndUpload": "Speichern & hochladen",
-    "saving": "Wird gespeichert…",
-    "noOrientationsHint": "Keine Ausrichtungen konfiguriert. Füge diese unter Einstellungen → Ausrichtungen hinzu."
-  }
+  "metadataToggle": "Foto-Metadaten ein-/ausblenden"
 }

@@ -1296,6 +1296,237 @@ describe('undoService', () => {
     });
   });
 
+  describe('restore snapshots: discard hook (#2221)', () => {
+    const subject = { type: 'photo' as const, id: 'photo-1' };
+
+    function issueWithDiscard(
+      discard: () => void,
+      restore: (tx: UndoTransaction) => void = () => undefined,
+      user = userA,
+    ) {
+      return issueRestoreToken(store, { userId: user, subject, restore, discard });
+    }
+
+    it('runs discard exactly once when the per-token timer fires, with no further store activity', () => {
+      const discard = jest.fn();
+      const { token } = issueWithDiscard(discard);
+
+      jest.advanceTimersByTime(UNDO_WINDOW_MS - 1);
+      expect(discard).not.toHaveBeenCalled();
+      expect(store.snapshots.has(token)).toBe(true);
+
+      jest.advanceTimersByTime(1);
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(store.snapshots.has(token)).toBe(false);
+
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('arms an unref-ed timer so a pending token never holds the process open', () => {
+      const unref = jest.fn();
+      const realSetTimeout = global.setTimeout;
+      const spy = jest.spyOn(global, 'setTimeout').mockImplementation(((
+        ...args: Parameters<typeof setTimeout>
+      ) => {
+        const handle = realSetTimeout(...args);
+        const original = handle.unref.bind(handle);
+        handle.unref = (() => {
+          unref();
+          return original();
+        }) as typeof handle.unref;
+        return handle;
+      }) as typeof setTimeout);
+      try {
+        issueWithDiscard(jest.fn());
+      } finally {
+        spy.mockRestore();
+      }
+      expect(unref).toHaveBeenCalledTimes(1);
+    });
+
+    it('arms no timer for a restore snapshot without a discard step', () => {
+      const spy = jest.spyOn(global, 'setTimeout');
+      try {
+        issueRestoreToken(store, { userId: userA, subject, restore: () => undefined });
+        expect(spy).not.toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('runs discard once on lazy prune, and the later timer does not run it again', () => {
+      const discard = jest.fn();
+      const { token } = issueWithDiscard(discard);
+
+      // Move the clock only (timers stay pending) so the next issue prunes the old snapshot
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS + 1));
+      issueRestoreToken(store, { userId: userA, subject, restore: () => undefined });
+
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(store.snapshots.has(token)).toBe(false);
+
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs discard once on cap eviction of the oldest snapshot, and not for the survivors', () => {
+      store = createUndoStore({ now: () => Date.now(), maxEntries: 2 });
+      const d1 = jest.fn();
+      const d2 = jest.fn();
+      const d3 = jest.fn();
+      const t1 = issueWithDiscard(d1);
+      jest.setSystemTime(new Date(START.getTime() + 1000));
+      const t2 = issueWithDiscard(d2);
+      jest.setSystemTime(new Date(START.getTime() + 2000));
+      const t3 = issueWithDiscard(d3);
+
+      expect(store.snapshots.has(t1.token)).toBe(false);
+      expect(store.snapshots.has(t2.token)).toBe(true);
+      expect(store.snapshots.has(t3.token)).toBe(true);
+      expect(d1).toHaveBeenCalledTimes(1);
+      expect(d2).not.toHaveBeenCalled();
+      expect(d3).not.toHaveBeenCalled();
+
+      // The evicted snapshot's timer fires later without a second discard
+      jest.advanceTimersByTime(UNDO_WINDOW_MS);
+      expect(d1).toHaveBeenCalledTimes(1);
+    });
+
+    it('evicts a status snapshot without a discard step (cap shared across kinds)', () => {
+      store = createUndoStore({ now: () => Date.now(), maxEntries: 1 });
+      const wi = workItem('Walls');
+      patchWorkItem(wi.id, { status: 'in_progress' });
+      expect(store.snapshots.size).toBe(1);
+
+      expect(() => issueWithDiscard(jest.fn())).not.toThrow();
+      expect(store.snapshots.size).toBe(1);
+    });
+
+    it('does not discard after a successful restore, even when the timer later fires', () => {
+      const discard = jest.fn();
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issueWithDiscard(discard, restore);
+
+      applyUndo(db, store, token, userA);
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(discard).not.toHaveBeenCalled();
+    });
+
+    it('runs discard once when the restore is refused with a ConflictError', () => {
+      const discard = jest.fn();
+      const { token } = issueWithDiscard(discard, () => {
+        throw new ConflictError('The record changed after this action', { changed: [subject] });
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(ConflictError);
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(store.snapshots.has(token)).toBe(false);
+    });
+
+    it('runs discard once when the restore fails with a NotFoundError', () => {
+      const discard = jest.fn();
+      const { token } = issueWithDiscard(discard, () => {
+        throw new NotFoundError('Undo is no longer available');
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(NotFoundError);
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs discard once when the restore fails with an unexpected error, and rethrows it', () => {
+      const discard = jest.fn();
+      const boom = new Error('boom');
+      const { token } = issueWithDiscard(discard, () => {
+        throw boom;
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(boom);
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not discard for a foreign user, and the owner can still restore afterwards', () => {
+      const discard = jest.fn();
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issueWithDiscard(discard, restore, userA);
+
+      expect(() => applyUndo(db, store, token, userB)).toThrow(NotFoundError);
+      expect(discard).not.toHaveBeenCalled();
+      expect(restore).not.toHaveBeenCalled();
+      expect(store.snapshots.has(token)).toBe(true);
+
+      applyUndo(db, store, token, userA);
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(discard).not.toHaveBeenCalled();
+    });
+
+    it('runs discard once when the owner looks up an expired token', () => {
+      const discard = jest.fn();
+      const restore = jest.fn<(tx: UndoTransaction) => void>();
+      const { token } = issueWithDiscard(discard, restore);
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS));
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(NotFoundError);
+      expect(discard).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(restore).not.toHaveBeenCalled();
+    });
+
+    it('does not run discard when a foreign user looks up an expired token', () => {
+      const discard = jest.fn();
+      const { token } = issueWithDiscard(discard, undefined, userA);
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS));
+
+      expect(() => applyUndo(db, store, token, userB)).toThrow(NotFoundError);
+
+      expect(discard).not.toHaveBeenCalled();
+      expect(store.snapshots.has(token)).toBe(true);
+    });
+
+    it('swallows a throwing discard on expiry', () => {
+      const discard = jest.fn(() => {
+        throw new Error('disk gone');
+      });
+      const { token } = issueWithDiscard(discard);
+
+      expect(() => jest.advanceTimersByTime(UNDO_WINDOW_MS)).not.toThrow();
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(store.snapshots.has(token)).toBe(false);
+    });
+
+    it('swallows a throwing discard and still surfaces the original restore error', () => {
+      const discard = jest.fn(() => {
+        throw new Error('disk gone');
+      });
+      const { token } = issueWithDiscard(discard, () => {
+        throw new ConflictError('The record changed after this action');
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(ConflictError);
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('swallows a throwing discard during cap eviction and still stores the new snapshot', () => {
+      store = createUndoStore({ now: () => Date.now(), maxEntries: 1 });
+      issueWithDiscard(() => {
+        throw new Error('disk gone');
+      });
+
+      const next = issueWithDiscard(jest.fn());
+
+      expect(store.snapshots.size).toBe(1);
+      expect(store.snapshots.has(next.token)).toBe(true);
+    });
+  });
+
   // keep `and` import used for event lookups
   void and;
 });

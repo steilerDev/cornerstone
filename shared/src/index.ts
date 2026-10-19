@@ -419,6 +419,7 @@ export type {
 export type {
   PhotoEntityType,
   Photo,
+  DeletePhotoResponse,
   UpdatePhotoRequest,
   ReorderPhotosRequest,
   PhotoSpotSummary,
@@ -430,6 +431,12 @@ export type {
 } from './types/photo.js';
 
 // Diary (Construction Diary / Bautagebuch)
+export {
+  DIARY_WEATHERS,
+  DIARY_INSPECTION_OUTCOMES,
+  DIARY_ISSUE_SEVERITIES,
+} from './types/diary.js';
+export { DIARY_TYPE_METADATA_KEYS, droppedMetadataKeys } from './lib/diaryMetadataKeys.js';
 export type {
   ManualDiaryEntryType,
   AutomaticDiaryEntryType,

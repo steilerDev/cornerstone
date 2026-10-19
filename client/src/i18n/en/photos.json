@@ -49,5 +49,83 @@
     "notFoundDescription": "Its area or orientation may have been deleted.",
     "emptyTitle": "No photos at this spot",
     "emptyDescription": "The photos for this spot may have been removed from their diary entries."
+  },
+  "tile": {
+    "name": "Photo {{n}} of {{total}}",
+    "annotated": "annotated",
+    "uploadingSuffix": "uploading {{percent}}%",
+    "failedSuffix": "upload failed",
+    "blockedSuffix": "can't be added",
+    "waiting": "Waiting",
+    "failed": "Failed",
+    "blocked": "Can't be added",
+    "notPersisted": "Not saved on this device",
+    "select": "Select photo {{n}}",
+    "retry": "Retry upload of photo {{n}}",
+    "remove": "Remove photo {{n}}",
+    "uploadingPercent": "{{percent}}%"
+  },
+  "sheet": {
+    "title": "Photo {{n}} of {{total}}",
+    "previous": "Previous photo",
+    "next": "Next photo",
+    "caption": "Caption (optional)",
+    "noArea": "No area",
+    "annotate": "Annotate",
+    "annotateTitle": "Annotate photo",
+    "annotateWait": "Wait for the upload to finish.",
+    "removePhoto": "Remove photo",
+    "removed": "Photo removed.",
+    "done": "Done",
+    "area": "Area",
+    "orientation": "Orientation"
+  },
+  "tags": {
+    "area": "Area",
+    "orientation": "Orientation",
+    "other": "Other…",
+    "otherArea": "Other area…",
+    "otherOrientation": "Other orientation…",
+    "newArea": "New area",
+    "newOrientation": "New orientation",
+    "noOrientation": "No orientation",
+    "chooseArea": "Choose an area",
+    "chooseOrientation": "Choose an orientation",
+    "noOrientationsHint": "No orientations configured. Add them in Settings › Project setup › Photo orientations."
+  },
+  "waiting": {
+    "count_one": "{{count}} photo waiting to upload",
+    "count_other": "{{count}} photos waiting to upload",
+    "retryNow": "Retry now",
+    "signed": "Some photos can't be added because the entry is signed.",
+    "noRoom": "This device has no room to keep photos. Keep this screen open until they finish uploading."
+  },
+  "upload": {
+    "purged": "Some waiting photos were removed because their entry no longer exists."
+  },
+  "camera": {
+    "title": "Camera",
+    "shutter": "Take photo",
+    "done": "Done",
+    "useCameraApp": "Use camera app",
+    "count_one": "{{count}} photo",
+    "count_other": "{{count}} photos",
+    "removeLast": "Remove last photo",
+    "switchCamera": "Switch camera",
+    "flash": "Flash",
+    "starting": "Starting the camera…",
+    "unavailableTitle": "The camera can't be used",
+    "deniedTitle": "Camera access is off",
+    "fallbackLead": "You can still take photos with your camera app.",
+    "deniedHint": "To use the viewfinder, allow camera access for this site in your browser settings.",
+    "busy": "The camera is being used by another app.",
+    "shotTaken": "Photo {{n}} taken.",
+    "lastRemoved_one": "Last photo removed. {{count}} photo.",
+    "lastRemoved_other": "Last photo removed. {{count}} photos.",
+    "flashOn": "Flash on.",
+    "flashOff": "Flash off.",
+    "usingFront": "Using the front camera.",
+    "usingBack": "Using the back camera.",
+    "previewLabel": "Latest photos"
   }
 }

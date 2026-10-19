@@ -19,6 +19,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { API } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -399,25 +400,13 @@ test.describe('Automatic entry is read-only via API (Scenario 6)', () => {
       // Navigate to the edit page via URL with the mock automatic entry ID
       await page.goto(`/diary/${mockId}/edit`);
 
-      // The edit page should detect that this is an automatic entry and either:
-      // - Redirect/show an error (if the frontend guards against editing automatic entries), or
-      // - The form exists and a save attempt returns 403 from the mocked endpoint
-      //
-      // Per Story #808 AC #10: "PATCH requests to automatic entries return 403".
-      // The frontend route still renders the edit page and the server enforces the constraint.
-      // So we verify the page loads (heading visible or error visible).
-      await Promise.race([
-        page
-          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
-          .waitFor({ state: 'visible' }),
-        page
-          .getByRole('heading', { name: /Diary entry not found|Error Loading/i })
-          .waitFor({ state: 'visible' }),
-        page.locator('[class*="bannerError"]').waitFor({ state: 'visible' }),
-      ]);
-
-      // The page must not crash — it renders either the form or an error state
-      // The actual 403 enforcement happens at the API level; the UI displays it as an error
+      // Per Story #808 AC #10: "PATCH requests to automatic entries return 403". Since #2221 the
+      // capture screen guards against it in the UI too: an automatic entry's edit URL shows an
+      // EmptyState ("Automatic entries can't be changed.") instead of the form.
+      const capture = new DiaryCapturePage(page);
+      await capture.lockedMessage.waitFor({ state: 'visible' });
+      await expect(capture.lockedMessage).toContainText("Automatic entries can't be changed.");
+      await expect(capture.saveButton).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');

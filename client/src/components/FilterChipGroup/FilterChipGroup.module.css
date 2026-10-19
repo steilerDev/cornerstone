@@ -7,7 +7,17 @@
   margin: calc(-1 * var(--spacing-1));
 }
 
+.group[data-layout='wrap'] {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  padding: 0;
+  margin: 0;
+}
+
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
   flex-shrink: 0;
   min-height: 2.75rem;
   padding: var(--spacing-3) var(--spacing-4);
@@ -33,4 +43,39 @@
 .chip:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+.chipAction {
+  border-style: dashed;
+}
+
+.chipAction[aria-pressed='true'] {
+  border-style: solid;
+}
+
+/* Off-theme camera chrome */
+.group[data-tone='onPhoto'] .chip {
+  border-color: var(--color-photo-border);
+  background: var(--color-photo-control-bg);
+  color: var(--color-photo-text);
+}
+
+.group[data-tone='onPhoto'] .chip:hover {
+  background: var(--color-photo-control-bg-hover);
+}
+
+.group[data-tone='onPhoto'] .chip[aria-pressed='true'] {
+  background: var(--color-photo-text);
+  border-color: var(--color-photo-text);
+  color: var(--color-photo-stage-bg);
+}
+
+.group[data-tone='onPhoto'] .chipAction {
+  border-style: dashed;
+}
+
+.group[data-tone='onPhoto'] .chip:focus-visible {
+  outline: 2px solid var(--color-photo-focus-ring);
+  outline-offset: 2px;
+  box-shadow: none;
 }

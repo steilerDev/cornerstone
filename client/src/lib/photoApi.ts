@@ -6,6 +6,7 @@ import type {
   UpdatePhotoRequest,
   PhotoSpotsResponse,
   PhotoSpotPhotosResponse,
+  DeletePhotoResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -19,8 +20,13 @@ export function uploadPhoto(
   onProgress?: ((percent: number) => void) | null,
   areaId?: string | null,
   orientationId?: string | null,
+  signal?: AbortSignal,
 ): Promise<Photo> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Upload aborted', 'AbortError'));
+      return;
+    }
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${getBaseUrl()}/photos`);
 
@@ -54,7 +60,8 @@ export function uploadPhoto(
     xhr.addEventListener('error', () =>
       reject(new NetworkError('Network error during upload', null)),
     );
-    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    xhr.addEventListener('abort', () => reject(new DOMException('Upload aborted', 'AbortError')));
+    signal?.addEventListener('abort', () => xhr.abort(), { once: true });
 
     const formData = new FormData();
     formData.append('file', file);
@@ -66,6 +73,33 @@ export function uploadPhoto(
 
     xhr.send(formData);
   });
+}
+
+/**
+ * Fetch a photo's file as a Blob. 'original' returns the un-annotated file.
+ */
+export async function fetchPhotoBlob(
+  photo: Pick<Photo, 'fileUrl' | 'annotatedAt'>,
+  variant: 'original' | 'annotated',
+): Promise<Blob> {
+  let url = photo.fileUrl;
+  if (variant === 'original') url += url.includes('?') ? '&variant=original' : '?variant=original';
+  let response: Response;
+  try {
+    response = await fetch(url, { credentials: 'include' });
+  } catch {
+    throw new NetworkError('Network error while fetching a photo', null);
+  }
+  if (!response.ok) {
+    let errBody: unknown = null;
+    try {
+      errBody = await response.json();
+    } catch {
+      // Non-JSON body: fall back to a status-derived error
+    }
+    throw toApiClientError(response.status, errBody);
+  }
+  return response.blob();
 }
 
 /**
@@ -84,10 +118,10 @@ export function updatePhoto(id: string, data: UpdatePhotoRequest): Promise<Photo
 }
 
 /**
- * Delete a photo.
+ * Delete a photo. The response carries the undo token (`POST /api/undo/:token` restores it).
  */
-export function deletePhoto(id: string): Promise<void> {
-  return del<void>(`/photos/${id}`);
+export function deletePhoto(id: string): Promise<DeletePhotoResponse> {
+  return del<DeletePhotoResponse>(`/photos/${id}`);
 }
 
 /**

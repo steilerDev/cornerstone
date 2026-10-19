@@ -13,14 +13,16 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { mkdir, rm, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { eq, and, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { photos, users, areas, orientations } from '../db/schema.js';
-import { ValidationError } from '../errors/AppError.js';
+import { photos, users, areas, orientations, diaryEntries } from '../db/schema.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/AppError.js';
+import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import type { Photo, PhotoEntityType } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -426,6 +428,152 @@ export async function deletePhoto(db: DbType, photoStoragePath: string, id: stri
   } catch {
     // Ignore if directory doesn't exist
   }
+}
+
+// ─── Undoable delete (#2221) ──────────────────────────────────────────────────
+
+/** Row snapshot of a trashed photo, held in memory with its undo token. */
+export interface PhotoDeleteSnapshot {
+  row: typeof photos.$inferSelect;
+  /** Set when moving the files into the trash failed (not ENOENT); the caller logs it. */
+  moveError?: unknown;
+}
+
+/** Minimal logger shape (a Fastify request or app logger). */
+export interface WarnLogger {
+  warn(obj: object, msg: string): void;
+}
+
+/** The undo transaction, as far as the restore needs it. */
+type RestoreTx = Pick<DbType, 'select' | 'insert'>;
+
+/** Directory holding photos removed inside their Undo window. */
+export function photoTrashDir(photoStoragePath: string): string {
+  return path.join(photoStoragePath, '.trash');
+}
+
+/**
+ * Delete the photo row, then move its directory into the trash in one rename.
+ * A missing directory is fine; any other move failure leaves the directory in place.
+ *
+ * @throws NotFoundError when the photo does not exist
+ */
+export function trashPhoto(db: DbType, photoStoragePath: string, id: string): PhotoDeleteSnapshot {
+  const row = db.transaction((tx) => {
+    const found = tx.select().from(photos).where(eq(photos.id, id)).get();
+    if (!found) throw new NotFoundError('Photo not found');
+    tx.delete(photos).where(eq(photos.id, id)).run();
+    return found;
+  });
+
+  const trash = photoTrashDir(photoStoragePath);
+  try {
+    mkdirSync(trash, { recursive: true });
+    renameSync(path.join(photoStoragePath, id), path.join(trash, id));
+  } catch (err) {
+    // ENOENT: nothing to move. Anything else: the directory stays in place (restore accepts it
+    // there, discard removes it) and the error is handed back for logging.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return { row, moveError: err };
+  }
+  return { row };
+}
+
+/**
+ * Re-insert a trashed photo and move its files back. Runs inside the undo transaction.
+ *
+ * @throws ConflictError when the parent diary entry is gone, automatic, or saved and signed
+ * @throws NotFoundError when the files exist neither in the trash nor in place
+ */
+export function restoreTrashedPhoto(
+  tx: RestoreTx,
+  photoStoragePath: string,
+  snapshot: PhotoDeleteSnapshot,
+): void {
+  const row = { ...snapshot.row };
+  const conflict = (): ConflictError =>
+    new ConflictError('The record changed after this action', {
+      changed: [{ type: 'photo', id: row.id }],
+    });
+
+  if (row.entityType === 'diary_entry') {
+    const entry = tx
+      .select({
+        isAutomatic: diaryEntries.isAutomatic,
+        status: diaryEntries.status,
+        metadata: diaryEntries.metadata,
+      })
+      .from(diaryEntries)
+      .where(eq(diaryEntries.id, row.entityId))
+      .get();
+    if (!entry || entry.isAutomatic) throw conflict();
+    let parsed: unknown;
+    try {
+      parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
+    } catch {
+      parsed = null; // fail open, as the photo routes do
+    }
+    if (
+      isDiaryEntrySignatureLocked({ isSigned: hasDiarySignatures(parsed), status: entry.status })
+    ) {
+      throw conflict();
+    }
+  }
+
+  if (
+    row.areaId &&
+    !tx.select({ id: areas.id }).from(areas).where(eq(areas.id, row.areaId)).get()
+  ) {
+    row.areaId = null;
+  }
+  if (
+    row.orientationId &&
+    !tx
+      .select({ id: orientations.id })
+      .from(orientations)
+      .where(eq(orientations.id, row.orientationId))
+      .get()
+  ) {
+    row.orientationId = null;
+  }
+  if (
+    row.createdBy &&
+    !tx.select({ id: users.id }).from(users).where(eq(users.id, row.createdBy)).get()
+  ) {
+    row.createdBy = null;
+  }
+
+  const trashed = path.join(photoTrashDir(photoStoragePath), row.id);
+  const live = path.join(photoStoragePath, row.id);
+  const inTrash = existsSync(trashed);
+  if (!inTrash && !existsSync(live)) throw new NotFoundError('Undo is no longer available');
+
+  tx.insert(photos).values(row).run();
+  if (inTrash) renameSync(trashed, live);
+}
+
+/**
+ * Undo discard step: remove the photo's files from the trash and from the live tree. Safe because
+ * discard only runs when the photo was not restored, so its row is already gone. Covers a failed
+ * move into the trash and a restore whose rename succeeded but whose transaction rolled back.
+ * Paths are built only from the stored id. Never throws.
+ */
+export function purgeTrashedPhoto(photoStoragePath: string, id: string, log?: WarnLogger): void {
+  for (const dir of [
+    path.join(photoTrashDir(photoStoragePath), id),
+    path.join(photoStoragePath, id),
+  ]) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch (err) {
+      // Best effort; the startup sweep removes trash leftovers.
+      log?.warn({ err, photoId: id }, 'Failed to remove a discarded photo');
+    }
+  }
+}
+
+/** Empty the whole trash (startup sweep: pending tokens do not survive a restart). */
+export async function purgePhotoTrash(photoStoragePath: string): Promise<void> {
+  await rm(photoTrashDir(photoStoragePath), { recursive: true, force: true });
 }
 
 /**

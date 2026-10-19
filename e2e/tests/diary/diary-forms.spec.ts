@@ -2,29 +2,28 @@
  * E2E tests for Diary Entry Create, Edit, and Delete flows
  *
  * Story #805: Diary entry creation, editing, and deletion
- * UX Polish #1435: Type-card click fires POST immediately; no form step on create page.
+ * Story #2221: the capture screen replaces the type-card picker and the edit form.
  *
  * Scenarios covered:
- * 1.  [smoke] Type selector shows 5 type cards at /diary/new;
- *             clicking a type card fires POST and navigates to /diary/:id/edit (#1435)
- * 2.  [smoke] Create general_note — happy path (type-card-click draft flow):
- *             click type card → POST draft → /diary/:id/edit → promote → /diary/:id
- *             Note: #1435 changed trigger from body blur to type-card click.
- * 3.  Create daily_log with weather/temperature/workers metadata (type-card-click flow)
- * 4.  Create site_visit with inspector name and outcome metadata (type-card-click flow)
- * 5.  [removed] Validation error on submit — removed in #1426 (no submit button on create page).
- *              Coverage moved to diary-drafts.spec.ts Scenario 10 (promote-time validation).
- * 6.  Edit entry — form pre-populated with existing values, save redirects to detail
- * 7.  Delete from edit page — modal confirm, redirects to /diary
+ * 1.  [smoke] /diary/new is the capture screen: photo controls, three type chips plus the More
+ *             menu (Defect, Note); picking a type creates nothing, the first character creates a
+ *             draft and the URL becomes /diary/:id/edit (replace history)
+ * 2.  [smoke] Create general_note — happy path: type, title and text, Save entry -> /diary/:id
+ * 3.  Create daily_log with weather/workers metadata (More details chips)
+ * 4.  Create site_visit with inspector name and outcome metadata (chips)
+ * 5.  [removed] Validation on submit (#1426); promote-time validation is in diary-drafts.spec.ts
+ *             and capture-screen.spec.ts (scenario 13)
+ * 6.  Edit entry — form pre-populated with existing values, Save changes returns to the entry
+ * 7.  Edit page offers no Delete (it stays on the entry page); Cancel returns to the entry
  * 8.  Delete from detail page — modal confirm, redirects to /diary
  * 9.  Edit button on detail page navigates to /diary/:id/edit
  * 10. [responsive] Create page has no horizontal scroll on current viewport
- * 14. [responsive] Edit-page dialogs use the shared Modal (Escape, close button, focus)
+ * 14. [responsive] The discard dialog on the capture screen is a shared dialog (Escape, close
+ *             button, focus)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import {
   createDiaryEntryViaApi,
@@ -33,58 +32,65 @@ import {
 } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Type selector shows 5 type cards
+// Scenario 1: The capture screen's type chips
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Type selector (Scenario 1)', { tag: '@responsive' }, () => {
+test.describe('Capture screen types (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'Create page shows 5 entry type cards at /diary/new',
+    'Create page shows the photo controls and all five entry types',
     { tag: '@smoke' },
     async ({ page }) => {
-      const createPage = new DiaryEntryCreatePage(page);
-      await createPage.goto();
+      const capture = new DiaryCapturePage(page);
+      await capture.goto();
 
-      // The heading must be visible
-      await expect(createPage.heading).toBeVisible();
+      await expect(capture.heading).toContainText('New entry');
+      await expect(capture.chooseButton).toBeVisible();
 
-      // All 5 type cards must be present
-      const count = await createPage.typeCardCount();
-      expect(count).toBe(5);
+      // Three type chips ...
+      await expect(capture.typeChip('daily_log')).toBeVisible();
+      await expect(capture.typeChip('site_visit')).toBeVisible();
+      await expect(capture.typeChip('delivery')).toBeVisible();
 
-      // Each specific type card must be present
-      await expect(createPage.typeCard('daily_log')).toBeVisible();
-      await expect(createPage.typeCard('site_visit')).toBeVisible();
-      await expect(createPage.typeCard('delivery')).toBeVisible();
-      await expect(createPage.typeCard('issue')).toBeVisible();
-      await expect(createPage.typeCard('general_note')).toBeVisible();
+      // ... and Defect and Note behind the More menu
+      await capture.tap(capture.moreTypeTrigger);
+      await expect(capture.moreTypeOption('issue')).toBeVisible();
+      await expect(capture.moreTypeOption('general_note')).toBeVisible();
     },
   );
 
-  test('Clicking a type card fires POST and navigates to /diary/:id/edit', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    const editPage = new DiaryEntryEditPage(page);
+  test('Picking a type creates nothing; the first character creates the draft', async ({
+    page,
+    testPrefix,
+  }) => {
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
+    const created: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/diary-entries') {
+        created.push(request.url());
+      }
+    });
 
     try {
-      await createPage.goto();
+      await capture.goto();
+      await capture.selectType('general_note');
+      await expect(capture.moreTypeTrigger).toHaveAttribute('data-current', 'true');
+      expect(created).toHaveLength(0);
+      await expect(page).toHaveURL(/\/diary\/new$/);
 
-      // #1435: clicking a type card fires POST /api/diary-entries immediately
-      // and navigates to /diary/:id/edit (no intermediate form step).
+      // #2221: the first character fires POST /api/diary-entries (status: 'draft')
       const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
-
-      await createPage.typeCard('general_note').click();
+      await capture.typeTitle(`${testPrefix} first`);
       const draftResponse = await draftResponsePromise;
       expect(draftResponse.ok()).toBeTruthy();
+      draftId = ((await draftResponse.json()) as { id: string }).id;
 
-      const responseBody = (await draftResponse.json()) as { id: string };
-      draftId = responseBody.id;
-
-      // Edit page should load with draft badge
+      // The draft screen is the same capture screen on /diary/:id/edit
       await page.waitForURL(/diary\/.+\/edit$/);
-      await expect(editPage.draftBadge).toBeVisible();
-      await expect(editPage.heading).toBeVisible();
+      await expect(capture.heading).toContainText('New entry');
+      await expect(capture.saveButton).toHaveText('Save entry');
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -99,62 +105,44 @@ test.describe('Create general_note — happy path (Scenario 2)', { tag: '@respon
     'Creates a general_note entry and navigates to the detail page',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      const createPage = new DiaryEntryCreatePage(page);
-      const editPage = new DiaryEntryEditPage(page);
+      const capture = new DiaryCapturePage(page);
       const detailPage = new DiaryEntryDetailPage(page);
       let createdId: string | null = null;
 
       try {
-        await createPage.goto();
+        await capture.goto();
+        await capture.selectType('general_note');
 
-        // #1435 flow: clicking the type card fires POST /api/diary-entries (status: 'draft')
-        // and navigates to /diary/:id/edit (replace history). No form step on create page.
-        const draftResponsePromise = page.waitForResponse(
-          (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-        );
-
-        await createPage.typeCard('general_note').click();
-        const draftResponse = await draftResponsePromise;
-        expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
-
-        const responseBody = (await draftResponse.json()) as { id: string };
-        createdId = responseBody.id;
-
-        // After type-card click: navigate to /diary/:id/edit (replace history)
-        await page.waitForURL(/diary\/.+\/edit$/);
-        expect(page.url()).toMatch(new RegExp(`/diary/${createdId}/edit$`));
-
-        // The edit page should show the Draft badge
-        await expect(editPage.draftBadge).toBeVisible();
-        await expect(editPage.heading).toBeVisible();
-
-        // Fill body and title on the edit page before promoting
         const body = `${testPrefix} general note body text`;
         const title = `${testPrefix} General Note Create Test`;
 
-        await editPage.bodyTextarea.fill(body);
-        await editPage.titleInput.waitFor({ state: 'visible' });
-        await editPage.titleInput.fill(title);
+        // The first character creates the draft and the URL becomes /diary/:id/edit
+        const draftResponsePromise = page.waitForResponse(
+          (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+        );
+        await capture.typeTitle(title);
+        const draftResponse = await draftResponsePromise;
+        expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
+        createdId = ((await draftResponse.json()) as { id: string }).id;
+        await page.waitForURL(new RegExp(`/diary/${createdId}/edit$`));
 
-        // Register the promote PATCH listener BEFORE clicking Save
+        await capture.typeText(body);
+
+        // Register the promote PATCH listener BEFORE tapping Save entry
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
             resp.request().method() === 'PATCH',
         );
-
-        // Click "Save" — promotes the draft to saved status
-        await editPage.submitButton.scrollIntoViewIfNeeded();
-        await editPage.submitButton.click();
+        await capture.saveButton.scrollIntoViewIfNeeded();
+        await capture.saveEntry();
         const promoteResponse = await promoteResponsePromise;
         expect(promoteResponse.ok(), 'Promote should succeed').toBeTruthy();
 
         // After promote: navigate to /diary/:id (detail page)
         await page.waitForURL(new RegExp(`/diary/${createdId}$`));
-        expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
-
-        // Detail page has loaded (confirms we are on the detail page)
         await expect(detailPage.loaded).toBeVisible();
+        await expect(detailPage.entryBody).toContainText(body);
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
       }
@@ -170,78 +158,38 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
     page,
     testPrefix,
   }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      await createPage.goto();
+      await capture.goto();
+      await capture.selectType('daily_log');
+      await capture.typeText(`${testPrefix} daily log with metadata`);
+      createdId = await capture.waitForDraft();
 
-      // #1435 flow: clicking the type card fires POST immediately.
-      // Register the POST listener BEFORE clicking.
-      const draftResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-      );
+      // Workers 4+ reveals the exact number input; weather sits under More details
+      await capture.tap(capture.workersChip('4+'));
+      await capture.workersExact.fill('8');
+      await capture.openMoreDetails();
+      await capture.tap(capture.weatherChip('sunny'));
+      await expect(capture.weatherChip('sunny')).toHaveAttribute('aria-pressed', 'true');
 
-      await createPage.typeCard('daily_log').click();
-      const draftResponse = await draftResponsePromise;
-      expect(draftResponse.ok()).toBeTruthy();
+      // Autosave puts the values on the server before the entry is saved
+      await expect
+        .poll(async () => {
+          const response = await page.request.get(`/api/diary-entries/${createdId}`);
+          const entry = (await response.json()) as { metadata: Record<string, unknown> | null };
+          return [entry.metadata?.weather, entry.metadata?.workersOnSite];
+        })
+        .toEqual(['sunny', 8]);
 
-      const responseBody = (await draftResponse.json()) as { id: string };
-      createdId = responseBody.id;
-
-      // Navigates to /diary/:id/edit after type-card click
-      await page.waitForURL(/diary\/.+\/edit$/);
-
-      // Draft badge should be visible on the edit page
-      await expect(editPage.draftBadge).toBeVisible();
-      await expect(editPage.heading).toBeVisible();
-
-      // Fill body on the edit page before promoting
-      const body = `${testPrefix} daily log with metadata`;
-      await editPage.bodyTextarea.fill(body);
-
-      // Fill metadata on the edit page. The edit-page metadata onChange handlers (setDailyLogWeather
-      // etc.) correctly update React state. The auto-save effect fires immediately after each change.
-      // The promote request (below) reads from React state, so it will include all metadata values.
-      await editPage.weatherSelect.waitFor({ state: 'visible' });
-
-      // Register PATCH listener before the weather change to wait for the auto-save
-      const autoSavePatchPromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/diary-entries/${createdId}`) &&
-          resp.request().method() === 'PATCH' &&
-          !resp.url().includes('/promote'),
-      );
-      await editPage.weatherSelect.selectOption('sunny');
-      await editPage.workersInput.fill('8');
-      // Wait for at least one auto-save PATCH to confirm the values are persisted server-side
-      await autoSavePatchPromise;
-
-      // Register the promote PATCH listener BEFORE clicking Save
-      const promoteResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-          resp.request().method() === 'PATCH',
-      );
-
-      // Click "Save" to promote the draft — promote sends all current field values from React state
-      await editPage.submitButton.scrollIntoViewIfNeeded();
-      await editPage.submitButton.click();
-      const promoteResponse = await promoteResponsePromise;
-      expect(promoteResponse.ok()).toBeTruthy();
-
-      // After promote: navigate to /diary/:id (detail page)
+      await capture.saveEntry();
       await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
-      // Verify metadata is shown on the detail page.
-      // DiaryMetadataSummary for daily_log renders: weather emoji + label, and workers count.
-      // Temperature (temperatureCelsius) is stored in the database but NOT displayed in the
-      // summary component — only weather and workersOnSite are rendered.
+      // DiaryMetadataSummary for daily_log renders the weather and the workers count
       await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.dailyLogMetadata).toBeVisible();
-
       const metadataText = await detailPage.dailyLogMetadata.textContent();
       expect(metadataText?.toLowerCase()).toContain('sunny');
       expect(metadataText).toContain('8');
@@ -259,77 +207,27 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
     page,
     testPrefix,
   }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      await createPage.goto();
+      await capture.goto();
+      await capture.selectType('site_visit');
+      await capture.typeText(`${testPrefix} site visit with outcome`);
+      createdId = await capture.waitForDraft();
 
-      // #1435 flow: clicking the type card fires POST immediately.
-      // Register the POST listener BEFORE clicking.
-      const draftResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-      );
+      // Both Inspector and Outcome are required for a site visit
+      await capture.inspectorInput.fill('Jane Inspector');
+      await capture.tap(capture.outcomeChip('pass'));
+      await expect(capture.outcomeChip('pass')).toHaveAttribute('aria-pressed', 'true');
 
-      await createPage.typeCard('site_visit').click();
-      const draftResponse = await draftResponsePromise;
-      expect(draftResponse.ok()).toBeTruthy();
-
-      const responseBody = (await draftResponse.json()) as { id: string };
-      createdId = responseBody.id;
-
-      // Navigates to /diary/:id/edit after type-card click
-      await page.waitForURL(/diary\/.+\/edit$/);
-
-      // Draft badge should be visible on the edit page
-      await expect(editPage.draftBadge).toBeVisible();
-      await expect(editPage.heading).toBeVisible();
-
-      // Fill body on the edit page before promoting
-      const body = `${testPrefix} site visit with outcome`;
-      await editPage.bodyTextarea.fill(body);
-
-      // Fill site_visit metadata on the edit page. Both inspector name and outcome are required
-      // for site_visit promote; filling them on the edit page ensures validate passes at promote.
-      await editPage.inspectorNameInput.waitFor({ state: 'visible' });
-
-      // Register PATCH listener before inspector name fill to wait for auto-save
-      const autoSavePatchPromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/diary-entries/${createdId}`) &&
-          resp.request().method() === 'PATCH' &&
-          !resp.url().includes('/promote'),
-      );
-      await editPage.inspectorNameInput.fill('Jane Inspector');
-      // Blur inspector name to trigger debounced auto-save (onFieldBlur fires triggerAutoSave)
-      await editPage.inspectorNameInput.press('Tab');
-      await editPage.outcomeSelect.selectOption('pass');
-      // Wait for auto-save to confirm inspector + outcome are persisted before promoting
-      await autoSavePatchPromise;
-
-      // Register the promote PATCH listener BEFORE clicking Save
-      const promoteResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-          resp.request().method() === 'PATCH',
-      );
-
-      // Click "Save" to promote — promote sends all current React state (including inspector+outcome)
-      await editPage.submitButton.scrollIntoViewIfNeeded();
-      await editPage.submitButton.click();
-      const promoteResponse = await promoteResponsePromise;
-      expect(promoteResponse.ok()).toBeTruthy();
-
-      // After promote: navigate to /diary/:id (detail page)
+      await capture.saveEntry();
       await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
-      // Verify metadata on the detail page
       await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.siteVisitMetadata).toBeVisible();
       await expect(detailPage.outcomeBadge('pass')).toBeVisible();
-
       const metadataText = await detailPage.siteVisitMetadata.textContent();
       expect(metadataText).toContain('Jane Inspector');
     } finally {
@@ -339,17 +237,15 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
 });
 
 // NOTE: Scenario 5 (submit-based validation errors on the create page) was removed in #1426.
-// The create page no longer has a submit button — it uses an auto-draft/blur flow instead.
-// Validation now fires at promote-time on the edit page.
-// Coverage is provided by diary-drafts.spec.ts Scenario 10:
-//   "Clicking Save with empty body shows validation error; URL unchanged; entry stays draft"
+// Validation now fires when the draft is saved. Coverage: diary-drafts.spec.ts (Save with
+// nothing in it) and capture-screen.spec.ts scenario 13 (site visit and defect rules).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Edit entry — form pre-populated, save redirects to detail
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
   test('Edit page pre-populates form with existing entry values', async ({ page, testPrefix }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
     const originalBody = `${testPrefix} original body for edit test`;
     const originalTitle = `${testPrefix} Original Edit Title`;
@@ -362,17 +258,12 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
         title: originalTitle,
       });
 
-      await editPage.goto(createdId);
+      await capture.gotoEdit(createdId);
 
-      // Verify heading is correct
-      await expect(editPage.heading).toBeVisible();
-
-      // Verify the form is pre-populated with the existing values
-      const bodyValue = await editPage.bodyTextarea.inputValue();
-      expect(bodyValue).toBe(originalBody);
-
-      const titleValue = await editPage.titleInput.inputValue();
-      expect(titleValue).toBe(originalTitle);
+      // A saved entry reads "Edit entry · <date>" and is pre-populated
+      await expect(capture.heading).toContainText('Edit entry · ');
+      await expect(capture.textArea).toHaveValue(originalBody);
+      await expect(capture.titleInput).toHaveValue(originalTitle);
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
@@ -382,7 +273,7 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
     const originalBody = `${testPrefix} body before edit`;
@@ -395,27 +286,14 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
         body: originalBody,
       });
 
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(createdId);
+      await capture.typeText(updatedBody);
 
-      // Clear and re-fill the body
-      await editPage.bodyTextarea.waitFor({ state: 'visible' });
-      await editPage.bodyTextarea.scrollIntoViewIfNeeded();
-      await editPage.bodyTextarea.fill(updatedBody);
+      // The sticky bar keeps Save changes in reach on every viewport
+      await expect(capture.saveButton).toHaveText('Save changes');
+      await capture.saveChanges();
 
-      // Scroll the submit button into view before clicking — important on mobile
-      // viewports where the form is long and the button may be off-screen
-      await editPage.submitButton.waitFor({ state: 'visible' });
-      await editPage.submitButton.scrollIntoViewIfNeeded();
-
-      // Save — waits for PATCH response internally
-      await editPage.save();
-
-      // Should navigate to the detail page
       await page.waitForURL(`**/diary/${createdId}`);
-      expect(page.url()).toContain(`/diary/${createdId}`);
-
-      // Detail page should show the updated body text
       await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.entryBody).toContainText(updatedBody);
     } finally {
@@ -427,7 +305,7 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
 
     try {
@@ -442,19 +320,13 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
         },
       });
 
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(createdId);
 
-      // Metadata fields should be pre-populated
-      await editPage.weatherSelect.waitFor({ state: 'visible' });
-      const weatherValue = await editPage.weatherSelect.inputValue();
-      expect(weatherValue).toBe('cloudy');
-
-      const tempValue = await editPage.temperatureInput.inputValue();
-      expect(tempValue).toBe('15');
-
-      const workersValue = await editPage.workersInput.inputValue();
-      expect(workersValue).toBe('3');
+      // Workers is on the page, weather and temperature sit under More details
+      await expect(capture.workersChip('3')).toHaveAttribute('aria-pressed', 'true');
+      await capture.openMoreDetails();
+      await expect(capture.weatherChip('cloudy')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByLabel('Temperature (°C)', { exact: true })).toHaveValue('15');
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
@@ -462,14 +334,14 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Delete from edit page
+// Scenario 7: Delete lives on the entry page, not on the edit page
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete from edit page (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Delete modal appears when "Delete Entry" is clicked on the edit page', async ({
+test.describe('Edit page has no Delete (Scenario 7)', { tag: '@responsive' }, () => {
+  test('A saved entry offers Cancel but no Delete or menu on the edit page', async ({
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
 
     try {
@@ -479,93 +351,43 @@ test.describe('Delete from edit page (Scenario 7)', { tag: '@responsive' }, () =
         body: `${testPrefix} entry for delete modal test`,
       });
 
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(createdId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // Open delete modal
-      await editPage.openDeleteModal();
-
-      // Modal should be visible with expected content
-      await expect(editPage.deleteModal).toBeVisible();
-      await expect(editPage.confirmDeleteButton).toBeVisible();
-      await expect(editPage.cancelDeleteButton).toBeVisible();
-    } finally {
-      // Entry may have been deleted by the test — attempt deletion; ignore errors
-      if (createdId) {
-        try {
-          await deleteDiaryEntryViaApi(page, createdId);
-        } catch {
-          // Already deleted
-        }
-      }
-    }
-  });
-
-  test('Cancelling the delete modal leaves the entry and stays on the edit page', async ({
-    page,
-    testPrefix,
-  }) => {
-    const editPage = new DiaryEntryEditPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-03-14',
-        body: `${testPrefix} entry for cancel delete test`,
-      });
-
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
-
-      // Open and then cancel the modal
-      await editPage.openDeleteModal();
-      await expect(editPage.deleteModal).toBeVisible();
-      await editPage.cancelDeleteButton.click();
-
-      // Modal should be gone
-      await expect(editPage.deleteModal).not.toBeVisible();
-
-      // URL should still be on the edit page
-      expect(page.url()).toContain(`/diary/${createdId}/edit`);
+      // Delete moved to the entry page (the capture screen is for capturing and editing)
+      await expect(page.getByRole('button', { name: /^Delete/ })).toHaveCount(0);
+      await expect(capture.menuButton).toHaveCount(0);
+      await expect(capture.discardItem).toHaveCount(0);
+      await expect(capture.cancelButton).toBeVisible();
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
   });
 
-  test('Confirming delete on the edit page redirects to /diary', async ({ page, testPrefix }) => {
-    const editPage = new DiaryEntryEditPage(page);
+  test('Cancel without changes returns to the entry page and keeps the entry', async ({
+    page,
+    testPrefix,
+  }) => {
+    const capture = new DiaryCapturePage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
     try {
       createdId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-03-14',
-        body: `${testPrefix} entry to delete via edit page`,
+        body: `${testPrefix} entry for cancel test`,
       });
 
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(createdId);
+      await capture.tap(capture.cancelButton);
 
-      // Open modal and confirm delete — waitForResponse registered inside confirmDelete()
-      await editPage.openDeleteModal();
-      await editPage.confirmDelete();
-
-      // Should redirect to /diary
-      await page.waitForURL('**/diary');
-      expect(page.url()).toContain('/diary');
-      expect(page.url()).not.toMatch(/\/diary\/[a-zA-Z0-9-]+$/);
-
-      // Mark as already deleted so finally block does not try again
-      createdId = null;
+      // A clean form leaves at once, without asking
+      await expect(page).toHaveURL(new RegExp(`/diary/${createdId}$`));
+      await expect(detailPage.loaded).toBeVisible();
+      await expect(page.getByRole('alertdialog')).toHaveCount(0);
     } finally {
-      if (createdId) {
-        try {
-          await deleteDiaryEntryViaApi(page, createdId);
-        } catch {
-          // Already deleted
-        }
-      }
+      if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
   });
 });
@@ -654,7 +476,7 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
     testPrefix,
   }) => {
     const detailPage = new DiaryEntryDetailPage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
 
     try {
@@ -668,15 +490,13 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
       await detailPage.goto(createdId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // Edit button (a <Link>) should be visible and navigate to edit page
+      // Edit button (a <Link>) should be visible and navigate to the capture screen
       await expect(detailPage.editButton).toBeVisible();
       await detailPage.editButton.click();
 
       await page.waitForURL(`**/diary/${createdId}/edit`);
-      expect(page.url()).toContain(`/diary/${createdId}/edit`);
-
-      // The edit page heading should be visible
-      await expect(editPage.heading).toBeVisible();
+      await capture.waitForForm();
+      await expect(capture.heading).toContainText('Edit entry · ');
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
@@ -733,12 +553,11 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
   test(
-    'Create page (type selector step) has no horizontal scroll on current viewport',
+    'Create page has no horizontal scroll on current viewport',
     { tag: '@responsive' },
     async ({ page }) => {
-      await page.goto(DIARY_CREATE_ROUTE);
-      const createPage = new DiaryEntryCreatePage(page);
-      await createPage.heading.waitFor({ state: 'visible' });
+      const capture = new DiaryCapturePage(page);
+      await capture.goto();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
@@ -748,12 +567,8 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
     },
   );
 
-  // NOTE: The "Create page (form step)" test is removed in #1435 — the form step no longer
-  // exists on /diary/new. Clicking a type card fires POST and navigates to /diary/:id/edit.
-  // Responsive coverage for the edit page form is in the "Edit page has no horizontal scroll" test.
-
   test('Edit page has no horizontal scroll on current viewport', async ({ page, testPrefix }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
 
     try {
@@ -763,13 +578,12 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
         body: `${testPrefix} edit page responsive test`,
       });
 
-      await editPage.goto(createdId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(createdId);
+      await expect(capture.heading).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
       });
-
       expect(hasHorizontalScroll).toBe(false);
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
@@ -782,15 +596,14 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   test('Create page renders without layout overflow in dark mode', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    await createPage.goto();
+    const capture = new DiaryCapturePage(page);
+    await capture.goto();
 
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await createPage.heading.waitFor({ state: 'visible' });
-    await expect(createPage.heading).toBeVisible();
+    await expect(capture.heading).toBeVisible();
 
     const hasHorizontalScroll = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth;
@@ -799,7 +612,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   });
 
   test('Edit page renders without layout overflow in dark mode', async ({ page, testPrefix }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let createdId: string | null = null;
 
     try {
@@ -814,8 +627,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await editPage.heading.waitFor({ state: 'visible' });
-      await expect(editPage.heading).toBeVisible();
+      await capture.waitForForm();
+      await expect(capture.heading).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
@@ -828,43 +641,43 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 14: Shared Modal behaviour on the edit page (#2124/#2125 bundle)
+// Scenario 14: Shared dialog behaviour on the capture screen (#2124/#2125 bundle)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Shared Modal on the edit page (Scenario 14)', { tag: '@responsive' }, () => {
-  test('delete dialog closes on Escape and via the close button', async ({ page, testPrefix }) => {
-    const editPage = new DiaryEntryEditPage(page);
-    let createdId: string | null = null;
+test.describe('Shared dialog on the capture screen (Scenario 14)', { tag: '@responsive' }, () => {
+  test('discard dialog closes on Escape and via the close button', async ({ page }) => {
+    const capture = new DiaryCapturePage(page);
+    const id = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
     try {
-      createdId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-03-14',
-        body: `${testPrefix} entry for shared modal test`,
-      });
-
-      await editPage.goto(createdId);
-      await editPage.openDeleteModal();
+      await capture.gotoEdit(id);
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      await capture.discardDialog.waitForOpen();
       await page.keyboard.press('Escape');
-      await expect(editPage.deleteModal).not.toBeVisible();
+      await expect(capture.discardDialog.dialog).not.toBeVisible();
 
-      await editPage.openDeleteModal();
-      await editPage.deleteModal.getByRole('button', { name: 'Close dialog' }).click();
-      await expect(editPage.deleteModal).not.toBeVisible();
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      await capture.discardDialog.waitForOpen();
+      await capture.discardDialog.dialog.getByRole('button', { name: 'Close dialog' }).click();
+      await expect(capture.discardDialog.dialog).not.toBeVisible();
     } finally {
-      if (createdId) await deleteDiaryEntryViaApi(page, createdId);
+      await deleteDiaryEntryViaApi(page, id);
     }
   });
 
   test('discard dialog moves focus inside the dialog', async ({ page }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const id = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
     try {
-      await editPage.goto(id);
-      await editPage.openDiscardModal();
-      // #2209: the safe action (Cancel / Keep entry) takes the initial focus
-      await expect(editPage.discardModalCancel).toBeFocused();
+      await capture.gotoEdit(id);
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      await capture.discardDialog.waitForOpen();
+      // #2209: the safe action (Keep entry) takes the initial focus
+      await expect(capture.discardDialog.cancelButton).toBeFocused();
     } finally {
       await deleteDiaryEntryViaApi(page, id);
     }

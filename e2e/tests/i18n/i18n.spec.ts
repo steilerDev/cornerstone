@@ -318,12 +318,12 @@ test.describe('i18n: Language Switching', () => {
     });
     await expect(page).toHaveTitle(/^Bautagebuch · [^·]+$/);
 
-    // New diary entry: h1 and a translated, locale-independent trail
+    // New entry: h1 ("Neuer Tagebucheintrag · <Tag>") and a translated, locale-independent trail
     await page.goto(routeUrl('diaryEntryNew'));
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Neuer Tagebucheintrag' }),
+      page.getByRole('heading', { level: 1, name: /^Neuer Tagebucheintrag · [^·]+$/ }),
     ).toBeVisible();
-    await expect(page).toHaveTitle(/^Neuer Tagebucheintrag · Bautagebuch · [^·]+$/);
+    await expect(page).toHaveTitle(/^Neuer Tagebucheintrag · [^·]+ · Bautagebuch · [^·]+$/);
     await expect(page.getByTestId('breadcrumbs').getByRole('navigation')).toHaveText(/Bautagebuch/);
 
     // Photos

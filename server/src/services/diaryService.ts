@@ -66,6 +66,10 @@ import {
   MAX_SIGNATURE_DATA_URL_LENGTH,
   SIGNATURE_DATA_URL_PATTERN,
   SIGNED_AT_PATTERN,
+  DIARY_TYPE_METADATA_KEYS,
+  DIARY_WEATHERS,
+  DIARY_INSPECTION_OUTCOMES,
+  DIARY_ISSUE_SEVERITIES,
 } from '@cornerstone/shared';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
@@ -179,26 +183,6 @@ const LOOKUP_LIMIT = 5;
 /** Maximum length of the lookup title parameter. */
 const MAX_LOOKUP_TITLE_LENGTH = 1000;
 
-/**
- * Metadata keys each manual type knows (#2220). A type change keeps only these keys;
- * `general_note` knows none.
- */
-const METADATA_KEYS_BY_TYPE: Record<ManualDiaryEntryType, readonly string[]> = {
-  daily_log: [
-    'weather',
-    'temperatureCelsius',
-    'workersOnSite',
-    'vendorId',
-    'workStart',
-    'workEnd',
-    'signatures',
-  ],
-  site_visit: ['inspectorName', 'outcome', 'workStart', 'workEnd', 'signatures'],
-  delivery: ['vendor', 'materials', 'deliveryConfirmed'],
-  issue: ['severity', 'resolutionStatus', 'signatures'],
-  general_note: [],
-};
-
 /** Trim a title; null, undefined and blank all become null. */
 function normalizeTitle(title: string | null | undefined): string | null {
   if (title === null || title === undefined) return null;
@@ -247,7 +231,7 @@ function filterMetadataForType(
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
   const source = metadata as Record<string, unknown>;
   const kept: Record<string, unknown> = {};
-  for (const key of METADATA_KEYS_BY_TYPE[type]) {
+  for (const key of DIARY_TYPE_METADATA_KEYS[type]) {
     if (key in source) kept[key] = source[key];
   }
   return Object.keys(kept).length === 0 ? null : (kept as DiaryEntryMetadata);
@@ -466,7 +450,7 @@ function validateMetadata(
       const dlm = md as DailyLogMetadata;
       // Validate weather enum
       if (dlm.weather !== undefined && dlm.weather !== null) {
-        const validWeathers = ['sunny', 'cloudy', 'rainy', 'snowy', 'stormy', 'other'];
+        const validWeathers: readonly string[] = DIARY_WEATHERS;
         if (!validWeathers.includes(dlm.weather)) {
           throw new InvalidMetadataError(
             `daily_log weather must be one of: ${validWeathers.join(', ')}`,
@@ -518,7 +502,7 @@ function validateMetadata(
       }
       // Validate outcome enum
       if (svm.outcome !== undefined && svm.outcome !== null) {
-        const validOutcomes = ['pass', 'fail', 'conditional'];
+        const validOutcomes: readonly string[] = DIARY_INSPECTION_OUTCOMES;
         if (!validOutcomes.includes(svm.outcome)) {
           throw new InvalidMetadataError(
             `site_visit outcome must be one of: ${validOutcomes.join(', ')}`,
@@ -558,7 +542,7 @@ function validateMetadata(
       const im = md as IssueMetadata;
       // Validate severity enum
       if (im.severity !== undefined && im.severity !== null) {
-        const validSeverities = ['low', 'medium', 'high', 'critical'];
+        const validSeverities: readonly string[] = DIARY_ISSUE_SEVERITIES;
         if (!validSeverities.includes(im.severity)) {
           throw new InvalidMetadataError(
             `issue severity must be one of: ${validSeverities.join(', ')}`,
@@ -1154,14 +1138,18 @@ export function promoteDiaryEntry(
     if (!svm || !svm.inspectorName || svm.inspectorName.trim().length === 0) {
       throw new ValidationError('site_visit entries require non-empty inspectorName in metadata');
     }
-    if (!svm.outcome || !['pass', 'fail', 'conditional'].includes(svm.outcome)) {
+    if (!svm.outcome || !(DIARY_INSPECTION_OUTCOMES as readonly string[]).includes(svm.outcome)) {
       throw new ValidationError('site_visit entries require outcome in metadata');
     }
   }
 
   if (entryType === 'issue') {
     const im = finalMetadata as IssueMetadata | null;
-    if (!im || !im.severity || !['low', 'medium', 'high', 'critical'].includes(im.severity)) {
+    if (
+      !im ||
+      !im.severity ||
+      !(DIARY_ISSUE_SEVERITIES as readonly string[]).includes(im.severity)
+    ) {
       throw new ValidationError('issue entries require severity in metadata');
     }
     if (

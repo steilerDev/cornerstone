@@ -1,0 +1,59 @@
+/* Autosave indicator: small text badge appearing after the field */
+.autosaveIndicator {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-px) var(--spacing-1-5);
+  line-height: 1.4;
+  transition: opacity 0.2s;
+}
+
+.autosaveSaving {
+  color: var(--color-text-muted);
+}
+
+.autosaveSuccess {
+  color: var(--color-success-text-on-light);
+  background: var(--color-success-bg);
+}
+
+.autosaveError {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+[data-theme='dark'] .autosaveSuccess {
+  color: var(--color-success-text-on-light);
+  background: var(--color-success-badge-bg);
+}
+
+[data-theme='dark'] .autosaveError {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+/* Text variant: plain words, no badge background */
+.text {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  background: none;
+}
+
+.text.autosaveError {
+  color: var(--color-danger-text-on-light);
+  background: none;
+}
+
+[data-theme='dark'] .text.autosaveSuccess,
+[data-theme='dark'] .text.autosaveError {
+  background: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .autosaveIndicator {
+    transition: none;
+  }
+}

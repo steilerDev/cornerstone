@@ -52,8 +52,6 @@
     "bankReport": "Bankbericht",
     "fundingSources": "Finanzierungsquellen",
     "grants": "Förderprogramme",
-    "newDiaryEntry": "Neuer Tagebucheintrag",
-    "editDiaryEntry": "Tagebucheintrag bearbeiten",
     "diaryEntry": "Tagebucheintrag",
     "diaryEntryNotFound": "Tagebucheintrag nicht gefunden",
     "diaryEntryUntitled": "{{type}} · {{date}}"

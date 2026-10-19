@@ -209,6 +209,16 @@ export async function createBackup(
         throw new BackupFailedError('Backup archive could not be created', manifestErr);
       }
 
+      // The photo trash (#2221) lives under the photo storage dir; skip it when that dir is
+      // inside the data directory. Tar paths are cwd-relative: "<data dir name>/<rel>/.trash".
+      const relPhotos = path.relative(dataDir, config.photoStoragePath);
+      const trashArchivePath =
+        relPhotos.startsWith('..') || path.isAbsolute(relPhotos)
+          ? null
+          : [path.basename(dataDir), ...relPhotos.split(path.sep).filter(Boolean), '.trash'].join(
+              '/',
+            );
+
       // Archive the data directory, excluding the live DB, its sidecars and restore artifacts.
       // In create, filter receives cwd-relative paths such as "data/x".
       try {
@@ -220,6 +230,15 @@ export async function createBackup(
             cwd: path.dirname(dataDir),
             filter: (p) => {
               const parts = p.split('/').filter(Boolean);
+              if (trashArchivePath !== null) {
+                const normalized = parts.join('/');
+                if (
+                  normalized === trashArchivePath ||
+                  normalized.startsWith(`${trashArchivePath}/`)
+                ) {
+                  return false;
+                }
+              }
               return parts.length !== 2 || !isExcludedFromArchive(parts[1]!, dbName, snapshotName);
             },
           },

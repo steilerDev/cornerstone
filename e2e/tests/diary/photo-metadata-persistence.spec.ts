@@ -12,9 +12,9 @@
  * navigation away and back reflects the saved values without a page reload.
  *
  * Scenarios:
- * 1. [smoke] caption persists across navigation — diary EDIT page
+ * 1. [smoke] caption persists across navigation — capture screen (edit URL)
  * 2. caption persists across navigation — diary DETAIL page
- * 3. [regression guard] annotation save still propagates (fix didn't break annotator path)
+ * 3. [regression guard] annotation save propagates through the photo sheet
  */
 
 import { readFileSync } from 'fs';
@@ -23,7 +23,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { PhotoViewerPage } from '../../pages/PhotoViewerPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,27 +99,23 @@ async function openPhotoViewer(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Scenario 1 — [smoke] Caption saved in the lightbox metadata sidepanel persists
- * when the user navigates to the next photo and back, without a page reload.
+ * Scenario 1 — [smoke] A caption typed in the capture screen's photo sheet persists when the
+ * user moves to the next photo and back, without a page reload.
  *
- * Entry point: Diary EDIT page (DiaryEntryEditPage).
+ * Entry point: the capture screen on the edit URL (DiaryCapturePage). Tapping a photo tile opens
+ * the photo sheet (caption, Area, Orientation, Annotate, Remove). The caption is committed when
+ * the field loses focus or the user moves to another photo.
  *
  * Steps:
  * 1. Create a diary entry + upload 2 photos via API.
- * 2. Navigate to the diary EDIT page.
- * 3. Click photo 1 → PhotoViewer opens.
- * 4. Type "Test Caption" into the caption field → Save button appears.
- * 5. Register waitForResponse for PATCH /api/photos/:id (photo 1) BEFORE clicking save.
- * 6. Click Save → await the PATCH 200 response.
- * 7. Click the "next" arrow → photo 2 is displayed (nav buttons are present for multi-photo).
- * 8. Click the "prev" arrow → photo 1 is displayed again.
- * 9. Assert the caption field still shows "Test Caption" (NOT blank).
- *
- * This test MUST fail on the pre-fix code (caption reverts to empty on back-nav)
- * and pass on the post-fix code (photos array is updated by onPhotoChanged).
+ * 2. Open the capture screen; wait for both tiles to show as uploaded.
+ * 3. Open the sheet on photo 1, type a caption, register waitForResponse for PATCH
+ *    /api/photos/:id (photo 1) and tap Next (commits the caption).
+ * 4. The sheet shows photo 2 (empty caption); tap Previous.
+ * 5. The caption field still shows the caption (NOT blank), and the server has it.
  */
 test(
-  '[smoke] Caption persists across lightbox navigation (edit page)',
+  '[smoke] Caption persists across photo-sheet navigation (edit page)',
   { tag: '@smoke' },
   async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
     let entryId: string | null = null;
@@ -151,47 +147,40 @@ test(
       }
       photo2Id = upload2.id;
 
-      const editPage = new DiaryEntryEditPage(page);
-      const viewer = new PhotoViewerPage(page);
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(entryId);
+      await capture.waitForUploaded(2);
 
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
+      // ── Open the sheet on photo 1 ──────────────────────────────────────────
+      await capture.sheet.open(0);
+      await expect(capture.sheet.next).toBeVisible();
+      await expect(capture.sheet.previous).toBeVisible();
 
-      // ── Open PhotoViewer on photo 1 ────────────────────────────────────────
-      await openPhotoViewer(page, photo1Id, viewer);
-
-      // Multiple photos — nav buttons must be present
-      await expect(viewer.nextButton).toBeVisible();
-      await expect(viewer.prevButton).toBeVisible();
-
-      // ── Save a caption on photo 1 ──────────────────────────────────────────
+      // ── Save a caption on photo 1 (committed by moving on) ──────────────────
       const captionText = `${testPrefix} caption persistence`;
-      await viewer.saveCaption(captionText, photo1Id);
+      await capture.sheet.caption.fill(captionText);
+      const saved = page.waitForResponse(
+        (resp) =>
+          resp.url().endsWith(`/api/photos/${photo1Id}`) &&
+          resp.request().method() === 'PATCH' &&
+          resp.ok(),
+      );
+      await capture.tap(capture.sheet.next);
+      await saved;
 
-      // After save, the Save button disappears (hasChanges resets to false) and
-      // caption field retains the value.
-      await expect(viewer.saveMetadataButton).not.toBeVisible();
+      // ── Photo 2, then back to photo 1 ──────────────────────────────────────
+      await expect(capture.sheet.dialog).toHaveAccessibleName('Photo 2 of 2');
+      await expect(capture.sheet.caption).toHaveValue('');
+      await capture.tap(capture.sheet.previous);
+      await expect(capture.sheet.dialog).toHaveAccessibleName('Photo 1 of 2');
 
-      // ── Navigate to photo 2 ────────────────────────────────────────────────
-      await viewer.nextButton.click();
-
-      // Wait for the image to change — photo-card testid is not visible inside the
-      // viewer, but we can wait for the photo counter text to change to "2 / 2".
-      // The counter is plain text inside the viewer container; use a locator with
-      // text matching.
-      await expect(viewer.modal.getByText('2 / 2')).toBeVisible();
-
-      // ── Navigate back to photo 1 ───────────────────────────────────────────
-      await viewer.prevButton.click();
-      await expect(viewer.modal.getByText('1 / 2')).toBeVisible();
-
-      // ── Assert caption is still present (regression guard) ─────────────────
-      // On the pre-fix code: useEffect([currentIndex, photos]) re-derives currentPhoto
-      // from photos[0] which still has the OLD (null) caption — so the field would
-      // reset to empty. On the post-fix code: onPhotoChanged updated the photos array
-      // so photos[0] now has caption = captionText → field shows the saved value.
-      await viewer.openSidepanelIfMobile();
-      await expect(viewer.captionField).toHaveValue(captionText);
+      // ── Assert the caption is still present (regression guard) ─────────────
+      await expect(capture.sheet.caption).toHaveValue(captionText);
+      const stored = await page.request.get(`/api/photos/${photo1Id}`);
+      if (stored.ok()) {
+        const body = (await stored.json()) as { photo?: { caption: string | null } };
+        if (body.photo) expect(body.photo.caption).toBe(captionText);
+      }
     } finally {
       // Cleanup in reverse order
       if (photo1Id) await deletePhotoViaApi(page, photo1Id).catch(() => {});
@@ -287,23 +276,12 @@ test('Caption persists across lightbox navigation (detail page)', async ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Scenario 3 — [regression guard] The metadata-propagation refactor did not break
- * the annotation save path.
+ * Scenario 3 — [regression guard] An annotation saved from the capture screen's photo sheet
+ * is still marked after moving to another photo and back.
  *
- * After annotating photo 1 (via PUT /api/photos/:id/annotation), navigating to
- * photo 2 and back must still show the `viewOriginalButton` and
- * `clearAnnotationsButton` controls — meaning `annotatedAt` was propagated into
- * the photos array and the viewer correctly re-derives `currentPhoto` on back-nav.
- *
- * The annotation PUT is mocked (via page.route) to avoid the overhead of the
- * full canvas-bake + real PUT cycle. The mock returns a photo with annotatedAt
- * set, so `handlePhotoAnnotated` → `handlePhotoUpdated` → `onPhotoChanged` fires
- * exactly as in production — this is what we're testing.
- *
- * NOTE: Annotating requires entering annotation mode, which hides the nav buttons.
- * The flow is:
- *   open viewer → annotate → save (mock PUT) → exit annotation mode → nav buttons reappear
- *   → navigate next → navigate back → assert viewOriginalButton visible.
+ * Flow: open the sheet on photo 1 -> Annotate -> draw -> Save (real PUT
+ * /api/photos/:id/annotation) -> the annotator closes and the sheet is back -> Next -> Previous
+ * -> close the sheet -> the tile of photo 1 is labelled "annotated", photo 2's is not.
  */
 test('Annotation save propagates through navigation (regression guard)', async ({
   page,
@@ -340,100 +318,40 @@ test('Annotation save propagates through navigation (regression guard)', async (
     }
     photo2Id = upload2.id;
 
-    // ── Mock the annotation PUT endpoint ───────────────────────────────────
-    // We intercept PUT /api/photos/:id/annotation so the test does not need to
-    // perform actual canvas drawing. The response includes `annotatedAt` set to
-    // a non-null timestamp, which triggers the "annotated" state in the viewer
-    // (viewOriginalButton / clearAnnotationsButton become visible).
-    const annotatedAt = new Date().toISOString();
-    const annotationRoutePattern = `**/api/photos/${photo1Id}/annotation`;
+    // ── Open the capture screen and the sheet of photo 1 ────────────────────
+    const capture = new DiaryCapturePage(page);
+    await capture.gotoEdit(entryId);
+    await capture.waitForUploaded(2);
+    await capture.sheet.open(0);
 
-    await page.route(annotationRoutePattern, async (route) => {
-      if (route.request().method() === 'PUT') {
-        await route
-          .fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              photo: {
-                id: photo1Id,
-                annotatedAt,
-                fileUrl: '/api/photos/placeholder.png',
-                thumbnailUrl: '/api/photos/placeholder-thumb.png',
-                width: 100,
-                height: 100,
-                caption: null,
-                areaId: null,
-                area: null,
-                orientationId: null,
-                orientation: null,
-                originalFilename: 'test-photo.png',
-                sortOrder: 0,
-                createdBy: { id: 'user-1', displayName: 'E2E Admin' },
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-            }),
-          })
-          .catch(() => {});
-      } else {
-        await route.continue().catch(() => {});
-      }
-    });
-
-    // ── Navigate to edit page and open viewer ──────────────────────────────
-    const editPage = new DiaryEntryEditPage(page);
-    const viewer = new PhotoViewerPage(page);
-
-    await editPage.goto(entryId);
-    await expect(editPage.heading).toBeVisible();
-
-    await openPhotoViewer(page, photo1Id, viewer);
-
-    // ── Enter annotation mode ──────────────────────────────────────────────
-    await expect(viewer.annotateButton).toBeVisible();
-    await viewer.annotateButton.click();
-    await expect(viewer.toolPalette).toBeVisible();
-
-    // ── Save annotation (mocked PUT) ───────────────────────────────────────
-    // Register waitForResponse BEFORE clicking save.
+    // ── Annotate: real drawing, saved through PUT /api/photos/:id/annotation ──
+    await expect(capture.sheet.annotate).not.toHaveAttribute('aria-disabled', 'true');
     const putDone = page.waitForResponse(
       (resp) =>
         resp.url().endsWith(`/api/photos/${photo1Id}/annotation`) &&
         resp.request().method() === 'PUT' &&
-        resp.status() === 200,
+        resp.ok(),
     );
-    await viewer.saveButton.click();
+    await capture.tap(capture.sheet.annotate);
+    await expect(capture.annotator.dialog).toBeVisible();
+    await capture.annotator.draw();
     await putDone;
 
-    // Annotator closed — back in viewer mode
-    await expect(viewer.toolPalette).not.toBeVisible();
-    await expect(viewer.annotateButton).toBeVisible();
+    // The annotator is closed and the sheet is back
+    await expect(capture.annotator.dialog).not.toBeVisible();
+    await expect(capture.sheet.dialog).toBeVisible();
 
-    // viewOriginalButton and clearAnnotationsButton appear (annotatedAt propagated)
-    await expect(viewer.viewOriginalButton).toBeVisible();
-    await expect(viewer.clearAnnotationsButton).toBeVisible();
+    // ── Navigate to photo 2 and back, then close the sheet ──────────────────
+    await capture.tap(capture.sheet.next);
+    await expect(capture.sheet.dialog).toHaveAccessibleName('Photo 2 of 2');
+    await capture.tap(capture.sheet.previous);
+    await expect(capture.sheet.dialog).toHaveAccessibleName('Photo 1 of 2');
+    await capture.sheet.close();
 
-    // ── Navigate to photo 2 and back ───────────────────────────────────────
-    // Nav buttons reappear now that annotation mode is closed.
-    await expect(viewer.nextButton).toBeVisible();
-    await viewer.nextButton.click();
-    await expect(viewer.modal.getByText('2 / 2')).toBeVisible();
-
-    await viewer.prevButton.click();
-    await expect(viewer.modal.getByText('1 / 2')).toBeVisible();
-
-    // ── Assert annotated controls still visible (regression guard) ─────────
-    // Pre-fix: photos[0].annotatedAt was still null (array not updated), so
-    // viewOriginalButton and clearAnnotationsButton disappeared on back-nav.
-    // Post-fix: photos[0].annotatedAt = annotatedAt (set via onPhotoChanged),
-    // so controls remain visible.
-    await expect(viewer.viewOriginalButton).toBeVisible();
-    await expect(viewer.clearAnnotationsButton).toBeVisible();
+    // ── Assert the annotation is still marked on the tile (regression guard) ─
+    await expect(capture.tileOpen(0)).toHaveAttribute('aria-label', /annotated/);
+    await expect(capture.tileOpen(1)).not.toHaveAttribute('aria-label', /annotated/);
   } finally {
-    // Clean up mock route
-    await page.unroute(`**/api/photos/${photo1Id}/annotation`).catch(() => {});
-
     if (photo1Id) await deletePhotoViaApi(page, photo1Id).catch(() => {});
     if (photo2Id) await deletePhotoViaApi(page, photo2Id).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});

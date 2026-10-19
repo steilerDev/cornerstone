@@ -133,6 +133,13 @@
     "orientations": {
       "messages": {
         "loadError": "Failed to load orientations."
+      },
+      "form": {
+        "titleNew": "New orientation",
+        "name": "Name",
+        "description": "Description",
+        "nameRequired": "Enter a name.",
+        "duplicate": "An orientation with this name already exists."
       }
     }
   },

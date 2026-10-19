@@ -1,0 +1,64 @@
+.spacer {
+  width: 100%;
+}
+
+.bar {
+  position: fixed;
+  box-sizing: border-box;
+  bottom: var(--shell-bottom-height, 0);
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-3) var(--spacing-4)
+    calc(var(--spacing-3) + env(safe-area-inset-bottom, 0rem));
+}
+
+/* The shell bottom bar offset already includes the safe-area inset */
+:root[data-shell-bar='shown'] .bar {
+  padding-bottom: var(--spacing-3);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.status {
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+@media (max-width: 479px) {
+  .content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .actions > * {
+    width: 100%;
+  }
+}

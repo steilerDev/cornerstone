@@ -11,7 +11,13 @@ const mockGetPhotosForEntity = jest.fn<() => Promise<unknown>>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockUploadPhotoApi = jest.fn<(...args: any[]) => Promise<unknown>>();
 const mockUpdatePhotoApi = jest.fn<() => Promise<unknown>>();
-const mockDeletePhotoApi = jest.fn<() => Promise<void>>();
+const mockDeletePhotoApi = jest.fn<() => Promise<unknown>>();
+const mockUndoChange = jest.fn<(token: string) => Promise<unknown>>();
+const UNDO_RESPONSE = { undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:10.000Z' } };
+
+jest.unstable_mockModule('../lib/undoApi.js', () => ({
+  undoChange: mockUndoChange,
+}));
 
 jest.unstable_mockModule('../lib/photoApi.js', () => ({
   getPhotosForEntity: mockGetPhotosForEntity,
@@ -495,7 +501,7 @@ describe('usePhotos', () => {
     it('calls deletePhotoApi with the photo ID', async () => {
       const photos = [makePhoto('photo-1')];
       mockGetPhotosForEntity.mockResolvedValueOnce(photos);
-      mockDeletePhotoApi.mockResolvedValueOnce(undefined);
+      mockDeletePhotoApi.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
       await waitFor(() => expect(result.current.photos).toHaveLength(1));
@@ -510,7 +516,7 @@ describe('usePhotos', () => {
     it('removes the deleted photo from local state', async () => {
       const photos = [makePhoto('photo-1'), makePhoto('photo-2')];
       mockGetPhotosForEntity.mockResolvedValueOnce(photos);
-      mockDeletePhotoApi.mockResolvedValueOnce(undefined);
+      mockDeletePhotoApi.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
       await waitFor(() => expect(result.current.photos).toHaveLength(2));
@@ -526,7 +532,7 @@ describe('usePhotos', () => {
     it('only removes the targeted photo when multiple photos exist', async () => {
       const photos = [makePhoto('photo-1'), makePhoto('photo-2'), makePhoto('photo-3')];
       mockGetPhotosForEntity.mockResolvedValueOnce(photos);
-      mockDeletePhotoApi.mockResolvedValueOnce(undefined);
+      mockDeletePhotoApi.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
       await waitFor(() => expect(result.current.photos).toHaveLength(3));
@@ -560,6 +566,90 @@ describe('usePhotos', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
+    });
+    it('resolves with the delete response carrying the undo token', async () => {
+      mockGetPhotosForEntity.mockResolvedValueOnce([makePhoto('photo-1')]);
+      mockDeletePhotoApi.mockResolvedValueOnce(UNDO_RESPONSE);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      let response: unknown;
+      await act(async () => {
+        response = await result.current.deletePhoto('photo-1');
+      });
+
+      expect(response).toEqual(UNDO_RESPONSE);
+    });
+
+    it('keeps the photo in local state when the delete rejects', async () => {
+      mockGetPhotosForEntity.mockResolvedValueOnce([makePhoto('photo-1')]);
+      mockDeletePhotoApi.mockRejectedValueOnce(new Error('Delete failed'));
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.deletePhoto('photo-1').catch(() => undefined);
+      });
+
+      expect(result.current.photos).toHaveLength(1);
+    });
+  });
+
+  // ─── restorePhoto() ────────────────────────────────────────────────────────
+
+  describe('restorePhoto()', () => {
+    it('posts the token, then reloads the photos in their stored order', async () => {
+      mockGetPhotosForEntity.mockResolvedValueOnce([makePhoto('photo-2')]);
+      mockUndoChange.mockResolvedValueOnce({});
+      const restored = [makePhoto('photo-1'), makePhoto('photo-2')];
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      mockGetPhotosForEntity.mockResolvedValueOnce(restored);
+      await act(async () => {
+        await result.current.restorePhoto(UNDO_RESPONSE.undo);
+      });
+
+      expect(mockUndoChange).toHaveBeenCalledWith('tok-1');
+      expect(mockGetPhotosForEntity).toHaveBeenLastCalledWith('diary_entry', 'entry-1');
+      expect(result.current.photos.map((p: { id: string }) => p.id)).toEqual([
+        'photo-1',
+        'photo-2',
+      ]);
+    });
+
+    it.each([404, 409])('rejects on %i and does not reload', async (status) => {
+      mockGetPhotosForEntity.mockResolvedValueOnce([makePhoto('photo-2')]);
+      mockUndoChange.mockRejectedValueOnce(new MockApiClientError(status, { code: 'X' }));
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+      const callsBefore = mockGetPhotosForEntity.mock.calls.length;
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await result.current.restorePhoto(UNDO_RESPONSE.undo);
+        } catch (err) {
+          thrown = err;
+        }
+      });
+
+      expect(thrown).toBeInstanceOf(MockApiClientError);
+      expect(mockGetPhotosForEntity.mock.calls.length).toBe(callsBefore);
+      expect(result.current.photos).toHaveLength(1);
+    });
+
+    it('does nothing without an entity', async () => {
+      mockUndoChange.mockClear();
+      const { result } = renderHook(() => usePhotos('', ''));
+      await act(async () => {
+        await result.current.restorePhoto(UNDO_RESPONSE.undo);
+      });
+      expect(mockUndoChange).not.toHaveBeenCalled();
     });
   });
 

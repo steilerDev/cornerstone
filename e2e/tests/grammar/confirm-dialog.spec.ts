@@ -40,7 +40,7 @@ import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 
 async function expectFocusNotOnBody(page: Page): Promise<void> {
   await expect
@@ -261,17 +261,20 @@ test.describe('ConfirmDialog — discard wording', { tag: '@responsive' }, () =>
     const draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
     try {
-      const edit = new DiaryEntryEditPage(page);
-      await edit.goto(draftId);
-      await edit.openDiscardModal();
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(draftId);
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      const discard = capture.discardDialog;
+      await discard.waitForOpen();
 
-      await expect(edit.discardModal).toHaveAccessibleName('Discard this entry?');
-      await expect(edit.discardModalCancel).toHaveText('Keep entry');
-      await expect(edit.discardModalConfirm).toHaveText('Discard');
-      await expect(edit.discardModalCancel).toBeFocused();
+      await expect(discard.dialog).toHaveAccessibleName('Discard this entry?');
+      await expect(discard.cancelButton).toHaveText('Keep entry');
+      await expect(discard.confirmButton).toHaveText('Discard');
+      await expect(discard.cancelButton).toBeFocused();
 
-      await edit.discardModalCancel.click();
-      await expect(edit.discardModal).toBeHidden();
+      await discard.cancel();
+      await expect(discard.dialog).toBeHidden();
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
     } finally {
       await deleteDiaryEntryViaApi(page, draftId).catch(() => {});

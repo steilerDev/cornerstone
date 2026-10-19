@@ -675,7 +675,12 @@ describe('top bar and user menu rule pins (#2206)', () => {
     const css = stripComments(
       fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
     );
-    expect(css.match(/bottom:\s*calc\([^;]*var\(--shell-bottom-height\)\)/g)).toHaveLength(2);
+    // Each placement lifts by the bottom bar and by the sticky action bar (0rem fallback).
+    expect(
+      css.match(
+        /bottom:\s*calc\(\s*var\(--spacing-(?:4|6)\) \+ var\(--shell-bottom-height\) \+ var\(--sticky-action-bar-height, 0rem\)\s*\);/g,
+      ),
+    ).toHaveLength(2);
   });
 });
 

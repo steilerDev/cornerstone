@@ -20,6 +20,9 @@ import {
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
   DEFECT_STATUS_ACTIONS,
+  DIARY_INSPECTION_OUTCOMES,
+  DIARY_ISSUE_SEVERITIES,
+  DIARY_WEATHERS,
   DELETE_IMPACT_KINDS,
   DIARY_ISSUE_RESOLUTIONS,
   DIARY_SOURCE_ENTITY_TYPES,
@@ -114,6 +117,12 @@ export const I18N_UNION_KEYS = {
   reportSkipReason: unionKeySet('budget', 'sourceReports.table', REPORT_SKIP_REASONS),
   /** diary — source-entity type label on the diary detail page / card. */
   diarySourceType: unionKeySet('diary', 'detailPage.sourceType', DIARY_SOURCE_ENTITY_TYPES),
+  /** diary — weather chip label on the capture screen and entry pages. */
+  diaryWeather: unionKeySet('diary', 'form.weatherOptions', DIARY_WEATHERS),
+  /** diary — site-visit outcome chip label. */
+  diaryOutcome: unionKeySet('diary', 'form.outcomeOptions', DIARY_INSPECTION_OUTCOMES),
+  /** diary — defect severity chip label. */
+  diarySeverity: unionKeySet('diary', 'form.severityOptions', DIARY_ISSUE_SEVERITIES),
   /** auth — OIDC login error banner message. */
   oidcLoginError: unionKeySet('auth', 'login.oidcErrors', OIDC_LOGIN_ERROR_CODES),
   // ── Canonical status vocabulary (glossary v1, #2192) ─────────────────────────────────────

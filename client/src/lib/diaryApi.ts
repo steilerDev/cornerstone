@@ -1,5 +1,8 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type {
+  DiaryEntryLookupQuery,
+  DiaryEntryLookupResponse,
   DiaryEntryDetail,
   DiaryEntryListResponse,
   DiaryEntryListQuery,
@@ -84,4 +87,16 @@ export function promoteDiaryEntry(
   data: PromoteDiaryEntryRequest,
 ): Promise<DiaryEntryDetail> {
   return patch<DiaryEntryDetail>(`/diary-entries/${id}/promote`, data);
+}
+
+/**
+ * Finds manual entries with the same date and title (the capture screen's same-title offer).
+ */
+export function lookupDiaryEntries(
+  query: DiaryEntryLookupQuery,
+  options?: RequestOptions,
+): Promise<DiaryEntryLookupResponse> {
+  const params = new URLSearchParams({ entryDate: query.entryDate, title: query.title });
+  if (query.excludeId) params.set('excludeId', query.excludeId);
+  return get<DiaryEntryLookupResponse>(`/diary-entries/lookup?${params.toString()}`, options);
 }

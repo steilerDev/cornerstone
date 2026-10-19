@@ -127,8 +127,8 @@ describe('useDebouncedCallback', () => {
   // Regression #1816/#1848: the hook used to return a brand-new `{ trigger, cancel }`
   // object literal on every render, even when `trigger` and `cancel` were themselves
   // referentially stable. Any consumer that put the *whole hook return value* in a
-  // `useEffect`/`useMemo` dependency array (e.g. `[uploadingCount, scheduleAutoSave]`
-  // in DiaryEntryEditPage, or `[..., scheduleFetchBreakdown]` in BudgetOverviewPage)
+  // `useEffect`/`useMemo` dependency array (e.g. `[..., scheduleFetchBreakdown]` in
+  // BudgetOverviewPage)
   // saw that dependency change on every render, causing effects to re-fire
   // spuriously. The fix wraps the return value in `useMemo(() => ({ trigger, cancel
   // }), [trigger, cancel])`. This test asserts the identity of the returned object

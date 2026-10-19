@@ -1,0 +1,6 @@
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  max-width: 40rem;
+}

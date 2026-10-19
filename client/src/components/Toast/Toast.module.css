@@ -6,7 +6,9 @@
 
 .container {
   position: fixed;
-  bottom: calc(var(--spacing-6) + var(--shell-bottom-height));
+  bottom: calc(
+    var(--spacing-6) + var(--shell-bottom-height) + var(--sticky-action-bar-height, 0rem)
+  );
   right: var(--spacing-6);
   z-index: var(--z-modal);
   display: flex;
@@ -183,7 +185,9 @@
 
 @media (max-width: 767px) {
   .container {
-    bottom: calc(var(--spacing-4) + var(--shell-bottom-height));
+    bottom: calc(
+      var(--spacing-4) + var(--shell-bottom-height) + var(--sticky-action-bar-height, 0rem)
+    );
     right: var(--spacing-4);
     left: var(--spacing-4);
     width: auto;

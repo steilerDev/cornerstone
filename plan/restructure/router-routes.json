@@ -62,13 +62,8 @@
     { "path": "/companies/new", "guard": "member", "kind": "page", "element": "VendorsPage" },
     { "path": "/diary", "guard": "member", "kind": "page", "element": "DiaryPage" },
     { "path": "/diary/:id", "guard": "member", "kind": "page", "element": "DiaryEntryDetailPage" },
-    {
-      "path": "/diary/:id/edit",
-      "guard": "member",
-      "kind": "page",
-      "element": "DiaryEntryEditPage"
-    },
-    { "path": "/diary/new", "guard": "member", "kind": "page", "element": "DiaryEntryCreatePage" },
+    { "path": "/diary/:id/edit", "guard": "member", "kind": "page", "element": "DiaryCapturePage" },
+    { "path": "/diary/new", "guard": "member", "kind": "page", "element": "DiaryCapturePage" },
     {
       "path": "/household-items",
       "guard": "member",

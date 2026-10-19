@@ -40,7 +40,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 type TrackedValues = Record<string, unknown>;
 
 /** Subjects restored by re-applying tracked column values (everything except `restore` kinds). */
-type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area'>;
+type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area' | 'photo'>;
 
 /** A status-kind subject: the only kind `runUndoable` and the column snapshots handle. */
 interface StatusUndoRow {
@@ -136,6 +136,8 @@ interface RestoreSnapshot {
   createdAt: number;
   subject: UndoRow;
   restore: (tx: UndoTransaction) => void;
+  /** Runs exactly once when the snapshot leaves the store without a successful restore. */
+  discard?: () => void;
 }
 
 type Snapshot = StatusSnapshot | RestoreSnapshot;
@@ -307,11 +309,20 @@ function storeSnapshot(store: UndoStore, build: (createdAt: number) => Snapshot)
   while (store.snapshots.size >= store.maxEntries) {
     const oldest = store.snapshots.keys().next().value;
     if (oldest === undefined) break;
-    store.snapshots.delete(oldest);
+    const evicted = store.snapshots.get(oldest);
+    if (evicted) dropSnapshot(store, oldest, evicted);
+    else store.snapshots.delete(oldest);
   }
 
   const token = `u_${randomBytes(16).toString('hex')}`;
-  store.snapshots.set(token, build(createdAt));
+  const snapshot = build(createdAt);
+  store.snapshots.set(token, snapshot);
+  if (snapshot.kind === 'restore' && snapshot.discard) {
+    // Discard on expiry even when nothing touches the store again; never holds the process open.
+    setTimeout(() => {
+      if (store.snapshots.get(token) === snapshot) dropSnapshot(store, token, snapshot);
+    }, UNDO_WINDOW_MS).unref();
+  }
   return { token, expiresAt: new Date(createdAt + UNDO_WINDOW_MS).toISOString() };
 }
 
@@ -321,6 +332,8 @@ export interface IssueRestoreTokenArgs {
   readonly subject: UndoRow;
   /** Re-creates the deleted rows inside the undo transaction; throws ConflictError to refuse. */
   readonly restore: (tx: UndoTransaction) => void;
+  /** Cleanup run once if the snapshot expires, is evicted or its restore is refused or fails. */
+  readonly discard?: () => void;
 }
 
 /**
@@ -328,19 +341,35 @@ export interface IssueRestoreTokenArgs {
  * cap and token format as status snapshots.
  */
 export function issueRestoreToken(store: UndoStore, args: IssueRestoreTokenArgs): UndoToken {
-  const { userId, subject, restore } = args;
+  const { userId, subject, restore, discard } = args;
   return storeSnapshot(store, (createdAt) => ({
     kind: 'restore',
     userId,
     createdAt,
     subject,
     restore,
+    discard,
   }));
 }
 
 function pruneExpired(store: UndoStore, now: number): void {
   for (const [token, snapshot] of store.snapshots) {
-    if (now - snapshot.createdAt >= UNDO_WINDOW_MS) store.snapshots.delete(token);
+    if (now - snapshot.createdAt >= UNDO_WINDOW_MS) dropSnapshot(store, token, snapshot);
+  }
+}
+
+/** Remove a snapshot that was not restored and run its discard step (never throws). */
+function dropSnapshot(store: UndoStore, token: string, snapshot: Snapshot): void {
+  store.snapshots.delete(token);
+  runDiscard(snapshot);
+}
+
+function runDiscard(snapshot: Snapshot): void {
+  if (snapshot.kind !== 'restore' || !snapshot.discard) return;
+  try {
+    snapshot.discard();
+  } catch {
+    // Cleanup is best effort; a failed discard must never break the caller.
   }
 }
 
@@ -364,13 +393,18 @@ export function applyUndo(
     store.now() - snapshot.createdAt >= UNDO_WINDOW_MS
   ) {
     // A foreign token is left in place so it cannot be burned by another user.
-    if (snapshot && snapshot.userId === userId) store.snapshots.delete(token);
+    if (snapshot && snapshot.userId === userId) dropSnapshot(store, token, snapshot);
     throw new NotFoundError('Undo is no longer available');
   }
   store.snapshots.delete(token);
 
   if (snapshot.kind === 'restore') {
-    db.transaction((tx) => snapshot.restore(tx));
+    try {
+      db.transaction((tx) => snapshot.restore(tx));
+    } catch (err) {
+      runDiscard(snapshot);
+      throw err;
+    }
     return { restored: [snapshot.subject], retractedEventIds: [] };
   }
 

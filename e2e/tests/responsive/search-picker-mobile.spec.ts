@@ -147,7 +147,7 @@ test.describe(
       // This scenario is skipped because no readily reusable E2E fixture surfaces
       // a Modal + SearchPicker combination without complex setup or extensive
       // mocking (MassMoveModal needs budget line data; InvoicePaperlessPickerModal
-      // requires Paperless-ngx mock routes; PhotoMetadataModal requires orientation
+      // requires Paperless-ngx mock routes; the capture screen's photo tag sheet needs orientation
       // data AND a photo upload flow).
       //
       // The anti-clipping behaviour is fully covered by the unit test:

@@ -22,7 +22,7 @@ export class CompanyPickerControl extends SearchPickerControl {
   /** The New company form opened by the create row (not the `/companies/new` route dialog). */
   readonly form: ObjectFormDialog;
 
-  constructor(page: Page, inputId: string, scope?: Locator) {
+  constructor(page: Page, inputId: string | Locator, scope?: Locator) {
     super(page, inputId, scope);
     this.form = new ObjectFormDialog(page, 'New company', 'company-create-form');
   }

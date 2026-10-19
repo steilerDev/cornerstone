@@ -66,6 +66,7 @@ import undoRoutes from './routes/undo.js';
 import deleteImpactRoutes from './routes/deleteImpact.js';
 import searchRoutes from './routes/search.js';
 import * as backupService from './services/backupService.js';
+import * as photoService from './services/photoService.js';
 import * as draftCleanupService from './services/draftCleanupService.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
@@ -86,6 +87,11 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Configuration (must be first)
   await app.register(configPlugin);
+
+  // Photos in the trash belong to Undo tokens, which do not survive a restart (#2221)
+  await photoService.purgePhotoTrash(app.config.photoStoragePath).catch((err: unknown) => {
+    app.log.error({ err }, 'Failed to empty the photo trash');
+  });
 
   // Error handler (after config, before routes)
   await app.register(errorHandlerPlugin);

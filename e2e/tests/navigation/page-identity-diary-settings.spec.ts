@@ -7,12 +7,12 @@
  * "← Back to Diary / Entry / spots" buttons.
  *
  * Scenarios:
- * - E1  (AC1)  Site diary: list, New diary entry, entry (titled and untitled), Edit; exact h1 and
+ * - E1  (AC1)  Site diary: list, New entry, entry (titled and untitled), Edit; exact h1 and
  *              tab title, trail, no Back; Cancel returns to the entry in ONE history step
  * - E1b (phone) the entry page shows one element in the breadcrumb row: "‹ Site diary"
  * - E2         origin: Recent diary card and the Add menu on Home give "Back to Home"; the
- *              origin survives a reload, is gone on a fresh visit, and through the draft the type
- *              picker is replaced (Back never returns to it)
+ *              origin survives a reload, is gone on a fresh visit, and through the draft the new-entry
+ *              screen is replaced (Back never returns to it)
  * - E3  (AC1)  Photos: h1/title, the viewer's "Photos" link keeps the query, the viewer title,
  *              "Open diary entry" gives "Back to <spot>"
  * - E4  (AC1)  Settings (Project setup / Account / Users / Backups), Page not found; no "You are
@@ -50,9 +50,8 @@ import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
-import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { NotFoundPage } from '../../pages/NotFoundPage.js';
 import { PhotoSpotViewerPage } from '../../pages/PhotoSpotViewerPage.js';
@@ -215,15 +214,17 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       },
     );
 
-    test('E1: New diary entry has the right h1, tab title, the Site diary trail and no Back button', async ({
+    test('E1: New entry has the right h1, tab title, the Site diary trail and no Back button', async ({
       page,
     }) => {
-      const create = new DiaryEntryCreatePage(page);
+      const create = new DiaryCapturePage(page);
       await mockHouseName(page);
       await create.goto();
 
-      await expectOneH1(page, 'New diary entry');
-      await expect(page).toHaveTitle(`New diary entry · Site diary · ${HOUSE}`);
+      // The h1 names the day the entry is for: "New entry · <weekday>, <month day>"
+      const expected = `New entry · ${now.toLocaleDateString('en-US', { weekday: 'short' })}, ${todayLabel}`;
+      await expectOneH1(page, expected);
+      await expect(page).toHaveTitle(`${expected} · Site diary · ${HOUSE}`);
       await create.breadcrumbs.expectTrail(['Site diary']);
       await create.breadcrumbs.expectNoBack();
     });
@@ -261,12 +262,12 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expect(detail.backToDiaryLink).toBeVisible();
     });
 
-    test('E1: Edit shows "Edit diary entry" with the entry in the trail; Cancel returns in one step', async ({
+    test('E1: Edit shows "Edit entry · <date>" with the entry in the trail; Cancel returns in one step', async ({
       page,
     }) => {
       const list = new DiaryPage(page);
       const detail = new DiaryEntryDetailPage(page);
-      const edit = new DiaryEntryEditPage(page);
+      const edit = new DiaryCapturePage(page);
       await mockHouseName(page);
 
       // List -> entry -> Edit, so the history holds exactly: list, entry, edit
@@ -281,8 +282,18 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('diaryEntryEdit', { id: seed.titledId }),
       );
-      await expectOneH1(page, 'Edit diary entry');
-      await expect(page).toHaveTitle(`Edit diary entry · Site diary · ${HOUSE}`);
+      // The h1 names the entry's day; a day outside this year carries the year
+      const [year = 1970, month = 1, day = 1] = TITLED_DATE.split('-').map(Number);
+      const entryDay = new Date(year, month - 1, day, 12);
+      const weekday = entryDay.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayMonth = entryDay.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const expected = `Edit entry · ${weekday}, ${dayMonth}`;
+      await expectOneH1(page, expected);
+      await expect(page).toHaveTitle(`${expected} · Site diary · ${HOUSE}`);
       await edit.breadcrumbs.expectTrail(['Site diary', NAMES.titled]);
       // The entry itself is the nearest parent, so there is no Back link next to the trail
       await edit.breadcrumbs.expectNoBack();
@@ -344,12 +355,11 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
     });
 
-    test('E2: New diary entry from the Home Add menu keeps "Back to Home" through the draft and never returns to the type picker', async ({
+    test('E2: New entry from the Home Add menu keeps "Back to Home" through the draft and never returns to /diary/new', async ({
       page,
     }) => {
       const dashboard = new DashboardPage(page);
-      const create = new DiaryEntryCreatePage(page);
-      const edit = new DiaryEntryEditPage(page);
+      const create = new DiaryCapturePage(page);
       let draftId: string | null = null;
       await mockHouseName(page);
       await mockNoPreferences(page);
@@ -360,19 +370,20 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
         await dashboard.addDiaryEntryButton.click();
 
         await expect(page).toHaveURL((url) => url.pathname === routeUrl('diaryEntryNew'));
-        await expectOneH1(page, 'New diary entry');
+        await create.waitForForm();
+        const expected = `New entry · ${now.toLocaleDateString('en-US', { weekday: 'short' })}, ${todayLabel}`;
+        await expectOneH1(page, expected);
         await create.breadcrumbs.expectBack('Home');
 
-        // Picking a type creates the draft and REPLACES the picker
-        await create.selectType('general_note');
-        await expect(page).toHaveURL(/\/diary\/[^/]+\/edit$/);
-        draftId = /\/diary\/([^/]+)\/edit$/.exec(new URL(page.url()).pathname)?.[1] ?? null;
-        await edit.heading.waitFor({ state: 'visible' });
-        await expectOneH1(page, 'New diary entry');
-        await edit.breadcrumbs.expectTrail(['Site diary']);
-        await edit.breadcrumbs.expectBack('Home');
+        // The first character creates the draft and REPLACES /diary/new
+        await create.typeTitle('PI');
+        draftId = await create.waitForDraft();
+        await create.waitForForm();
+        await expectOneH1(page, expected);
+        await create.breadcrumbs.expectTrail(['Site diary']);
+        await create.breadcrumbs.expectBack('Home');
 
-        // The type picker is no longer in history: Back goes straight to Home
+        // /diary/new is no longer in history: Back goes straight to Home
         await page.goBack();
         await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
       } finally {

@@ -57,3 +57,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Users unlock specs](users-unlock-specs.md) — GET /api/users is member-visible, union-key ns closed list, portaled menu vs row POMs, dead sortKey, closure≠per-page primary
 - [Areas index specs](areas-index-specs.md) — sharedComponents counts only X/X.tsx, dialog-file exports leak primaries, routemap.json has no stage, delete Undo is a contract change, contract 19 has no blockers
 - [Diary rules specs](diary-rules-specs.md) — first-content rule is client-only, undo snapshot vs type change, falsy-body merges, planned-contract status drift, photo dates
+- [Capture screen specs](capture-screen-specs.md) — planned allowedAdditions names, no in-app leave blocker, WebKit no fake camera, existing shell/formatter helpers, insecure context, draft URL remount

@@ -1,0 +1,74 @@
+.nav {
+  display: inline-flex;
+  gap: var(--spacing-1);
+}
+
+.navButton {
+  composes: btnIcon from '../../../styles/shared.module.css';
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  min-width: 0;
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  composes: fieldLabel from '../../../styles/shared.module.css';
+}
+
+.textarea {
+  composes: textarea from '../../../styles/shared.module.css';
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.annotate {
+  composes: btnSecondary from '../../../styles/shared.module.css';
+  min-height: 2.75rem;
+}
+
+.annotate[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hint {
+  flex-basis: 100%;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.remove {
+  composes: btnSecondaryCompact from '../../../styles/shared.module.css';
+  min-height: 2.75rem;
+  color: var(--color-danger-text-on-light);
+}
+
+.done {
+  composes: btnSecondary from '../../../styles/shared.module.css';
+  min-height: 2.75rem;
+}

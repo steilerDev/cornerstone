@@ -198,7 +198,7 @@ describe('deleted legacy status keys are gone from both locales (#2195)', () => 
   it('the automatic diary entry types and the type-card descriptions are kept', () => {
     for (const map of [en, de]) {
       expect(map.has('diary.entryTypes.work_item_status')).toBe(true);
-      expect(map.has('diary.createPage.typeCardDailyDesc')).toBe(true);
+      expect(map.has('diary.capture.entryType')).toBe(true);
     }
   });
 });

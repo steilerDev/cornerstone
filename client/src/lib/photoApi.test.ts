@@ -10,6 +10,7 @@ import {
   clearAnnotation,
   getPhotoSpots,
   getPhotoSpotPhotos,
+  fetchPhotoBlob,
 } from './photoApi.js';
 import { ApiClientError, NetworkError } from './apiClient.js';
 import type { Photo } from '@cornerstone/shared';
@@ -243,16 +244,18 @@ describe('photoApi', () => {
       );
     });
 
-    it('returns void on successful delete', async () => {
+    it('returns the undo token from the response body', async () => {
+      const body = { undo: { token: 'tok-9', expiresAt: '2026-01-01T00:00:10.000Z' } };
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => body,
+        text: async () => JSON.stringify(body),
       } as Response);
 
       const result = await deletePhoto('photo-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual(body);
     });
 
     it('uses the correct photo ID in the URL path', async () => {
@@ -341,6 +344,7 @@ describe('photoApi', () => {
 
     let mockXhr: {
       open: jest.MockedFunction<(method: string, url: string) => void>;
+      abort: jest.MockedFunction<() => void>;
       send: jest.MockedFunction<(body?: FormData) => void>;
       setRequestHeader: jest.MockedFunction<() => void>;
       upload: {
@@ -362,6 +366,7 @@ describe('photoApi', () => {
 
       mockXhr = {
         open: jest.fn(),
+        abort: jest.fn(),
         send: jest.fn(),
         setRequestHeader: jest.fn(),
         upload: {
@@ -526,11 +531,51 @@ describe('photoApi', () => {
       await expect(promise).rejects.toThrow('Network error during upload');
     });
 
-    it('rejects with abort error on XHR abort event', async () => {
+    it('rejects with an AbortError DOMException on XHR abort event', async () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
       xhrEventHandlers['abort']!();
 
-      await expect(promise).rejects.toThrow('Upload aborted');
+      await expect(promise).rejects.toBeInstanceOf(DOMException);
+      await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    });
+
+    describe('signal', () => {
+      const send = (signal?: AbortSignal) =>
+        uploadPhoto('diary_entry', 'entry-1', makeFile(), null, null, null, null, signal);
+
+      it('rejects at once with an AbortError and never opens a request when already aborted', async () => {
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(send(controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+
+        expect(globalThis.XMLHttpRequest).not.toHaveBeenCalled();
+        expect(mockXhr.send).not.toHaveBeenCalled();
+      });
+
+      it('aborts the request when the signal fires during the upload', async () => {
+        const controller = new AbortController();
+        const promise = send(controller.signal);
+        expect(mockXhr.abort).not.toHaveBeenCalled();
+
+        controller.abort();
+        expect(mockXhr.abort).toHaveBeenCalledTimes(1);
+        // A real XHR answers abort() with the abort event.
+        xhrEventHandlers['abort']!();
+
+        await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+      });
+
+      it('behaves as before with seven arguments (no signal)', async () => {
+        const photo = makePhoto();
+        mockXhr.status = 201;
+        mockXhr.responseText = JSON.stringify({ photo });
+        const promise = uploadPhoto('diary_entry', 'entry-1', makeFile(), 'cap', null, 'a1', 'o1');
+        xhrEventHandlers['load']!();
+
+        await expect(promise).resolves.toEqual(photo);
+        expect(mockXhr.abort).not.toHaveBeenCalled();
+      });
     });
 
     it('calls onProgress with percentage during upload when length is computable', async () => {
@@ -776,6 +821,78 @@ describe('photoApi', () => {
       expect(mockFetch.mock.calls[0]![0]).toBe(
         '/api/photos/spots/photos?areaId=a1&orientationId=__none__',
       );
+    });
+  });
+
+  // ─── fetchPhotoBlob ──────────────────────────────────────────────────────────
+
+  describe('fetchPhotoBlob', () => {
+    const blob = new Blob(['img'], { type: 'image/webp' });
+    const okResponse = () => ({ ok: true, blob: async () => blob }) as unknown as Response;
+
+    it('fetches the annotated (default) file from fileUrl with credentials', async () => {
+      mockFetch.mockResolvedValueOnce(okResponse());
+
+      const result = await fetchPhotoBlob(makePhoto(), 'annotated');
+
+      expect(result).toBe(blob);
+      expect(mockFetch).toHaveBeenCalledWith('/api/photos/photo-1/file', {
+        credentials: 'include',
+      });
+    });
+
+    it('adds ?variant=original for the original', async () => {
+      mockFetch.mockResolvedValueOnce(okResponse());
+
+      await fetchPhotoBlob(makePhoto(), 'original');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/photos/photo-1/file?variant=original');
+    });
+
+    it('joins with & when the url already carries a query', async () => {
+      mockFetch.mockResolvedValue(okResponse());
+      const versioned = makePhoto({ fileUrl: '/api/photos/photo-1/file?v=123' });
+
+      await fetchPhotoBlob(versioned, 'original');
+      await fetchPhotoBlob(versioned, 'annotated');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/photos/photo-1/file?v=123&variant=original');
+      expect(mockFetch.mock.calls[1]![0]).toBe('/api/photos/photo-1/file?v=123');
+    });
+
+    it('maps an error response to ApiClientError with its code', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'nope' } }),
+      } as unknown as Response);
+
+      const error = await fetchPhotoBlob(makePhoto(), 'original').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect((error as ApiClientError).statusCode).toBe(404);
+      expect((error as ApiClientError).error.code).toBe('NOT_FOUND');
+    });
+
+    it('falls back to a status-derived error for a non-JSON body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new SyntaxError('bad json');
+        },
+      } as unknown as Response);
+
+      const error = await fetchPhotoBlob(makePhoto(), 'original').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect((error as ApiClientError).statusCode).toBe(502);
+    });
+
+    it('throws NetworkError when fetch itself fails', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      await expect(fetchPhotoBlob(makePhoto(), 'annotated')).rejects.toBeInstanceOf(NetworkError);
     });
   });
 });

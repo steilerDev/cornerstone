@@ -11,7 +11,7 @@
  *   GET    /api/photos/:id/thumbnail - serve thumbnail stream
  *   PATCH  /api/photos/reorder      - reorder photos for entity
  *   PATCH  /api/photos/:id          - update photo metadata
- *   DELETE /api/photos/:id          - delete photo
+ *   DELETE /api/photos/:id          - delete photo (200 { undo }, #2221)
  *
  * Strategy:
  *   - photoService module is fully mocked to avoid sharp native binary dependency
@@ -26,11 +26,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
+import type { Photo, ApiErrorResponse, DeletePhotoResponse } from '@cornerstone/shared';
 import type * as AppModule from '../app.js';
 import type * as UserServiceModule from '../services/userService.js';
 import type * as SessionServiceModule from '../services/sessionService.js';
 import { diaryEntries } from '../db/schema.js';
+import { NotFoundError } from '../errors/AppError.js';
+import { undoStore } from '../services/undoService.js';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
 
@@ -43,6 +45,9 @@ const mockGetPhotosForEntity = jest.fn() as AnyMock;
 const mockUpdatePhoto = jest.fn() as AnyMock;
 const mockReorderPhotos = jest.fn() as AnyMock;
 const mockDeletePhoto = jest.fn() as AnyMock;
+const mockTrashPhoto = jest.fn() as AnyMock;
+const mockRestoreTrashedPhoto = jest.fn() as AnyMock;
+const mockPurgeTrashedPhoto = jest.fn() as AnyMock;
 const mockGetPhotoFilePath = jest.fn() as AnyMock;
 
 const mockDeletePhotosForEntity = jest.fn() as AnyMock;
@@ -64,6 +69,10 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
   updatePhoto: mockUpdatePhoto,
   reorderPhotos: mockReorderPhotos,
   deletePhoto: mockDeletePhoto,
+  trashPhoto: mockTrashPhoto,
+  restoreTrashedPhoto: mockRestoreTrashedPhoto,
+  purgeTrashedPhoto: mockPurgeTrashedPhoto,
+  purgePhotoTrash: jest.fn(async () => undefined),
   deletePhotosForEntity: mockDeletePhotosForEntity,
   getPhotoFilePath: mockGetPhotoFilePath,
   // Imported by photoSpotService (Story #2162); never invoked in this file
@@ -176,6 +185,7 @@ describe('Photo Routes', () => {
     }
 
     app = await buildApp();
+    undoStore.snapshots.clear();
 
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -186,6 +196,9 @@ describe('Photo Routes', () => {
     mockUpdatePhoto.mockReturnValue(null);
     mockReorderPhotos.mockReturnValue(undefined);
     mockDeletePhoto.mockResolvedValue(undefined);
+    mockTrashPhoto.mockImplementation((_db: unknown, _storage: unknown, id: unknown) => ({
+      row: { id },
+    }));
     mockGetPhotoFilePath.mockResolvedValue(null);
     mockSaveAnnotatedImage.mockResolvedValue(
       makePhoto({ annotatedAt: '2026-01-01T00:00:00.000Z' }),
@@ -1299,10 +1312,9 @@ describe('Photo Routes', () => {
       expect(body.error.message).toMatch(/photo not found/i);
     });
 
-    it('returns 204 on successful delete', async () => {
+    it('returns 200 with an undo token on successful delete', async () => {
       const { cookie } = await createUserWithSession('delete2@example.com', 'Delete2', 'password');
       mockGetPhoto.mockReturnValue(makePhoto());
-      mockDeletePhoto.mockResolvedValue(undefined);
 
       const response = await app.inject({
         method: 'DELETE',
@@ -1310,17 +1322,181 @@ describe('Photo Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DeletePhotoResponse>();
+      expect(body.undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+      expect(new Date(body.undo.expiresAt).getTime()).toBeGreaterThan(Date.now());
+      expect(Object.keys(body)).toEqual(['undo']);
     });
 
-    it('calls deletePhoto service with correct photo id', async () => {
+    it('trashes the photo instead of hard-deleting it', async () => {
+      const { cookie } = await createUserWithSession('delete3@example.com', 'Delete3', 'password');
+      mockGetPhoto.mockReturnValue(makePhoto());
+
+      await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie },
+      });
+
+      expect(mockDeletePhoto).not.toHaveBeenCalled();
+      expect(mockTrashPhoto).toHaveBeenCalledTimes(1);
+    });
+
+    it('binds the undo token to the deleting user and the photo subject', async () => {
+      const { cookie, userId } = await createUserWithSession(
+        'delete4@example.com',
+        'Delete4',
+        'password',
+      );
+      mockGetPhoto.mockReturnValue(makePhoto());
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie },
+      });
+
+      const { token } = response.json<DeletePhotoResponse>().undo;
+      const snapshot = undoStore.snapshots.get(token)!;
+      if (snapshot.kind !== 'restore') throw new Error('expected a restore snapshot');
+      expect(snapshot.userId).toBe(userId);
+      expect(snapshot.subject).toEqual({
+        type: 'photo',
+        id: '33333333-3333-3333-3333-333333333333',
+      });
+    });
+
+    it('wires restore and discard to the photo service with the storage path and snapshot', async () => {
+      const { cookie } = await createUserWithSession('delete5@example.com', 'Delete5', 'password');
+      mockGetPhoto.mockReturnValue(makePhoto());
+      const snapshot = { row: { id: '33333333-3333-3333-3333-333333333333' } };
+      mockTrashPhoto.mockReturnValue(snapshot);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie },
+      });
+
+      const stored = undoStore.snapshots.get(response.json<DeletePhotoResponse>().undo.token)!;
+      if (stored.kind !== 'restore') throw new Error('expected a restore snapshot');
+      const tx = {} as never;
+      stored.restore(tx);
+      expect(mockRestoreTrashedPhoto).toHaveBeenCalledWith(tx, photoStoragePath, snapshot);
+      stored.discard!();
+      expect(mockPurgeTrashedPhoto).toHaveBeenCalledWith(
+        photoStoragePath,
+        '33333333-3333-3333-3333-333333333333',
+        expect.anything(),
+      );
+    });
+
+    describe('logging (bare route harness with a captured log stream)', () => {
+      const ID = '33333333-3333-3333-3333-333333333333';
+      const MOVE_FAILED = 'Failed to move a deleted photo to the trash';
+
+      async function withBareApp(
+        run: (bare: FastifyInstance, lines: Array<Record<string, unknown>>) => Promise<void>,
+      ): Promise<void> {
+        const lines: Array<Record<string, unknown>> = [];
+        const bare = Fastify({
+          logger: {
+            level: 'warn',
+            stream: {
+              write: (chunk: string) => {
+                lines.push(JSON.parse(chunk) as Record<string, unknown>);
+              },
+            },
+          },
+        });
+        bare.decorate('db', app.db);
+        bare.decorate('config', app.config);
+        bare.decorateRequest('user', null);
+        bare.addHook('onRequest', async (request) => {
+          (request as unknown as { user: { id: string } }).user = { id: 'user-log' };
+        });
+        const photoRoutes = (await import('./photos.js')).default;
+        await bare.register(photoRoutes, { prefix: '/api/photos' });
+        await bare.ready();
+        try {
+          await run(bare, lines);
+        } finally {
+          await bare.close();
+        }
+      }
+
+      it('logs a failed move with the photo id only, and still issues the token', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        const moveError = Object.assign(new Error('EACCES'), { code: 'EACCES' });
+        mockTrashPhoto.mockReturnValue({ row: { id: ID }, moveError });
+
+        await withBareApp(async (bare, lines) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+
+          expect(res.statusCode).toBe(200);
+          expect(res.json<DeletePhotoResponse>().undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+          const warn = lines.find((l) => l.msg === MOVE_FAILED);
+          expect(warn).toBeDefined();
+          expect(warn!.photoId).toBe(ID);
+          expect(warn!.level).toBe(40);
+        });
+      });
+
+      it('logs nothing when the move succeeded', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        mockTrashPhoto.mockReturnValue({ row: { id: ID } });
+
+        await withBareApp(async (bare, lines) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+
+          expect(res.statusCode).toBe(200);
+          expect(lines.filter((l) => l.msg === MOVE_FAILED)).toEqual([]);
+        });
+      });
+
+      it('passes the request logger into the discard step', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        mockTrashPhoto.mockReturnValue({ row: { id: ID } });
+
+        await withBareApp(async (bare) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+          const stored = undoStore.snapshots.get(res.json<DeletePhotoResponse>().undo.token)!;
+          if (stored.kind !== 'restore') throw new Error('expected a restore snapshot');
+
+          stored.discard!();
+
+          const call = mockPurgeTrashedPhoto.mock.calls[0]!;
+          expect(call.slice(0, 2)).toEqual([photoStoragePath, ID]);
+          expect(typeof (call[2] as { warn: unknown }).warn).toBe('function');
+        });
+      });
+    });
+
+    it('issues no token when the trash step reports the photo missing', async () => {
+      const { cookie } = await createUserWithSession('delete6@example.com', 'Delete6', 'password');
+      mockGetPhoto.mockReturnValue(makePhoto());
+      mockTrashPhoto.mockImplementation(() => {
+        throw new NotFoundError('Photo not found');
+      });
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(undoStore.snapshots.size).toBe(0);
+    });
+
+    it('calls trashPhoto with the storage path and the correct photo id', async () => {
       const { cookie } = await createUserWithSession(
         'deleteargs@example.com',
         'DeleteArgs',
         'password',
       );
       mockGetPhoto.mockReturnValue(makePhoto({ id: '22222222-2222-2222-2222-222222222222' }));
-      mockDeletePhoto.mockResolvedValue(undefined);
 
       await app.inject({
         method: 'DELETE',
@@ -1328,7 +1504,7 @@ describe('Photo Routes', () => {
         headers: { cookie },
       });
 
-      expect(mockDeletePhoto).toHaveBeenCalledWith(
+      expect(mockTrashPhoto).toHaveBeenCalledWith(
         expect.anything(),
         photoStoragePath,
         '22222222-2222-2222-2222-222222222222',
@@ -2240,7 +2416,7 @@ describe('Photo Routes', () => {
     });
 
     describe('DELETE /api/photos/:id', () => {
-      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never calls deletePhoto', async () => {
+      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never trashes the photo', async () => {
         const cookie = await login('lock-del-saved@example.com');
         const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
         mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
@@ -2250,10 +2426,12 @@ describe('Photo Routes', () => {
           headers: { cookie },
         });
         expectImmutable(response);
+        expect(mockTrashPhoto).not.toHaveBeenCalled();
         expect(mockDeletePhoto).not.toHaveBeenCalled();
+        expect(undoStore.snapshots.size).toBe(0);
       });
 
-      it('returns 204 for a signed draft', async () => {
+      it('returns 200 with an undo token for a signed draft', async () => {
         const cookie = await login('lock-del-draft@example.com');
         const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
         mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
@@ -2262,8 +2440,9 @@ describe('Photo Routes', () => {
           url: `/api/photos/${PHOTO_ID}`,
           headers: { cookie },
         });
-        expect(response.statusCode).toBe(204);
-        expect(mockDeletePhoto).toHaveBeenCalledTimes(1);
+        expect(response.statusCode).toBe(200);
+        expect(response.json<DeletePhotoResponse>().undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+        expect(mockTrashPhoto).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -2509,6 +2688,7 @@ describe('Photo Routes', () => {
           expect(mockGetPhoto).not.toHaveBeenCalled();
           expect(mockUpdatePhoto).not.toHaveBeenCalled();
           expect(mockDeletePhoto).not.toHaveBeenCalled();
+          expect(mockTrashPhoto).not.toHaveBeenCalled();
           expect(mockReorderPhotos).not.toHaveBeenCalled();
           expect(mockGetPhotosForEntity).not.toHaveBeenCalled();
         } finally {

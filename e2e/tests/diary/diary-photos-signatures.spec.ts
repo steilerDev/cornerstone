@@ -9,7 +9,7 @@
  * 2.  Photo empty state shown when no photos are attached
  * 3.  Photo count indicator shown on entry card when photoCount > 0 (mock API)
  * 4.  "Add photos" link navigates from detail page to edit page (for non-signed entries)
- * 5.  Photo section is visible on the edit page
+ * 5.  Photo controls are visible on the capture screen (edit URL)
  * 6.  [responsive] Photo section renders without horizontal scroll
  * 7.  Signature section is NOT shown when entry has no signatures
  * 8.  Signature section is rendered when entry metadata contains signatures (mock API)
@@ -22,7 +22,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
@@ -256,10 +256,10 @@ test.describe('"Add photos" link navigation (Scenario 4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Photo section is visible on the edit page
+// Scenario 5: The photo controls are on the capture screen (edit URL)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Photo section on edit page (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Edit page renders the photo upload section for an existing entry', async ({
+  test('Edit page renders the photo controls for an existing entry', async ({
     page,
     testPrefix,
   }) => {
@@ -272,16 +272,12 @@ test.describe('Photo section on edit page (Scenario 5)', { tag: '@responsive' },
         body: `${testPrefix} photo section on edit test`,
       });
 
-      await page.goto(`/diary/${createdId}/edit`);
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(createdId);
 
-      // Wait for the edit page to load
-      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
-        state: 'visible',
-      });
-
-      // The "Photos" section heading should be rendered
-      const photosHeading = page.getByRole('heading', { name: /Photos/i, level: 2 });
-      await expect(photosHeading).toBeVisible();
+      // The photo controls (Choose from library) are on screen
+      await expect(capture.heading).toContainText('Edit entry');
+      await expect(capture.chooseButton).toBeVisible();
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
     }
@@ -580,7 +576,7 @@ test.describe('Unfinished signature blocks promote (#2088)', () => {
   test('promote is blocked client-side until the pending signature is removed', async ({
     page,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const id = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
 
     // Promote is sent as PATCH /api/diary-entries/:id/promote
@@ -592,21 +588,22 @@ test.describe('Unfinished signature blocks promote (#2088)', () => {
     });
 
     try {
-      await editPage.goto(id);
-      await editPage.bodyTextarea.fill('Daily log with an unfinished signature');
+      await capture.gotoEdit(id);
+      await capture.typeText('Daily log with an unfinished signature');
 
-      await editPage.addSignatureButton.click();
-      await editPage.vendorSignerRadio.check();
+      await capture.openMoreDetails();
+      await capture.tap(capture.addSignatureButton);
+      await capture.vendorSignerRadio.check();
 
-      await editPage.submitButton.click();
+      await capture.tap(capture.saveButton);
 
-      await expect(editPage.signatureValidationError).toHaveText(/unfinished signature/i);
+      await expect(capture.signatureError).toBeVisible();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
       expect(promoteRequests).toHaveLength(0);
 
       // Removing the pending signature unblocks promote
-      await editPage.removePendingSignatureButton.click();
-      await editPage.submitButton.click();
+      await capture.tap(capture.removeSignatureButton);
+      await capture.saveEntry();
 
       await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
       expect(promoteRequests.length).toBeGreaterThan(0);
@@ -628,7 +625,7 @@ test.describe('Signed draft survives leave-and-return (#2124)', { tag: '@respons
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     const diaryPage = new DiaryPage(page);
     const id = await createDraftDiaryEntryViaApi(page, {
@@ -652,30 +649,33 @@ test.describe('Signed draft survives leave-and-return (#2124)', { tag: '@respons
     });
 
     try {
-      await editPage.goto(id);
+      await capture.gotoEdit(id);
       await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
-      await expect(editPage.draftBadge).toBeVisible();
+      // A draft shows the capture form (not the signed EmptyState) and warns about the lock
+      await expect(capture.saveButton).toHaveText('Save entry');
+      await expect(capture.signedNote).toBeVisible();
 
-      // Autosave PATCH on blur must succeed (no 403 on a signed draft)
+      // Autosave PATCH must succeed (no 403 on a signed draft)
       const autosave = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${id}`) &&
           !resp.url().includes('/promote') &&
           resp.request().method() === 'PATCH',
       );
-      await editPage.bodyTextarea.fill(`${testPrefix} signed draft body`);
-      await editPage.bodyTextarea.blur();
+      await capture.typeText(`${testPrefix} signed draft body`);
+      await capture.textArea.blur();
       expect((await autosave).status()).toBe(200);
 
       // Leave and return via the draft card on the list
       await diaryPage.filterDraftsOnly();
       await diaryPage.entryCard(id).click();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
-      await expect(editPage.heading).toBeVisible();
+      await capture.waitForForm();
+      await expect(capture.textArea).toHaveValue(`${testPrefix} signed draft body`);
       await expect(page.getByText('Signed entries cannot be edited')).not.toBeVisible();
 
       // Promote
-      await editPage.submitButton.click();
+      await capture.saveEntry();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
       await expect(detailPage.signatureSection).toBeVisible();
       await expect(detailPage.editButton).not.toBeVisible();
@@ -704,18 +704,19 @@ test.describe('Issue entry signatures (#2125)', () => {
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     const id = await createDraftDiaryEntryViaApi(page, { entryType: 'issue' });
 
     try {
-      await editPage.goto(id);
-      await editPage.bodyTextarea.fill(`${testPrefix} issue with signature`);
-      await editPage.severitySelect.selectOption('medium');
-      await editPage.resolutionStatusSelect.selectOption('open');
+      await capture.gotoEdit(id);
+      await capture.typeText(`${testPrefix} issue with signature`);
+      await capture.tap(capture.severityChip('medium'));
+      await capture.tap(capture.statusChip('open'));
 
-      await editPage.addSignatureButton.click();
-      await expect(editPage.signatureCanvas.first()).toBeVisible();
+      await capture.openMoreDetails();
+      await capture.tap(capture.addSignatureButton);
+      await expect(capture.signatureCanvas.first()).toBeVisible();
 
       const autosave = page.waitForResponse(
         (resp) =>
@@ -725,11 +726,11 @@ test.describe('Issue entry signatures (#2125)', () => {
           ((resp.request().postDataJSON() as { metadata?: { signatures?: unknown[] } })?.metadata
             ?.signatures?.length ?? 0) === 1,
       );
-      await editPage.drawSignature(0);
+      await capture.drawSignature();
       const resp = await autosave;
       expect(resp.status()).toBe(200);
 
-      await editPage.submitButton.click();
+      await capture.saveEntry();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
       await expect(detailPage.signatureSection).toBeVisible();
       await expect(detailPage.editButton).not.toBeVisible();
@@ -742,7 +743,7 @@ test.describe('Issue entry signatures (#2125)', () => {
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const id = await createDraftDiaryEntryViaApi(page, { entryType: 'issue' });
 
     const promoteRequests: string[] = [];
@@ -753,21 +754,22 @@ test.describe('Issue entry signatures (#2125)', () => {
     });
 
     try {
-      await editPage.goto(id);
-      await editPage.bodyTextarea.fill(`${testPrefix} issue with unfinished signature`);
-      await editPage.severitySelect.selectOption('low');
-      await editPage.resolutionStatusSelect.selectOption('open');
+      await capture.gotoEdit(id);
+      await capture.typeText(`${testPrefix} issue with unfinished signature`);
+      await capture.tap(capture.severityChip('low'));
+      await capture.tap(capture.statusChip('open'));
 
-      await editPage.addSignatureButton.click();
-      await expect(editPage.signatureCanvas.first()).toBeVisible();
-      await editPage.drawSignature(0);
+      await capture.openMoreDetails();
+      await capture.tap(capture.addSignatureButton);
+      await expect(capture.signatureCanvas.first()).toBeVisible();
+      await capture.drawSignature();
 
-      await editPage.addSignatureButton.click();
-      await expect(editPage.signatureCanvas.first()).toBeVisible();
+      await capture.tap(capture.addSignatureButton);
+      await expect(capture.signatureCanvas.first()).toBeVisible();
 
-      await editPage.submitButton.click();
+      await capture.tap(capture.saveButton);
 
-      await expect(editPage.issueSignatureValidationError).toHaveText(/unfinished signature/i);
+      await expect(capture.signatureError).toBeVisible();
       await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
       expect(promoteRequests).toHaveLength(0);
     } finally {

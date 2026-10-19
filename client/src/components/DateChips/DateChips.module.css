@@ -1,0 +1,42 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.label {
+  composes: fieldLabel from '../../styles/shared.module.css';
+}
+
+.fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.row {
+  display: flex;
+}
+
+.row[hidden] {
+  display: none;
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+  width: auto;
+  min-height: var(--touch-target-min, 2.75rem);
+  font-size: var(--font-size-base);
+}
+
+.input:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

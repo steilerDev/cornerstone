@@ -19,6 +19,7 @@ export const UNDO_SUBJECT_TYPES = [
   'diary_entry',
   'budget_source',
   'area',
+  'photo',
 ] as const;
 
 export type UndoSubjectType = (typeof UNDO_SUBJECT_TYPES)[number];
