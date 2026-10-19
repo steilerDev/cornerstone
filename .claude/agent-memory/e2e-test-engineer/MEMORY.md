@@ -61,3 +61,4 @@
 - [story-2223-system-events.md](story-2223-system-events.md) — #2223 system events: FeedRow ids, v1 mock builders, History filter, payment link, phone-hidden chip trap.
 - [story-2224-history-page.md](story-2224-history-page.md) — #2224 History POM/ids, per-test uniq tag, moved diary filters, 1.64.1 image + docker disk, checkbox quirk.
 - [story-2225-diary-feed-row.md](story-2225-diary-feed-row.md) — #2225 diary feed rows/Filters/entry page POMs, mock stubs, sequential-run rule, 2 production defects.
+- [story-2226-photos-spots.md](story-2226-photos-spots.md) — #2226 Photos spots/No area/viewer POMs, phone Details sheet rules, D-31 defects.json, Escape defect, chrome opacity.

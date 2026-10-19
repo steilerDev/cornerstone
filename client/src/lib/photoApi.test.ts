@@ -11,8 +11,11 @@ import {
   getPhotoSpots,
   getPhotoSpotPhotos,
   fetchPhotoBlob,
+  updatePhotoDetails,
+  updatePhotoTags,
 } from './photoApi.js';
 import { ApiClientError, NetworkError } from './apiClient.js';
+import { PHOTO_SPOT_ANY } from '@cornerstone/shared';
 import type { Photo } from '@cornerstone/shared';
 
 // ─── Shared photo fixture ──────────────────────────────────────────────────────
@@ -820,6 +823,116 @@ describe('photoApi', () => {
 
       expect(mockFetch.mock.calls[0]![0]).toBe(
         '/api/photos/spots/photos?areaId=a1&orientationId=__none__',
+      );
+    });
+
+    it('passes the __any__ orientation sentinel through (all no-area photos)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ area: null, orientation: null, photos: [] }),
+      } as Response);
+
+      await getPhotoSpotPhotos(null, PHOTO_SPOT_ANY);
+
+      expect(mockFetch.mock.calls[0]![0]).toBe(
+        '/api/photos/spots/photos?areaId=__none__&orientationId=__any__',
+      );
+    });
+  });
+
+  // ─── updatePhotoDetails / updatePhotoTags ────────────────────────────────────
+
+  describe('updatePhotoDetails', () => {
+    it('PATCHes /api/photos/:id and returns the whole response including undo', async () => {
+      const photo = makePhoto({ areaId: 'a1' });
+      const undo = { token: 'tok', expiresAt: '2026-01-01T00:00:30.000Z' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ photo, undo }),
+      } as Response);
+
+      const result = await updatePhotoDetails('photo-1', { areaId: 'a1' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/photos/photo-1',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ areaId: 'a1' }) }),
+      );
+      expect(result).toEqual({ photo, undo });
+    });
+
+    it('returns a response without undo when no tag changed', async () => {
+      const photo = makePhoto({ caption: 'x' });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ photo }),
+      } as Response);
+
+      const result = await updatePhotoDetails('photo-1', { caption: 'x' });
+
+      expect(result.undo).toBeUndefined();
+    });
+
+    it('rejects with ApiClientError on a server error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ error: { code: 'IMMUTABLE_ENTRY', message: 'locked' } }),
+      } as Response);
+
+      await expect(updatePhotoDetails('photo-1', { areaId: null })).rejects.toBeInstanceOf(
+        ApiClientError,
+      );
+    });
+  });
+
+  describe('updatePhotoTags', () => {
+    it('PATCHes /api/photos/tags with only the supplied keys and returns the result', async () => {
+      const undo = { token: 'tok', expiresAt: '2026-01-01T00:00:30.000Z' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ updated: 2, undo }),
+      } as Response);
+
+      const result = await updatePhotoTags({ photoIds: ['a', 'b'], areaId: 'a1' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/photos/tags',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ photoIds: ['a', 'b'], areaId: 'a1' }),
+        }),
+      );
+      expect(result).toEqual({ updated: 2, undo });
+    });
+
+    it('sends null to clear a tag', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ updated: 1, undo: { token: 't', expiresAt: 'x' } }),
+      } as Response);
+
+      await updatePhotoTags({ photoIds: ['a'], orientationId: null });
+
+      const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+      expect(body).toEqual({ photoIds: ['a'], orientationId: null });
+    });
+
+    it('rejects with ApiClientError when the server refuses', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          error: { code: 'IMMUTABLE_ENTRY', message: 'locked', details: { lockedPhotoIds: ['a'] } },
+        }),
+      } as Response);
+
+      await expect(updatePhotoTags({ photoIds: ['a'], areaId: 'x' })).rejects.toBeInstanceOf(
+        ApiClientError,
       );
     });
   });

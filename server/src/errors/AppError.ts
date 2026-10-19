@@ -222,8 +222,11 @@ export class InvalidMetadataError extends AppError {
 }
 
 export class ImmutableEntryError extends AppError {
-  constructor(message = 'Automatic diary entries cannot be modified') {
-    super('IMMUTABLE_ENTRY', 403, message);
+  constructor(
+    message = 'Automatic diary entries cannot be modified',
+    details?: Record<string, unknown>,
+  ) {
+    super('IMMUTABLE_ENTRY', 403, message, details);
     this.name = 'ImmutableEntryError';
   }
 }

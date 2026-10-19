@@ -156,6 +156,7 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
     editable,
     startInAnnotator,
     initialIndex,
+    diaryDate,
     onClose,
     onDelete,
     onPhotoChanged,
@@ -163,6 +164,7 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
     editable?: boolean;
     startInAnnotator?: boolean;
     initialIndex: number;
+    diaryDate?: string | null;
     onClose: () => void;
     onDelete: (id: string) => void;
     onPhotoChanged: (photo: Photo) => void;
@@ -172,6 +174,7 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
       data-editable={String(editable)}
       data-annotator={String(startInAnnotator)}
       data-index={initialIndex}
+      data-diary-date={diaryDate ?? ''}
     >
       <button type="button" onClick={onClose}>
         close-viewer
@@ -926,6 +929,19 @@ describe('DiaryEntryDetailPage', () => {
       expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
         'data-editable',
         'true',
+      );
+    });
+
+    it('passes the entry date to the photo viewer as the diary date (#2226)', async () => {
+      photosState.photos = [{ id: 'p1' } as Photo];
+      mockGetDiaryEntry.mockResolvedValueOnce(signedDraft);
+      renderDetailPage();
+
+      await userEvent.setup().click(await screen.findByText('open-photo'));
+
+      expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
+        'data-diary-date',
+        signedDraft.entryDate,
       );
     });
 

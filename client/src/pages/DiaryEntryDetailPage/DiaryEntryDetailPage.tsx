@@ -388,6 +388,7 @@ export default function DiaryEntryDetailPage() {
               void refreshEntry(entry.id);
             }}
             editable={!isLocked}
+            diaryDate={entry.entryDate}
             startInAnnotator={openAsAnnotator}
             onDelete={async (photoId) => {
               await photosResult.deletePhoto(photoId);

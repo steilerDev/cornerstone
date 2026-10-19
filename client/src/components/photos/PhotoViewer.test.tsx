@@ -41,6 +41,11 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+
+const PHONE = '(max-width: 767px)';
+let media: MatchMediaControl | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
@@ -140,45 +145,53 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
     ),
 }));
 
-// ─── Mock PhotoMetadataSidepanel ──────────────────────────────────────────────
-// The sidepanel now always renders (no isOpen/onClose props). Mock to avoid
-// rendering dependencies like LocaleProvider which aren't available in unit tests.
-// Clicking the mock div triggers onPhotoUpdated with a mutated photo (caption + areaId set),
-// so tests can verify that the metadata-save path calls onPhotoChanged.
+// ─── Mock PhotoDetailsPanel ───────────────────────────────────────────────────
+// The panel has its own test file. The stand-in exposes the props the viewer passes and lets a
+// test fire onSaved (caption + areaId set) and onEditingChange.
 
-jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
-  PhotoMetadataSidepanel: ({
+jest.unstable_mockModule('./PhotoDetailsPanel.js', () => ({
+  PhotoDetailsPanel: ({
     photo,
-    onPhotoUpdated,
-    onMobileOpenChange,
+    diaryDate,
+    locked,
+    onSaved,
+    onEditingChange,
   }: {
     photo: Photo;
-    onPhotoUpdated?: (p: Photo) => void;
-    isAnnotating?: boolean;
-    onMobileOpenChange?: (open: boolean) => void;
+    diaryDate: string | null;
+    locked?: boolean;
+    onSaved: (r: { photo: Photo; undo: null; tagsChanged: boolean; spotLabel: string }) => void;
+    onEditingChange?: (editing: boolean) => void;
   }) =>
     React.createElement(
       'div',
       {
-        'data-testid': 'mock-metadata-sidepanel',
+        'data-testid': 'mock-details-panel',
         'data-photo-id': photo.id,
+        'data-diary-date': diaryDate ?? '',
+        'data-locked': String(Boolean(locked)),
         onClick: () =>
-          onPhotoUpdated?.({ ...photo, caption: 'saved-caption', areaId: 'area-1' } as Photo),
+          onSaved({
+            photo: { ...photo, caption: 'saved-caption', areaId: 'area-1' } as Photo,
+            undo: null,
+            tagsChanged: true,
+            spotLabel: 'Kitchen',
+          }),
       },
       React.createElement('button', {
         type: 'button',
-        'data-testid': 'mock-sheet-open',
+        'data-testid': 'mock-editing-start',
         onClick: (e: React.MouseEvent) => {
           e.stopPropagation();
-          onMobileOpenChange?.(true);
+          onEditingChange?.(true);
         },
       }),
       React.createElement('button', {
         type: 'button',
-        'data-testid': 'mock-sheet-close',
+        'data-testid': 'mock-editing-end',
         onClick: (e: React.MouseEvent) => {
           e.stopPropagation();
-          onMobileOpenChange?.(false);
+          onEditingChange?.(false);
         },
       }),
     ),
@@ -458,8 +471,8 @@ describe('PhotoViewer', () => {
     const photo = makePhoto({ id: 'p-metadata', caption: null, areaId: null });
     renderViewer([photo]);
 
-    // Click the mock sidepanel — fires onPhotoUpdated with caption+areaId set
-    fireEvent.click(screen.getByTestId('mock-metadata-sidepanel'));
+    // Click the mock panel — fires onSaved with caption+areaId set
+    fireEvent.click(screen.getByTestId('mock-details-panel'));
 
     // onPhotoChanged must be called with the mutated photo
     expect(mockOnPhotoChanged).toHaveBeenCalledWith(
@@ -473,8 +486,8 @@ describe('PhotoViewer', () => {
     const photoB = makePhoto({ id: 'p-b', caption: null });
     renderViewer([photoA, photoB], 0);
 
-    // Save metadata on photo A — sidepanel mock fires onPhotoUpdated
-    fireEvent.click(screen.getByTestId('mock-metadata-sidepanel'));
+    // Save metadata on photo A — the panel mock fires onSaved
+    fireEvent.click(screen.getByTestId('mock-details-panel'));
 
     // Verify propagation happened immediately (before any navigation)
     expect(mockOnPhotoChanged).toHaveBeenCalledWith(
@@ -484,14 +497,14 @@ describe('PhotoViewer', () => {
     // Navigate to photo B
     fireEvent.click(screen.getByTestId('photo-viewer-next'));
 
-    // Sidepanel now shows photo B
-    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-photo-id', 'p-b');
+    // The panel now shows photo B
+    expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'p-b');
 
     // Navigate back to photo A
     fireEvent.click(screen.getByTestId('photo-viewer-prev'));
 
-    // Sidepanel shows photo A again
-    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-photo-id', 'p-a');
+    // The panel shows photo A again
+    expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'p-a');
 
     // onPhotoChanged was called exactly once (for the metadata save on A)
     expect(mockOnPhotoChanged).toHaveBeenCalledTimes(1);
@@ -692,38 +705,304 @@ describe('PhotoViewer', () => {
     expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
   });
 
-  // ─── Metadata Sidepanel (always visible) ──────────────────────────────────
-  // The sidepanel no longer has a toggle button — it is always rendered
-  // alongside the photo. No isOpen/onClose props exist on the component.
+  // ─── Details panel (side column from 768px, bottom sheet below) ────────────
 
-  it('metadata sidepanel is always rendered when the viewer is open', () => {
-    renderViewer([makePhoto()]);
-    expect(screen.getByTestId('mock-metadata-sidepanel')).toBeInTheDocument();
+  describe('details panel', () => {
+    afterEach(() => {
+      media?.restore();
+      media = null;
+    });
+
+    it('is rendered in the side column when the viewer is open (wide)', () => {
+      renderViewer([makePhoto()]);
+      expect(screen.getByTestId('mock-details-panel')).toBeInTheDocument();
+      expect(screen.queryByTestId('photo-viewer-details')).not.toBeInTheDocument();
+      expect(document.getElementById('photo-metadata-sidepanel')).toBeNull();
+    });
+
+    it('is not rendered while annotating (wide) and returns afterwards', () => {
+      renderViewer([makePhoto({ width: 800, height: 600 })]);
+      fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+      expect(screen.queryByTestId('mock-details-panel')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('annotator-cancel-mock'));
+      expect(screen.getByTestId('mock-details-panel')).toBeInTheDocument();
+    });
+
+    it('gets the current photo, the diary date and the editable state', () => {
+      render(
+        React.createElement(PhotoViewer, {
+          photos: [makePhoto({ id: 'pd' })],
+          initialIndex: 0,
+          onClose: mockOnClose,
+          editable: false,
+          diaryDate: '2026-09-11',
+        }),
+      );
+      const panel = screen.getByTestId('mock-details-panel');
+      expect(panel).toHaveAttribute('data-photo-id', 'pd');
+      expect(panel).toHaveAttribute('data-diary-date', '2026-09-11');
+      expect(panel).toHaveAttribute('data-locked', 'true');
+    });
+
+    it('defaults the diary date to null and the panel to unlocked for an editable viewer', () => {
+      renderViewer([makePhoto()]);
+      const panel = screen.getByTestId('mock-details-panel');
+      expect(panel).toHaveAttribute('data-diary-date', '');
+      expect(panel).toHaveAttribute('data-locked', 'false');
+    });
+
+    it('phone: shows a Details button instead of the side column', () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto()]);
+      expect(screen.getByTestId('photo-viewer-details')).toHaveTextContent('Details');
+      expect(screen.queryByTestId('mock-details-panel')).not.toBeInTheDocument();
+    });
+
+    it('phone: Details opens a bottom sheet with the panel and Escape closes it', async () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto()]);
+
+      fireEvent.click(screen.getByTestId('photo-viewer-details'));
+
+      const sheet = screen.getByRole('dialog', { name: 'Photo details' });
+      expect(within(sheet).getByTestId('mock-details-panel')).toBeInTheDocument();
+
+      fireEvent.keyDown(sheet, { key: 'Escape' });
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('mock-details-panel')).not.toBeInTheDocument(),
+      );
+      expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('phone: a saved edit in the sheet reaches onPhotoChanged', () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto({ id: 'p-sheet' })]);
+      fireEvent.click(screen.getByTestId('photo-viewer-details'));
+
+      fireEvent.click(screen.getByTestId('mock-details-panel'));
+
+      expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'p-sheet', caption: 'saved-caption' }),
+      );
+    });
+
+    it('keeps the navigation arrows labelled while the sheet is open', () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto(), makePhoto({ id: 'photo-2' })]);
+      fireEvent.click(screen.getByTestId('photo-viewer-details'));
+
+      expect(screen.getByRole('button', { name: enPhotoViewer.previousPhoto })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: enPhotoViewer.nextPhoto })).toBeInTheDocument();
+    });
+
+    it('ignores an Escape another handler already consumed (defaultPrevented)', () => {
+      renderViewer([makePhoto()]);
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      });
+      event.preventDefault();
+      window.dispatchEvent(event);
+      expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('phone: Escape in the Details sheet closes only the sheet, not the viewer', async () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto()]);
+      fireEvent.click(screen.getByTestId('photo-viewer-details'));
+      expect(screen.getByTestId('mock-details-panel')).toBeInTheDocument();
+
+      // the sheet's focus trap consumes the key before the viewer's window handler sees it
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('mock-details-panel')).not.toBeInTheDocument(),
+      );
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('photo-viewer')).toBeInTheDocument();
+    });
+
+    it('ignores the viewer keys while the details sheet is open (arrows and Escape)', () => {
+      media = installMatchMedia({ [PHONE]: true });
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })]);
+      fireEvent.click(screen.getByTestId('photo-viewer-details'));
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'a');
+    });
+
+    it('ignores the viewer keys while the tag editor is open and handles them after it closes', () => {
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })]);
+      fireEvent.click(screen.getByTestId('mock-editing-start'));
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'a');
+
+      fireEvent.click(screen.getByTestId('mock-editing-end'));
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'b');
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
   });
 
-  // jsdom applies no CSS-module rules: the arrow offset itself is asserted in the E2E
-  // visual-defects spec. Here we only verify the wiring (data-sheet-open) that CSS keys on.
-  it('marks the main viewer data-sheet-open while the phone details sheet is open', () => {
-    renderViewer([makePhoto(), makePhoto({ id: 'photo-2' })]);
-    // The close button is a direct child of the main viewer element
-    const mainViewer = screen.getByRole('button', { name: enPhotoViewer.closeViewer })
-      .parentElement as HTMLElement;
-    expect(mainViewer).not.toBeNull();
-    expect(mainViewer).not.toHaveAttribute('data-sheet-open');
+  describe('keyboard navigation and backdrop', () => {
+    const shownId = () => screen.getByTestId('mock-details-panel').getAttribute('data-photo-id');
 
-    fireEvent.click(screen.getByTestId('mock-sheet-open'));
-    expect(mainViewer).toHaveAttribute('data-sheet-open', 'true');
+    it('ArrowRight and ArrowLeft step through the photos and wrap around', () => {
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' }), makePhoto({ id: 'c' })]);
 
-    fireEvent.click(screen.getByTestId('mock-sheet-close'));
-    expect(mainViewer).not.toHaveAttribute('data-sheet-open');
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(shownId()).toBe('b');
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(shownId()).toBe('a');
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(shownId()).toBe('c');
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(shownId()).toBe('b');
+    });
+
+    it('Escape closes the viewer', () => {
+      renderViewer([makePhoto()]);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('arrows and Escape do not move or close while annotating; Escape cancels the annotator', () => {
+      renderViewer([makePhoto({ id: 'a', width: 800, height: 600 }), makePhoto({ id: 'b' })]);
+      fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(screen.getByTestId('mock-photo-annotator')).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(shownId()).toBe('a');
+    });
+
+    it('a click on the backdrop closes the viewer, a click inside the photo area does not', () => {
+      renderViewer([makePhoto()]);
+      const viewer = screen.getByTestId('photo-viewer');
+      const backdrop = viewer.firstElementChild as HTMLElement;
+
+      fireEvent.click(viewer.querySelector('img')!);
+      expect(mockOnClose).not.toHaveBeenCalled();
+
+      fireEvent.click(backdrop);
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('keeps the navigation arrows labelled while the sheet is open', () => {
-    renderViewer([makePhoto(), makePhoto({ id: 'photo-2' })]);
-    fireEvent.click(screen.getByTestId('mock-sheet-open'));
+  describe('branch coverage: defaults, wrap-around and optional callbacks', () => {
+    function renderMinimal(photos: Photo[]) {
+      return render(
+        React.createElement(PhotoViewer, { photos, initialIndex: 0, onClose: mockOnClose }),
+      );
+    }
 
-    expect(screen.getByRole('button', { name: enPhotoViewer.previousPhoto })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: enPhotoViewer.nextPhoto })).toBeInTheDocument();
+    it('defaults to editable: Annotate is enabled when no editable prop is given', () => {
+      renderMinimal([makePhoto({ width: 800, height: 600 })]);
+      expect(screen.getByTestId('photo-viewer-annotate')).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('the Previous button wraps from the first photo to the last, and steps back otherwise', () => {
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' }), makePhoto({ id: 'c' })]);
+      const shownId = () => screen.getByTestId('mock-details-panel').getAttribute('data-photo-id');
+
+      fireEvent.click(screen.getByTestId('photo-viewer-prev'));
+      expect(shownId()).toBe('c');
+      fireEvent.click(screen.getByTestId('photo-viewer-prev'));
+      expect(shownId()).toBe('b');
+    });
+
+    it('the Next button wraps from the last photo to the first', () => {
+      renderViewer([makePhoto({ id: 'a' }), makePhoto({ id: 'b' })], 1);
+      const shownId = () => screen.getByTestId('mock-details-panel').getAttribute('data-photo-id');
+
+      fireEvent.click(screen.getByTestId('photo-viewer-next'));
+      expect(shownId()).toBe('a');
+    });
+
+    it('works without onPhotoChanged: annotation save, clear and details save', async () => {
+      const photo = makePhoto({ id: 'np', width: 800, height: 600 });
+      renderMinimal([photo]);
+
+      fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+      fireEvent.click(screen.getByTestId('annotator-save-mock'));
+      expect(screen.getByTestId('photo-viewer-clear-annotations')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('mock-details-panel'));
+      expect(screen.getByTestId('mock-details-panel')).toHaveAttribute('data-photo-id', 'np');
+
+      fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
+      const modal = screen.getByTestId('mock-modal');
+      await act(async () => {
+        fireEvent.click(within(modal).getByRole('button', { name: /Clear annotations/i }));
+        await Promise.resolve();
+      });
+      await waitFor(() =>
+        expect(screen.queryByTestId('photo-viewer-clear-annotations')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('unmounting while the clear request is pending throws nothing', async () => {
+      let resolveClear!: () => void;
+      mockClearAnnotation.mockReturnValue(
+        new Promise<void>((r) => {
+          resolveClear = r;
+        }),
+      );
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const photo = makePhoto({ id: 'gone', annotatedAt: '2026-05-17T10:00:00.000Z' });
+      const view = renderViewer([photo]);
+      fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
+      const modal = screen.getByTestId('mock-modal');
+      fireEvent.click(within(modal).getByRole('button', { name: /Clear annotations/i }));
+
+      view.unmount();
+      await act(async () => {
+        resolveClear();
+        await Promise.resolve();
+      });
+
+      expect(errorSpy).not.toHaveBeenCalledWith('Failed to clear annotation:', expect.anything());
+      errorSpy.mockRestore();
+    });
+
+    it('after clearing while viewing the original, the image url has no annotation version', async () => {
+      const photo = makePhoto({ id: 'ov', annotatedAt: '2026-05-17T10:00:00.000Z' });
+      renderViewer([photo]);
+      fireEvent.click(screen.getByTestId('photo-viewer-view-original'));
+      expect(screen.getByAltText('test-photo.jpg')).toHaveAttribute(
+        'src',
+        '/api/photos/photo-viewer-test/file?variant=original&v=2026-05-17T10:00:00.000Z',
+      );
+
+      fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
+      const modal = screen.getByTestId('mock-modal');
+      await act(async () => {
+        fireEvent.click(within(modal).getByRole('button', { name: /Clear annotations/i }));
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(screen.getByAltText('test-photo.jpg')).toHaveAttribute(
+          'src',
+          '/api/photos/photo-viewer-test/file?variant=original',
+        ),
+      );
+    });
   });
 
   // ─── Delete Photo button ──────────────────────────────────────────────────

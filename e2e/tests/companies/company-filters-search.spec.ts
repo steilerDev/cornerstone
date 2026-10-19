@@ -179,6 +179,10 @@ test.describe('Company filter - Invoices (F3)', { tag: '@responsive' }, () => {
       await expect.poll(() => list.getInvoiceNumbers()).not.toContain(numberB);
 
       await exerciseFilter(page, list.companyFilter, nameB, idB);
+      // exerciseFilter ends with the filter cleared; the shared E2E database holds many invoices,
+      // so filter again before looking for B (an unfiltered first page may not contain it)
+      await list.companyFilter.choose(nameB);
+      await list.companyFilter.expectParam(idB);
       await expect.poll(() => list.getInvoiceNumbers()).toContain(numberB);
     } finally {
       await page.request.delete(`${API.vendors}/${idA}/invoices/${invoiceA}`);

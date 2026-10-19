@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoAnnotator } from './PhotoAnnotator/PhotoAnnotator.js';
-import { PhotoMetadataSidepanel } from './PhotoMetadataSidepanel.js';
+import { PhotoDetailsPanel } from './PhotoDetailsPanel.js';
+import { Sheet } from '../Modal/Sheet.js';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
@@ -19,6 +21,8 @@ export interface PhotoViewerProps {
   startInAnnotator?: boolean;
   /** Rejects when the delete fails; the viewer then stays open with the error. */
   onDelete?: (photoId: string) => void | Promise<void>;
+  /** Diary date (YYYY-MM-DD) of the entry the photos belong to, shown in the details. */
+  diaryDate?: string | null;
 }
 
 export function PhotoViewer({
@@ -29,11 +33,14 @@ export function PhotoViewer({
   editable = true,
   startInAnnotator = false,
   onDelete,
+  diaryDate = null,
 }: PhotoViewerProps) {
-  const { t } = useTranslation(['photoViewer', 'common']);
+  const { t } = useTranslation(['photoViewer', 'common', 'photos']);
   const { t: tErrors } = useTranslation('errors');
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const isPhone = useMediaQuery('(max-width: 767px)');
+  const [editing, setEditing] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [isAnnotating, setIsAnnotating] = useState(startInAnnotator && editable);
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -46,6 +53,8 @@ export function PhotoViewer({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
   const annotateReasonId = useId();
+  const detailsBtnRef = useRef<HTMLButtonElement>(null);
+  const detailsSheetId = useId();
   const clearBtnRef = useRef<HTMLButtonElement>(null);
   const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -63,21 +72,25 @@ export function PhotoViewer({
 
     return () => {
       document.body.style.overflow = '';
-      previousFocusRef.current?.focus();
+      previousFocusRef.current!.focus();
     };
   }, []);
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A dialog or sheet above the viewer already handled this key
+      if (e.defaultPrevented) return;
       // A confirmation dialog owns the keyboard (Escape cancels it, not the viewer)
       if (showClearConfirm || showDeleteConfirm) return;
+      // The tag editor and the details sheet own the keyboard
+      if (editing || detailsOpen) return;
 
       // When annotating, Escape cancels the annotator (does NOT close the viewer)
       if (isAnnotating && e.key === 'Escape') {
         e.preventDefault();
         setIsAnnotating(false);
-        annotateBtnRef.current?.focus();
+        annotateBtnRef.current!.focus();
         return;
       }
 
@@ -95,17 +108,23 @@ export function PhotoViewer({
           }
           break;
         case 'Escape':
-          if (!isAnnotating) {
-            e.preventDefault();
-            onClose();
-          }
+          e.preventDefault();
+          onClose();
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [photos.length, onClose, isAnnotating, showClearConfirm, showDeleteConfirm]);
+  }, [
+    photos.length,
+    onClose,
+    isAnnotating,
+    showClearConfirm,
+    showDeleteConfirm,
+    editing,
+    detailsOpen,
+  ]);
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
@@ -115,26 +134,20 @@ export function PhotoViewer({
     setCurrentIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
   }, [photos.length]);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const handleAnnotationSave = useCallback(
     (updatedPhoto: Photo) => {
       setCurrentPhoto(updatedPhoto);
       setIsAnnotating(false);
       setShowingOriginal(false);
       onPhotoChanged?.(updatedPhoto);
-      annotateBtnRef.current?.focus();
+      annotateBtnRef.current!.focus();
     },
     [onPhotoChanged],
   );
 
   const handleAnnotationCancel = useCallback(() => {
     setIsAnnotating(false);
-    annotateBtnRef.current?.focus();
+    annotateBtnRef.current!.focus();
   }, []);
 
   const handleClearAnnotation = useCallback(async () => {
@@ -158,19 +171,18 @@ export function PhotoViewer({
   }, [currentPhoto, onPhotoChanged]);
 
   const handlePhotoUpdated = useCallback(
-    (updatedPhoto: Photo) => {
-      setCurrentPhoto(updatedPhoto);
-      onPhotoChanged?.(updatedPhoto);
+    (result: { photo: Photo }) => {
+      setCurrentPhoto(result.photo);
+      onPhotoChanged?.(result.photo);
     },
     [onPhotoChanged],
   );
 
   const handleDeletePhoto = useCallback(async () => {
-    if (!onDelete) return;
     setIsDeletingPhoto(true);
     setDeletePhotoError(null);
     try {
-      await onDelete(currentPhoto.id);
+      await onDelete!(currentPhoto.id);
       // Close the viewer only after the delete succeeded
       onClose();
     } catch (err) {
@@ -201,10 +213,10 @@ export function PhotoViewer({
 
   const viewer = (
     <div className={styles.modal} data-testid="photo-viewer">
-      <div className={styles.backdrop} onClick={handleBackdropClick} />
+      <div className={styles.backdrop} onClick={onClose} />
 
       <div className={styles.container}>
-        <div className={styles.mainViewer} data-sheet-open={isSheetOpen ? 'true' : undefined}>
+        <div className={styles.mainViewer}>
           {/* Close button */}
           <button
             type="button"
@@ -334,6 +346,19 @@ export function PhotoViewer({
                 </button>
               )}
 
+              {isPhone ? (
+                <button
+                  ref={detailsBtnRef}
+                  type="button"
+                  className={styles.textButton}
+                  aria-haspopup="dialog"
+                  onClick={() => setDetailsOpen(true)}
+                  data-testid="photo-viewer-details"
+                >
+                  {t('photos:viewer.details')}
+                </button>
+              ) : null}
+
               <span className={styles.counter}>
                 {currentIndex + 1} / {photos.length}
               </span>
@@ -377,13 +402,39 @@ export function PhotoViewer({
           />
         )}
 
-        {/* Metadata sidepanel */}
-        <PhotoMetadataSidepanel
-          photo={currentPhoto}
-          onPhotoUpdated={handlePhotoUpdated}
-          isAnnotating={isAnnotating}
-          onMobileOpenChange={setIsSheetOpen}
-        />
+        {/* Photo details: a side column from 768px, a bottom sheet below */}
+        {isPhone ? (
+          <Sheet
+            id={detailsSheetId}
+            open={detailsOpen}
+            onClose={() => setDetailsOpen(false)}
+            title={t('photos:viewer.detailsLabel')}
+            returnFocusRef={detailsBtnRef}
+            testId="photo-viewer-details-sheet"
+          >
+            {detailsOpen ? (
+              <div className={styles.detailsPanel}>
+                <PhotoDetailsPanel
+                  photo={currentPhoto}
+                  diaryDate={diaryDate}
+                  locked={!editable}
+                  onSaved={handlePhotoUpdated}
+                  onEditingChange={setEditing}
+                />
+              </div>
+            ) : null}
+          </Sheet>
+        ) : isAnnotating ? null : (
+          <div className={`${styles.detailsPanel} ${styles.detailsColumn}`}>
+            <PhotoDetailsPanel
+              photo={currentPhoto}
+              diaryDate={diaryDate}
+              locked={!editable}
+              onSaved={handlePhotoUpdated}
+              onEditingChange={setEditing}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

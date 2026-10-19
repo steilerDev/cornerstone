@@ -8,7 +8,7 @@
  *
  * Scenarios:
  *  V1  1280, 768 and 390px, details panel closed and open: the arrows never overlap the panel,
- *      its toggle or Close; Annotate shows the visible text "Annotate"
+ *      its Details button or Close; Annotate shows the visible text "Annotate"
  *  V2  a signed entry: Annotate is aria-disabled, a click does not open the annotator, and the
  *      reason is visible text in the info bar
  */
@@ -70,7 +70,7 @@ test.describe('Photo viewer layout (#2225)', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    test(`V1: arrows never overlap the details panel, its toggle or Close at ${viewport.name}`, async ({
+    test(`V1: arrows never overlap the details panel, its Details button or Close at ${viewport.name}`, async ({
       page,
       testPrefix,
     }) => {
@@ -94,23 +94,26 @@ test.describe('Photo viewer layout (#2225)', () => {
         await expect(page.getByRole('button', { name: 'Annotate', exact: true })).toBeVisible();
 
         const narrow = viewport.width < 768;
-        // Wide: the details panel is always shown. Narrow: it is a bottom sheet behind a toggle.
+        // Wide: the details panel is always shown. Narrow: it is a bottom sheet behind the Details button.
         const states: Array<'closed' | 'open'> = narrow ? ['closed', 'open'] : ['open'];
         for (const state of states) {
           if (narrow && state === 'open') {
-            await viewer.metadataToggle.click();
-            await expect(viewer.sidepanel).toBeVisible();
+            await viewer.detailsButton.click();
+            await expect(viewer.detailsPanel).toBeVisible();
           }
           const label = `${viewport.name} panel ${state}`;
           const prev = await boxOf(viewer.prevButton, `${label}: Previous`);
           const next = await boxOf(viewer.nextButton, `${label}: Next`);
           const close = await boxOf(viewer.closeButton, `${label}: Close`);
           const others: Array<[string, Box]> = [['Close', close]];
-          if (await viewer.sidepanel.isVisible()) {
-            others.push(['details panel', await boxOf(viewer.sidepanel, `${label}: panel`)]);
+          if (await viewer.detailsPanel.isVisible()) {
+            others.push(['details panel', await boxOf(viewer.detailsPanel, `${label}: panel`)]);
           }
-          if (await viewer.metadataToggle.isVisible()) {
-            others.push(['details toggle', await boxOf(viewer.metadataToggle, `${label}: toggle`)]);
+          if (await viewer.detailsButton.isVisible()) {
+            others.push([
+              'Details button',
+              await boxOf(viewer.detailsButton, `${label}: Details button`),
+            ]);
           }
           for (const [name, box] of others) {
             expect(intersects(prev, box), `${label}: Previous overlaps ${name}`).toBe(false);

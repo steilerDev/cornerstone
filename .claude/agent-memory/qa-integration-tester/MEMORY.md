@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2226 photo tag server tests](story-2226-photo-tags-server-tests.md) (2026-10-19) — real-flow tags/undo file, moved-export mock break, local ts-jest target workaround
 - [Story #2218 Areas index tests](story-2218-areas-index-tests.md) (2026-10-19) — ObjectForm host testId, hidden More fields, TreeTable announce kinds, blocked-by-total fixtures
 
 - [Story #2215 Project setup tests](story-2215-project-setup-tests.md) (2026-10-15) — AJV coercion on reorder, navHref stage-mock trap, delete-impact fallback defect

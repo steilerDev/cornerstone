@@ -12,5 +12,5 @@
 }
 
 .retryButton {
-  composes: btnPrimary from '../../styles/shared.module.css';
+  composes: btnSecondary from '../../styles/shared.module.css';
 }

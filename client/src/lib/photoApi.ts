@@ -7,6 +7,10 @@ import type {
   PhotoSpotsResponse,
   PhotoSpotPhotosResponse,
   DeletePhotoResponse,
+  UpdatePhotoResponse,
+  UpdatePhotoTagsRequest,
+  UpdatePhotoTagsResponse,
+  PHOTO_SPOT_ANY,
 } from '@cornerstone/shared';
 
 /**
@@ -118,6 +122,25 @@ export function updatePhoto(id: string, data: UpdatePhotoRequest): Promise<Photo
 }
 
 /**
+ * Update a photo's caption, area or orientation. The response carries an `undo` token when the
+ * area or orientation changed.
+ */
+export function updatePhotoDetails(
+  id: string,
+  data: UpdatePhotoRequest,
+): Promise<UpdatePhotoResponse> {
+  return patch<UpdatePhotoResponse>(`/photos/${id}`, data);
+}
+
+/**
+ * Set the same area and/or orientation on many photos at once (all or nothing). Absent keys
+ * are left as they are, `null` clears. The response carries one undo token.
+ */
+export function updatePhotoTags(req: UpdatePhotoTagsRequest): Promise<UpdatePhotoTagsResponse> {
+  return patch<UpdatePhotoTagsResponse>('/photos/tags', req);
+}
+
+/**
  * Delete a photo. The response carries the undo token (`POST /api/undo/:token` restores it).
  */
 export function deletePhoto(id: string): Promise<DeletePhotoResponse> {
@@ -182,11 +205,12 @@ export function getPhotoSpots(options?: RequestOptions): Promise<PhotoSpotsRespo
 }
 
 /**
- * List the photos of one spot, newest first. `null` means "no area" / "no orientation".
+ * List the photos of one spot, newest first. `null` means "no area" / "no orientation";
+ * `PHOTO_SPOT_ANY` (orientation only) lists every orientation.
  */
 export function getPhotoSpotPhotos(
   areaId: string | null,
-  orientationId: string | null,
+  orientationId: string | null | typeof PHOTO_SPOT_ANY,
   options?: RequestOptions,
 ): Promise<PhotoSpotPhotosResponse> {
   const params = new URLSearchParams({

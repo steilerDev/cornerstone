@@ -48,6 +48,25 @@ export interface UpdatePhotoRequest {
   sortOrder?: number;
 }
 
+/** `PATCH /api/photos/:id` 200 body. `undo` only when area or orientation changed. #2226 */
+export interface UpdatePhotoResponse {
+  photo: Photo;
+  undo?: UndoToken;
+}
+
+/** Request of `PATCH /api/photos/tags`. #2226 */
+export interface UpdatePhotoTagsRequest {
+  photoIds: string[];
+  /** Absent: unchanged. null: cleared. */
+  areaId?: string | null;
+  orientationId?: string | null;
+}
+
+export interface UpdatePhotoTagsResponse {
+  updated: number;
+  undo: UndoToken;
+}
+
 /**
  * Request to reorder photos for an entity.
  */
@@ -59,6 +78,9 @@ export interface ReorderPhotosRequest {
 
 /** Query sentinel selecting photos with no area / no orientation (Story #2162). */
 export const PHOTO_SPOT_NONE = '__none__';
+
+/** Query sentinel: no orientation filter (`orientationId` only). #2226 */
+export const PHOTO_SPOT_ANY = '__any__';
 
 export interface PhotoSpotSummary {
   areaId: string | null;
@@ -85,6 +107,8 @@ export interface PhotoSpotDiaryEntry {
   entryType: DiaryEntryType;
   title: string | null;
   entryDate: string;
+  /** The entry is saved with signatures: its photos' tags and annotation are locked. #2226 */
+  isSigned: boolean;
 }
 
 export interface PhotoSpotPhoto {
@@ -94,6 +118,11 @@ export interface PhotoSpotPhoto {
   height: number | null;
   fileUrl: string;
   thumbnailUrl: string;
+  /** #2226 */
+  areaId: string | null;
+  orientationId: string | null;
+  orientation: OrientationSummary | null;
+  annotatedAt: string | null;
   diaryEntry: PhotoSpotDiaryEntry;
 }
 
@@ -106,6 +135,6 @@ export interface PhotoSpotPhotosResponse {
 export interface PhotoSpotPhotosQuery {
   /** Area id, or PHOTO_SPOT_NONE */
   areaId: string;
-  /** Orientation id, or PHOTO_SPOT_NONE */
+  /** Orientation id, PHOTO_SPOT_NONE, or PHOTO_SPOT_ANY (no orientation filter, #2226) */
   orientationId: string;
 }

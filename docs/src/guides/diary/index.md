@@ -14,7 +14,7 @@ The diary provides:
 - **Manual Entries** -- Write daily logs, record site visits, track deliveries, flag issues, and add general notes
 - **Week-by-Week List** -- The Site diary groups your entries by week, newest first, with photos shown first in each row
 - **History Link** -- A link at the top of the Site diary opens the History page, where automatic changes are listed
-- **Photo Attachments** -- Capture photos on your phone and tag them with a caption, area, and compass orientation for visual documentation
+- **Photo Attachments** -- Capture photos on your phone and tag them with a caption, area, and orientation for visual documentation
 - **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser (touch-enabled)
 - **Unfinished Drafts** -- Entries you started but did not finish are listed in an **Unfinished** row at the top of the Site diary, where you can continue or discard them
 - **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable

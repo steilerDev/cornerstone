@@ -61,4 +61,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [System event specs](system-event-specs.md) — placeholder-stripped money labels, json_valid guards, collapse subject keys + tie-break, member vs admin hidden param, UX params ADR lacks
 - [History page specs](history-page-specs.md) — page-base query maps can't be live, planned item shape vs shipped renderer, derived filters vs UX, snapshot fields for links, pre-measure baseline
 - [Diary list specs](diary-list-specs.md) — AnchoredPanel vs portaled picker, infinite-scroll reset clears items, role=article in ul, test-only folders, list-side draft discard
+- [Photos spots specs](photos-spots-specs.md) — measure closures first, Link in shared panels leaks, restore-kind Undo is generic, unmount shell bars, redefined URLs
 - [Capture screen specs](capture-screen-specs.md) — planned allowedAdditions names, no in-app leave blocker, WebKit no fake camera, existing shell/formatter helpers, insecure context, draft URL remount

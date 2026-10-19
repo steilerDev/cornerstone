@@ -17,21 +17,9 @@
   "clearing": "Clearing…",
   "deleteFailed": "The photo could not be deleted.",
   "clearConfirmAction": "Clear annotations",
-  "metadataTitle": "Photo Metadata",
-  "uploadDate": "Upload Date",
-  "description": "Description",
-  "descriptionPlaceholder": "Add a description...",
-  "area": "Area",
-  "areaPlaceholder": "Select an area...",
-  "noArea": "(no area)",
-  "orientation": "Orientation",
-  "saveButton": "Save",
-  "saving": "Saving...",
-  "saveError": "Failed to save metadata",
   "unexpectedError": "An unexpected error occurred.",
   "delete": "Delete photo",
   "deleteConfirmTitle": "Delete this photo?",
   "deleteConfirmBody": "This photo will be permanently removed.",
-  "deleteConfirmAction": "Delete",
-  "metadataToggle": "Toggle photo metadata"
+  "deleteConfirmAction": "Delete"
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { SpotThumbnail } from './SpotThumbnail.js';
@@ -144,6 +144,107 @@ describe('SpotThumbnail', () => {
     it('omits the title for the empty cell variant', () => {
       renderThumb({ variant: 'cell', title: 'Ceiling' });
       expect(screen.queryByText('Ceiling')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('select variant', () => {
+    function renderSelect(
+      select: Partial<NonNullable<SpotThumbnailProps['select']>> = {},
+      props: Partial<SpotThumbnailProps> = {},
+    ) {
+      const onToggle = jest.fn();
+      const utils = renderThumb({
+        src: '/api/photos/p1/thumbnail?v=1',
+        select: {
+          selected: false,
+          onToggle,
+          label: 'Photo from September 11, 2026, Ceiling',
+          ...select,
+        },
+        ...props,
+      });
+      return { onToggle, ...utils };
+    }
+
+    it('renders a labelled checkbox tile instead of a link', () => {
+      const { container } = renderSelect();
+
+      const box = screen.getByRole('checkbox', { name: 'Photo from September 11, 2026, Ceiling' });
+      expect(box).not.toBeChecked();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(screen.getByTestId('spot-thumbnail').tagName).toBe('LABEL');
+      expect(container.querySelector('img')).toHaveAttribute('src', '/api/photos/p1/thumbnail?v=1');
+    });
+
+    it('calls onToggle when the checkbox is clicked and when the tile label is clicked', () => {
+      const { onToggle } = renderSelect();
+
+      fireEvent.click(screen.getByRole('checkbox'));
+      expect(onToggle).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByTestId('spot-thumbnail'));
+      expect(onToggle).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows the selected cues only when selected', () => {
+      const off = renderSelect({ selected: false });
+      expect(off.container.querySelectorAll('[class*="selectedOverlay"]')).toHaveLength(0);
+      expect(off.container.querySelectorAll('[class*="selectedRing"]')).toHaveLength(0);
+      expect(screen.getByRole('checkbox')).not.toBeChecked();
+      expect(screen.getByTestId('spot-thumbnail').className).not.toMatch(/selectedTile/);
+      off.unmount();
+
+      const on = renderSelect({ selected: true });
+      expect(screen.getByRole('checkbox')).toBeChecked();
+      expect(on.container.querySelectorAll('[class*="selectedOverlay"]')).toHaveLength(1);
+      expect(on.container.querySelectorAll('[class*="selectedRing"]')).toHaveLength(1);
+      expect(screen.getByTestId('spot-thumbnail').className).toMatch(/selectedTile/);
+    });
+
+    it('shows the date label when given and omits the body otherwise', () => {
+      const withDate = renderSelect({}, { dateLabel: 'Sep 11, 2026' });
+      expect(screen.getByText('Sep 11, 2026')).toBeInTheDocument();
+      withDate.unmount();
+
+      const { container } = renderSelect();
+      expect(container.querySelector('[class*="body"]')).toBeNull();
+    });
+
+    it('locked tile: no checkbox, not focusable, shows the muted label', () => {
+      const { container, onToggle } = renderSelect(
+        { disabledLabel: 'Signed entry' },
+        { dateLabel: 'Sep 11, 2026' },
+      );
+
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      const tile = screen.getByTestId('spot-thumbnail');
+      expect(tile.tagName).toBe('DIV');
+      expect(tile).not.toHaveAttribute('tabindex');
+      expect(tile).toHaveTextContent('Signed entry');
+      expect(screen.getByText('Sep 11, 2026')).toBeInTheDocument();
+      expect(container.querySelector('[class*="checkBadge"]')).toBeNull();
+      fireEvent.click(tile);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it('locked tile without a date still shows the label', () => {
+      renderSelect({ disabledLabel: 'Signed entry' });
+      expect(screen.getByText('Signed entry')).toBeInTheDocument();
+    });
+
+    it('shows the fallback when the image fails and when there is no src', () => {
+      const { container, unmount } = renderSelect();
+      fireEvent.error(container.querySelector('img')!);
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+      unmount();
+
+      renderSelect({}, { src: null });
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+
+    it('uses the custom testId', () => {
+      renderSelect({}, { testId: 'no-area-photo-p1' });
+      expect(screen.getByTestId('no-area-photo-p1')).toBeInTheDocument();
     });
   });
 });

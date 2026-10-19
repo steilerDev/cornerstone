@@ -539,27 +539,33 @@ test.describe('Visual defects — photo viewer arrows (AC4)', { tag: '@responsiv
     const width = page.viewportSize()!.width;
     if (width >= 768) {
       // Desktop / tablet: the panel is a fixed side column
-      await expect(viewer.sidepanel).toBeVisible();
+      await expect(viewer.detailsPanel).toBeVisible();
       const arrow = await viewer.nextButton.boundingBox();
-      const panel = await viewer.sidepanel.boundingBox();
+      const panel = await viewer.detailsPanel.boundingBox();
       expect(arrow).not.toBeNull();
       expect(panel).not.toBeNull();
       expect(intersects(arrow!, panel!), 'next arrow overlaps the details panel').toBe(false);
       expect(await isTopmostAtCentre(viewer.nextButton)).toBe(true);
     } else {
-      // Phone: open the bottom sheet with its toggle
-      await viewer.metadataToggle.click();
-      await expect(viewer.sidepanel).toBeVisible();
+      // Phone: open the bottom sheet with the Details button
+      await viewer.detailsButton.click();
+      await expect(viewer.detailsPanel).toBeVisible();
       await expect(viewer.nextButton).toBeVisible();
       await expect
         .poll(async () => {
           const arrow = await viewer.nextButton.boundingBox();
-          const sheet = await viewer.sidepanel.boundingBox();
+          const sheet = await viewer.detailsPanel.boundingBox();
           if (!arrow || !sheet) return false;
           return arrow.y + arrow.height <= sheet.y + 1;
         })
         .toBe(true);
-      expect(await isTopmostAtCentre(viewer.nextButton), 'arrow is clickable').toBe(true);
+      // The sheet is modal (its backdrop covers the arrows); once it is closed the arrow is
+      // clickable again
+      await viewer.closeDetailsIfPhone();
+      await expect(viewer.nextButton).toBeVisible();
+      await expect
+        .poll(() => isTopmostAtCentre(viewer.nextButton), { message: 'arrow is clickable' })
+        .toBe(true);
     }
   });
 });

@@ -11,6 +11,25 @@ export const SPOT_URL_NONE = 'none';
 
 export const AREA_PATH_SEPARATOR = ' › ';
 
+/** "Leave as is" value of the bulk Set tags pickers (never sent to the server). */
+export const TAG_KEEP = '__keep__';
+
+/** "Root › Parent › Area" from a flat area list (parentId chain); null when the id is unknown. */
+export function areaPathFromList(areas: readonly AreaResponse[], id: string): string | null {
+  const byId = new Map(areas.map((a) => [a.id, a]));
+  const start = byId.get(id);
+  if (!start) return null;
+  const names: string[] = [];
+  const visited = new Set<string>();
+  let current: AreaResponse | undefined = start;
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    names.unshift(current.name);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return names.join(AREA_PATH_SEPARATOR);
+}
+
 export function toSpotUrlKey(id: string | null): string {
   return id ?? SPOT_URL_NONE;
 }
@@ -62,6 +81,8 @@ export interface SpotGroup {
   color: string | null;
   hasHeader: boolean;
   rows: SpotRow[];
+  /** Sum of the photo counts of the group's spots. */
+  photoCount: number;
 }
 
 /** Lays areas x orientations out as groups of rows with one cell per orientation. */
@@ -107,6 +128,12 @@ export function buildSpotGroups(
     return { areaId, name, color, depth, cells };
   };
 
+  const countOf = (rows: SpotRow[]) =>
+    rows.reduce(
+      (sum, r) => sum + r.cells.reduce((s, c) => s + (c.spot ? c.spot.photoCount : 0), 0),
+      0,
+    );
+
   const groups: SpotGroup[] = [];
   const visited = new Set<string>();
 
@@ -116,12 +143,14 @@ export function buildSpotGroups(
     const children = childrenOf.get(root.id) ?? [];
 
     if (children.length === 0) {
+      const singleRows = [makeRow(root.id, root.name, root.color, 0)];
       groups.push({
         id: root.id,
         name: root.name,
         color: root.color,
         hasHeader: false,
-        rows: [makeRow(root.id, root.name, root.color, 0)],
+        rows: singleRows,
+        photoCount: countOf(singleRows),
       });
       continue;
     }
@@ -139,16 +168,25 @@ export function buildSpotGroups(
       }
     };
     walk(root.id, 0);
-    groups.push({ id: root.id, name: root.name, color: root.color, hasHeader: true, rows });
+    groups.push({
+      id: root.id,
+      name: root.name,
+      color: root.color,
+      hasHeader: true,
+      rows,
+      photoCount: countOf(rows),
+    });
   }
 
   if (spots.some((s) => s.areaId === null)) {
+    const noneRows = [makeRow(null, null, null, 0)];
     groups.push({
       id: SPOT_URL_NONE,
       name: null,
       color: null,
-      hasHeader: false,
-      rows: [makeRow(null, null, null, 0)],
+      hasHeader: true,
+      rows: noneRows,
+      photoCount: countOf(noneRows),
     });
   }
 

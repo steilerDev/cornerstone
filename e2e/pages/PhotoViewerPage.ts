@@ -187,30 +187,33 @@ export class PhotoViewerPage {
    */
   readonly nextButton: Locator;
 
-  // ── Metadata sidepanel toggle (mobile only) ──────────────────────────────────
+  // ── Photo details panel (PhotoDetailsPanel, #2226) ───────────────────────────
 
   /**
-   * The metadata toggle button (data-testid="photo-metadata-toggle").
-   *
-   * On mobile (max-width: 767px) this element is in the DOM exactly once:
-   *   - Panel CLOSED: rendered outside the sidepanel as a floating launcher
-   *   - Panel OPEN:   rendered inside `#photo-metadata-sidepanel .header`
-   *
-   * On desktop/tablet (≥768px) it has `display: none` and is NOT visible.
-   *
-   * The toggle carries:
-   *   - `aria-expanded` = "false" | "true"
-   *   - `aria-controls` = "photo-metadata-sidepanel"
-   *   - `aria-label` = localised "Photo metadata" text
+   * The "Details" text button in the info bar (data-testid="photo-viewer-details").
+   * Only rendered below 768px, where it opens the details bottom sheet. Absent from the DOM on
+   * desktop/tablet, where the panel is a side column.
    */
-  readonly metadataToggle: Locator;
+  readonly detailsButton: Locator;
 
   /**
-   * The metadata sidepanel (desktop/tablet: fixed 320px side column; phone: bottom sheet that is
-   * only on screen while the toggle has opened it). id="photo-metadata-sidepanel". Used by
-   * Story #2196 to prove the nav arrows never sit under the panel / sheet.
+   * The details panel (the `<aside>`, data-testid="photo-details"): side column from 768px,
+   * the content of the bottom sheet below. On phones it is only in the DOM while the sheet is
+   * open.
    */
-  readonly sidepanel: Locator;
+  readonly detailsPanel: Locator;
+
+  /** The "Edit tags" button (data-testid="photo-details-edit-tags"). */
+  readonly editTagsButton: Locator;
+
+  /** The edit form (Area, Orientation, Caption, Save tags, Cancel). */
+  readonly detailsForm: Locator;
+
+  /** The "Tags saved" status line shown in read mode after a save. */
+  readonly tagsSavedNote: Locator;
+
+  /** Read-mode caption value (data-testid="photo-details-caption-value"). */
+  readonly captionValue: Locator;
 
   // ── Info bar actions (only visible when NOT annotating) ──────────────────────
 
@@ -310,20 +313,16 @@ export class PhotoViewerPage {
   /** Redo button */
   readonly redoButton: Locator;
 
-  // ── Metadata sidepanel pickers ────────────────────────────────────────────────
+  // ── Details panel editor fields ───────────────────────────────────────────────
 
   /**
-   * The area picker input inside the metadata sidepanel.
-   * id="photo-area" — only present as an <input> when no area is selected (SearchPicker
-   * in search mode). When an area is pre-loaded (selectedDisplay state), use
-   * `getAreaSelectedDisplay()` instead.
+   * The area picker input in the editor (label "Area"). Only an <input> while no area is
+   * selected; with an area selected the SearchPicker shows a chip instead
+   * (`getAreaSelectedDisplayText()`).
    */
   readonly areaPickerInput: Locator;
 
-  /**
-   * The orientation picker input inside the metadata sidepanel.
-   * id="photo-orientation" — only present as an <input> when no orientation is selected.
-   */
+  /** The orientation picker input in the editor (label "Orientation"); same chip rule. */
   readonly orientationPickerInput: Locator;
 
   /**
@@ -332,21 +331,14 @@ export class PhotoViewerPage {
    */
   readonly pickerDropdown: Locator;
 
-  // ── Metadata sidepanel caption + save ────────────────────────────────────────
-
-  /**
-   * The caption textarea inside the metadata sidepanel.
-   * id="photo-caption" (from PhotoMetadataSidepanel.tsx).
-   * Always present in the sidepanel (not conditional on selection state).
-   */
+  /** The caption textarea in the editor (data-testid="photo-details-caption"). */
   readonly captionField: Locator;
 
-  /**
-   * The Save button in the metadata sidepanel.
-   * data-testid="photo-metadata-save" — only rendered when `hasChanges` is true
-   * (i.e., caption/area/orientation differs from the current photo values).
-   */
-  readonly saveMetadataButton: Locator;
+  /** The "Save tags" button in the editor. */
+  readonly saveTagsButton: Locator;
+
+  /** The editor's Cancel button. */
+  readonly cancelTagsButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -359,18 +351,21 @@ export class PhotoViewerPage {
     this.prevButton = page.getByTestId('photo-viewer-prev');
     this.nextButton = page.getByTestId('photo-viewer-next');
 
-    // Sidepanel picker inputs
-    this.areaPickerInput = page.locator('#photo-area');
-    this.orientationPickerInput = page.locator('#photo-orientation');
+    // Details panel (side column, or inside the phone sheet)
+    this.detailsButton = page.getByTestId('photo-viewer-details');
+    this.detailsPanel = page.getByTestId('photo-details');
+    this.editTagsButton = page.getByTestId('photo-details-edit-tags');
+    this.detailsForm = page.getByTestId('photo-details-form');
+    this.tagsSavedNote = page.getByTestId('photo-details-saved');
+    this.captionValue = page.getByTestId('photo-details-caption-value');
+
+    // Editor fields
+    this.areaPickerInput = this.detailsForm.getByLabel('Area', { exact: true });
+    this.orientationPickerInput = this.detailsForm.getByLabel('Orientation', { exact: true });
     this.pickerDropdown = page.locator('[data-search-picker-dropdown]');
-
-    // Sidepanel caption and save
-    this.captionField = page.locator('#photo-caption');
-    this.saveMetadataButton = page.getByTestId('photo-metadata-save');
-
-    // Metadata toggle (one element in DOM at a time — floats when closed, in header when open)
-    this.metadataToggle = page.getByTestId('photo-metadata-toggle');
-    this.sidepanel = page.locator('#photo-metadata-sidepanel');
+    this.captionField = page.getByTestId('photo-details-caption');
+    this.saveTagsButton = page.getByTestId('photo-details-save-tags');
+    this.cancelTagsButton = page.getByTestId('photo-details-cancel');
 
     // The viewer shows an <img> for the photo when NOT annotating.
     // The PhotoAnnotator also has an <img> (base image) inside the SVG area when annotating.
@@ -725,28 +720,64 @@ export class PhotoViewerPage {
     return JSON.parse(attr) as AnnotationShape[];
   }
 
-  // ── Metadata sidepanel picker helpers ────────────────────────────────────────
+  // ── Details panel helpers ────────────────────────────────────────────────────
 
   /**
-   * Open the sidepanel on mobile viewports (viewportWidth ≤ 767px) if not already open.
-   * On desktop/tablet the sidepanel is always visible; this is a no-op.
+   * Make the details panel visible: on phones (< 768px) open the Details sheet if it is not
+   * open; on desktop/tablet the side column is always shown, so this only waits for it.
    */
-  async openSidepanelIfMobile(): Promise<void> {
-    const toggle = this.metadataToggle;
-    // Only visible on mobile (display:none on ≥768px). Use `isVisible()` not `isAttached()`.
-    const toggleVisible = await toggle.isVisible();
-    if (toggleVisible) {
-      const expanded = await toggle.getAttribute('aria-expanded');
-      if (expanded !== 'true') {
-        await toggle.click();
-        const { expect } = await import('@playwright/test');
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-      }
+  async openDetails(): Promise<void> {
+    const { expect } = await import('@playwright/test');
+    await expect(this.modal).toBeVisible();
+    const phone = (this.page.viewportSize()?.width ?? 1280) < 768;
+    if (phone && !(await this.detailsPanel.isVisible())) {
+      await this.detailsButton.click();
+    }
+    await expect(this.detailsPanel).toBeVisible();
+  }
+
+  /** Phones only: close the Details sheet so the viewer behind it is reachable again. */
+  async closeDetailsIfPhone(): Promise<void> {
+    const { expect } = await import('@playwright/test');
+    const phone = (this.page.viewportSize()?.width ?? 1280) < 768;
+    if (phone && (await this.detailsPanel.isVisible())) {
+      // The sheet's Close button, not Escape: Escape in the sheet also closes the viewer (defect)
+      await this.page
+        .getByTestId('photo-viewer-details-sheet')
+        .getByRole('button', { name: 'Close dialog' })
+        .click();
+      await expect(this.detailsPanel).toHaveCount(0);
     }
   }
 
+  /** Open the details panel and enter the tag editor (Edit tags) unless it is already open. */
+  async openTagsEditor(): Promise<void> {
+    const { expect } = await import('@playwright/test');
+    await this.openDetails();
+    if (!(await this.detailsForm.isVisible())) {
+      await this.editTagsButton.click();
+    }
+    await expect(this.detailsForm).toBeVisible();
+  }
+
   /**
-   * Open the area picker dropdown in the sidepanel.
+   * Pick an option in a picker field of the open editor. A picker holding a value shows a chip
+   * with "Clear selection" instead of an input, so clear it first when the input is missing.
+   */
+  async pickInEditor(label: 'Area' | 'Orientation', optionText: string | RegExp): Promise<void> {
+    const field = this.detailsForm
+      .locator('label', { hasText: new RegExp(`^${label}$`) })
+      .locator('xpath=..');
+    const input = field.locator('input');
+    if ((await input.count()) === 0) {
+      await field.getByRole('button', { name: 'Clear selection' }).click();
+    }
+    await input.click();
+    await this.pickerDropdown.getByRole('option', { name: optionText }).first().click();
+  }
+
+  /**
+   * Open the area picker dropdown in the editor.
    * Handles both fresh open (click input) and `showItemsOnFocus` (input focuses and
    * shows all items immediately).
    */
@@ -757,7 +788,7 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Open the orientation picker dropdown in the sidepanel.
+   * Open the orientation picker dropdown in the editor.
    */
   async openOrientationPicker(): Promise<void> {
     await this.orientationPickerInput.click();
@@ -846,81 +877,46 @@ export class PhotoViewerPage {
 
   /**
    * Return the selected display chip text for the area picker (when an area is selected
-   * and the SearchPicker switches to selectedDisplay mode).
-   * The chip shows the bare area name without em-dash prefix.
-   *
-   * Scoped using the `label[for="photo-area"]` anchor, which is stable across CSS changes.
+   * and the SearchPicker switches to selectedDisplay mode). The chip shows the bare area name
+   * without em-dash prefix.
    */
   async getAreaSelectedDisplayText(): Promise<string | null> {
-    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
-    // The section div contains `label[for="photo-area"]` — scope to it via XPath nearest ancestor
-    // Strategy: find the `label[for="photo-area"]` then get its parent .section div,
-    // then find the selectedDisplay inside it. We use XPath `..` to walk up one level.
-    const areaLabel = sidepanel.locator('label[for="photo-area"]');
-    // Section is the parent of the label (one div up)
-    const areaSection = areaLabel.locator('xpath=..').locator('[class*="areaPicker"]');
-    const selectedDisplay = areaSection.locator('[class*="selectedDisplay"]').first();
+    const section = this.detailsForm.locator('label', { hasText: /^Area$/ }).locator('xpath=..');
+    const selectedDisplay = section.locator('[class*="selectedDisplay"]').first();
     return (await selectedDisplay.textContent())?.trim() ?? null;
   }
 
-  /**
-   * Return the selected display chip text for the orientation picker.
-   */
+  /** Return the selected display chip text for the orientation picker. */
   async getOrientationSelectedDisplayText(): Promise<string | null> {
-    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
-    const orientLabel = sidepanel.locator('label[for="photo-orientation"]');
-    const orientSection = orientLabel.locator('xpath=..').locator('[class*="areaPicker"]');
-    const selectedDisplay = orientSection.locator('[class*="selectedDisplay"]').first();
+    const section = this.detailsForm
+      .locator('label', { hasText: /^Orientation$/ })
+      .locator('xpath=..');
+    const selectedDisplay = section.locator('[class*="selectedDisplay"]').first();
     return (await selectedDisplay.textContent())?.trim() ?? null;
   }
 
   /**
-   * Click the Save button in the sidepanel and wait for a successful PATCH response.
-   * Returns after the save completes.
-   *
-   * @param photoId - The photo ID used to match the PATCH response URL.
+   * Click "Save tags" and wait for a successful PATCH response (registered before the click).
+   * The panel returns to read mode afterwards.
    */
-  async saveSidepanel(photoId: string): Promise<void> {
-    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
-    const saveButton = sidepanel.getByRole('button', { name: 'Save', exact: true });
-    const patchDone = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes(`/api/photos/${photoId}`) &&
-        resp.request().method() === 'PATCH' &&
-        resp.status() === 200,
-    );
-    await saveButton.click();
-    await patchDone;
-  }
-
-  /**
-   * Fill the caption field with the given text and save via the sidepanel Save button.
-   *
-   * Registers a `waitForResponse` for the PATCH to `/api/photos/:id` BEFORE clicking
-   * save (per the project pattern — register before the triggering action). Returns
-   * after the PATCH 200 response is received, ensuring the updated photo is propagated
-   * back into the parent's photos array before the caller asserts navigation behaviour.
-   *
-   * NOTE: The Save button (`data-testid="photo-metadata-save"`) is only rendered when
-   * the sidepanel detects `hasChanges`. It appears as soon as the caption value differs
-   * from the current photo's caption. Wait for it to be visible before clicking.
-   *
-   * @param caption  — the caption text to fill
-   * @param photoId  — the photo ID used to match the PATCH response URL
-   */
-  async saveCaption(caption: string, photoId: string): Promise<void> {
-    await this.openSidepanelIfMobile();
-    await this.captionField.fill(caption);
-    // Register the waiter BEFORE clicking to avoid missing fast responses.
+  async saveTags(photoId: string): Promise<void> {
     const patchDone = this.page.waitForResponse(
       (resp) =>
         resp.url().endsWith(`/api/photos/${photoId}`) &&
         resp.request().method() === 'PATCH' &&
         resp.status() === 200,
     );
-    const { expect } = await import('@playwright/test');
-    await expect(this.saveMetadataButton).toBeVisible();
-    await this.saveMetadataButton.click();
+    await this.saveTagsButton.click();
     await patchDone;
+  }
+
+  /**
+   * Open the editor, fill the caption and save it via "Save tags". Returns after the PATCH 200
+   * response, so the updated photo has propagated into the parent's photos array.
+   */
+  async saveCaption(caption: string, photoId: string): Promise<void> {
+    await this.openTagsEditor();
+    await this.captionField.fill(caption);
+    await this.saveTags(photoId);
   }
 }

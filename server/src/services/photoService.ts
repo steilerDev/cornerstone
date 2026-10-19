@@ -17,13 +17,24 @@ import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { mkdir, rm, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { photos, users, areas, orientations, diaryEntries } from '../db/schema.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/AppError.js';
+import {
+  ConflictError,
+  ImmutableEntryError,
+  NotFoundError,
+  ValidationError,
+} from '../errors/AppError.js';
 import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
-import type { Photo, PhotoEntityType } from '@cornerstone/shared';
+import type {
+  DiaryEntryStatus,
+  Photo,
+  PhotoEntityType,
+  UpdatePhotoTagsRequest,
+} from '@cornerstone/shared';
+import type { UndoTransaction } from './undoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -313,6 +324,228 @@ export function getPhotosForEntity(db: DbType, entityType: string, entityId: str
       : null;
     return toPhoto(row, user, orientation);
   });
+}
+
+/**
+ * Signature-lock decision for a loaded diary row: saved with a non-empty signatures array
+ * in metadata. Drafts are never locked (#2124). Unparseable metadata fails open (not locked).
+ */
+export function isDiaryRowSignatureLocked(entry: {
+  status: DiaryEntryStatus;
+  metadata: string | null;
+}): boolean {
+  let parsed: unknown;
+  try {
+    parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
+  } catch {
+    return false;
+  }
+  return isDiaryEntrySignatureLocked({
+    isSigned: hasDiarySignatures(parsed),
+    status: entry.status,
+  });
+}
+
+/** Per-photo tag snapshot of a tag change; drives the Undo restore (#2226). */
+export interface PhotoTagSnapshotEntry {
+  photoId: string;
+  before: { areaId: string | null; orientationId: string | null };
+  after: { areaId: string | null; orientationId: string | null };
+}
+
+/**
+ * Set area and/or orientation on several photos in one transaction (all or nothing).
+ * An absent key leaves that tag unchanged, null clears it.
+ *
+ * @throws ValidationError unknown area / orientation
+ * @throws NotFoundError a photo does not exist (details.missingPhotoIds)
+ * @throws ImmutableEntryError a photo belongs to a signed, saved diary entry (details.lockedPhotoIds)
+ */
+export function updatePhotoTags(db: DbType, req: UpdatePhotoTagsRequest): PhotoTagSnapshotEntry[] {
+  return db.transaction((tx) => {
+    if (typeof req.areaId === 'string') {
+      const area = tx.select({ id: areas.id }).from(areas).where(eq(areas.id, req.areaId)).get();
+      if (!area) {
+        throw new ValidationError('Area not found', { unknownAreaIds: [req.areaId] });
+      }
+    }
+    if (typeof req.orientationId === 'string') {
+      const orientation = tx
+        .select({ id: orientations.id })
+        .from(orientations)
+        .where(eq(orientations.id, req.orientationId))
+        .get();
+      if (!orientation) {
+        throw new ValidationError('Orientation not found', {
+          unknownOrientationIds: [req.orientationId],
+        });
+      }
+    }
+
+    const rows = tx
+      .select({
+        id: photos.id,
+        entityType: photos.entityType,
+        entityId: photos.entityId,
+        areaId: photos.areaId,
+        orientationId: photos.orientationId,
+      })
+      .from(photos)
+      .where(inArray(photos.id, req.photoIds))
+      .all();
+
+    const found = new Set(rows.map((r) => r.id));
+    const missingPhotoIds = req.photoIds.filter((id) => !found.has(id));
+    if (missingPhotoIds.length > 0) {
+      throw new NotFoundError('Photo not found', { missingPhotoIds });
+    }
+
+    const entryIds = [
+      ...new Set(rows.filter((r) => r.entityType === 'diary_entry').map((r) => r.entityId)),
+    ];
+    if (entryIds.length > 0) {
+      const entries = tx
+        .select({
+          id: diaryEntries.id,
+          status: diaryEntries.status,
+          metadata: diaryEntries.metadata,
+        })
+        .from(diaryEntries)
+        .where(inArray(diaryEntries.id, entryIds))
+        .all();
+      const lockedEntryIds = new Set(
+        entries.filter((e) => isDiaryRowSignatureLocked(e)).map((e) => e.id),
+      );
+      const lockedPhotoIds = rows
+        .filter((r) => r.entityType === 'diary_entry' && lockedEntryIds.has(r.entityId))
+        .map((r) => r.id);
+      if (lockedPhotoIds.length > 0) {
+        throw new ImmutableEntryError('Signed diary entries cannot be modified', {
+          lockedPhotoIds,
+        });
+      }
+    }
+
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const snapshot: PhotoTagSnapshotEntry[] = req.photoIds.map((photoId) => {
+      const row = byId.get(photoId)!;
+      return {
+        photoId,
+        before: { areaId: row.areaId, orientationId: row.orientationId },
+        after: {
+          areaId: req.areaId !== undefined ? req.areaId : row.areaId,
+          orientationId: req.orientationId !== undefined ? req.orientationId : row.orientationId,
+        },
+      };
+    });
+
+    const set: Partial<typeof photos.$inferInsert> = { updatedAt: new Date().toISOString() };
+    if (req.areaId !== undefined) set.areaId = req.areaId;
+    if (req.orientationId !== undefined) set.orientationId = req.orientationId;
+    tx.update(photos).set(set).where(inArray(photos.id, req.photoIds)).run();
+
+    return snapshot;
+  });
+}
+
+/**
+ * Undo of a tag change. Runs inside the undo transaction.
+ *
+ * @throws ConflictError when any photo is gone, its tags differ from the snapshot's `after`,
+ *   or its diary entry is now signature-locked or gone
+ */
+export function restorePhotoTags(tx: UndoTransaction, entries: PhotoTagSnapshotEntry[]): void {
+  const ids = entries.map((e) => e.photoId);
+  const rows = tx
+    .select({
+      id: photos.id,
+      entityType: photos.entityType,
+      entityId: photos.entityId,
+      areaId: photos.areaId,
+      orientationId: photos.orientationId,
+    })
+    .from(photos)
+    .where(inArray(photos.id, ids))
+    .all();
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  const entryIds = [
+    ...new Set(rows.filter((r) => r.entityType === 'diary_entry').map((r) => r.entityId)),
+  ];
+  const entryRows =
+    entryIds.length > 0
+      ? tx
+          .select({
+            id: diaryEntries.id,
+            status: diaryEntries.status,
+            metadata: diaryEntries.metadata,
+          })
+          .from(diaryEntries)
+          .where(inArray(diaryEntries.id, entryIds))
+          .all()
+      : [];
+  const entryById = new Map(entryRows.map((e) => [e.id, e]));
+
+  const changed: string[] = [];
+  for (const entry of entries) {
+    const row = byId.get(entry.photoId);
+    if (
+      !row ||
+      row.areaId !== entry.after.areaId ||
+      row.orientationId !== entry.after.orientationId
+    ) {
+      changed.push(entry.photoId);
+      continue;
+    }
+    if (row.entityType === 'diary_entry') {
+      const diary = entryById.get(row.entityId);
+      if (!diary || isDiaryRowSignatureLocked(diary)) changed.push(entry.photoId);
+    }
+  }
+  if (changed.length > 0) {
+    throw new ConflictError('The record changed after this action', {
+      changed: changed.map((id) => ({ type: 'photo', id })),
+    });
+  }
+
+  const areaIds = [...new Set(entries.map((e) => e.before.areaId).filter((v): v is string => !!v))];
+  const orientationIds = [
+    ...new Set(entries.map((e) => e.before.orientationId).filter((v): v is string => !!v)),
+  ];
+  const existingAreas = new Set(
+    areaIds.length > 0
+      ? tx
+          .select({ id: areas.id })
+          .from(areas)
+          .where(inArray(areas.id, areaIds))
+          .all()
+          .map((a) => a.id)
+      : [],
+  );
+  const existingOrientations = new Set(
+    orientationIds.length > 0
+      ? tx
+          .select({ id: orientations.id })
+          .from(orientations)
+          .where(inArray(orientations.id, orientationIds))
+          .all()
+          .map((o) => o.id)
+      : [],
+  );
+
+  const now = new Date().toISOString();
+  for (const entry of entries) {
+    const areaId =
+      entry.before.areaId && existingAreas.has(entry.before.areaId) ? entry.before.areaId : null;
+    const orientationId =
+      entry.before.orientationId && existingOrientations.has(entry.before.orientationId)
+        ? entry.before.orientationId
+        : null;
+    tx.update(photos)
+      .set({ areaId, orientationId, updatedAt: now })
+      .where(eq(photos.id, entry.photoId))
+      .run();
+  }
 }
 
 /**

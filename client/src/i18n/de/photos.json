@@ -19,7 +19,11 @@
     "groupsLabel": "Bereichsgruppen",
     "allGroups": "Alle",
     "groupAnnouncement_one": "Zeige {{group}}: {{count}} Blickpunkt",
-    "groupAnnouncement_other": "Zeige {{group}}: {{count}} Blickpunkte"
+    "groupAnnouncement_other": "Zeige {{group}}: {{count}} Blickpunkte",
+    "noAreaCount_one": "{{count}} Foto",
+    "noAreaCount_other": "{{count}} Fotos",
+    "areaLinkSuffix": ", in Bereiche öffnen",
+    "noAreaGroupLabel": "Fotos ohne Bereich"
   },
   "viewer": {
     "spotHeading": "{{area}} · {{orientation}}",
@@ -48,7 +52,18 @@
     "notFoundTitle": "Dieser Blickpunkt existiert nicht mehr",
     "notFoundDescription": "Sein Bereich oder seine Ausrichtung wurden möglicherweise gelöscht.",
     "emptyTitle": "Keine Fotos an diesem Blickpunkt",
-    "emptyDescription": "Die Fotos für diesen Blickpunkt wurden möglicherweise aus ihren Tagebucheinträgen entfernt."
+    "emptyDescription": "Die Fotos für diesen Blickpunkt wurden möglicherweise aus ihren Tagebucheinträgen entfernt.",
+    "noAreaOverTime": "Fotos ohne Bereich",
+    "noAreaEmptyTitle": "Keine Fotos ohne Bereich",
+    "noAreaEmptyDescription": "Fotos, die du ohne Bereich zu Tagebucheinträgen hinzufügst, erscheinen hier.",
+    "details": "Details",
+    "editTags": "Zuordnung bearbeiten",
+    "editTagsDisabledSigned": "Signierte Einträge können nicht geändert werden",
+    "saveTags": "Zuordnung speichern",
+    "savingTags": "Wird gespeichert…",
+    "tagsSaved": "Zuordnung gespeichert",
+    "tagsError": "Die Zuordnung konnte nicht gespeichert werden.",
+    "photoMoved": "Foto zu {{spot}} verschoben"
   },
   "tile": {
     "name": "Foto {{n}} von {{total}}",
@@ -127,5 +142,32 @@
     "usingFront": "Frontkamera wird verwendet.",
     "usingBack": "Rückkamera wird verwendet.",
     "previewLabel": "Neueste Fotos"
+  },
+  "select": {
+    "start": "Fotos auswählen",
+    "done": "Fertig",
+    "selected_one": "{{count}} Foto ausgewählt",
+    "selected_other": "{{count}} Fotos ausgewählt",
+    "all": "Alle auswählen",
+    "clear": "Auswahl aufheben",
+    "setTags": "Zuordnung festlegen",
+    "tileLabel": "Foto vom {{date}}, {{orientation}}",
+    "locked": "Signierter Eintrag",
+    "loading": "Fotos ohne Bereich werden geladen",
+    "loadError": "Diese Fotos konnten nicht geladen werden."
+  },
+  "bulk": {
+    "title_one": "Zuordnung für {{count}} Foto festlegen",
+    "title_other": "Zuordnung für {{count}} Fotos festlegen",
+    "area": "Bereich",
+    "orientation": "Ausrichtung",
+    "leaveAsIs": "Unverändert lassen",
+    "hint": "Wähle einen Bereich, eine Ausrichtung oder beides. Die Fotos werden beim Speichern ihrem Blickpunkt zugeordnet.",
+    "saving": "Wird gespeichert…",
+    "error": "Die Zuordnung konnte nicht gespeichert werden. Es wurde nichts geändert.",
+    "movedTo_one": "{{count}} Foto zu {{spot}} verschoben",
+    "movedTo_other": "{{count}} Fotos zu {{spot}} verschoben",
+    "orientationSet_one": "Ausrichtung für {{count}} Foto gesetzt",
+    "orientationSet_other": "Ausrichtung für {{count}} Fotos gesetzt"
   }
 }

@@ -12,6 +12,7 @@ import { PreviousPathContext, useTrackPreviousPath } from '../../navigation/prev
 import { useRealLocationKey } from '../../navigation/realLocation.js';
 import { useNavContext } from '../../navigation/useNavContext.js';
 import { ViewMenuContext, viewMenuFor } from '../../navigation/viewMenu.js';
+import { ImmersiveShellContext } from './immersiveShellContext.js';
 import { BottomBar } from '../BottomBar/BottomBar.js';
 import { CommandSearch } from '../CommandSearch/CommandSearch.js';
 import { CommandSearchProvider } from '../CommandSearch/CommandSearchContext.js';
@@ -85,6 +86,18 @@ export function AppShell() {
     [realKey],
   );
   const closeSearch = useCallback(() => setSearchRequest(null), []);
+  // Immersive pages (the phone photo viewer) hide the compact bars while registered.
+  const [immersiveCount, setImmersiveCount] = useState(0);
+  const immersive = useMemo(
+    () => ({
+      register: () => {
+        setImmersiveCount((n) => n + 1);
+        return () => setImmersiveCount((n) => n - 1);
+      },
+    }),
+    [],
+  );
+  const hideBars = !wide && immersiveCount > 0;
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const sheetId = useId();
 
@@ -100,42 +113,53 @@ export function AppShell() {
           <BreadcrumbSlotContext value={slotEl}>
             <PreviousPathContext value={getPreviousPath}>
               <ViewMenuContext value={viewMenu}>
-                <div
-                  className={wide ? styles.appShell : `${styles.appShell} ${styles.compact}`}
-                  inert={searchOpen || undefined}
-                >
-                  {wide && <Sidebar sections={sections} active={active} />}
-                  <div className={styles.shellColumn} inert={moreOpen || createOpen}>
-                    <TopBar breadcrumbSlotRef={setSlotEl} variant={wide ? 'desktop' : 'compact'} />
+                <ImmersiveShellContext value={immersive}>
+                  <div
+                    className={
+                      wide
+                        ? styles.appShell
+                        : `${styles.appShell} ${styles.compact}${hideBars ? ` ${styles.immersive}` : ''}`
+                    }
+                    inert={searchOpen || undefined}
+                  >
+                    {wide && <Sidebar sections={sections} active={active} />}
+                    <div className={styles.shellColumn} inert={moreOpen || createOpen}>
+                      {!hideBars && (
+                        <TopBar
+                          breadcrumbSlotRef={setSlotEl}
+                          variant={wide ? 'desktop' : 'compact'}
+                        />
+                      )}
+                      {!wide && !hideBars && (
+                        <BottomBar
+                          active={active}
+                          moreOpen={moreOpen}
+                          moreControlsId={sheetId}
+                          moreButtonRef={moreButtonRef}
+                          onMoreClick={() => setMoreOpenKey(location.key)}
+                        />
+                      )}
+                      <div className={styles.mainContent}>
+                        <main className={styles.pageContent}>
+                          <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
+                            <Outlet />
+                          </Suspense>
+                        </main>
+                      </div>
+                    </div>
+                    {!wide && <CreateSheet />}
                     {!wide && (
-                      <BottomBar
+                      <MoreSheet
+                        id={sheetId}
+                        open={moreOpen}
+                        onClose={() => setMoreOpenKey(null)}
+                        sections={sections}
                         active={active}
-                        moreOpen={moreOpen}
-                        moreControlsId={sheetId}
-                        moreButtonRef={moreButtonRef}
-                        onMoreClick={() => setMoreOpenKey(location.key)}
+                        returnFocusRef={moreButtonRef}
                       />
                     )}
-                    <div className={styles.mainContent}>
-                      <main className={styles.pageContent}>
-                        <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
-                          <Outlet />
-                        </Suspense>
-                      </main>
-                    </div>
                   </div>
-                  {!wide && <CreateSheet />}
-                  {!wide && (
-                    <MoreSheet
-                      id={sheetId}
-                      open={moreOpen}
-                      onClose={() => setMoreOpenKey(null)}
-                      sections={sections}
-                      active={active}
-                      returnFocusRef={moreButtonRef}
-                    />
-                  )}
-                </div>
+                </ImmersiveShellContext>
                 {searchOpen && (
                   <CommandSearch
                     wide={wide}

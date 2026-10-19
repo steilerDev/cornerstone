@@ -38,6 +38,8 @@ export function useFocusTrap(
     const handleKeyDown = (e: KeyboardEvent) => {
       if (activeTraps[activeTraps.length - 1] !== token) return;
       if (e.key === 'Escape') {
+        // Handled by the topmost dialog: keyboard handlers further out (a viewer) must skip it
+        e.preventDefault();
         onEscapeRef.current();
         return;
       }

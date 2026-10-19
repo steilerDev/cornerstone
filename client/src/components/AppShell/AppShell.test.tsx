@@ -5,7 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import type React from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { lazy, use, useRef } from 'react';
+import { lazy, use, useRef, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { renderWithRouter } from '../../test/testUtils';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds';
@@ -13,6 +13,7 @@ import i18n from '../../i18n/index.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { ViewMenuContext } from '../../navigation/viewMenu.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { useImmersiveShell } from '../../hooks/useImmersiveShell.js';
 import { useCreateContext } from '../CreateMenu/CreateMenuContext.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 import type * as AppShellTypes from './AppShell.js';
@@ -1098,6 +1099,143 @@ describe('AppShell', () => {
           expect(screen.getByTestId('where')).toHaveTextContent('PUSH /project/work-items');
         });
       });
+    });
+  });
+
+  describe('immersive pages (#2226)', () => {
+    function ImmersivePage({ initial = true, label = 'Immersive page' }) {
+      const [enabled, setEnabled] = useState(initial);
+      useImmersiveShell(enabled);
+      return (
+        <div>
+          <p>{label}</p>
+          <button
+            type="button"
+            data-testid={`toggle-${label}`}
+            onClick={() => setEnabled((v) => !v)}
+          >
+            toggle
+          </button>
+        </div>
+      );
+    }
+
+    const shellRoot = () => document.querySelector('.appShell') as HTMLElement;
+
+    it('without a registered page the compact shell keeps both bars and has no immersive class', () => {
+      renderAt('/', <ImmersivePage initial={false} />);
+
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
+      expect(document.documentElement.dataset.shellBar).toBeDefined();
+    });
+
+    it('compact: a registered page unmounts the top bar and the bottom bar, not just hides them', () => {
+      renderAt('/', <ImmersivePage />);
+
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('bottom-bar')).not.toBeInTheDocument();
+      expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
+      // the page itself is still in the main landmark
+      expect(within(screen.getByRole('main')).getByText('Immersive page')).toBeInTheDocument();
+    });
+
+    it('compact: adds the immersive class and removes the shell bar measurement', () => {
+      renderAt('/', <ImmersivePage />);
+
+      expect(shellRoot()).toHaveClass('appShell', 'compact', 'immersive');
+      // BottomBar's unmount deletes the attribute, so --shell-bottom-height falls to 0
+      expect(document.documentElement.dataset.shellBar).toBeUndefined();
+    });
+
+    it('compact: the bars, the class and the measurement come back when the page unregisters', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <ImmersivePage />);
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('toggle-Immersive page'));
+
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
+      expect(shellRoot()).toHaveClass('compact');
+      expect(document.documentElement.dataset.shellBar).toBeDefined();
+    });
+
+    it('compact: the bars return when the registered page unmounts (navigation away)', async () => {
+      function Leaver() {
+        const navigate = useNavigate();
+        useImmersiveShell(true);
+        return (
+          <button type="button" data-testid="leave" onClick={() => void navigate('/photos')}>
+            leave
+          </button>
+        );
+      }
+      const user = userEvent.setup();
+      renderWithRouter(
+        <Routes>
+          <Route element={<AppShellModule.AppShell />}>
+            <Route path="/photos" element={<div>Other page</div>} />
+            <Route path="*" element={<Leaver />} />
+          </Route>
+        </Routes>,
+        { initialEntries: ['/'] },
+      );
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('leave'));
+
+      expect(screen.getByText('Other page')).toBeInTheDocument();
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
+    });
+
+    it('stays hidden until every registered page has unregistered', async () => {
+      const user = userEvent.setup();
+      renderAt(
+        '/',
+        <>
+          <ImmersivePage label="first" />
+          <ImmersivePage label="second" />
+        </>,
+      );
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('toggle-first'));
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+      expect(shellRoot()).toHaveClass('immersive');
+
+      await user.click(screen.getByTestId('toggle-second'));
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
+    });
+
+    it('wide: a registered page does not hide the sidebar or the top bar', () => {
+      installMatchMedia(true);
+      renderAt('/', <ImmersivePage />);
+
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
+      expect(shellRoot()).not.toHaveClass('compact');
+    });
+
+    it('hides the bars when the window narrows while a page is registered, and restores them when it widens', () => {
+      installMatchMedia(true);
+      renderAt('/', <ImmersivePage />);
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+
+      resizeTo(false);
+      expect(screen.queryByTestId('top-bar')).not.toBeInTheDocument();
+      expect(shellRoot()).toHaveClass('immersive');
+
+      resizeTo(true);
+      expect(screen.getByTestId('top-bar')).toBeInTheDocument();
+      expect(shellRoot()).not.toHaveClass('immersive');
     });
   });
 });

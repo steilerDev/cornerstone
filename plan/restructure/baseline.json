@@ -9,7 +9,7 @@
       "BudgetSourcesPage": { "destinations": 2, "primaryButtons": 7, "searchFields": 1 },
       "DashboardPage": { "destinations": 16, "primaryButtons": 2, "searchFields": 0 },
       "DiaryCapturePage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
-      "DiaryEntryDetailPage": { "destinations": 0, "primaryButtons": 6, "searchFields": 0 },
+      "DiaryEntryDetailPage": { "destinations": 0, "primaryButtons": 5, "searchFields": 0 },
       "DiaryPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 1 },
       "HistoryPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 1 },
       "HouseholdItemDetailPage": { "destinations": 3, "primaryButtons": 12, "searchFields": 1 },
@@ -26,7 +26,7 @@
       "NotFoundPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PaperlessInvoiceReviewPage": { "destinations": 0, "primaryButtons": 11, "searchFields": 0 },
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
-      "PhotoSpotViewerPage": { "destinations": 2, "primaryButtons": 1, "searchFields": 0 },
+      "PhotoSpotViewerPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "ProfilePage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "ReportWizardPage": { "destinations": 4, "primaryButtons": 13, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
@@ -40,10 +40,11 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 118,
+      "count": 119,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
+        "AreaLink/AreaLink",
         "AreaPicker/AreaPicker",
         "AssignmentPicker/AssignmentPicker",
         "AuthGuard/AuthGuard",
@@ -148,8 +149,8 @@
         "invoices/InvoicePaperlessPickerModal",
         "photos/PhotoAnnotator/PhotoAnnotator",
         "photos/PhotoCard",
+        "photos/PhotoDetailsPanel",
         "photos/PhotoGrid",
-        "photos/PhotoMetadataSidepanel",
         "photos/PhotoStrip/PhotoStrip",
         "photos/PhotoViewer",
         "photos/SpotHistoryList",
@@ -463,7 +464,7 @@
         },
         {
           "code": "dirty",
-          "description": "Save revealed on change (photo metadata side panel)",
+          "description": "Save revealed on change — retired by #2226 (photo details use a view/edit toggle)",
           "examples": []
         }
       ]

@@ -28,6 +28,11 @@ export interface SpotThumbnailProps {
   /** Screen-reader text for the image-error fallback */
   imageUnavailableLabel: string;
   testId?: string;
+  /**
+   * Select mode: renders a labelled checkbox tile (4:3) instead of a link. `disabledLabel`
+   * set: no checkbox, the tile is not focusable and shows the muted label (locked photo).
+   */
+  select?: { selected: boolean; onToggle: () => void; label: string; disabledLabel?: string };
 }
 
 function PictureOffIcon() {
@@ -86,8 +91,68 @@ export function SpotThumbnail({
   emptySrPrefix,
   imageUnavailableLabel,
   testId = 'spot-thumbnail',
+  select,
 }: SpotThumbnailProps) {
   const variantClass = variant === 'card' ? styles.card : styles.cell;
+
+  if (select) {
+    const locked = select.disabledLabel !== undefined;
+    const tile = (
+      <>
+        <span className={styles.thumb}>
+          <span className={styles.thumbImageWrap} key={src ?? ''}>
+            <ThumbImage src={src} unavailableLabel={imageUnavailableLabel} />
+          </span>
+          {locked ? null : (
+            <span className={styles.checkBadge} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M5 12l5 5 9-10" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          )}
+          {select.selected ? (
+            <>
+              <span className={styles.selectedOverlay} aria-hidden="true" />
+              <span className={styles.selectedRing} aria-hidden="true" />
+            </>
+          ) : null}
+        </span>
+        {dateLabel || locked ? (
+          <span className={styles.body}>
+            {dateLabel ? <span className={styles.date}>{dateLabel}</span> : null}
+            {locked ? <span className={styles.lockedLabel}>{select.disabledLabel}</span> : null}
+          </span>
+        ) : null}
+      </>
+    );
+    if (locked) {
+      return (
+        <div
+          className={`${styles.root} ${variantClass} ${styles.selectTile} ${styles.selectLocked}`}
+          data-testid={testId}
+        >
+          {tile}
+        </div>
+      );
+    }
+    return (
+      <label
+        className={`${styles.root} ${variantClass} ${styles.selectTile} ${
+          select.selected ? styles.selectedTile : ''
+        }`}
+        data-testid={testId}
+      >
+        <input
+          type="checkbox"
+          className={styles.checkInput}
+          checked={select.selected}
+          onChange={select.onToggle}
+          aria-label={select.label}
+        />
+        {tile}
+      </label>
+    );
+  }
 
   if (to === undefined) {
     return (

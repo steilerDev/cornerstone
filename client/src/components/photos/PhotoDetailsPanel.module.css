@@ -1,0 +1,214 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  min-width: 0;
+  color: var(--color-photo-text);
+}
+
+.dateBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+.dateValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.factsHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.sectionHeading,
+.cardHeading {
+  margin: 0;
+  color: var(--color-photo-text-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: var(--spacing-3);
+  border: 1px solid var(--color-photo-panel-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.editButton:hover {
+  background: var(--color-photo-item-hover-bg);
+}
+
+.editButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}
+
+.editButton[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.editButton[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.reason {
+  margin: 0;
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.factList {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--spacing-2) var(--spacing-3);
+  margin: 0;
+}
+
+.factLabel {
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.factValue {
+  margin: 0;
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.areaValue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--radius-circle);
+  background: var(--area-color, var(--color-photo-text-muted));
+}
+
+.muted {
+  color: var(--color-photo-text-muted);
+}
+
+.savedNote {
+  min-height: 0;
+  color: var(--color-photo-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* The editor sits on a themed surface so the shared pickers keep their light/dark styling */
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.fieldLabel {
+  composes: fieldLabel from '../../styles/shared.module.css';
+}
+
+.textarea {
+  composes: textarea from '../../styles/shared.module.css';
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.saveButton {
+  composes: btnPrimary from '../../styles/shared.module.css';
+  min-height: 2.75rem;
+}
+
+.cancelButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: 2.75rem;
+}
+
+.entryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-photo-panel-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-photo-stage-bg);
+}
+
+.entryRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.entryTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.entryMeta {
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-2xs);
+}
+
+.entryLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 2.75rem;
+  color: var(--color-photo-link);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.entryLink:hover {
+  text-decoration: underline;
+}
+
+.entryLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}

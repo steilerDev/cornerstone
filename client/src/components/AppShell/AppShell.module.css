@@ -11,6 +11,11 @@
   --topbar-height: calc(var(--spacing-12) + var(--spacing-2) + env(safe-area-inset-top, 0rem));
 }
 
+/* Immersive page (phone photo viewer): the bars are not rendered, so no top bar height remains */
+.immersive {
+  --topbar-height: 0rem;
+}
+
 /* Non-scrolling column: the sticky top bar sticks to the viewport, not to .mainContent */
 .shellColumn {
   flex: 1;

@@ -13,7 +13,7 @@
  * 6. Removing a photo takes its tile away and the photo is gone from the server.
  * 7. Multiple files: both tiles appear and upload.
  * 8. Multiple files: removing the first leaves the second.
- * 9. PhotoMetadataSidepanel orientation field (diary detail page viewer): select → save →
+ * 9. Details panel Edit tags, orientation field (diary detail page viewer): select → Save tags →
  *    reload → persists.
  * 10. Take photos input: has data-testid="capture-camera-input", capture="environment",
  *     accept="image/*" — verifiable without actual camera.
@@ -38,6 +38,7 @@ import { createDraftDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures
 import { capturePhotos } from '../fixtures/capturePhotos.js';
 import { listEntryPhotos } from '../fixtures/captureSeed.js';
 import { DiaryCapturePage } from '../pages/DiaryCapturePage.js';
+import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
 
 /**
  * Slow every photo upload down by `delayMs` before it goes on to the real server, so the
@@ -339,11 +340,11 @@ test.describe('Multiple files — remove the first (Scenario 8)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: PhotoMetadataSidepanel orientation field persists
+// Scenario 9: Details panel orientation field persists
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('PhotoMetadataSidepanel — orientation persists across reload (Scenario 9)', () => {
-  test('Select orientation in sidepanel, save, reload — orientation persists', async ({
+test.describe('Photo details panel — orientation persists across reload (Scenario 9)', () => {
+  test('Edit tags: select orientation, save, reload — orientation persists', async ({
     page,
     testPrefix,
   }) => {
@@ -375,7 +376,7 @@ test.describe('PhotoMetadataSidepanel — orientation persists across reload (Sc
           entityType: 'diary_entry',
           entityId: draftId,
           file: {
-            name: `sidepanel-${testPrefix}.png`,
+            name: `details-${testPrefix}.png`,
             mimeType: 'image/png',
             buffer: photoBuffer,
           },
@@ -408,23 +409,12 @@ test.describe('PhotoMetadataSidepanel — orientation persists across reload (Sc
       const viewer = page.getByTestId('photo-viewer');
       await viewer.waitFor({ state: 'visible' });
 
-      // Locate the sidepanel — it's inside the viewer container
-      const sidepanel = page.locator('#photo-metadata-sidepanel');
-      await sidepanel.waitFor({ state: 'attached' });
+      // Open the tag editor (phone: Details sheet first, then Edit tags)
+      const viewerPom = new PhotoViewerPage(page);
+      await viewerPom.openTagsEditor();
 
-      // On narrow viewports (≤768px) toggle the sidepanel open first
-      const viewportWidth = page.viewportSize()?.width ?? 1920;
-      if (viewportWidth <= 768) {
-        await page.getByTestId('photo-metadata-toggle').click();
-        // Wait for the sidepanel to be open
-        await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
-          'aria-expanded',
-          'true',
-        );
-      }
-
-      // Locate the Orientation picker input — SearchPicker with placeholder "Select an orientation"
-      const orientationInput = sidepanel.locator('input[placeholder="Select an orientation"]');
+      // Orientation picker input in the editor
+      const orientationInput = viewerPom.orientationPickerInput;
       await orientationInput.click();
       await orientationInput.fill(orientationName);
 
@@ -434,21 +424,20 @@ test.describe('PhotoMetadataSidepanel — orientation persists across reload (Sc
       await dropdown.getByRole('option', { name: new RegExp(orientationName, 'i') }).click();
       await expect(dropdown).not.toBeVisible();
 
-      // "Save" button should appear (hasChanges=true)
-      const saveButton = sidepanel.getByRole('button', { name: 'Save', exact: true });
-      await expect(saveButton).toBeVisible();
-
-      // Register PATCH response listener BEFORE clicking save
+      // Register PATCH response listener BEFORE clicking Save tags
       const patchResponse = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/photos/${photoId}`) &&
           resp.request().method() === 'PATCH' &&
           resp.status() === 200,
       );
-      await saveButton.click();
+      await viewerPom.saveTagsButton.click();
       const savedResp = await patchResponse;
       const savedBody = (await savedResp.json()) as { photo: { orientationId: string | null } };
       expect(savedBody.photo.orientationId).toBe(orientationId);
+
+      // Back in read mode with the confirmation line
+      await expect(viewerPom.tagsSavedNote).toHaveText('Tags saved');
 
       // Close the PhotoViewer
       await page.getByTestId('photo-viewer-close').click();
@@ -462,26 +451,12 @@ test.describe('PhotoMetadataSidepanel — orientation persists across reload (Sc
       await photoCard.waitFor({ state: 'visible' });
       await photoCard.getByRole('button', { name: /View photo/i }).click();
 
-      const viewerAfter = page.getByTestId('photo-viewer');
-      await viewerAfter.waitFor({ state: 'visible' });
+      const viewerAfter = new PhotoViewerPage(page);
+      await viewerAfter.modal.waitFor({ state: 'visible' });
 
-      // After reload, the sidepanel OrientationPicker receives `initialOrientationName`
-      // from `photo.orientation?.name` (the saved value). SearchPicker with initialTitle
-      // set shows the selected value in a `selectedDisplay` span (not an input).
-      const sidepanelAfter = page.locator('#photo-metadata-sidepanel');
-      await sidepanelAfter.waitFor({ state: 'attached' });
-
-      if (viewportWidth <= 768) {
-        await page.getByTestId('photo-metadata-toggle').click();
-        await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
-          'aria-expanded',
-          'true',
-        );
-      }
-
-      // The picker shows the selected orientation name — either as a selected display
-      // chip (class*="selectedDisplay") or as the input value if initial title is wired via value
-      await expect(sidepanelAfter.locator('[class*="selectedDisplay"]').first()).toContainText(
+      // After reload the panel names the saved orientation in read mode
+      await viewerAfter.openDetails();
+      await expect(viewerAfter.detailsPanel.getByTestId('photo-details-orientation')).toHaveText(
         orientationName,
       );
     } finally {
@@ -575,29 +550,19 @@ test.describe('OrientationPicker in the photo sheet — no orientations (Scenari
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 12–16 (Fix #1706): Mobile metadata toggle repositioning
+// Scenarios 12–16 (Fix #1706, reworked by #2226): the photo details panel on phones
 //
-// Before the fix (issue #1706), the toggle button stayed fixed at the
-// bottom-right corner regardless of whether the sidepanel was open, causing it
-// to overlap the panel's form inputs on mobile.
+// The #1706 metadata toggle (a floating launcher that moved into the panel header) is retired.
+// Below 768px the info bar carries a "Details" text button that opens a bottom sheet holding
+// the details panel (Edit tags, facts, diary date); from 768px the panel is a side column and
+// there is no Details button.
 //
-// After the fix:
-//   Panel CLOSED on mobile: toggle is a floating bottom-right launcher,
-//     rendered OUTSIDE #photo-metadata-sidepanel.
-//   Panel OPEN on mobile:   toggle renders INSIDE the panel header
-//     (#photo-metadata-sidepanel > .header), so it no longer overlaps inputs.
-//   Desktop/tablet (≥768px): toggle is hidden (display:none),
-//     sidepanel is always inline-visible.
-//
-// These tests use a fixed 375×667 mobile viewport for mobile scenarios (AC1-4)
-// and a fixed 1280×800 viewport for the desktop check (AC6).  Both are forced
-// via `page.setViewportSize()` inside the test rather than relying on the
-// Playwright project's configured viewport, so the scenarios work correctly
-// when run across desktop/tablet/mobile projects.
+// Mobile scenarios force a fixed 375×667 viewport, the desktop check 1280×800, via
+// `page.setViewportSize()` so they work in every Playwright project.
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'PhotoViewer metadata toggle repositioning on mobile (Fix #1706)',
+  'PhotoViewer details panel — Details button on phones (#1706, #2226)',
   { tag: '@responsive' },
   () => {
     /** Shared photo buffer — 1×1 px PNG, minimal overhead */
@@ -667,9 +632,33 @@ test.describe(
       await page.getByTestId('photo-viewer').waitFor({ state: 'visible' });
     }
 
-    // ─── AC1: Mobile, panel closed → toggle visible, aria-expanded="false", panel NOT visible ───
+    // ─── AC1: Phone, sheet closed → Details button visible, panel not in the DOM ───────────────
 
-    test('AC1: Mobile panel closed — toggle visible outside panel, aria-expanded false, sidepanel hidden', async ({
+    test('AC1: Phone — Details button visible, panel closed', async ({ page, testPrefix }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+        const viewer = new PhotoViewerPage(page);
+
+        await expect(viewer.detailsButton).toBeVisible();
+        await expect(viewer.detailsButton).toHaveText('Details');
+        await expect(viewer.detailsPanel).toHaveCount(0);
+      } finally {
+        await cleanup();
+      }
+    });
+
+    // ─── AC2: Tap Details → the sheet shows the panel; Escape closes it, focus back ────────────
+
+    test('AC2: Phone — Details opens the sheet with the panel; Escape closes it and returns focus', async ({
       page,
       testPrefix,
     }) => {
@@ -684,32 +673,26 @@ test.describe(
 
       try {
         await openPhotoViewer(page, draftId, photoId);
+        const viewer = new PhotoViewerPage(page);
 
-        const toggle = page.getByTestId('photo-metadata-toggle');
-        const sidepanel = page.locator('#photo-metadata-sidepanel');
+        await viewer.detailsButton.click();
+        await expect(viewer.detailsPanel).toBeVisible();
+        await expect(page.getByTestId('photo-viewer-details-sheet')).toBeVisible();
+        await expect(viewer.editTagsButton).toBeVisible();
 
-        // Toggle should be visible (mobile CSS shows it)
-        await expect(toggle).toBeVisible();
-
-        // aria-expanded must be "false" (panel is closed)
-        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-        // Toggle must NOT be inside the panel header (it is the floating launcher)
-        const toggleInHeader = page
-          .locator('#photo-metadata-sidepanel [class*="header"]')
-          .getByTestId('photo-metadata-toggle');
-        await expect(toggleInHeader).not.toBeAttached();
-
-        // Sidepanel is not visible (display: none on mobile when closed)
-        await expect(sidepanel).not.toBeVisible();
+        // Escape closes the sheet only (the sheet owns the keyboard), the viewer stays open
+        await page.keyboard.press('Escape');
+        await expect(viewer.detailsPanel).toHaveCount(0);
+        await expect(viewer.modal).toBeVisible();
+        await expect(viewer.detailsButton).toBeFocused();
       } finally {
         await cleanup();
       }
     });
 
-    // ─── AC2: Tap toggle → aria-expanded="true", panel visible, toggle now in panel header ──────
+    // ─── AC3: Edit tags in the sheet → caption textarea visible, inside the viewport ──────────
 
-    test('AC2: Mobile — tapping toggle opens panel, aria-expanded becomes true, toggle moves into header', async ({
+    test('AC3: Phone — Edit tags shows the caption textarea inside the viewport', async ({
       page,
       testPrefix,
     }) => {
@@ -724,124 +707,29 @@ test.describe(
 
       try {
         await openPhotoViewer(page, draftId, photoId);
+        const viewer = new PhotoViewerPage(page);
 
-        const toggle = page.getByTestId('photo-metadata-toggle');
-        await toggle.click();
+        await viewer.openTagsEditor();
+        await expect(viewer.captionField).toBeVisible();
+        await viewer.captionField.scrollIntoViewIfNeeded();
 
-        // aria-expanded must now be "true"
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        const box = await viewer.captionField.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 
-        // Sidepanel is now visible
-        const sidepanel = page.locator('#photo-metadata-sidepanel');
-        await expect(sidepanel).toBeVisible();
-
-        // Toggle must now be a descendant of the panel header
-        const toggleInHeader = page
-          .locator('#photo-metadata-sidepanel [class*="header"]')
-          .getByTestId('photo-metadata-toggle');
-        await expect(toggleInHeader).toBeVisible();
+        // Cancel leaves the editor and returns focus to Edit tags
+        await viewer.cancelTagsButton.click();
+        await expect(viewer.detailsForm).toHaveCount(0);
+        await expect(viewer.editTagsButton).toBeFocused();
       } finally {
         await cleanup();
       }
     });
 
-    // ─── AC3: Panel open → form inputs visible / not overlapped ──────────────────────────────────
+    // ─── AC6: Desktop → no Details button, the panel is a side column ──────────────────────────
 
-    test('AC3: Mobile panel open — caption textarea is visible and its bounding box does not overlap the toggle', async ({
-      page,
-      testPrefix,
-    }) => {
-      await page.setViewportSize({ width: 375, height: 667 });
-
-      const setup = await setupDiaryWithPhoto(page, testPrefix);
-      if (!setup) {
-        test.skip();
-        return;
-      }
-      const { draftId, photoId, cleanup } = setup;
-
-      try {
-        await openPhotoViewer(page, draftId, photoId);
-
-        // Open panel
-        const toggle = page.getByTestId('photo-metadata-toggle');
-        await toggle.click();
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-        // Caption textarea must be visible and interactable
-        const captionTextarea = page.locator('#photo-caption');
-        await expect(captionTextarea).toBeVisible();
-
-        // The in-header toggle must not overlap the textarea (regression check).
-        // We verify that the toggle's bounding box does NOT intersect the textarea's.
-        const toggleBox = await toggle.boundingBox();
-        const textareaBox = await captionTextarea.boundingBox();
-        expect(toggleBox).not.toBeNull();
-        expect(textareaBox).not.toBeNull();
-
-        // Intersection check: two boxes overlap when they share area on both axes.
-        const overlapsX =
-          toggleBox!.x < textareaBox!.x + textareaBox!.width &&
-          toggleBox!.x + toggleBox!.width > textareaBox!.x;
-        const overlapsY =
-          toggleBox!.y < textareaBox!.y + textareaBox!.height &&
-          toggleBox!.y + toggleBox!.height > textareaBox!.y;
-        expect(
-          overlapsX && overlapsY,
-          'Toggle button must not overlap the caption textarea when panel is open',
-        ).toBe(false);
-      } finally {
-        await cleanup();
-      }
-    });
-
-    // ─── AC4: Tap in-header toggle → panel closes, toggle back to floating launcher ─────────────
-
-    test('AC4: Mobile — tapping in-header toggle closes panel, aria-expanded becomes false, toggle back to floating launcher', async ({
-      page,
-      testPrefix,
-    }) => {
-      await page.setViewportSize({ width: 375, height: 667 });
-
-      const setup = await setupDiaryWithPhoto(page, testPrefix);
-      if (!setup) {
-        test.skip();
-        return;
-      }
-      const { draftId, photoId, cleanup } = setup;
-
-      try {
-        await openPhotoViewer(page, draftId, photoId);
-
-        // Open panel first
-        const toggle = page.getByTestId('photo-metadata-toggle');
-        await toggle.click();
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-        // Tap the in-header toggle to close
-        const toggleInHeader = page
-          .locator('#photo-metadata-sidepanel [class*="header"]')
-          .getByTestId('photo-metadata-toggle');
-        await expect(toggleInHeader).toBeVisible();
-        await toggleInHeader.click();
-
-        // aria-expanded must be "false" again
-        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-        // Sidepanel no longer visible
-        const sidepanel = page.locator('#photo-metadata-sidepanel');
-        await expect(sidepanel).not.toBeVisible();
-
-        // Toggle is back to being the floating launcher (not in header)
-        await expect(toggleInHeader).not.toBeAttached();
-      } finally {
-        await cleanup();
-      }
-    });
-
-    // ─── AC6: Desktop viewport → toggle NOT visible, sidepanel always visible ────────────────────
-
-    test('AC6: Desktop — toggle hidden (display:none), sidepanel always visible', async ({
+    test('AC6: Desktop — no Details button, details panel always visible', async ({
       page,
       testPrefix,
     }) => {
@@ -856,14 +744,11 @@ test.describe(
 
       try {
         await openPhotoViewer(page, draftId, photoId);
+        const viewer = new PhotoViewerPage(page);
 
-        // On desktop the toggle button has CSS display:none — not visible
-        const toggle = page.getByTestId('photo-metadata-toggle');
-        await expect(toggle).not.toBeVisible();
-
-        // Sidepanel is always visible on desktop (no hide/show mechanism)
-        const sidepanel = page.locator('#photo-metadata-sidepanel');
-        await expect(sidepanel).toBeVisible();
+        await expect(viewer.detailsButton).toHaveCount(0);
+        await expect(viewer.detailsPanel).toBeVisible();
+        await expect(viewer.editTagsButton).toBeVisible();
       } finally {
         await cleanup();
       }

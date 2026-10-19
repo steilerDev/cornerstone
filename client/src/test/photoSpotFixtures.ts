@@ -1,5 +1,6 @@
 import type {
   AreaResponse,
+  Photo,
   OrientationResponse,
   PhotoSpotPhoto,
   PhotoSpotSummary,
@@ -75,12 +76,44 @@ export function makeSpotPhoto(id: string, opts: Partial<PhotoSpotPhoto> = {}): P
     height: 600,
     fileUrl: `/api/photos/${id}/file?v=1`,
     thumbnailUrl: `/api/photos/${id}/thumbnail?v=1`,
+    areaId: null,
+    orientationId: null,
+    orientation: null,
+    annotatedAt: null,
     diaryEntry: {
       id: `entry-${id}`,
       entryType: 'daily_log',
       title: null,
       entryDate: '2026-09-11',
+      isSigned: false,
     },
     ...opts,
+  };
+}
+
+/** A full server `Photo` (the PATCH response body), for tests of the spot / details flows. */
+export function makeServerPhoto(overrides: Partial<Photo> = {}): Photo {
+  return {
+    id: 'p1',
+    entityType: 'diary_entry',
+    entityId: 'e1',
+    originalFilename: 'a.jpg',
+    mimeType: 'image/jpeg',
+    fileSize: 100,
+    width: 800,
+    height: 600,
+    takenAt: null,
+    caption: null,
+    areaId: null,
+    orientationId: null,
+    orientation: null,
+    sortOrder: 0,
+    createdBy: null,
+    annotatedAt: null,
+    createdAt: TS,
+    updatedAt: TS,
+    fileUrl: '/api/photos/p1/file',
+    thumbnailUrl: '/api/photos/p1/thumbnail',
+    ...overrides,
   };
 }

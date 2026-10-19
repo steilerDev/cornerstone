@@ -14,15 +14,11 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type {
   UpdatePhotoRequest,
+  UpdatePhotoTagsRequest,
   ReorderPhotosRequest,
   PhotoEntityType,
-  DiaryEntryStatus,
 } from '@cornerstone/shared';
-import {
-  hasDiarySignatures,
-  isDiaryEntrySignatureLocked,
-  PHOTO_SPOT_NONE,
-} from '@cornerstone/shared';
+import { PHOTO_SPOT_ANY, PHOTO_SPOT_NONE } from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import {
@@ -39,26 +35,6 @@ import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import { diaryEntries } from '../db/schema.js';
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
-
-/**
- * Signature-lock decision for a loaded diary row: saved with a non-empty signatures array
- * in metadata. Drafts are never locked (#2124). Unparseable metadata fails open (not locked).
- */
-function isDiaryRowSignatureLocked(entry: {
-  status: DiaryEntryStatus;
-  metadata: string | null;
-}): boolean {
-  let parsed: unknown;
-  try {
-    parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
-  } catch {
-    return false;
-  }
-  return isDiaryEntrySignatureLocked({
-    isSigned: hasDiarySignatures(parsed),
-    status: entry.status,
-  });
-}
 
 /**
  * Check if a diary entry is signature-locked: saved with a non-empty
@@ -78,7 +54,7 @@ function isDiaryEntryLocked(
   if (!entry) {
     return false;
   }
-  return isDiaryRowSignatureLocked(entry);
+  return photoService.isDiaryRowSignatureLocked(entry);
 }
 
 /**
@@ -107,7 +83,7 @@ function assertDiaryPhotoUploadTarget(
   if (entry.isAutomatic) {
     throw new ImmutableEntryError('Automatic diary entries cannot be modified');
   }
-  if (isDiaryRowSignatureLocked(entry)) {
+  if (photoService.isDiaryRowSignatureLocked(entry)) {
     throw new ImmutableEntryError('Signed diary entries cannot be modified');
   }
 }
@@ -168,6 +144,26 @@ const updatePhotoSchema = {
       orientationId: { type: ['string', 'null'] },
       sortOrder: { type: 'integer', minimum: 0 },
     },
+    additionalProperties: false,
+  },
+};
+
+const updatePhotoTagsSchema = {
+  body: {
+    type: 'object',
+    required: ['photoIds'],
+    properties: {
+      photoIds: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 1000,
+        uniqueItems: true,
+        items: { type: 'string', minLength: 1, maxLength: 36 },
+      },
+      areaId: { type: ['string', 'null'], minLength: 1, maxLength: 36 },
+      orientationId: { type: ['string', 'null'], minLength: 1, maxLength: 36 },
+    },
+    anyOf: [{ required: ['areaId'] }, { required: ['orientationId'] }],
     additionalProperties: false,
   },
 };
@@ -343,10 +339,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * List every saved-diary-entry photo of exactly one spot, newest first.
    *
    * Query params:
-   *   - areaId: area id or '__none__'
-   *   - orientationId: orientation id or '__none__'
+   *   - areaId: area id or '__none__' ('__any__' is rejected with 400)
+   *   - orientationId: orientation id, '__none__', or '__any__' (no orientation filter, #2226)
    *
-   * Returns: 200 with { area, orientation, photos } or 404
+   * Returns: 200 with { area, orientation, photos } or 400/404
    */
   fastify.get(
     '/spots/photos',
@@ -359,10 +355,18 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         orientationId: string;
       };
 
+      if (areaId === PHOTO_SPOT_ANY) {
+        throw new ValidationError('areaId cannot be __any__');
+      }
+
       const result = photoSpotService.listSpotPhotos(
         fastify.db,
         areaId === PHOTO_SPOT_NONE ? null : areaId,
-        orientationId === PHOTO_SPOT_NONE ? null : orientationId,
+        orientationId === PHOTO_SPOT_NONE
+          ? null
+          : orientationId === PHOTO_SPOT_ANY
+            ? PHOTO_SPOT_ANY
+            : orientationId,
       );
 
       return reply.status(200).send(result);
@@ -480,11 +484,12 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
   /**
    * PATCH /:id
-   * Update a photo's metadata (caption, sort order).
+   * Update a photo's metadata (caption, area, orientation, sort order).
    *
-   * Request body: { caption?, sortOrder? }
+   * Request body: { caption?, areaId?, orientationId?, sortOrder? }
    *
-   * Returns: 200 with { photo }, 404, or 403 if the diary entry is signed and saved
+   * Returns: 200 with { photo } plus { undo } when area or orientation changed (#2226),
+   * 404, or 403 if the diary entry is signed and saved
    */
   fastify.patch(
     '/:id',
@@ -509,7 +514,53 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         throw new NotFoundError('Photo not found');
       }
 
+      if (photo.areaId !== existing.areaId || photo.orientationId !== existing.orientationId) {
+        const entries = [
+          {
+            photoId: id,
+            before: { areaId: existing.areaId, orientationId: existing.orientationId },
+            after: { areaId: photo.areaId, orientationId: photo.orientationId },
+          },
+        ];
+        const undo = issueRestoreToken(undoStore, {
+          userId: request.user.id,
+          subject: { type: 'photo', id },
+          restore: (tx) => photoService.restorePhotoTags(tx, entries),
+        });
+        return reply.status(200).send({ photo, undo });
+      }
+
       return reply.status(200).send({ photo });
+    },
+  );
+
+  /**
+   * PATCH /tags
+   * Set area and/or orientation on several photos at once (#2226). One value for the whole
+   * selection; an absent key leaves that tag unchanged, null clears it. All or nothing.
+   *
+   * Request body: { photoIds, areaId?, orientationId? } (at least one of the two keys)
+   *
+   * Returns: 200 { updated, undo }; 400 unknown area/orientation; 403 IMMUTABLE_ENTRY
+   * (details.lockedPhotoIds); 404 (details.missingPhotoIds)
+   */
+  fastify.patch(
+    '/tags',
+    { schema: updatePhotoTagsSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
+
+      const body = request.body as UpdatePhotoTagsRequest;
+      const [firstPhotoId] = body.photoIds;
+      if (!firstPhotoId) throw new ValidationError('photoIds must not be empty');
+      const entries = photoService.updatePhotoTags(fastify.db, body);
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'photo', id: firstPhotoId },
+        restore: (tx) => photoService.restorePhotoTags(tx, entries),
+      });
+
+      return reply.status(200).send({ updated: entries.length, undo });
     },
   );
 
