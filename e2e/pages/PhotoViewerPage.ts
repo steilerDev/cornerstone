@@ -782,6 +782,7 @@ export class PhotoViewerPage {
    * shows all items immediately).
    */
   async openAreaPicker(): Promise<void> {
+    // Edit tags focuses the Area input without opening the list; one click opens it
     await this.areaPickerInput.click();
     const { expect } = await import('@playwright/test');
     await expect(this.pickerDropdown).toBeVisible();

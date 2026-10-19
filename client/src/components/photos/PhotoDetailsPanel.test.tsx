@@ -43,9 +43,15 @@ jest.unstable_mockModule('../AreaPicker/AreaPicker.js', () => ({
     value: string;
     nullable?: boolean;
     disabled?: boolean;
+    autoFocus?: boolean;
     onChange: (id: string) => void;
   }) => (
-    <div data-testid="area-picker" data-value={props.value} data-nullable={String(props.nullable)}>
+    <div
+      data-testid="area-picker"
+      data-value={props.value}
+      data-nullable={String(props.nullable)}
+      data-autofocus={String(Boolean(props.autoFocus))}
+    >
       {props.value !== '' ? (
         <button type="button" data-testid="area-chip-clear" aria-label="Clear Area">
           chip
@@ -399,16 +405,17 @@ describe('PhotoDetailsPanel editor', () => {
     expect(props.onEditingChange).toHaveBeenLastCalledWith(true);
   });
 
-  it('moves focus to the first enabled control after a frame (the area chip Clear when an area is set)', async () => {
+  it('asks the Area picker to take focus when the editor opens (the picker owns the focus move)', async () => {
     setup();
+    expect(screen.queryByTestId('area-picker')).not.toBeInTheDocument();
     await openEditor();
-    await waitFor(() => expect(screen.getByTestId('area-chip-clear')).toHaveFocus());
+    expect(screen.getByTestId('area-picker')).toHaveAttribute('data-autofocus', 'true');
   });
 
-  it('moves focus to the area input when no area is set yet', async () => {
+  it('also asks for focus when no area is set yet', async () => {
     setup({ photo: { ...PHOTO, areaId: null } });
     await openEditor();
-    await waitFor(() => expect(screen.getByTestId('area-input')).toHaveFocus());
+    expect(screen.getByTestId('area-picker')).toHaveAttribute('data-autofocus', 'true');
   });
 
   it('does not throw when the panel unmounts before the focus frame', async () => {

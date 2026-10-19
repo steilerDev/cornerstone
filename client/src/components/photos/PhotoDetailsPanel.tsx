@@ -112,7 +112,6 @@ export function PhotoDetailsPanel({
   const ownEditRef = useRef<HTMLButtonElement | null>(null);
   const editBtnRef = editTagsButtonRef ?? ownEditRef;
   const rootRef = useRef<HTMLElement | null>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => draftOf(photo));
@@ -152,14 +151,6 @@ export function PhotoDetailsPanel({
     setError(null);
     setSaved(false);
     changeEditing(true);
-    // The Edit tags button unmounts: move focus to the first enabled control of the form
-    window.requestAnimationFrame(() => {
-      formRef.current
-        ?.querySelector<HTMLElement>(
-          'input:not(:disabled), textarea:not(:disabled), button:not(:disabled)',
-        )
-        ?.focus();
-    });
   };
 
   const focusEditButton = () => {
@@ -291,7 +282,6 @@ export function PhotoDetailsPanel({
 
         {editing ? (
           <form
-            ref={formRef}
             className={styles.editForm}
             onSubmit={(e) => {
               e.preventDefault();
@@ -312,6 +302,7 @@ export function PhotoDetailsPanel({
                 nullable
                 nullLabel={t('photos:spots.noArea')}
                 disabled={saving}
+                autoFocus
               />
             </div>
             <div className={styles.field}>

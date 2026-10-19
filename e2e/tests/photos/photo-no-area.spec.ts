@@ -520,4 +520,31 @@ test.describe('Photos with no area: bulk tags and Edit tags', { tag: '@responsiv
     await viewer.editTagsButton.dispatchEvent('click');
     await expect(viewer.detailsForm).toHaveCount(0);
   });
+  // ───────────────────────────────────────────────────────────────────────────
+  // N10: one click on the Area field opens the list (no-area photo)
+  // ───────────────────────────────────────────────────────────────────────────
+  test('N10: right after Edit tags one click on the Area field opens the list; pick moves the photo', async ({
+    page,
+    testPrefix,
+  }, testInfo) => {
+    const s = await seed(page, tagOf(testPrefix, testInfo), cleanup);
+    const viewer = new PhotoSpotViewerPage(page);
+    const toasts = new ToastRegion(page);
+    await viewer.goto('none', 'none', s.photoIds[0]);
+
+    await viewer.openTagsEditor();
+    // The Area input has focus but the list is closed until the user acts
+    const input = viewer.formField('Area').locator('input');
+    await expect(input).toBeFocused();
+    await expect(page.locator('[data-search-picker-dropdown]')).toHaveCount(0);
+    await input.click();
+    await expect(page.locator('[data-search-picker-dropdown]')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await viewer.pickInEditor('Area', s.roomAName);
+    await viewer.saveTagsButton.click();
+    await expect(
+      toasts.undoToastWith(`Photo moved to ${s.wingName} › ${s.roomAName}`),
+    ).toBeVisible();
+  });
 });
