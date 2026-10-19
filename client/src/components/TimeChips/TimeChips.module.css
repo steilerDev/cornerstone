@@ -5,9 +5,7 @@
 }
 
 .label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  composes: fieldLabel from '../../styles/shared.module.css';
 }
 
 .row {
@@ -19,12 +17,9 @@
 }
 
 .input {
-  min-height: 2.75rem;
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  composes: input from '../../styles/shared.module.css';
+  width: auto;
+  min-height: var(--touch-target-min, 2.75rem);
   font-size: var(--font-size-base);
 }
 

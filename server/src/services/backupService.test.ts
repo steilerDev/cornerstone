@@ -1454,8 +1454,10 @@ describe('createBackup() v2 archive', () => {
       expect(names).toContain(`${basename(env.dataDir)}/photos/.trash/unrelated/file.txt`);
     });
 
-    it('does not treat the data directory itself as photo storage', async () => {
+    it('excludes <data dir>/.trash when the photo storage path is the data directory itself', async () => {
       using live = seedLive(env, ['x']);
+      put(env.dataDir, '.trash/photo-gone/original.jpg', 'trashed');
+      put(env.dataDir, 'photo-keep/original.jpg', 'live');
       put(env.dataDir, 'notes/.trash/kept.txt', 'user content');
 
       const created = await createBackup(drizzle(live), {
@@ -1464,7 +1466,12 @@ describe('createBackup() v2 archive', () => {
       });
 
       const names = await listArchive(join(env.backupDir, created.filename));
-      expect(names).toContain(`${basename(env.dataDir)}/notes/.trash/kept.txt`);
+      const root = basename(env.dataDir);
+      expect(names).toContain(`${root}/notes/.trash/kept.txt`);
+      expect(names).toContain(`${root}/photo-keep/original.jpg`);
+      expect(names.some((n) => n === `${root}/.trash` || n.startsWith(`${root}/.trash/`))).toBe(
+        false,
+      );
     });
   });
 

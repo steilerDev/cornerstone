@@ -213,9 +213,11 @@ export async function createBackup(
       // inside the data directory. Tar paths are cwd-relative: "<data dir name>/<rel>/.trash".
       const relPhotos = path.relative(dataDir, config.photoStoragePath);
       const trashArchivePath =
-        relPhotos === '' || relPhotos.startsWith('..') || path.isAbsolute(relPhotos)
+        relPhotos.startsWith('..') || path.isAbsolute(relPhotos)
           ? null
-          : [path.basename(dataDir), ...relPhotos.split(path.sep), '.trash'].join('/');
+          : [path.basename(dataDir), ...relPhotos.split(path.sep).filter(Boolean), '.trash'].join(
+              '/',
+            );
 
       // Archive the data directory, excluding the live DB, its sidecars and restore artifacts.
       // In create, filter receives cwd-relative paths such as "data/x".

@@ -1668,8 +1668,24 @@ describe('photoService', () => {
         const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
 
         expect(snapshot.row.id).toBe(PHOTO_ID);
+        expect(snapshot.moveError).toEqual(
+          expect.objectContaining({ message: expect.any(String) }),
+        );
+        expect((snapshot.moveError as NodeJS.ErrnoException).code).toBeDefined();
         expect(rowOf()).toBeUndefined();
         expect(existsSync(join(tempStoragePath, PHOTO_ID, 'original.jpg'))).toBe(true);
+      });
+
+      it('reports no moveError on success or when the directory is simply missing', () => {
+        seedPhoto();
+        seedFiles();
+        seedPhoto({ id: 'no-dir' });
+
+        const moved = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        const missing = photoService.trashPhoto(db, tempStoragePath, 'no-dir');
+
+        expect(moved).not.toHaveProperty('moveError');
+        expect(missing).not.toHaveProperty('moveError');
       });
     });
 
@@ -1937,6 +1953,92 @@ describe('photoService', () => {
       it('swallows a filesystem error', () => {
         // A path segment containing a NUL byte makes rmSync throw
         expect(() => photoService.purgeTrashedPhoto(tempStoragePath, 'bad\0id')).not.toThrow();
+      });
+
+      it('logs each failed removal with the photo id only, and never throws', () => {
+        const log = { warn: jest.fn() };
+
+        expect(() => photoService.purgeTrashedPhoto(tempStoragePath, 'bad\0id', log)).not.toThrow();
+
+        // One attempt per location (trash copy and live copy), each logged separately
+        expect(log.warn).toHaveBeenCalledTimes(2);
+        for (const call of log.warn.mock.calls) {
+          expect(call[0]).toEqual({
+            err: expect.objectContaining({ message: expect.any(String) }),
+            photoId: 'bad\0id',
+          });
+          expect(typeof call[1]).toBe('string');
+        }
+      });
+
+      it('does not log when removal succeeds or nothing exists', () => {
+        const log = { warn: jest.fn() };
+        seedPhoto();
+        seedFiles();
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID, log);
+        photoService.purgeTrashedPhoto(tempStoragePath, 'absent', log);
+
+        expect(log.warn).not.toHaveBeenCalled();
+      });
+
+      it('removes the live directory when the move to the trash had failed', () => {
+        seedPhoto();
+        seedFiles();
+        writeFileSync(join(tempStoragePath, '.trash'), 'not a directory');
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        expect(snapshot.moveError).toBeDefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(true);
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+      });
+
+      it('removes the live directory after a restore whose files moved back but whose transaction failed', () => {
+        seedEntry();
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(() =>
+          db.transaction((tx) => {
+            photoService.restoreTrashedPhoto(tx, tempStoragePath, snapshot);
+            throw new Error('commit failed');
+          }),
+        ).toThrow('commit failed');
+        // The rename back is not rolled back with the transaction
+        expect(rowOf()).toBeUndefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID, 'original.jpg'))).toBe(true);
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+      });
+
+      it('removes the trashed directory after a restore conflict', () => {
+        seedEntry({ isAutomatic: true });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        expect(() => restore(snapshot)).toThrow(ConflictError);
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+      });
+
+      it('never removes another photo while purging one', () => {
+        seedPhoto();
+        seedFiles();
+        seedPhoto({ id: 'photo-two' });
+        seedFiles('photo-two');
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, 'photo-two', 'original.jpg'))).toBe(true);
       });
     });
 

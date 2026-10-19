@@ -187,14 +187,30 @@ export function PhotoStrip({
               ) : null}
             </button>
             {canSelect ? (
-              <input
-                type="checkbox"
-                className={styles.select}
-                checked={selected}
-                onChange={() => onToggleSelect(tile.key)}
-                aria-label={t('tile.select', { n })}
-                data-testid={`${id}-select`}
-              />
+              <label className={styles.selectHit}>
+                <input
+                  type="checkbox"
+                  className={styles.selectInput}
+                  checked={selected}
+                  onChange={() => onToggleSelect(tile.key)}
+                  aria-label={t('tile.select', { n })}
+                  data-testid={`${id}-select`}
+                />
+                <span className={styles.selectBox} aria-hidden="true">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 7.5l2.5 2.5L11 4.5" />
+                  </svg>
+                </span>
+              </label>
             ) : null}
             <button
               type="button"

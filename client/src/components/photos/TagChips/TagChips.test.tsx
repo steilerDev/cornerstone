@@ -377,7 +377,7 @@ describe('TagChips', () => {
       await userEvent.click(screen.getByTestId('tc-orientation-__other'));
       expect(screen.getByTestId('orientation-picker')).toHaveAttribute(
         'data-empty-hint',
-        'No orientations configured. Add them in Settings → Orientations.',
+        'No orientations configured. Add them in Settings › Project setup › Photo orientations.',
       );
     });
 

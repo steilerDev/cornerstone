@@ -435,6 +435,13 @@ export async function deletePhoto(db: DbType, photoStoragePath: string, id: stri
 /** Row snapshot of a trashed photo, held in memory with its undo token. */
 export interface PhotoDeleteSnapshot {
   row: typeof photos.$inferSelect;
+  /** Set when moving the files into the trash failed (not ENOENT); the caller logs it. */
+  moveError?: unknown;
+}
+
+/** Minimal logger shape (a Fastify request or app logger). */
+export interface WarnLogger {
+  warn(obj: object, msg: string): void;
 }
 
 /** The undo transaction, as far as the restore needs it. */
@@ -463,8 +470,10 @@ export function trashPhoto(db: DbType, photoStoragePath: string, id: string): Ph
   try {
     mkdirSync(trash, { recursive: true });
     renameSync(path.join(photoStoragePath, id), path.join(trash, id));
-  } catch {
-    // ENOENT: nothing to move. Anything else: the directory stays in place and restore accepts it.
+  } catch (err) {
+    // ENOENT: nothing to move. Anything else: the directory stays in place (restore accepts it
+    // there, discard removes it) and the error is handed back for logging.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return { row, moveError: err };
   }
   return { row };
 }
@@ -542,12 +551,23 @@ export function restoreTrashedPhoto(
   if (inTrash) renameSync(trashed, live);
 }
 
-/** Remove one photo's trash directory (the undo discard step). Never throws. */
-export function purgeTrashedPhoto(photoStoragePath: string, id: string): void {
-  try {
-    rmSync(path.join(photoTrashDir(photoStoragePath), id), { recursive: true, force: true });
-  } catch {
-    // Best effort; the startup sweep removes leftovers.
+/**
+ * Undo discard step: remove the photo's files from the trash and from the live tree. Safe because
+ * discard only runs when the photo was not restored, so its row is already gone. Covers a failed
+ * move into the trash and a restore whose rename succeeded but whose transaction rolled back.
+ * Paths are built only from the stored id. Never throws.
+ */
+export function purgeTrashedPhoto(photoStoragePath: string, id: string, log?: WarnLogger): void {
+  for (const dir of [
+    path.join(photoTrashDir(photoStoragePath), id),
+    path.join(photoStoragePath, id),
+  ]) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch (err) {
+      // Best effort; the startup sweep removes trash leftovers.
+      log?.warn({ err, photoId: id }, 'Failed to remove a discarded photo');
+    }
   }
 }
 

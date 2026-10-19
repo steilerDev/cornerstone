@@ -380,6 +380,7 @@
       "failed_other": "{{count}} Fotos sind fehlgeschlagen. Nutze „Wiederholen“.",
       "lookup": "An diesem Tag existiert bereits ein Eintrag mit diesem Titel."
     },
-    "tryingAgain": "Wird erneut versucht…"
+    "tryingAgain": "Wird erneut versucht…",
+    "moreTypesSelected": "{{type}}, weitere Typen, ausgewählt"
   }
 }

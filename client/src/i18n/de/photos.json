@@ -91,7 +91,7 @@
     "noOrientation": "Keine Ausrichtung",
     "chooseArea": "Bereich wählen",
     "chooseOrientation": "Ausrichtung wählen",
-    "noOrientationsHint": "Keine Ausrichtungen konfiguriert. Füge diese unter Einstellungen → Ausrichtungen hinzu."
+    "noOrientationsHint": "Keine Ausrichtungen konfiguriert. Füge sie unter Einstellungen › Projekteinrichtung › Fotoausrichtungen hinzu."
   },
   "waiting": {
     "count_one": "{{count}} Foto wartet auf den Upload.",

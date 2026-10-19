@@ -284,6 +284,7 @@
     "text": "Text (optional)",
     "entryType": "Entry type",
     "more": "More",
+    "moreTypesSelected": "{{type}}, more types, selected",
     "siteDetails": "Site details",
     "company": "Company",
     "otherCompany": "Other company…",

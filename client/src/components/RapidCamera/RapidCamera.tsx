@@ -140,6 +140,8 @@ function CameraStage({
         />
         {flashing ? <div className={styles.flash} aria-hidden="true" /> : null}
 
+        {children ? <div className={styles.chips}>{children}</div> : null}
+
         <div className={styles.topBar}>
           <button
             type="button"
@@ -272,8 +274,6 @@ function CameraStage({
           ) : null}
         </div>
       </div>
-
-      {children ? <div className={styles.chips}>{children}</div> : null}
 
       <div role="status" className={styles.srOnly} data-testid="rapid-camera-status">
         {announcement}

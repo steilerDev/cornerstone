@@ -57,7 +57,7 @@
 .group[data-tone='onPhoto'] .chip {
   border-color: var(--color-photo-border);
   background: var(--color-photo-control-bg);
-  color: var(--color-white);
+  color: var(--color-photo-text);
 }
 
 .group[data-tone='onPhoto'] .chip:hover {
@@ -65,8 +65,8 @@
 }
 
 .group[data-tone='onPhoto'] .chip[aria-pressed='true'] {
-  background: var(--color-white);
-  border-color: var(--color-white);
+  background: var(--color-photo-text);
+  border-color: var(--color-photo-text);
   color: var(--color-photo-stage-bg);
 }
 

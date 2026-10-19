@@ -505,7 +505,7 @@ function validateMetadata(
         const validOutcomes: readonly string[] = DIARY_INSPECTION_OUTCOMES;
         if (!validOutcomes.includes(svm.outcome)) {
           throw new InvalidMetadataError(
-            `site_visit outcome must be one of: ${['pass', 'fail', 'conditional'].join(', ')}`,
+            `site_visit outcome must be one of: ${validOutcomes.join(', ')}`,
           );
         }
       }

@@ -1388,7 +1388,89 @@ describe('Photo Routes', () => {
       expect(mockPurgeTrashedPhoto).toHaveBeenCalledWith(
         photoStoragePath,
         '33333333-3333-3333-3333-333333333333',
+        expect.anything(),
       );
+    });
+
+    describe('logging (bare route harness with a captured log stream)', () => {
+      const ID = '33333333-3333-3333-3333-333333333333';
+      const MOVE_FAILED = 'Failed to move a deleted photo to the trash';
+
+      async function withBareApp(
+        run: (bare: FastifyInstance, lines: Array<Record<string, unknown>>) => Promise<void>,
+      ): Promise<void> {
+        const lines: Array<Record<string, unknown>> = [];
+        const bare = Fastify({
+          logger: {
+            level: 'warn',
+            stream: {
+              write: (chunk: string) => {
+                lines.push(JSON.parse(chunk) as Record<string, unknown>);
+              },
+            },
+          },
+        });
+        bare.decorate('db', app.db);
+        bare.decorate('config', app.config);
+        bare.decorateRequest('user', null);
+        bare.addHook('onRequest', async (request) => {
+          (request as unknown as { user: { id: string } }).user = { id: 'user-log' };
+        });
+        const photoRoutes = (await import('./photos.js')).default;
+        await bare.register(photoRoutes, { prefix: '/api/photos' });
+        await bare.ready();
+        try {
+          await run(bare, lines);
+        } finally {
+          await bare.close();
+        }
+      }
+
+      it('logs a failed move with the photo id only, and still issues the token', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        const moveError = Object.assign(new Error('EACCES'), { code: 'EACCES' });
+        mockTrashPhoto.mockReturnValue({ row: { id: ID }, moveError });
+
+        await withBareApp(async (bare, lines) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+
+          expect(res.statusCode).toBe(200);
+          expect(res.json<DeletePhotoResponse>().undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+          const warn = lines.find((l) => l.msg === MOVE_FAILED);
+          expect(warn).toBeDefined();
+          expect(warn!.photoId).toBe(ID);
+          expect(warn!.level).toBe(40);
+        });
+      });
+
+      it('logs nothing when the move succeeded', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        mockTrashPhoto.mockReturnValue({ row: { id: ID } });
+
+        await withBareApp(async (bare, lines) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+
+          expect(res.statusCode).toBe(200);
+          expect(lines.filter((l) => l.msg === MOVE_FAILED)).toEqual([]);
+        });
+      });
+
+      it('passes the request logger into the discard step', async () => {
+        mockGetPhoto.mockReturnValue(makePhoto());
+        mockTrashPhoto.mockReturnValue({ row: { id: ID } });
+
+        await withBareApp(async (bare) => {
+          const res = await bare.inject({ method: 'DELETE', url: `/api/photos/${ID}` });
+          const stored = undoStore.snapshots.get(res.json<DeletePhotoResponse>().undo.token)!;
+          if (stored.kind !== 'restore') throw new Error('expected a restore snapshot');
+
+          stored.discard!();
+
+          const call = mockPurgeTrashedPhoto.mock.calls[0]!;
+          expect(call.slice(0, 2)).toEqual([photoStoragePath, ID]);
+          expect(typeof (call[2] as { warn: unknown }).warn).toBe('function');
+        });
+      });
     });
 
     it('issues no token when the trash step reports the photo missing', async () => {

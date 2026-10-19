@@ -146,6 +146,16 @@ describe('PhotoStrip', () => {
       expect(props.onToggleSelect).toHaveBeenCalledWith('a');
     });
 
+    it('toggles selection from the keyboard (Space on the focused checkbox)', async () => {
+      const { props } = renderStrip([tile('a'), tile('b')]);
+      const box = screen.getByTestId('photo-strip-b-select');
+      expect(box).toHaveAccessibleName('Select photo 2');
+      box.focus();
+      await userEvent.keyboard(' ');
+      expect(props.onToggleSelect).toHaveBeenCalledTimes(1);
+      expect(props.onToggleSelect).toHaveBeenCalledWith('b');
+    });
+
     it('offers no select checkbox for a blocked tile', () => {
       renderStrip([tile('a', { state: 'blocked' })]);
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();

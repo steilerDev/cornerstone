@@ -60,7 +60,9 @@ export function EntryTypeChips({ value, onSelect, rowRef, disabled = false }: En
           <OverflowMenu
             usePortal
             placement="bottom-start"
-            triggerAriaLabel={moreLabel}
+            triggerAriaLabel={
+              menuCurrent ? t('capture.moreTypesSelected', { type: moreLabel }) : moreLabel
+            }
             disabled={disabled}
             controlRef={menuControlRef}
             data-testid="capture-type-more"

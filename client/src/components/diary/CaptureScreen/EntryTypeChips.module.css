@@ -5,9 +5,7 @@
 }
 
 .label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  composes: fieldLabel from '../../../styles/shared.module.css';
 }
 
 .fieldset {

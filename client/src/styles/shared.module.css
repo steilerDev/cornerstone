@@ -264,6 +264,12 @@
  * Standard text / date / number input field.
  * Seen in BudgetCategoriesPage, BudgetSourcesPage, VendorsPage, SubsidyProgramsPage.
  */
+.fieldLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
 .input {
   padding: var(--spacing-2) var(--spacing-3);
   border: 1px solid var(--color-border-strong);

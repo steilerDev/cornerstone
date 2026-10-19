@@ -654,11 +654,18 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
       const storage = fastify.config.photoStoragePath;
       const snapshot = photoService.trashPhoto(fastify.db, storage, id);
+      if (snapshot.moveError) {
+        request.log.warn(
+          { err: snapshot.moveError, photoId: id },
+          'Failed to move a deleted photo to the trash',
+        );
+      }
+      const log = request.log;
       const undo = issueRestoreToken(undoStore, {
         userId: request.user.id,
         subject: { type: 'photo', id },
         restore: (tx) => photoService.restoreTrashedPhoto(tx, storage, snapshot),
-        discard: () => photoService.purgeTrashedPhoto(storage, id),
+        discard: () => photoService.purgeTrashedPhoto(storage, id, log),
       });
 
       return reply.status(200).send({ undo });

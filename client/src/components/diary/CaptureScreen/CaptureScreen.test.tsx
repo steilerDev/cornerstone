@@ -274,6 +274,18 @@ function match(overrides: Partial<DiaryEntryLookupMatch> = {}): DiaryEntryLookup
   };
 }
 
+/**
+ * Waits for the draft to exist by its real signals (the create call resolved and the screen moved
+ * to the draft URL), not for the autosave text, which flips to "Saving…" on a slow runner.
+ */
+async function draftCreated() {
+  await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1/edit'),
+  );
+  await act(async () => {});
+}
+
 const heading = () => screen.getByRole('heading', { level: 1 });
 const saveButton = () => screen.getByTestId('capture-save');
 
@@ -457,7 +469,8 @@ describe('CaptureScreen: a new entry', () => {
 
     await user.type(screen.getByTestId('capture-title-input'), 'S');
 
-    expect(await screen.findByText(/^Saved \d/)).toBeInTheDocument();
+    await draftCreated();
+    await waitFor(() => expect(screen.getByText(/^Saved \d/)).toBeInTheDocument());
     expect(screen.getByTestId('sticky-action-bar-status')).toHaveTextContent('Draft saved.');
   });
 
@@ -512,7 +525,7 @@ describe('CaptureScreen: saving a new entry', () => {
     renderScreen({ state: { origin: { to: '/diary' } } });
     await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
-    await screen.findByText(/^Saved /);
+    await draftCreated();
 
     await user.click(saveButton());
 
@@ -534,7 +547,7 @@ describe('CaptureScreen: saving a new entry', () => {
     );
     renderScreen();
     await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
-    await screen.findByText(/^Saved /);
+    await draftCreated();
 
     await user.click(saveButton());
 
@@ -554,7 +567,7 @@ describe('CaptureScreen: saving a new entry', () => {
     );
     renderScreen();
     await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
-    await screen.findByText(/^Saved /);
+    await draftCreated();
 
     await user.click(saveButton());
 
@@ -568,7 +581,7 @@ describe('CaptureScreen: saving a new entry', () => {
     renderScreen();
     await user.click(screen.getByTestId('capture-type-site_visit'));
     await user.type(screen.getByTestId('capture-title-input'), 'Inspection');
-    await screen.findByText(/^Saved /);
+    await draftCreated();
 
     await user.click(saveButton());
 
@@ -592,7 +605,7 @@ describe('CaptureScreen: saving a new entry', () => {
     const user = userEvent.setup();
     renderScreen();
     await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
-    await screen.findByText(/^Saved /);
+    await draftCreated();
     await user.click(screen.getByTestId('capture-more-details'));
     await user.click(screen.getByRole('button', { name: '+ Add Signature' }));
 
@@ -656,7 +669,8 @@ describe('CaptureScreen: a draft', () => {
 
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
     expect(mockUpdate.mock.calls[0]![1]).toMatchObject({ metadata: { workersOnSite: 3 } });
-    expect(await screen.findByText(/^Saved \d/)).toBeInTheDocument();
+    await act(async () => {});
+    await waitFor(() => expect(screen.getByText(/^Saved \d/)).toBeInTheDocument());
   });
 
   it('autosaves typed text after the pause', async () => {
@@ -1580,6 +1594,85 @@ describe('CaptureScreen: photos left by an earlier session', () => {
     renderScreen({ mode: 'draft', entry: entryFixture() });
 
     expect(screen.queryByTestId('capture-orphans')).not.toBeInTheDocument();
+  });
+});
+
+describe('CaptureScreen: Enter key', () => {
+  it('Enter in the title does not save the entry', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.type(screen.getByTestId('capture-title-input'), 'Plaster{Enter}');
+    await draftCreated();
+
+    expect(mockPromote).not.toHaveBeenCalled();
+    expect(screen.getByTestId('capture-title-input')).toHaveValue('Plaster');
+    expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1/edit');
+  });
+
+  it('Enter in another text input (inspector) does not save either', async () => {
+    const user = userEvent.setup();
+    renderScreen({ mode: 'draft', entry: entryFixture({ entryType: 'site_visit' }) });
+
+    await user.type(screen.getByLabelText('Inspector'), 'Ines{Enter}');
+
+    expect(mockPromote).not.toHaveBeenCalled();
+  });
+
+  it('Save still works from the keyboard', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
+    await draftCreated();
+    saveButton().focus();
+
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(mockPromote).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/diary\/draft-1$/),
+    );
+  });
+
+  it('Space on Save also saves', async () => {
+    const user = userEvent.setup();
+    renderScreen({ mode: 'draft', entry: entryFixture() });
+    saveButton().focus();
+
+    await user.keyboard(' ');
+
+    await waitFor(() => expect(mockPromote).toHaveBeenCalledTimes(1));
+  });
+
+  it('Enter in the text area still adds a newline', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.type(screen.getByTestId('capture-text-input'), 'one{Enter}two');
+
+    expect(screen.getByTestId('capture-text-input')).toHaveValue('one\ntwo');
+    expect(mockPromote).not.toHaveBeenCalled();
+  });
+
+  it('Enter in the materials input still adds the material without saving', async () => {
+    const user = userEvent.setup();
+    renderScreen({ mode: 'draft', entry: entryFixture({ entryType: 'delivery' }) });
+
+    await user.type(screen.getByPlaceholderText('Add a material'), 'Bricks{Enter}');
+
+    expect(screen.getByRole('button', { name: 'Remove Bricks' })).toBeInTheDocument();
+    expect(mockPromote).not.toHaveBeenCalled();
+  });
+
+  it('Enter on a chip button is not swallowed', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+    const chip = screen.getByTestId('capture-workers-chip-2');
+    chip.focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

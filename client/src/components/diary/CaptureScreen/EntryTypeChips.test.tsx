@@ -20,6 +20,7 @@ describe('EntryTypeChips', () => {
       .map((b) => b.textContent);
     expect(labels).toEqual(['Daily log', 'Site visit', 'Delivery']);
     expect(screen.getByTestId('capture-type-more')).toHaveTextContent('More');
+    expect(screen.getByTestId('capture-type-more')).toHaveAccessibleName('More');
   });
 
   it('presses the chip of the current type', () => {
@@ -73,7 +74,7 @@ describe('EntryTypeChips', () => {
     const more = screen.getByTestId('capture-type-more');
     expect(more).toHaveTextContent(label);
     expect(more).toHaveAttribute('data-current', 'true');
-    expect(more).toHaveAccessibleName(label);
+    expect(more).toHaveAccessibleName(`${label}, more types, selected`);
     for (const chip of ['daily_log', 'site_visit', 'delivery']) {
       expect(screen.getByTestId(`capture-type-${chip}`)).toHaveAttribute('aria-pressed', 'false');
     }

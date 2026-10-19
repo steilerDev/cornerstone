@@ -1552,7 +1552,7 @@ describe('diaryService', () => {
       [
         'site_visit',
         { outcome: 'bad' },
-        'site_visit outcome must be one of: pass, fail, conditional',
+        'site_visit outcome must be one of: pass, conditional, fail',
       ],
       ['delivery', { vendor: 5 }, 'delivery vendor must be a string or null'],
       ['delivery', { materials: 'wood' }, 'delivery materials must be an array or null'],

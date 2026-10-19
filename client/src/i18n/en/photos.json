@@ -91,7 +91,7 @@
     "noOrientation": "No orientation",
     "chooseArea": "Choose an area",
     "chooseOrientation": "Choose an orientation",
-    "noOrientationsHint": "No orientations configured. Add them in Settings → Orientations."
+    "noOrientationsHint": "No orientations configured. Add them in Settings › Project setup › Photo orientations."
   },
   "waiting": {
     "count_one": "{{count}} photo waiting to upload",

@@ -533,7 +533,17 @@ export function CaptureScreen({
 
   return (
     <PageLayout title={h1Text} breadcrumbs={breadcrumbs} action={menu} testId="capture-screen">
-      <form className={styles.form} onSubmit={(event) => void handleSubmit(event)} noValidate>
+      <form
+        className={styles.form}
+        onSubmit={(event) => void handleSubmit(event)}
+        onKeyDown={(event) => {
+          // Enter in a text field must not save the entry; Save stays a button.
+          if (event.key === 'Enter' && (event.target as HTMLElement).tagName === 'INPUT') {
+            event.preventDefault();
+          }
+        }}
+        noValidate
+      >
         <div className={styles.columns}>
           <div className={styles.column}>
             {photos.orphans.length > 0 && (
