@@ -79,36 +79,3 @@
     /* Ensure live region is present for screen readers even with reduced motion */
   }
 }
-
-.hiddenNote {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.hiddenToggle {
-  min-height: var(--touch-target-min);
-  padding: 0 var(--spacing-1);
-  border: none;
-  background: none;
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.hiddenToggle:hover {
-  text-decoration: underline;
-}
-
-.hiddenToggle:focus-visible {
-  outline: none;
-  text-decoration: underline;
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm);
-}

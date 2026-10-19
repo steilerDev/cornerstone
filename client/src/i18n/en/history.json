@@ -1,0 +1,60 @@
+{
+  "description": "Everything that changed in your project, newest first.",
+  "filters": {
+    "toggle": "Filters",
+    "typeGroup": "Filter by type",
+    "type": {
+      "work_item_status": "Task status",
+      "invoice_status": "Invoice status",
+      "payment": "Payment",
+      "submission": "Submission",
+      "subsidy_status": "Grant status",
+      "invoice_created": "Invoice recorded",
+      "milestone_delay": "Milestone moved",
+      "budget_breach": "Over budget",
+      "auto_reschedule": "Schedule update"
+    },
+    "search": "Search",
+    "searchPlaceholder": "Search History",
+    "object": "Object",
+    "objectPicked": "Object · {{name}}",
+    "objectSearchLabel": "Find a task, invoice, grant or milestone",
+    "objectGone": "No longer exists",
+    "objectKind": {
+      "work_item": "Task",
+      "invoice": "Invoice",
+      "milestone": "Milestone",
+      "subsidy_program": "Grant"
+    },
+    "from": "From",
+    "to": "To",
+    "includeDiary": "Include site diary entries",
+    "includeDiaryHint": "Shows your own entries as well. Type filters apply to automatic changes only.",
+    "clear": "Clear filters"
+  },
+  "day": { "today": "Today", "yesterday": "Yesterday" },
+  "resultCount_one": "{{count}} change",
+  "resultCount_other": "{{count}} changes",
+  "loading": "Loading History",
+  "loadError": "Couldn't load History.",
+  "tryAgain": "Try again",
+  "infiniteScroll": {
+    "loadingMore": "Loading more changes",
+    "loadMore": "Load more",
+    "retry": "Retry",
+    "loadMoreError": "Couldn't load more changes.",
+    "endOfList": "You've reached the start of the history.",
+    "batchAppended_one": "{{count}} more change loaded",
+    "batchAppended_other": "{{count}} more changes loaded",
+    "batchAppendedAndEnd_one": "{{count}} more change loaded. You've reached the start of the history.",
+    "batchAppendedAndEnd_other": "{{count}} more changes loaded. You've reached the start of the history."
+  },
+  "empty": {
+    "title": "Nothing has changed yet",
+    "text": "When a task, invoice, grant or milestone changes, it shows up here by itself."
+  },
+  "filteredEmpty": {
+    "title": "No changes match these filters",
+    "text": "Try another type or other dates, or clear the filters."
+  }
+}

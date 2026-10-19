@@ -2048,3 +2048,11 @@ the chip, so the wait passed before the rAF ran. A wait proves nothing when its 
 before the event it is meant to await. Flush the frame instead:
 `await act(() => new Promise<void>((r) => window.requestAnimationFrame(() => r())))`. rAF callbacks run in
 FIFO order, so the component's frame has run by then.
+
+## URL-seeded drafts on same-route navigation (PR #2317)
+
+A `useState(urlValue)` draft (search box, debounced into the URL) goes stale when a link to the same
+route drops the param (sidebar entry while on `/history?q=x`): the page stays mounted, the feed
+unfilters, the input keeps the text. Check every draft re-syncs via the "remember previous prop"
+pattern; sibling drafts in the same PR usually do, the search draft is the one that gets missed.
+Also: `ref ??= fetch().catch(() => [])` caches a transient failure for the page's life.

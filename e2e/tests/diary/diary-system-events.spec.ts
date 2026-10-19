@@ -6,7 +6,8 @@
  *
  * Scenarios
  * 1. Real flow: a task status change writes one `v: 1` event that renders as a sentence, in
- *    English on the History filter ("History" chip), with an "Open task" link and a working Back.
+ *    English on the History page (#2224: it left the Site diary), with an "Open task" link and a
+ *    working Back to History.
  * 2. A no-op writes nothing; A to B to A inside 30 s leaves no event (PATCH back, and Undo).
  * 3. Collapsed repeats ("x3" and "3 times, ... to ...") and hidden delay notes (mocked list).
  * 4. A system event opened by URL shows the event layout and no Edit or Delete.
@@ -22,7 +23,7 @@ import { mockDiaryList, mockSystemEvent } from '../../fixtures/systemEventMocks.
 import { API } from '../../fixtures/testData.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryPage } from '../../pages/DiaryPage.js';
+import { HistoryPage } from '../../pages/HistoryPage.js';
 
 interface ApiEvent {
   id: string;
@@ -51,16 +52,15 @@ async function setTaskStatus(page: Page, taskId: string, status: string): Promis
   return body.undo?.token ?? null;
 }
 
-/** Scroll the infinite list until the row is on screen (other tests add events concurrently). */
-async function revealRow(diary: DiaryPage, id: string): Promise<void> {
-  const row = diary.systemEventRow(id);
-  await expect(async () => {
-    if (!(await row.isVisible())) await diary.scrollToLoadMore();
-    await expect(row).toBeVisible({ timeout: 1000 });
-  }).toPass();
+/**
+ * Open History scoped to the test's own events: the shared database holds events of other tests,
+ * so the `q` filter (the unique test prefix, part of every subject label) isolates the rows.
+ */
+async function openHistory(page: Page, testPrefix: string): Promise<HistoryPage> {
+  const history = new HistoryPage(page);
+  await history.goto({ type: 'work_item_status', q: testPrefix });
+  return history;
 }
-
-const HISTORY_URL = '/diary?filterMode=automatic&types=work_item_status';
 
 test.describe('System events (#2223)', { tag: '@responsive' }, () => {
   test('1. a status change writes one event that reads as a sentence on the History filter', async ({
@@ -87,29 +87,24 @@ test.describe('System events (#2223)', { tag: '@responsive' }, () => {
         subjectLabel: title,
       });
 
-      const diary = new DiaryPage(page);
-      await page.goto(HISTORY_URL);
-      await diary.heading.waitFor({ state: 'visible' });
-      await expect(page.getByTestId('mode-filter-automatic')).toHaveText('History');
-      await expect(page.getByTestId('mode-filter-automatic')).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-      await revealRow(diary, event.id);
+      const history = await openHistory(page, testPrefix);
+      await expect(history.typeChip('work_item_status')).toHaveText('Task status');
+      await expect(history.typeChip('work_item_status')).toHaveAttribute('aria-pressed', 'true');
 
-      const row = diary.systemEventRow(event.id);
+      const row = history.systemEventRow(event.id);
+      await expect(row).toBeVisible();
       await expect(row).toContainText(`${title} went from Not started to In progress`);
-      await expect(page.getByTestId(`system-event-${event.id}-type`)).toHaveText('Task status');
+      await expect(history.systemEventType(event.id)).toHaveText('Task status');
       await expect(page.getByText('Automatic', { exact: true })).toHaveCount(0);
 
-      // "Open task" goes to the task; "Back to Site diary" returns to the list.
-      await expect(diary.systemEventLink(event.id)).toHaveText(/Open task/);
-      await diary.systemEventLink(event.id).click();
+      // "Open task" goes to the task; "Back to History" returns to the list.
+      await expect(history.systemEventLink(event.id)).toHaveText(/Open task/);
+      await history.systemEventLink(event.id).click();
       await expect(page).toHaveURL(new RegExp(`/work-items/${taskId}`));
       const breadcrumbs = new BreadcrumbsBar(page);
-      await breadcrumbs.expectBack('Site diary');
+      await breadcrumbs.expectBack('History');
       await breadcrumbs.backLink.click();
-      await expect(page).toHaveURL(/\/diary(\?|$)/);
+      await expect(page).toHaveURL(/\/history(\?|$)/);
     } finally {
       if (taskId) await deleteWorkItemViaApi(page, taskId);
     }
@@ -196,22 +191,24 @@ test.describe('System events (#2223)', { tag: '@responsive' }, () => {
     });
     const requests: string[] = [];
 
-    await page.route(/\/api\/diary-entries(\?.*)?$/, async (route) => {
+    await page.route(/\/api\/history(\?.*)?$/, async (route) => {
       if (route.request().method() !== 'GET') return route.continue();
       requests.push(route.request().url());
       const showHidden = new URL(route.request().url()).searchParams.get('showHidden') === 'true';
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(
-          showHidden ? mockDiaryList([hiddenRow, repeatRow], 1) : mockDiaryList([repeatRow], 1),
-        ),
+        body: JSON.stringify({
+          ...(showHidden
+            ? mockDiaryList([hiddenRow, repeatRow], 1)
+            : mockDiaryList([repeatRow], 1)),
+          object: null,
+        }),
       });
     });
 
-    const diary = new DiaryPage(page);
-    await page.goto('/diary?filterMode=automatic');
-    await diary.heading.waitFor({ state: 'visible' });
+    const diary = new HistoryPage(page);
+    await diary.goto();
 
     // Collapsed repeats: the count is in the visible text, not only in the badge.
     const repeat = diary.systemEventRow('mock-se-repeat');
@@ -229,7 +226,7 @@ test.describe('System events (#2223)', { tag: '@responsive' }, () => {
 
     const reveal = page.waitForRequest(
       (request) =>
-        request.url().includes('/api/diary-entries') && request.url().includes('showHidden=true'),
+        request.url().includes('/api/history') && request.url().includes('showHidden=true'),
     );
     await diary.showHiddenToggle.click();
     await reveal;
@@ -281,18 +278,22 @@ test.describe('System events (#2223)', { tag: '@responsive' }, () => {
       const [event] = await taskEvents(page, taskId);
       const eventId = (event as ApiEvent).id;
 
-      const german = await openAsLocaleUser(browser, page, testPrefix, HISTORY_URL, 'de');
+      const german = await openAsLocaleUser(
+        browser,
+        page,
+        testPrefix,
+        `/history?type=work_item_status&q=${encodeURIComponent(testPrefix)}`,
+        'de',
+      );
       session.dispose = german.dispose;
-      const diary = new DiaryPage(german.page);
-      await revealRow(diary, eventId);
+      const diary = new HistoryPage(german.page);
 
       const row = diary.systemEventRow(eventId);
+      await expect(row).toBeVisible();
       await expect(row).toContainText(`${title} wechselte von Nicht begonnen zu In Arbeit`);
-      await expect(german.page.getByTestId(`system-event-${eventId}-type`)).toHaveText(
-        'Aufgabenstatus',
-      );
+      await expect(diary.systemEventType(eventId)).toHaveText('Aufgabenstatus');
       await expect(diary.systemEventLink(eventId)).toContainText('Aufgabe öffnen');
-      await expect(german.page.getByTestId('mode-filter-automatic')).toHaveText('Verlauf');
+      await expect(german.page.getByRole('heading', { level: 1, name: 'Verlauf' })).toBeVisible();
       await expect(row).not.toContainText('went from');
       await expect(row).not.toContainText('Open task');
     } finally {

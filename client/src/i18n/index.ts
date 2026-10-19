@@ -14,6 +14,7 @@ import enDiary from './en/diary.json';
 import enDocuments from './en/documents.json';
 import enSettings from './en/settings.json';
 import enAreas from './en/areas.json';
+import enHistory from './en/history.json';
 import enPhotoViewer from './en/photoViewer.json';
 import enPhotoAnnotator from './en/photoAnnotator.json';
 import enPhotos from './en/photos.json';
@@ -30,6 +31,7 @@ import deDiary from './de/diary.json';
 import deDocuments from './de/documents.json';
 import deSettings from './de/settings.json';
 import deAreas from './de/areas.json';
+import deHistory from './de/history.json';
 import dePhotoViewer from './de/photoViewer.json';
 import dePhotoAnnotator from './de/photoAnnotator.json';
 import dePhotos from './de/photos.json';
@@ -48,6 +50,7 @@ const resources = {
     documents: enDocuments,
     settings: enSettings,
     areas: enAreas,
+    history: enHistory,
     photoViewer: enPhotoViewer,
     photoAnnotator: enPhotoAnnotator,
     photos: enPhotos,
@@ -65,6 +68,7 @@ const resources = {
     documents: deDocuments,
     settings: deSettings,
     areas: deAreas,
+    history: deHistory,
     photoViewer: dePhotoViewer,
     photoAnnotator: dePhotoAnnotator,
     photos: dePhotos,
@@ -108,6 +112,7 @@ void i18n.use(initReactI18next).init({
     'documents',
     'settings',
     'areas',
+    'history',
     'photoViewer',
     'photoAnnotator',
     'photos',

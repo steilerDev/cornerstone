@@ -704,7 +704,7 @@ export function markInvoicesClaimed(
           invoiceStatus,
           'claimed',
           { userId },
-          { amount: invoice.amount, batchId },
+          { amount: invoice.amount, batchId, budgetSourceId: sourceId },
         );
       }
     }
@@ -740,7 +740,7 @@ export function markInvoicesClaimed(
           depStatus,
           'claimed',
           { userId },
-          { batchId },
+          { batchId, budgetSourceId: sourceId },
         );
       }
     }

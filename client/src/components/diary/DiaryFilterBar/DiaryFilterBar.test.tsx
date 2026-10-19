@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { screen, render, act, fireEvent } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import i18n from '../../../i18n/index.js';
 import { DiaryFilterBar } from './DiaryFilterBar.js';
@@ -21,8 +22,6 @@ describe('DiaryFilterBar', () => {
     activeTypes: [] as DiaryEntryType[],
     onTypesChange: jest.fn<(types: DiaryEntryType[]) => void>(),
     onClearAll: jest.fn<() => void>(),
-    filterMode: 'all' as 'all' | 'manual' | 'automatic',
-    onFilterModeChange: jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>(),
   };
 
   beforeEach(() => {
@@ -35,7 +34,16 @@ describe('DiaryFilterBar', () => {
   });
 
   const renderFilterBar = (overrides: Partial<ComponentProps<typeof DiaryFilterBar>> = {}) =>
-    render(<DiaryFilterBar {...defaultProps} {...overrides} />);
+    render(
+      <MemoryRouter>
+        <DiaryFilterBar {...defaultProps} {...overrides} />
+      </MemoryRouter>,
+    );
+
+  const chipOrder = (): (string | null)[] =>
+    screen
+      .getAllByTestId(/^type-filter-/)
+      .map((el) => el.getAttribute('data-testid')?.replace('type-filter-', '') ?? null);
 
   // ─── Rendering ─────────────────────────────────────────────────────────────
 
@@ -59,154 +67,54 @@ describe('DiaryFilterBar', () => {
     expect(screen.getByTestId('diary-date-to')).toBeInTheDocument();
   });
 
-  it('renders type filter chips for all entry types (invoice_created grouped under invoice_status)', () => {
+  it('renders only the five manual type chips, in order, and no automatic type chip', () => {
     renderFilterBar();
-    const expectedTypes: DiaryEntryType[] = [
-      'daily_log',
-      'site_visit',
-      'delivery',
-      'issue',
-      'general_note',
+    expect(chipOrder()).toEqual(['daily_log', 'site_visit', 'delivery', 'issue', 'general_note']);
+    for (const type of [
       'work_item_status',
       'invoice_status',
+      'invoice_created',
       'milestone_delay',
       'budget_breach',
       'auto_reschedule',
       'subsidy_status',
-    ];
-    for (const type of expectedTypes) {
-      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
+    ]) {
+      expect(screen.queryByTestId(`type-filter-${type}`)).not.toBeInTheDocument();
     }
-    // invoice_created is grouped under invoice_status chip — no separate chip
-    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
   });
 
-  // ─── Filter mode chips ─────────────────────────────────────────────────────
-
-  it('renders mode chips All, Manual and Automatic', () => {
+  it('renders no mode chips (All / Manual / Automatic / History) and no mode group', () => {
     renderFilterBar();
-    expect(screen.getByTestId('mode-filter-all')).toBeInTheDocument();
-    expect(screen.getByTestId('mode-filter-manual')).toBeInTheDocument();
-    expect(screen.getByTestId('mode-filter-automatic')).toBeInTheDocument();
-  });
-
-  it('All mode chip is active by default (aria-pressed="true")', () => {
-    renderFilterBar();
-    expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('mode-filter-automatic')).toHaveAttribute('aria-pressed', 'false');
-  });
-
-  it('active mode chip has modeChipActive CSS class', () => {
-    renderFilterBar({ filterMode: 'manual' });
-    expect(screen.getByTestId('mode-filter-manual').getAttribute('class') ?? '').toContain(
-      'modeChipActive',
-    );
-    expect(screen.getByTestId('mode-filter-all').getAttribute('class') ?? '').not.toContain(
-      'modeChipActive',
-    );
-  });
-
-  it('clicking Manual mode chip calls onFilterModeChange with "manual"', async () => {
-    const user = userEvent.setup();
-    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
-    renderFilterBar({ onFilterModeChange });
-
-    await user.click(screen.getByTestId('mode-filter-manual'));
-
-    expect(onFilterModeChange).toHaveBeenCalledWith('manual');
-  });
-
-  it('the automatic mode chip reads "History" and no chip reads "Automatic" (#2223)', () => {
-    renderFilterBar();
-    expect(screen.getByTestId('mode-filter-automatic')).toHaveTextContent(/^History$/);
+    expect(screen.queryByTestId('mode-filter-all')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mode-filter-manual')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mode-filter-automatic')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /filter by mode/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Automatic')).not.toBeInTheDocument();
   });
 
-  it('clicking Automatic mode chip calls onFilterModeChange with "automatic"', async () => {
-    const user = userEvent.setup();
-    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
-    renderFilterBar({ onFilterModeChange });
-
-    await user.click(screen.getByTestId('mode-filter-automatic'));
-
-    expect(onFilterModeChange).toHaveBeenCalledWith('automatic');
+  it('shows a History link to /history whose accessible name starts with its visible text', () => {
+    renderFilterBar();
+    const link = screen.getByTestId('diary-history-link');
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', '/history');
+    expect(link).toHaveTextContent(/^History\s*›$/);
+    expect(screen.getByRole('link', { name: /^History/ })).toBe(link);
+    expect(link).toHaveAccessibleName('History, the automatic record of changes');
   });
 
-  it('clicking All mode chip calls onFilterModeChange with "all"', async () => {
-    const user = userEvent.setup();
-    const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
-    renderFilterBar({ filterMode: 'manual', onFilterModeChange });
-
-    await user.click(screen.getByTestId('mode-filter-all'));
-
-    expect(onFilterModeChange).toHaveBeenCalledWith('all');
-  });
-
-  it('when filterMode="manual", renders exactly 5 manual type chips', () => {
-    renderFilterBar({ filterMode: 'manual' });
-    const manualTypes: DiaryEntryType[] = [
-      'daily_log',
-      'site_visit',
-      'delivery',
-      'issue',
-      'general_note',
-    ];
-    for (const type of manualTypes) {
-      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
+  it('shows the History link in German', async () => {
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    try {
+      renderFilterBar();
+      expect(screen.getByTestId('diary-history-link')).toHaveTextContent(/^Verlauf\s*›$/);
+      expect(screen.getByRole('link', { name: /^Verlauf/ })).toBeInTheDocument();
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
     }
-    // Automatic types should not be rendered
-    expect(screen.queryByTestId('type-filter-work_item_status')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-invoice_status')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-milestone_delay')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-budget_breach')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-auto_reschedule')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-subsidy_status')).not.toBeInTheDocument();
-  });
-
-  it('when filterMode="automatic", renders automatic type chips (invoice_created hidden)', () => {
-    renderFilterBar({ filterMode: 'automatic' });
-    const automaticTypes: DiaryEntryType[] = [
-      'work_item_status',
-      'invoice_status',
-      'milestone_delay',
-      'budget_breach',
-      'auto_reschedule',
-      'subsidy_status',
-    ];
-    for (const type of automaticTypes) {
-      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
-    }
-    // invoice_created is grouped under invoice_status
-    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
-    // Manual types should not be rendered
-    expect(screen.queryByTestId('type-filter-daily_log')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-site_visit')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-delivery')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-issue')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('type-filter-general_note')).not.toBeInTheDocument();
-  });
-
-  it('when filterMode="all" (default), all visible type chips are rendered (invoice_created hidden)', () => {
-    renderFilterBar({ filterMode: 'all' });
-    const visibleTypes: DiaryEntryType[] = [
-      'daily_log',
-      'site_visit',
-      'delivery',
-      'issue',
-      'general_note',
-      'work_item_status',
-      'invoice_status',
-      'milestone_delay',
-      'budget_breach',
-      'auto_reschedule',
-      'subsidy_status',
-    ];
-    for (const type of visibleTypes) {
-      expect(screen.getByTestId(`type-filter-${type}`)).toBeInTheDocument();
-    }
-    expect(screen.queryByTestId('type-filter-invoice_created')).not.toBeInTheDocument();
   });
 
   // ─── Type chip interaction ─────────────────────────────────────────────────
@@ -326,67 +234,22 @@ describe('DiaryFilterBar', () => {
 
   // ─── Chip labels and order (one word per type: common canonical or diary automatic) ──────────────────────────
 
-  const chipOrder = (): (string | null)[] =>
-    screen
-      .getAllByTestId(/^type-filter-/)
-      .map((el) => el.getAttribute('data-testid')?.replace('type-filter-', '') ?? null);
-
-  it('renders chips in exact order in all mode, without invoice_created', () => {
-    renderFilterBar({ filterMode: 'all' });
-    expect(chipOrder()).toEqual([
-      'daily_log',
-      'site_visit',
-      'delivery',
-      'issue',
-      'general_note',
-      'work_item_status',
-      'invoice_status',
-      'milestone_delay',
-      'budget_breach',
-      'auto_reschedule',
-      'subsidy_status',
-    ]);
-  });
-
-  it('renders exactly the 5 manual chips in order in manual mode', () => {
-    renderFilterBar({ filterMode: 'manual' });
-    expect(chipOrder()).toEqual(['daily_log', 'site_visit', 'delivery', 'issue', 'general_note']);
-  });
-
-  it('renders exactly the 6 automatic chips (no invoice_created) in order in automatic mode', () => {
-    renderFilterBar({ filterMode: 'automatic' });
-    expect(chipOrder()).toEqual([
-      'work_item_status',
-      'invoice_status',
-      'milestone_delay',
-      'budget_breach',
-      'auto_reschedule',
-      'subsidy_status',
-    ]);
-  });
-
-  it('shows one word per type: canonical for manual, diary:entryTypes for automatic', () => {
+  it('shows one canonical word per manual type', () => {
     renderFilterBar();
     expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Note$/);
-    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice status$/);
-    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(/^Task status$/);
-    expect(screen.getByTestId('type-filter-subsidy_status')).toHaveTextContent(/^Grant status$/);
-    expect(screen.getByTestId('type-filter-milestone_delay')).toHaveTextContent(
-      /^Milestone moved$/,
-    );
     expect(screen.getByTestId('type-filter-issue')).toHaveTextContent(/^Defect$/);
     expect(screen.getByTestId('type-filter-daily_log')).toHaveTextContent(/^Daily log$/);
   });
 
-  it('the mobile toggle gets mobileToggleOpen only while the filters are open', () => {
+  it('the mobile toggle gets the shared filtersToggleOpen class only while the filters are open', () => {
     renderFilterBar();
     const toggle = screen.getByRole('button', { name: 'Toggle filters' });
-    expect(toggle.className).toContain('mobileToggle');
-    expect(toggle.className).not.toContain('mobileToggleOpen');
+    expect(toggle.className).toContain('filtersToggle');
+    expect(toggle.className).not.toContain('filtersToggleOpen');
     fireEvent.click(toggle);
-    expect(toggle.className).toContain('mobileToggleOpen');
+    expect(toggle.className).toContain('filtersToggleOpen');
     fireEvent.click(toggle);
-    expect(toggle.className).not.toContain('mobileToggleOpen');
+    expect(toggle.className).not.toContain('filtersToggleOpen');
   });
 
   it('shows the English filters toggle text', () => {
@@ -403,12 +266,6 @@ describe('DiaryFilterBar', () => {
     try {
       renderFilterBar();
       expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Notiz$/);
-      expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
-        /^Aufgabenstatus$/,
-      );
-      expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(
-        /^Rechnungsstatus$/,
-      );
       expect(screen.getByRole('button', { name: 'Filter ein-/ausblenden' })).toHaveTextContent(
         /^🔍 Filter\s*$/,
       );
@@ -438,37 +295,6 @@ describe('DiaryFilterBar', () => {
     renderFilterBar({ searchQuery: '' });
     await user.type(screen.getByTestId('diary-search-input'), '{Escape}');
     expect(defaultProps.onSearchChange).not.toHaveBeenCalled();
-  });
-
-  it('does not throw when a mode chip is clicked without an onFilterModeChange handler', async () => {
-    const user = userEvent.setup();
-    renderFilterBar({ onFilterModeChange: undefined });
-    await user.click(screen.getByTestId('mode-filter-manual'));
-    expect(screen.getByTestId('diary-filter-bar')).toBeInTheDocument();
-  });
-
-  it('defaults to all mode (all 11 chips) when filterMode is omitted', () => {
-    renderFilterBar({ filterMode: undefined });
-    expect(chipOrder()).toHaveLength(11);
-    expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('toggling the grouped Invoice chip on adds invoice_status and invoice_created together', async () => {
-    const user = userEvent.setup();
-    renderFilterBar({ activeTypes: ['daily_log'] });
-    await user.click(screen.getByTestId('type-filter-invoice_status'));
-    expect(defaultProps.onTypesChange).toHaveBeenCalledWith([
-      'daily_log',
-      'invoice_status',
-      'invoice_created',
-    ]);
-  });
-
-  it('toggling the grouped Invoice chip off removes both grouped types', async () => {
-    const user = userEvent.setup();
-    renderFilterBar({ activeTypes: ['daily_log', 'invoice_status', 'invoice_created'] });
-    await user.click(screen.getByTestId('type-filter-invoice_status'));
-    expect(defaultProps.onTypesChange).toHaveBeenCalledWith(['daily_log']);
   });
 
   // ─── Clear all button ──────────────────────────────────────────────────────
@@ -618,31 +444,15 @@ describe('DiaryFilterBar', () => {
       expect(onDraftsVisibleChange).toHaveBeenCalledWith(true);
     });
 
-    it('Scenario 17: drafts chip is independent from mode chips and has its own group', async () => {
+    it('Scenario 17: the drafts chip has its own accessible group and is the only status control', async () => {
       const user = userEvent.setup();
-      const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
       const onDraftsVisibleChange = jest.fn<(v: boolean) => void>();
-      renderFilterBar({
-        filterMode: 'all',
-        onFilterModeChange,
-        draftsVisible: false,
-        onDraftsVisibleChange,
-      });
+      renderFilterBar({ draftsVisible: false, onDraftsVisibleChange });
 
-      // Drafts chip group exists as a distinct accessible group
       expect(screen.getByRole('group', { name: /filter by draft status/i })).toBeInTheDocument();
-
-      // Mode chip click calls onFilterModeChange, not onDraftsVisibleChange
-      await user.click(screen.getByTestId('mode-filter-manual'));
-      expect(onFilterModeChange).toHaveBeenCalledWith('manual');
-      expect(onDraftsVisibleChange).not.toHaveBeenCalled();
-
-      jest.clearAllMocks();
-
-      // Drafts chip click calls onDraftsVisibleChange, not onFilterModeChange
       await user.click(screen.getByTestId('status-filter-drafts'));
       expect(onDraftsVisibleChange).toHaveBeenCalledWith(true);
-      expect(onFilterModeChange).not.toHaveBeenCalled();
+      expect(defaultProps.onTypesChange).not.toHaveBeenCalled();
     });
   });
 
@@ -652,9 +462,11 @@ describe('DiaryFilterBar', () => {
       onOpen: jest.Mock = jest.fn(),
     ) =>
       render(
-        <CommandSearchProvider isOpen={false} onOpen={onOpen} onClose={() => {}}>
-          <DiaryFilterBar {...defaultProps} {...overrides} />
-        </CommandSearchProvider>,
+        <MemoryRouter>
+          <CommandSearchProvider isOpen={false} onOpen={onOpen} onClose={() => {}}>
+            <DiaryFilterBar {...defaultProps} {...overrides} />
+          </CommandSearchProvider>
+        </MemoryRouter>,
       );
 
     it('marks the search field as the page search target', () => {

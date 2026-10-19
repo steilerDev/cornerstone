@@ -105,6 +105,7 @@ interface StatusEventSpec {
   depositEntryType?: 'deposit' | 'refund';
   depositId?: string;
   batchId?: string;
+  budgetSourceId?: string;
   /** false = run W1/W3 but never insert (progress payments moving to pending). */
   writeRow?: boolean;
 }
@@ -121,6 +122,7 @@ function statusMetadata(spec: StatusEventSpec): StatusChangedMetadataV1 {
     ...(spec.depositEntryType !== undefined && { depositEntryType: spec.depositEntryType }),
     ...(spec.depositId !== undefined && { depositId: spec.depositId }),
     ...(spec.batchId !== undefined && { batchId: spec.batchId }),
+    ...(spec.budgetSourceId !== undefined && { budgetSourceId: spec.budgetSourceId }),
   };
 }
 
@@ -241,6 +243,7 @@ export function onWorkItemStatusChanged(
  * @param invoiceNumber - Raw invoice number; null or '' is stored as no label
  * @param extra.amount - Invoice amount after the change (major units)
  * @param extra.batchId - Bank-report batch (W5)
+ * @param extra.budgetSourceId - Funding source of the bank-report batch (#2224)
  */
 export function onInvoiceStatusChanged(
   db: DbType,
@@ -249,7 +252,7 @@ export function onInvoiceStatusChanged(
   previousStatus: string,
   newStatus: string,
   ctx: EventContext = SYSTEM_CONTEXT,
-  extra: { amount?: number; batchId?: string } = {},
+  extra: { amount?: number; batchId?: string; budgetSourceId?: string } = {},
 ): void {
   recordStatusEvent(
     db,
@@ -264,6 +267,7 @@ export function onInvoiceStatusChanged(
       subjectLabel: toSubjectLabel(invoiceNumber),
       amount: extra.amount,
       batchId: extra.batchId,
+      budgetSourceId: extra.budgetSourceId,
     },
     ctx,
   );
@@ -280,7 +284,7 @@ export function onDepositStatusChanged(
   previousStatus: string,
   newStatus: string,
   ctx: EventContext = SYSTEM_CONTEXT,
-  extra: { batchId?: string } = {},
+  extra: { batchId?: string; budgetSourceId?: string } = {},
 ): void {
   // A row is written only for paid / claimed targets (AC-17); a move back to pending still
   // runs W1/W3 so it can retract the event it reverses.
@@ -299,6 +303,7 @@ export function onDepositStatusChanged(
       depositEntryType: deposit.entryType,
       depositId: deposit.id,
       batchId: extra.batchId,
+      budgetSourceId: extra.budgetSourceId,
       writeRow: newStatus === 'paid' || newStatus === 'claimed',
     },
     ctx,

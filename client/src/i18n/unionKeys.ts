@@ -28,6 +28,8 @@ import {
   DIARY_SOURCE_ENTITY_TYPES,
   FUNDING_SOURCE_STATUS_ACTIONS,
   GRANT_STATUS_ACTIONS,
+  HISTORY_EVENT_TYPES,
+  HISTORY_OBJECT_TYPES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
   INVOICE_DEPOSIT_STATUSES,
@@ -55,7 +57,7 @@ import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
-  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common';
+  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common' | 'history';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -124,6 +126,10 @@ export const I18N_UNION_KEYS = {
   diaryOutcome: unionKeySet('diary', 'form.outcomeOptions', DIARY_INSPECTION_OUTCOMES),
   /** diary — defect severity chip label. */
   diarySeverity: unionKeySet('diary', 'form.severityOptions', DIARY_ISSUE_SEVERITIES),
+  /** history — History type filter chips (#2224). */
+  historyEventType: unionKeySet('history', 'filters.type', HISTORY_EVENT_TYPES),
+  /** history — kind word of an object in the History object filter (#2224). */
+  historyObjectType: unionKeySet('history', 'filters.objectKind', HISTORY_OBJECT_TYPES),
   /** auth — OIDC login error banner message. */
   oidcLoginError: unionKeySet('auth', 'login.oidcErrors', OIDC_LOGIN_ERROR_CODES),
   // ── Canonical status vocabulary (glossary v1, #2192) ─────────────────────────────────────

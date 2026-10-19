@@ -16,6 +16,8 @@
  *       keep rendering today's page with the query intact
  * - E1c The six /settings/manage?tab=... links the Project setup page serves itself (#2215)
  *       land on their section anchor, `tab` removed, by exactly one replaceState
+ * - E1d The two /diary?filterMode=automatic|all links the Site diary page serves itself (#2224)
+ *       land on /history (and /history?include=diary), `types` becoming the first History type
  * - E2  /login?error= and /login?next= are left alone; an unauthenticated legacy URL lands on
  *       /login without ever touching its target
  * - E3  Permanent URLs (vCard /companies/:id, /budget/vendors/:id, calendar-entry URLs) work
@@ -492,8 +494,9 @@ test.describe('Legacy URL walk (route map)', () => {
     const queryMaps = ENTRIES.filter(
       (entry) => entry.stage === 'planned' && entry.match?.query !== undefined,
     );
-    // 10 before #2215; the six Project setup tabs are served by that page now (E1c)
-    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(4);
+    // 10 before #2215; the six Project setup tabs are served by that page now (E1c), and the
+    // two Site diary ?filterMode maps by the diary page (#2224, E1d)
+    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(2);
 
     for (const entry of queryMaps) {
       const query = entry.match?.query ?? {};
@@ -571,6 +574,62 @@ test.describe('Legacy URL walk (route map)', () => {
         `?tab=${tab} is rewritten by exactly one replaceState`,
       ).toEqual(['replaceState']);
     }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // E1d — the two Site diary ?filterMode links the diary page serves itself (#2224)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  test('E1d: the route map marks the two ?filterMode links as served by the diary page', () => {
+    const served = ENTRIES.filter(
+      (entry) =>
+        entry.from.startsWith('/diary?filterMode=') &&
+        entry.stage === 'interim' &&
+        entry.interim === 'page',
+    );
+    expect(served.map((entry) => entry.from).sort()).toEqual([
+      '/diary?filterMode=all',
+      '/diary?filterMode=automatic',
+    ]);
+  });
+
+  test('E1d: ?filterMode=automatic lands on /history, types become the first History type, one replaceState', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    const from = `${routeUrl('diary')}?filterMode=automatic&types=daily_log,invoice_status,payment&q=walk&dateFrom=2026-01-05&dateTo=2026-02-06&other=dropped`;
+    await page.goto(from);
+    await waitForShell(page);
+
+    await expect(page).toHaveURL((url) => {
+      const params = url.searchParams;
+      return (
+        url.pathname === routeUrl('history') &&
+        params.get('type') === 'invoice_status' &&
+        params.get('q') === 'walk' &&
+        params.get('dateFrom') === '2026-01-05' &&
+        params.get('dateTo') === '2026-02-06' &&
+        !params.has('filterMode') &&
+        !params.has('types') &&
+        !params.has('other') &&
+        !params.has('include')
+      );
+    });
+    await expectSingleHop(page, routeUrl('history'), true);
+  });
+
+  test('E1d: ?filterMode=all lands on /history?include=diary', async ({ page }) => {
+    await installRouteLog(page);
+    await page.goto(`${routeUrl('diary')}?filterMode=all`);
+    await waitForShell(page);
+
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === routeUrl('history') &&
+        url.searchParams.get('include') === 'diary' &&
+        !url.searchParams.has('filterMode'),
+    );
+    await expectSingleHop(page, routeUrl('history'), true);
   });
 
   // ───────────────────────────────────────────────────────────────────────────

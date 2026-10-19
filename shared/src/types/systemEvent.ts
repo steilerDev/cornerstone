@@ -22,6 +22,8 @@ export interface StatusChangedMetadataV1 {
   depositId?: string;
   /** Bank-report submission (W5). */
   batchId?: string;
+  /** Bank-report submission (W5): the funding source the batch was submitted for (#2224). */
+  budgetSourceId?: string;
   /** Reserved for contract 14. */
   revertOf?: string;
 }
@@ -65,4 +67,19 @@ export interface SystemEventRepeat {
   count: number;
   firstAt: string;
   lastAt: string;
+}
+
+/** History only: a bank-report submission collapsed into one row (ADR-040 §6, #2224). */
+export interface SystemEventBatchSummary {
+  batchId: string;
+  /** Distinct invoices in the batch. */
+  invoiceCount: number;
+  /** Submitted total (see listHistory); null when an amount is missing. */
+  amount: number | null;
+  /** First three invoices: live number, else the snapshot label; null = no number. */
+  invoiceLabels: (string | null)[];
+  budgetSourceId: string | null;
+  budgetSourceName: string | null;
+  /** null when the batch names no source (written before #2224). */
+  budgetSourceExists: boolean | null;
 }

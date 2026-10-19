@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-// The quiet group (Areas is served; History and Documents are still planned): proves the separator
+// The quiet group (Areas and History are served; Documents is still planned): proves the separator
 // and the quiet link styling from the real NavConfig.
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { useMemo } from 'react';

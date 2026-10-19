@@ -34,12 +34,14 @@ import enDiary from './en/diary.json';
 import enHouseholdItems from './en/householdItems.json';
 import enAuth from './en/auth.json';
 import enCommon from './en/common.json';
+import enHistory from './en/history.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
 import deHouseholdItems from './de/householdItems.json';
 import deAuth from './de/auth.json';
 import deCommon from './de/common.json';
+import deHistory from './de/history.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -51,6 +53,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   householdItems: { en: enHouseholdItems, de: deHouseholdItems },
   auth: { en: enAuth, de: deAuth },
   common: { en: enCommon, de: deCommon },
+  history: { en: enHistory, de: deHistory },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -79,8 +82,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 44 registered sets', () => {
-    expect(SETS).toHaveLength(44);
+  it('iterates all 46 registered sets', () => {
+    expect(SETS).toHaveLength(46);
   });
 });
 
@@ -172,6 +175,8 @@ describe('I18N_UNION_KEYS registry', () => {
       'diaryWeather',
       'diaryOutcome',
       'diarySeverity',
+      'historyEventType',
+      'historyObjectType',
       'oidcLoginError',
       'statusVocabularyInvoice',
       'statusVocabularyProgressPayment',

@@ -643,3 +643,67 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* ============================================================
+ * FILTERS TOGGLE (phone)
+ * ============================================================ */
+
+/**
+ * "Filters" disclosure button of a filter area: hidden from 768px, a full-width button below.
+ * Pair with .filtersToggleOpen while the panel is expanded and .filtersToggleCount for the badge.
+ * Seen in DiaryFilterBar and HistoryFilters.
+ */
+.filtersToggle {
+  display: none;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  text-align: left;
+  position: relative;
+}
+
+.filtersToggle:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.filtersToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Open state: toggle is expanded, mark it with the primary accent */
+.filtersToggleOpen {
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-hover);
+}
+
+.filtersToggleCount {
+  display: inline-block;
+  margin-left: var(--spacing-2);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 767px) {
+  .filtersToggle {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filtersToggle {
+    transition: none;
+  }
+}

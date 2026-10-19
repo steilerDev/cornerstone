@@ -636,7 +636,16 @@ export type {
   SystemEventMetadataV1,
   SystemEventMetadata,
   SystemEventRepeat,
+  SystemEventBatchSummary,
 } from './types/systemEvent.js';
+export { HISTORY_EVENT_TYPES, HISTORY_OBJECT_TYPES } from './types/history.js';
+export type {
+  HistoryEventType,
+  HistoryObjectType,
+  HistoryQuery,
+  HistoryObjectRef,
+  HistoryListResponse,
+} from './types/history.js';
 export { SYSTEM_EVENT_NAMES, isSystemEventMetadataV1 } from './lib/systemEvent.js';
 export type { SystemEventName } from './lib/systemEvent.js';
 export {

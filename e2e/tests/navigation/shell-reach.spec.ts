@@ -13,6 +13,7 @@
  * - Photos      Photos
  * - Money       Money, Invoices, Funding sources, Grants, Bank report
  * - Companies   Companies (served on /companies since #2213)
+ * - History     History (served since #2224)
  * - Settings    Project setup, Account, Users, Backups (admin session)
  *
  * Each test: start on Home, navigate, check the final path, the visible h1, exactly one current
@@ -59,6 +60,7 @@ const AREAS = [
   },
   { area: 'Companies', rows: [{ route: 'companies' }] },
   { area: 'Areas', rows: [{ route: 'areas' }] },
+  { area: 'History', rows: [{ route: 'history' }] },
   {
     area: 'Settings',
     rows: [

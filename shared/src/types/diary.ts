@@ -10,7 +10,11 @@
 
 import type { PaginatedResponse } from './pagination.js';
 import type { AreaSummary } from './area.js';
-import type { SystemEventMetadata, SystemEventRepeat } from './systemEvent.js';
+import type {
+  SystemEventBatchSummary,
+  SystemEventMetadata,
+  SystemEventRepeat,
+} from './systemEvent.js';
 
 // ─── Entry Types ──────────────────────────────────────────────────────────────
 
@@ -198,6 +202,8 @@ export interface DiaryEntrySummary {
   repeat?: SystemEventRepeat;
   /** Only with showHidden=true: R1 would hide this row (logged after its milestone was reached). */
   hidden?: boolean;
+  /** History only: set on a submission row (batch collapse). */
+  batch?: SystemEventBatchSummary;
   photoCount: number;
   createdBy: DiaryUserSummary | null;
   createdAt: string;

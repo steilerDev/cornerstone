@@ -14,6 +14,7 @@ Moving state from history `state` into a query param, or speccing URL-driven inp
    - **How to apply:** before speccing a new query param, grep `e2e/` for `waitForURL('**/<path>')`. List each occurrence for e2e-test-engineer with a regex replacement (#2197: 13 hits in 7 files).
 3. **React Router 7 `BrowserRouter` applies location updates inside `startTransition`.** An input controlled by a URL-derived value gets reset to the old value on the urgent re-render, so fast typing drops keystrokes.
    - **How to apply:** keep a local draft plus a debounced commit, and sync from props only when no commit is pending.
+   - The same applies to **every** URL-controlled control, not only text inputs: in #2224 a checkbox bound to `?include=` was reverted by React until the replace landed (Playwright `check()` failed). Spec a local draft for checkboxes and date inputs too.
    - Also check for any `isLoading && items.length === 0` early return that unmounts the toolbar. That is how DataTable lost focus at 0 results.
 4. **`scan-privacy.mjs --profile full` flags any `+CC …` or `0…`-prefixed number, even an invented one.**
    - **How to apply:** use `555-01NN`-style synthetic phones in specs, fixtures and tests, then scan the spec itself before handing it over.

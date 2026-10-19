@@ -174,6 +174,7 @@ test.describe('i18n: Language Switching', () => {
       'Finanzen',
       'Firmen',
       'Bereiche',
+      'Verlauf',
     ]);
     // The footer Settings entry sits in its own landmark
     await expect(

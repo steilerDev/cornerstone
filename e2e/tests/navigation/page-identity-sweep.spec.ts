@@ -115,6 +115,7 @@ const SETTINGS = 'sidebar-section-settings';
 const HOME = 'sidebar-section-home';
 const COMPANIES = 'sidebar-section-companies';
 const AREAS = 'sidebar-section-areas';
+const HISTORY = 'sidebar-section-history';
 
 const ROWS: SweepRow[] = [
   // Tasks
@@ -348,6 +349,14 @@ const ROWS: SweepRow[] = [
     title: new RegExp(`^Areas · ${HOUSE}$`),
     crumbs: false,
     active: AREAS,
+  },
+  // History (#2224): the system-event feed, a main view of its own section
+  {
+    id: 'history',
+    path: () => routeUrl('history'),
+    h1: 'History',
+    crumbs: false,
+    active: HISTORY,
   },
   // Companies (#2213): the list, the New company dialog route over it, and a company page
   {

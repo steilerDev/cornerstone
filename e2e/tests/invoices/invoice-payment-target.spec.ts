@@ -17,7 +17,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
-import { DiaryPage } from '../../pages/DiaryPage.js';
+import { HistoryPage } from '../../pages/HistoryPage.js';
 
 interface Seeded {
   vendorId: string;
@@ -86,15 +86,12 @@ test.describe('Progress payment event and link (#2223)', { tag: '@responsive' },
         depositId,
       });
 
-      // History filter: the sentence and the link row.
-      const diary = new DiaryPage(page);
-      await page.goto('/diary?filterMode=automatic&types=invoice_status');
-      await diary.heading.waitFor({ state: 'visible' });
+      // History, Payment filter: the sentence and the link row. The invoice number (it carries
+      // the unique test prefix) isolates this invoice's rows in the shared database.
+      const diary = new HistoryPage(page);
+      await diary.goto({ type: 'payment', q: invoiceNumber });
       const row = diary.systemEventRow(event.id);
-      await expect(async () => {
-        if (!(await row.isVisible())) await diary.scrollToLoadMore();
-        await expect(row).toBeVisible({ timeout: 1000 });
-      }).toPass();
+      await expect(row).toBeVisible();
       await expect(row).toContainText(
         new RegExp(
           `Progress payment of .*1,250\\.00.* for invoice ${invoiceNumber} went from To pay to Paid`,

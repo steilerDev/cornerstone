@@ -64,6 +64,7 @@
     { "path": "/diary/:id", "guard": "member", "kind": "page", "element": "DiaryEntryDetailPage" },
     { "path": "/diary/:id/edit", "guard": "member", "kind": "page", "element": "DiaryCapturePage" },
     { "path": "/diary/new", "guard": "member", "kind": "page", "element": "DiaryCapturePage" },
+    { "path": "/history", "guard": "member", "kind": "page", "element": "HistoryPage" },
     {
       "path": "/household-items",
       "guard": "member",

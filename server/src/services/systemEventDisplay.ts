@@ -9,6 +9,8 @@
  *     Parameters are compared as `json_remove(metadata, '$.subjectLabel')` text (canonical key
  *     order, ADR-040 §2); legacy rows collapse on identical title and body.
  * R3: nothing is deleted. `showHidden` turns R1 off (R2 still applies).
+ * Batches (#2224): with `collapseBatches`, rows sharing `metadata.batchId` collapse into the first
+ *     (`created_at, id`); `raw` (admin) turns R1, R2 and batch collapse off.
  *
  * Manual rows (`is_automatic = 0`) are never grouped. Reused by `GET /api/history` (contract 17).
  */
@@ -27,12 +29,18 @@ export interface DisplayQueryOptions {
   where: SQL | undefined;
   /** Turn R1 off; rows R1 would hide come back with `hidden: true`. */
   showHidden: boolean;
+  /** Admin diagnostics: every row is its own group (R1 flag still computed, nothing hidden). */
+  raw?: boolean;
+  /** History: collapse each bank-report batch into its first event. */
+  collapseBatches?: boolean;
   page: number;
   pageSize: number;
 }
 
 export interface DisplayRow {
   id: string;
+  /** Set only when the row stands for a collapsed bank-report batch. */
+  batchId: string | null;
   repeat: SystemEventRepeat | null;
   hidden: boolean;
 }
@@ -43,6 +51,7 @@ interface RawRow {
   first_at: string;
   last_at: string;
   is_hidden: number;
+  batch_key: string | null;
 }
 
 interface CountRow {
@@ -51,7 +60,7 @@ interface CountRow {
 }
 
 /** The shared CTE chain: filtered rows -> R1 flag -> subject/parameter keys -> runs -> groups. */
-function buildGroupedCte(where: SQL | undefined): SQL {
+function buildGroupedCte(where: SQL | undefined, raw: boolean): SQL {
   return sql`
     WITH base AS (
       SELECT
@@ -81,11 +90,13 @@ function buildGroupedCte(where: SQL | undefined): SQL {
     ),
     keyed AS (
       SELECT *,
-        CASE WHEN is_automatic = 0 THEN 'row|' || id
+        CASE WHEN is_automatic = 0 OR ${raw ? 1 : 0} = 1 THEN 'row|' || id
           ELSE entry_type || '|' || COALESCE(source_entity_type, '') || '|'
             || COALESCE(source_entity_id, '') || '|'
             || COALESCE(json_extract(meta, '$.depositId'), '') || '|' || is_hidden
         END AS subj,
+        CASE WHEN is_automatic = 1 AND entry_type = 'invoice_status'
+          THEN json_extract(meta, '$.batchId') END AS batch_key,
         CASE WHEN meta IS NULL OR json_extract(meta, '$.event') = 'legacy'
           THEN 'legacy|' || COALESCE(title, '') || '|' || body
           ELSE json_remove(meta, '$.subjectLabel')
@@ -112,6 +123,12 @@ function buildGroupedCte(where: SQL | undefined): SQL {
         MIN(created_at) OVER (PARTITION BY subj, run_no) AS first_at,
         MAX(created_at) OVER (PARTITION BY subj, run_no) AS last_at
       FROM numbered
+    ),
+    visible AS (
+      SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY batch_key ORDER BY created_at, id) AS batch_rn
+      FROM grouped
+      WHERE rn = 1
     )
   `;
 }
@@ -124,8 +141,10 @@ export function listDisplayRows(
   db: DbType,
   opts: DisplayQueryOptions,
 ): { rows: DisplayRow[]; totalItems: number; hiddenCount: number } {
-  const cte = buildGroupedCte(opts.where);
-  const showHidden = opts.showHidden ? 1 : 0;
+  const raw = opts.raw === true;
+  const cte = buildGroupedCte(opts.where, raw);
+  const showHidden = opts.showHidden || raw ? 1 : 0;
+  const collapse = opts.collapseBatches && !raw ? 1 : 0;
   const offset = (opts.page - 1) * opts.pageSize;
 
   const counts = db.all<CountRow>(sql`
@@ -133,21 +152,23 @@ export function listDisplayRows(
     SELECT
       COALESCE(SUM(CASE WHEN is_hidden = 0 OR ${showHidden} = 1 THEN 1 ELSE 0 END), 0) AS total_items,
       COALESCE(SUM(CASE WHEN is_hidden = 1 THEN 1 ELSE 0 END), 0) AS hidden_count
-    FROM grouped
-    WHERE rn = 1
+    FROM visible
+    WHERE (${collapse} = 0 OR batch_key IS NULL OR batch_rn = 1)
   `)[0];
 
   const rawRows = db.all<RawRow>(sql`
     ${cte}
-    SELECT id, cnt, first_at, last_at, is_hidden
-    FROM grouped
-    WHERE rn = 1 AND (is_hidden = 0 OR ${showHidden} = 1)
+    SELECT id, cnt, first_at, last_at, is_hidden, batch_key
+    FROM visible
+    WHERE (is_hidden = 0 OR ${showHidden} = 1)
+      AND (${collapse} = 0 OR batch_key IS NULL OR batch_rn = 1)
     ORDER BY entry_date DESC, created_at DESC, id DESC
     LIMIT ${opts.pageSize} OFFSET ${offset}
   `);
 
   const rows: DisplayRow[] = rawRows.map((r) => ({
     id: r.id,
+    batchId: collapse === 1 ? (r.batch_key ?? null) : null,
     repeat: r.cnt > 1 ? { count: r.cnt, firstAt: r.first_at, lastAt: r.last_at } : null,
     hidden: r.is_hidden === 1,
   }));

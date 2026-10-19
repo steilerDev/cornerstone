@@ -29,6 +29,8 @@ export interface FeedRowProps {
   removedLabel?: string | null;
   /** Dashboard: no link row. */
   compact?: boolean;
+  /** Row actions after the link row (P4.11 "Revert submission"). Omitted = nothing rendered. */
+  actions?: ReactNode;
   testId: string;
 }
 
@@ -49,8 +51,30 @@ export function FeedRow({
   link = null,
   removedLabel = null,
   compact = false,
+  actions,
   testId,
 }: FeedRowProps) {
+  const linkRow =
+    !compact && link ? (
+      <NavAnchor
+        to={link.to}
+        state={link.state}
+        className={styles.link}
+        aria-label={link.ariaLabel}
+        data-testid={`${testId}-link`}
+      >
+        {link.label}
+        <span aria-hidden="true"> ›</span>
+      </NavAnchor>
+    ) : null;
+  const removedRow =
+    !compact && !link && removedLabel ? (
+      <span className={styles.removed} data-testid={`${testId}-removed`}>
+        {removedLabel}
+      </span>
+    ) : null;
+  const hasActions = !compact && actions !== undefined && actions !== null && actions !== false;
+
   return (
     <Root className={styles.row} data-testid={testId}>
       <div className={styles.meta}>
@@ -70,23 +94,20 @@ export function FeedRow({
           {line}
         </p>
       ))}
-      {!compact && link ? (
-        <NavAnchor
-          to={link.to}
-          state={link.state}
-          className={styles.link}
-          aria-label={link.ariaLabel}
-          data-testid={`${testId}-link`}
-        >
-          {link.label}
-          <span aria-hidden="true"> ›</span>
-        </NavAnchor>
-      ) : null}
-      {!compact && !link && removedLabel ? (
-        <span className={styles.removed} data-testid={`${testId}-removed`}>
-          {removedLabel}
-        </span>
-      ) : null}
+      {hasActions ? (
+        <div className={styles.footer}>
+          {linkRow}
+          {removedRow}
+          <div className={styles.actions} data-testid={`${testId}-actions`}>
+            {actions}
+          </div>
+        </div>
+      ) : (
+        <>
+          {linkRow}
+          {removedRow}
+        </>
+      )}
     </Root>
   );
 }

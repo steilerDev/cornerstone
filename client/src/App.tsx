@@ -90,6 +90,7 @@ const PaperlessInvoiceReviewPage = lazy(
   () => import('./pages/PaperlessInvoiceReviewPage/index.js'),
 );
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage/HistoryPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
 );
@@ -201,6 +202,14 @@ function RoutedApp() {
                       element={
                         <Suspense fallback={<div>Loading...</div>}>
                           <DiaryPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path={routePattern('history')}
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <HistoryPage />
                         </Suspense>
                       }
                     />

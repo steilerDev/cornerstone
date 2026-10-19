@@ -17,7 +17,7 @@
  * 9.  Type switcher filters to manual-only entries (mock API)
  * 10. Responsive — no horizontal scroll on current viewport (@responsive)
  * 11. Dark mode — page renders without layout overflow
- * 12. Default filter mode is Manual when navigating to /diary with no params (@smoke)
+ * 12. The list request carries automatic=false and there are no mode chips (@smoke, #2224)
  */
 
 import type { Page } from '@playwright/test';
@@ -786,7 +786,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
     const manualPage2 = Array.from({ length: 25 }, (_, i) =>
       makeMockEntry({ id: `flt-man2-${i}` }),
     );
-    const automaticEntries = [makeMockEntry({ id: 'flt-auto-0', entryType: 'work_item_status' })];
+    const filteredEntries = [makeMockEntry({ id: 'flt-type-0', entryType: 'daily_log' })];
 
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() !== 'GET') {
@@ -797,12 +797,12 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       const typeParam = url.searchParams.get('type') ?? '';
       const requestedPage = url.searchParams.get('page');
 
-      if (typeParam.includes('work_item_status')) {
+      if (typeParam.includes('daily_log')) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify(
-            makePaginatedResponse(automaticEntries, { totalItems: 1, totalPages: 1 }),
+            makePaginatedResponse(filteredEntries, { totalItems: 1, totalPages: 1 }),
           ),
         });
         return;
@@ -828,19 +828,19 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       await expect(diaryPage.entryCard('flt-man2-0')).toBeVisible();
 
       await diaryPage.openFiltersIfCollapsed();
-      const automaticResponsePromise = page.waitForResponse(
+      const filteredResponsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
-          new URL(resp.url()).searchParams.get('type')?.includes('work_item_status') === true,
+          new URL(resp.url()).searchParams.get('type')?.includes('daily_log') === true,
       );
-      await page.getByTestId('mode-filter-automatic').click();
-      await automaticResponsePromise;
+      await diaryPage.typeFilterChip('daily_log').click();
+      await filteredResponsePromise;
       await diaryPage.waitForLoaded();
 
-      // Old manual-mode batches are discarded, not just visually hidden.
+      // Old unfiltered batches are discarded, not just visually hidden.
       await expect(diaryPage.entryCard('flt-man1-0')).toHaveCount(0);
       await expect(diaryPage.entryCard('flt-man2-0')).toHaveCount(0);
-      await expect(diaryPage.entryCard('flt-auto-0')).toBeVisible();
+      await expect(diaryPage.entryCard('flt-type-0')).toBeVisible();
 
       const count = await diaryPage.getEntryCount();
       expect(count).toBe(1);
@@ -1263,16 +1263,16 @@ test.describe('Dark mode rendering (Scenario 11)', { tag: '@responsive' }, () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 12: Default filter mode is Manual
+// Scenario 12: The Site diary lists people's entries only (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Default filter is Manual (Scenario 12)', () => {
+test.describe('People entries only (Scenario 12)', () => {
   test(
-    'Default filter mode is Manual when navigating to /diary with no params',
+    'The initial list request asks for automatic=false and the filter bar has no mode chips',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
 
-      // Capture API request URLs to assert the type param on the initial load
+      // Capture API request URLs to assert the params of the initial load
       const requests: URL[] = [];
 
       await page.route('**/api/diary-entries*', async (route) => {
@@ -1289,27 +1289,14 @@ test.describe('Default filter is Manual (Scenario 12)', () => {
         await diaryPage.waitForLoaded();
         await diaryPage.openFiltersIfCollapsed();
 
-        // Manual chip must be the only one pressed by default
-        await expect(page.getByTestId('mode-filter-manual')).toHaveAttribute(
-          'aria-pressed',
-          'true',
-        );
-        await expect(page.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
-        await expect(page.getByTestId('mode-filter-automatic')).toHaveAttribute(
-          'aria-pressed',
-          'false',
-        );
+        await expect(diaryPage.modeChips).toHaveCount(0);
 
-        // The initial API request must include a type param that covers manual entry types
-        // (daily_log, general_note, site_visit) — not automatic types (budget_breach, etc.)
         const initialRequest = requests[0];
         expect(initialRequest).toBeDefined();
         if (initialRequest) {
-          const typeParam = initialRequest.searchParams.get('type');
-          expect(typeParam).toBeTruthy();
-          if (typeParam) {
-            expect(typeParam).toContain('daily_log');
-          }
+          expect(initialRequest.searchParams.get('automatic')).toBe('false');
+          // No automatic type can be requested from the Site diary
+          expect(initialRequest.searchParams.get('type') ?? '').not.toContain('work_item_status');
         }
       } finally {
         await page.unroute('**/api/diary-entries*');

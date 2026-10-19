@@ -30,10 +30,6 @@
     "search": "Search entries...",
     "dateFrom": "From",
     "dateTo": "To",
-    "filterMode": "Filter",
-    "filterModeAll": "All",
-    "filterModeManual": "Manual",
-    "filterModeAutomatic": "History",
     "filterModeDrafts": "Drafts",
     "draftsChipGroupLabel": "Filter by draft status",
     "entryTypes": "Entry Types",
@@ -46,9 +42,9 @@
     "entryTypesLabel": "Entry Types",
     "clearAllButton": "Clear all",
     "toggleFiltersAriaLabel": "Toggle filters",
-    "modeGroupAriaLabel": "Filter by entry mode",
     "searchAriaLabel": "Search diary entries",
-    "typeGroupAriaLabel": "Filter by entry type"
+    "typeGroupAriaLabel": "Filter by entry type",
+    "historyLinkAriaLabel": "History, the automatic record of changes"
   },
   "entryTypeBadge": {
     "ariaLabel": "Entry type: {{type}}"
@@ -441,6 +437,19 @@
     "afterReached": "After reached",
     "afterReachedDetail": "Logged after the milestone was reached.",
     "hiddenShowing_one": "Showing {{count}} later delay note.",
-    "hiddenShowing_other": "Showing {{count}} later delay notes."
+    "hiddenShowing_other": "Showing {{count}} later delay notes.",
+    "badge": {
+      "payment": "Payment",
+      "submission": "Submission"
+    },
+    "submission": {
+      "sentence_one": "{{count}} invoice submitted to the bank, {{amount}}",
+      "sentence_other": "{{count}} invoices submitted to the bank, {{amount}}",
+      "sentenceNoAmount_one": "{{count}} invoice submitted to the bank",
+      "sentenceNoAmount_other": "{{count}} invoices submitted to the bank",
+      "invoices_one": "Invoice {{numbers}}",
+      "invoices_other": "Invoices {{numbers}}",
+      "invoicesMore": "Invoices {{numbers}} and {{more}} more"
+    }
   }
 }

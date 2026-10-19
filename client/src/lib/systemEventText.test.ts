@@ -150,12 +150,24 @@ describe('renderSystemEvent: sentences and type labels (en)', () => {
     expect(view.detail).toBeNull();
   });
 
-  it('invoice pending to claimed is a Submission', () => {
+  it('invoice pending to claimed without a batch is a plain Status change (#2224)', () => {
     const view = render(invoice());
-    expect(view.kind).toBe('submission');
+    expect(view.kind).toBe('statusChange');
     expect(view.typeLabel).toBe('Invoice status');
     expect(view.sentence).toBe('Invoice 2026-014 went from To pay to Submitted');
     expect(view.heading).toBe('Invoice 2026-014');
+    expect(view.extraBadge).toBeNull();
+  });
+
+  it('an uncollapsed batch member (metadata.batchId, no batch summary) is a Submission', () => {
+    const view = render(invoice({}, { batchId: 'b-1' }));
+    expect(view.kind).toBe('submission');
+    expect(view.sentence).toBe('Invoice 2026-014 went from To pay to Submitted');
+    expect(view.extraBadge).toBe('Submission');
+  });
+
+  it('a batch id wins over a paid target', () => {
+    expect(render(invoice({}, { to: 'paid', batchId: 'b-1' })).kind).toBe('submission');
   });
 
   it('invoice to paid is a Payment, with the amount when stored', () => {
@@ -190,11 +202,14 @@ describe('renderSystemEvent: sentences and type labels (en)', () => {
     expect(view.sentence).toBe('Refund of €200.00 for invoice 2026-014 went from To pay to Paid');
   });
 
-  it('a deposit to claimed is a Submission', () => {
-    const claimed = render(deposit({}, { to: 'claimed' }));
+  it('a deposit to claimed is a Submission only when it belongs to a batch', () => {
+    expect(render(deposit({}, { to: 'claimed' })).kind).toBe('statusChange');
+    const claimed = render(deposit({}, { to: 'claimed', batchId: 'b-1' }));
     expect(claimed.kind).toBe('submission');
     expect(claimed.typeLabel).toBe('Invoice status');
-    expect(render(deposit({}, { to: 'claimed' }), 'de').typeLabel).toBe('Rechnungsstatus');
+    expect(render(deposit({}, { to: 'claimed', batchId: 'b-1' }), 'de').typeLabel).toBe(
+      'Rechnungsstatus',
+    );
   });
 
   it('grant status', () => {
@@ -555,5 +570,114 @@ describe('renderSystemEvent: German', () => {
     expect(en.sentence).toContain('Snapshot name');
     expect(de.sentence).toContain('Snapshot name');
     expect(en.sentence).not.toBe(de.sentence);
+  });
+});
+
+// ── Extra badge and the batch submission view (#2224) ───────────────────────────────────────────
+
+const batchSummary = (over: Record<string, unknown> = {}) => ({
+  batchId: 'b-1',
+  invoiceCount: 2,
+  amount: 1500,
+  invoiceLabels: ['T-001', 'T-002'],
+  budgetSourceId: 'src-1',
+  budgetSourceName: 'Bank A',
+  budgetSourceExists: true,
+  ...over,
+});
+
+const submission = (batchOver: Record<string, unknown> = {}) =>
+  invoice({ batch: batchSummary(batchOver) as never }, { batchId: 'b-1' });
+
+describe('renderSystemEvent: extra badge', () => {
+  it('a Payment carries the Payment badge as real text', () => {
+    expect(render(invoice({}, { to: 'paid' })).extraBadge).toBe('Payment');
+    expect(render(deposit()).extraBadge).toBe('Payment');
+  });
+
+  it('a Payment badge is localized', () => {
+    expect(render(invoice({}, { to: 'paid' }), 'de').extraBadge).toBe('Zahlung');
+  });
+
+  it('a plain status change, a task, a grant, a milestone and a legacy row carry no extra badge', () => {
+    expect(render(task()).extraBadge).toBeNull();
+    expect(render(grant()).extraBadge).toBeNull();
+    expect(render(invoice({}, { to: 'pending', from: 'claimed' })).extraBadge).toBeNull();
+    expect(render(milestone()).extraBadge).toBeNull();
+    const legacy = makeEntry({
+      entryType: 'invoice_status',
+      title: 'Old title',
+      body: 'Old body',
+      metadata: null,
+    });
+    expect(render(legacy).extraBadge).toBeNull();
+  });
+});
+
+describe('renderSystemEvent: submission (batch) view', () => {
+  it('names the count and amount in the sentence and the invoice numbers in the detail', () => {
+    const view = render(submission());
+    expect(view.kind).toBe('submission');
+    expect(view.typeLabel).toBe('Invoice status');
+    expect(view.extraBadge).toBe('Submission');
+    expect(view.sentence).toBe('2 invoices submitted to the bank, €1,500.00');
+    expect(view.detail).toBe('Invoices T-001, T-002');
+    expect(view.heading).toBeNull();
+    expect(view.isLegacyText).toBe(false);
+    expect(view.removed).toBe(false);
+  });
+
+  it('uses the singular for one invoice', () => {
+    const view = render(submission({ invoiceCount: 1, invoiceLabels: ['T-001'] }));
+    expect(view.sentence).toBe('1 invoice submitted to the bank, €1,500.00');
+    expect(view.detail).toBe('Invoice T-001');
+  });
+
+  it('drops the amount from the sentence when the batch has none', () => {
+    expect(render(submission({ amount: null })).sentence).toBe('2 invoices submitted to the bank');
+    const one = submission({ amount: null, invoiceCount: 1, invoiceLabels: ['T-001'] });
+    expect(render(one).sentence).toBe('1 invoice submitted to the bank');
+  });
+
+  it('adds "and N more" when the batch has more invoices than labels', () => {
+    const view = render(
+      submission({ invoiceCount: 5, invoiceLabels: ['T-001', 'T-002', 'T-003'] }),
+    );
+    expect(view.sentence).toBe('5 invoices submitted to the bank, €1,500.00');
+    expect(view.detail).toBe('Invoices T-001, T-002, T-003 and 2 more');
+  });
+
+  it('shows "(no number)" for an invoice without a number', () => {
+    expect(render(submission({ invoiceLabels: ['T-001', null] })).detail).toBe(
+      'Invoices T-001, (no number)',
+    );
+  });
+
+  it('links to the bank report of the funding source when it still exists', () => {
+    expect(render(submission()).link).toEqual({
+      to: '/budget/reports?sourceId=src-1',
+      label: 'Open Bank A',
+      ariaLabel: 'Open Bank A',
+    });
+  });
+
+  it('has no link and is not "removed" when the batch names no source', () => {
+    const view = render(
+      submission({ budgetSourceId: null, budgetSourceName: null, budgetSourceExists: null }),
+    );
+    expect(view.link).toBeNull();
+    expect(view.removed).toBe(false);
+  });
+
+  it('shows "removed" with no link when the funding source was deleted', () => {
+    const view = render(submission({ budgetSourceName: null, budgetSourceExists: false }));
+    expect(view.link).toBeNull();
+    expect(view.removed).toBe(true);
+  });
+
+  it('renders in German', () => {
+    const view = render(submission(), 'de');
+    expect(view.extraBadge).toBe('Einreichung');
+    expect(view.typeLabel).toBe('Rechnungsstatus');
   });
 });

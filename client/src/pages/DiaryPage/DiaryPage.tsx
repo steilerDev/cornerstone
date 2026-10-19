@@ -1,18 +1,15 @@
 import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { Navigate, useSearchParams, useLocation } from 'react-router-dom';
 import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { useTranslation } from 'react-i18next';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { originStateFor } from '../../navigation/origin.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
-import type {
-  DiaryEntryType,
-  DiaryEntrySummary,
-  DiaryEntryStatus,
-  ManualDiaryEntryType,
-} from '@cornerstone/shared';
+import { diaryHistoryRedirectTarget } from '../../navigation/diaryHistoryRedirect.js';
+import { MANUAL_DIARY_ENTRY_TYPES } from '@cornerstone/shared';
+import type { DiaryEntryType, DiaryEntrySummary, DiaryEntryStatus } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
@@ -24,23 +21,21 @@ import { InfiniteScrollFooter } from '../../components/InfiniteScrollFooter/Infi
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryPage.module.css';
 
-type FilterMode = 'all' | 'manual' | 'automatic';
-
 interface GroupedEntries {
   [date: string]: DiaryEntrySummary[];
 }
 
-const MANUAL_TYPES = new Set<ManualDiaryEntryType>([
-  'daily_log',
-  'site_visit',
-  'delivery',
-  'issue',
-  'general_note',
-]);
-
 const PAGE_SIZE = 25;
 
+/** The Site diary lists people's entries; the old ?filterMode links go to History first. */
 export default function DiaryPage() {
+  const [searchParams] = useSearchParams();
+  const target = diaryHistoryRedirectTarget(searchParams);
+  if (target !== null) return <Navigate to={target} replace />;
+  return <DiaryListPage />;
+}
+
+function DiaryListPage() {
   const { t } = useTranslation('diary');
   const { t: tc } = useTranslation('common');
   const pageTitle = tc('navigation.siteDiary');
@@ -73,9 +68,6 @@ export default function DiaryPage() {
   }, [location.key, location.state]);
 
   const [totalItems, setTotalItems] = useState(0);
-  const [hiddenCount, setHiddenCount] = useState(0);
-  const [showHidden, setShowHidden] = useState(false);
-  const [hiddenStatus, setHiddenStatus] = useState('');
   const [firstBatchFailed, setFirstBatchFailed] = useState(false);
   const focusEmptyStateAfterRetryRef = useRef(false);
   const emptyStateCtaRef = useRef<HTMLAnchorElement>(null);
@@ -84,10 +76,13 @@ export default function DiaryPage() {
   const searchQuery = searchParams.get('q') || '';
   const dateFrom = searchParams.get('dateFrom') || '';
   const dateTo = searchParams.get('dateTo') || '';
-  const filterMode = (searchParams.get('filterMode') as FilterMode) || 'manual';
   const typeFilterStr = searchParams.get('types') || '';
   const activeTypes: DiaryEntryType[] = typeFilterStr
-    ? (typeFilterStr.split(',') as DiaryEntryType[])
+    ? (typeFilterStr
+        .split(',')
+        .filter((type) =>
+          (MANUAL_DIARY_ENTRY_TYPES as readonly string[]).includes(type),
+        ) as DiaryEntryType[])
     : [];
   const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
 
@@ -95,6 +90,12 @@ export default function DiaryPage() {
 
   // Debounced search with URL sync
   const debouncedSearchInput = useDebounce(searchInput, 300);
+  // Re-sync from the URL (sidebar to the bare route, Back), not from our own debounced write.
+  const [prevUrlQ, setPrevUrlQ] = useState(searchQuery);
+  if (searchQuery !== prevUrlQ) {
+    setPrevUrlQ(searchQuery);
+    if (searchQuery !== debouncedSearchInput) setSearchInput(searchQuery);
+  }
   const isFirstSearchSyncRef = useRef(true);
 
   useEffect(() => {
@@ -119,40 +120,16 @@ export default function DiaryPage() {
 
   const fetchDiaryPage = async (
     page: number,
-  ): Promise<
-    InfiniteScrollPage<DiaryEntrySummary, { totalItems: number; hiddenCount: number }>
-  > => {
-    // Determine which types to query based on filter mode
-    let queriableTypes: DiaryEntryType[] = activeTypes;
-    if (filterMode === 'manual') {
-      queriableTypes =
-        activeTypes.length > 0
-          ? activeTypes.filter((type) => MANUAL_TYPES.has(type as ManualDiaryEntryType))
-          : (Array.from(MANUAL_TYPES) as DiaryEntryType[]);
-    } else if (filterMode === 'automatic') {
-      queriableTypes =
-        activeTypes.length > 0
-          ? activeTypes.filter((type) => !MANUAL_TYPES.has(type as ManualDiaryEntryType))
-          : ([
-              'work_item_status',
-              'invoice_status',
-              'invoice_created',
-              'milestone_delay',
-              'budget_breach',
-              'auto_reschedule',
-              'subsidy_status',
-            ] as const as unknown as DiaryEntryType[]);
-    }
-
+  ): Promise<InfiniteScrollPage<DiaryEntrySummary, { totalItems: number }>> => {
     const response = await listDiaryEntries({
       page,
       pageSize: PAGE_SIZE,
       q: searchQuery || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
-      type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
+      automatic: false,
+      type: activeTypes.length > 0 ? activeTypes.join(',') : undefined,
       status: statusFilter || undefined,
-      showHidden: showHidden || undefined,
     });
 
     return {
@@ -160,12 +137,11 @@ export default function DiaryPage() {
       hasMore: page < response.pagination.totalPages,
       meta: {
         totalItems: response.pagination.totalItems,
-        hiddenCount: response.hiddenCount ?? 0,
       },
     };
   };
 
-  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${filterMode}|${typeFilterStr}|${statusFilter}|${showHidden}`;
+  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${typeFilterStr}|${statusFilter}`;
 
   const {
     items: entries,
@@ -175,13 +151,12 @@ export default function DiaryPage() {
     sentinelRef,
     loadMore,
     retry,
-  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number; hiddenCount: number }>({
+  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number }>({
     fetchPage: fetchDiaryPage,
     resetKey,
     onPageApplied: (meta) => {
       if (meta) {
         setTotalItems(meta.totalItems);
-        setHiddenCount(meta.hiddenCount);
       }
       setFirstBatchFailed(false);
     },
@@ -276,14 +251,6 @@ export default function DiaryPage() {
     setSearchParams(newParams, { replace: true });
   };
 
-  const handleFilterModeChange = (mode: FilterMode) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('filterMode', mode);
-    newParams.delete('types');
-    newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
-  };
-
   const draftsVisible = statusFilter !== 'saved';
 
   const handleDraftsVisibleChange = (visible: boolean) => {
@@ -299,9 +266,7 @@ export default function DiaryPage() {
 
   const handleClearAll = () => {
     setSearchInput('');
-    const newParams = new URLSearchParams();
-    newParams.set('filterMode', 'manual');
-    setSearchParams(newParams, { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const sortedDates = Object.keys(groupedEntries).sort().reverse();
@@ -340,45 +305,9 @@ export default function DiaryPage() {
         activeTypes={activeTypes}
         onTypesChange={handleTypesChange}
         onClearAll={handleClearAll}
-        filterMode={filterMode}
-        onFilterModeChange={handleFilterModeChange}
         draftsVisible={draftsVisible}
         onDraftsVisibleChange={handleDraftsVisibleChange}
       />
-
-      {(hiddenCount > 0 || showHidden) && (
-        <div className={styles.hiddenNote} data-testid="diary-hidden-note">
-          <span>
-            {showHidden
-              ? t('event.hiddenShowing', { count: hiddenCount })
-              : t('event.hiddenNote', { count: hiddenCount })}
-          </span>
-          <button
-            type="button"
-            className={styles.hiddenToggle}
-            aria-pressed={showHidden}
-            data-testid="diary-show-hidden"
-            onClick={() => {
-              setHiddenStatus(
-                showHidden
-                  ? t('event.hiddenHiddenAgain')
-                  : t('event.hiddenShown', { count: hiddenCount }),
-              );
-              setShowHidden(!showHidden);
-            }}
-          >
-            {showHidden ? t('event.hideHidden') : t('event.showHidden')}
-          </button>
-        </div>
-      )}
-      <div
-        className={styles.liveRegion}
-        role="status"
-        aria-atomic="true"
-        data-testid="diary-hidden-status"
-      >
-        {hiddenStatus}
-      </div>
 
       {showInitialLoading && <div className={shared.loading}>{t('loading')}</div>}
 

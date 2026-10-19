@@ -1,0 +1,63 @@
+{
+  "description": "Alles, was sich in deinem Projekt geändert hat, neueste zuerst.",
+  "filters": {
+    "toggle": "Filter",
+    "typeGroup": "Nach Typ filtern",
+    "type": {
+      "work_item_status": "Aufgabenstatus",
+      "invoice_status": "Rechnungsstatus",
+      "payment": "Zahlung",
+      "submission": "Einreichung",
+      "subsidy_status": "Förderstatus",
+      "invoice_created": "Rechnung erfasst",
+      "milestone_delay": "Meilenstein verschoben",
+      "budget_breach": "Über Budget",
+      "auto_reschedule": "Zeitplanänderung"
+    },
+    "search": "Suchen",
+    "searchPlaceholder": "Verlauf durchsuchen",
+    "object": "Objekt",
+    "objectPicked": "Objekt · {{name}}",
+    "objectSearchLabel": "Aufgabe, Rechnung, Meilenstein oder Förderprogramm suchen",
+    "objectGone": "Nicht mehr vorhanden",
+    "objectKind": {
+      "work_item": "Aufgabe",
+      "invoice": "Rechnung",
+      "milestone": "Meilenstein",
+      "subsidy_program": "Förderprogramm"
+    },
+    "from": "Von",
+    "to": "Bis",
+    "includeDiary": "Tagebucheinträge einbeziehen",
+    "includeDiaryHint": "Zeigt auch deine eigenen Einträge. Typfilter gelten nur für automatische Änderungen.",
+    "clear": "Filter zurücksetzen"
+  },
+  "day": {
+    "today": "Heute",
+    "yesterday": "Gestern"
+  },
+  "resultCount_one": "{{count}} Änderung",
+  "resultCount_other": "{{count}} Änderungen",
+  "loading": "Verlauf wird geladen",
+  "loadError": "Der Verlauf konnte nicht geladen werden.",
+  "tryAgain": "Erneut versuchen",
+  "infiniteScroll": {
+    "loadingMore": "Weitere Änderungen werden geladen",
+    "loadMore": "Mehr laden",
+    "retry": "Erneut versuchen",
+    "loadMoreError": "Weitere Änderungen konnten nicht geladen werden.",
+    "endOfList": "Du bist am Anfang des Verlaufs angekommen.",
+    "batchAppended_one": "{{count}} weitere Änderung geladen",
+    "batchAppended_other": "{{count}} weitere Änderungen geladen",
+    "batchAppendedAndEnd_one": "{{count}} weitere Änderung geladen. Du bist am Anfang des Verlaufs angekommen.",
+    "batchAppendedAndEnd_other": "{{count}} weitere Änderungen geladen. Du bist am Anfang des Verlaufs angekommen."
+  },
+  "empty": {
+    "title": "Noch nichts hat sich geändert",
+    "text": "Wenn sich eine Aufgabe, Rechnung, ein Förderprogramm oder ein Meilenstein ändert, erscheint es hier von selbst."
+  },
+  "filteredEmpty": {
+    "title": "Keine Änderungen passen zu diesen Filtern",
+    "text": "Probiere einen anderen Typ oder andere Daten aus oder setze die Filter zurück."
+  }
+}

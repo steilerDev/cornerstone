@@ -67,3 +67,23 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+@media (min-width: 1024px) {
+  .footer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}

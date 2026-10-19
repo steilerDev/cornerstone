@@ -2473,7 +2473,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "History page lists all automatic events; toggle 'Include site diary entries' shows both, as the old All mode.",
-    "note": "Principle 10: the diary needs no filter to hide machine rows. /diary?filterMode=automatic redirects to /history and ?filterMode=all to /history?include=diary (routemap)."
+    "note": "Principle 10: the diary needs no filter to hide machine rows. /diary?filterMode=automatic redirects to /history and ?filterMode=all to /history?include=diary (routemap). #2224: /history served (History › History › feed); the Site diary list requests automatic=false and links 'History ›'; ?filterMode=automatic|all are page-served redirects (types → first type)."
   },
   "JRN-004": {
     "name": "Show or hide draft entries in the diary list",
@@ -2538,7 +2538,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Each object page has a History tab with its events; History page rows link to their objects.",
-    "note": "Deposit events gain their link (D-16)."
+    "note": "Deposit events gain their link (D-16). #2224: History page rows link to their object; submission rows link to the funding source's bank report. Object-page History tabs follow with the object-page stories."
   },
   "JRN-012": {
     "name": "Start a new diary entry by picking one of five entry types",
@@ -2739,7 +2739,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Task page > History tab shows status events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Listed on the History page (#2224)."
   },
   "JRN-035": {
     "name": "Log invoice creation, invoice status and deposit status changes automatically",
@@ -2748,7 +2748,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Invoice / Offer page > History tab and Funding source page > History tab show invoice and report events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16. Listed on the History page (#2224). A bank-report submission is one History row (batchId)."
   },
   "JRN-036": {
     "name": "Log projected milestone delays automatically",
@@ -2757,7 +2757,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Milestone page > History tab shows de-duplicated delay events; Home N3 shows one row per late milestone.",
-    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV. #2199: write-time de-dup part 1 (ADR-040 W2) — no event for a reached milestone, none when the projected date equals the latest event's. #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'."
+    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV. #2199: write-time de-dup part 1 (ADR-040 W2) — no event for a reached milestone, none when the projected date equals the latest event's. #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Rows hidden after a milestone was reached are counted and revealed on the History page ('Show hidden', #2224)."
   },
   "JRN-037": {
     "name": "Log subsidy application status changes automatically",

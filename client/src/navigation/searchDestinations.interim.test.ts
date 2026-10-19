@@ -1,4 +1,4 @@
-// Interim extras (Area, History) stand in for NavConfig entries whose routes are still planned.
+// Interim extras (Area) stand in for NavConfig entries whose routes are still planned.
 // The hand-over is exercised against a patched route lookup, like searchDestinations.gate.test.ts.
 import { jest, describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import type * as SharedTypes from '@cornerstone/shared';
@@ -34,12 +34,10 @@ const ADMIN = { role: 'admin', paperlessConfigured: true } as const;
 const find = (word: string) => findSearchDestinations(word, ADMIN, label);
 
 describe('interim search targets', () => {
-  it('PIN: `area` and `history` are still planned; `areas` is served', () => {
-    // Fails when the History story serves `history`: update INTERIM_UNTIL, TERM_EXTRAS and these tests.
-    for (const id of ['area', 'history'] as const) {
-      expect(getRouteEntryReal(id).stage).toBe('planned');
-    }
+  it('PIN: `area` is still planned; `areas` and `history` are served', () => {
+    expect(getRouteEntryReal('area').stage).toBe('planned');
     expect(getRouteEntryReal('areas').stage).toBe('done');
+    expect(getRouteEntryReal('history').stage).toBe('done');
   });
 
   it('NavConfig has entries for history and areas (the hand-over targets)', () => {
@@ -61,45 +59,27 @@ describe('interim search targets', () => {
     },
   );
 
-  it('"Automatic diary entries" opens the automatic diary entries', () => {
-    expect(find('Automatic diary entries')[0]).toMatchObject({
-      route: 'diary',
-      query: { filterMode: 'automatic' },
-      term: 'History',
-      viaFormerName: true,
-    });
-    expect(find('History')[0]).toMatchObject({
-      route: 'diary',
-      query: { filterMode: 'automatic' },
-    });
+  it('"Automatic diary entries" and "History" open the History page once, with no diary extra', () => {
+    const viaFormer = find('Automatic diary entries').filter((d) => d.term === 'History');
+    expect(viaFormer).toHaveLength(1);
+    expect(viaFormer[0]).toMatchObject({ route: 'history', viaFormerName: true });
+    expect(viaFormer[0]!.query).toBeUndefined();
+
+    const direct = find('History').filter((d) => d.term === 'History');
+    expect(direct).toHaveLength(1);
+    expect(direct[0]).toMatchObject({ route: 'history' });
+    expect(direct[0]!.query).toBeUndefined();
   });
 
-  it('skips the History interim extra once route `history` is served', () => {
-    served.add('history');
-    expect(find('Automatic diary entries').some((d) => d.query?.filterMode === 'automatic')).toBe(
-      false,
-    );
-  });
-
-  it('hands over to the NavConfig entry: History appears once, on the History page', () => {
-    served.add('history');
-    const hits = find('History').filter((d) => d.term === 'History');
-    expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ route: 'history' });
-    expect(hits[0]!.query).toBeUndefined();
+  it('no destination opens the diary with the retired filterMode query', () => {
+    for (const word of ['History', 'Automatic diary entries', 'Diary', 'Site diary']) {
+      expect(find(word).some((d) => d.query?.filterMode !== undefined)).toBe(false);
+    }
   });
 
   it('serving `area` (detail) later does not add a second Area hit', () => {
     served.add('area');
     expect(find('Room').filter((d) => d.term === 'Area')).toHaveLength(1);
     expect(find('Room')[0]).toMatchObject({ route: 'areas' });
-  });
-
-  it('keeps the History interim extra when only another route is served', () => {
-    served.add('area');
-    expect(find('Automatic diary entries')[0]).toMatchObject({
-      route: 'diary',
-      query: { filterMode: 'automatic' },
-    });
   });
 });

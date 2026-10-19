@@ -11,6 +11,13 @@
   border-bottom: 2px solid var(--color-border-strong);
 }
 
+.headingDetail {
+  margin-left: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
 .entriesList {
   display: flex;
   flex-direction: column;

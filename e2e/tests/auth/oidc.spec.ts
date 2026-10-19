@@ -121,7 +121,7 @@ test.describe('OIDC SSO Flow', () => {
     page,
   }) => {
     const loginPage = new LoginPage(page);
-    const target = `${routeUrl('diary')}?filterMode=all`;
+    const target = `${routeUrl('diary')}?q=oidc-next`;
 
     // Given: a signed-out visit to a protected page remembers it on the sign-in page
     await page.goto(target);
@@ -137,7 +137,7 @@ test.describe('OIDC SSO Flow', () => {
     await loginRequest;
 
     // Then: after the mock IdP completes, the user lands on the deep link, not Home
-    await expect(page).toHaveURL(new RegExp(`${routeUrl('diary')}\\?filterMode=all$`), {
+    await expect(page).toHaveURL(new RegExp(`${routeUrl('diary')}\\?q=oidc-next$`), {
       timeout: 15000,
     });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
