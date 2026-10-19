@@ -42,3 +42,18 @@ which aggregates a matrix. `coverage-report` is **not** in the `quality-gates` n
 coverage is informational and non-gating.
 
 See also [[recurring-patterns]].
+
+## Playwright E2E shards (2026-10-19, run 39268986051)
+
+- `--shard=n/N` splits the **project-ordered** list by test **count**: desktop (Chromium, ~1.2s/test)
+  filled the early shards, WebKit tablet/mobile (~3.2s/test) the late ones -> 3.5m vs 10m. Fix:
+  matrix `include` of `{project, shardIndex, shardTotal}` with `--project` (desktop 4, tablet 6,
+  mobile 6), proportional to per-project wall time. Per-test durations parse from the `list`
+  reporter lines in job logs (`[project] › file:line … (1.4s)`).
+- A "timed-out shard with passing tests" was **not** the tests: setup-node's npm cache restore hit
+  "Egress is over the account limit" and @actions/cache then held the step until its 10-min segment
+  timer fired. Check step timestamps before rebalancing. Mitigation: workflow `env`
+  `SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2`, and no `cache: npm` on the 16-way e2e matrix (it saved ~5s
+  per job for 270 MB of egress each).
+- Blob reporter file name embeds the `--project` filter (`report-<project>-<n>.zip`), so
+  `merge-multiple` downloads don't collide; artifact names must include the project too.

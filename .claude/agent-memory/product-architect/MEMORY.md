@@ -26,7 +26,7 @@
 - [Client PDF pipeline](client-pdf-pipeline.md) — ADR-034 report PDF: content/layout split, per-cell `_minWidth` width rule, computed column geometry (`columns.ts`), injection-only locale contract, open ADR-034 follow-ups; status summary at the bottom of the file
 - [Release toolchain](release-toolchain.md) — ccc preset major must match the conventional-changelog-writer engine (hold ccc at v9 until release-notes-generator@15); empty release notes hid for months; a crash-fix can restore the _silent_ bug, judge on output not on the error going away (#2082)
 - [npm overrides re-resolution](npm-overrides-reresolution.md) — `npm install` keeps stale locked nodes after an override edit; use `npm update <names>`; re-audit pins; `npm ls --all` exits 1 by design since Babel 8 — use the CLAUDE.md sweep
-- [CI Jest shard tuning](ci-test-job-tuning.md) — 6 duration-packed shards x 2 workers (2-core runners), no testTimeout override; profile slow files with --cpu-prof before touching CI knobs; nothing hardcodes the shard count
+- [CI Jest + E2E shard tuning](ci-test-job-tuning.md) — Jest: 6 duration-packed shards x 2 workers; E2E: per-project shards (count-based split bunches WebKit), cache-egress 10-min stall
 - [Diary drafts pattern](diary-drafts-pattern.md) — ADR-022 draft lifecycle via status column on parent table
 - [EPIC-03 refinement](epic03-refinement.md) — 40 consolidated refinement items
 - [EPIC-04 household items](epic04-household-items.md) · [EPIC-05 budget](epic05-budget.md) · [EPIC-17 i18n](epic17-i18n.md) · [EPIC-18 areas & trades](epic18-areas-trades.md)
