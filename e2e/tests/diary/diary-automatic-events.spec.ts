@@ -4,9 +4,9 @@
  * Story #808: Automatic system event logging to diary
  *
  * Scenarios covered:
- * 1.  [smoke] System events appear as event rows in the diary timeline (mock API, v1 metadata)
+ * 1.  [smoke] System events appear as event rows on the History page (mock API, v1 metadata)
  *             #2223: FeedRow `system-event-<id>` replaces the diary card for automatic entries
- * 2.  Type chip filter for "work_item_status" sends correct type parameter to API
+ * 2.  Type chip filter on History: "Task status" sends type=work_item_status (moved in #2224)
  *             UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) removed;
  *             filtering is now done via individual type chip buttons in the filter bar
  * 3.  System event detail page renders the event layout (sentence, type badge, link; #2223)
@@ -16,7 +16,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { DiaryPage } from '../../pages/DiaryPage.js';
+import { HistoryPage } from '../../pages/HistoryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { mockDiaryList, mockSystemEvent } from '../../fixtures/systemEventMocks.js';
@@ -41,16 +41,16 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
     'System events are rendered as event rows in the diary timeline (mock API)',
     { tag: '@smoke' },
     async ({ page }) => {
-      const diaryPage = new DiaryPage(page);
+      const history = new HistoryPage(page);
       const mockId = 'mock-auto-event-001';
       const mockEntry = makeMockAutomaticEntry({ id: mockId });
 
-      await page.route('**/api/diary-entries*', async (route) => {
+      await page.route('**/api/history*', async (route) => {
         if (route.request().method() === 'GET') {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(mockDiaryList([mockEntry])),
+            body: JSON.stringify({ ...mockDiaryList([mockEntry]), object: null }),
           });
         } else {
           await route.continue();
@@ -58,83 +58,59 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
       });
 
       try {
-        await diaryPage.goto();
-        await diaryPage.waitForLoaded();
+        await history.goto();
 
-        await expect(diaryPage.systemEventRow(mockId)).toBeVisible();
-        await expect(diaryPage.systemEventRow(mockId)).toContainText(
+        await expect(history.systemEventRow(mockId)).toBeVisible();
+        await expect(history.systemEventRow(mockId)).toContainText(
           'Kitchen Installation went from Not started to In progress',
         );
       } finally {
-        await page.unroute('**/api/diary-entries*');
+        await page.unroute('**/api/history*');
       }
     },
   );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Type chip filter for automatic entry type sends correct API params
+// Scenario 2: Type chip filter on History sends correct API params
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
-  test('Clicking "work_item_status" type chip sends correct type parameter to the API', async ({
+test.describe('Type chip filter on History (Scenario 2)', () => {
+  test('Clicking the "Task status" type chip sends type=work_item_status to /api/history', async ({
     page,
   }) => {
-    // UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) was removed.
-    // Filtering is now done via individual type chip buttons in the filter bar.
-    // This test verifies the type chip correctly sends the type query parameter.
-    const diaryPage = new DiaryPage(page);
+    // The automatic type chips moved from the Site diary to History in #2224.
+    const history = new HistoryPage(page);
 
-    await page.route('**/api/diary-entries*', async (route) => {
+    await page.route('**/api/history*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           items: [],
           pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 1 },
+          hiddenCount: 0,
+          object: null,
         }),
       });
     });
 
     try {
-      await diaryPage.goto();
-      await diaryPage.waitForLoaded();
-
-      // Default mode is now "Manual" — switch to "All" so the automatic type chips are visible.
-      // waitForLoaded() after the click only guarantees the UI has settled (timeline/empty-state/
-      // error-banner visible) — it does NOT guarantee that no diary-entries request from this
-      // click is still in flight. Bug #2030: a prior version of this test relied on that false
-      // guarantee to safely reset a shared "captured requests" array before the chip click below,
-      // and a trailing All-click response landing after the reset could satisfy a generic
-      // waitForResponse predicate before the chip's own request was ever captured.
-      const allChip = page.getByTestId('mode-filter-all');
-      await allChip.waitFor({ state: 'visible' });
-      await allChip.click();
-      await diaryPage.waitForLoaded();
+      await history.goto();
 
       // Register the listener BEFORE clicking the chip, and predicate it on the response's OWN
-      // request URL containing the expected type param — not just "any diary-entries 200". A
-      // generic predicate can resolve against a trailing response from the All-click above
-      // landing after this click, silently asserting on the wrong response (#2030). Reading the
-      // type param straight off the resolved Response also removes the shared-mutable-array
-      // request/response race entirely, rather than just narrowing its window.
+      // request URL containing the expected type param, so a trailing response of the initial
+      // load cannot satisfy it (#2030).
       const responsePromise = page.waitForResponse((resp) => {
-        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
-        const typeParam = new URL(resp.url()).searchParams.get('type');
-        return !!typeParam && typeParam.includes('work_item_status');
+        if (!resp.url().includes('/api/history') || resp.status() !== 200) return false;
+        return new URL(resp.url()).searchParams.get('type') === 'work_item_status';
       });
 
-      // Click the "work_item_status" type chip filter button
-      const typeChip = diaryPage.typeFilterChip('work_item_status');
-      await typeChip.waitFor({ state: 'visible' });
-      await typeChip.click();
-      const response = await responsePromise;
-
-      // The request should include the work_item_status type parameter
-      const typeParam = new URL(response.url()).searchParams.get('type');
-      expect(typeParam).toBeTruthy();
-      expect(typeParam).toContain('work_item_status');
+      await history.typeChip('work_item_status').click();
+      await responsePromise;
+      await expect(history.typeChip('work_item_status')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page).toHaveURL(/[?&]type=work_item_status/);
     } finally {
-      await page.unroute('**/api/diary-entries*');
+      await page.unroute('**/api/history*');
     }
   });
 });

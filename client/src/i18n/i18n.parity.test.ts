@@ -16,6 +16,7 @@ import enDiary from './en/diary.json';
 import enDocuments from './en/documents.json';
 import enSettings from './en/settings.json';
 import enAreas from './en/areas.json';
+import enHistory from './en/history.json';
 import enPhotoViewer from './en/photoViewer.json';
 import enPhotoAnnotator from './en/photoAnnotator.json';
 import enPhotos from './en/photos.json';
@@ -33,6 +34,7 @@ import deDiary from './de/diary.json';
 import deDocuments from './de/documents.json';
 import deSettings from './de/settings.json';
 import deAreas from './de/areas.json';
+import deHistory from './de/history.json';
 import dePhotoViewer from './de/photoViewer.json';
 import dePhotoAnnotator from './de/photoAnnotator.json';
 import dePhotos from './de/photos.json';
@@ -57,6 +59,7 @@ const NAMESPACES: { name: string; en: Record<string, unknown>; de: Record<string
   { name: 'documents', en: enDocuments, de: deDocuments },
   { name: 'settings', en: enSettings, de: deSettings },
   { name: 'areas', en: enAreas, de: deAreas },
+  { name: 'history', en: enHistory, de: deHistory },
   { name: 'photoViewer', en: enPhotoViewer, de: dePhotoViewer },
   { name: 'photoAnnotator', en: enPhotoAnnotator, de: dePhotoAnnotator },
   { name: 'photos', en: enPhotos, de: dePhotos },

@@ -124,6 +124,12 @@ describe('ROUTE_MAP invariants', () => {
   it('lets every served redirect carry the whole query string', () => {
     for (const entry of ENTRIES) {
       if (entry.kind !== 'redirect' || entry.stage === 'planned') continue;
+      // The two Site diary filterMode maps (#2224) carry a fixed key list on purpose: History
+      // keeps q, dateFrom, dateTo and the first of `types`, and drops every other key.
+      if (entry.from.startsWith('/diary?filterMode=')) {
+        expect(entry.carries).toEqual(['q', 'dateFrom', 'dateTo', 'types->type']);
+        continue;
+      }
       expect(entry.carries).toEqual(['*']);
     }
   });
@@ -226,4 +232,21 @@ describe('Areas index rollout (#2218)', () => {
     expect(tab?.stage).toBe('interim');
     expect(tab?.interim).toBe('page');
   });
+});
+
+describe('History page rollout (#2224)', () => {
+  it('serves /history', () => {
+    const entry = ENTRIES.find((e) => e.id === 'history');
+    expect(entry?.stage).toBe('done');
+    expect(entry).not.toHaveProperty('interim');
+  });
+
+  it.each(['automatic', 'all'])(
+    'keeps the /diary?filterMode=%s map interim, served by the page',
+    (mode) => {
+      const entry = ENTRIES.find((e) => e.from === `/diary?filterMode=${mode}`);
+      expect(entry?.stage).toBe('interim');
+      expect(entry?.interim).toBe('page');
+    },
+  );
 });

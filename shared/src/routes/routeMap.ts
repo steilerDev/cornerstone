@@ -578,7 +578,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['q', 'type', 'object', 'dateFrom', 'dateTo', 'include'],
-    stage: 'planned',
+    stage: 'done',
   },
   {
     id: 'documents',
@@ -1009,7 +1009,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['q', 'dateFrom', 'dateTo', 'types->type'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         filterMode: 'automatic',
@@ -1026,7 +1027,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['q', 'dateFrom', 'dateTo', 'types->type'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         filterMode: 'all',

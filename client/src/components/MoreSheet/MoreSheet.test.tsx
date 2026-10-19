@@ -148,16 +148,24 @@ describe('MoreSheet', () => {
   describe('section groups', () => {
     it('lists the served sections in group order', () => {
       renderSheet();
-      expect(rowIds()).toEqual(['tasks', 'purchases', 'money', 'companies', 'areas', 'settings']);
+      expect(rowIds()).toEqual([
+        'tasks',
+        'purchases',
+        'money',
+        'companies',
+        'areas',
+        'history',
+        'settings',
+      ]);
     });
 
     it('renders one list per group', () => {
-      // Areas is served; History and Documents are still planned, so the middle group has one entry.
+      // Areas and History are served; Documents is still planned, so the middle group has two entries.
       renderSheet();
       const lists = within(screen.getByRole('navigation', { name: 'More' })).getAllByRole('list');
       expect(lists).toHaveLength(3);
       expect(within(lists[0]!).getAllByRole('listitem')).toHaveLength(4);
-      expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(1);
+      expect(within(lists[1]!).getAllByRole('listitem')).toHaveLength(2);
       expect(within(lists[2]!).getAllByRole('listitem')).toHaveLength(1);
     });
 

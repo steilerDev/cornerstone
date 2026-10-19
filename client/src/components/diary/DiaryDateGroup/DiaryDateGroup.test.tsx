@@ -69,10 +69,13 @@ function event(id: string, createdAt: string): DiaryEntrySummary {
   };
 }
 
-function renderGroup(entries: DiaryEntrySummary[]) {
+function renderGroup(
+  entries: DiaryEntrySummary[],
+  props: { heading?: string; headingDetail?: string } = {},
+) {
   return render(
     <MemoryRouter>
-      <DiaryDateGroup date="2026-03-14" entries={entries} />
+      <DiaryDateGroup date="2026-03-14" entries={entries} {...props} />
     </MemoryRouter>,
   );
 }
@@ -126,5 +129,46 @@ describe('DiaryDateGroup', () => {
   it('renders an empty list for no entries', () => {
     renderGroup([]);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  describe('heading (#2224)', () => {
+    it('defaults to the formatted date and labels the section by it', () => {
+      renderGroup([manual('m1', '2026-03-14T09:00:00Z')]);
+      const group = screen.getByTestId('date-group-2026-03-14');
+      const heading = within(group).getByRole('heading', { level: 2 });
+      expect(heading).toHaveTextContent('Mar 14, 2026');
+      expect(heading.id).not.toBe('');
+      expect(group).toHaveAttribute('aria-labelledby', heading.id);
+      expect(screen.getByRole('region', { name: 'Mar 14, 2026' })).toBe(group);
+    });
+
+    it('shows a custom heading instead of the date', () => {
+      renderGroup([manual('m1', '2026-03-14T09:00:00Z')], { heading: 'Today' });
+      const heading = screen.getByRole('heading', { level: 2 });
+      expect(heading).toHaveTextContent('Today');
+      expect(heading).not.toHaveTextContent('Mar 14, 2026');
+    });
+
+    it('shows the muted detail inside the heading after the heading text', () => {
+      renderGroup([manual('m1', '2026-03-14T09:00:00Z')], {
+        heading: 'Today',
+        headingDetail: 'Mar 14, 2026',
+      });
+      const heading = screen.getByRole('heading', { level: 2 });
+      expect(heading).toHaveTextContent('TodayMar 14, 2026');
+      expect(within(heading).getByText('Mar 14, 2026').tagName).toBe('SPAN');
+      expect(screen.getByRole('region', { name: /Today/ })).toBeInTheDocument();
+    });
+
+    it('gives two groups distinct heading ids', () => {
+      render(
+        <MemoryRouter>
+          <DiaryDateGroup date="2026-03-14" entries={[]} />
+          <DiaryDateGroup date="2026-03-13" entries={[]} />
+        </MemoryRouter>,
+      );
+      const ids = screen.getAllByRole('heading', { level: 2 }).map((h) => h.id);
+      expect(new Set(ids).size).toBe(2);
+    });
   });
 });

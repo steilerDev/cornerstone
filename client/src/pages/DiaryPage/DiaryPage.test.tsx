@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { routeUrl } from '@cornerstone/shared';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
@@ -130,13 +130,9 @@ function makeListResponse(entries: DiaryEntrySummary[], totalPages = 1): DiaryEn
 
 const emptyResponse = makeListResponse([]);
 
-/** The infinite-scroll announcement region (the hidden-notes status region is a second one). */
+/** The infinite-scroll announcement region (the page's only status region). */
 function announcementRegion(): HTMLElement {
-  const region = screen
-    .getAllByRole('status')
-    .find((el) => el.getAttribute('data-testid') !== 'diary-hidden-status');
-  if (!region) throw new Error('announcement region not found');
-  return region;
+  return screen.getByRole('status');
 }
 
 describe('DiaryPage', () => {
@@ -199,28 +195,27 @@ describe('DiaryPage', () => {
 
     it('does not navigate on mount', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      const log = renderRecorded('/diary?filterMode=all');
+      const log = renderRecorded('/diary?q=oak');
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
       expect(log.actions).toEqual([]);
     });
 
-    it('filter mode, date, drafts, clear-all and search changes all use REPLACE', async () => {
+    it('date, type, drafts, clear-all and search changes all use REPLACE', async () => {
       mockListDiaryEntries.mockResolvedValue(emptyResponse);
-      const log = renderRecorded('/diary?filterMode=all&q=x');
+      const log = renderRecorded('/diary?q=x');
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
 
       // Mutation: any handler dropping { replace: true } logs PUSH and fails the final check.
-      fireEvent.click(screen.getByTestId('mode-filter-manual'));
       fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
       fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-02-01' } });
       fireEvent.click(screen.getByTestId('type-filter-daily_log'));
       fireEvent.click(screen.getByTestId('status-filter-drafts'));
       fireEvent.change(screen.getByTestId('diary-search-input'), { target: { value: 'abc' } });
-      await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(6));
+      await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(5));
       fireEvent.click(screen.getByTestId('clear-filters-button'));
 
-      await waitFor(() => expect(log.entries[log.index]).toBe('/diary?filterMode=manual'));
-      expect(log.actions.length).toBeGreaterThanOrEqual(7);
+      await waitFor(() => expect(log.entries[log.index]).toBe('/diary'));
+      expect(log.actions.length).toBeGreaterThanOrEqual(6);
       expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
       expect(log.entries).toHaveLength(1);
     });
@@ -331,7 +326,7 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     const log = createRouterLog();
     render(
-      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+      <RecordingRouter entries={['/diary?q=oak']} log={log}>
         <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
           <DateContext />
           <DiaryPage />
@@ -344,7 +339,7 @@ describe('DiaryPage', () => {
     fireEvent.click(link);
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
-    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
   });
 
   // ─── Error state ─────────────────────────────────────────────────────────────
@@ -845,12 +840,12 @@ describe('DiaryPage', () => {
       expect(container.querySelector('.subtitle')).not.toHaveTextContent(/999/);
     });
 
-    it('toggling an entry type chip while in manual mode restricts the query to the manual/type intersection and removes the page param', async () => {
+    it('toggling an entry type chip restricts the query to that manual type and removes the page param', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('m-1')]));
       mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('m-2')]));
 
-      renderPage(['/diary']); // default filterMode is 'manual'
+      renderPage(['/diary']);
       await waitFor(() => {
         expect(screen.getByTestId('diary-card-m-1')).toBeInTheDocument();
       });
@@ -866,25 +861,6 @@ describe('DiaryPage', () => {
       const search = screen.getByTestId('location-search').textContent ?? '';
       expect(search).toContain('types=daily_log');
       expect(search).not.toContain('page=');
-    });
-
-    it('toggling an entry type chip while in automatic mode restricts the query to the automatic/type intersection', async () => {
-      const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('a-1')]));
-      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('a-2')]));
-
-      renderPage(['/diary?filterMode=automatic']);
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-card-a-1')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByTestId('type-filter-work_item_status'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-card-a-2')).toBeInTheDocument();
-      });
-      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
-      expect(lastCall?.[0]?.type).toBe('work_item_status');
     });
 
     it('changing the date-from filter removes the page param and re-fetches from page 1', async () => {
@@ -926,29 +902,7 @@ describe('DiaryPage', () => {
       const search = screen.getByTestId('location-search').textContent ?? '';
       expect(search).not.toContain('page=');
     });
-
-    it('clicking a filter-mode chip removes the page param, updates the URL, and re-fetches', async () => {
-      const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('fm-1')]));
-      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('fm-2')]));
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-card-fm-1')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByTestId('mode-filter-automatic'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-card-fm-2')).toBeInTheDocument();
-      });
-      const search = screen.getByTestId('location-search').textContent ?? '';
-      expect(search).toContain('filterMode=automatic');
-      expect(search).not.toContain('page=');
-    });
   });
-
-  // ─── Filter mode changes call API ──────────────────────────────────────────
 
   // ─── Log today link (#2222) ───────────────────────────────────────────────
 
@@ -966,14 +920,14 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     const log = createRouterLog();
     render(
-      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+      <RecordingRouter entries={['/diary?q=oak']} log={log}>
         <DiaryPage />
       </RecordingRouter>,
     );
     fireEvent.click(screen.getByRole('link', { name: 'Log today' }));
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
-    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
     expect(log.states[0]).not.toHaveProperty('background');
   });
 
@@ -981,7 +935,7 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     const log = createRouterLog();
     render(
-      <RecordingRouter entries={['/diary?filterMode=all']} log={log}>
+      <RecordingRouter entries={['/diary?q=oak']} log={log}>
         <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
           <DateContext />
           <DiaryPage />
@@ -994,7 +948,7 @@ describe('DiaryPage', () => {
     fireEvent.click(link);
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
-    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
   });
 
   // ─── Export functionality removed ─────────────────────────────────────────
@@ -1008,80 +962,6 @@ describe('DiaryPage', () => {
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
-  });
-
-  // ─── Filter mode default and URL param behaviour ──────────────────────────────
-
-  describe('filter mode — default and URL param behaviour', () => {
-    it('defaults to manual filter mode when no filterMode URL param is present', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary']);
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
-      // The manual mode button should be pressed
-      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'true');
-      // The all mode button should not be pressed
-      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
-      // The API call should include the manual type set
-      const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
-      expect(callArg?.type).toBeDefined();
-      expect(callArg?.type).toContain('daily_log');
-    });
-
-    it('honors explicit filterMode=all URL param', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?filterMode=all']);
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
-      // The all mode button should be pressed
-      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
-      // With filterMode=all and no type restrictions, type should be undefined (no restriction)
-      const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
-      expect(callArg?.type).toBeUndefined();
-    });
-
-    it('honors explicit filterMode=automatic URL param', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?filterMode=automatic']);
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
-      // The automatic mode button should be pressed
-      expect(screen.getByTestId('mode-filter-automatic')).toHaveAttribute('aria-pressed', 'true');
-      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
-    });
-
-    it('handleClearAll resets filterMode to manual', async () => {
-      const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      // Use q=test so filterCount >= 1 and the Clear All button is rendered
-      renderPage(['/diary?filterMode=all&q=test']);
-
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
-
-      // Confirm we start in 'all' mode
-      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
-
-      // Click the Clear All button
-      const clearBtn = screen.getByTestId('clear-filters-button');
-      await user.click(clearBtn);
-
-      // After clearing, filterMode should reset to 'manual'
-      await waitFor(() => {
-        expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'true');
-      });
-      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
-
-      // The second API call should use the manual type set
-      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
-      expect(lastCall?.[0]?.type).toContain('daily_log');
-    });
   });
 
   // ─── Status chip row removed (Story #1435) ────────────────────────────────────
@@ -1161,7 +1041,7 @@ describe('DiaryPage', () => {
   });
 
   describe('n shortcut (#2211)', () => {
-    const renderRecorded = (url = '/diary?filterMode=all') => {
+    const renderRecorded = (url = '/diary?q=oak') => {
       const log = createRouterLog();
       render(
         <ShortcutRegistryProvider>
@@ -1182,7 +1062,7 @@ describe('DiaryPage', () => {
       // The page stays mounted in this router and may rewrite its own params afterwards.
       expect(log.actions[0]).toMatch(/^PUSH \/diary\/new/);
       expect(log.actions.filter((a) => a.startsWith('PUSH'))).toHaveLength(1);
-      expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+      expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
     });
 
     it('ignores n typed into the diary search field', async () => {
@@ -1204,195 +1084,150 @@ describe('DiaryPage', () => {
     });
   });
 
-  // ─── System events: History feed and hidden notes (#2223) ─────────────────────
+  // ─── System events moved to History (#2224) ───────────────────────────────────
 
-  describe('system events and hidden notes (#2223)', () => {
-    const delayEvent = (id: string, overrides: Partial<DiaryEntrySummary> = {}) =>
-      makeSummary(id, {
-        entryType: 'milestone_delay',
-        isAutomatic: true,
-        title: null,
-        body: '',
-        createdBy: null,
-        sourceEntityType: 'milestone',
-        sourceEntityId: 'ms-1',
-        sourceEntityTitle: 'Roof closed',
-        sourceEntityExists: true,
-        metadata: {
-          v: 1,
-          event: 'milestone_delayed',
-          targetDate: '2026-03-01',
-          projectedDate: '2026-03-08',
-          delayDays: 7,
-          subjectLabel: 'Roof closed',
-        },
-        ...overrides,
-      });
-    const withHidden = (entries: DiaryEntrySummary[], hiddenCount: number) => ({
-      ...makeListResponse(entries),
-      hiddenCount,
-    });
-
-    it('the automatic mode chip reads "History"', async () => {
+  describe('system events live on History, not in the diary (#2224)', () => {
+    it('always requests automatic=false', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage();
-      expect(screen.getByTestId('mode-filter-automatic')).toHaveTextContent(/^History$/);
-      await screen.findByText(/no diary entries yet/i);
+      renderPage(['/diary']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]).toMatchObject({ automatic: false });
     });
 
-    it('renders an automatic entry as a system-event row, not a card', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 0));
-      renderPage();
-      const row = await screen.findByTestId('system-event-ev-1');
-      expect(row.tagName).toBe('LI');
-      expect(row).toHaveTextContent('Roof closed is 7 days late.');
-      expect(screen.queryByTestId('diary-card-ev-1')).toBeNull();
+    it('keeps automatic=false with filters, a status and a type chip', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?q=oak&status=saved']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      await user.click(screen.getByTestId('type-filter-issue'));
+      await waitFor(() =>
+        expect(mockListDiaryEntries.mock.lastCall?.[0]).toMatchObject({
+          automatic: false,
+          q: 'oak',
+          status: 'saved',
+          type: 'issue',
+        }),
+      );
+      for (const [query] of mockListDiaryEntries.mock.calls) {
+        expect(query).toMatchObject({ automatic: false });
+      }
     });
 
-    it('shows no hidden-notes line when hiddenCount is 0', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 0));
-      renderPage();
-      await screen.findByTestId('system-event-ev-1');
+    it('does not send a type restriction or showHidden by default', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      const query = mockListDiaryEntries.mock.calls[0]?.[0];
+      expect(query?.type).toBeUndefined();
+      expect(query).not.toHaveProperty('showHidden');
+    });
+
+    it('renders no mode chips and no hidden-notes line even when the server reports hidden notes', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce({
+        ...makeListResponse([makeSummary('m-1')]),
+        hiddenCount: 4,
+      });
+      renderPage(['/diary']);
+      await screen.findByTestId('diary-card-m-1');
+      expect(screen.queryByTestId('mode-filter-all')).toBeNull();
+      expect(screen.queryByTestId('mode-filter-manual')).toBeNull();
+      expect(screen.queryByTestId('mode-filter-automatic')).toBeNull();
       expect(screen.queryByTestId('diary-hidden-note')).toBeNull();
       expect(screen.queryByTestId('diary-show-hidden')).toBeNull();
-      expect(screen.getByTestId('diary-hidden-status')).toBeEmptyDOMElement();
+      expect(screen.queryByTestId('diary-hidden-status')).toBeNull();
     });
 
-    it('shows one line with the count and a pressed-state toggle when notes are hidden', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 2));
-      renderPage();
-      const note = await screen.findByTestId('diary-hidden-note');
-      expect(note).toHaveTextContent('2 later delay notes are hidden.');
-      const toggle = screen.getByTestId('diary-show-hidden');
-      expect(toggle).toHaveTextContent('Show hidden');
-      expect(toggle).toHaveAttribute('aria-pressed', 'false');
-      expect(screen.getAllByTestId('diary-hidden-note')).toHaveLength(1);
+    it('shows the History link in the filter bar', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+      expect(screen.getByTestId('diary-history-link')).toHaveAttribute('href', '/history');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
     });
 
-    it('uses the singular form for one hidden note', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 1));
-      renderPage();
-      expect(await screen.findByTestId('diary-hidden-note')).toHaveTextContent(
-        '1 later delay note is hidden.',
-      );
+    it('ignores automatic types in the URL: only manual types reach the filter and the query', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?types=work_item_status,daily_log,bogus']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]?.type).toBe('daily_log');
+      expect(screen.getByTestId('type-filter-daily_log')).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('Show hidden refetches with showHidden, announces it and keeps focus on the toggle', async () => {
+    it('clearing the dates and untoggling the last type removes their URL params', async () => {
       const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 1));
-      renderPage();
-      const toggle = await screen.findByTestId('diary-show-hidden');
-      expect(mockListDiaryEntries.mock.calls[0]?.[0]).not.toHaveProperty('showHidden', true);
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?dateFrom=2026-01-01&dateTo=2026-02-01&types=issue']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
 
-      let resolveReload!: (value: ReturnType<typeof withHidden>) => void;
-      mockListDiaryEntries.mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveReload = resolve as typeof resolveReload;
-          }),
-      );
-      await user.click(toggle);
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '' } });
+      fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '' } });
+      await user.click(screen.getByTestId('type-filter-issue'));
 
-      // Pending: the line and the very same toggle stay mounted, focus is not lost.
-      expect(screen.getByTestId('diary-show-hidden')).toBe(toggle);
-      expect(toggle).toHaveFocus();
-      expect(toggle).toHaveAttribute('aria-pressed', 'true');
-      expect(toggle).toHaveTextContent('Hide again');
-      expect(screen.getByTestId('diary-hidden-status')).toHaveTextContent('1 hidden note shown');
-      await waitFor(() =>
-        expect(mockListDiaryEntries).toHaveBeenLastCalledWith(
-          expect.objectContaining({ showHidden: true }),
-        ),
-      );
-
-      await act(async () => {
-        resolveReload(
-          withHidden(
-            [
-              delayEvent('ev-1'),
-              delayEvent('ev-2', { hidden: true, createdAt: '2026-03-14T11:00:00.000Z' }),
-            ],
-            1,
-          ),
-        );
-      });
-      const hiddenRow = await screen.findByTestId('system-event-ev-2');
-      expect(hiddenRow).toHaveTextContent('After reached');
-      expect(hiddenRow).toHaveTextContent('Logged after the milestone was reached.');
-      expect(screen.getByTestId('system-event-ev-1')).not.toHaveTextContent('After reached');
-      expect(screen.getByTestId('diary-show-hidden')).toHaveFocus();
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
     });
 
-    it('Hide again goes back to the normal query and announces it', async () => {
-      const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], 1));
-      renderPage();
-      await user.click(await screen.findByTestId('diary-show-hidden'));
-      await waitFor(() =>
-        expect(mockListDiaryEntries).toHaveBeenLastCalledWith(
-          expect.objectContaining({ showHidden: true }),
-        ),
-      );
+    it('sends no type when the URL only carries automatic types', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?types=invoice_status']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]?.type).toBeUndefined();
+    });
+  });
 
-      await user.click(screen.getByTestId('diary-show-hidden'));
+  // ─── Legacy ?filterMode links (#2224) ─────────────────────────────────────────
 
-      expect(screen.getByTestId('diary-hidden-status')).toHaveTextContent('Hidden notes hidden');
-      expect(screen.getByTestId('diary-show-hidden')).toHaveAttribute('aria-pressed', 'false');
-      await waitFor(() =>
-        expect(mockListDiaryEntries.mock.lastCall?.[0]).not.toHaveProperty('showHidden', true),
+  describe('?filterMode redirect to History (#2224)', () => {
+    const renderRecordedWithHistory = (url: string) => {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[url]} log={log}>
+          <Routes>
+            <Route path="/diary" element={<DiaryPage />} />
+            <Route path="/history" element={<div data-testid="history-stub" />} />
+          </Routes>
+          <LocationDisplay />
+        </RecordingRouter>,
       );
+      return log;
+    };
+
+    it('filterMode=automatic goes to /history with one REPLACE and no diary request', async () => {
+      const log = renderRecordedWithHistory('/diary?filterMode=automatic');
+      await screen.findByTestId('history-stub');
+      expect(log.actions).toEqual(['REPLACE /history']);
+      expect(log.entries).toEqual(['/history']);
+      expect(mockListDiaryEntries).not.toHaveBeenCalled();
     });
 
-    it.each([
-      [1, 'Showing 1 later delay note.', '1 later delay note is hidden.'],
-      [3, 'Showing 3 later delay notes.', '3 later delay notes are hidden.'],
-    ])(
-      'while shown the line reads "Showing N later delay note(s)" (%i), and the hidden sentence returns when toggled off',
-      async (count, showing, hidden) => {
-        const user = userEvent.setup();
-        mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], count));
-        renderPage();
-        const note = await screen.findByTestId('diary-hidden-note');
-        expect(note).toHaveTextContent(hidden);
-
-        await user.click(screen.getByTestId('diary-show-hidden'));
-        await waitFor(() => expect(note).toHaveTextContent(showing));
-        expect(note).not.toHaveTextContent(/hidden\./);
-
-        await user.click(screen.getByTestId('diary-show-hidden'));
-        await waitFor(() => expect(note).toHaveTextContent(hidden));
-        expect(note).not.toHaveTextContent('Showing');
-      },
-    );
-
-    it('does not use the infinite-scroll announcement region for the toggle message', async () => {
-      const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], 3));
-      renderPage();
-      await user.click(await screen.findByTestId('diary-show-hidden'));
-      expect(announcementRegion()).not.toBe(screen.getByTestId('diary-hidden-status'));
-      expect(announcementRegion()).not.toHaveTextContent('hidden notes shown');
+    it('filterMode=all goes to /history?include=diary and does not load the diary', async () => {
+      const log = renderRecordedWithHistory('/diary?filterMode=all');
+      await screen.findByTestId('history-stub');
+      expect(log.entries).toEqual(['/history?include=diary']);
+      expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
+      expect(mockListDiaryEntries).not.toHaveBeenCalled();
     });
 
-    it('shows the ×N count in visible text for a collapsed repeat', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(
-        withHidden(
-          [
-            makeSummary('ev-r', {
-              ...delayEvent('ev-r'),
-              repeat: {
-                count: 3,
-                firstAt: '2026-03-12T08:00:00.000Z',
-                lastAt: '2026-03-14T08:00:00.000Z',
-              },
-            }),
-          ],
-          0,
-        ),
+    it('carries q and the first History type and drops other keys', async () => {
+      const log = renderRecordedWithHistory(
+        '/diary?filterMode=automatic&types=invoice_status,daily_log&q=zz&status=saved',
       );
-      renderPage();
-      const row = await screen.findByTestId('system-event-ev-r');
-      expect(row).toHaveTextContent(/3 times, .+ to .+/);
+      await screen.findByTestId('history-stub');
+      expect(log.entries).toEqual(['/history?q=zz&type=invoice_status']);
+      expect(mockListDiaryEntries).not.toHaveBeenCalled();
+    });
+
+    it('filterMode=manual stays on the diary and loads it', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const log = renderRecordedWithHistory('/diary?filterMode=manual');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('history-stub')).toBeNull();
+      expect(log.actions).toEqual([]);
+    });
+
+    it('a diary URL without filterMode is not redirected', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const log = renderRecordedWithHistory('/diary?q=oak');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(log.actions).toEqual([]);
     });
   });
 });

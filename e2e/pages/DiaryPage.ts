@@ -207,19 +207,27 @@ export class DiaryPage {
     return this.page.getByTestId(`system-event-${id}`);
   }
 
+  /** Every system event row on the page (none on the Site diary since #2224). */
+  systemEventRowsAny(): Locator {
+    return this.page.locator('li[data-testid^="system-event-"]');
+  }
+
   /** The link row of a system event ("Open task", "Open progress payment", ...). */
   systemEventLink(id: string): Locator {
     return this.page.getByTestId(`system-event-${id}-link`);
   }
 
-  /** The "Show hidden" / "Hide again" toggle of the hidden-notes line (`aria-pressed`). */
-  get showHiddenToggle(): Locator {
-    return this.page.getByTestId('diary-show-hidden');
+  /**
+   * The "History ›" link at the top of the filter area (#2224). System events live on the
+   * History page; the Site diary lists people's entries only.
+   */
+  get historyLink(): Locator {
+    return this.page.getByTestId('diary-history-link');
   }
 
-  /** The hidden-notes line above the feed ("1 later delay note is hidden."). */
-  get hiddenNote(): Locator {
-    return this.page.getByTestId('diary-hidden-note');
+  /** Mode chips (All / Manual / History) were removed in #2224; used to assert they are gone. */
+  get modeChips(): Locator {
+    return this.page.locator('[data-testid^="mode-filter-"]');
   }
 
   /**

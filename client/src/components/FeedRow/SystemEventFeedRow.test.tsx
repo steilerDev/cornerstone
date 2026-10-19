@@ -58,7 +58,7 @@ function setup(
 ) {
   const log = createRouterLog();
   render(
-    <RecordingRouter entries={['/diary?filterMode=automatic']} log={log}>
+    <RecordingRouter entries={['/history?type=payment']} log={log}>
       <ul>
         <SystemEventFeedRow entry={entry} {...props} />
       </ul>
@@ -87,7 +87,7 @@ describe('SystemEventFeedRow', () => {
     expect(link).toHaveAttribute('aria-label', 'Open task: Kitchen tiling');
     fireEvent.click(link);
     expect(log.actions).toEqual(['PUSH /project/work-items/wi-1']);
-    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=automatic' } });
+    expect(log.states[0]).toMatchObject({ origin: { to: '/history?type=payment' } });
   });
 
   it('detail variant: no time, link kept', () => {
@@ -197,5 +197,68 @@ describe('SystemEventFeedRow', () => {
       'aria-label',
       'Open progress payment of EUR 1000.00 for invoice 2026-014, D(2026-03-14)',
     );
+  });
+
+  describe('extra badge and actions (#2224)', () => {
+    const invoiceEntry = (meta: Record<string, unknown>, over: Partial<DiaryEntrySummary> = {}) =>
+      makeEntry({
+        entryType: 'invoice_status',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-1',
+        sourceEntityTitle: 'T-001',
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'pending',
+          to: 'claimed',
+          subjectLabel: 'T-001',
+          ...meta,
+        } as never,
+        ...over,
+      });
+
+    it('a Payment shows the Payment badge as real text (not aria-hidden)', () => {
+      setup(invoiceEntry({ to: 'paid' }));
+      const badge = screen.getByTestId('system-event-ev-1-extra');
+      expect(badge).toHaveTextContent('Payment');
+      expect(badge.closest('[aria-hidden="true"]')).toBeNull();
+    });
+
+    it('a collapsed batch shows the Submission badge and its sentence', () => {
+      const { row } = setup(
+        invoiceEntry(
+          { batchId: 'b-1' },
+          {
+            batch: {
+              batchId: 'b-1',
+              invoiceCount: 2,
+              amount: 300,
+              invoiceLabels: ['T-001', 'T-002'],
+              budgetSourceId: 'src-1',
+              budgetSourceName: 'Bank A',
+              budgetSourceExists: true,
+            },
+          },
+        ),
+      );
+      expect(screen.getByTestId('system-event-ev-1-extra')).toHaveTextContent('Submission');
+      expect(row).toHaveTextContent('2 invoices submitted to the bank, EUR 300.00');
+      expect(row).toHaveTextContent('Invoices T-001, T-002');
+      expect(screen.getByTestId('system-event-ev-1-link')).toHaveAttribute(
+        'href',
+        '/budget/reports?sourceId=src-1',
+      );
+    });
+
+    it('a plain event has no extra badge', () => {
+      setup(makeEntry());
+      expect(screen.queryByTestId('system-event-ev-1-extra')).toBeNull();
+    });
+
+    it('renders no Revert text and no actions element (P4.11 is not built yet)', () => {
+      const { row } = setup(invoiceEntry({ batchId: 'b-1' }));
+      expect(row).not.toHaveTextContent(/revert/i);
+      expect(screen.queryByTestId('system-event-ev-1-actions')).toBeNull();
+    });
   });
 });

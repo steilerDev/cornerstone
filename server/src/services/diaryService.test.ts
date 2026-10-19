@@ -269,6 +269,65 @@ describe('diaryService', () => {
 
   // ─── getDiaryEntry ─────────────────────────────────────────────────────────
 
+  describe('listDiaryEntries is unchanged by History batch collapse (#2224)', () => {
+    function batchMember(batchId: string, invoiceId: string): string {
+      return insertEntry({
+        entryType: 'invoice_status',
+        isAutomatic: true,
+        title: null,
+        body: '',
+        sourceEntityType: 'invoice',
+        sourceEntityId: invoiceId,
+        metadata: JSON.stringify({
+          v: 1,
+          event: 'status_changed',
+          from: 'pending',
+          to: 'claimed',
+          subjectLabel: invoiceId,
+          batchId,
+        }),
+      });
+    }
+
+    it('lists every member of a bank-report batch individually, without a batch field', () => {
+      const a = batchMember('batch-1', 'inv-a');
+      const b = batchMember('batch-1', 'inv-b');
+
+      const result = listDiaryEntries(db, {});
+
+      expect(result.items.map((i) => i.id).sort()).toEqual([a, b].sort());
+      expect(result.pagination.totalItems).toBe(2);
+      expect(result.items.every((i) => i.batch === undefined)).toBe(true);
+    });
+
+    it('returns summaries in list order with the repeat marker of a collapsed run', () => {
+      const meta = JSON.stringify({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'paid',
+        subjectLabel: 'T-1',
+      });
+      const common = {
+        entryType: 'invoice_status' as const,
+        isAutomatic: true,
+        title: null,
+        body: '',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-r',
+        metadata: meta,
+      };
+      insertEntry({ ...common, entryDate: '2026-03-14' });
+      const newest = insertEntry({ ...common, entryDate: '2026-03-14' });
+      const older = insertEntry({ entryDate: '2026-03-01' });
+
+      const result = listDiaryEntries(db, {});
+
+      expect(result.items.map((i) => i.id)).toEqual([newest, older]);
+      expect(result.items[0]!.repeat?.count).toBe(2);
+    });
+  });
+
   describe('getDiaryEntry', () => {
     it('returns the entry with photoCount=0', () => {
       const id = insertEntry({ title: 'My Entry', body: 'Body content' });

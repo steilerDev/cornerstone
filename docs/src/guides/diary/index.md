@@ -5,20 +5,20 @@ title: Diary
 
 # Construction Diary
 
-The construction diary (Bautagebuch) gives you a chronological record of everything that happens on your building project. It combines manual entries you write with system events that Cornerstone records when significant changes occur elsewhere in the application.
+The construction diary (Bautagebuch) is where you keep a chronological record of your building project in your own words. The **Site diary** lists the entries you write. Changes that Cornerstone records by itself, such as a task being finished or an invoice being paid, are listed on the [History](automatic-events) page.
 
 ## Overview
 
 The diary provides:
 
 - **Manual Entries** -- Write daily logs, record site visits, track deliveries, flag issues, and add general notes
-- **History** -- System-generated entries for work item status changes, invoice creation and status changes, milestone delays, budget breaches, schedule changes, and subsidy changes
+- **History Link** -- A link at the top of the Site diary opens the History page, where automatic changes are listed
 - **Photo Attachments** -- Capture photos on your phone and tag them with a caption, area, and compass orientation for visual documentation
 - **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser (touch-enabled)
 - **Drafts** -- Pick an entry type and start drafting immediately; the entry is saved as a draft until you promote it to a full entry, with auto-save while you type
 - **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable
 - **Infinite Scroll** -- Entries load automatically as you scroll; a "Load more" button lets you fetch the next batch without scrolling
-- **Filtering** -- Filter the diary by Manual (the default), All, or History entries with type-specific filter chips, plus a separate Drafts chip to show or hide unfinished work
+- **Filtering** -- Filter the Site diary by date, and show or hide unfinished drafts with the **Drafts** chip
 
 ## Entry Types
 
@@ -34,40 +34,25 @@ You create these entries to document activities and observations:
 | **Issue** | Flag a problem that needs attention -- supports acknowledgment signatures |
 | **General Note** | Anything that does not fit the other categories |
 
-### History (System Events)
+## Site Diary and History
 
-Cornerstone always records significant changes in the system as diary entries (History):
+The **Site diary** shows the entries you wrote. It does not show automatic events. Cornerstone records those on the **History** page, which you can open from the **History ›** link at the top of the Site diary filters (on phones, use **More** and then **History**).
 
-| Event | Trigger |
-|-------|---------|
-| **Work Item Status** | A work item's status changes (e.g., from "Not Started" to "In Progress") |
-| **Invoice Created** | A new invoice is added to a vendor |
-| **Invoice Status** | An invoice status changes (e.g., from "Pending" to "Paid") |
-| **Milestone Delay** | A milestone's projected completion date slips past its target date |
-| **Budget Breach** | A budget category's costs exceed its allocated amount |
-| **Schedule** | The project schedule is recalculated or changed |
-| **Subsidy** | A subsidy program status or amount changes |
-
-System events are interleaved chronologically with manual entries -- there is no separate section for them. Each system event links to the related entity so you can navigate directly to the source.
+If you want to see your own entries next to the automatic changes, turn on **Include site diary entries** on the History page. See [History](automatic-events) for the filters and the kinds of changes listed there.
 
 ## Filtering
 
-At the top of the diary page, filter chips let you narrow the view:
+The Site diary filters work on your own entries:
 
-- **Manual** (default) -- Show only your hand-written entries
-- **All** -- Show every entry (manual and History)
-- **History** -- Show only system-generated events
-
-The diary opens on the **Manual** filter so you land on a focused view of the entries you actually wrote, rather than a feed dominated by auto-generated system events. Switch to **All** to see everything interleaved chronologically, or **History** to review only system events. Your choice is reflected in the URL (`?filterMode=all` or `?filterMode=automatic`), so a bookmarked or shared link reopens the same view; a plain `/diary` link always starts on Manual.
-
-When the History filter is active, additional type-specific chips appear for finer control (e.g., "Invoice" groups both invoice creation and status change events).
-
-A separate **Drafts** chip controls whether unfinished draft entries are included in the view. Drafts are hidden by default so your diary stays focused on finalized entries -- toggle the chip on to surface them.
+- **Search** -- Find entries by their text
+- **From** and **To** -- Narrow the list to a range of dates
+- **Entry Types** -- Show only some of the manual entry types, such as Site Visit or Delivery
+- **Drafts** -- Hidden by default so your diary stays focused on finalized entries. Turn the chip on to surface unfinished drafts
 
 ## Next Steps
 
 - [Manual Entries](manual-entries) -- Creating and editing diary entries
-- [System Events](automatic-events) -- How system events are recorded and shown
+- [History](automatic-events) -- The automatic record of changes, its filters and how it shows bank submissions
 - [Capturing Photos](photo-capture) -- Capturing and tagging photos, and managing orientations
 - [Photo Annotation](photo-annotation) -- Marking up diary photos with shapes, text, and measurements
 - [Signatures](signatures) -- Digital signature capture and immutability

@@ -75,7 +75,7 @@ import {
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_SEVERITIES,
 } from '@cornerstone/shared';
-import { listDisplayRows } from './systemEventDisplay.js';
+import { listDisplayRows, type DisplayRow } from './systemEventDisplay.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 
@@ -308,7 +308,7 @@ interface ResolvedSourceEntity {
  * `title` is null when the type is null/unknown, the entity is gone, or it has no name
  * (invoice without a number). `exists` is undefined for any other type or a null id.
  */
-function resolveSourceEntity(
+export function resolveSourceEntity(
   db: DbType,
   sourceEntityType: string | null,
   sourceEntityId: string | null,
@@ -604,74 +604,12 @@ function validateMetadata(
   }
 }
 
-/**
- * List diary entries with pagination, filtering, and search.
- */
-export function listDiaryEntries(
-  db: DbType,
-  query: DiaryEntryListQuery,
-): { items: DiaryEntrySummary[]; pagination: PaginationMeta; hiddenCount: number } {
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
-
-  // Build WHERE conditions
-  const conditions: SQL<unknown>[] = [];
-
-  if (query.type) {
-    type EntryTypeValue = typeof diaryEntries.entryType._.data;
-    const types = query.type
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean) as EntryTypeValue[];
-    if (types.length === 1) {
-      // types[0] is defined: length check ensures the array has one element
-      conditions.push(eq(diaryEntries.entryType, types[0]!));
-    } else if (types.length > 1) {
-      conditions.push(inArray(diaryEntries.entryType, types));
-    }
-  }
-
-  if (query.dateFrom) {
-    conditions.push(gte(diaryEntries.entryDate, query.dateFrom));
-  }
-
-  if (query.dateTo) {
-    conditions.push(lte(diaryEntries.entryDate, query.dateTo));
-  }
-
-  if (query.automatic !== undefined) {
-    conditions.push(eq(diaryEntries.isAutomatic, query.automatic));
-  }
-
-  if (query.status) {
-    conditions.push(eq(diaryEntries.status, query.status));
-  }
-
-  if (query.q) {
-    const pattern = toLikeContainsPattern(query.q);
-    conditions.push(
-      or(
-        sql`LOWER(${diaryEntries.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
-        sql`LOWER(${diaryEntries.body}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
-      )!,
-    );
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  // Apply the system event display rules (R1/R2, ADR-040 §6) and page the result.
-  const display = listDisplayRows(db, {
-    where: whereClause,
-    showHidden: query.showHidden === true,
-    page,
-    pageSize,
-  });
-  const totalItems = display.totalItems;
-  const totalPages = Math.ceil(totalItems / pageSize);
-  const displayById = new Map(display.rows.map((r) => [r.id, r]));
+/** Summaries for display rows, in the given order (repeat/hidden from the display rows). */
+export function toDiarySummaries(db: DbType, rows: readonly DisplayRow[]): DiaryEntrySummary[] {
+  const displayById = new Map(rows.map((r) => [r.id, r]));
 
   // Load the page rows with users, then restore the display order
-  const pageIds = display.rows.map((r) => r.id);
+  const pageIds = rows.map((r) => r.id);
   const loadedRows =
     pageIds.length === 0
       ? []
@@ -735,6 +673,77 @@ export function listDiaryEntries(
       },
     );
   });
+
+  return items;
+}
+
+/**
+ * List diary entries with pagination, filtering, and search.
+ */
+export function listDiaryEntries(
+  db: DbType,
+  query: DiaryEntryListQuery,
+): { items: DiaryEntrySummary[]; pagination: PaginationMeta; hiddenCount: number } {
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
+
+  // Build WHERE conditions
+  const conditions: SQL<unknown>[] = [];
+
+  if (query.type) {
+    type EntryTypeValue = typeof diaryEntries.entryType._.data;
+    const types = query.type
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean) as EntryTypeValue[];
+    if (types.length === 1) {
+      // types[0] is defined: length check ensures the array has one element
+      conditions.push(eq(diaryEntries.entryType, types[0]!));
+    } else if (types.length > 1) {
+      conditions.push(inArray(diaryEntries.entryType, types));
+    }
+  }
+
+  if (query.dateFrom) {
+    conditions.push(gte(diaryEntries.entryDate, query.dateFrom));
+  }
+
+  if (query.dateTo) {
+    conditions.push(lte(diaryEntries.entryDate, query.dateTo));
+  }
+
+  if (query.automatic !== undefined) {
+    conditions.push(eq(diaryEntries.isAutomatic, query.automatic));
+  }
+
+  if (query.status) {
+    conditions.push(eq(diaryEntries.status, query.status));
+  }
+
+  if (query.q) {
+    const pattern = toLikeContainsPattern(query.q);
+    conditions.push(
+      or(
+        sql`LOWER(${diaryEntries.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
+        sql`LOWER(${diaryEntries.body}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
+      )!,
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Apply the system event display rules (R1/R2, ADR-040 §6) and page the result.
+  const display = listDisplayRows(db, {
+    where: whereClause,
+    showHidden: query.showHidden === true,
+    raw: false,
+    collapseBatches: false,
+    page,
+    pageSize,
+  });
+  const totalItems = display.totalItems;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const items = toDiarySummaries(db, display.rows);
 
   return {
     items,

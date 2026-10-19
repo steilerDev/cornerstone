@@ -500,7 +500,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["q", "type", "object", "dateFrom", "dateTo", "include"],
-    "note": "NEW History: all system events (filters type, object, date; include diary entries); sidebar secondary group."
+    "note": "History page (#2224): all system events newest first, grouped by day, bank-report submissions as one row; filters type, object, date, search; 'Include site diary entries'; sidebar secondary group."
   },
   {
     "from": "/documents",
@@ -908,7 +908,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["q", "dateFrom", "dateTo", "types->type"],
-    "note": "Query map: system events live on the History page; q, dateFrom, dateTo carried; types mapped to the History type filter."
+    "note": "Query map: system events live on the History page; q, dateFrom, dateTo carried; types mapped to the History type filter. Served by the Site diary page (interim: page, #2224): a replace navigation; `types` keeps its first History type."
   },
   {
     "from": "/diary?filterMode=all",
@@ -920,7 +920,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["q", "dateFrom", "dateTo", "types->type"],
-    "note": "Query map: the old 'All' mode = History with diary entries included; same parameters carried."
+    "note": "Query map: the old 'All' mode = History with diary entries included; same parameters carried. Served by the Site diary page (interim: page, #2224): a replace navigation; `types` keeps its first History type."
   },
   {
     "from": "/budget/invoices?openOnly=true",

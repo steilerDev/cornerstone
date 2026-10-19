@@ -30,10 +30,6 @@
     "filtersToggle": "Filter",
     "dateFrom": "Von",
     "dateTo": "Bis",
-    "filterMode": "Filter",
-    "filterModeAll": "Alle",
-    "filterModeManual": "Manuell",
-    "filterModeAutomatic": "Verlauf",
     "filterModeDrafts": "Entwürfe",
     "draftsChipGroupLabel": "Nach Entwurfsstatus filtern",
     "entryTypes": "Eintragstypen",
@@ -46,9 +42,9 @@
     "entryTypesLabel": "Eintragstypen",
     "clearAllButton": "Alles löschen",
     "toggleFiltersAriaLabel": "Filter ein-/ausblenden",
-    "modeGroupAriaLabel": "Nach Eintragsmodus filtern",
     "searchAriaLabel": "Tagebucheinträge durchsuchen",
-    "typeGroupAriaLabel": "Nach Eintragstyp filtern"
+    "typeGroupAriaLabel": "Nach Eintragstyp filtern",
+    "historyLinkAriaLabel": "Verlauf, die automatische Aufzeichnung der Änderungen"
   },
   "entryTypes": {
     "work_item_status": "Aufgabenstatus",
@@ -441,6 +437,19 @@
     "afterReached": "Nach Erreichen",
     "afterReachedDetail": "Nach Erreichen des Meilensteins erfasst.",
     "hiddenShowing_one": "{{count}} späterer Verzögerungshinweis wird angezeigt.",
-    "hiddenShowing_other": "{{count}} spätere Verzögerungshinweise werden angezeigt."
+    "hiddenShowing_other": "{{count}} spätere Verzögerungshinweise werden angezeigt.",
+    "badge": {
+      "payment": "Zahlung",
+      "submission": "Einreichung"
+    },
+    "submission": {
+      "sentence_one": "{{count}} Rechnung an die Bank eingereicht, {{amount}}",
+      "sentence_other": "{{count}} Rechnungen an die Bank eingereicht, {{amount}}",
+      "sentenceNoAmount_one": "{{count}} Rechnung an die Bank eingereicht",
+      "sentenceNoAmount_other": "{{count}} Rechnungen an die Bank eingereicht",
+      "invoices_one": "Rechnung {{numbers}}",
+      "invoices_other": "Rechnungen {{numbers}}",
+      "invoicesMore": "Rechnungen {{numbers}} und {{more}} weitere"
+    }
   }
 }

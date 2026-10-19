@@ -137,6 +137,8 @@ describe('systemEventDisplay', () => {
     opts: Partial<{
       where: Parameters<typeof listDisplayRows>[1]['where'];
       showHidden: boolean;
+      raw: boolean;
+      collapseBatches: boolean;
       page: number;
       pageSize: number;
     }> = {},
@@ -163,6 +165,7 @@ describe('systemEventDisplay', () => {
       expect(result.rows).toEqual([
         {
           id: 'c',
+          batchId: null,
           repeat: { count: 3, firstAt: at(1), lastAt: at(3) },
           hidden: false,
         },
@@ -173,7 +176,7 @@ describe('systemEventDisplay', () => {
 
     it('a single event has no repeat', () => {
       auto({ id: 'a', createdAt: at(1) });
-      expect(list().rows).toEqual([{ id: 'a', repeat: null, hidden: false }]);
+      expect(list().rows).toEqual([{ id: 'a', batchId: null, repeat: null, hidden: false }]);
     });
 
     it('a different event of the same subject in between splits the run into two', () => {
@@ -323,7 +326,12 @@ describe('systemEventDisplay', () => {
       auto({ id: 'a', createdAt: at(1), metadata: null, title: 'T', body: 'B' });
       auto({ id: 'b', createdAt: at(2), metadata: null, title: 'T', body: 'B' });
       expect(list().rows).toEqual([
-        { id: 'b', repeat: { count: 2, firstAt: at(1), lastAt: at(2) }, hidden: false },
+        {
+          id: 'b',
+          batchId: null,
+          repeat: { count: 2, firstAt: at(1), lastAt: at(2) },
+          hidden: false,
+        },
       ]);
     });
 
@@ -331,6 +339,29 @@ describe('systemEventDisplay', () => {
       auto({ id: 'a', createdAt: at(1), metadata: JSON.stringify({ v: 1, event: 'legacy' }) });
       auto({ id: 'b', createdAt: at(2) });
       expect(list().rows).toHaveLength(2);
+    });
+
+    it('malformed metadata does not throw in raw or batch-collapse mode (json_valid guard)', () => {
+      auto({ id: 'bad', createdAt: at(1), metadata: '{not json' });
+      auto({ id: 'good', createdAt: at(2), metadata: statusMeta('claimed', { batchId: 'b1' }) });
+      for (const opts of [{ raw: true }, { collapseBatches: true }, { showHidden: true }]) {
+        let result: ReturnType<typeof list> | undefined;
+        expect(() => {
+          result = list(opts);
+        }).not.toThrow();
+        expect(result!.rows.map((r) => r.id).sort()).toEqual(['bad', 'good']);
+      }
+    });
+
+    it('falls back to zero totals when the count query returns no row', () => {
+      const stub = { all: () => [] } as unknown as typeof db;
+      const result = listDisplayRows(stub, {
+        where: undefined,
+        showHidden: false,
+        page: 1,
+        pageSize: 10,
+      });
+      expect(result).toEqual({ rows: [], totalItems: 0, hiddenCount: 0 });
     });
 
     it('malformed metadata does not throw and is treated as a legacy row', () => {
@@ -421,7 +452,12 @@ describe('systemEventDisplay', () => {
       const shown = list({ showHidden: true });
 
       expect(shown.rows).toEqual([
-        { id: 'l2', repeat: { count: 2, firstAt: at(10), lastAt: at(11) }, hidden: true },
+        {
+          id: 'l2',
+          batchId: null,
+          repeat: { count: 2, firstAt: at(10), lastAt: at(11) },
+          hidden: true,
+        },
       ]);
       expect(shown.hiddenCount).toBe(1);
     });
@@ -625,6 +661,89 @@ describe('systemEventDisplay', () => {
 
       expect(result.hiddenCount).toBe(0);
       expect(result.rows).toHaveLength(1);
+    });
+  });
+
+  // ─── Batches and raw mode (#2224) ──────────────────────────────────────────
+
+  describe('batch collapse and raw mode (#2224)', () => {
+    function batched(id: string, minute: number, batchId: string, invoiceId: string): string {
+      return auto({
+        id,
+        createdAt: at(minute),
+        sourceEntityId: invoiceId,
+        metadata: statusMeta('claimed', { batchId }, invoiceId),
+      });
+    }
+
+    it('rows carry batchId null unless collapseBatches is on', () => {
+      batched('b-1', 1, 'batch-1', 'inv-a');
+      batched('b-2', 2, 'batch-1', 'inv-b');
+      auto({ id: 'plain', createdAt: at(3), sourceEntityId: 'inv-c' });
+
+      const off = list();
+      expect(off.rows.map((r) => r.batchId)).toEqual([null, null, null]);
+      expect(off.totalItems).toBe(3);
+    });
+
+    it('collapseBatches keeps the first event of each batch, with its batchId', () => {
+      batched('b-1', 1, 'batch-1', 'inv-a');
+      batched('b-2', 2, 'batch-1', 'inv-b');
+      batched('c-1', 3, 'batch-2', 'inv-a');
+      auto({ id: 'plain', createdAt: at(4), sourceEntityId: 'inv-c' });
+
+      const result = list({ collapseBatches: true });
+
+      expect(result.totalItems).toBe(3);
+      expect(result.rows.map((r) => [r.id, r.batchId])).toEqual([
+        ['plain', null],
+        ['c-1', 'batch-2'],
+        ['b-1', 'batch-1'],
+      ]);
+    });
+
+    it('a batch is never collapsed together with a different entry type that shares a batchId key', () => {
+      batched('b-1', 1, 'batch-1', 'inv-a');
+      auto({
+        id: 'wi',
+        createdAt: at(2),
+        entryType: 'work_item_status',
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-1',
+        metadata: statusMeta('done', { batchId: 'batch-1' }, 'Task A'),
+      });
+      const result = list({ collapseBatches: true });
+      expect(result.rows.map((r) => r.id).sort()).toEqual(['b-1', 'wi']);
+    });
+
+    it('hiddenCount ignores batch collapse for non-batch rows', () => {
+      milestone(1, '2026-03-01T00:00:00.000Z');
+      delay(1, at(1));
+      batched('b-1', 2, 'batch-1', 'inv-a');
+      batched('b-2', 3, 'batch-1', 'inv-b');
+      const result = list({ collapseBatches: true });
+      expect(result.hiddenCount).toBe(1);
+      expect(result.totalItems).toBe(1);
+    });
+
+    it('raw turns R1, R2 and batch collapse off and returns hidden rows flagged', () => {
+      milestone(1, '2026-03-01T00:00:00.000Z');
+      delay(1, at(1));
+      auto({ id: 'r-1', createdAt: at(2) });
+      auto({ id: 'r-2', createdAt: at(3) });
+      batched('b-1', 4, 'batch-1', 'inv-a');
+      batched('b-2', 5, 'batch-1', 'inv-b');
+
+      const result = list({ raw: true, collapseBatches: true });
+
+      expect(result.rows.map((r) => r.id)).toEqual(
+        expect.arrayContaining(['b-1', 'b-2', 'r-1', 'r-2']),
+      );
+      expect(result.rows).toHaveLength(5);
+      expect(result.rows.every((r) => r.repeat === null && r.batchId === null)).toBe(true);
+      expect(result.rows.filter((r) => r.hidden)).toHaveLength(1);
+      expect(result.totalItems).toBe(5);
+      expect(result.hiddenCount).toBe(1);
     });
   });
 });

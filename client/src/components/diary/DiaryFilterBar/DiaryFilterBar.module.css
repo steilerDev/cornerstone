@@ -10,43 +10,6 @@
   position: relative;
 }
 
-.mobileToggle {
-  display: none;
-  width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
-  background-color: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: var(--transition-normal);
-  text-align: left;
-  position: relative;
-}
-
-/* Open state: toggle is expanded, mark it with the primary accent */
-.mobileToggleOpen {
-  border-color: var(--color-primary);
-  background-color: var(--color-bg-hover);
-}
-
-.mobileToggle:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.badge {
-  display: inline-block;
-  margin-left: var(--spacing-2);
-  padding: var(--spacing-0-5) var(--spacing-2);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-}
-
 .filters {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -57,6 +20,27 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
+}
+
+.historyLink {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.historyLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
 .filterGroup:nth-child(2) {
@@ -75,12 +59,6 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-}
-
-.modeChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
 }
 
 .modeChip {
@@ -194,10 +172,6 @@
 
 /* Mobile styles */
 @media (max-width: 767px) {
-  .mobileToggle {
-    display: block;
-  }
-
   .filterBar {
     overflow: visible;
   }
@@ -238,7 +212,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobileToggle,
   .modeChip,
   .typeChip,
   .clearButton {

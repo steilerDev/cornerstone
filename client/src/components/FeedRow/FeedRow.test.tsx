@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createRouterLog, RecordingRouter } from '../../test/recordingRouter.js';
 import { FeedRow } from './FeedRow.js';
 import type { FeedRowProps } from './FeedRow.js';
@@ -127,5 +127,60 @@ describe('FeedRow', () => {
     const { root } = setup();
     expect(root).not.toHaveAttribute('tabindex');
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  describe('actions slot', () => {
+    it('renders no actions wrapper and an unchanged footer when actions is omitted', () => {
+      const { root } = setup({
+        link: { to: '/project/work-items/wi-1', label: 'Open task', ariaLabel: 'Open task: A' },
+      });
+      expect(screen.queryByTestId('row-1-actions')).toBeNull();
+      // The link is a direct child of the row (no footer wrapper).
+      const link = screen.getByTestId('row-1-link');
+      expect(link.parentElement).toBe(root);
+    });
+
+    it.each([
+      ['null', null],
+      ['false', false],
+      ['undefined', undefined],
+    ])('renders nothing for actions=%s', (_name, actions) => {
+      const { root } = setup({ actions, removedLabel: 'No longer exists' });
+      expect(screen.queryByTestId('row-1-actions')).toBeNull();
+      expect(screen.getByTestId('row-1-removed').parentElement).toBe(root);
+    });
+
+    it('renders the actions after the link row', () => {
+      setup({
+        link: { to: '/project/work-items/wi-1', label: 'Open task', ariaLabel: 'Open task: A' },
+        actions: <button type="button">Revert submission</button>,
+      });
+      const link = screen.getByTestId('row-1-link');
+      const actions = screen.getByTestId('row-1-actions');
+      expect(
+        within(actions).getByRole('button', { name: 'Revert submission' }),
+      ).toBeInTheDocument();
+      expect(link.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(link.parentElement).toBe(actions.parentElement);
+    });
+
+    it('renders the actions after the removed label when there is no link', () => {
+      setup({ removedLabel: 'No longer exists', actions: <span>Act</span> });
+      const removed = screen.getByTestId('row-1-removed');
+      const actions = screen.getByTestId('row-1-actions');
+      expect(
+        removed.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('renders the actions without a link row or removed label', () => {
+      setup({ actions: <span>Act</span> });
+      expect(screen.getByTestId('row-1-actions')).toHaveTextContent('Act');
+    });
+
+    it('compact never renders actions', () => {
+      setup({ compact: true, actions: <span>Act</span> });
+      expect(screen.queryByTestId('row-1-actions')).toBeNull();
+    });
   });
 });

@@ -2,28 +2,31 @@
  * E2E tests for UAT Round 2 fixes for the Site diary (EPIC-13).
  *
  * Issues addressed:
- * - #866-A: Mode filter chips (All/Manual/History) added to DiaryFilterBar
+ * - #866-A: Mode filter chips (All/Manual/History); removed in #2224 (system events moved to the
+ *           History page, e2e/tests/history/)
  * - #866-C: the diary header link has no "+" prefix (#2222: "Log today", formerly "New Entry")
  * - #867:   Photo upload on creation form; post-create navigation to detail page
- * - #868:   Automatic events section is now a flat bordered div (not collapsible details/summary)
+ * - #868:   Automatic events interleaved with people's entries (now on History, "Include site
+ *           diary entries")
  * - #869:   Signed badge visible on diary entry cards where isSigned=true
  *
  * Scenarios covered:
- * 1.  [smoke] Mode filter chips "All", "Manual", "History" (#2223; formerly "Automatic") are visible in the filter bar
- * 2.  Manual mode hides automatic type chips, shows only manual type chips
- * 3.  Automatic mode hides manual type chips, shows only automatic type chips
- * 4.  Clicking "All" from Manual mode restores all type chips
+ * 1.  [smoke] No mode chips on the Site diary; a "History" link starts the filter area (#2224)
+ * 2.  Only the manual type chips exist (#2224)
+ * 3.  The "History" link opens /history (#2224)
  * 5.  [smoke] header link text is "Log today" (no "+" prefix)
- * 6.  Automatic events section is a flat bordered div, not a collapsible details element
+ * 6.  [smoke] History with "Include site diary entries" shows both kinds in one date group
  * 7.  [smoke] Signed badge is visible on cards with isSigned=true
  * 8.  Photo file input is present on the capture screen
- * 9.  Mode filter chip sends correct type parameter to the API when "Automatic" mode is selected
- * 10. Mode filter chip sends correct type parameter to the API when "Manual" mode is selected
+ * 9.  The diary list request carries automatic=false (#2224)
+ * 10. A manual type chip sends only that manual type, plus automatic=false (#2224)
+ * (Scenarios 2-4 and 9-10 of the old mode-chip design moved to History: history-page.spec.ts.)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
+import { HistoryPage } from '../../pages/HistoryPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,11 +75,11 @@ function makePaginatedResponse(entries: Record<string, unknown>[]): Record<strin
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Mode filter chips are visible
+// Scenario 1: no mode chips on the Site diary; a "History ›" link instead (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, () => {
+test.describe('No mode chips, History link (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'All three mode filter chips (All/Manual/History) are visible in the filter bar',
+    'The filter bar has no All/Manual/History mode chips and starts with a "History" link',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
@@ -99,71 +102,27 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
         // On mobile the filter panel may be collapsed behind a toggle button
         await diaryPage.openFiltersIfCollapsed();
 
-        // All three mode chips must be visible
-        const allChip = page.getByTestId('mode-filter-all');
-        const manualChip = page.getByTestId('mode-filter-manual');
-        const automaticChip = page.getByTestId('mode-filter-automatic');
-
-        await expect(allChip).toBeVisible();
-        await expect(manualChip).toBeVisible();
-        await expect(automaticChip).toBeVisible();
-
-        // Their visible text labels
-        await expect(allChip).toHaveText('All');
-        await expect(manualChip).toHaveText('Manual');
-        await expect(automaticChip).toHaveText('History');
+        await expect(diaryPage.historyLink).toBeVisible();
+        await expect(diaryPage.historyLink).toContainText('History');
+        await expect(diaryPage.historyLink).toHaveAttribute('href', '/history');
+        await expect(diaryPage.modeChips).toHaveCount(0);
       } finally {
         await page.unroute('**/api/diary-entries*');
       }
     },
   );
-
-  test('"Manual" mode chip is aria-pressed=true by default', async ({ page }) => {
-    const diaryPage = new DiaryPage(page);
-
-    await page.route('**/api/diary-entries*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(makePaginatedEmpty()),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await diaryPage.goto();
-      await diaryPage.openFiltersIfCollapsed();
-
-      const allChip = page.getByTestId('mode-filter-all');
-      await expect(allChip).toHaveAttribute('aria-pressed', 'false');
-
-      const manualChip = page.getByTestId('mode-filter-manual');
-      await expect(manualChip).toHaveAttribute('aria-pressed', 'true');
-
-      const automaticChip = page.getByTestId('mode-filter-automatic');
-      await expect(automaticChip).toHaveAttribute('aria-pressed', 'false');
-    } finally {
-      await page.unroute('**/api/diary-entries*');
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Manual mode hides automatic type chips
+// Scenario 2: only the manual type chips remain (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
-  test('Clicking "Manual" mode chip hides automatic type chips and keeps manual ones visible', async ({
+test.describe('Manual type chips only (Scenario 2)', () => {
+  test('The five manual type chips are shown and no automatic type chip exists', async ({
     page,
   }) => {
     const diaryPage = new DiaryPage(page);
 
-    const requests: URL[] = [];
-
     await page.route('**/api/diary-entries*', async (route) => {
-      requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -176,39 +135,21 @@ test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
-      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
-      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
-      // All-click API response was received before we register the next listener.
-      const allChip = page.getByTestId('mode-filter-all');
-      await allChip.waitFor({ state: 'visible' });
-      await allChip.click();
-      await diaryPage.waitForLoaded();
-
-      // Register the response promise BEFORE clicking the Manual chip
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
-
-      const manualChip = page.getByTestId('mode-filter-manual');
-      await manualChip.waitFor({ state: 'visible' });
-      await manualChip.click();
-      await responsePromise;
-
-      // Manual chip should now be active
-      await expect(manualChip).toHaveAttribute('aria-pressed', 'true');
-
-      // Manual type chips should be visible
       await expect(diaryPage.typeFilterChip('daily_log')).toBeVisible();
       await expect(diaryPage.typeFilterChip('general_note')).toBeVisible();
       await expect(diaryPage.typeFilterChip('site_visit')).toBeVisible();
       await expect(diaryPage.typeFilterChip('delivery')).toBeVisible();
       await expect(diaryPage.typeFilterChip('issue')).toBeVisible();
 
-      // Automatic type chips should NOT be visible (they are not rendered in manual mode)
-      await expect(diaryPage.typeFilterChip('work_item_status')).not.toBeVisible();
-      await expect(diaryPage.typeFilterChip('invoice_status')).not.toBeVisible();
-      await expect(diaryPage.typeFilterChip('milestone_delay')).not.toBeVisible();
+      for (const automatic of [
+        'work_item_status',
+        'invoice_status',
+        'milestone_delay',
+        'subsidy_status',
+        'auto_reschedule',
+      ]) {
+        await expect(diaryPage.typeFilterChip(automatic)).toHaveCount(0);
+      }
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
@@ -216,94 +157,19 @@ test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Automatic mode hides manual type chips
+// Scenario 3: the "History ›" link opens the History page (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic mode hides manual type chips (Scenario 3)', () => {
-  test('Clicking "Automatic" mode chip hides manual type chips and shows automatic ones', async ({
-    page,
-  }) => {
+test.describe('History link opens History (Scenario 3)', { tag: '@responsive' }, () => {
+  test('Clicking "History" on the Site diary lands on /history', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
+    const history = new HistoryPage(page);
 
-    await page.route('**/api/diary-entries*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(makePaginatedEmpty()),
-      });
-    });
+    await diaryPage.goto();
+    await diaryPage.openFiltersIfCollapsed();
+    await diaryPage.historyLink.click();
 
-    try {
-      await diaryPage.goto();
-      await diaryPage.waitForLoaded();
-      await diaryPage.openFiltersIfCollapsed();
-
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
-
-      const automaticChip = page.getByTestId('mode-filter-automatic');
-      await automaticChip.waitFor({ state: 'visible' });
-      await automaticChip.click();
-      await responsePromise;
-
-      // Automatic chip should now be active
-      await expect(automaticChip).toHaveAttribute('aria-pressed', 'true');
-
-      // Automatic type chips should be visible
-      await expect(diaryPage.typeFilterChip('work_item_status')).toBeVisible();
-      await expect(diaryPage.typeFilterChip('invoice_status')).toBeVisible();
-      await expect(diaryPage.typeFilterChip('milestone_delay')).toBeVisible();
-
-      // Manual type chips should NOT be visible
-      await expect(diaryPage.typeFilterChip('daily_log')).not.toBeVisible();
-      await expect(diaryPage.typeFilterChip('general_note')).not.toBeVisible();
-      await expect(diaryPage.typeFilterChip('site_visit')).not.toBeVisible();
-    } finally {
-      await page.unroute('**/api/diary-entries*');
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: "All" mode from Manual restores all type chips
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('All mode restores all type chips (Scenario 4)', () => {
-  test('Clicking "All" after "Manual" restores all type chips', async ({ page }) => {
-    const diaryPage = new DiaryPage(page);
-
-    await page.route('**/api/diary-entries*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(makePaginatedEmpty()),
-      });
-    });
-
-    try {
-      await diaryPage.goto();
-      await diaryPage.waitForLoaded();
-      await diaryPage.openFiltersIfCollapsed();
-
-      // Default is now "Manual" — automatic chips are hidden
-      await expect(diaryPage.typeFilterChip('work_item_status')).not.toBeVisible();
-
-      // Switch to "All"
-      const allChip = page.getByTestId('mode-filter-all');
-      await allChip.waitFor({ state: 'visible' });
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
-      await allChip.click();
-      await responsePromise;
-
-      // Both manual and automatic type chips should be visible again
-      await expect(diaryPage.typeFilterChip('daily_log')).toBeVisible();
-      await expect(diaryPage.typeFilterChip('general_note')).toBeVisible();
-      await expect(diaryPage.typeFilterChip('work_item_status')).toBeVisible();
-      await expect(diaryPage.typeFilterChip('invoice_status')).toBeVisible();
-    } finally {
-      await page.unroute('**/api/diary-entries*');
-    }
+    await expect(page).toHaveURL(/\/history$/);
+    await expect(history.heading).toBeVisible();
   });
 });
 
@@ -331,25 +197,26 @@ test.describe('Log today link text (Scenario 5)', { tag: '@responsive' }, () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Automatic events section is a flat div, not a collapsible
+// Scenario 6: History with "Include site diary entries" interleaves both kinds in one day group
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive' }, () => {
   test(
-    'Automatic and manual entries are interleaved in the same date group',
+    'System events and people entries share one date group on History',
     { tag: '@smoke' },
     async ({ page }) => {
+      // Midday UTC keeps the event's local calendar day equal to the entry date in any zone
       const mockDate = '2026-03-16';
 
-      await page.route('**/api/diary-entries*', async (route) => {
+      await page.route('**/api/history*', async (route) => {
         if (route.request().method() === 'GET') {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(
-              makePaginatedResponse([
+            body: JSON.stringify({
+              ...makePaginatedResponse([
                 mockSystemEvent({
                   id: 'mock-auto-r2-001',
-                  createdAt: `${mockDate}T09:00:00.000Z`,
+                  createdAt: `${mockDate}T12:00:00.000Z`,
                 }),
                 makeMockEntry({
                   id: 'mock-manual-r2-001',
@@ -358,7 +225,9 @@ test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive'
                   body: 'A manual general note',
                 }),
               ]),
-            ),
+              hiddenCount: 0,
+              object: null,
+            }),
           });
         } else {
           await route.continue();
@@ -366,16 +235,16 @@ test.describe('Automatic entries interleaved (Scenario 6)', { tag: '@responsive'
       });
 
       try {
-        const diaryPage = new DiaryPage(page);
-        await page.goto(DIARY_ROUTE);
-        await diaryPage.heading.waitFor({ state: 'visible' });
-        await diaryPage.waitForLoaded();
+        const history = new HistoryPage(page);
+        await history.goto({ include: 'diary' });
+        await expect(history.includeDiaryCheckbox).toBeChecked();
 
-        // Both entries should be visible in the same date group (interleaved)
-        await expect(diaryPage.systemEventRow('mock-auto-r2-001')).toBeVisible();
-        await expect(diaryPage.entryCard('mock-manual-r2-001')).toBeVisible();
+        // Both entries are visible in the same date group (interleaved)
+        await expect(history.systemEventRow('mock-auto-r2-001')).toBeVisible();
+        await expect(page.getByTestId('diary-card-mock-manual-r2-001')).toBeVisible();
+        await expect(history.dateGroups()).toHaveCount(1);
       } finally {
-        await page.unroute('**/api/diary-entries*');
+        await page.unroute('**/api/history*');
       }
     },
   );
@@ -499,15 +368,17 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Automatic mode sends only automatic types to API
+// Scenario 9: the diary list never asks for system events (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic mode API parameter (Scenario 9)', () => {
-  test('Selecting "Automatic" mode sends only automatic entry types to the API', async ({
+test.describe('Diary list request carries automatic=false (Scenario 9)', () => {
+  test('Every GET /api/diary-entries from the Site diary sends automatic=false', async ({
     page,
   }) => {
     const diaryPage = new DiaryPage(page);
+    const requests: URL[] = [];
 
     await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() === 'GET') requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -518,52 +389,10 @@ test.describe('Automatic mode API parameter (Scenario 9)', () => {
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
-      await diaryPage.openFiltersIfCollapsed();
 
-      // Register the listener BEFORE clicking the chip, and predicate it on the response's OWN
-      // request URL containing an automatic-only marker type — not just "any diary-entries 200"
-      // (plus reading a separately captured requests[] array, reset just above). A generic
-      // predicate can resolve against a trailing response from the initial load landing after
-      // the reset, silently asserting on the wrong response — see #2030 (same bug, sibling
-      // diary-automatic-events.spec.ts test). 'work_item_status' is always present in the
-      // automatic-mode default type list (DiaryPage.tsx), so it is a safe marker here. Reading
-      // the type param straight off the resolved Response removes the shared-mutable-array
-      // request/response race entirely.
-      const responsePromise = page.waitForResponse((resp) => {
-        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
-        const typeParam = new URL(resp.url()).searchParams.get('type');
-        return !!typeParam && typeParam.includes('work_item_status');
-      });
-
-      const automaticChip = page.getByTestId('mode-filter-automatic');
-      await automaticChip.waitFor({ state: 'visible' });
-      await automaticChip.click();
-      const response = await responsePromise;
-
-      // The API call should include automatic entry types in the type parameter
-      const typeParam = new URL(response.url()).searchParams.get('type');
-
-      // type parameter must be present and contain at least one automatic type
-      expect(typeParam).toBeTruthy();
-      if (typeParam) {
-        // Must contain at least one automatic type (e.g. work_item_status)
-        const automaticTypes = [
-          'work_item_status',
-          'invoice_status',
-          'invoice_created',
-          'milestone_delay',
-          'budget_breach',
-          'auto_reschedule',
-          'subsidy_status',
-        ];
-        const typeList = typeParam.split(',');
-        const hasAtLeastOneAutomatic = automaticTypes.some((t) => typeList.includes(t));
-        expect(hasAtLeastOneAutomatic).toBe(true);
-
-        // Must NOT contain manual types
-        const manualTypes = ['daily_log', 'site_visit', 'delivery', 'issue', 'general_note'];
-        const hasManual = manualTypes.some((t) => typeList.includes(t));
-        expect(hasManual).toBe(false);
+      expect(requests.length).toBeGreaterThan(0);
+      for (const url of requests) {
+        expect(url.searchParams.get('automatic'), url.toString()).toBe('false');
       }
     } finally {
       await page.unroute('**/api/diary-entries*');
@@ -572,10 +401,10 @@ test.describe('Automatic mode API parameter (Scenario 9)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: Manual mode sends only manual types to API
+// Scenario 10: a manual type chip sends only manual types (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Manual mode API parameter (Scenario 10)', () => {
-  test('Selecting "Manual" mode sends only manual entry types to the API', async ({ page }) => {
+test.describe('Manual type chip API parameter (Scenario 10)', () => {
+  test('Selecting a manual type chip sends that type and automatic=false', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
     await page.route('**/api/diary-entries*', async (route) => {
@@ -591,66 +420,18 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
-      //
-      // NOTE (bug #1829): this mock always returns an empty page, so
-      // diaryPage.waitForLoaded() (which races timeline/empty-state/error-banner
-      // visibility) can resolve INSTANTLY here — the empty state is already visible
-      // from the initial load and never changes. It is not a reliable signal that
-      // the "All" click's own network round-trip has completed. Explicitly wait for
-      // that specific response before moving on, so a late-arriving "All" response
-      // can never be mistaken for the "Manual" click's response below (the race that
-      // previously caused an intermittently empty captured-requests list).
-      const allResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
-      const allChip = page.getByTestId('mode-filter-all');
-      await allChip.waitFor({ state: 'visible' });
-      await allChip.click();
-      await allResponsePromise;
-      await diaryPage.waitForLoaded();
-
-      // Register the listener BEFORE clicking Manual, and read the request straight off the
-      // resolved Response object — avoids any race with a shared mutable array that a stale
-      // in-flight response could otherwise still race against. Hardened per #2030: also
-      // predicate out any stale "All" response specifically (recognizable because "all" mode
-      // sends no type param at all — see DiaryPage.tsx's queriableTypes logic — so a bare
-      // truthy check on the type param is enough to exclude it), rather than relying solely on
-      // the allResponsePromise/waitForLoaded sequencing above to rule it out.
+      // The listener is registered before the click and predicated on the type param, so a
+      // trailing response from the initial load can never satisfy it.
       const responsePromise = page.waitForResponse((resp) => {
         if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
-        return !!new URL(resp.url()).searchParams.get('type');
+        return new URL(resp.url()).searchParams.get('type') === 'daily_log';
       });
+      await diaryPage.typeFilterChip('daily_log').click();
+      const response = await responsePromise;
 
-      const manualChip = page.getByTestId('mode-filter-manual');
-      await manualChip.waitFor({ state: 'visible' });
-      await manualChip.click();
-      const manualResponse = await responsePromise;
-
-      const lastRequest = new URL(manualResponse.url());
-      const typeParam = lastRequest.searchParams.get('type');
-
-      // type parameter must be present and contain at least one manual type
-      expect(typeParam).toBeTruthy();
-      if (typeParam) {
-        const manualTypes = ['daily_log', 'site_visit', 'delivery', 'issue', 'general_note'];
-        const typeList = typeParam.split(',');
-        const hasAtLeastOneManual = manualTypes.some((t) => typeList.includes(t));
-        expect(hasAtLeastOneManual).toBe(true);
-
-        // Must NOT contain automatic types
-        const automaticTypes = [
-          'work_item_status',
-          'invoice_status',
-          'invoice_created',
-          'milestone_delay',
-          'budget_breach',
-          'auto_reschedule',
-          'subsidy_status',
-        ];
-        const hasAutomatic = automaticTypes.some((t) => typeList.includes(t));
-        expect(hasAutomatic).toBe(false);
-      }
+      const params = new URL(response.url()).searchParams;
+      expect(params.get('type')).toBe('daily_log');
+      expect(params.get('automatic')).toBe('false');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }

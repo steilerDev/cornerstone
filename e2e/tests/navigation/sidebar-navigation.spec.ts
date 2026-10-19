@@ -90,7 +90,7 @@ test.describe('Sidebar Navigation', () => {
 
       // Order, with Home first and no top-level Schedule
       // The nav's direct child lists (not the nested views list): the primary entries are the
-      // first, the quiet group (Areas) the second
+      // first, the quiet group (Areas, History) the second
       const navLists = appShell.nav.locator(':scope > ul');
       await expect(navLists).toHaveCount(2);
       const primaryList = navLists.first();
@@ -98,7 +98,10 @@ test.describe('Sidebar Navigation', () => {
       await expect(primaryList.locator('[data-testid^="sidebar-section-"]')).toHaveText([
         ...PRIMARY_LABELS,
       ]);
-      await expect(quietList.locator('[data-testid^="sidebar-section-"]')).toHaveText(['Areas']);
+      await expect(quietList.locator('[data-testid^="sidebar-section-"]')).toHaveText([
+        'Areas',
+        'History',
+      ]);
       await expect(appShell.nav.getByRole('link', { name: 'Schedule', exact: true })).toHaveCount(
         0,
       );

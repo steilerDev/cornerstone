@@ -360,6 +360,42 @@ describe('D-16: system events are written as v1 parameters, not English text', (
     });
   });
 
+  describe('budgetSourceId (#2224)', () => {
+    it('invoice status: stored after batchId, omitted when not given', () => {
+      onInvoiceStatusChanged(
+        db,
+        'inv-1',
+        'INV-T-001',
+        'pending',
+        'claimed',
+        { userId: USER },
+        { amount: 1200, batchId: 'batch-1', budgetSourceId: 'src-1' },
+      );
+      onInvoiceStatusChanged(db, 'inv-2', 'INV-T-002', 'pending', 'claimed', { userId: USER });
+
+      const [withSource, without] = rows();
+      expect(withSource!.metadata).toBe(
+        '{"v":1,"event":"status_changed","from":"pending","to":"claimed","subjectLabel":"INV-T-001","amount":1200,"batchId":"batch-1","budgetSourceId":"src-1"}',
+      );
+      expect(without!.metadata).not.toContain('budgetSourceId');
+    });
+
+    it('deposit event: key order is depositId, batchId, budgetSourceId', () => {
+      onDepositStatusChanged(
+        db,
+        { id: 'dep-1', invoiceId: 'inv-1', entryType: 'deposit', amount: 300 },
+        'INV-T-001',
+        'pending',
+        'claimed',
+        { userId: USER },
+        { batchId: 'batch-1', budgetSourceId: 'src-1' },
+      );
+      expect(rows()[0]!.metadata).toBe(
+        '{"v":1,"event":"status_changed","from":"pending","to":"claimed","subjectLabel":"INV-T-001","amount":300,"depositEntryType":"deposit","depositId":"dep-1","batchId":"batch-1","budgetSourceId":"src-1"}',
+      );
+    });
+  });
+
   describe('batchId (W5)', () => {
     it('is omitted from events that do not carry one', () => {
       onInvoiceStatusChanged(db, 'i', 'N', 'pending', 'paid', UNDOABLE, { amount: 5 });

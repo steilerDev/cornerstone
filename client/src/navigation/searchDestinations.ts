@@ -1,4 +1,4 @@
-import { foldSearchText, isRouteServed } from '@cornerstone/shared';
+import { foldSearchText } from '@cornerstone/shared';
 import type { RouteId, RouteQuery } from '@cornerstone/shared';
 import { GLOSSARY, getSearchableNames } from '../i18n/glossary.js';
 import type { Glossary, GlossaryTerm, SearchableName } from '../i18n/glossary.js';
@@ -40,8 +40,6 @@ const TERM_EXTRAS: readonly TermExtra[] = [
   { term: 'Ordered', route: 'householdItems', query: { status: 'purchased' } },
   { term: 'Delivery scheduled', route: 'householdItems', query: { status: 'scheduled' } },
   { term: 'Delivered', route: 'householdItems', query: { status: 'arrived' } },
-  // Interim extras (see INTERIM_UNTIL): they stand in for a NavConfig entry whose route is still planned.
-  { term: 'History', route: 'diary', query: { filterMode: 'automatic' } },
   { term: 'Daily log', route: 'diary', query: { types: 'daily_log' } },
   { term: 'Site visit', route: 'diary', query: { types: 'site_visit' } },
   { term: 'Defect', route: 'diary', query: { types: 'issue' } },
@@ -55,15 +53,6 @@ const TERM_EXTRAS: readonly TermExtra[] = [
   { term: 'Sign-in method', route: 'settingsProfile' },
   { term: 'Single sign-on', route: 'settingsProfile' },
 ];
-
-/**
- * Interim extras and the route whose story removes them: once that route is served, NavConfig
- * carries the term itself and the extra would duplicate it, so it is skipped.
- * 'History' is replaced by the History page (route `history`).
- */
-const INTERIM_UNTIL: ReadonlyMap<string, RouteId> = new Map<string, RouteId>(
-  Object.entries({ History: 'history' }) as [string, RouteId][],
-);
 
 const NO_PAGE = 'a detail of another page, not a destination of its own';
 const NO_VIEW = 'a status or figure shown on other pages, with no page or filter of its own';
@@ -151,8 +140,6 @@ export function findSearchDestinations(
     }
   }
   for (const extra of TERM_EXTRAS) {
-    const until = INTERIM_UNTIL.get(extra.term);
-    if (until !== undefined && isRouteServed(until)) continue;
     if (isRouteVisible(extra.route, ctx)) entries.push(extra);
   }
 

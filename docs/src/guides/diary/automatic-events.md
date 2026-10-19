@@ -1,51 +1,65 @@
 ---
 sidebar_position: 2
-title: System Events
+title: History
 ---
 
-# System Events
+# History
 
-Cornerstone records significant changes elsewhere in the application as diary entries, so you get a chronological History of your project without any manual effort. System events are always recorded; there is no setting to turn them off.
+The History page is the automatic record of what changed in your project. Cornerstone adds an entry whenever something significant changes elsewhere in the application, so you get a chronological history without any manual effort. History entries are always recorded; there is no setting to turn them off.
 
-## How It Works
+Open it from the **History ›** link at the top of the Site diary, or from **History** in the sidebar (on phones, use **More** and then **History**).
 
-When something changes -- for example a work item's status, an invoice, a schedule recalculation, or a subsidy -- Cornerstone writes a History entry describing it. These entries appear in the diary timeline alongside your manual entries, sorted by date.
+## What It Lists
 
-## Event Types
+Each row has a small type badge, such as **Task status**, **Invoice status** or **Submission**, followed by one sentence that describes the change. Typical rows read like this (all names are invented):
 
-| Event Type | What Triggers It |
-|------------|-----------------|
-| **Work Item Status** | A work item moves to a different status (e.g., "Not Started" to "In Progress" or "Completed") |
-| **Invoice Created** | A new invoice is added to a vendor |
-| **Invoice Status** | An invoice status changes (e.g., "Pending" to "Paid" or "Claimed") |
-| **Milestone Delay** | A milestone's projected completion date moves past its target date |
-| **Budget Breach** | Actual or projected costs for a budget category exceed the allocated amount |
-| **Schedule** | The project schedule is recalculated (e.g., after auto-scheduling or dependency changes) |
-| **Subsidy** | A subsidy program's status or amount changes |
+| Type badge | Example sentence |
+|------------|------------------|
+| **Task status** | "Tile the bathroom went from Not started to In progress" |
+| **Invoice status** | "Invoice T-014 went from To pay to Paid" |
+| **Payment** | "Progress payment for invoice T-014 went from To pay to Paid" |
+| **Invoice recorded** | "Invoice T-014 recorded for Company A" |
+| **Grant status** | "Energy grant went from Applied to Approved" |
+| **Milestone moved** | "Facade milestone is 3 days late. Projected 12 March, target 9 March." |
+| **Submission** | "3 invoices submitted to the bank, 4,200.00" (see below) |
 
-## Reading System Events
+Events are written in the language you are using in Cornerstone. Each row links to the item that changed, so you can open it directly. A payment row opens its payment.
 
-- **Language** -- Events are written in the language you are using in Cornerstone.
-- **Repeats** -- When the same change happens several times in a row, the repeats are collapsed into one entry that shows the count and the date range.
-- **Hidden delay notes** -- A milestone delay logged after the milestone was already reached is hidden by default. Click **Show hidden** in the diary to display these notes, and **Hide again** to collapse them.
-- **Related item** -- Each event links to the item that changed. A progress-payment event opens its payment directly.
+## One Row per Bank Submission
 
-System events do not have metadata, weather, or photo attachments.
+When you send several invoices to the bank in one bank report, Cornerstone records each invoice, but the History page shows the whole submission as **one row** with the **Submission** badge. The sentence gives the number of invoices and their total, for example "3 invoices submitted to the bank, 4,200.00". Below it, the row lists the first invoice numbers, for example "Invoices T-001, T-002, T-003". Its link opens the bank report for that funding source, labelled with the funding source's name.
 
-## Filtering
+Submissions recorded before this change are shown as ordinary invoice status rows, because Cornerstone cannot tell which of them belonged together. A deleted funding source shows "No longer exists" instead of a link.
 
-On the diary page, use the filter chips to isolate system events:
+## Filters
 
-1. Select the **History** chip to show only system-generated entries
-2. Additional type-specific chips appear for finer filtering:
-   - **Work Item** -- Work item status changes
-   - **Invoice** -- Both invoice creation and invoice status changes
-   - **Milestone** -- Milestone delay events
-   - **Budget** -- Budget breach events
-   - **Schedule** -- Schedule change events
-   - **Subsidy** -- Subsidy change events
+The type chips are always shown above the list. Choose one kind of change, such as **Task status**, **Payment** or **Invoice status**. **Submission** shows only bank submissions. **Payment** shows invoices and progress payments you marked as paid; a submission is never counted as a payment.
+
+The other filters are below the chips:
+
+- **Object** -- Pick a task, invoice, grant or milestone to see only its history. The filter shows the object's name. If the object was deleted, it shows "No longer exists"
+- **Search** -- Type a word to find matching changes, for example the name of a vendor
+- **From** and **To** -- Limit the list to a range of dates
+
+On phones, a **Filters** button opens these filters. On larger screens they are always visible.
+
+**Over budget** and **Schedule update** are still available as type chips, but only older records carry them. Cornerstone no longer creates new rows of these two kinds.
+
+Type and object filters apply to automatic changes only. Dates and search apply to every row.
+
+### Include Site Diary Entries
+
+Turn on **Include site diary entries** to add the entries you wrote in the Site diary to the History list. Drafts that you have not saved are never included. Your entries follow the same dates and search as the automatic changes, and they ignore the type and object filters.
+
+## Hidden Delay Notes
+
+When a milestone is moved again after it was already reached, the extra delay note is hidden by default to keep the list short. The History page shows a line such as "1 later delay note is hidden." Click **Show hidden** to display these notes, and **Hide again** to collapse them.
+
+## Repeated Changes
+
+When the same change happens several times in a row, the repeats are collapsed into one row that shows the count and the date range.
 
 ## Limitations
 
-- System events **cannot be edited or deleted** -- they are system-generated records
-- Events are created at the time the triggering action occurs; they are not retroactively generated for past changes
+- History entries **cannot be edited or deleted** -- they are system-generated records
+- Entries are created at the time the change happens; they are not added for changes that happened before this feature existed

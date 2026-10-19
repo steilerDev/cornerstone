@@ -51,6 +51,8 @@ export interface SystemEventView {
   link: SystemEventLink | null;
   /** The subject is gone: show "No longer exists" instead of the link. */
   removed: boolean;
+  /** Second badge (real text): "Payment" or "Submission"; null otherwise. */
+  extraBadge: string | null;
   repeat: { badge: string; detail: string } | null;
   afterReached: { badge: string; detail: string } | null;
 }
@@ -143,6 +145,7 @@ export function renderSystemEvent(
       heading,
       link,
       removed,
+      extraBadge: null,
       repeat,
       afterReached,
     };
@@ -183,6 +186,12 @@ export function renderSystemEvent(
       heading: extra.heading,
       link,
       removed,
+      extraBadge:
+        kind === 'submission'
+          ? dt('event.badge.submission')
+          : kind === 'payment'
+            ? dt('event.badge.payment')
+            : null,
       repeat,
       afterReached,
     };
@@ -249,13 +258,53 @@ export function renderSystemEvent(
   }
 
   if (entry.entryType === 'invoice_status') {
+    const batch = entry.batch;
+    if (batch) {
+      const count = batch.invoiceCount;
+      const numbers = batch.invoiceLabels.map((l) => l ?? dt('event.noNumber')).join(', ');
+      const more = count - batch.invoiceLabels.length;
+      const sourceLink =
+        batch.budgetSourceExists === true && batch.budgetSourceId
+          ? (() => {
+              const label = dt('event.link.open', { object: batch.budgetSourceName });
+              return {
+                to: routeUrl('bankReport', undefined, { sourceId: batch.budgetSourceId }),
+                label,
+                ariaLabel: label,
+              };
+            })()
+          : null;
+      return {
+        kind: 'submission',
+        typeLabel: t(typeKey.key, { ns: typeKey.ns }) as string,
+        sentence:
+          batch.amount === null
+            ? dt('event.submission.sentenceNoAmount', { count })
+            : dt('event.submission.sentence', {
+                count,
+                amount: f.formatCurrency(batch.amount),
+              }),
+        isLegacyText: false,
+        detail:
+          more > 0
+            ? dt('event.submission.invoicesMore', { count, numbers, more })
+            : dt('event.submission.invoices', { count, numbers }),
+        heading: null,
+        link: sourceLink,
+        removed: batch.budgetSourceExists === false,
+        extraBadge: dt('event.badge.submission'),
+        repeat,
+        afterReached,
+      };
+    }
+
     const isDeposit = Boolean(m.depositId);
     const set = isDeposit
       ? I18N_UNION_KEYS.statusVocabularyProgressPayment
       : I18N_UNION_KEYS.statusVocabularyInvoice;
     const from = fromLabel(set);
     const to = toLabel(set);
-    const kind = m.to === 'paid' ? 'payment' : m.to === 'claimed' ? 'submission' : 'statusChange';
+    const kind = m.batchId ? 'submission' : m.to === 'paid' ? 'payment' : 'statusChange';
     const invoiceObject = dt(OBJECT_KEYS.invoice);
     const heading = dt('event.heading.objectNumber', { object: invoiceObject, number });
     const invoiceId = entry.sourceEntityId;

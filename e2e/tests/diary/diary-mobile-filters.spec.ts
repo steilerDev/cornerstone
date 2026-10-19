@@ -9,7 +9,7 @@
  *
  * Scenarios covered:
  * 1. [mobile] Toggle reveals the filter panel within the viewport
- * 2. [mobile] Mode chips reachable after opening
+ * 2. [mobile] History link and type chips reachable after opening (#2224; no mode chips)
  * 3. [mobile] Search input accepts input after panel opens
  * 4. [mobile] Second tap closes the panel
  * 5. [mobile] Toggle aria-expanded transitions false → true → false
@@ -64,15 +64,15 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Mode chips reachable after opening
+// Scenario 2: History link and type chips reachable after opening (#2224)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  'Mode chips visible after mobile panel opens (Scenario 2)',
+  'History link and type chips visible after mobile panel opens (Scenario 2)',
   {
     tag: '@responsive',
   },
   () => {
-    test('mode-filter-all, mode-filter-manual, mode-filter-automatic all visible after toggle', async ({
+    test('the History link and the manual type chips are visible after toggle', async ({
       page,
     }) => {
       const viewportWidth = page.viewportSize()?.width ?? 1920;
@@ -84,9 +84,9 @@ test.describe(
       await diaryPage.mobileFilterToggle.click();
       await expect(diaryPage.searchInput).toBeVisible();
 
-      await expect(page.getByTestId('mode-filter-all')).toBeVisible();
-      await expect(page.getByTestId('mode-filter-manual')).toBeVisible();
-      await expect(page.getByTestId('mode-filter-automatic')).toBeVisible();
+      await expect(diaryPage.historyLink).toBeVisible();
+      await expect(diaryPage.typeFilterChip('daily_log')).toBeVisible();
+      await expect(diaryPage.modeChips).toHaveCount(0);
     });
   },
 );

@@ -1,0 +1,15 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.row {
+  min-width: 0;
+}
+
+/* The picked object no longer exists: the chip text is muted. */
+.gone button {
+  color: var(--color-text-muted);
+}

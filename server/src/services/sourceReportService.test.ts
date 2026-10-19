@@ -2269,6 +2269,26 @@ describe('sourceReportService', () => {
       expect(typeof meta.batchId).toBe('string');
     });
 
+    it('#2224: invoice and deposit events of one claim carry batchId and the funding source id', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-T-005' });
+      const depId = insertDeposit(invId, { status: 'pending', amount: 75 });
+
+      markInvoicesClaimed(db, sourceId, [invId], [depId]);
+
+      const events = db.select().from(schema.diaryEntries).all();
+      expect(events).toHaveLength(2);
+      const metas = events.map((e) => JSON.parse(e.metadata!) as Record<string, unknown>);
+      expect(metas.every((m) => m.budgetSourceId === sourceId)).toBe(true);
+      expect(new Set(metas.map((m) => m.batchId)).size).toBe(1);
+      // canonical key order: ... batchId, budgetSourceId
+      for (const e of events) {
+        const keys = Object.keys(JSON.parse(e.metadata!) as Record<string, unknown>);
+        expect(keys.slice(-2)).toEqual(['batchId', 'budgetSourceId']);
+      }
+    });
+
     it('scenario 31: an invoice with a null invoiceNumber is stored without a label', () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();

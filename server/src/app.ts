@@ -55,6 +55,7 @@ import settingsRoutes from './routes/settings.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
 import diaryRoutes from './routes/diary.js';
+import historyRoutes from './routes/history.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
@@ -276,6 +277,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Diary entry routes (EPIC-13: Construction Diary)
   await app.register(diaryRoutes, { prefix: '/api/diary-entries' });
+  await app.register(historyRoutes, { prefix: '/api/history' });
 
   // Backup and restore routes (EPIC-19: Backup and Restore Feature)
   await app.register(backupRoutes, { prefix: '/api/backups' });

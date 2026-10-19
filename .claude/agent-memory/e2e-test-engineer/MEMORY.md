@@ -59,3 +59,4 @@
 - [story-2221-capture-screen.md](story-2221-capture-screen.md) — #2221 DiaryCapturePage POM + tap counter, arm64 media crash/stubs, shutter cooldown, 3 live defects.
 - [story-2222-entry-points.md](story-2222-entry-points.md) — #2222 Log now tiles/?start=/Log today: POM additions, Q1-Q11 spec, verified facts.
 - [story-2223-system-events.md](story-2223-system-events.md) — #2223 system events: FeedRow ids, v1 mock builders, History filter, payment link, phone-hidden chip trap.
+- [story-2224-history-page.md](story-2224-history-page.md) — #2224 History POM/ids, per-test uniq tag, moved diary filters, 1.64.1 image + docker disk, checkbox quirk.

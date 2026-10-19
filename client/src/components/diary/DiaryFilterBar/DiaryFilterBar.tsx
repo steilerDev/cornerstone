@@ -1,17 +1,12 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  AUTOMATIC_DIARY_ENTRY_TYPES,
-  DIARY_ENTRY_TYPES,
-  MANUAL_DIARY_ENTRY_TYPES,
-} from '@cornerstone/shared';
+import { MANUAL_DIARY_ENTRY_TYPES, routeUrl } from '@cornerstone/shared';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import { diaryEntryTypeLabelKey } from '../../../lib/diaryEntryTypeLabel.js';
+import { NavAnchor } from '../../../navigation/NavAnchor.js';
 import { SearchEverywhereRow } from '../../CommandSearch/SearchEverywhereRow.js';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
-
-type FilterMode = 'all' | 'manual' | 'automatic';
 
 interface DiaryFilterBarProps {
   searchQuery: string;
@@ -23,20 +18,10 @@ interface DiaryFilterBarProps {
   activeTypes: DiaryEntryType[];
   onTypesChange: (types: DiaryEntryType[]) => void;
   onClearAll: () => void;
-  filterMode?: FilterMode;
-  onFilterModeChange?: (mode: FilterMode) => void;
   isCollapsed?: boolean;
   draftsVisible?: boolean;
   onDraftsVisibleChange?: (visible: boolean) => void;
 }
-
-// invoice_created shares the "Invoice" chip with invoice_status
-const GROUPED_TYPES: Record<string, DiaryEntryType[]> = {
-  invoice_status: ['invoice_status', 'invoice_created'],
-};
-
-// Types to display as chips (invoice_created is hidden — grouped under invoice_status)
-const CHIP_HIDDEN_TYPES: DiaryEntryType[] = ['invoice_created'];
 
 export function DiaryFilterBar({
   searchQuery,
@@ -48,47 +33,31 @@ export function DiaryFilterBar({
   activeTypes,
   onTypesChange,
   onClearAll,
-  filterMode = 'all',
-  onFilterModeChange,
   isCollapsed: _isCollapsed = false,
   draftsVisible = false,
   onDraftsVisibleChange,
 }: DiaryFilterBarProps) {
   const { t } = useTranslation('diary');
+  const { t: tc } = useTranslation('common');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const handleModeChange = (mode: FilterMode) => {
-    onFilterModeChange?.(mode);
-  };
-
   const handleTypeToggle = (type: DiaryEntryType) => {
-    const group = GROUPED_TYPES[type] ?? [type];
-    const isActive = activeTypes.includes(type);
-    if (isActive) {
-      onTypesChange(activeTypes.filter((t) => !group.includes(t)));
+    if (activeTypes.includes(type)) {
+      onTypesChange(activeTypes.filter((t) => t !== type));
     } else {
-      onTypesChange([...activeTypes, ...group.filter((t) => !activeTypes.includes(t))]);
+      onTypesChange([...activeTypes, type]);
     }
   };
-
-  // Determine which types to display based on filter mode (hide grouped types like invoice_created)
-  const baseTypes: readonly DiaryEntryType[] =
-    filterMode === 'manual'
-      ? MANUAL_DIARY_ENTRY_TYPES
-      : filterMode === 'automatic'
-        ? AUTOMATIC_DIARY_ENTRY_TYPES
-        : DIARY_ENTRY_TYPES;
-  const displayedTypes = baseTypes.filter((t) => !CHIP_HIDDEN_TYPES.includes(t));
 
   const filterCount = [
     searchQuery ? 1 : 0,
     dateFrom ? 1 : 0,
     dateTo ? 1 : 0,
-    activeTypes.length < DIARY_ENTRY_TYPES.length && activeTypes.length > 0 ? 1 : 0,
+    activeTypes.length < MANUAL_DIARY_ENTRY_TYPES.length && activeTypes.length > 0 ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  const mobileToggleClass = [styles.mobileToggle, isMobileOpen && styles.mobileToggleOpen]
+  const mobileToggleClass = [shared.filtersToggle, isMobileOpen && shared.filtersToggleOpen]
     .filter(Boolean)
     .join(' ');
 
@@ -103,63 +72,21 @@ export function DiaryFilterBar({
         aria-expanded={isMobileOpen}
       >
         🔍 {t('filterBar.filtersToggle')}{' '}
-        {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
+        {filterCount > 0 && <span className={shared.filtersToggleCount}>{filterCount}</span>}
       </button>
 
       {/* Filter content */}
       <div className={`${styles.filters} ${isMobileOpen ? styles.filtersOpen : ''}`}>
-        {/* Filter mode chips */}
-        <div className={styles.filterGroup}>
-          <label className={styles.label}>{t('filterBar.filterMode')}</label>
-          <div
-            className={styles.modeChips}
-            role="group"
-            aria-label={t('filterBar.modeGroupAriaLabel')}
-          >
-            <button
-              type="button"
-              className={`${styles.modeChip} ${filterMode === 'all' ? styles.modeChipActive : ''}`}
-              onClick={() => handleModeChange('all')}
-              aria-pressed={filterMode === 'all'}
-              data-testid="mode-filter-all"
-            >
-              {t('filterBar.filterModeAll')}
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeChip} ${filterMode === 'manual' ? styles.modeChipActive : ''}`}
-              onClick={() => handleModeChange('manual')}
-              aria-pressed={filterMode === 'manual'}
-              data-testid="mode-filter-manual"
-            >
-              {t('filterBar.filterModeManual')}
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeChip} ${filterMode === 'automatic' ? styles.modeChipActive : ''}`}
-              onClick={() => handleModeChange('automatic')}
-              aria-pressed={filterMode === 'automatic'}
-              data-testid="mode-filter-automatic"
-            >
-              {t('filterBar.filterModeAutomatic')}
-            </button>
-          </div>
-
-          {/* Drafts visibility chip — separate axis from mode chips */}
-          {onDraftsVisibleChange && (
-            <div role="group" aria-label={t('filterBar.draftsChipGroupLabel')}>
-              <button
-                type="button"
-                onClick={() => onDraftsVisibleChange(!draftsVisible)}
-                aria-pressed={draftsVisible}
-                className={`${styles.modeChip} ${styles.draftsChip} ${draftsVisible ? styles.modeChipActive : ''}`}
-                data-testid="status-filter-drafts"
-              >
-                {t('filterBar.filterModeDrafts')}
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Link to the automatic record of changes */}
+        <NavAnchor
+          to={routeUrl('history')}
+          className={styles.historyLink}
+          aria-label={t('filterBar.historyLinkAriaLabel')}
+          data-testid="diary-history-link"
+        >
+          {tc('navigation.history')}
+          <span aria-hidden="true"> ›</span>
+        </NavAnchor>
 
         {/* Search input */}
         <div className={styles.filterGroup}>
@@ -227,7 +154,7 @@ export function DiaryFilterBar({
             role="group"
             aria-label={t('filterBar.typeGroupAriaLabel')}
           >
-            {displayedTypes.map((type) => (
+            {MANUAL_DIARY_ENTRY_TYPES.map((type) => (
               <button
                 key={type}
                 type="button"
@@ -240,6 +167,21 @@ export function DiaryFilterBar({
               </button>
             ))}
           </div>
+
+          {/* Drafts visibility chip */}
+          {onDraftsVisibleChange && (
+            <div role="group" aria-label={t('filterBar.draftsChipGroupLabel')}>
+              <button
+                type="button"
+                onClick={() => onDraftsVisibleChange(!draftsVisible)}
+                aria-pressed={draftsVisible}
+                className={`${styles.modeChip} ${styles.draftsChip} ${draftsVisible ? styles.modeChipActive : ''}`}
+                data-testid="status-filter-drafts"
+              >
+                {t('filterBar.filterModeDrafts')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Clear all button */}

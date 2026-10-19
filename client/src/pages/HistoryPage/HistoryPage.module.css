@@ -1,0 +1,68 @@
+.column {
+  max-width: 48rem;
+}
+
+.description {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.hiddenNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.hiddenToggle {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--spacing-1);
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.hiddenToggle:hover {
+  text-decoration: underline;
+}
+
+.hiddenToggle:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.skeletonGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.skeletonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.skeletonHeading {
+  height: var(--spacing-6);
+  width: 40%;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}

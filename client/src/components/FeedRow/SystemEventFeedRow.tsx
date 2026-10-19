@@ -31,6 +31,13 @@ export function SystemEventFeedRow({ entry, as, variant = 'list' }: SystemEventF
 
   const badges = (
     <>
+      {view.extraBadge ? (
+        <Badge
+          variants={{ extra: { label: view.extraBadge, className: badgeStyles.neutral } }}
+          value="extra"
+          testId={`system-event-${entry.id}-extra`}
+        />
+      ) : null}
       {view.repeat ? (
         <span aria-hidden="true">
           <Badge
