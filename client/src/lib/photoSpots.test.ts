@@ -261,6 +261,7 @@ describe('areaPathFromList', () => {
   it('terminates on a parent cycle', () => {
     const cyclic = [makeArea('a', 'A', { parentId: 'b' }), makeArea('b', 'B', { parentId: 'a' })];
     expect(areaPathFromList(cyclic, 'a')).toBe(`B${AREA_PATH_SEPARATOR}A`);
+    expect(areaPathFromList(cyclic, 'a')?.match(/A/g)).toHaveLength(1);
   });
 });
 

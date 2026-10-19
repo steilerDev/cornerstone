@@ -140,7 +140,7 @@ export function PhotoViewer({
       setIsAnnotating(false);
       setShowingOriginal(false);
       onPhotoChanged?.(updatedPhoto);
-      annotateBtnRef.current!.focus();
+      annotateBtnRef.current?.focus();
     },
     [onPhotoChanged],
   );

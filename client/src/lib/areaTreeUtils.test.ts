@@ -242,6 +242,36 @@ describe('getAncestorPath', () => {
     expect(getAncestorPath(areas, 'leaf')).toBe('Ground Floor › West Wing');
   });
 
+  it('terminates on a cyclic parent chain and does not repeat the area itself', () => {
+    const areas = [
+      makeArea({ id: 'a', name: 'Alpha', parentId: 'c' }),
+      makeArea({ id: 'b', name: 'Beta', parentId: 'a' }),
+      makeArea({ id: 'c', name: 'Gamma', parentId: 'b' }),
+    ];
+    // walking up from a: c, b, then a again (the area itself) ends the walk
+    expect(getAncestorPath(areas, 'a')).toBe('Beta › Gamma');
+    expect(getAncestorPath(areas, 'a')).not.toContain('Alpha');
+  });
+
+  it('terminates for an area that is its own parent', () => {
+    const areas = [makeArea({ id: 'a', name: 'Alpha', parentId: 'a' })];
+    expect(getAncestorPath(areas, 'a')).toBe('');
+  });
+
+  it('terminates for a two-area cycle', () => {
+    const areas = [
+      makeArea({ id: 'a', name: 'Alpha', parentId: 'b' }),
+      makeArea({ id: 'b', name: 'Beta', parentId: 'a' }),
+    ];
+    expect(getAncestorPath(areas, 'a')).toBe('Beta');
+    expect(getAncestorPath(areas, 'b')).toBe('Alpha');
+  });
+
+  it('stops at a parent id that is not in the list', () => {
+    const areas = [makeArea({ id: 'a', name: 'Alpha', parentId: 'ghost' })];
+    expect(getAncestorPath(areas, 'a')).toBe('');
+  });
+
   it('separator is space + U+203A + space (not a plain >)', () => {
     const areas = [
       makeArea({ id: 'root', name: 'Root' }),

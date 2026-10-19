@@ -303,8 +303,21 @@ describe('PhotoBulkTagSheet', () => {
       expect(save()).toHaveTextContent('Save');
     });
 
-    it('shows the generic "nothing was changed" message for a non-API error', async () => {
+    it('maps a NetworkError to the shared "can\'t reach the server" message', async () => {
       mockUpdatePhotoTags.mockRejectedValue(new NetworkError('offline', null));
+      const user = userEvent.setup();
+      setup();
+
+      await user.click(screen.getByRole('button', { name: 'pick orientation' }));
+      await user.click(save());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        "Can't reach the server. Check your connection and try again.",
+      );
+    });
+
+    it('shows the generic "nothing was changed" message for any other error', async () => {
+      mockUpdatePhotoTags.mockRejectedValue(new Error('boom'));
       const user = userEvent.setup();
       setup();
 

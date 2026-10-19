@@ -120,7 +120,12 @@ export function SpotThumbnail({
         {dateLabel || locked ? (
           <span className={styles.body}>
             {dateLabel ? <span className={styles.date}>{dateLabel}</span> : null}
-            {locked ? <span className={styles.lockedLabel}>{select.disabledLabel}</span> : null}
+            {locked ? (
+              <>
+                <span className={sharedStyles.srOnly}>{select.label}</span>
+                <span className={styles.lockedLabel}>{select.disabledLabel}</span>
+              </>
+            ) : null}
           </span>
         ) : null}
       </>

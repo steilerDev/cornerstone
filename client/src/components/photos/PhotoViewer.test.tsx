@@ -53,6 +53,7 @@ type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
 // ─── Mock clearAnnotation from photoApi ───────────────────────────────────────
 
 const mockClearAnnotation = jest.fn() as AnyMock;
+let lastAnnotatorSave: ((p: Photo) => void) | null = null;
 
 jest.unstable_mockModule('../../lib/photoApi.js', () => ({
   uploadAnnotation: jest.fn(),
@@ -84,7 +85,12 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'mock-photo-annotator' },
+      {
+        'data-testid': 'mock-photo-annotator',
+        ref: () => {
+          lastAnnotatorSave = onSave;
+        },
+      },
       React.createElement(
         'button',
         {
@@ -978,6 +984,23 @@ describe('PhotoViewer', () => {
 
       expect(errorSpy).not.toHaveBeenCalledWith('Failed to clear annotation:', expect.anything());
       errorSpy.mockRestore();
+    });
+
+    it('an annotation that finishes saving after the viewer closed throws nothing', () => {
+      const photo = makePhoto({ id: 'late', width: 800, height: 600 });
+      const view = renderViewer([photo]);
+      fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+      expect(lastAnnotatorSave).not.toBeNull();
+      const save = lastAnnotatorSave!;
+
+      view.unmount();
+
+      expect(() =>
+        save({ ...photo, annotatedAt: '2026-05-29T10:00:00.000Z' } as Photo),
+      ).not.toThrow();
+      expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'late', annotatedAt: '2026-05-29T10:00:00.000Z' }),
+      );
     });
 
     it('after clearing while viewing the original, the image url has no annotation version', async () => {

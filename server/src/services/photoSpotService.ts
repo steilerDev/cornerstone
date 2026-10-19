@@ -13,7 +13,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { photos, diaryEntries, areas, orientations } from '../db/schema.js';
 import { NotFoundError } from '../errors/AppError.js';
-import { PHOTO_SPOT_ANY, PHOTO_SPOT_NONE, hasDiarySignatures } from '@cornerstone/shared';
+import { PHOTO_SPOT_ANY, PHOTO_SPOT_NONE } from '@cornerstone/shared';
 import type {
   AreaSummary,
   OrientationSummary,
@@ -24,7 +24,7 @@ import type {
 } from '@cornerstone/shared';
 import { listAreas, loadAreaMap, resolveAreaAncestors } from './areaService.js';
 import { listOrientations } from './orientationService.js';
-import { buildPhotoAssetUrls } from './photoService.js';
+import { buildPhotoAssetUrls, isDiaryRowSignatureLocked } from './photoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -88,15 +88,6 @@ export function listPhotoSpots(db: DbType): PhotoSpotsResponse {
   };
 }
 
-/** Whether the entry metadata carries signatures; unparseable metadata fails open (false). */
-function isMetadataSigned(metadata: string | null): boolean {
-  try {
-    return hasDiarySignatures(metadata ? JSON.parse(metadata) : null);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * List every diary photo of exactly one spot, newest first.
  * A null id selects photos without an area / orientation; PHOTO_SPOT_ANY as orientation
@@ -152,6 +143,7 @@ export function listSpotPhotos(
       updatedAt: photos.updatedAt,
       orientationName: orientations.name,
       orientationDescription: orientations.description,
+      entryStatus: diaryEntries.status,
       entryMetadata: diaryEntries.metadata,
       entryId: diaryEntries.id,
       entryType: diaryEntries.entryType,
@@ -200,7 +192,10 @@ export function listSpotPhotos(
         entryType: row.entryType,
         title: row.entryTitle,
         entryDate: row.entryDate,
-        isSigned: isMetadataSigned(row.entryMetadata),
+        isSigned: isDiaryRowSignatureLocked({
+          status: row.entryStatus,
+          metadata: row.entryMetadata,
+        }),
       },
     };
   });

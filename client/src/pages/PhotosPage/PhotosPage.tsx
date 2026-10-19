@@ -22,7 +22,6 @@ import type { BulkTagResult } from '../../photos/photoDialogsContext.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
-import sharedStyles from '../../styles/shared.module.css';
 import styles from './PhotosPage.module.css';
 
 type Status = 'loading' | 'error' | 'ready';
@@ -280,7 +279,7 @@ export default function PhotosPage() {
         >
           <button
             type="button"
-            className={sharedStyles.btnSecondaryCompact}
+            className={styles.barButton}
             onClick={() => setSelectedIds(new Set(unlockedIds))}
             data-testid="no-area-select-all"
           >
@@ -288,7 +287,7 @@ export default function PhotosPage() {
           </button>
           <button
             type="button"
-            className={sharedStyles.btnSecondaryCompact}
+            className={styles.barButton}
             onClick={() => setSelectedIds(new Set())}
             data-testid="no-area-clear"
           >
@@ -296,7 +295,7 @@ export default function PhotosPage() {
           </button>
           <button
             type="button"
-            className={sharedStyles.btnPrimary}
+            className={styles.setTagsButton}
             ref={setTagsRef}
             onClick={() => void setTags()}
             data-testid="no-area-set-tags"

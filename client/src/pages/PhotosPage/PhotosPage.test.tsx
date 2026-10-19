@@ -432,7 +432,9 @@ describe('PhotosPage select mode (#2226)', () => {
     const bar = selectBar()!;
     expect(bar).toHaveTextContent('1 photo selected');
     expect(within(bar).getByTestId('no-area-set-tags')).toHaveTextContent('Set tags');
-    expect(within(bar).getByTestId('no-area-set-tags').className).toMatch(/btnPrimary/);
+    expect(within(bar).getByTestId('no-area-set-tags').className).toMatch(/setTagsButton/);
+    expect(within(bar).getByTestId('no-area-select-all').className).toMatch(/barButton/);
+    expect(within(bar).getByTestId('no-area-clear').className).toMatch(/barButton/);
 
     fireEvent.click(checkbox('n3'));
     expect(selectBar()).toHaveTextContent('2 photos selected');

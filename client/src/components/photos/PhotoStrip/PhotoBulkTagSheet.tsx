@@ -8,7 +8,7 @@ import { AreaPicker } from '../../AreaPicker/AreaPicker.js';
 import { OrientationPicker } from '../../OrientationPicker/OrientationPicker.js';
 import { FormError } from '../../FormError/FormError.js';
 import { useWideDialog } from '../../../hooks/useWideDialog.js';
-import { ApiClientError } from '../../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../../lib/apiClient.js';
 import { translateApiError } from '../../../lib/errorTranslation.js';
 import { updatePhotoTags } from '../../../lib/photoApi.js';
 import { TAG_KEEP } from '../../../lib/photoSpots.js';
@@ -83,7 +83,9 @@ export function PhotoBulkTagSheet({
       setError(
         err instanceof ApiClientError
           ? translateApiError(err.error.code, tErrors)
-          : t('photos:bulk.error'),
+          : err instanceof NetworkError
+            ? t('common:requestErrors.network')
+            : t('photos:bulk.error'),
       );
     }
   };

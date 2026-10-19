@@ -1,4 +1,5 @@
 import { routeUrl } from '@cornerstone/shared';
+import { getAncestorPath } from './areaTreeUtils.js';
 import type {
   AreaResponse,
   AreaSummary,
@@ -16,18 +17,10 @@ export const TAG_KEEP = '__keep__';
 
 /** "Root › Parent › Area" from a flat area list (parentId chain); null when the id is unknown. */
 export function areaPathFromList(areas: readonly AreaResponse[], id: string): string | null {
-  const byId = new Map(areas.map((a) => [a.id, a]));
-  const start = byId.get(id);
-  if (!start) return null;
-  const names: string[] = [];
-  const visited = new Set<string>();
-  let current: AreaResponse | undefined = start;
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    names.unshift(current.name);
-    current = current.parentId ? byId.get(current.parentId) : undefined;
-  }
-  return names.join(AREA_PATH_SEPARATOR);
+  const area = areas.find((a) => a.id === id);
+  if (!area) return null;
+  const ancestors = getAncestorPath([...areas], id);
+  return ancestors ? `${ancestors}${AREA_PATH_SEPARATOR}${area.name}` : area.name;
 }
 
 export function toSpotUrlKey(id: string | null): string {

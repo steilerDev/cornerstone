@@ -227,6 +227,23 @@ describe('SpotThumbnail', () => {
       expect(onToggle).not.toHaveBeenCalled();
     });
 
+    it('locked tile: the accessible text names the photo (label) before "Signed entry"', () => {
+      renderSelect({ disabledLabel: 'Signed entry' }, { dateLabel: 'Sep 11, 2026' });
+      const tile = screen.getByTestId('spot-thumbnail');
+      const label = screen.getByText('Photo from September 11, 2026, Ceiling');
+      expect(label.className).toMatch(/srOnly/);
+      const text = tile.textContent ?? '';
+      expect(text.indexOf('Photo from September 11, 2026, Ceiling')).toBeLessThan(
+        text.indexOf('Signed entry'),
+      );
+      expect(text).toContain('Sep 11, 2026');
+    });
+
+    it('locked tile without a date also carries the photo label', () => {
+      renderSelect({ disabledLabel: 'Signed entry' });
+      expect(screen.getByText('Photo from September 11, 2026, Ceiling')).toBeInTheDocument();
+    });
+
     it('locked tile without a date still shows the label', () => {
       renderSelect({ disabledLabel: 'Signed entry' });
       expect(screen.getByText('Signed entry')).toBeInTheDocument();
