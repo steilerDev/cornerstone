@@ -439,6 +439,8 @@
     "hiddenShown_other": "{{count}} hidden notes shown",
     "hiddenHiddenAgain": "Hidden notes hidden",
     "afterReached": "After reached",
-    "afterReachedDetail": "Logged after the milestone was reached."
+    "afterReachedDetail": "Logged after the milestone was reached.",
+    "hiddenShowing_one": "Showing {{count}} later delay note.",
+    "hiddenShowing_other": "Showing {{count}} later delay notes."
   }
 }

@@ -445,7 +445,7 @@ export function InvoiceDetailPage() {
               <span>{paymentStatus}</span>
               <button
                 type="button"
-                className={shared.btnSecondaryCompact}
+                className={styles.noticeDismiss}
                 onClick={() => setPaymentStatus('')}
               >
                 {tc('button.close')}

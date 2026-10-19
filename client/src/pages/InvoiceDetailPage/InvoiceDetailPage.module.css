@@ -542,3 +542,8 @@
     min-height: 44px;
   }
 }
+
+.noticeDismiss {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}

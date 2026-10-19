@@ -361,14 +361,28 @@
   }
 }
 
-/* Deep-link target (?payment=<id>): focus ring by default, highlight while present */
-[data-payment-id]:focus-visible {
+/* Deep-link target (?payment=<id>): focus ring by default, highlight while present.
+   A <tr> does not paint box-shadow reliably, so the table row uses an outline. */
+.tableRow[data-payment-id]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.mobileCard[data-payment-id]:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
 }
 
-.paymentTarget,
-.paymentTarget:focus-visible {
+.tableRow.paymentTarget,
+.tableRow.paymentTarget:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background-color: var(--color-primary-bg);
+}
+
+.mobileCard.paymentTarget,
+.mobileCard.paymentTarget:focus-visible {
+  outline: none;
   box-shadow: inset 0 0 0 2px var(--color-primary);
   background-color: var(--color-primary-bg);
 }

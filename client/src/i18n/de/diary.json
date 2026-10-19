@@ -439,6 +439,8 @@
     "hiddenShown_other": "{{count}} ausgeblendete Hinweise angezeigt",
     "hiddenHiddenAgain": "Ausgeblendete Hinweise sind wieder ausgeblendet",
     "afterReached": "Nach Erreichen",
-    "afterReachedDetail": "Nach Erreichen des Meilensteins erfasst."
+    "afterReachedDetail": "Nach Erreichen des Meilensteins erfasst.",
+    "hiddenShowing_one": "{{count}} späterer Verzögerungshinweis wird angezeigt.",
+    "hiddenShowing_other": "{{count}} spätere Verzögerungshinweise werden angezeigt."
   }
 }

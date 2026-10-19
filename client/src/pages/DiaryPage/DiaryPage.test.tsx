@@ -1343,6 +1343,28 @@ describe('DiaryPage', () => {
       );
     });
 
+    it.each([
+      [1, 'Showing 1 later delay note.', '1 later delay note is hidden.'],
+      [3, 'Showing 3 later delay notes.', '3 later delay notes are hidden.'],
+    ])(
+      'while shown the line reads "Showing N later delay note(s)" (%i), and the hidden sentence returns when toggled off',
+      async (count, showing, hidden) => {
+        const user = userEvent.setup();
+        mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], count));
+        renderPage();
+        const note = await screen.findByTestId('diary-hidden-note');
+        expect(note).toHaveTextContent(hidden);
+
+        await user.click(screen.getByTestId('diary-show-hidden'));
+        await waitFor(() => expect(note).toHaveTextContent(showing));
+        expect(note).not.toHaveTextContent(/hidden\./);
+
+        await user.click(screen.getByTestId('diary-show-hidden'));
+        await waitFor(() => expect(note).toHaveTextContent(hidden));
+        expect(note).not.toHaveTextContent('Showing');
+      },
+    );
+
     it('does not use the infinite-scroll announcement region for the toggle message', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], 3));

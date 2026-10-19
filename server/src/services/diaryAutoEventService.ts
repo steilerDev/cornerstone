@@ -157,9 +157,7 @@ function recordStatusEvent(db: DbType, spec: StatusEventSpec, ctx: EventContext)
         .get();
       dropLedgerEntry(key);
       const rowMatchesLedger =
-        row !== undefined &&
-        readMetadataText(db, latest.eventId, '$.from') === latest.from &&
-        readMetadataText(db, latest.eventId, '$.to') === latest.to;
+        row !== undefined && metadataMatches(row.metadata, latest.from, latest.to);
       if (row && rowMatchesLedger) {
         db.delete(diaryEntries)
           .where(and(eq(diaryEntries.id, latest.eventId), eq(diaryEntries.isAutomatic, true)))
@@ -195,14 +193,17 @@ function recordStatusEvent(db: DbType, spec: StatusEventSpec, ctx: EventContext)
   }
 }
 
-/** Read one scalar of an event row's metadata JSON (`$.from`, `$.to`, …); null when absent. */
-function readMetadataText(db: DbType, eventId: string, path: string): string | null {
-  const result = db
-    .select({ value: sql<string | null>`json_extract(${diaryEntries.metadata}, ${path})` })
-    .from(diaryEntries)
-    .where(eq(diaryEntries.id, eventId))
-    .get();
-  return result?.value ?? null;
+/** True when the stored metadata JSON has exactly this `from`/`to`; malformed JSON is a mismatch. */
+function metadataMatches(metadata: string | null, from: string, to: string): boolean {
+  if (metadata === null) return false;
+  try {
+    const parsed: unknown = JSON.parse(metadata);
+    if (typeof parsed !== 'object' || parsed === null) return false;
+    const m = parsed as { from?: unknown; to?: unknown };
+    return m.from === from && m.to === to;
+  } catch {
+    return false;
+  }
 }
 
 /**

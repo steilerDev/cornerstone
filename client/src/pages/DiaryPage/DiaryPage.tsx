@@ -348,7 +348,11 @@ export default function DiaryPage() {
 
       {(hiddenCount > 0 || showHidden) && (
         <div className={styles.hiddenNote} data-testid="diary-hidden-note">
-          <span>{t('event.hiddenNote', { count: hiddenCount })}</span>
+          <span>
+            {showHidden
+              ? t('event.hiddenShowing', { count: hiddenCount })
+              : t('event.hiddenNote', { count: hiddenCount })}
+          </span>
           <button
             type="button"
             className={styles.hiddenToggle}
