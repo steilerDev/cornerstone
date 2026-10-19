@@ -26,7 +26,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Form prefill hazards](form-prefill-hazards.md) — seeded-from-entity fields are protected from AI overwrite; initial-state/cross-field errors must be visible when submit is disabled
 - [Review-round discipline](review-round-discipline.md) — re-derive "accepted deviation" severity; green Jest ≠ rendering; tsc test files (--pretty false); scripted i18n key resolution; read code beside the diff
 - [CI gate design hazards](ci-gate-design.md) — repo-wide checks behind path filters let drift land; skipped!=passed; validate YAML via actionlint + truth table
-- [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale pins, silent workspace overrides, bundled deps, root hoisting anchors for CLI-loaded tools, mixed-major Babel
+- [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale pins, silent workspace overrides, bundled deps, hoisting anchors, mixed Babel, `npm update` after bound moves, scanner-only fixes
 - [Account provisioning hazards](account-provisioning-hazards.md) — setup lockout, case-variant email dup, untestable in-process collision path, AppConfig fixture breakage
 - [Parallel frontend split](parallel-frontend-split.md) — en-namespace ownership per FE group, final-step lint rule, 5 error-message leak classes to inventory
 - [Global aggregate page specs](global-aggregate-page-specs.md) — shared E2E DB scoping, drafts, disabled-at-end focus drop (useLayoutEffect), scoped document keydown, h1 in every state
