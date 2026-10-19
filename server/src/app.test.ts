@@ -430,7 +430,7 @@ describe('App - Not-Found Handler (production mode with client/dist)', () => {
 describe('App - schema compilation', () => {
   let app: FastifyInstance | undefined;
   let tempDir: string;
-  let warn: ReturnType<typeof jest.spyOn>;
+  let warn: jest.SpiedFunction<typeof console.warn>;
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-test-'));
@@ -451,8 +451,8 @@ describe('App - schema compilation', () => {
     await app.ready();
 
     const strictWarnings = warn.mock.calls
-      .map((args) => args[0])
-      .filter((first) => typeof first === 'string' && first.startsWith('strict mode:'));
+      .map((args: unknown[]) => args[0])
+      .filter((first: unknown) => typeof first === 'string' && first.startsWith('strict mode:'));
     expect(strictWarnings).toEqual([]);
   });
 });

@@ -128,9 +128,6 @@ COPY --from=app-builder /app/shared/dist/ shared/dist/
 COPY --from=app-builder /app/server/dist/ server/dist/
 COPY --from=app-builder /app/client/dist/ client/dist/
 
-# Copy SQL migration files (tsc does not copy non-TS assets)
-COPY --from=app-builder /app/server/src/db/migrations/ server/dist/db/migrations/
-
 # Create backups directory with correct ownership
 COPY --from=deps --chown=node:node /backups /backups
 
