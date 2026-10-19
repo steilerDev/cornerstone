@@ -76,7 +76,7 @@ test.describe('Viewfinder with the Chromium fake device', () => {
       await capture.shoot(2);
       await expect(capture.camera.exit).toHaveText('Review (3)');
 
-      await capture.tap(capture.camera.removeLast);
+      await capture.removeLastShot();
       await expect(capture.camera.exit).toHaveText('Review (2)');
 
       await capture.closeCamera();

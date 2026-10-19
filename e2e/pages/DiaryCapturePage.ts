@@ -666,6 +666,15 @@ export class DiaryCapturePage {
     }
   }
 
+  /**
+   * Tap "Remove last photo". It is an aria-disabled no-op while a shot is still being written, and
+   * a click does not wait for that, so wait until it is enabled first (one tap).
+   */
+  async removeLastShot(): Promise<void> {
+    await expect(this.camera.removeLast).not.toHaveAttribute('aria-disabled', 'true');
+    await this.tap(this.camera.removeLast);
+  }
+
   /** Tap the top-bar exit ("Close" / "Review (n)") and wait for the camera to go away. */
   async closeCamera(): Promise<void> {
     await this.tap(this.camera.exit);

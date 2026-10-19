@@ -987,7 +987,7 @@ test('Text tool — tap to place, type text, Enter commits shape', async ({
     );
 
     // Inline input should open
-    await expect(viewer.inlineInput).toBeVisible();
+    await expect(viewer.inlineInput).toBeFocused();
 
     // Type text and commit with Enter
     await viewer.inlineInput.fill('Inspection point');
@@ -1069,7 +1069,7 @@ test('Text tool — Escape discards the draft without adding a shape', async ({
       stageBox11.y + stageBox11.height * 0.4,
     );
 
-    await expect(viewer.inlineInput).toBeVisible();
+    await expect(viewer.inlineInput).toBeFocused();
 
     // Type something then press Escape
     await viewer.inlineInput.fill('should be discarded');
@@ -1223,6 +1223,9 @@ test('Measurement tool — Escape commits line with empty label', async ({
 
     // Inline input appears — press Escape without typing
     await expect(viewer.inlineInput).toBeVisible();
+    // The annotator focuses the input a frame after it mounts. An Escape sent before that goes to
+    // the page body, where the viewer dialog's focus trap closes the whole viewer.
+    await expect(viewer.inlineInput).toBeFocused();
     await page.keyboard.press('Escape');
 
     // For measurement, Escape commits with whatever is in the field (empty)
@@ -1436,7 +1439,7 @@ test(
       await viewer.drawLineTouch(0.15, 0.5, 0.75, 0.5);
 
       // Inline input should appear at the midpoint
-      await expect(viewer.inlineInput).toBeVisible();
+      await expect(viewer.inlineInput).toBeFocused();
 
       // Type a label and commit
       await viewer.inlineInput.fill('2.5m');

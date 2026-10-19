@@ -14,3 +14,5 @@ metadata:
 - `photosTaggedInOrder` sorts by `originalFilename` (API sortOrder is 0 for all capture photos; createdAt can reorder concurrent uploads).
 - Stub frame is 640x480 so the low-res hint shows after the first shot in every stub test; C6 delays `toBlob` of 640x480 canvases to make "Saving photos…" observable.
 - Chromium fake device (`capture-camera-chromium.spec.ts`) PASSED on arm64 with playwright:v1.64.1-noble (temporarily lifting the `process.arch` skip) — the arm64 crash note in story-2221 is stale for that image; skip left in place.
+- Remove last photo is an aria-disabled no-op while a shot is being written and a click does not wait: use `removeLastShot()` (waits for enabled).
+- PhotoAnnotator inline input is focused one `requestAnimationFrame` AFTER it is visible, and that rAF also resets its value: an Escape sent earlier goes to BODY and the viewer dialog's focus trap closes the whole viewer (CI failure "Measurement tool — Escape commits"); a `fill()` earlier is wiped (Text tool flake). Always `expect(inlineInput).toBeFocused()` before typing/pressing Escape (POM + specs do now).

@@ -174,7 +174,7 @@ test.describe('Exit label, waiting line and resolution hint (#2227) @responsive'
       await expect(capture.camera.exit).toHaveText('Review (1)');
       await capture.shoot(2);
       await expect(capture.camera.exit).toHaveText('Review (3)');
-      await capture.tap(capture.camera.removeLast);
+      await capture.removeLastShot();
       await expect(capture.camera.exit).toHaveText('Review (2)');
       await expect(capture.camera.stage.getByText('Done', { exact: true })).toHaveCount(0);
 
