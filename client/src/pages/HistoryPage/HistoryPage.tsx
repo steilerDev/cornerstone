@@ -73,6 +73,12 @@ export default function HistoryPage() {
   // ── Search draft: local text, debounced into the URL with a replace write ──────────────────
   const [searchInput, setSearchInput] = useState(filters.q);
   const debouncedSearchInput = useDebounce(searchInput, 300);
+  // Re-sync from the URL (sidebar to the bare route, Back), not from our own debounced write.
+  const [prevUrlQ, setPrevUrlQ] = useState(filters.q);
+  if (filters.q !== prevUrlQ) {
+    setPrevUrlQ(filters.q);
+    if (filters.q !== debouncedSearchInput) setSearchInput(filters.q);
+  }
   const isFirstSearchSyncRef = useRef(true);
   useEffect(() => {
     if (isFirstSearchSyncRef.current) {
@@ -339,6 +345,8 @@ export default function HistoryPage() {
                 key={key}
                 date={key}
                 entries={dayEntries}
+                // P4.11 wires "Revert submission" here for rows with `batch`; nothing renders today.
+                renderActions={() => undefined}
                 heading={
                   key === today
                     ? t('day.today')

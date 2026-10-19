@@ -261,4 +261,22 @@ describe('SystemEventFeedRow', () => {
       expect(screen.queryByTestId('system-event-ev-1-actions')).toBeNull();
     });
   });
+
+  describe('actions prop (#2317)', () => {
+    it('renders the given node after the link row', () => {
+      const { row } = setup(makeEntry(), {
+        actions: <button type="button">Revert submission</button>,
+      });
+      const actions = screen.getByTestId('system-event-ev-1-actions');
+      expect(row).toContainElement(actions);
+      expect(actions).toHaveTextContent('Revert submission');
+      const link = screen.getByTestId('system-event-ev-1-link');
+      expect(link.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('renders no actions element without the prop', () => {
+      setup(makeEntry());
+      expect(screen.queryByTestId('system-event-ev-1-actions')).toBeNull();
+    });
+  });
 });

@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routeUrl } from '@cornerstone/shared';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
@@ -22,6 +22,20 @@ import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 function DateContext() {
   useCreateContext({ date: '2026-03-01', areaId: 'a1' });
   return null;
+}
+
+function NavControls() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" data-testid="nav-bare" onClick={() => navigate('/diary')}>
+        bare
+      </button>
+      <button type="button" data-testid="nav-back" onClick={() => navigate(-1)}>
+        back
+      </button>
+    </>
+  );
 }
 
 function LocationDisplay() {
@@ -1228,6 +1242,55 @@ describe('DiaryPage', () => {
       const log = renderRecordedWithHistory('/diary?q=oak');
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
       expect(log.actions).toEqual([]);
+    });
+  });
+
+  describe('search text follows the URL q (#2317)', () => {
+    const renderNav = (url: string) =>
+      render(
+        <MemoryRouter initialEntries={[url]}>
+          <LocationDisplay />
+          <NavControls />
+          <DiaryPage />
+        </MemoryRouter>,
+      );
+    const box = () => screen.getByTestId('diary-search-input') as HTMLInputElement;
+
+    it('clears the box when navigating to the bare route and restores it on Back', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderNav('/diary?q=foo');
+      expect(box().value).toBe('foo');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByTestId('nav-bare'));
+      await waitFor(() => expect(box().value).toBe(''));
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+      expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
+      expect(box().value).toBe('');
+
+      fireEvent.click(screen.getByTestId('nav-back'));
+      await waitFor(() => expect(box().value).toBe('foo'));
+      await waitFor(() =>
+        expect(screen.getByTestId('location-search')).toHaveTextContent('?q=foo'),
+      );
+    });
+
+    it('does not overwrite text typed while the debounced write lands', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderNav('/diary');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+
+      fireEvent.change(box(), { target: { value: 'a' } });
+      await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('?q=a'));
+      expect(box().value).toBe('a');
+
+      fireEvent.change(box(), { target: { value: 'ab' } });
+      expect(box().value).toBe('ab');
+      await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('?q=ab'));
+      expect(box().value).toBe('ab');
     });
   });
 });

@@ -8,8 +8,3 @@
 .row {
   min-width: 0;
 }
-
-/* The picked object no longer exists: the chip text is muted. */
-.gone button {
-  color: var(--color-text-muted);
-}

@@ -90,6 +90,12 @@ function DiaryListPage() {
 
   // Debounced search with URL sync
   const debouncedSearchInput = useDebounce(searchInput, 300);
+  // Re-sync from the URL (sidebar to the bare route, Back), not from our own debounced write.
+  const [prevUrlQ, setPrevUrlQ] = useState(searchQuery);
+  if (searchQuery !== prevUrlQ) {
+    setPrevUrlQ(searchQuery);
+    if (searchQuery !== debouncedSearchInput) setSearchInput(searchQuery);
+  }
   const isFirstSearchSyncRef = useRef(true);
 
   useEffect(() => {

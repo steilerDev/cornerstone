@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import type { DiaryEntrySummary, HistoryListResponse, HistoryObjectRef } from '@cornerstone/shared';
 import type React from 'react';
 import type * as HistoryApiTypes from '../../lib/historyApi.js';
@@ -137,6 +137,20 @@ function response(
 function LocationDisplay() {
   const location = useLocation();
   return <div data-testid="location-search">{location.search}</div>;
+}
+
+function NavControls() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button type="button" data-testid="nav-bare" onClick={() => navigate('/history')}>
+        bare
+      </button>
+      <button type="button" data-testid="nav-back" onClick={() => navigate(-1)}>
+        back
+      </button>
+    </>
+  );
 }
 
 // ── Harness ───────────────────────────────────────────────────────────────────
@@ -312,11 +326,11 @@ describe('HistoryPage', () => {
 
       const today = screen.getByTestId('date-group-2026-03-14');
       expect(within(today).getByRole('heading', { level: 2 })).toHaveTextContent(
-        'TodayMar 14, 2026',
+        'Today Mar 14, 2026',
       );
       const yesterday = screen.getByTestId('date-group-2026-03-13');
       expect(within(yesterday).getByRole('heading', { level: 2 })).toHaveTextContent(
-        'YesterdayMar 13, 2026',
+        'Yesterday Mar 13, 2026',
       );
       const older = screen.getByTestId('date-group-2026-03-10');
       expect(within(older).getByRole('heading', { level: 2 })).toHaveTextContent(/^Mar 10, 2026$/);
@@ -801,6 +815,53 @@ describe('HistoryPage', () => {
       await waitFor(() => expect(lastQuery()).toMatchObject({ type: 'payment' }));
 
       expect(scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('search text follows the URL q (#2317)', () => {
+    const renderNav = (url: string) =>
+      render(
+        <MemoryRouter initialEntries={[url]}>
+          <LocationDisplay />
+          <NavControls />
+          <HistoryPage />
+        </MemoryRouter>,
+      );
+    const box = () => screen.getByTestId('history-search-input') as HTMLInputElement;
+
+    it('clears the box when navigating to the bare route and restores it on Back', async () => {
+      mockListHistory.mockResolvedValue(response([]));
+      renderNav('/history?q=foo');
+      expect(box().value).toBe('foo');
+      await waitFor(() => expect(mockListHistory).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByTestId('nav-bare'));
+      await waitFor(() => expect(box().value).toBe(''));
+      await waitFor(() => expect(search()).toBe(''));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+      expect(search()).toBe('');
+      expect(box().value).toBe('');
+
+      fireEvent.click(screen.getByTestId('nav-back'));
+      await waitFor(() => expect(box().value).toBe('foo'));
+      await waitFor(() => expect(search()).toBe('?q=foo'));
+    });
+
+    it('does not overwrite text typed while the debounced write lands', async () => {
+      mockListHistory.mockResolvedValue(response([]));
+      renderNav('/history');
+      await waitFor(() => expect(mockListHistory).toHaveBeenCalled());
+
+      fireEvent.change(box(), { target: { value: 'a' } });
+      await waitFor(() => expect(search()).toBe('?q=a'));
+      expect(box().value).toBe('a');
+
+      fireEvent.change(box(), { target: { value: 'ab' } });
+      expect(box().value).toBe('ab');
+      await waitFor(() => expect(search()).toBe('?q=ab'));
+      expect(box().value).toBe('ab');
     });
   });
 });

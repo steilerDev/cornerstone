@@ -219,6 +219,26 @@ describe('HistoryObjectFilter', () => {
     });
   });
 
+  it('retries the grants fetch on the next search after a failed one', async () => {
+    const user = userEvent.setup();
+    mockSearchEverywhere.mockResolvedValue(searchResponse({}));
+    mockFetchSubsidyPrograms.mockRejectedValueOnce(new Error('offline'));
+    mockFetchSubsidyPrograms.mockResolvedValueOnce(grants('Roof bonus'));
+    render(<Host />);
+    await openAndType(user, 'ro');
+    await waitFor(() => expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.queryByRole('option')).toBeNull();
+
+    await user.type(searchInput(), 'o');
+
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(['Roof bonusGrant']);
+    expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(2);
+  });
+
   describe('select and clear', () => {
     async function pick(text: string, response: SearchResponse, spy: jest.Mock) {
       const user = userEvent.setup();
@@ -316,22 +336,13 @@ describe('HistoryObjectFilter', () => {
       expect(chip()).toHaveTextContent(`Object · ${word}`);
     });
 
-    it('says "No longer exists" for a deleted object and marks the filter as gone', () => {
+    it('says "No longer exists" for a deleted object', () => {
       render(<Host initial={task} objectName={null} objectExists={false} />);
       expect(chip()).toHaveTextContent('Object · No longer exists');
-      expect(screen.getByTestId('history-object-filter').className).toContain('gone');
     });
 
-    it('does not mark the filter as gone while existence is unknown or true', () => {
-      const { rerender } = render(<Host initial={task} objectName="A" objectExists={null} />);
-      expect(screen.getByTestId('history-object-filter').className).not.toContain('gone');
-      rerender(<Host initial={task} objectName="A" objectExists />);
-      expect(screen.getByTestId('history-object-filter').className).not.toContain('gone');
-    });
-
-    it('shows no gone state without an object even when existence is false', () => {
+    it('shows no "No longer exists" without an object even when existence is false', () => {
       render(<Host objectExists={false} />);
-      expect(screen.getByTestId('history-object-filter').className).not.toContain('gone');
       expect(chip()).toHaveTextContent(/^Object$/);
     });
   });

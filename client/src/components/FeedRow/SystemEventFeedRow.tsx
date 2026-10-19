@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
@@ -13,10 +14,17 @@ export interface SystemEventFeedRowProps {
   as?: 'li' | 'div';
   /** `detail`: no time (entry page). `compact`: no link row (dashboard). */
   variant?: 'list' | 'detail' | 'compact';
+  /** Row actions after the link row (P4.11 "Revert submission"); forwarded to FeedRow. */
+  actions?: ReactNode;
 }
 
 /** A system event (automatic diary entry) as a FeedRow; all wording from `renderSystemEvent`. */
-export function SystemEventFeedRow({ entry, as, variant = 'list' }: SystemEventFeedRowProps) {
+export function SystemEventFeedRow({
+  entry,
+  as,
+  variant = 'list',
+  actions,
+}: SystemEventFeedRowProps) {
   const { t } = useTranslation(['diary', 'common']);
   const { formatDate, formatCurrency, formatTime } = useFormatters();
   const originState = useOriginState();
@@ -73,6 +81,7 @@ export function SystemEventFeedRow({ entry, as, variant = 'list' }: SystemEventF
         view.removed && variant !== 'compact' ? t('event.removed', { ns: 'diary' }) : null
       }
       compact={variant === 'compact'}
+      actions={actions}
       testId={`system-event-${entry.id}`}
     />
   );

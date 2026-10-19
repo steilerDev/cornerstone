@@ -155,9 +155,9 @@ describe('DiaryDateGroup', () => {
         headingDetail: 'Mar 14, 2026',
       });
       const heading = screen.getByRole('heading', { level: 2 });
-      expect(heading).toHaveTextContent('TodayMar 14, 2026');
+      expect(heading).toHaveTextContent('Today Mar 14, 2026');
       expect(within(heading).getByText('Mar 14, 2026').tagName).toBe('SPAN');
-      expect(screen.getByRole('region', { name: /Today/ })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Today Mar 14, 2026' })).toBeInTheDocument();
     });
 
     it('gives two groups distinct heading ids', () => {
@@ -169,6 +169,73 @@ describe('DiaryDateGroup', () => {
       );
       const ids = screen.getAllByRole('heading', { level: 2 }).map((h) => h.id);
       expect(new Set(ids).size).toBe(2);
+    });
+  });
+
+  describe('renderActions (#2317)', () => {
+    const submission = (): DiaryEntrySummary =>
+      ({
+        ...event('s1', '2026-03-14T11:00:00Z'),
+        entryType: 'invoice_status',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-1',
+        sourceEntityTitle: 'T-001',
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'pending',
+          to: 'claimed',
+          batchId: 'b-1',
+          subjectLabel: 'T-001',
+        },
+        batch: {
+          batchId: 'b-1',
+          invoiceCount: 2,
+          amount: 100,
+          invoiceLabels: ['T-001', 'T-002'],
+          budgetSourceId: null,
+          budgetSourceName: null,
+          budgetSourceExists: null,
+        },
+      }) as unknown as DiaryEntrySummary;
+
+    it('renders the node for a submission row and never calls it for a manual row', () => {
+      const calls: string[] = [];
+      render(
+        <MemoryRouter>
+          <DiaryDateGroup
+            date="2026-03-14"
+            entries={[manual('m1', '2026-03-14T09:00:00Z'), submission()]}
+            renderActions={(entry) => {
+              calls.push(entry.id);
+              return <button type="button">Revert submission</button>;
+            }}
+          />
+        </MemoryRouter>,
+      );
+      expect(calls).toEqual(['s1']);
+      const actions = screen.getByTestId('system-event-s1-actions');
+      expect(
+        within(actions).getByRole('button', { name: 'Revert submission' }),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Revert submission' })).toHaveLength(1);
+      expect(within(screen.getByTestId('diary-card-m1')).queryByRole('button')).toBeNull();
+    });
+
+    it('renders no actions element when renderActions returns undefined or is omitted', () => {
+      const { unmount } = render(
+        <MemoryRouter>
+          <DiaryDateGroup
+            date="2026-03-14"
+            entries={[submission()]}
+            renderActions={() => undefined}
+          />
+        </MemoryRouter>,
+      );
+      expect(screen.queryByTestId('system-event-s1-actions')).toBeNull();
+      unmount();
+      renderGroup([submission()]);
+      expect(screen.queryByTestId('system-event-s1-actions')).toBeNull();
     });
   });
 });

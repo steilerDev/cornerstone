@@ -72,7 +72,10 @@ export function HistoryObjectFilter({
           secondary: null,
         })),
       )
-      .catch(() => []);
+      .catch(() => {
+        grantsRef.current = null;
+        return [];
+      });
     return grantsRef.current;
   }, []);
 
@@ -139,13 +142,8 @@ export function HistoryObjectFilter({
     }
   };
 
-  const gone = object !== null && objectExists === false;
-
   return (
-    <div
-      className={gone ? `${styles.root} ${styles.gone}` : styles.root}
-      data-testid="history-object-filter"
-    >
+    <div className={styles.root} data-testid="history-object-filter">
       <FilterChipGroup
         options={[
           {

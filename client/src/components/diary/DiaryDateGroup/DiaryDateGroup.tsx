@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import type { ReactNode } from 'react';
 import { useFormatters } from '../../../lib/formatters.js';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { DiaryEntryCard } from '../DiaryEntryCard/DiaryEntryCard.js';
@@ -12,9 +13,17 @@ interface DiaryDateGroupProps {
   heading?: string;
   /** Muted visible text after the heading (e.g. the date beside "Today"). */
   headingDetail?: string;
+  /** Per-entry actions for system-event rows (nothing when it returns undefined). */
+  renderActions?: (entry: DiaryEntrySummary) => ReactNode;
 }
 
-export function DiaryDateGroup({ date, entries, heading, headingDetail }: DiaryDateGroupProps) {
+export function DiaryDateGroup({
+  date,
+  entries,
+  heading,
+  headingDetail,
+  renderActions,
+}: DiaryDateGroupProps) {
   const { formatDate } = useFormatters();
   const headingId = useId();
   // Sort all entries by createdAt descending (newest first)
@@ -30,13 +39,14 @@ export function DiaryDateGroup({ date, entries, heading, headingDetail }: DiaryD
     >
       <h2 id={headingId} className={styles.dateHeader}>
         {heading ?? formatDate(date)}
+        {headingDetail ? ' ' : null}
         {headingDetail ? <span className={styles.headingDetail}>{headingDetail}</span> : null}
       </h2>
 
       <ul className={styles.entriesList}>
         {sortedEntries.map((entry) =>
           entry.isAutomatic ? (
-            <SystemEventFeedRow key={entry.id} entry={entry} />
+            <SystemEventFeedRow key={entry.id} entry={entry} actions={renderActions?.(entry)} />
           ) : (
             <li key={entry.id}>
               <DiaryEntryCard entry={entry} />
