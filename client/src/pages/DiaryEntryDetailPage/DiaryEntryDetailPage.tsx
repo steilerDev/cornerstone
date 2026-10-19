@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
+  AreaSummary,
   DiaryEntryDetail,
   DiaryIssueResolution,
   DiarySignatureEntry,
@@ -15,8 +16,8 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
-import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { SystemEventFeedRow } from '../../components/FeedRow/SystemEventFeedRow.js';
@@ -35,9 +36,11 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import type { OriginState } from '../../navigation/origin.js';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDiaryEntryTitle } from '../../hooks/useDiaryEntryTitle.js';
+import { SiteDetails } from './SiteDetails.js';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
@@ -52,6 +55,7 @@ export default function DiaryEntryDetailPage() {
   const location = useLocation();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusedKeyRef = useRef<string | null>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const { t } = useTranslation('diary');
   const { t: tErrors } = useTranslation('errors');
   const { t: tc } = useTranslation('common');
@@ -68,10 +72,7 @@ export default function DiaryEntryDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact(
-    'diary_entry',
-    showDeleteModal ? (entry?.id ?? null) : null,
-  );
+  const deleteConsequences = useDeleteImpact('diary_entry', showDeleteModal ? entry!.id : null);
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -112,6 +113,15 @@ export default function DiaryEntryDetailPage() {
     void loadEntry();
   }, [id, t, tErrors]);
 
+  // Photo changes in the viewer can change the entry's areas: refetch quietly (no loading state).
+  const refreshEntry = async (entryId: string) => {
+    try {
+      setEntry(await getDiaryEntry(entryId));
+    } catch {
+      // The page keeps what it has.
+    }
+  };
+
   const displayTitle = useDiaryEntryTitle(entry);
   const resolutionStatus =
     (entry?.metadata as { resolutionStatus?: DiaryIssueResolution | null } | null)
@@ -139,8 +149,7 @@ export default function DiaryEntryDetailPage() {
     setDeleteBlocked(false);
   };
 
-  const handleDelete = async () => {
-    if (!entry) return;
+  const handleDelete = async (entry: DiaryEntryDetail) => {
     setIsDeleting(true);
     setDeleteError('');
 
@@ -177,9 +186,9 @@ export default function DiaryEntryDetailPage() {
         <h1 className={styles.title}>{h1Text}</h1>
         <div className={shared.emptyState}>
           <p>{t('detail.notFoundMessage')}</p>
-          <Link to={routeUrl('diary')} className={shared.btnPrimary}>
+          <NavAnchor to={routeUrl('diary')} className={shared.btnPrimary}>
             {backToDiary}
-          </Link>
+          </NavAnchor>
         </div>
       </div>
     );
@@ -191,173 +200,179 @@ export default function DiaryEntryDetailPage() {
         <PageBreadcrumbs />
         <h1 className={styles.title}>{h1Text}</h1>
         <div className={shared.bannerError}>{error}</div>
-        <Link to={routeUrl('diary')} className={shared.btnSecondary}>
+        <NavAnchor to={routeUrl('diary')} className={shared.btnSecondary}>
           {backToDiary}
-        </Link>
+        </NavAnchor>
       </div>
     );
   }
 
   const isLocked = isDiaryEntrySignatureLocked(entry);
+  const isManual = !entry.isAutomatic;
+
+  // Areas: the distinct areas of the photos plus the source task's area.
+  const areaChips: AreaSummary[] = [];
+  for (const area of [...(entry.photoAreas ?? []), entry.sourceEntityArea ?? null]) {
+    if (area && !areaChips.some((existing) => existing.id === area.id)) areaChips.push(area);
+  }
+
+  const defectStatusControl =
+    entry.entryType === 'issue' && resolutionStatus ? (
+      <StatusMenu
+        transitions={defectTransitions(tc, {
+          resolutionStatus,
+          locked: isDiaryEntrySignatureLocked(entry),
+        })}
+        badge={{ variants: statusVariants.defect, value: resolutionStatus }}
+        currentLabel={statusVariants.defect[resolutionStatus].label}
+        testId="defect-status"
+        onApply={(to) =>
+          runStatusChange({
+            request: () => changeDefectStatus(entry, to),
+            recordName: displayTitle!,
+            statusLabel: statusVariants.defect[to].label,
+            dedupeKey: `diary_entry:${entry.id}`,
+            onChanged: (record) => setEntry(record),
+            onUndone: async () => {
+              setEntry(await getDiaryEntry(entry.id));
+            },
+          })
+        }
+      />
+    ) : null;
+
+  const signatures =
+    entry.metadata &&
+    (entry.entryType === 'daily_log' ||
+      entry.entryType === 'site_visit' ||
+      entry.entryType === 'issue') &&
+    Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures)
+      ? (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures
+      : [];
 
   return (
     <div className={styles.page}>
       <PageBreadcrumbs />
-      {(!entry.isAutomatic || isLocked) && (
-        <div className={styles.topBar}>
-          <div className={styles.actionButtons}>
-            {!entry.isAutomatic && !isLocked && (
-              <>
-                <Link
-                  to={routeUrl('diaryEntryEdit', { id: entry.id })}
-                  state={originState}
-                  className={styles.editButton}
-                >
-                  {t('detailPage.edit')}
-                </Link>
-                <button
-                  type="button"
-                  className={styles.deleteButton}
-                  onClick={() => setShowDeleteModal(true)}
-                >
-                  {t('detailPage.delete')}
-                </button>
-              </>
-            )}
-            {isLocked && (
-              <button
-                type="button"
-                className={styles.deleteButton}
-                onClick={() => setShowDeleteModal(true)}
+      {isManual && (
+        <div className={styles.actions}>
+          {!isLocked && (
+            <>
+              <NavAnchor
+                to={routeUrl('diaryEntryEdit', { id: entry.id })}
+                state={originState}
+                className={`${shared.btnPrimary} ${styles.actionLink}`}
+                data-testid="diary-entry-edit"
               >
-                {t('detailPage.delete')}
-              </button>
-            )}
-          </div>
+                {t('detailPage.edit')}
+              </NavAnchor>
+              <NavAnchor
+                to={routeUrl('diaryEntryEdit', { id: entry.id })}
+                state={originState}
+                className={`${shared.btnSecondary} ${styles.actionLink}`}
+                data-testid="diary-entry-add-photos"
+              >
+                {t('detailPage.addPhotos')}
+              </NavAnchor>
+            </>
+          )}
+          <OverflowMenu
+            triggerRef={menuTriggerRef}
+            triggerAriaLabel={t('entryPage.moreActions')}
+            triggerIcon="⋯"
+            closeSignal={location.key}
+            data-testid="diary-entry-more"
+            items={[
+              {
+                id: 'delete',
+                label: tc('button.delete'),
+                variant: 'destructive',
+                onClick: () => setShowDeleteModal(true),
+                testId: 'diary-entry-delete',
+              },
+            ]}
+          />
         </div>
       )}
 
       <div className={styles.card}>
-        <header className={styles.header}>
-          {!entry.isAutomatic && (
-            <div className={styles.typeBadgeContainer}>
-              <DiaryEntryTypeBadge entryType={entry.entryType} size="lg" />
-            </div>
-          )}
-          <div className={styles.headerContent}>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
-              {h1Text}
-            </h1>
-            <div className={styles.meta}>
-              <span className={styles.date}>{formatDate(entry.entryDate)}</span>
-            </div>
-          </div>
-        </header>
-
-        {entry.isAutomatic ? (
-          <SystemEventFeedRow entry={entry} as="div" variant="detail" />
-        ) : (
-          <div className={styles.body}>{entry.body}</div>
-        )}
-
-        {!entry.isAutomatic && entry.metadata && Object.keys(entry.metadata).length > 0 && (
-          <div className={styles.metadataSection}>
-            <DiaryMetadataSummary
-              entryType={entry.entryType}
-              metadata={entry.metadata}
-              hideResolution={entry.entryType === 'issue'}
-            />
-            {entry.entryType === 'issue' && resolutionStatus && (
-              <StatusMenu
-                transitions={defectTransitions(tc, {
-                  resolutionStatus,
-                  locked: isDiaryEntrySignatureLocked(entry),
-                })}
-                badge={{ variants: statusVariants.defect, value: resolutionStatus }}
-                currentLabel={statusVariants.defect[resolutionStatus].label}
-                testId="defect-status"
-                onApply={(to) =>
-                  runStatusChange({
-                    request: () => changeDefectStatus(entry, to),
-                    recordName: displayTitle ?? '',
-                    statusLabel: statusVariants.defect[to].label,
-                    dedupeKey: `diary_entry:${entry.id}`,
-                    onChanged: (record) => setEntry(record),
-                    onUndone: async () => {
-                      if (id) setEntry(await getDiaryEntry(id));
-                    },
-                  })
-                }
-              />
-            )}
-          </div>
-        )}
-
-        {/* Signature Display */}
-        {entry.metadata &&
-          (entry.entryType === 'daily_log' ||
-            entry.entryType === 'site_visit' ||
-            entry.entryType === 'issue') &&
-          Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
-          (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
-            <div
-              key={`${sig.signerType}-${sig.signerName}-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
-              className={styles.signatureSection}
-            >
-              <SignatureDisplay
-                signatureDataUrl={sig.signatureDataUrl}
-                signerName={sig.signerName}
-                signedDate={
-                  sig.signedAt ? formatDateTime(sig.signedAt) : formatDate(entry.entryDate)
-                }
-              />
-            </div>
-          ))}
-
-        {/* Photos Section */}
-        <PhotosWaitingNotice draftId={entry.id} />
-        {!(isLocked && photosResult.photos.length === 0) && !entry.isAutomatic && (
-          <div className={styles.photoSection}>
-            <div className={styles.photoSectionHeader}>
-              <h2 className={styles.photoHeading}>
-                {t('detailPage.photosHeading', { count: photosResult.photos.length })}
-              </h2>
-            </div>
-
+        {isManual && (
+          <section className={styles.photoSection}>
+            <h2 className={shared.srOnly}>
+              {t('entryPage.photosHeading', { count: photosResult.photos.length })}
+            </h2>
+            <PhotosWaitingNotice draftId={entry.id} />
             {photosResult.photos.length === 0 ? (
-              <div className={styles.photoEmptyState}>
-                <p>{t('detailPage.photosEmpty')}</p>
-                {!entry.isAutomatic && (
-                  <Link
+              !isLocked && (
+                <div className={styles.photoEmptyState} data-testid="diary-entry-no-photos">
+                  <p>{t('detailPage.photosEmpty')}</p>
+                  <NavAnchor
                     to={routeUrl('diaryEntryEdit', { id: entry.id })}
                     state={originState}
                     className={styles.addPhotoLink}
                   >
                     {t('detailPage.addPhotos')}
-                  </Link>
-                )}
-              </div>
+                  </NavAnchor>
+                </div>
+              )
             ) : (
-              <>
-                <PhotoGrid
-                  photos={photosResult.photos}
-                  onPhotoClick={(photo) => {
-                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
-                    setOpenAsAnnotator(false);
-                    setSelectedPhotoIndex(index);
-                  }}
-                  onEdit={(photo) => {
-                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
-                    setOpenAsAnnotator(true);
-                    setSelectedPhotoIndex(index);
-                  }}
-                  loading={photosResult.loading}
-                  editable={!isLocked}
-                />
-              </>
+              <PhotoGrid
+                photos={photosResult.photos}
+                onPhotoClick={(photo) => {
+                  const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                  setOpenAsAnnotator(false);
+                  setSelectedPhotoIndex(index);
+                }}
+                onEdit={(photo) => {
+                  const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                  setOpenAsAnnotator(true);
+                  setSelectedPhotoIndex(index);
+                }}
+                loading={photosResult.loading}
+                editable={!isLocked}
+              />
             )}
-          </div>
+          </section>
         )}
+
+        <div className={styles.meta}>
+          {isManual && (
+            <Badge
+              variants={statusVariants.diaryType}
+              value={entry.entryType}
+              testId={`diary-type-badge-${entry.entryType}`}
+            />
+          )}
+          <span className={styles.date}>{formatDate(entry.entryDate)}</span>
+          {isManual && entry.createdBy && (
+            <span>{t('entryPage.byAuthor', { name: entry.createdBy.displayName })}</span>
+          )}
+        </div>
+
+        <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+          {h1Text}
+        </h1>
+
+        {entry.isAutomatic ? (
+          <SystemEventFeedRow entry={entry} as="div" variant="detail" />
+        ) : (
+          entry.body && <div className={styles.body}>{entry.body}</div>
+        )}
+
+        {isManual && <SiteDetails entry={entry} statusControl={defectStatusControl} />}
+
+        {/* Signature Display */}
+        {signatures.map((sig, i) => (
+          <div
+            key={`${sig.signerType}-${sig.signerName}-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
+            className={styles.signatureSection}
+          >
+            <SignatureDisplay
+              signatureDataUrl={sig.signatureDataUrl}
+              signerName={sig.signerName}
+              signedDate={sig.signedAt ? formatDateTime(sig.signedAt) : formatDate(entry.entryDate)}
+            />
+          </div>
+        ))}
 
         {/* Photo Viewer Modal */}
         {selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && (
@@ -368,17 +383,45 @@ export default function DiaryEntryDetailPage() {
               setSelectedPhotoIndex(null);
               setOpenAsAnnotator(false);
             }}
-            onPhotoChanged={photosResult.updatePhotoInList}
+            onPhotoChanged={(photo) => {
+              photosResult.updatePhotoInList(photo);
+              void refreshEntry(entry.id);
+            }}
             editable={!isLocked}
             startInAnnotator={openAsAnnotator}
             onDelete={async (photoId) => {
               await photosResult.deletePhoto(photoId);
               setSelectedPhotoIndex(null);
+              void refreshEntry(entry.id);
             }}
           />
         )}
 
-        {!entry.isAutomatic && entry.sourceEntityType && entry.sourceEntityId && (
+        {isManual && areaChips.length > 0 && (
+          <section className={styles.areasSection} data-testid="diary-entry-areas">
+            <h2 className={styles.sectionHeading}>{t('entryPage.areas')}</h2>
+            <ul className={styles.areaList}>
+              {areaChips.map((area) => (
+                <li key={area.id}>
+                  <NavAnchor
+                    // Interim until route `area` (P5.7) → routeUrl('area', { id: area.id })
+                    to={routeUrl('areas')}
+                    state={originState}
+                    className={styles.areaChip}
+                    data-testid={`diary-entry-area-${area.id}`}
+                  >
+                    <AreaBreadcrumb
+                      variant="path"
+                      segments={[...area.ancestors.map((a) => ({ id: a.id, name: a.name })), area]}
+                    />
+                  </NavAnchor>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {isManual && entry.sourceEntityType && entry.sourceEntityId && (
           <div className={styles.sourceSection}>
             <p className={styles.sourceLabel}>{t('detailPage.relatedTo')}</p>
             <SourceEntityLink
@@ -393,25 +436,29 @@ export default function DiaryEntryDetailPage() {
           </div>
         )}
 
-        <div className={styles.timestamps}>
-          <div className={styles.timestamp}>
-            <span className={styles.label}>{t('detailPage.created')}</span>
-            <span>{formatDateTime(entry.createdAt)}</span>
-          </div>
-          {entry.updatedAt && (
+        <details className={styles.history} data-testid="diary-entry-history">
+          <summary className={styles.historySummary}>{t('entryPage.history')}</summary>
+          <div className={styles.timestamps}>
             <div className={styles.timestamp}>
-              <span className={styles.label}>{t('detailPage.updated')}</span>
-              <span>{formatDateTime(entry.updatedAt)}</span>
+              <span className={styles.label}>{t('detailPage.created')}</span>
+              <span>{formatDateTime(entry.createdAt)}</span>
+              {entry.createdBy && <span>{entry.createdBy.displayName}</span>}
             </div>
-          )}
-        </div>
+            {entry.updatedAt && (
+              <div className={styles.timestamp}>
+                <span className={styles.label}>{t('detailPage.updated')}</span>
+                <span>{formatDateTime(entry.updatedAt)}</span>
+              </div>
+            )}
+          </div>
+        </details>
       </div>
 
       {/* Delete confirmation */}
       {showDeleteModal && (
         <ConfirmDialog
           title={tc('confirmDialog.deleteTitle', {
-            name: displayTitle ?? formatDate(entry.entryDate),
+            name: displayTitle!,
           })}
           consequences={deleteConsequences}
           irreversible
@@ -420,9 +467,10 @@ export default function DiaryEntryDetailPage() {
           busy={isDeleting}
           error={deleteError || null}
           blocked={deleteBlocked}
-          onConfirm={() => void handleDelete()}
+          returnFocusRef={menuTriggerRef}
+          onConfirm={() => void handleDelete(entry)}
           onCancel={() => {
-            if (!isDeleting) closeDeleteModal();
+            closeDeleteModal();
           }}
           testIdPrefix="diary-delete"
         />
@@ -471,8 +519,8 @@ function SourceEntityLink({
   }
 
   return (
-    <Link to={route} state={originState}>
+    <NavAnchor to={route} state={originState}>
       {label}
-    </Link>
+    </NavAnchor>
   );
 }

@@ -2056,3 +2056,9 @@ route drops the param (sidebar entry while on `/history?q=x`): the page stays mo
 unfilters, the input keeps the text. Check every draft re-syncs via the "remember previous prop"
 pattern; sibling drafts in the same PR usually do, the search draft is the one that gets missed.
 Also: `ref ??= fetch().catch(() => [])` caches a transient failure for the page's life.
+
+## `plan:check passed` can hide an un-rebaselined removal (PR #2318)
+
+`npm run plan:check` exits 0 while printing `baseline is behind: run npm run plan:build` (e.g. money
+labels deleted along with a retired component's i18n keys). CLAUDE.md requires lowered counts to be
+re-baselined in the same PR, so read the pattern-baseline block of the output, not just the last line.

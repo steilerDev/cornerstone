@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
@@ -45,6 +45,7 @@ export function PhotoViewer({
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
+  const annotateReasonId = useId();
   const clearBtnRef = useRef<HTMLButtonElement>(null);
   const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -190,6 +191,14 @@ export function PhotoViewer({
     return photo.annotatedAt ? `${photo.fileUrl}?v=${photo.annotatedAt}` : photo.fileUrl;
   };
 
+  const missingDimensions = !currentPhoto.width || !currentPhoto.height;
+  const annotateDisabled = !editable || missingDimensions;
+  const annotateReason = !editable
+    ? t('photoViewer:annotateDisabledSigned')
+    : missingDimensions
+      ? t('photoViewer:annotateDisabledMissingDimensions')
+      : null;
+
   const viewer = (
     <div className={styles.modal} data-testid="photo-viewer">
       <div className={styles.backdrop} onClick={handleBackdropClick} />
@@ -253,33 +262,29 @@ export function PhotoViewer({
           <div className={styles.infoBar} style={{ display: isAnnotating ? 'none' : undefined }}>
             <div className={styles.infoLeft}>
               {currentPhoto.caption && <p className={styles.caption}>{currentPhoto.caption}</p>}
+              {annotateReason && (
+                <p id={annotateReasonId} className={styles.annotateReason}>
+                  {annotateReason}
+                </p>
+              )}
             </div>
             <div className={styles.infoRight}>
-              {/* Annotate button */}
+              {/* Annotate button: aria-disabled (not disabled) so the reason stays reachable */}
               <button
                 ref={annotateBtnRef}
                 type="button"
-                className={`${styles.iconButton} ${
-                  !editable || !currentPhoto.width || !currentPhoto.height
-                    ? styles.iconButtonDisabled
-                    : ''
-                }`}
-                disabled={!editable || !currentPhoto.width || !currentPhoto.height}
-                aria-label={t('photoViewer:annotate')}
-                title={
-                  !editable
-                    ? t('photoViewer:annotateDisabledSigned')
-                    : !currentPhoto.width || !currentPhoto.height
-                      ? t('photoViewer:annotateDisabledMissingDimensions')
-                      : undefined
-                }
+                className={styles.textButton}
+                aria-disabled={annotateDisabled || undefined}
+                aria-describedby={annotateReason ? annotateReasonId : undefined}
                 data-testid="photo-viewer-annotate"
                 onClick={() => {
+                  if (annotateDisabled) return;
                   setIsAnnotating(true);
                   setShowingOriginal(false);
                 }}
               >
                 <PencilIcon />
+                <span>{t('photoViewer:annotateLabel')}</span>
               </button>
 
               {/* View Original toggle — only when annotatedAt is set */}

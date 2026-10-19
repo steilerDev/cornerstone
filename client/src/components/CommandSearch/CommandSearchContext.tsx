@@ -91,7 +91,7 @@ export function CommandSearchProvider({
     else open();
   }, [isOpen, onClose, open]);
 
-  // Capture phase on window: DiaryFilterBar's input stops keydown propagation at the React root,
+  // Capture phase on window: the Site diary search field stops keydown propagation at the React root,
   // so a bubbling document listener would never see Ctrl/Cmd K typed there.
   const latestRef = useRef({ isOpen, open, onClose });
   latestRef.current = { isOpen, open, onClose };

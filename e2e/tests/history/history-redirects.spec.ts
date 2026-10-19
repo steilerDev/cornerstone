@@ -106,7 +106,6 @@ test.describe('Site diary ?filterMode links go to History', { tag: '@responsive'
     );
     await expect(diary.systemEventRowsAny()).toHaveCount(0);
     await expect(diary.modeChips).toHaveCount(0);
-    await diary.openFiltersIfCollapsed();
     await expect(diary.historyLink).toBeVisible();
     expect(automaticRequests, 'every diary list request asks for automatic=false').toEqual([]);
   });

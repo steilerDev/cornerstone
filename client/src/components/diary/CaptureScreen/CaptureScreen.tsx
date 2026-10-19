@@ -41,7 +41,8 @@ import { RapidCamera } from '../../RapidCamera/RapidCamera.js';
 import { Skeleton } from '../../Skeleton/Skeleton.js';
 import { useToast } from '../../Toast/ToastContext.js';
 import { StickyActionBar } from '../../StickyActionBar/StickyActionBar.js';
-import { DiaryEntryTypeBadge } from '../DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
+import { useStatusBadgeVariants } from '../../../hooks/useStatusBadgeVariants.js';
+import { Badge } from '../../Badge/Badge.js';
 import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
 import { EntryTypeChips } from './EntryTypeChips.js';
 import { SiteDetailsFields } from './SiteDetailsFields.js';
@@ -161,6 +162,7 @@ export function CaptureScreen({
   const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { diaryType } = useStatusBadgeVariants();
   const api = useCaptureUploads();
   const { formatWeekdayShort, formatDayMonth, formatTime } = useFormatters();
   const { areas, isLoading: areasLoading, refetch: refetchAreas } = useAreas();
@@ -862,7 +864,11 @@ export function CaptureScreen({
               <div className={styles.group}>
                 <span className={styles.label}>{t('capture.entryType')}</span>
                 <div>
-                  <DiaryEntryTypeBadge entryType={form.entryType} size="sm" />
+                  <Badge
+                    variants={diaryType}
+                    value={form.entryType}
+                    testId={`diary-type-badge-${form.entryType}`}
+                  />
                 </div>
               </div>
             ) : (

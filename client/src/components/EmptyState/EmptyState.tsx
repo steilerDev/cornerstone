@@ -5,6 +5,8 @@ import styles from './EmptyState.module.css';
 export interface EmptyStateAction {
   label: string;
   href?: string;
+  /** Router location state for the in-app navigation of an `href` action. */
+  state?: unknown;
   onClick?: () => void;
 }
 
@@ -26,9 +28,12 @@ export interface EmptyStateProps {
 }
 
 /** Real anchor (middle-click works) that navigates in-app on a plain click. */
-function EmptyStateLink({ href, label }: { href: string; label: string }) {
+function EmptyStateLink({ href, label, state }: { href: string; label: string; state?: unknown }) {
   const resolvedHref = useHref(href);
-  const handleClick = useLinkClickHandler<HTMLAnchorElement>(href);
+  const handleClick = useLinkClickHandler<HTMLAnchorElement>(
+    href,
+    state === undefined ? {} : { state },
+  );
   return (
     <a href={resolvedHref} onClick={handleClick} className={styles.action}>
       {label}
@@ -65,7 +70,7 @@ export function EmptyState({
 
         {description && <p className={styles.description}>{description}</p>}
 
-        <EmptyStateLink href={action.href} label={action.label} />
+        <EmptyStateLink href={action.href} label={action.label} state={action.state} />
       </div>
     );
   }

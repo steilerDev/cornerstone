@@ -9,15 +9,22 @@ Diary photos can be annotated directly in the browser so you can call out detail
 
 ## Opening the Annotator
 
-Annotations are launched from the **photo viewer**, which opens when you click any photo thumbnail attached to a diary entry. The viewer has two ways into the annotator:
+Annotations are launched from the **photo viewer**, which opens when you select any photo on a diary entry. The viewer has two ways into the annotator:
 
-- **Annotate** -- in the viewer toolbar, opens the photo on a drawing canvas with the tool palette
-- **Edit** -- a quick-action button on the photo grid that opens the viewer already in annotation mode, so you skip the intermediate step
+- **Annotate** -- the text button in the viewer's toolbar opens the photo on a drawing canvas with the tool palette
+- **Annotate** pencil -- a small pencil button on each photo in the entry's photo grid. It appears when you hover over the photo or move the keyboard focus to it, and opens the viewer straight in the annotator, so you skip the intermediate step
 
-If a photo has already been annotated, the viewer shows toggles for **View original** and **View annotated** so you can compare them. Clicking **Annotate** on an annotated photo opens the annotator with your previous shapes in place -- you can continue editing where you left off.
+If a photo has already been annotated, the viewer shows toggles for **View original** and **View annotated** so you can compare them. Selecting **Annotate** on an annotated photo opens the annotator with your previous shapes in place -- you can continue editing where you left off.
+
+### When Annotate is unavailable
+
+The viewer's **Annotate** button stays visible but dimmed when a photo cannot be annotated. Selecting it does nothing, and the reason appears as text in the viewer:
+
+- **Signed entries cannot be annotated** -- once a [signed](signatures) entry is saved, its photos are locked
+- **Cannot annotate: photo dimensions are missing** -- the size of the photo is not recorded, so it cannot be annotated
 
 :::caution Saved signed entries cannot be annotated
-Once a [signed](signatures) entry is saved, the **Annotate** button is disabled. Finish annotating before you save.
+Once a [signed](signatures) entry is saved, its photos cannot be annotated. Finish annotating before you save.
 :::
 
 ## The Tool Palette

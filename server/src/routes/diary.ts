@@ -35,6 +35,8 @@ const listDiaryEntriesSchema = {
       automatic: { type: 'boolean' },
       status: { type: 'string', enum: ['draft', 'saved'] },
       q: { type: 'string' },
+      areaId: { type: 'string', minLength: 1, maxLength: 64 },
+      vendorId: { type: 'string', minLength: 1, maxLength: 64 },
       showHidden: { type: 'boolean' },
     },
     additionalProperties: false,
@@ -69,6 +71,15 @@ const getDiaryEntrySchema = {
     properties: {
       id: { type: 'string' },
     },
+  },
+};
+
+/** JSON schema for GET /api/diary-entries/filter-options (#2225) */
+const filterOptionsSchema = {
+  querystring: {
+    type: 'object',
+    properties: {},
+    additionalProperties: false,
   },
 };
 
@@ -178,6 +189,22 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
       return reply.status(200).send(result);
     },
   );
+
+  /**
+   * GET /api/diary-entries/filter-options
+   * Sources of the Filters sheet: manual types in use, areas tagged on diary photos, companies
+   * used in entries (saved manual entries only).
+   * Auth required: Yes (both admin and member)
+   * Note: Must be registered before GET /:id.
+   */
+  fastify.get('/filter-options', { schema: filterOptionsSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+
+    const result = diaryService.getDiaryFilterOptions(fastify.db);
+    return reply.status(200).send(result);
+  });
 
   /**
    * POST /api/diary-entries

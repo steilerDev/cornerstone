@@ -1,0 +1,143 @@
+.button {
+  min-height: var(--touch-target-min);
+  flex-shrink: 0;
+}
+
+.panel {
+  box-sizing: border-box;
+  width: min(22.5rem, calc(100vw - 2 * var(--spacing-4)));
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.label {
+  padding: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.dates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.dateRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.sheetFooter {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+.sheetFooter > button {
+  flex: 1;
+  min-height: var(--touch-target-min);
+}
+
+.activeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-1) var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-hover);
+  font-size: var(--font-size-xs);
+}
+
+/* 44px hit area without growing the chip: padding grown, margin pulled back. */
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-2);
+  margin: calc(-1 * var(--spacing-3));
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: var(--font-size-base);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+}
+
+.chipRemove:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.clearAll {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--spacing-2);
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.clearAll:hover {
+  text-decoration: underline;
+}
+
+.clearAll:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+@media (min-width: 768px) {
+  .dateRow {
+    flex-direction: row;
+  }
+
+  .dateRow > .field {
+    flex: 1;
+  }
+}

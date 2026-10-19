@@ -4,8 +4,12 @@
 import { describe, it, expect } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import {
+  AUTOMATIC_DIARY_ENTRY_TYPES,
   BUDGET_SOURCE_STATUSES,
+  DIARY_ENTRY_TYPES,
+  DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_RESOLUTIONS,
+  DIARY_ISSUE_SEVERITIES,
   SUBSIDY_APPLICATION_STATUSES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
@@ -18,11 +22,17 @@ import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integration
 import enCommon from '../../i18n/en/common.json';
 import enBudget from '../../i18n/en/budget.json';
 import deCommon from '../../i18n/de/common.json';
+import enDiary from '../../i18n/en/diary.json';
+import deDiary from '../../i18n/de/diary.json';
 import { Badge } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
   buildBackupRunVariants,
+  buildDiaryOutcomeVariants,
+  buildDiarySeverityVariants,
+  buildDiaryStatusVariants,
+  buildDiaryTypeVariants,
   buildUserAccountStatusVariants,
   buildDefectStatusVariants,
   buildFundingSourceStatusVariants,
@@ -416,5 +426,124 @@ describe.each([
   it('has a German label for every member', () => {
     const de = build(realTFor(deCommon)) as Record<string, { label: string }>;
     for (const member of members) expect(de[member]!.label.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── Diary type / outcome / severity maps (#2225) ──────────────────────────────
+
+const DIARY_RESOURCES = {
+  en: { common: enCommon, diary: enDiary },
+  de: { common: deCommon, diary: deDiary },
+} as const;
+
+function diaryT(locale: 'en' | 'de'): StatusLabelT {
+  return (key, { ns }) => {
+    let node: unknown = (DIARY_RESOURCES[locale] as Record<string, unknown>)[ns];
+    for (const part of key.split('.')) {
+      node = (node as Record<string, unknown> | undefined)?.[part];
+    }
+    if (typeof node !== 'string') throw new Error(`missing key ${ns}:${key}`);
+    return node;
+  };
+}
+
+describe('buildDiaryTypeVariants (#2225)', () => {
+  const variants = buildDiaryTypeVariants(diaryT('en'));
+
+  it('has exactly one entry per diary entry type, manual and automatic', () => {
+    expect(Object.keys(variants).sort()).toEqual([...DIARY_ENTRY_TYPES].sort());
+  });
+
+  it('labels manual types with the canonical words', () => {
+    expect(variants.daily_log.label).toBe('Daily log');
+    expect(variants.site_visit.label).toBe('Site visit');
+    expect(variants.delivery.label).toBe('Delivery');
+    expect(variants.issue.label).toBe('Defect');
+    expect(variants.general_note.label).toBe('Note');
+  });
+
+  it('labels automatic types with the diary words and no emoji', () => {
+    expect(variants.work_item_status.label).toBe('Task status');
+    expect(variants.subsidy_status.label).toBe('Grant status');
+    for (const variant of Object.values(variants)) {
+      expect(variant.label).toMatch(/^[\p{L}\p{N} ]+$/u);
+    }
+  });
+
+  it('gives each manual type its own class and all automatic types the shared one', () => {
+    expect(variants.daily_log.className).toBe('diaryDailyLog');
+    expect(variants.site_visit.className).toBe('diarySiteVisit');
+    expect(variants.delivery.className).toBe('diaryDelivery');
+    expect(variants.issue.className).toBe('diaryIssue');
+    expect(variants.general_note.className).toBe('diaryGeneralNote');
+    for (const type of AUTOMATIC_DIARY_ENTRY_TYPES) {
+      expect(variants[type].className).toBe('diaryAutomatic');
+    }
+  });
+
+  it('has a German label for every type', () => {
+    const de = buildDiaryTypeVariants(diaryT('de'));
+    for (const type of DIARY_ENTRY_TYPES) expect(de[type].label.length).toBeGreaterThan(0);
+  });
+
+  it('renders a chip with the label as its text', () => {
+    render(<Badge variants={variants} value="delivery" testId="chip" />);
+    expect(screen.getByTestId('chip').textContent).toBe('Delivery');
+  });
+});
+
+describe('buildDiaryStatusVariants (#2225)', () => {
+  it('has only a draft chip, labelled "Draft" with the draft class', () => {
+    const variants = buildDiaryStatusVariants(diaryT('en'));
+    expect(Object.keys(variants)).toEqual(['draft']);
+    expect(variants.draft.label).toBe('Draft');
+    expect(variants.draft.className).toBe('draft');
+  });
+
+  it('is translated to German', () => {
+    expect(buildDiaryStatusVariants(diaryT('de')).draft.label).toBe('Entwurf');
+  });
+
+  it('renders as a chip with the label as its text', () => {
+    render(<Badge variants={buildDiaryStatusVariants(diaryT('en'))} value="draft" testId="chip" />);
+    expect(screen.getByTestId('chip').textContent).toBe('Draft');
+  });
+});
+
+describe('buildDiaryOutcomeVariants (#2225)', () => {
+  const variants = buildDiaryOutcomeVariants(diaryT('en'));
+
+  it('has one entry per inspection outcome with its own class and a label', () => {
+    expect(Object.keys(variants).sort()).toEqual([...DIARY_INSPECTION_OUTCOMES].sort());
+    for (const outcome of DIARY_INSPECTION_OUTCOMES) {
+      expect(variants[outcome].className).toBe(outcome);
+      expect(variants[outcome].label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has a German label for every outcome', () => {
+    const de = buildDiaryOutcomeVariants(diaryT('de'));
+    for (const outcome of DIARY_INSPECTION_OUTCOMES) {
+      expect(de[outcome].label.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('buildDiarySeverityVariants (#2225)', () => {
+  const variants = buildDiarySeverityVariants(diaryT('en'));
+
+  it('has one entry per severity with its own class and a label', () => {
+    expect(Object.keys(variants).sort()).toEqual([...DIARY_ISSUE_SEVERITIES].sort());
+    for (const severity of DIARY_ISSUE_SEVERITIES) {
+      expect(variants[severity].className).toBe(severity);
+      expect(variants[severity].label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has a German label for every severity', () => {
+    const de = buildDiarySeverityVariants(diaryT('de'));
+    for (const severity of DIARY_ISSUE_SEVERITIES) {
+      expect(de[severity].label.length).toBeGreaterThan(0);
+    }
   });
 });

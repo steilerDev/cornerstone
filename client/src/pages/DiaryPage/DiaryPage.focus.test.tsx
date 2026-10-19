@@ -7,6 +7,14 @@ import { MemoryRouter, useNavigate } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse } from '@cornerstone/shared';
 import type React from 'react';
+import { CaptureUploadsContext } from '../../capture/captureUploadsContext.js';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { makeEngine } from '../../test/captureFixtures.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+
+let media: MatchMediaControl;
+const engine = makeEngine();
 
 // ── IntersectionObserver stub ────────────────────────────────────────────────
 // jsdom does not implement IntersectionObserver, and useInfiniteScroll (used by
@@ -23,11 +31,19 @@ class NoopIntersectionObserver {
 let originalIntersectionObserver: typeof IntersectionObserver | undefined;
 
 // ── API mock ──────────────────────────────────────────────────────────────────
+// The feed and the "Unfinished" row both call listDiaryEntries. The Unfinished row asks for
+// drafts, three at a time; route it to its own mock so feed expectations stay about the feed.
 
 const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+const mockListUnfinished = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+const mockFetchDiaryFilterOptions = jest.fn<typeof DiaryApiTypes.fetchDiaryFilterOptions>();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
-  listDiaryEntries: mockListDiaryEntries,
+  listDiaryEntries: (params?: Parameters<typeof DiaryApiTypes.listDiaryEntries>[0]) =>
+    params?.status === 'draft' && params.pageSize === 3
+      ? mockListUnfinished(params)
+      : mockListDiaryEntries(params),
+  fetchDiaryFilterOptions: mockFetchDiaryFilterOptions,
   getDiaryEntry: jest.fn(),
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
@@ -35,7 +51,11 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   promoteDiaryEntry: jest.fn(),
 }));
 
-// ─── Mock: formatters — DiaryDateGroup and DiaryEntryCard use useFormatters() ──
+// "Today" is fixed so the week headings are deterministic: Saturday 2026-03-14, week of 2026-03-09.
+const TODAY = '2026-03-14';
+jest.unstable_mockModule('../../lib/localDate.js', () => ({ todayLocalIsoDate: () => TODAY }));
+
+// ─── Mock: formatters (DiaryEntryFeedRow, the week headings and the filter chips) ──
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtCurrency = (n: number) =>
@@ -50,23 +70,32 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
+  const fmtDayMonth = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtDayRange = (start: string, end: string) => `${start} to ${end}`;
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  return {
+  const bound = {
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
+    formatDayMonth: fmtDayMonth,
+    formatDayRange: fmtDayRange,
     formatTime: fmtTime,
     formatDateTime: fmtDateTime,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+  return {
+    ...bound,
     computeActualDuration: jest.fn(),
     computeWorkDuration: jest.fn(),
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: () => bound,
   };
 });
 
@@ -102,12 +131,18 @@ describe('DiaryPage — heading focus on arrival (#2221, after Discard)', () => 
     }
     mockListDiaryEntries.mockReset();
     mockListDiaryEntries.mockResolvedValue(emptyResponse);
+    mockListUnfinished.mockReset();
+    mockListUnfinished.mockResolvedValue(emptyResponse);
+    mockFetchDiaryFilterOptions.mockReset();
+    mockFetchDiaryFilterOptions.mockResolvedValue({ types: [], areas: [], companies: [] });
+    media = installMatchMedia({ '(min-width: 768px)': true });
     originalIntersectionObserver = globalThis.IntersectionObserver;
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
       NoopIntersectionObserver;
   });
 
   afterEach(() => {
+    media.restore();
     localStorage.clear();
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
       originalIntersectionObserver;
@@ -115,10 +150,14 @@ describe('DiaryPage — heading focus on arrival (#2221, after Discard)', () => 
 
   const renderPage = (state?: unknown) =>
     render(
-      <MemoryRouter initialEntries={[{ pathname: '/diary', state }]}>
-        <DiaryPage />
-        <Elsewhere />
-      </MemoryRouter>,
+      <ToastProvider>
+        <CaptureUploadsContext value={engine.api}>
+          <MemoryRouter initialEntries={[{ pathname: '/diary', state }]}>
+            <DiaryPage />
+            <Elsewhere />
+          </MemoryRouter>
+        </CaptureUploadsContext>
+      </ToastProvider>,
     );
 
   it('focuses the h1 when the router state carries the flag', async () => {

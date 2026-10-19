@@ -651,7 +651,7 @@
 /**
  * "Filters" disclosure button of a filter area: hidden from 768px, a full-width button below.
  * Pair with .filtersToggleOpen while the panel is expanded and .filtersToggleCount for the badge.
- * Seen in DiaryFilterBar and HistoryFilters.
+ * Seen in the Site diary and HistoryFilters.
  */
 .filtersToggle {
   display: none;

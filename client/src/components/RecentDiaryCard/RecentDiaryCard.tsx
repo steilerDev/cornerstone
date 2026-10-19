@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
-import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { Badge } from '../Badge/Badge.js';
 import { SystemEventFeedRow } from '../FeedRow/SystemEventFeedRow.js';
 import { EmptyState } from '../EmptyState/index.js';
 import shared from '../../styles/shared.module.css';
@@ -25,6 +26,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
   } = useFormatters();
   const { t } = useTranslation('dashboard');
   const originState = useOriginState();
+  const { diaryType } = useStatusBadgeVariants();
 
   if (isLoading) {
     return <div className={shared.loading}>{t('cards.recentDiary.loadingEntries')}</div>;
@@ -62,7 +64,11 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
               data-testid={`recent-diary-${entry.id}`}
             >
               <div className={styles.entryHeader}>
-                <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
+                <Badge
+                  variants={diaryType}
+                  value={entry.entryType}
+                  testId={`diary-type-badge-${entry.entryType}`}
+                />
                 <div
                   className={styles.entryTitle}
                   title={entry.title || t('cards.recentDiary.untitled') || undefined}

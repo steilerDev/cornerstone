@@ -349,6 +349,14 @@ describe('SpotViewer image and details', () => {
     expect(screen.getByText('Untitled entry')).toBeInTheDocument();
   });
 
+  it('shows the entry type as a text chip, without an emoji', () => {
+    const first = setup({ index: 0 });
+    expect(screen.getByTestId('diary-type-badge-daily_log').textContent).toBe('Daily log');
+    first.unmount();
+    setup({ index: 1 });
+    expect(screen.getByTestId('diary-type-badge-issue').textContent).toBe('Defect');
+  });
+
   it('renders the back link with the supplied target', () => {
     setup();
     expect(screen.getByTestId('spot-viewer-back')).toHaveAttribute('href', '/photos');

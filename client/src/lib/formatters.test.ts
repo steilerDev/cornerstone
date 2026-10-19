@@ -885,6 +885,24 @@ describe('createFormatters', () => {
       expect(bound.formatHours(7.5)).toBe(formatHours(7.5, 'en-US'));
     });
 
+    it('formatDayRange takes two YYYY-MM-DD keys and matches formatDayRange(dates, locale)', () => {
+      const expected = formatDayRange(
+        new Date('2026-10-12T00:00:00Z'),
+        new Date('2026-10-18T00:00:00Z'),
+        'en-US',
+      );
+      expect(bound.formatDayRange('2026-10-12', '2026-10-18')).toBe(expected);
+      expect(expected).toMatch(/October 12\s*[–-]\s*18,? 2026/);
+    });
+
+    it('formatDayRange uses the bound locale', () => {
+      const de = createFormatters('de-DE', 'EUR');
+      expect(de.formatDayRange('2026-10-12', '2026-10-18')).toBe(
+        formatDayRange(new Date('2026-10-12T00:00:00Z'), new Date('2026-10-18T00:00:00Z'), 'de-DE'),
+      );
+      expect(de.formatDayRange('2026-10-12', '2026-10-18')).toContain('Oktober');
+    });
+
     it('formatDateTimeWithZone matches formatDateTimeWithZone(date, locale)', () => {
       const date = new Date(2026, 1, 24, 14, 45);
       expect(bound.formatDateTimeWithZone(date)).toBe(formatDateTimeWithZone(date, 'en-US'));

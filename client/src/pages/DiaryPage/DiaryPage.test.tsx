@@ -2,12 +2,23 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+  render as rtlRender,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { routeUrl } from '@cornerstone/shared';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
-import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
+import type {
+  DiaryEntryListResponse,
+  DiaryEntrySummary,
+  DiaryFilterOptions,
+} from '@cornerstone/shared';
 import type React from 'react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import {
@@ -16,6 +27,45 @@ import {
 } from '../../components/CreateMenu/CreateMenuContext.js';
 import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
+import { CaptureUploadsContext } from '../../capture/captureUploadsContext.js';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { makeEngine } from '../../test/captureFixtures.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+
+// The page renders the Unfinished row (toasts, capture engine) and the Filters surface.
+const engine = makeEngine();
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ToastProvider>
+      <CaptureUploadsContext value={engine.api}>{children}</CaptureUploadsContext>
+    </ToastProvider>
+  );
+}
+const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: Providers });
+
+const WIDE = '(min-width: 768px)';
+/** Opens the Filters surface unless it is already open (a filter change must not toggle it shut). */
+const openFilters = () => {
+  const isOpen =
+    screen.queryByTestId('diary-filters-panel') !== null ||
+    screen.queryByTestId('diary-filters-sheet')?.getAttribute('data-open') === 'true';
+  if (!isOpen) fireEvent.click(screen.getByTestId('diary-filters-button'));
+};
+let media: MatchMediaControl;
+
+const FILTER_OPTIONS: DiaryFilterOptions = {
+  types: ['daily_log', 'delivery', 'issue'],
+  areas: [
+    {
+      id: 'area-1',
+      name: 'Room 1',
+      color: null,
+      ancestors: [{ id: 'a0', name: 'Area A', color: null }],
+    },
+  ],
+  companies: [{ id: 'company-1', name: 'Company A' }],
+};
 
 /** Renders the current URL's search string into the DOM so tests can assert on
  * which query params are present/absent without reaching into router internals. */
@@ -58,11 +108,19 @@ class NoopIntersectionObserver {
 let originalIntersectionObserver: typeof IntersectionObserver | undefined;
 
 // ── API mock ──────────────────────────────────────────────────────────────────
+// The feed and the "Unfinished" row both call listDiaryEntries. The Unfinished row asks for
+// drafts, three at a time; route it to its own mock so feed expectations stay about the feed.
 
 const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+const mockListUnfinished = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+const mockFetchDiaryFilterOptions = jest.fn<typeof DiaryApiTypes.fetchDiaryFilterOptions>();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
-  listDiaryEntries: mockListDiaryEntries,
+  listDiaryEntries: (params?: Parameters<typeof DiaryApiTypes.listDiaryEntries>[0]) =>
+    params?.status === 'draft' && params.pageSize === 3
+      ? mockListUnfinished(params)
+      : mockListDiaryEntries(params),
+  fetchDiaryFilterOptions: mockFetchDiaryFilterOptions,
   getDiaryEntry: jest.fn(),
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
@@ -70,7 +128,11 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   promoteDiaryEntry: jest.fn(),
 }));
 
-// ─── Mock: formatters — DiaryDateGroup and DiaryEntryCard use useFormatters() ──
+// "Today" is fixed so the week headings are deterministic: Saturday 2026-03-14, week of 2026-03-09.
+const TODAY = '2026-03-14';
+jest.unstable_mockModule('../../lib/localDate.js', () => ({ todayLocalIsoDate: () => TODAY }));
+
+// ─── Mock: formatters (DiaryEntryFeedRow, the week headings and the filter chips) ──
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtCurrency = (n: number) =>
@@ -85,23 +147,32 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
+  const fmtDayMonth = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtDayRange = (start: string, end: string) => `${start} to ${end}`;
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  return {
+  const bound = {
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
+    formatDayMonth: fmtDayMonth,
+    formatDayRange: fmtDayRange,
     formatTime: fmtTime,
     formatDateTime: fmtDateTime,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+  return {
+    ...bound,
     computeActualDuration: jest.fn(),
     computeWorkDuration: jest.fn(),
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: () => bound,
   };
 });
 
@@ -159,12 +230,18 @@ describe('DiaryPage', () => {
       DiaryPage = mod.default;
     }
     mockListDiaryEntries.mockReset();
+    mockListUnfinished.mockReset();
+    mockListUnfinished.mockResolvedValue(makeListResponse([]));
+    mockFetchDiaryFilterOptions.mockReset();
+    mockFetchDiaryFilterOptions.mockResolvedValue(FILTER_OPTIONS);
+    media = installMatchMedia({ [WIDE]: true });
     originalIntersectionObserver = globalThis.IntersectionObserver;
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
       NoopIntersectionObserver;
   });
 
   afterEach(() => {
+    media.restore();
     localStorage.clear();
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
       originalIntersectionObserver;
@@ -214,49 +291,55 @@ describe('DiaryPage', () => {
       expect(log.actions).toEqual([]);
     });
 
-    it('date, type, drafts, clear-all and search changes all use REPLACE', async () => {
+    it('filter, chip, show-all, clear-all and search changes all use REPLACE', async () => {
       mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      mockListUnfinished.mockResolvedValue({
+        items: [makeSummary('dr-1', { status: 'draft' })],
+        pagination: { page: 1, pageSize: 3, totalPages: 2, totalItems: 5 },
+      });
       const log = renderRecorded('/diary?q=x');
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
 
       // Mutation: any handler dropping { replace: true } logs PUSH and fails the final check.
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-02-01' } });
+      openFilters();
       fireEvent.click(screen.getByTestId('type-filter-daily_log'));
-      fireEvent.click(screen.getByTestId('status-filter-drafts'));
+      fireEvent.click(await screen.findByTestId('diary-unfinished-show-all'));
       fireEvent.change(screen.getByTestId('diary-search-input'), { target: { value: 'abc' } });
       await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(5));
+      fireEvent.click(screen.getByTestId('diary-active-filter-from-remove'));
       fireEvent.click(screen.getByTestId('clear-filters-button'));
 
       await waitFor(() => expect(log.entries[log.index]).toBe('/diary'));
-      expect(log.actions.length).toBeGreaterThanOrEqual(6);
+      expect(log.actions.length).toBeGreaterThanOrEqual(7);
       expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
       expect(log.entries).toHaveLength(1);
     });
   });
 
-  it('shows the total entry count in the subtitle', async () => {
+  it('shows the total entry count next to the History link', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(
       makeListResponse([makeSummary('1'), makeSummary('2')]),
     );
-    // Scoped to the .subtitle element specifically: the infinite-scroll live region
-    // also announces "Loaded 2 entries" on the same page, which would otherwise
-    // collide with a bare /2 entries/i text query.
-    const { container } = renderPage();
+    renderPage();
     await waitFor(() => {
-      expect(container.querySelector('.subtitle')).toHaveTextContent(/2\s*entries/i);
+      expect(screen.getByTestId('diary-entry-count')).toHaveTextContent(/2 entries/);
     });
+    expect(screen.getByTestId('diary-entry-count')).toContainElement(
+      screen.getByTestId('diary-history-link'),
+    );
   });
 
   it('uses singular "entry" when totalItems is 1', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('1')]));
-    // Scoped to the .subtitle element specifically: the infinite-scroll live region
-    // also announces "1 entry loaded" on the same page (initialLoadAnnouncementSingular),
-    // which would otherwise collide with a bare /1 entry/i text query.
-    const { container } = renderPage();
+    renderPage();
     await waitFor(() => {
-      expect(container.querySelector('.subtitle')).toHaveTextContent(/1\s*entry\b/i);
+      expect(screen.getByTestId('diary-entry-count')).toHaveTextContent(/1 entry/);
     });
+    expect(screen.getByTestId('diary-entry-count')).not.toHaveTextContent(/entries/);
   });
 
   // ─── API call on mount ───────────────────────────────────────────────────────
@@ -269,36 +352,73 @@ describe('DiaryPage', () => {
     });
   });
 
+  it('requests saved manual entries, 25 at a time, and no filters by default', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    renderPage();
+    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+    expect(mockListDiaryEntries).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 25,
+      q: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
+      automatic: false,
+      type: undefined,
+      status: 'saved',
+      areaId: undefined,
+      vendorId: undefined,
+    });
+  });
+
   // ─── Loading state ──────────────────────────────────────────────────────────
 
-  it('shows loading indicator while fetching', () => {
+  it('shows three row-shaped placeholders while fetching', () => {
     // Never resolves during this check
     mockListDiaryEntries.mockReturnValue(new Promise(() => undefined));
     renderPage();
-    expect(screen.getByText(/loading entries/i)).toBeInTheDocument();
+    const loading = screen.getByTestId('diary-loading');
+    expect(loading).toHaveAttribute('aria-busy', 'true');
+    expect(within(loading).getAllByRole('status', { name: 'Loading entries...' })).toHaveLength(3);
+    expect(screen.queryByRole('feed')).not.toBeInTheDocument();
   });
 
   // ─── Entry display and grouping ─────────────────────────────────────────────
 
-  it('renders entry cards after successful load', async () => {
+  it('renders a row per entry after a successful load', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
-    });
+    const row = await screen.findByTestId('diary-entry-de-1');
+    expect(row).toHaveTextContent('Entry de-1');
+    expect(screen.getByTestId('diary-entry-de-1-link')).toHaveAttribute('href', '/diary/de-1');
   });
 
-  it('groups entries under a date header', async () => {
+  it('renders the feed with a labelled landmark and no Photos card', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
+    renderPage();
+    await screen.findByTestId('diary-entry-de-1');
+    expect(screen.getByRole('feed', { name: 'Site diary entries' })).toBeInTheDocument();
+    expect(screen.queryByTestId('diary-photos-card')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /photos/i })).not.toBeInTheDocument();
+  });
+
+  it('groups the entries of today\'s week under "This week" with the week range', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(
-      makeListResponse([makeSummary('de-1', { entryDate: '2026-03-14' })]),
+      makeListResponse([
+        makeSummary('de-1', { entryDate: '2026-03-14' }),
+        makeSummary('de-2', { entryDate: '2026-03-09' }),
+      ]),
     );
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByTestId('date-group-2026-03-14')).toBeInTheDocument();
-    });
+    const group = await screen.findByTestId('diary-week-2026-03-09');
+    expect(within(group).getByRole('heading', { level: 2, name: /^This week/ })).toHaveTextContent(
+      '2026-03-09 to 2026-03-15',
+    );
+    expect(group).toContainElement(screen.getByTestId('diary-entry-de-1'));
+    expect(group).toContainElement(screen.getByTestId('diary-entry-de-2'));
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(1);
   });
 
-  it('shows multiple date groups when entries span different dates', async () => {
+  it('adds a screen-reader row count to the week heading', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(
       makeListResponse([
         makeSummary('de-1', { entryDate: '2026-03-14' }),
@@ -306,59 +426,131 @@ describe('DiaryPage', () => {
       ]),
     );
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByTestId('date-group-2026-03-14')).toBeInTheDocument();
-      expect(screen.getByTestId('date-group-2026-03-13')).toBeInTheDocument();
-    });
+    const group = await screen.findByTestId('diary-week-2026-03-09');
+    expect(within(group).getByRole('heading', { level: 2 })).toHaveAccessibleName(/, 2 entries$/);
   });
 
-  it('renders the filter bar', async () => {
+  it('names last week, and older weeks by their Monday', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(
+      makeListResponse([
+        makeSummary('de-1', { entryDate: '2026-03-14' }),
+        makeSummary('de-2', { entryDate: '2026-03-05' }),
+        makeSummary('de-3', { entryDate: '2026-02-20' }),
+      ]),
+    );
+    renderPage();
+    await screen.findByTestId('diary-week-2026-03-09');
+    expect(
+      within(screen.getByTestId('diary-week-2026-03-02')).getByRole('heading', { level: 2 }),
+    ).toHaveTextContent(/^Last week/);
+    expect(
+      within(screen.getByTestId('diary-week-2026-02-16')).getByRole('heading', { level: 2 }),
+    ).toHaveTextContent(/^Week of Feb 16/);
+    const order = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent?.slice(0, 9));
+    expect(order).toEqual(['This week', 'Last week', 'Week of F']);
+  });
+
+  it('shows a draft row (status=draft view) with its Draft badge, linking to the capture screen', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(
+      makeListResponse([makeSummary('dr-1', { status: 'draft' })]),
+    );
+    renderPage(['/diary?status=draft']);
+    expect(await screen.findByTestId('draft-badge-dr-1')).toHaveTextContent('Draft');
+    expect(screen.getByTestId('diary-entry-dr-1-link')).toHaveAttribute('href', '/diary/dr-1/edit');
+  });
+
+  it('renders the toolbar: a search field with the search-everywhere row, and the Filters button', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    expect(screen.getByTestId('diary-filter-bar')).toBeInTheDocument();
+    const search = screen.getByTestId('diary-search-input');
+    expect(search).toHaveAccessibleName('Search diary entries');
+    expect(search).toHaveAttribute('data-page-search');
+    expect(search).toHaveAttribute('id', 'diary-search');
+    expect(screen.getByTestId('diary-filters-button')).toHaveTextContent('Filters');
+    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
   });
 
-  // ─── Empty state ────────────────────────────────────────────────────────────
+  it('has exactly one primary action, "Log today"', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
+    renderPage();
+    await screen.findByTestId('diary-entry-de-1');
+    const primary = Array.from(document.querySelectorAll('.btnPrimary'));
+    expect(primary).toHaveLength(1);
+    expect(primary[0]).toBe(screen.getByTestId('diary-log-today'));
+  });
 
-  it('shows empty state when no entries exist', async () => {
+  // ─── Empty states ───────────────────────────────────────────────────────────
+
+  it('shows the empty state with a hint when no entries exist and nothing is filtered', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByText(/no diary entries yet/i)).toBeInTheDocument();
-    });
+    const empty = await screen.findByTestId('diary-empty');
+    expect(within(empty).getByText('No diary entries yet.')).toBeInTheDocument();
+    expect(
+      within(empty).getByText(
+        'Photos, notes and deliveries from site show up here, newest week first.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('diary-filtered-empty')).not.toBeInTheDocument();
+    expect(screen.queryByRole('feed')).not.toBeInTheDocument();
   });
 
-  it('shows a CTA link to create first entry in empty state', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText(/create your first entry/i)).toBeInTheDocument();
-    });
-  });
-
-  it('the empty-state CTA is a date-free link to /diary/new that pushes the origin on click', async () => {
+  it('the empty-state action is a date-free "Log today" link to /diary/new that pushes the origin on click', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     const log = createRouterLog();
     render(
-      <RecordingRouter entries={['/diary?q=oak']} log={log}>
+      <RecordingRouter entries={['/diary']} log={log}>
         <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
           <DateContext />
           <DiaryPage />
         </CreateMenuProvider>
       </RecordingRouter>,
     );
-    const link = await screen.findByRole('link', { name: /create your first entry/i });
+    const empty = await screen.findByTestId('diary-empty');
+    const link = within(empty).getByRole('link', { name: 'Log today' });
     expect(link).toHaveAttribute('href', '/diary/new');
 
     fireEvent.click(link);
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
-    expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
+    expect(log.states[0]).toMatchObject({ origin: { to: '/diary' } });
+  });
+
+  describe('filtered empty state', () => {
+    it('says no entries match, with a Clear filters action, when a filter is set', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue']);
+      const empty = await screen.findByTestId('diary-filtered-empty');
+      expect(within(empty).getByText('No entries match these filters')).toBeInTheDocument();
+      expect(within(empty).getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-empty')).not.toBeInTheDocument();
+    });
+
+    it('also appears for a search text alone', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?q=oak']);
+      expect(await screen.findByTestId('diary-filtered-empty')).toBeInTheDocument();
+    });
+
+    it('Clear filters clears the filters and the search and focuses the Filters button', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue&q=oak&areaId=area-1']);
+      const empty = await screen.findByTestId('diary-filtered-empty');
+
+      await user.click(within(empty).getByRole('button', { name: 'Clear filters' }));
+
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+      expect(screen.getByTestId('diary-search-input')).toHaveValue('');
+      expect(screen.getByTestId('diary-filters-button')).toHaveFocus();
+      expect(await screen.findByTestId('diary-empty')).toBeInTheDocument();
+    });
   });
 
   // ─── Error state ─────────────────────────────────────────────────────────────
-
-  // ─── First-batch failure (#2064): single footer alert + Retry, no raw server message ───
+  // ─── First-batch failure (#2064): one translated alert + Retry, no raw server message ───
 
   describe('first batch failure', () => {
     const FAILED_TEXT = 'Failed to load diary entries. Please try again.';
@@ -381,9 +573,11 @@ describe('DiaryPage', () => {
       expect(alerts).toHaveLength(1);
       expect(alerts[0]).toHaveTextContent(FAILED_TEXT);
       expect(document.querySelector('.bannerError')).toBeNull();
-      expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Retry');
-      expect(screen.queryByText(/loading entries/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/create your first entry/i)).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-retry')).toHaveTextContent('Retry');
+      expect(screen.queryByTestId('diary-loading')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-empty')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-filtered-empty')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-footer')).not.toBeInTheDocument();
     }
 
     it('shows one translated alert, a Retry button, and never the raw server message (ApiClientError)', async () => {
@@ -397,23 +591,20 @@ describe('DiaryPage', () => {
       expectFailedState();
     });
 
-    it('Retry re-requests page 1 and shows a disabled button without alert or loading text while pending', async () => {
+    it('Retry re-requests page 1', async () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
 
-      await user.click(screen.getByTestId('diary-load-more-button'));
+      await user.click(screen.getByTestId('diary-retry'));
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
       });
       expect(mockListDiaryEntries.mock.calls[1]?.[0]?.page).toBe(1);
-      expect(screen.getByTestId('diary-load-more-button')).toHaveAttribute('aria-disabled', 'true');
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      expect(screen.queryByText(/loading entries/i)).not.toBeInTheDocument();
     });
 
-    it('a successful retry with more pages renders cards, clears the alert, and keeps focus on the button', async () => {
+    it('a successful retry renders the rows and clears the alert', async () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockResolvedValueOnce({
@@ -421,56 +612,53 @@ describe('DiaryPage', () => {
         pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
       });
 
-      const button = screen.getByTestId('diary-load-more-button');
+      await user.click(screen.getByTestId('diary-retry'));
+
+      expect(await screen.findByTestId('diary-entry-r-1')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-retry')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Load more');
+    });
+
+    // The Retry button unmounts when the rows arrive; focus goes to the page heading, not <body>.
+    it('a successful retry with rows moves focus to the page heading', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('r-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+
+      const button = screen.getByTestId('diary-retry');
       act(() => {
         button.focus();
       });
       await user.keyboard('{Enter}');
 
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-card-r-1')).toBeInTheDocument();
-      });
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      const after = screen.getByTestId('diary-load-more-button');
-      expect(after).toHaveTextContent('Load more');
-      expect(after).toHaveFocus();
+      await screen.findByTestId('diary-entry-r-1');
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: 'Site diary' })).toHaveFocus(),
+      );
     });
 
-    it('a successful retry with a single page moves focus to the end-of-list message', async () => {
-      const user = userEvent.setup();
-      await renderFailedFirstBatch(new Error('boom'));
-      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('s-1')]));
-
-      await user.click(screen.getByTestId('diary-load-more-button'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-end-of-list')).toBeInTheDocument();
-      });
-      expect(screen.getByTestId('diary-end-of-list')).toHaveFocus();
-    });
-
-    it('a successful retry with no entries shows the empty state and focuses its create link', async () => {
+    it('a successful retry with no entries shows the empty state and focuses its message', async () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
 
-      await user.click(screen.getByTestId('diary-load-more-button'));
+      await user.click(screen.getByTestId('diary-retry'));
 
-      const link = await screen.findByRole('link', { name: /create your first entry/i });
-      expect(link).toHaveFocus();
+      const empty = await screen.findByTestId('diary-empty');
+      expect(within(empty).getByText('No diary entries yet.')).toHaveFocus();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
-    it('a failed retry shows the alert once more and keeps focus on Retry', async () => {
+    it('a failed retry shows the alert once more', async () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockRejectedValueOnce(new Error('still down'));
 
-      const button = screen.getByTestId('diary-load-more-button');
-      act(() => {
-        button.focus();
-      });
-      await user.keyboard('{Enter}');
+      await user.click(screen.getByTestId('diary-retry'));
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
@@ -479,11 +667,10 @@ describe('DiaryPage', () => {
         expect(screen.getAllByRole('alert')).toHaveLength(1);
       });
       expect(screen.getByRole('alert')).toHaveTextContent(FAILED_TEXT);
-      expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Retry');
-      expect(screen.getByTestId('diary-load-more-button')).toHaveFocus();
+      expect(screen.getByTestId('diary-retry')).toBeInTheDocument();
     });
 
-    it('a filter change after a first-batch failure shows the normal initial loading state, not the footer button', async () => {
+    it('a filter change after a first-batch failure shows the normal initial loading state', async () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
@@ -494,8 +681,8 @@ describe('DiaryPage', () => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
       });
       expect(mockListDiaryEntries.mock.calls[1]?.[0]?.q).toBe('x');
-      expect(screen.getByText(/loading entries/i)).toBeInTheDocument();
-      expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-loading')).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-retry')).not.toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
@@ -503,7 +690,7 @@ describe('DiaryPage', () => {
       const user = userEvent.setup();
       await renderFailedFirstBatch(new Error('boom'));
       mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
-      await user.click(screen.getByTestId('diary-load-more-button'));
+      await user.click(screen.getByTestId('diary-retry'));
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
       });
@@ -512,9 +699,9 @@ describe('DiaryPage', () => {
       const search = screen.getByTestId('diary-search-input');
       await user.type(search, 'x');
 
-      const link = await screen.findByRole('link', { name: /create your first entry/i });
+      const empty = await screen.findByTestId('diary-filtered-empty');
       expect(mockListDiaryEntries.mock.calls[2]?.[0]?.q).toBe('x');
-      expect(link).not.toHaveFocus();
+      expect(empty).not.toContainElement(document.activeElement as HTMLElement);
       expect(search).toHaveFocus();
     });
   });
@@ -530,9 +717,9 @@ describe('DiaryPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('diary-card-p1-2')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-p1-2')).toBeInTheDocument();
       expect(screen.getByTestId('diary-load-more-button')).toBeInTheDocument();
     });
 
@@ -544,7 +731,7 @@ describe('DiaryPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-al-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-al-1')).toBeInTheDocument();
       });
       const status = announcementRegion();
       expect(status).toHaveAttribute('aria-atomic', 'true');
@@ -556,7 +743,7 @@ describe('DiaryPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-de-1')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
       expect(screen.getByTestId('diary-end-of-list')).toBeInTheDocument();
@@ -569,18 +756,18 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-old-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-old-1')).toBeInTheDocument();
       });
 
       await user.type(screen.getByTestId('diary-search-input'), 'foo');
 
       await waitFor(
         () => {
-          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+          expect(screen.getByTestId('diary-entry-new-1')).toBeInTheDocument();
         },
         { timeout: 2000 },
       );
-      expect(screen.queryByTestId('diary-card-old-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-entry-old-1')).not.toBeInTheDocument();
 
       const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
       expect(lastCall?.[0]?.q).toBe('foo');
@@ -604,14 +791,14 @@ describe('DiaryPage', () => {
 
       renderPage(['/diary?page=3']);
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-old-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-old-1')).toBeInTheDocument();
       });
 
       await user.type(screen.getByTestId('diary-search-input'), 'foo');
 
       await waitFor(
         () => {
-          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+          expect(screen.getByTestId('diary-entry-new-1')).toBeInTheDocument();
         },
         { timeout: 2000 },
       );
@@ -634,15 +821,15 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
 
       await user.click(screen.getByTestId('diary-load-more-button'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p2-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p2-1')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
 
       expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
       expect(mockListDiaryEntries.mock.calls[1]?.[0]?.page).toBe(2);
@@ -658,7 +845,7 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
 
       await user.click(screen.getByTestId('diary-load-more-button'));
@@ -668,7 +855,7 @@ describe('DiaryPage', () => {
       });
       // The full-page banner must not render — entries are still present.
       expect(screen.queryByText(/failed to load diary entries/i)).not.toBeInTheDocument();
-      expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
     });
 
     it('visiting with ?page=3&q=foo in the URL loads page-1 semantics, honors q=foo, and does not error', async () => {
@@ -682,7 +869,7 @@ describe('DiaryPage', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-foo-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-foo-1')).toBeInTheDocument();
       });
 
       const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
@@ -718,7 +905,7 @@ describe('DiaryPage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
       const timeline = screen.getByRole('feed');
       expect(timeline).toHaveAttribute('aria-busy', 'false');
@@ -756,7 +943,7 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
       });
 
       await user.click(screen.getByTestId('diary-load-more-button'));
@@ -786,25 +973,26 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-f1-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-f1-1')).toBeInTheDocument();
       });
 
       // Append a second batch for the first filter — uses "appended" phrasing (covered above).
       await user.click(screen.getByTestId('diary-load-more-button'));
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-f1-3')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-f1-3')).toBeInTheDocument();
       });
       expect(announcementRegion()).toHaveTextContent(/more entr(y|ies) loaded/i);
 
       // Change filters (dateFrom) — resets fetchSequence, so the new filter's first
       // successful load must read as fetchSequence === 1 again.
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-f2-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-f2-1')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('diary-card-f2-2')).toBeInTheDocument();
-      expect(screen.queryByTestId('diary-card-f1-1')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-f2-2')).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-entry-f1-1')).not.toBeInTheDocument();
 
       const status = announcementRegion();
       // initialLoadAnnouncementPlural: "{{count}} entries loaded" (count=2) — not "more ... loaded".
@@ -834,7 +1022,7 @@ describe('DiaryPage', () => {
 
       await waitFor(
         () => {
-          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+          expect(screen.getByTestId('diary-entry-new-1')).toBeInTheDocument();
         },
         { timeout: 2000 },
       );
@@ -861,13 +1049,14 @@ describe('DiaryPage', () => {
 
       renderPage(['/diary']);
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-m-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-m-1')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('type-filter-daily_log'));
+      openFilters();
+      await user.click(await screen.findByTestId('type-filter-daily_log'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-m-2')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-m-2')).toBeInTheDocument();
       });
       const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
       expect(lastCall?.[0]?.type).toBe('daily_log');
@@ -883,13 +1072,14 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-d-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-d-1')).toBeInTheDocument();
       });
 
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-d-2')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-d-2')).toBeInTheDocument();
       });
       const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
       expect(lastCall?.[0]?.dateFrom).toBe('2026-01-01');
@@ -903,13 +1093,14 @@ describe('DiaryPage', () => {
 
       renderPage();
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-d-1')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-d-1')).toBeInTheDocument();
       });
 
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-02-01' } });
 
       await waitFor(() => {
-        expect(screen.getByTestId('diary-card-d-2')).toBeInTheDocument();
+        expect(screen.getByTestId('diary-entry-d-2')).toBeInTheDocument();
       });
       const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
       expect(lastCall?.[0]?.dateTo).toBe('2026-02-01');
@@ -923,11 +1114,13 @@ describe('DiaryPage', () => {
   it('renders a "Log today" link to /diary/new, and no "New Entry" button', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    const link = screen.getByRole('link', { name: 'Log today' });
+    const link = screen.getByTestId('diary-log-today');
+    expect(link).toHaveTextContent('Log today');
     expect(link).toHaveAttribute('href', routeUrl('diaryEntryNew'));
     expect(link).toHaveAttribute('href', '/diary/new');
     expect(screen.queryByRole('link', { name: /new entry/i })).toBeNull();
     expect(screen.queryByText('New Entry')).toBeNull();
+    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
   });
 
   it('pushes the capture screen with the diary page (and its filters) as origin on click', async () => {
@@ -938,11 +1131,12 @@ describe('DiaryPage', () => {
         <DiaryPage />
       </RecordingRouter>,
     );
-    fireEvent.click(screen.getByRole('link', { name: 'Log today' }));
+    fireEvent.click(screen.getByTestId('diary-log-today'));
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
     expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
     expect(log.states[0]).not.toHaveProperty('background');
+    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
   });
 
   it('never carries a registered create-context date or area: href is exactly /diary/new', async () => {
@@ -956,13 +1150,14 @@ describe('DiaryPage', () => {
         </CreateMenuProvider>
       </RecordingRouter>,
     );
-    const link = screen.getByRole('link', { name: 'Log today' });
+    const link = screen.getByTestId('diary-log-today');
     expect(link.getAttribute('href')).toBe('/diary/new');
 
     fireEvent.click(link);
 
     expect(log.actions.filter((a) => a.startsWith('PUSH'))).toEqual(['PUSH /diary/new']);
     expect(log.states[0]).toMatchObject({ origin: { to: '/diary?q=oak' } });
+    await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
   });
 
   // ─── Export functionality removed ─────────────────────────────────────────
@@ -971,86 +1166,265 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
     renderPage();
     await waitFor(() => {
-      expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-de-1')).toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
   });
 
-  // ─── Status chip row removed (Story #1435) ────────────────────────────────────
+  // ─── Drafts leave the feed (#2225) ───────────────────────────────────────────
 
-  describe('status chip row removed (Story #1435)', () => {
-    it('Scenario 8: no status chip group rendered', async () => {
+  describe('drafts leave the feed (#2225)', () => {
+    const draftsResponse = (total = 1) => ({
+      items: [makeSummary('dr-1', { status: 'draft' })],
+      pagination: { page: 1, pageSize: 3, totalPages: 1, totalItems: total },
+    });
+
+    it('has no status chip row and no Drafts chip', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       renderPage();
-      // The OLD status chip row had three buttons: "All", "Drafts only", "Saved only".
-      // It was removed in Story #1435. Assert by button text so this doesn't collide
-      // with the new drafts chip group (aria-label "Filter by draft status", Story #1446).
-      expect(screen.queryByRole('button', { name: /^Drafts only$/i })).not.toBeInTheDocument();
+      openFilters();
+      expect(screen.queryByTestId('status-filter-drafts')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Drafts( only)?$/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^Saved only$/i })).not.toBeInTheDocument();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+    });
+
+    it('requests status=saved without a status in the URL', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]?.status).toBe('saved');
+    });
+
+    it('treats an old ?status=saved link like no status', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?status=saved']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]?.status).toBe('saved');
+      expect(screen.queryByTestId('diary-active-filters')).not.toBeInTheDocument();
+    });
+
+    it('?status=draft lists drafts only and hides the Unfinished row', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListUnfinished.mockResolvedValue(draftsResponse());
+      renderPage(['/diary?status=draft']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]?.status).toBe('draft');
+      expect(mockListUnfinished).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('diary-unfinished')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-active-filter-drafts-remove')).toBeInTheDocument();
+    });
+
+    it('shows the Unfinished row above the toolbar when drafts exist', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListUnfinished.mockResolvedValue(draftsResponse());
+      renderPage();
+      const unfinished = await screen.findByTestId('diary-unfinished');
+      expect(mockListUnfinished).toHaveBeenCalledWith({
+        automatic: false,
+        status: 'draft',
+        page: 1,
+        pageSize: 3,
+      });
+      const search = screen.getByTestId('diary-search-input');
+      expect(
+        unfinished.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('"Show all n" switches the feed to drafts only and the chip brings it back', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      mockListUnfinished.mockResolvedValue({
+        ...draftsResponse(5),
+        pagination: { page: 1, pageSize: 3, totalPages: 2, totalItems: 5 },
+      });
+      renderPage();
+      await user.click(await screen.findByTestId('diary-unfinished-show-all'));
+
+      await waitFor(() => expect(mockListDiaryEntries.mock.lastCall?.[0]?.status).toBe('draft'));
+      expect(screen.getByTestId('location-search')).toHaveTextContent('status=draft');
+      expect(screen.queryByTestId('diary-unfinished')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-filters-button')).toHaveAttribute(
+        'aria-label',
+        'Filters, 1 active',
+      );
+
+      await user.click(screen.getByTestId('diary-active-filter-drafts-remove'));
+
+      await waitFor(() => expect(mockListDiaryEntries.mock.lastCall?.[0]?.status).toBe('saved'));
+      expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
+      expect(await screen.findByTestId('diary-unfinished')).toBeInTheDocument();
     });
   });
 
-  // ─── Drafts chip integration via DiaryFilterBar (Story #1446) ───────────────
+  // ─── Filters (#2225) ──────────────────────────────────────────────────────────
 
-  describe('drafts chip integration (Story #1446)', () => {
-    it('Scenario 9: chip has aria-pressed=true when URL has no status param (drafts visible)', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary']);
-      await waitFor(() => {
-        const chip = screen.getByTestId('status-filter-drafts');
-        expect(chip).toHaveAttribute('aria-pressed', 'true');
-      });
+  describe('filters (#2225)', () => {
+    it('loads the filter options once, when the page mounts', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalledTimes(1));
+      openFilters();
+      fireEvent.change(screen.getByTestId('diary-search-input'), { target: { value: 'abc' } });
+      await waitFor(() => expect(mockListDiaryEntries.mock.lastCall?.[0]?.q).toBe('abc'));
+      expect(mockFetchDiaryFilterOptions).toHaveBeenCalledTimes(1);
     });
 
-    it('Scenario 10: chip has aria-pressed=false when URL has ?status=saved (drafts hidden)', async () => {
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?status=saved']);
-      await waitFor(() => {
-        const chip = screen.getByTestId('status-filter-drafts');
-        expect(chip).toHaveAttribute('aria-pressed', 'false');
-      });
+    it('offers only the types in use, and the area and company of the options', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalled());
+      openFilters();
+      expect(await screen.findByTestId('type-filter-issue')).toBeInTheDocument();
+      expect(screen.queryByTestId('type-filter-site_visit')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-filter-area')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-filter-company')).toBeInTheDocument();
     });
 
-    it('Scenario 11: clicking pressed chip sets status=saved and calls listDiaryEntries with status="saved"', async () => {
+    it('still works when the options fail to load: Area and Company stay hidden', async () => {
+      mockFetchDiaryFilterOptions.mockRejectedValue(new Error('boom'));
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalled());
+      openFilters();
+      expect(screen.queryByTestId('diary-filter-area')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-filter-company')).not.toBeInTheDocument();
+      expect(screen.getByTestId('type-filter-site_visit')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-date-from')).toBeInTheDocument();
+    });
+
+    it('picking an area writes areaId to the URL and sends it to the API', async () => {
       const user = userEvent.setup();
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary']);
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalled());
+      openFilters();
+      await user.click(await screen.findByLabelText('Area'));
+      await user.click(await screen.findByTestId('diary-filter-area-option-area-1'));
 
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
+      await waitFor(() => expect(mockListDiaryEntries.mock.lastCall?.[0]?.areaId).toBe('area-1'));
+      expect(screen.getByTestId('location-search')).toHaveTextContent('areaId=area-1');
+      expect(screen.getByTestId('diary-active-filters')).toHaveTextContent('Room 1');
+    });
 
-      const chip = screen.getByTestId('status-filter-drafts');
-      await user.click(chip);
+    // Live filter writes are router replaces; the panel closes only on a path change.
+    it('keeps the anchored panel open while a filter is applied live', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalled());
+      openFilters();
+      await user.click(await screen.findByLabelText('Area'));
+      await user.click(await screen.findByTestId('diary-filter-area-option-area-1'));
+      await waitFor(() =>
+        expect(screen.getByTestId('location-search')).toHaveTextContent('areaId'),
+      );
+      expect(screen.getByTestId('diary-filters-panel')).toBeInTheDocument();
+    });
 
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'saved' }),
-        );
+    it('picking a company writes companyId to the URL and sends it as vendorId', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      await waitFor(() => expect(mockFetchDiaryFilterOptions).toHaveBeenCalled());
+      openFilters();
+      await user.click(await screen.findByLabelText('Company'));
+      await user.click(await screen.findByTestId('diary-filter-company-option-company-1'));
+
+      await waitFor(() =>
+        expect(mockListDiaryEntries.mock.lastCall?.[0]?.vendorId).toBe('company-1'),
+      );
+      expect(screen.getByTestId('location-search')).toHaveTextContent('companyId=company-1');
+      expect(mockListDiaryEntries.mock.lastCall?.[0]).not.toHaveProperty('companyId');
+    });
+
+    it('reads areaId, companyId, dates and types from the URL into the first request', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage([
+        '/diary?areaId=area-1&companyId=company-1&dateFrom=2026-01-01&dateTo=2026-02-01&types=issue,delivery&q=oak',
+      ]);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]).toMatchObject({
+        areaId: 'area-1',
+        vendorId: 'company-1',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-02-01',
+        type: 'issue,delivery',
+        q: 'oak',
+        status: 'saved',
+        automatic: false,
       });
     });
 
-    it('Scenario 11b: clicking unpressed chip removes status param and calls listDiaryEntries without status', async () => {
+    it('sends no request for an invalid date range and shows the error', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?dateTo=2026-01-10']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      openFilters();
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-02-01' } });
+      expect(
+        await screen.findByText('The start date must be before the end date.'),
+      ).toBeInTheDocument();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('location-search')).toHaveTextContent('?dateTo=2026-01-10');
+    });
+
+    it('Clear all clears the filters and the search, and focuses the Filters button', async () => {
       const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue&q=oak&areaId=area-1']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+
+      await user.click(screen.getByTestId('clear-filters-button'));
+
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+      expect(screen.getByTestId('diary-search-input')).toHaveValue('');
+      expect(screen.getByTestId('diary-filters-button')).toHaveFocus();
+      expect(screen.queryByTestId('diary-active-filters')).not.toBeInTheDocument();
+    });
+
+    it('shows active filter chips with a count on the Filters button', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue&areaId=area-1']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      expect(screen.getByTestId('diary-filters-button')).toHaveAttribute(
+        'aria-label',
+        'Filters, 2 active',
+      );
+      const chips = within(screen.getByRole('list', { name: 'Active filters' }));
+      expect(chips.getAllByRole('listitem')).toHaveLength(2);
+    });
+
+    it('opens the filters in a bottom sheet on a phone', async () => {
+      media.set(WIDE, false);
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage();
+      openFilters();
+      expect(screen.getByTestId('diary-filters-sheet')).toHaveAttribute('data-open', 'true');
+      expect(screen.queryByTestId('diary-filters-panel')).not.toBeInTheDocument();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+    });
+  });
+
+  // ─── History link ────────────────────────────────────────────────────────────
+
+  describe('History link', () => {
+    it('is a real link to /history named for the automatic record, inside the count line', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?status=saved']);
-
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      renderPage();
+      const link = screen.getByRole('link', {
+        name: 'History, the automatic record of changes',
       });
-
-      const chip = screen.getByTestId('status-filter-drafts');
-      await user.click(chip);
-
-      await waitFor(() => {
-        const lastCall =
-          mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
-        expect(lastCall?.[0]?.status).toBeUndefined();
-      });
+      expect(link).toBe(screen.getByTestId('diary-history-link'));
+      expect(link).toHaveAttribute('href', '/history');
+      expect(link).toHaveTextContent('History');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
     });
   });
 
@@ -1113,7 +1487,8 @@ describe('DiaryPage', () => {
       mockListDiaryEntries.mockResolvedValue(emptyResponse);
       renderPage(['/diary?q=oak&status=saved']);
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
-      await user.click(screen.getByTestId('type-filter-issue'));
+      openFilters();
+      await user.click(await screen.findByTestId('type-filter-issue'));
       await waitFor(() =>
         expect(mockListDiaryEntries.mock.lastCall?.[0]).toMatchObject({
           automatic: false,
@@ -1142,7 +1517,7 @@ describe('DiaryPage', () => {
         hiddenCount: 4,
       });
       renderPage(['/diary']);
-      await screen.findByTestId('diary-card-m-1');
+      await screen.findByTestId('diary-entry-m-1');
       expect(screen.queryByTestId('mode-filter-all')).toBeNull();
       expect(screen.queryByTestId('mode-filter-manual')).toBeNull();
       expect(screen.queryByTestId('mode-filter-automatic')).toBeNull();
@@ -1151,7 +1526,7 @@ describe('DiaryPage', () => {
       expect(screen.queryByTestId('diary-hidden-status')).toBeNull();
     });
 
-    it('shows the History link in the filter bar', async () => {
+    it('shows the History link in the page header', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       renderPage(['/diary']);
       expect(screen.getByTestId('diary-history-link')).toHaveAttribute('href', '/history');
@@ -1163,7 +1538,11 @@ describe('DiaryPage', () => {
       renderPage(['/diary?types=work_item_status,daily_log,bogus']);
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
       expect(mockListDiaryEntries.mock.calls[0]?.[0]?.type).toBe('daily_log');
-      expect(screen.getByTestId('type-filter-daily_log')).toHaveAttribute('aria-pressed', 'true');
+      openFilters();
+      expect(await screen.findByTestId('type-filter-daily_log')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     });
 
     it('clearing the dates and untoggling the last type removes their URL params', async () => {
@@ -1172,9 +1551,12 @@ describe('DiaryPage', () => {
       renderPage(['/diary?dateFrom=2026-01-01&dateTo=2026-02-01&types=issue']);
       await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
 
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '' } });
+      openFilters();
       fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '' } });
-      await user.click(screen.getByTestId('type-filter-issue'));
+      openFilters();
+      await user.click(await screen.findByTestId('type-filter-issue'));
 
       await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
     });
@@ -1291,6 +1673,182 @@ describe('DiaryPage', () => {
       expect(box().value).toBe('ab');
       await waitFor(() => expect(screen.getByTestId('location-search')).toHaveTextContent('?q=ab'));
       expect(box().value).toBe('ab');
+    });
+  });
+
+  describe('search field keys', () => {
+    it('Escape clears a non-empty search box', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?q=oak']);
+      const box = screen.getByTestId('diary-search-input');
+      expect(box).toHaveValue('oak');
+      fireEvent.keyDown(box, { key: 'Escape' });
+      expect(box).toHaveValue('');
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+    });
+
+    it('Escape in an empty box leaves everything alone', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary']);
+      const box = screen.getByTestId('diary-search-input');
+      fireEvent.keyDown(box, { key: 'Escape' });
+      expect(box).toHaveValue('');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+    });
+
+    it('keeps typed keys inside the field (page shortcuts and the shell "/" never see them)', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary']);
+      const outside = jest.fn();
+      document.addEventListener('keydown', outside);
+      fireEvent.keyDown(screen.getByTestId('diary-search-input'), { key: 'a' });
+      document.removeEventListener('keydown', outside);
+      expect(outside).not.toHaveBeenCalled();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+    });
+
+    it('is the one field marked as the page search', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary']);
+      expect(document.querySelectorAll('[data-page-search]')).toHaveLength(1);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+    });
+  });
+
+  describe('robustness', () => {
+    it('ignores filter options that arrive after the page was left', async () => {
+      let resolveOptions: (value: DiaryFilterOptions) => void = () => {};
+      mockFetchDiaryFilterOptions.mockReturnValue(
+        new Promise<DiaryFilterOptions>((resolve) => {
+          resolveOptions = resolve;
+        }),
+      );
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      const { unmount } = renderPage();
+      unmount();
+      await act(async () => {
+        resolveOptions(FILTER_OPTIONS);
+        await Promise.resolve();
+      });
+      expect(mockFetchDiaryFilterOptions).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a filter options failure that arrives after the page was left', async () => {
+      let rejectOptions: (reason: Error) => void = () => {};
+      mockFetchDiaryFilterOptions.mockReturnValue(
+        new Promise<DiaryFilterOptions>((_resolve, reject) => {
+          rejectOptions = reject;
+        }),
+      );
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      const { unmount } = renderPage();
+      unmount();
+      await act(async () => {
+        rejectOptions(new Error('late'));
+        await Promise.resolve();
+      });
+      expect(mockFetchDiaryFilterOptions).toHaveBeenCalledTimes(1);
+    });
+
+    it('Retry in the footer after a failed append re-requests that page and keeps the rows', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+      mockListDiaryEntries.mockRejectedValueOnce(new Error('blip'));
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p2-1')],
+        pagination: { page: 2, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+      renderPage();
+      await screen.findByTestId('diary-entry-p1-1');
+      await user.click(screen.getByTestId('diary-load-more-button'));
+      await screen.findByRole('alert');
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      expect(await screen.findByTestId('diary-entry-p2-1')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-p1-1')).toBeInTheDocument();
+      expect(mockListDiaryEntries.mock.calls[2]?.[0]?.page).toBe(2);
+    });
+
+    it('Clear all from the phone sheet footer clears the filters and the search', async () => {
+      media.set(WIDE, false);
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue&q=oak']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      openFilters();
+
+      await user.click(screen.getByTestId('diary-filters-sheet-clear'));
+
+      await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
+      expect(screen.getByTestId('diary-search-input')).toHaveValue('');
+      // The sheet stays open and focus stays inside it (it is not moved to the Filters button).
+      const sheet = screen.getByTestId('diary-filters-sheet');
+      expect(sheet).toHaveAttribute('data-open', 'true');
+      expect(sheet).toContainElement(document.activeElement as HTMLElement);
+      expect(screen.getByTestId('diary-filters-button')).not.toHaveFocus();
+    });
+
+    it('the chips-row Clear all focuses the Filters button', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?types=issue']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      await user.click(screen.getByTestId('clear-filters-button'));
+      expect(screen.getByTestId('diary-filters-button')).toHaveFocus();
+    });
+
+    it('a footer Retry after a failed append leaves focus on the footer button, not the heading', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+      mockListDiaryEntries.mockRejectedValueOnce(new Error('blip'));
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p2-1')],
+        pagination: { page: 2, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+      renderPage();
+      await screen.findByTestId('diary-entry-p1-1');
+      await user.click(screen.getByTestId('diary-load-more-button'));
+      await screen.findByRole('alert');
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await screen.findByTestId('diary-entry-p2-1');
+      expect(screen.getByRole('heading', { level: 1 })).not.toHaveFocus();
+      expect(screen.getByTestId('diary-load-more-button')).toHaveFocus();
+    });
+
+    it('writes both dates once a rejected range becomes valid again (To=10, From=15 rejected, To=20)', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      renderPage(['/diary?dateTo=2026-01-10']);
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalledTimes(1));
+      openFilters();
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-15' } });
+      await screen.findByText('The start date must be before the end date.');
+      expect(screen.getByTestId('location-search')).toHaveTextContent('?dateTo=2026-01-10');
+      expect(screen.getByTestId('location-search')).not.toHaveTextContent('dateFrom');
+
+      openFilters();
+      fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-01-20' } });
+
+      await waitFor(() => {
+        const params = new URLSearchParams(screen.getByTestId('location-search').textContent ?? '');
+        expect(params.get('dateFrom')).toBe('2026-01-15');
+        expect(params.get('dateTo')).toBe('2026-01-20');
+      });
+      await waitFor(() =>
+        expect(mockListDiaryEntries.mock.lastCall?.[0]).toMatchObject({
+          dateFrom: '2026-01-15',
+          dateTo: '2026-01-20',
+        }),
+      );
+      expect(screen.queryByText('The start date must be before the end date.')).toBeNull();
     });
   });
 });

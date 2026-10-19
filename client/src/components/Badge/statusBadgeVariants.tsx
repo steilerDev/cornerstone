@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 import type {
   BudgetSourceStatus,
+  DiaryEntryType,
+  DiaryInspectionOutcome,
   DiaryIssueResolution,
+  DiaryIssueSeverity,
   HouseholdItemStatus,
   MilestoneDisplayStatus,
   InvoiceDepositStatus,
@@ -11,7 +14,10 @@ import type {
 } from '@cornerstone/shared';
 import {
   BUDGET_SOURCE_STATUSES,
+  DIARY_ENTRY_TYPES,
+  DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_RESOLUTIONS,
+  DIARY_ISSUE_SEVERITIES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
@@ -25,6 +31,7 @@ import type { UserAccountStatus } from '../../lib/userAccountStatus.js';
 import { USER_ACCOUNT_STATUSES } from '../../lib/userAccountStatus.js';
 import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { diaryEntryTypeLabelKey } from '../../lib/diaryEntryTypeLabel.js';
 import type { BadgeVariant } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 
@@ -117,6 +124,34 @@ const DEFECT_STATUS_CLASS: Record<DiaryIssueResolution, string> = {
   open: badgeStyles.defectOpen!,
   in_progress: badgeStyles.defectInProgress!,
   resolved: badgeStyles.defectFixed!,
+};
+
+const DIARY_TYPE_CLASS: Record<DiaryEntryType, string> = {
+  daily_log: badgeStyles.diaryDailyLog!,
+  site_visit: badgeStyles.diarySiteVisit!,
+  delivery: badgeStyles.diaryDelivery!,
+  issue: badgeStyles.diaryIssue!,
+  general_note: badgeStyles.diaryGeneralNote!,
+  work_item_status: badgeStyles.diaryAutomatic!,
+  invoice_status: badgeStyles.diaryAutomatic!,
+  invoice_created: badgeStyles.diaryAutomatic!,
+  milestone_delay: badgeStyles.diaryAutomatic!,
+  budget_breach: badgeStyles.diaryAutomatic!,
+  auto_reschedule: badgeStyles.diaryAutomatic!,
+  subsidy_status: badgeStyles.diaryAutomatic!,
+};
+
+const DIARY_OUTCOME_CLASS: Record<DiaryInspectionOutcome, string> = {
+  pass: badgeStyles.pass!,
+  fail: badgeStyles.fail!,
+  conditional: badgeStyles.conditional!,
+};
+
+const DIARY_SEVERITY_CLASS: Record<DiaryIssueSeverity, string> = {
+  low: badgeStyles.low!,
+  medium: badgeStyles.medium!,
+  high: badgeStyles.high!,
+  critical: badgeStyles.critical!,
 };
 
 export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatus, BadgeVariant> {
@@ -312,6 +347,51 @@ export function buildDefectStatusVariants(
     result[status] = {
       label: t(set.key(status), { ns: set.ns }),
       className: DEFECT_STATUS_CLASS[status],
+    };
+  }
+  return result;
+}
+
+/** Diary entry type chips: manual types use the canonical words, automatic ones the diary words. */
+export function buildDiaryTypeVariants(t: StatusLabelT): Record<DiaryEntryType, BadgeVariant> {
+  const result = {} as Record<DiaryEntryType, BadgeVariant>;
+  for (const type of DIARY_ENTRY_TYPES) {
+    const { ns, key } = diaryEntryTypeLabelKey(type);
+    result[type] = { label: t(key, { ns }), className: DIARY_TYPE_CLASS[type] };
+  }
+  return result;
+}
+
+/** Diary entry status chips: a draft is the only one shown on a row. */
+export function buildDiaryStatusVariants(t: StatusLabelT): { draft: BadgeVariant } {
+  return {
+    draft: { label: t('draft.badgeLabel', { ns: 'diary' }), className: badgeStyles.draft! },
+  };
+}
+
+export function buildDiaryOutcomeVariants(
+  t: StatusLabelT,
+): Record<DiaryInspectionOutcome, BadgeVariant> {
+  const set = I18N_UNION_KEYS.diaryOutcome;
+  const result = {} as Record<DiaryInspectionOutcome, BadgeVariant>;
+  for (const outcome of DIARY_INSPECTION_OUTCOMES) {
+    result[outcome] = {
+      label: t(set.key(outcome), { ns: set.ns }),
+      className: DIARY_OUTCOME_CLASS[outcome],
+    };
+  }
+  return result;
+}
+
+export function buildDiarySeverityVariants(
+  t: StatusLabelT,
+): Record<DiaryIssueSeverity, BadgeVariant> {
+  const set = I18N_UNION_KEYS.diarySeverity;
+  const result = {} as Record<DiaryIssueSeverity, BadgeVariant>;
+  for (const severity of DIARY_ISSUE_SEVERITIES) {
+    result[severity] = {
+      label: t(set.key(severity), { ns: set.ns }),
+      className: DIARY_SEVERITY_CLASS[severity],
     };
   }
   return result;

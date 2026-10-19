@@ -11,6 +11,7 @@ import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js'
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
+import { Component } from 'react';
 import type React from 'react';
 import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -33,6 +34,12 @@ async function enabledConfirm(): Promise<HTMLElement> {
   const btn = await screen.findByTestId('diary-delete-confirm');
   await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
   return btn;
+}
+
+/** Delete lives behind the ⋯ menu of the actions bar (#2225). */
+async function chooseDeleteFromMenu(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(await screen.findByTestId('diary-entry-more'));
+  await user.click(await screen.findByTestId('diary-entry-delete'));
 }
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
@@ -229,6 +236,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
       formatDayMonth: fmtDayMonth,
+      formatClockTime: (t: string) => t,
+      formatHours: (h: number) => `${h} h`,
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
@@ -470,6 +479,8 @@ describe('DiaryEntryDetailPage', () => {
     renderDetailPage();
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add photos' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('diary-entry-more')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });
 
@@ -487,22 +498,28 @@ describe('DiaryEntryDetailPage', () => {
 
   // ─── Header meta row does not contain created date/author ─────────────────
 
-  it('header meta row contains the entry date but not createdAt or author', async () => {
+  it('the meta line above the title holds the type chip, the entry date and the author', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
-    await waitFor(() => {
-      expect(screen.getByText('Foundation Work')).toBeInTheDocument();
-    });
+    const badge = await screen.findByTestId('diary-type-badge-daily_log');
+    const meta = badge.parentElement as HTMLElement;
 
-    // The meta row in the card header should show entryDate, not createdAt timestamp
-    // Entry date "2026-03-14" should be visible
-    const header = document.querySelector('[class*="header"]');
-    expect(header).not.toBeNull();
+    expect(badge).toHaveTextContent('Daily log');
+    expect(meta).toHaveTextContent('Mar 14, 2026');
+    expect(meta).toHaveTextContent('by Alice Builder');
+    // The created/updated timestamps live in the collapsed History disclosure, not here.
+    expect(meta).not.toHaveTextContent('Created');
+    expect(
+      meta.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 
-    // Created time/author appears in the timestamps section at bottom, not the header meta row
-    // The header meta only has the entry date and optional automatic badge
-    // Multiple elements may contain "2026" (entry date + timestamps), so use getAllByText
-    expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
+  it('omits "by ‹author›" from the meta line when the entry has no author', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, createdBy: null });
+    renderDetailPage();
+    const badge = await screen.findByTestId('diary-type-badge-daily_log');
+    expect(badge.parentElement).not.toHaveTextContent(/\bby\b/);
   });
 
   it('sourceEntityTitle is displayed in source entity link when provided', async () => {
@@ -917,8 +934,11 @@ describe('DiaryEntryDetailPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
       renderDetailPage();
 
-      expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      expect(await screen.findByTestId('diary-entry-more')).toBeInTheDocument();
+      await userEvent.setup().click(screen.getByTestId('diary-entry-more'));
+      expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-entry-add-photos')).not.toBeInTheDocument();
       expect(screen.getByTestId('photo-grid-mock')).toHaveAttribute('data-editable', 'false');
       await userEvent.setup().click(screen.getByText('open-photo'));
       expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
@@ -930,29 +950,33 @@ describe('DiaryEntryDetailPage', () => {
     it('signed saved: the Delete button still opens the delete dialog (#808)', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
       renderDetailPage();
-      await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
+      await chooseDeleteFromMenu(userEvent.setup());
       expect(await screen.findByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
     });
 
-    it('signed saved with no photos: the photo section is hidden', async () => {
+    it('signed saved with no photos: no empty-photos placeholder and no Add photos link', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
       renderDetailPage();
-      await screen.findByRole('button', { name: 'Delete' });
-      expect(screen.queryByText(/^Photos \(/)).not.toBeInTheDocument();
+      await screen.findByTestId('diary-entry-more');
+      expect(screen.queryByTestId('diary-entry-no-photos')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Add photos' })).not.toBeInTheDocument();
     });
 
-    it('signed draft with no photos: the photo section and add-photos link stay visible', async () => {
+    it('signed draft with no photos: the placeholder and the add-photos links stay visible', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedDraft);
       renderDetailPage();
-      expect(await screen.findByText('Photos (0)')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Add photos' })).toBeInTheDocument();
+      const placeholder = await screen.findByTestId('diary-entry-no-photos');
+      expect(within(placeholder).getByRole('link', { name: 'Add photos' })).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-add-photos')).toBeInTheDocument();
     });
 
-    it('unsigned saved entry keeps Edit and Delete', async () => {
+    it('unsigned saved entry keeps Edit, Add photos and Delete (behind ⋯)', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
       renderDetailPage();
       expect(await screen.findByRole('link', { name: 'Edit' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      expect(screen.getByTestId('diary-entry-add-photos')).toBeInTheDocument();
+      await userEvent.setup().click(screen.getByTestId('diary-entry-more'));
+      expect(await screen.findByRole('menuitem', { name: 'Delete' })).toBeInTheDocument();
     });
 
     it('an issue entry with signatures renders the SignatureDisplay image', async () => {
@@ -976,7 +1000,7 @@ describe('DiaryEntryDetailPage', () => {
     const openDelete = async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
       renderDetailPage();
-      await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
+      await chooseDeleteFromMenu(userEvent.setup());
       return screen.findByRole('alertdialog', DELETE);
     };
 
@@ -1312,7 +1336,8 @@ describe('DiaryEntryDetailPage', () => {
         <OriginProbe />
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole('link', { name: 'Add photos' }));
+    fireEvent.click(await screen.findByTestId('diary-entry-add-photos'));
+    expect(probedPath()).toBe('/diary/de-1/edit');
     expect(probedOrigin()).toEqual({ to: '/diary/de-1', name: 'Foundation Work' });
   });
 
@@ -1329,11 +1354,345 @@ describe('DiaryEntryDetailPage', () => {
       </RecordingRouter>,
     );
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await chooseDeleteFromMenu(user);
     await user.click(await enabledConfirm());
     // Mutation: navigate(...) without replace logs PUSH and keeps the deleted entry in history.
     await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
     expect(log.entries).toEqual(['/diary', '/diary']);
+  });
+
+  // ─── Entry page layout (#2225) ───────────────────────────────────────────────
+
+  describe('entry page layout (#2225)', () => {
+    const sig = {
+      signerName: 'Alice Builder',
+      signerType: 'self' as const,
+      signatureDataUrl: 'data:image/png;base64,SIGDATA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const area = (id: string, name: string, ancestors: { id: string; name: string }[] = []) => ({
+      id,
+      name,
+      color: null,
+      ancestors: ancestors.map((a) => ({ ...a, color: null })),
+    });
+    const position = (a: HTMLElement, b: HTMLElement) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+
+    const fullEntry: DiaryEntryDetail = {
+      ...baseDetail,
+      status: 'saved',
+      metadata: { weather: 'sunny', workersOnSite: 3, signatures: [sig] },
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'wi-1',
+      sourceEntityTitle: 'Kitchen tiling',
+      photoCount: 1,
+    };
+
+    it('shows the page parts in order: photos, meta line, title, text, site details, signatures, related, history', async () => {
+      photosState.photos = [{ id: 'p1' } as Photo];
+      mockGetDiaryEntry.mockResolvedValueOnce(fullEntry);
+      renderDetailPage();
+
+      const photos = await screen.findByTestId('photo-grid-mock');
+      const meta = screen.getByTestId('diary-type-badge-daily_log');
+      const h1 = screen.getByRole('heading', { level: 1 });
+      const body = screen.getByText('Poured concrete for the main foundation.');
+      const details = screen.getByTestId('diary-entry-site-details');
+      const signature = screen.getByAltText('Signature of Alice Builder');
+      const related = screen.getByText('Related to:');
+      const history = screen.getByTestId('diary-entry-history');
+
+      const sequence = [photos, meta, h1, body, details, signature, related, history];
+      for (let i = 0; i < sequence.length - 1; i += 1) {
+        expect(position(sequence[i]!, sequence[i + 1]!)).toBeTruthy();
+      }
+    });
+
+    it('puts the actions bar between the breadcrumbs and the card: Edit, Add photos, ⋯', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      const edit = await screen.findByTestId('diary-entry-edit');
+      const addPhotos = screen.getByTestId('diary-entry-add-photos');
+      const more = screen.getByTestId('diary-entry-more');
+      expect(edit).toHaveTextContent('Edit');
+      expect(edit.className).toContain('btnPrimary');
+      expect(addPhotos.className).toContain('btnSecondary');
+      expect(more).toHaveAccessibleName('More actions for this entry');
+      expect(position(edit, addPhotos)).toBeTruthy();
+      expect(position(addPhotos, more)).toBeTruthy();
+      expect(position(more, screen.getByRole('heading', { level: 1 }))).toBeTruthy();
+      expect(edit.getAttribute('href')).toBe(addPhotos.getAttribute('href'));
+    });
+
+    it('hides Edit and Add photos for a locked entry but keeps the ⋯ menu with Delete', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...baseDetail,
+        isSigned: true,
+        metadata: { signatures: [sig] },
+      });
+      renderDetailPage();
+      await screen.findByTestId('diary-entry-more');
+      expect(screen.queryByTestId('diary-entry-edit')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('diary-entry-add-photos')).not.toBeInTheDocument();
+    });
+
+    it('the ⋯ menu offers only a destructive Delete', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      await userEvent.setup().click(await screen.findByTestId('diary-entry-more'));
+      expect(await screen.findAllByRole('menuitem')).toHaveLength(1);
+      expect(screen.getByTestId('diary-entry-delete')).toHaveTextContent('Delete');
+    });
+
+    it('Cancel in the delete dialog returns focus to the ⋯ trigger', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      const user = userEvent.setup();
+      await chooseDeleteFromMenu(user);
+      await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(screen.getByTestId('diary-entry-more')).toHaveFocus();
+    });
+
+    describe('photos', () => {
+      it('names the visually hidden photos heading with the count', async () => {
+        photosState.photos = [{ id: 'p1' } as Photo, { id: 'p2' } as Photo];
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        renderDetailPage();
+        expect(
+          await screen.findByRole('heading', { level: 2, name: 'Photos, 2' }),
+        ).toBeInTheDocument();
+      });
+
+      it('shows a dashed placeholder with the hint and an Add photos link when there are none', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        renderDetailPage();
+        const placeholder = await screen.findByTestId('diary-entry-no-photos');
+        expect(placeholder).toHaveTextContent('No photos attached');
+        expect(within(placeholder).getByRole('link', { name: 'Add photos' })).toHaveAttribute(
+          'href',
+          '/diary/de-1/edit',
+        );
+        expect(screen.queryByTestId('photo-grid-mock')).not.toBeInTheDocument();
+      });
+
+      it('has no photo section at all for an automatic entry', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce({
+          ...baseDetail,
+          isAutomatic: true,
+          entryType: 'work_item_status',
+          createdBy: null,
+        });
+        renderDetailPage();
+        await screen.findByRole('heading', { level: 1 });
+        expect(screen.queryByTestId('diary-entry-no-photos')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: /^Photos/ })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('diary-entry-site-details')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('diary-type-badge-work_item_status')).not.toBeInTheDocument();
+      });
+    });
+
+    describe('site details and text', () => {
+      it('renders Site details only when a field is set', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        renderDetailPage();
+        await screen.findByTestId('diary-type-badge-daily_log');
+        expect(screen.queryByTestId('diary-entry-site-details')).not.toBeInTheDocument();
+      });
+
+      it('renders the Site details section for a daily log with fields', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(fullEntry);
+        renderDetailPage();
+        const details = await screen.findByTestId('diary-entry-site-details');
+        expect(
+          within(details).getByRole('heading', { level: 2, name: 'Site details' }),
+        ).toBeVisible();
+        expect(within(details).getByTestId('daily-log-metadata')).toHaveTextContent('3 workers');
+      });
+
+      it('omits the text block when the body is empty', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, body: '' });
+        renderDetailPage();
+        await screen.findByTestId('diary-type-badge-daily_log');
+        expect(document.querySelector('[class*="body"]')).toBeNull();
+      });
+
+      it('falls back to "Type · day month" for an untitled entry', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, title: null });
+        renderDetailPage();
+        await screen.findByTestId('diary-type-badge-daily_log');
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Daily log · Mar 14/);
+      });
+
+      it('shows each signature with its signer', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(fullEntry);
+        renderDetailPage();
+        expect(await screen.findByText('Signed by Alice Builder')).toBeInTheDocument();
+      });
+    });
+
+    describe('History disclosure', () => {
+      it('is collapsed by default and holds Created, Updated and the author', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        renderDetailPage();
+        const history = await screen.findByTestId('diary-entry-history');
+        expect(history.tagName).toBe('DETAILS');
+        expect(history).not.toHaveAttribute('open');
+        expect(within(history).getByText('History').tagName).toBe('SUMMARY');
+        expect(history).toHaveTextContent('Created:');
+        expect(history).toHaveTextContent('Updated:');
+        expect(history).toHaveTextContent('Alice Builder');
+      });
+
+      it('opens when the summary is pressed', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        renderDetailPage();
+        const history = await screen.findByTestId('diary-entry-history');
+        fireEvent.click(within(history).getByText('History'));
+        expect(history).toHaveAttribute('open');
+      });
+
+      it('leaves out the author and Updated line when they are missing', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce({
+          ...baseDetail,
+          createdBy: null,
+          updatedAt: '',
+        });
+        renderDetailPage();
+        const history = await screen.findByTestId('diary-entry-history');
+        expect(history).toHaveTextContent('Created:');
+        expect(history).not.toHaveTextContent('Updated:');
+        expect(history).not.toHaveTextContent('Alice Builder');
+      });
+    });
+
+    describe('refetch after a photo change', () => {
+      it('reloads the entry silently when the viewer changes a photo', async () => {
+        photosState.photos = [{ id: 'p1' } as Photo];
+        mockGetDiaryEntry.mockResolvedValue(baseDetail);
+        renderDetailPage();
+        const user = userEvent.setup();
+        await user.click(await screen.findByText('open-photo'));
+        expect(mockGetDiaryEntry).toHaveBeenCalledTimes(1);
+
+        await user.click(await screen.findByText('change-in-viewer'));
+
+        await waitFor(() => expect(mockGetDiaryEntry).toHaveBeenCalledTimes(2));
+        expect(photosState.updatePhotoInList).toHaveBeenCalledTimes(1);
+        // No loading state: the page and the open viewer stay.
+        expect(screen.queryByText(/loading entry/i)).not.toBeInTheDocument();
+        expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Foundation Work');
+      });
+
+      it('reloads the entry after a photo is deleted in the viewer', async () => {
+        photosState.photos = [{ id: 'p1' } as Photo];
+        photosState.deletePhoto = jest.fn(async () => undefined);
+        mockGetDiaryEntry.mockResolvedValue(baseDetail);
+        renderDetailPage();
+        const user = userEvent.setup();
+        await user.click(await screen.findByText('open-photo'));
+
+        await user.click(await screen.findByText('delete-in-viewer'));
+
+        await waitFor(() => expect(mockGetDiaryEntry).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+          expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument(),
+        );
+      });
+
+      it('keeps what it has when the quiet reload fails', async () => {
+        photosState.photos = [{ id: 'p1' } as Photo];
+        mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+        mockGetDiaryEntry.mockRejectedValueOnce(new Error('offline'));
+        renderDetailPage();
+        const user = userEvent.setup();
+        await user.click(await screen.findByText('open-photo'));
+
+        await user.click(await screen.findByText('change-in-viewer'));
+
+        await waitFor(() => expect(mockGetDiaryEntry).toHaveBeenCalledTimes(2));
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Foundation Work');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByText(/failed to load/i)).not.toBeInTheDocument();
+      });
+    });
+
+    describe('Areas section', () => {
+      it('shows no Areas section when the entry has none', async () => {
+        mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, photoAreas: [] });
+        renderDetailPage();
+        await screen.findByTestId('diary-type-badge-daily_log');
+        expect(screen.queryByTestId('diary-entry-areas')).not.toBeInTheDocument();
+      });
+
+      // Regression: route `area` is not served yet (P5.7), so the chips must not build it.
+      it('does not crash for an entry that has photo areas', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        mockGetDiaryEntry.mockResolvedValueOnce({
+          ...baseDetail,
+          photoAreas: [area('a1', 'Room 1', [{ id: 'a0', name: 'Area A' }])],
+        });
+        class Boundary extends Component<{ children: React.ReactNode }, { crashed: boolean }> {
+          state = { crashed: false };
+          static getDerivedStateFromError() {
+            return { crashed: true };
+          }
+          render() {
+            return this.state.crashed ? <p data-testid="crashed">crashed</p> : this.props.children;
+          }
+        }
+        try {
+          render(
+            <MemoryRouter initialEntries={['/diary/de-1']}>
+              <Boundary>
+                <Routes>
+                  <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+                </Routes>
+              </Boundary>
+            </MemoryRouter>,
+          );
+          await waitFor(() => expect(mockGetDiaryEntry).toHaveBeenCalled());
+          await screen.findByTestId('diary-entry-areas');
+          expect(screen.queryByTestId('crashed')).not.toBeInTheDocument();
+        } finally {
+          errorSpy.mockRestore();
+        }
+      });
+    });
+  });
+
+  describe('"Related to" link of a manual entry, per source type', () => {
+    it('shows an unknown source type as plain text, not a link', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...baseDetail,
+        sourceEntityType: 'future_kind' as never,
+        sourceEntityId: 'src-1',
+        sourceEntityTitle: 'Source A',
+      });
+      renderDetailPage();
+      const label = await screen.findByText('Source A');
+      expect(label.tagName).toBe('SPAN');
+      expect(screen.queryByRole('link', { name: 'Source A' })).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['work_item', '/project/work-items/src-1'],
+      ['invoice', '/budget/invoices/src-1'],
+      ['milestone', '/project/milestones/src-1'],
+      ['budget_source', '/budget/sources'],
+      ['subsidy_program', '/budget/subsidies'],
+    ] as const)('links a %s source to %s', async (sourceEntityType, href) => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...baseDetail,
+        sourceEntityType,
+        sourceEntityId: 'src-1',
+        sourceEntityTitle: 'Source A',
+      });
+      renderDetailPage();
+      expect(await screen.findByRole('link', { name: 'Source A' })).toHaveAttribute('href', href);
+    });
   });
 
   // ─── Defect status menu (#2209 round 2) ──────────────────────────────────────

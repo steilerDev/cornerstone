@@ -404,19 +404,19 @@ test.describe('History: dates and include toggle (H5)', { tag: '@responsive' }, 
       await expect(history.eventRows().first()).toBeVisible();
 
       // From after today: nothing left
-      await history.dateFromInput.fill(localDay(2));
+      await history.setDate('from', localDay(2));
       await expect(history.eventRows()).toHaveCount(0);
       await expect(history.emptyState).toContainText('No changes match these filters');
 
       // To before today (From cleared): nothing either
-      await history.dateFromInput.fill('');
-      await history.dateToInput.fill(localDay(-3));
+      await history.setDate('from', '');
+      await history.setDate('to', localDay(-3));
       await expect(history.eventRows()).toHaveCount(0);
       await expect(history.emptyState).toContainText('No changes match these filters');
 
       // A window around today brings the rows back
-      await history.dateToInput.fill(localDay(1));
-      await history.dateFromInput.fill(localDay(-1));
+      await history.setDate('to', localDay(1));
+      await history.setDate('from', localDay(-1));
       await expect(history.eventRows().filter({ hasText: 'Task status' })).toHaveCount(1);
       await expect(page).toHaveURL(/dateFrom=/);
       await expect(page).toHaveURL(/dateTo=/);
@@ -456,7 +456,7 @@ test.describe('History: dates and include toggle (H5)', { tag: '@responsive' }, 
       await expect(card).toContainText(`${seed.uniq} Site note`);
       // Same day group as the events
       const group = history.dateGroup(localDay());
-      await expect(group.locator('[data-testid^="diary-card-"]')).toHaveCount(1);
+      await expect(group.locator('li[data-testid^="diary-entry-"]')).toHaveCount(1);
       await expect(group.locator('li[data-testid^="system-event-"]').first()).toBeVisible();
       await expect(history.dateGroups()).toHaveCount(1);
 

@@ -752,7 +752,9 @@ test.describe('Documentation screenshots', () => {
     await expect(page.getByRole('heading', { level: 1, name: /diary/i })).toBeVisible();
 
     // Click first entry to navigate to detail
-    const firstEntry = page.locator('[data-testid="diary-entry-card"]').first();
+    const firstEntry = page
+      .locator('li[data-testid^="diary-entry-"] a[data-testid$="-link"]')
+      .first();
     if ((await firstEntry.count()) > 0) {
       await firstEntry.click();
       await page.waitForLoadState('networkidle');

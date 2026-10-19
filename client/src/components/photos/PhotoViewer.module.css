@@ -26,6 +26,8 @@
 
 .mainViewer {
   position: relative;
+  /* Own stacking context: the arrows can never paint over the details panel. */
+  isolation: isolate;
   flex: 1;
   display: flex;
   align-items: center;
@@ -91,7 +93,7 @@
   cursor: pointer;
   padding: var(--spacing-3);
   transition: background var(--transition-fast);
-  z-index: var(--z-dropdown);
+  z-index: var(--z-raised);
   min-width: 44px;
   min-height: 44px;
   display: flex;
@@ -175,6 +177,45 @@
   box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
 }
 
+/* Info bar text button (pencil + word) — dark surface variant */
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  padding-inline: var(--spacing-3);
+  background: var(--color-photo-bar-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.textButton:hover {
+  background: var(--color-photo-active-bg);
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
+}
+
+.textButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.textButton[aria-disabled='true']:hover {
+  background: var(--color-photo-bar-bg);
+}
+
+.annotateReason {
+  margin: var(--spacing-1) 0 0;
+  color: var(--color-photo-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .iconButtonActive {
   background: var(--color-photo-active-bg);
 }
@@ -250,6 +291,8 @@
 
   .infoBar {
     padding: var(--spacing-3);
+    /* Clear the fixed details toggle (44px + its 16px offset) in the bottom-right corner. */
+    padding-inline-end: calc(var(--touch-target-min) + var(--spacing-4) + var(--spacing-2));
     flex-direction: column;
     align-items: flex-start;
   }

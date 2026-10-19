@@ -214,8 +214,14 @@ export class PhotoViewerPage {
 
   // ── Info bar actions (only visible when NOT annotating) ──────────────────────
 
-  /** Pencil icon button — opens the PhotoAnnotator */
+  /**
+   * "Annotate" button (pencil + visible text since #2225) - opens the PhotoAnnotator. Disabled
+   * means `aria-disabled="true"` (not the `disabled` attribute): the click does nothing.
+   */
   readonly annotateButton: Locator;
+
+  /** The visible reason shown in the info bar while Annotate is disabled (aria-describedby). */
+  readonly annotateReason: Locator;
 
   /**
    * Eye icon toggle — only rendered when `currentPhoto.annotatedAt` is set.
@@ -373,6 +379,7 @@ export class PhotoViewerPage {
 
     // Info bar
     this.annotateButton = page.getByTestId('photo-viewer-annotate');
+    this.annotateReason = this.modal.locator('[class*="annotateReason"]');
     this.viewOriginalButton = page.getByTestId('photo-viewer-view-original');
     this.clearAnnotationsButton = page.getByTestId('photo-viewer-clear-annotations');
 

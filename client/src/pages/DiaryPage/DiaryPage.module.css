@@ -31,6 +31,76 @@
   margin: var(--spacing-2) 0 0 0;
 }
 
+.historyLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  margin-block: calc(-1 * var(--spacing-2));
+  margin-inline-start: var(--spacing-3);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.historyLink:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.skeletonRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+}
+
+.skeletonStrip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--spacing-1);
+}
+
+.skeletonCell {
+  display: block;
+  max-width: 4rem;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-tertiary);
+}
+
 .createButton {
   text-decoration: none;
   flex-shrink: 0;
@@ -40,7 +110,7 @@
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-6);
+  gap: 0;
 }
 
 .liveRegion {
@@ -52,6 +122,23 @@
 }
 
 /* Responsive */
+@media (min-width: 768px) {
+  .skeletonRow {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .skeletonStrip {
+    display: flex;
+  }
+
+  .skeletonCell {
+    width: 3.5rem;
+    height: 3.5rem;
+    max-width: none;
+  }
+}
+
 @media (max-width: 767px) {
   .page {
     padding: 0;

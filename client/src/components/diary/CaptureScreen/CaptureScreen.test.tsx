@@ -1014,9 +1014,8 @@ describe('CaptureScreen: a saved entry', () => {
     expect(heading()).toHaveTextContent(/^Edit entry · /);
     expect(screen.queryByRole('group', { name: 'Entry type' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('diary-type-badge-daily_log')).toHaveAccessibleName(
-      'Entry type: Daily log',
-    );
+    // The coloured type chip carries its word, no emoji (#2225).
+    expect(screen.getByTestId('diary-type-badge-daily_log').textContent).toBe('Daily log');
     expect(saveButton()).toHaveTextContent('Save changes');
     expect(screen.getByTestId('capture-cancel')).toBeInTheDocument();
     expect(screen.queryByText(/^Saved \d/)).not.toBeInTheDocument();

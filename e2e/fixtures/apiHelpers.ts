@@ -211,6 +211,8 @@ export async function createDraftDiaryEntryViaApi(
     entryType: 'daily_log' | 'site_visit' | 'delivery' | 'issue' | 'general_note';
     metadata?: Record<string, unknown> | null;
     body?: string;
+    /** YYYY-MM-DD; defaults to today on the server. */
+    entryDate?: string;
   },
 ): Promise<string> {
   const response = await page.request.post(API.diaryEntries, {

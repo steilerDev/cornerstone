@@ -247,8 +247,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "types", "dateFrom", "dateTo"],
-    "note": "Site diary list (h1 'Site diary'): people's entries only, grouped by week, photo-first. ?filterMode is mapped below; manual is the only mode."
+    "carries": ["q", "types", "dateFrom", "dateTo", "areaId", "companyId", "status"],
+    "note": "Site diary list (h1 'Site diary'): people's saved entries grouped by week (Monday to Sunday), photo-first rows; 'Unfinished' row for drafts (?status=draft lists drafts only); Filters (type, area from photo tags, company, dates) in a sheet / anchored panel (#2225). ?filterMode is mapped below; manual is the only mode."
   },
   {
     "from": "/diary/new",
@@ -488,7 +488,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list)."
+    "note": "NEW Area page (sections Now & next here, Latest from the site, Companies here, Rooms, Cost; each links into its filtered home list). Interim consumers to switch when served: command-search area results (`searchResultTarget.ts`) and the diary entry page's area chips (#2225)."
   },
   {
     "from": "/history",

@@ -220,6 +220,8 @@ test(
 
       // The annotate button must be enabled
       await expect(viewer.annotateButton).toBeEnabled();
+      // Enabled means not aria-disabled (#2225: a disabled Annotate is aria-disabled, not `disabled`)
+      await expect(viewer.annotateButton).not.toHaveAttribute('aria-disabled', 'true');
 
       // ── Open annotator ─────────────────────────────────────────────────────
       await openAnnotator(viewer);

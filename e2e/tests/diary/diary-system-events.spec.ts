@@ -257,7 +257,7 @@ test.describe('System events (#2223)', { tag: '@responsive' }, () => {
       await expect(row).toContainText(`${title} went from Not started to In progress`);
       await expect(detail.systemEventLink((event as ApiEvent).id)).toHaveText(/Open task/);
       await expect(detail.editButton).toHaveCount(0);
-      await expect(detail.deleteButton).toHaveCount(0);
+      await expect(detail.moreMenu).toHaveCount(0);
       await expect(detail.sourceSection).toHaveCount(0);
     } finally {
       if (taskId) await deleteWorkItemViaApi(page, taskId);

@@ -164,8 +164,9 @@ test.describe('Time entry and duration display (Scenario 2)', () => {
       // Verify start time, end time, and duration in the metadata summary
       await expect(detailPage.dailyLogMetadata).toBeVisible();
       const metadataText = await detailPage.dailyLogMetadata.textContent();
-      expect(metadataText).toContain('08:00');
-      expect(metadataText).toContain('16:30');
+      // Site details shows locale-formatted clock times ("8:00 AM")
+      expect(metadataText).toMatch(/8:00\s?AM/);
+      expect(metadataText).toMatch(/4:30\s?PM/);
       expect(metadataText).toContain('8.50 h');
     } finally {
       if (entryId) await deleteDiaryEntryViaApi(page, entryId);
@@ -259,8 +260,8 @@ test.describe('Clear company after selection (Scenario 4)', () => {
       expect(metadataText).not.toContain(vendorName);
 
       // Times are still present
-      expect(metadataText).toContain('09:00');
-      expect(metadataText).toContain('17:00');
+      expect(metadataText).toMatch(/9:00\s?AM/);
+      expect(metadataText).toMatch(/5:00\s?PM/);
     } finally {
       if (entryId) await deleteDiaryEntryViaApi(page, entryId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

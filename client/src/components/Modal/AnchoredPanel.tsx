@@ -78,7 +78,17 @@ export function AnchoredPanel({
     refs.setReference(anchorRef.current);
   }, [refs, anchorRef, open]);
 
-  useClickOutside([anchorRef, panelRef], () => onDismissRef.current('outside'), open);
+  // A SearchPicker dropdown is portaled to <body>, so a press inside it is not "outside" this
+  // panel (otherwise picking an option would close the panel before the selection lands).
+  useClickOutside(
+    [anchorRef, panelRef],
+    (event) => {
+      const target = event.target as Element | null;
+      if (target?.closest?.('[data-search-picker-dropdown]')) return;
+      onDismissRef.current('outside');
+    },
+    open,
+  );
 
   // Escape: the trap handles it for dialog-like content; menus listen here.
   useFocusTrap(panelRef, {

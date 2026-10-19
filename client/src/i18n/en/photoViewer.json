@@ -6,6 +6,7 @@
   "photosListAriaLabel": "Photos",
   "deleteWithShortcutHint": "Delete photo (or press Delete key)",
   "annotate": "Annotate photo",
+  "annotateLabel": "Annotate",
   "annotateDisabledMissingDimensions": "Cannot annotate: photo dimensions are missing",
   "annotateDisabledSigned": "Signed entries cannot be annotated",
   "viewOriginal": "View original",

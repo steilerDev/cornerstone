@@ -289,7 +289,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['q', 'types', 'dateFrom', 'dateTo'],
+    carries: ['q', 'types', 'dateFrom', 'dateTo', 'areaId', 'companyId', 'status'],
     stage: 'done',
   },
   {
