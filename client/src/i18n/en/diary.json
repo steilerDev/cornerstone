@@ -33,7 +33,7 @@
     "filterMode": "Filter",
     "filterModeAll": "All",
     "filterModeManual": "Manual",
-    "filterModeAutomatic": "Automatic",
+    "filterModeAutomatic": "History",
     "filterModeDrafts": "Drafts",
     "draftsChipGroupLabel": "Filter by draft status",
     "entryTypes": "Entry Types",
@@ -54,13 +54,13 @@
     "ariaLabel": "Entry type: {{type}}"
   },
   "entryTypes": {
-    "work_item_status": "Work Item Status",
-    "invoice_status": "Invoice Status",
-    "invoice_created": "Invoice Created",
-    "milestone_delay": "Milestone Delay",
-    "budget_breach": "Budget Breach",
-    "auto_reschedule": "Auto Reschedule",
-    "subsidy_status": "Subsidy Status"
+    "work_item_status": "Task status",
+    "invoice_status": "Invoice status",
+    "invoice_created": "Invoice recorded",
+    "milestone_delay": "Milestone moved",
+    "budget_breach": "Over budget",
+    "auto_reschedule": "Schedule update",
+    "subsidy_status": "Grant status"
   },
   "create": {
     "backLink": "← Diary",
@@ -101,8 +101,7 @@
     "viewButton": "View",
     "editButton": "Edit",
     "by": "by",
-    "signed": "✓ Signed",
-    "goToRelatedItem": "Go to related item"
+    "signed": "✓ Signed"
   },
   "dateGroup": {
     "groupLabel": "Entries on {{date}}"
@@ -177,7 +176,6 @@
   "detailPage": {
     "edit": "Edit",
     "delete": "Delete",
-    "automatic": "Automatic",
     "photosHeading": "Photos ({{count}})",
     "photosEmpty": "No photos attached yet.",
     "addPhotos": "Add photos",
@@ -382,5 +380,67 @@
       "failed_other": "{{count}} photos failed. Use Retry.",
       "lookup": "An entry with this title already exists on this day."
     }
+  },
+  "event": {
+    "object": {
+      "invoice": "Invoice",
+      "offer": "Offer",
+      "progressPayment": "Progress payment",
+      "refund": "Refund",
+      "grant": "Grant"
+    },
+    "linkObject": {
+      "task": "task",
+      "invoice": "invoice",
+      "offer": "offer",
+      "progressPayment": "progress payment",
+      "refund": "refund",
+      "milestone": "milestone",
+      "grant": "grant"
+    },
+    "sentence": {
+      "named": "{{name}} went from {{from}} to {{to}}",
+      "namedChangedTo": "{{name}} changed to {{to}}",
+      "objectNumber": "{{object}} {{number}} went from {{from}} to {{to}}",
+      "objectNumberChangedTo": "{{object}} {{number}} changed to {{to}}",
+      "objectNumberAmount": "{{object}} {{number}} of {{amount}} went from {{from}} to {{to}}",
+      "payment": "{{object}} for invoice {{number}} went from {{from}} to {{to}}",
+      "paymentChangedTo": "{{object}} for invoice {{number}} changed to {{to}}",
+      "paymentAmount": "{{object}} of {{amount}} for invoice {{number}} went from {{from}} to {{to}}",
+      "objectNamed": "{{object}} {{name}} went from {{from}} to {{to}}",
+      "objectNamedChangedTo": "{{object}} {{name}} changed to {{to}}",
+      "milestoneLate": "{{name}} is {{late}}. Projected {{projected}}, target {{target}}.",
+      "recorded": "{{object}} {{number}} recorded for {{company}}",
+      "recordedNoCompany": "{{object}} {{number}} recorded"
+    },
+    "heading": {
+      "objectNumber": "{{object}} {{number}}"
+    },
+    "daysLate_one": "{{count}} day late",
+    "daysLate_other": "{{count}} days late",
+    "noNumber": "(no number)",
+    "noName": "(no name)",
+    "link": {
+      "open": "Open {{object}}",
+      "named": "{{label}}: {{subject}}",
+      "paymentNamed": "{{label}} of {{amount}} for invoice {{number}}, {{date}}"
+    },
+    "removed": "No longer exists",
+    "repeatBadge": "×{{count}}",
+    "repeatSameDay_one": "{{count}} time on {{date}}",
+    "repeatSameDay_other": "{{count}} times on {{date}}",
+    "repeatRange_one": "{{count}} time, {{from}} to {{to}}",
+    "repeatRange_other": "{{count}} times, {{from}} to {{to}}",
+    "hiddenNote_one": "{{count}} later delay note is hidden.",
+    "hiddenNote_other": "{{count}} later delay notes are hidden.",
+    "showHidden": "Show hidden",
+    "hideHidden": "Hide again",
+    "hiddenShown_one": "{{count}} hidden note shown",
+    "hiddenShown_other": "{{count}} hidden notes shown",
+    "hiddenHiddenAgain": "Hidden notes hidden",
+    "afterReached": "After reached",
+    "afterReachedDetail": "Logged after the milestone was reached.",
+    "hiddenShowing_one": "Showing {{count}} later delay note.",
+    "hiddenShowing_other": "Showing {{count}} later delay notes."
   }
 }

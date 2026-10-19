@@ -130,6 +130,15 @@ function makeListResponse(entries: DiaryEntrySummary[], totalPages = 1): DiaryEn
 
 const emptyResponse = makeListResponse([]);
 
+/** The infinite-scroll announcement region (the hidden-notes status region is a second one). */
+function announcementRegion(): HTMLElement {
+  const region = screen
+    .getAllByRole('status')
+    .find((el) => el.getAttribute('data-testid') !== 'diary-hidden-status');
+  if (!region) throw new Error('announcement region not found');
+  return region;
+}
+
 describe('DiaryPage', () => {
   let DiaryPage: React.ComponentType;
 
@@ -528,7 +537,7 @@ describe('DiaryPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('diary-card-al-1')).toBeInTheDocument();
       });
-      const status = screen.getByRole('status');
+      const status = announcementRegion();
       expect(status).toHaveAttribute('aria-atomic', 'true');
       expect(status).not.toHaveAttribute('aria-live');
     });
@@ -745,10 +754,10 @@ describe('DiaryPage', () => {
 
       await waitFor(() => {
         // count === 1 selects the singular grammar key ("entry", not "entries").
-        expect(screen.getByRole('status')).toHaveTextContent('1 more entry loaded');
+        expect(announcementRegion()).toHaveTextContent('1 more entry loaded');
       });
       // Still more pages after this batch — must not use the end-of-list announcement.
-      expect(screen.getByRole('status')).not.toHaveTextContent(/reached the end/i);
+      expect(announcementRegion()).not.toHaveTextContent(/reached the end/i);
     });
 
     it("after appending additional batches for one filter, changing filters announces the new filter's first batch via initial-load phrasing (not appended phrasing)", async () => {
@@ -776,7 +785,7 @@ describe('DiaryPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('diary-card-f1-3')).toBeInTheDocument();
       });
-      expect(screen.getByRole('status')).toHaveTextContent(/more entr(y|ies) loaded/i);
+      expect(announcementRegion()).toHaveTextContent(/more entr(y|ies) loaded/i);
 
       // Change filters (dateFrom) — resets fetchSequence, so the new filter's first
       // successful load must read as fetchSequence === 1 again.
@@ -788,7 +797,7 @@ describe('DiaryPage', () => {
       expect(screen.getByTestId('diary-card-f2-2')).toBeInTheDocument();
       expect(screen.queryByTestId('diary-card-f1-1')).not.toBeInTheDocument();
 
-      const status = screen.getByRole('status');
+      const status = announcementRegion();
       // initialLoadAnnouncementPlural: "{{count}} entries loaded" (count=2) — not "more ... loaded".
       expect(status).toHaveTextContent('2 entries loaded');
       expect(status).not.toHaveTextContent(/more entr(y|ies) loaded/i);
@@ -1192,6 +1201,198 @@ describe('DiaryPage', () => {
       expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain(
         'n:New diary entry',
       );
+    });
+  });
+
+  // ─── System events: History feed and hidden notes (#2223) ─────────────────────
+
+  describe('system events and hidden notes (#2223)', () => {
+    const delayEvent = (id: string, overrides: Partial<DiaryEntrySummary> = {}) =>
+      makeSummary(id, {
+        entryType: 'milestone_delay',
+        isAutomatic: true,
+        title: null,
+        body: '',
+        createdBy: null,
+        sourceEntityType: 'milestone',
+        sourceEntityId: 'ms-1',
+        sourceEntityTitle: 'Roof closed',
+        sourceEntityExists: true,
+        metadata: {
+          v: 1,
+          event: 'milestone_delayed',
+          targetDate: '2026-03-01',
+          projectedDate: '2026-03-08',
+          delayDays: 7,
+          subjectLabel: 'Roof closed',
+        },
+        ...overrides,
+      });
+    const withHidden = (entries: DiaryEntrySummary[], hiddenCount: number) => ({
+      ...makeListResponse(entries),
+      hiddenCount,
+    });
+
+    it('the automatic mode chip reads "History"', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage();
+      expect(screen.getByTestId('mode-filter-automatic')).toHaveTextContent(/^History$/);
+      await screen.findByText(/no diary entries yet/i);
+    });
+
+    it('renders an automatic entry as a system-event row, not a card', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 0));
+      renderPage();
+      const row = await screen.findByTestId('system-event-ev-1');
+      expect(row.tagName).toBe('LI');
+      expect(row).toHaveTextContent('Roof closed is 7 days late.');
+      expect(screen.queryByTestId('diary-card-ev-1')).toBeNull();
+    });
+
+    it('shows no hidden-notes line when hiddenCount is 0', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 0));
+      renderPage();
+      await screen.findByTestId('system-event-ev-1');
+      expect(screen.queryByTestId('diary-hidden-note')).toBeNull();
+      expect(screen.queryByTestId('diary-show-hidden')).toBeNull();
+      expect(screen.getByTestId('diary-hidden-status')).toBeEmptyDOMElement();
+    });
+
+    it('shows one line with the count and a pressed-state toggle when notes are hidden', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 2));
+      renderPage();
+      const note = await screen.findByTestId('diary-hidden-note');
+      expect(note).toHaveTextContent('2 later delay notes are hidden.');
+      const toggle = screen.getByTestId('diary-show-hidden');
+      expect(toggle).toHaveTextContent('Show hidden');
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getAllByTestId('diary-hidden-note')).toHaveLength(1);
+    });
+
+    it('uses the singular form for one hidden note', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 1));
+      renderPage();
+      expect(await screen.findByTestId('diary-hidden-note')).toHaveTextContent(
+        '1 later delay note is hidden.',
+      );
+    });
+
+    it('Show hidden refetches with showHidden, announces it and keeps focus on the toggle', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(withHidden([delayEvent('ev-1')], 1));
+      renderPage();
+      const toggle = await screen.findByTestId('diary-show-hidden');
+      expect(mockListDiaryEntries.mock.calls[0]?.[0]).not.toHaveProperty('showHidden', true);
+
+      let resolveReload!: (value: ReturnType<typeof withHidden>) => void;
+      mockListDiaryEntries.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveReload = resolve as typeof resolveReload;
+          }),
+      );
+      await user.click(toggle);
+
+      // Pending: the line and the very same toggle stay mounted, focus is not lost.
+      expect(screen.getByTestId('diary-show-hidden')).toBe(toggle);
+      expect(toggle).toHaveFocus();
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(toggle).toHaveTextContent('Hide again');
+      expect(screen.getByTestId('diary-hidden-status')).toHaveTextContent('1 hidden note shown');
+      await waitFor(() =>
+        expect(mockListDiaryEntries).toHaveBeenLastCalledWith(
+          expect.objectContaining({ showHidden: true }),
+        ),
+      );
+
+      await act(async () => {
+        resolveReload(
+          withHidden(
+            [
+              delayEvent('ev-1'),
+              delayEvent('ev-2', { hidden: true, createdAt: '2026-03-14T11:00:00.000Z' }),
+            ],
+            1,
+          ),
+        );
+      });
+      const hiddenRow = await screen.findByTestId('system-event-ev-2');
+      expect(hiddenRow).toHaveTextContent('After reached');
+      expect(hiddenRow).toHaveTextContent('Logged after the milestone was reached.');
+      expect(screen.getByTestId('system-event-ev-1')).not.toHaveTextContent('After reached');
+      expect(screen.getByTestId('diary-show-hidden')).toHaveFocus();
+    });
+
+    it('Hide again goes back to the normal query and announces it', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], 1));
+      renderPage();
+      await user.click(await screen.findByTestId('diary-show-hidden'));
+      await waitFor(() =>
+        expect(mockListDiaryEntries).toHaveBeenLastCalledWith(
+          expect.objectContaining({ showHidden: true }),
+        ),
+      );
+
+      await user.click(screen.getByTestId('diary-show-hidden'));
+
+      expect(screen.getByTestId('diary-hidden-status')).toHaveTextContent('Hidden notes hidden');
+      expect(screen.getByTestId('diary-show-hidden')).toHaveAttribute('aria-pressed', 'false');
+      await waitFor(() =>
+        expect(mockListDiaryEntries.mock.lastCall?.[0]).not.toHaveProperty('showHidden', true),
+      );
+    });
+
+    it.each([
+      [1, 'Showing 1 later delay note.', '1 later delay note is hidden.'],
+      [3, 'Showing 3 later delay notes.', '3 later delay notes are hidden.'],
+    ])(
+      'while shown the line reads "Showing N later delay note(s)" (%i), and the hidden sentence returns when toggled off',
+      async (count, showing, hidden) => {
+        const user = userEvent.setup();
+        mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], count));
+        renderPage();
+        const note = await screen.findByTestId('diary-hidden-note');
+        expect(note).toHaveTextContent(hidden);
+
+        await user.click(screen.getByTestId('diary-show-hidden'));
+        await waitFor(() => expect(note).toHaveTextContent(showing));
+        expect(note).not.toHaveTextContent(/hidden\./);
+
+        await user.click(screen.getByTestId('diary-show-hidden'));
+        await waitFor(() => expect(note).toHaveTextContent(hidden));
+        expect(note).not.toHaveTextContent('Showing');
+      },
+    );
+
+    it('does not use the infinite-scroll announcement region for the toggle message', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValue(withHidden([delayEvent('ev-1')], 3));
+      renderPage();
+      await user.click(await screen.findByTestId('diary-show-hidden'));
+      expect(announcementRegion()).not.toBe(screen.getByTestId('diary-hidden-status'));
+      expect(announcementRegion()).not.toHaveTextContent('hidden notes shown');
+    });
+
+    it('shows the ×N count in visible text for a collapsed repeat', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(
+        withHidden(
+          [
+            makeSummary('ev-r', {
+              ...delayEvent('ev-r'),
+              repeat: {
+                count: 3,
+                firstAt: '2026-03-12T08:00:00.000Z',
+                lastAt: '2026-03-14T08:00:00.000Z',
+              },
+            }),
+          ],
+          0,
+        ),
+      );
+      renderPage();
+      const row = await screen.findByTestId('system-event-ev-r');
+      expect(row).toHaveTextContent(/3 times, .+ to .+/);
     });
   });
 });

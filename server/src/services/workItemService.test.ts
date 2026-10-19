@@ -2221,4 +2221,48 @@ describe('Work Item Service', () => {
       expect(late.projectedStartDate).toBe('2026-03-10');
     });
   });
+
+  describe('updateWorkItem() system event (#2223)', () => {
+    function events() {
+      return db.select().from(schema.diaryEntries).all();
+    }
+
+    it('writes a v1 event with the title and the acting user for a status change', () => {
+      const userId = createTestUser('actor@example.com', 'Actor');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Task A' });
+
+      workItemService.updateWorkItem(
+        db,
+        workItem.id,
+        { status: 'in_progress' },
+        { userId, undoable: true },
+      );
+
+      const [event] = events();
+      expect(events()).toHaveLength(1);
+      expect(event!.entryType).toBe('work_item_status');
+      expect(event!.createdBy).toBe(userId);
+      expect(event!.title).toBeNull();
+      expect(event!.body).toBe('');
+      expect(JSON.parse(event!.metadata!)).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'not_started',
+        to: 'in_progress',
+        subjectLabel: 'Task A',
+      });
+    });
+
+    it('writes no creator without a context, and nothing when the status is unchanged', () => {
+      const userId = createTestUser('actor2@example.com', 'Actor');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Task A' });
+
+      workItemService.updateWorkItem(db, workItem.id, { title: 'Task A2' });
+      expect(events()).toHaveLength(0);
+
+      workItemService.updateWorkItem(db, workItem.id, { status: 'completed' });
+      expect(events()).toHaveLength(1);
+      expect(events()[0]!.createdBy).toBeNull();
+    });
+  });
 });

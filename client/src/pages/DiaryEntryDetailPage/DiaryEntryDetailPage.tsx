@@ -19,6 +19,7 @@ import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
+import { SystemEventFeedRow } from '../../components/FeedRow/SystemEventFeedRow.js';
 import { PhotosWaitingNotice } from '../../components/photos/PhotoStrip/PhotosWaitingNotice.js';
 import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
@@ -238,25 +239,28 @@ export default function DiaryEntryDetailPage() {
 
       <div className={styles.card}>
         <header className={styles.header}>
-          <div className={styles.typeBadgeContainer}>
-            <DiaryEntryTypeBadge entryType={entry.entryType} size="lg" />
-          </div>
+          {!entry.isAutomatic && (
+            <div className={styles.typeBadgeContainer}>
+              <DiaryEntryTypeBadge entryType={entry.entryType} size="lg" />
+            </div>
+          )}
           <div className={styles.headerContent}>
             <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
               {h1Text}
             </h1>
             <div className={styles.meta}>
               <span className={styles.date}>{formatDate(entry.entryDate)}</span>
-              {entry.isAutomatic && (
-                <span className={styles.badge}>{t('detailPage.automatic')}</span>
-              )}
             </div>
           </div>
         </header>
 
-        <div className={styles.body}>{entry.body}</div>
+        {entry.isAutomatic ? (
+          <SystemEventFeedRow entry={entry} as="div" variant="detail" />
+        ) : (
+          <div className={styles.body}>{entry.body}</div>
+        )}
 
-        {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+        {!entry.isAutomatic && entry.metadata && Object.keys(entry.metadata).length > 0 && (
           <div className={styles.metadataSection}>
             <DiaryMetadataSummary
               entryType={entry.entryType}
@@ -267,7 +271,7 @@ export default function DiaryEntryDetailPage() {
               <StatusMenu
                 transitions={defectTransitions(tc, {
                   resolutionStatus,
-                  locked: isDiaryEntrySignatureLocked(entry) || entry.isAutomatic,
+                  locked: isDiaryEntrySignatureLocked(entry),
                 })}
                 badge={{ variants: statusVariants.defect, value: resolutionStatus }}
                 currentLabel={statusVariants.defect[resolutionStatus].label}
@@ -374,7 +378,7 @@ export default function DiaryEntryDetailPage() {
           />
         )}
 
-        {entry.sourceEntityType && entry.sourceEntityId && (
+        {!entry.isAutomatic && entry.sourceEntityType && entry.sourceEntityId && (
           <div className={styles.sourceSection}>
             <p className={styles.sourceLabel}>{t('detailPage.relatedTo')}</p>
             <SourceEntityLink

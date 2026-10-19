@@ -64,7 +64,7 @@ Verified against `e2e/playwright.config.ts` 2026-07-08 (previous note here was s
 ## Milestones / Diary auto-events / HI dependencies odds and ends (Stories #1239/#1271-#1273)
 
 - Milestone WI link: `POST /api/milestones/:id/work-items {workItemId}`. See milestones-e2e.md for the full POM.
-- Diary auto-events from WI status change: `PATCH /api/work-items/:id {status}` → find via `GET /api/diary-entries?type=work_item_status&pageSize=50`, filter `sourceEntityId === workItemId`. Enabled by default (`DIARY_AUTO_EVENTS=true`) — no E2E container config needed.
+- Diary auto-events from WI status change: `PATCH /api/work-items/:id {status}` → find via `GET /api/diary-entries?type=work_item_status&pageSize=50`, filter `sourceEntityId === workItemId`. Always written (the `DIARY_AUTO_EVENTS` switch was removed in #2223); v1 rows have `title: null`, render from `metadata`, and a PATCH back within 30 s (or Undo) retracts the event. Rows are `system-event-<id>` (FeedRow), not `diary-card-<id>`.
 - `InvoiceDetailPage.budgetLinesSection` correct selector is `[aria-labelledby="budget-lines-title"]` (not a `budgetLinesSection` class, which doesn't exist).
 - Invoice budget line creation is `POST /api/invoices/:invoiceId/budget-lines` (not nested under vendor). WI/HI budget POST responses: `{budget:{id}}`. Invoice budget line POST: `{budgetLine:{id}}`.
 - HI dependency creation: `POST /api/household-items/:id/dependencies {predecessorType, predecessorId}`.

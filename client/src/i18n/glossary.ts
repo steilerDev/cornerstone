@@ -36,6 +36,7 @@ export const GLOSSARY_FORM_KEYS = [
   'noun',
   'chip',
   'sentence',
+  'sentenceOne',
   'shortForm',
   'shortFormNote',
   'note',

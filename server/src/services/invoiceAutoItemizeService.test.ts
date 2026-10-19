@@ -161,7 +161,6 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     externalUrl: undefined,
     photoStoragePath: '/tmp/photos',
     photoMaxFileSizeMb: 20,
-    diaryAutoEvents: false,
     diaryDraftRetentionDays: 30,
     currency: 'EUR',
     vatRate: 0.19,

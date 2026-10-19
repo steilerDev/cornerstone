@@ -470,10 +470,11 @@ export function IntegrationsPage() {
       <IntegrationCard
         anchor="history"
         title={t('integrations.history.title')}
-        chip={history && chip('history', history.enabled ? 'on' : 'off')}
+        chip={chip('history', 'on')}
         purpose={t('integrations.history.purpose')}
         env={history?.env ?? null}
         hint={t('integrations.history.hint')}
+        docs={false}
         loading={data === null}
         loadingLabel={loadingLabel(t('integrations.history.title'))}
       />

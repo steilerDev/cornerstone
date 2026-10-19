@@ -12,7 +12,7 @@
  * - A card container with:
  *   - A DiaryEntryTypeBadge (size="lg")
  *   - An optional h1 entry title (class styles.title) — only rendered when entry.title is set
- *   - Meta row: formatted entry date, "Automatic" badge (when isAutomatic)
+ *   - Meta row: formatted entry date
  *   - Body text (class styles.body)
  *   - Optional DiaryMetadataSummary section (class styles.metadataSection)
  *   - Optional signature sections (when metadata.signatures is non-empty)
@@ -74,7 +74,6 @@ export class DiaryEntryDetailPage {
   readonly entryBody: Locator;
   readonly entryDate: Locator;
   readonly entryAuthor: Locator;
-  readonly automaticBadge: Locator;
 
   // Metadata section (outer container)
   readonly metadataSection: Locator;
@@ -102,12 +101,26 @@ export class DiaryEntryDetailPage {
   // Error banner (shown on 404 / API error)
   readonly errorBanner: Locator;
 
+  /** The event row of a system event (automatic entry), by entry id. */
+  systemEventRow(id: string): Locator {
+    return this.page.getByTestId(`system-event-${id}`);
+  }
+
+  /** The link row of a system event. */
+  systemEventLink(id: string): Locator {
+    return this.page.getByTestId(`system-event-${id}-link`);
+  }
+
   constructor(page: Page) {
     this.page = page;
 
     this.breadcrumbs = new BreadcrumbsBar(page);
     this.heading = page.getByRole('heading', { level: 1 });
-    this.loaded = page.locator('[class*="typeBadgeContainer"]').first();
+    // A manual entry shows its type badge; a system event (#2223) shows its event row instead.
+    this.loaded = page
+      .locator('[class*="typeBadgeContainer"]')
+      .first()
+      .or(page.locator('[data-testid^="system-event-"]').first());
 
     // "Back to Site diary" link in the not-found / error states — a <Link> element in main.
     // Scoped to main: below 1024px the compact top bar carries a link with the same name (#2207)
@@ -137,7 +150,6 @@ export class DiaryEntryDetailPage {
     this.entryBody = page.locator('[class*="body"]').first();
     this.entryDate = page.locator('[class*="date"]').first();
     this.entryAuthor = page.locator('[class*="author"]').first();
-    this.automaticBadge = page.locator('[class*="badge"]').filter({ hasText: 'Automatic' });
 
     // Metadata section container
     this.metadataSection = page.locator('[class*="metadataSection"]');

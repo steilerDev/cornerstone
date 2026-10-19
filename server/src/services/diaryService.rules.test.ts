@@ -274,8 +274,8 @@ describe('diaryService rules (#2220)', () => {
         db,
         'work_item_status',
         '2026-03-14',
-        'Formwork check',
-        'auto',
+        { v: 1, event: 'legacy' },
+        null,
         null,
         null,
       );
@@ -604,8 +604,8 @@ describe('diaryService rules (#2220)', () => {
         db,
         'work_item_status',
         '2026-03-14',
-        'Screed day 2',
-        'auto',
+        { v: 1, event: 'legacy' },
+        null,
         null,
         null,
       );

@@ -9,9 +9,9 @@ Fixed on branch `fix/1895-1918-claim-deposit-scope` (2026-08-01). Three related 
 
 ## What changed (production, already landed when QA ran)
 
-- `markInvoicesClaimed(db, sourceId, invoiceIds, depositIds, diaryAutoEvents)` — gained a
+- `markInvoicesClaimed(db, sourceId, invoiceIds, depositIds, userId)` — gained a
   leading `sourceId` param and a required (but possibly empty) `depositIds` array. Old 2-arg
-  call sites (`markInvoicesClaimed(db, invoiceIds, diaryAutoEvents)`) all needed migration.
+  call sites (`markInvoicesClaimed(db, invoiceIds)`) all needed migration.
 - Claimability/flip logic now checks whether **another** budget source funds a budget line on
   the invoice (`otherSourceInvoiceIds`, computed via a batched SQL query over `invoiceIds`
   only) — if so, the invoice is left unflipped even if directly claimable by status

@@ -119,7 +119,6 @@ export default async function invoiceDepositRoutes(fastify: FastifyInstance) {
         request.params.invoiceId,
         request.body,
         request.user.id,
-        fastify.config.diaryAutoEvents,
       );
       return reply.status(201).send({ deposit: result });
     },
@@ -149,8 +148,7 @@ export default async function invoiceDepositRoutes(fastify: FastifyInstance) {
           request.params.invoiceId,
           request.params.id,
           request.body,
-          fastify.config.diaryAutoEvents,
-          userId,
+          { userId, undoable: true },
         ),
     );
     return reply.status(200).send(undo ? { deposit, undo } : { deposit });

@@ -59,7 +59,8 @@ export const CONFIGURED_INTEGRATIONS: IntegrationsStatusResponse = {
     nextRun: '2026-03-23T02:00:00.000Z',
     env: { required: ['BACKUP_CADENCE'], optional: ['BACKUP_DIR', 'BACKUP_RETENTION'] },
   },
-  diaryEvents: { enabled: true, env: { required: [], optional: ['DIARY_AUTO_EVENTS'] } },
+  // History is always on (#2223): no variable, no setup.
+  diaryEvents: { enabled: true, env: { required: [], optional: [] } },
   money: {
     currency: 'EUR',
     vatRate: 0.19,

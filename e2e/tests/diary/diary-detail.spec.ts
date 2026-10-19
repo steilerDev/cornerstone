@@ -11,7 +11,7 @@
  * 5.  site_visit outcome badge renders (pass/fail/conditional)
  * 6.  issue severity badge renders (low/medium/high/critical)
  * 7.  404 / error state shown for a non-existent entry ID
- * 8.  Automatic badge shown for automatic (system) entries (mock API)
+ * 8.  System events show the event layout (sentence, type badge, link), not a body (mock API)
  * 9.  Responsive — no horizontal scroll on current viewport (@responsive)
  * 10. Dark mode — page renders without layout overflow (@responsive)
  */
@@ -19,6 +19,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
+import { mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { API } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -328,38 +329,21 @@ test.describe('404 error state (Scenario 7)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: "Automatic" badge shown for system-generated entries (mock API)
+// Scenario 8: system events render as an event row (mock API)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic entry badge (Scenario 8)', () => {
-  test('Automatic system entry shows an "Automatic" badge in the detail view', async ({ page }) => {
+test.describe('System event layout (Scenario 8)', () => {
+  test('A system event shows its sentence, type badge and link, with no "Automatic" badge', async ({
+    page,
+  }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     const mockId = 'mock-auto-entry-001';
 
-    // Mock the individual entry endpoint to return an automatic entry
     await page.route(`${API.diaryEntries}/${mockId}`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            id: mockId,
-            entryType: 'work_item_status',
-            entryDate: '2026-03-14',
-            title: null,
-            body: 'Work item "Kitchen Installation" changed status from planning to in_progress.',
-            metadata: {
-              changeSummary: 'Status changed from planning to in_progress.',
-              previousValue: 'planning',
-              newValue: 'in_progress',
-            },
-            isAutomatic: true,
-            sourceEntityType: 'work_item',
-            sourceEntityId: 'wi-001',
-            photoCount: 0,
-            createdBy: null,
-            createdAt: '2026-03-14T09:00:00.000Z',
-            updatedAt: '2026-03-14T09:00:00.000Z',
-          }),
+          body: JSON.stringify(mockSystemEvent({ id: mockId })),
         });
       } else {
         await route.continue();
@@ -368,13 +352,15 @@ test.describe('Automatic entry badge (Scenario 8)', () => {
 
     try {
       await detailPage.goto(mockId);
+      await expect(detailPage.loaded).toBeVisible();
 
-      // Automatic badge should be visible
-      await expect(detailPage.automaticBadge).toBeVisible();
-      await expect(detailPage.automaticBadge).toHaveText('Automatic');
-
-      // Source section links to the related work item
-      await expect(detailPage.sourceSection).toBeVisible();
+      const row = detailPage.systemEventRow(mockId);
+      await expect(row).toContainText('Kitchen Installation went from Not started to In progress');
+      await expect(page.getByTestId(`system-event-${mockId}-type`)).toHaveText('Task status');
+      await expect(detailPage.systemEventLink(mockId)).toHaveText(/Open task/);
+      await expect(page.getByText('Automatic', { exact: true })).toHaveCount(0);
+      // The nested "Related to" source section is gone for system events.
+      await expect(detailPage.sourceSection).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
     }

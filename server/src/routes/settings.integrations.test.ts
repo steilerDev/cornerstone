@@ -58,7 +58,7 @@ const ENV_TABLE: Record<string, { required: string[]; optional: string[] }> = {
   },
   calendarContacts: { required: [], optional: [] },
   backups: { required: ['BACKUP_CADENCE'], optional: ['BACKUP_RETENTION', 'BACKUP_DIR'] },
-  diaryEvents: { required: [], optional: ['DIARY_AUTO_EVENTS'] },
+  diaryEvents: { required: [], optional: [] },
   money: { required: [], optional: ['CURRENCY', 'VAT_RATE'] },
   photos: { required: [], optional: ['PHOTO_STORAGE_PATH', 'PHOTO_MAX_FILE_SIZE_MB'] },
   publicAddress: { required: [], optional: ['EXTERNAL_URL', 'TRUST_PROXY', 'SECURE_COOKIES'] },
@@ -178,6 +178,16 @@ describe('GET /api/settings/integrations', () => {
       for (const card of CARDS) {
         expect(body[card as keyof IntegrationsStatusResponse].env).toEqual(ENV_TABLE[card]);
       }
+    });
+  });
+
+  describe('history card (#2223)', () => {
+    it('is always on with no env names, even when DIARY_AUTO_EVENTS=false is set', async () => {
+      await start({ DIARY_AUTO_EVENTS: 'false' });
+
+      const body = await get(await sessionFor('admin'));
+
+      expect(body.diaryEvents).toEqual({ enabled: true, env: { required: [], optional: [] } });
     });
   });
 

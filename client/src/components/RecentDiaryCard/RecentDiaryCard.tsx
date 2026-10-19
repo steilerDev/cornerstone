@@ -5,6 +5,7 @@ import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
+import { SystemEventFeedRow } from '../FeedRow/SystemEventFeedRow.js';
 import { EmptyState } from '../EmptyState/index.js';
 import shared from '../../styles/shared.module.css';
 import styles from './RecentDiaryCard.module.css';
@@ -49,30 +50,34 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
   return (
     <div className={styles.container}>
       <div className={styles.entriesList}>
-        {entries.map((entry) => (
-          <Link
-            key={entry.id}
-            to={routeUrl('diaryEntry', { id: entry.id })}
-            state={originState}
-            className={styles.entryItem}
-            data-testid={`recent-diary-${entry.id}`}
-          >
-            <div className={styles.entryHeader}>
-              <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
-              <div
-                className={styles.entryTitle}
-                title={entry.title || t('cards.recentDiary.untitled') || undefined}
-              >
-                {entry.title || t('cards.recentDiary.untitled')}
+        {entries.map((entry) =>
+          entry.isAutomatic ? (
+            <SystemEventFeedRow key={entry.id} entry={entry} as="div" variant="compact" />
+          ) : (
+            <Link
+              key={entry.id}
+              to={routeUrl('diaryEntry', { id: entry.id })}
+              state={originState}
+              className={styles.entryItem}
+              data-testid={`recent-diary-${entry.id}`}
+            >
+              <div className={styles.entryHeader}>
+                <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
+                <div
+                  className={styles.entryTitle}
+                  title={entry.title || t('cards.recentDiary.untitled') || undefined}
+                >
+                  {entry.title || t('cards.recentDiary.untitled')}
+                </div>
               </div>
-            </div>
-            <div className={styles.entryPreview}>{entry.body.substring(0, 100)}</div>
-            <div className={styles.entryMeta}>
-              <span className={styles.date}>{formatDate(entry.entryDate)}</span>
-              <span className={styles.time}>{formatTime(entry.createdAt)}</span>
-            </div>
-          </Link>
-        ))}
+              <div className={styles.entryPreview}>{entry.body.substring(0, 100)}</div>
+              <div className={styles.entryMeta}>
+                <span className={styles.date}>{formatDate(entry.entryDate)}</span>
+                <span className={styles.time}>{formatTime(entry.createdAt)}</span>
+              </div>
+            </Link>
+          ),
+        )}
       </div>
 
       <div className={styles.footer}>

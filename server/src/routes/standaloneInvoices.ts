@@ -136,7 +136,6 @@ export default async function standaloneInvoiceRoutes(fastify: FastifyInstance) 
         request.params.invoiceId,
         request.body,
         request.user.id,
-        fastify.config.diaryAutoEvents,
       );
       return reply.status(200).send({ invoice });
     },

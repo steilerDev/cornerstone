@@ -115,7 +115,7 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
         sourceId,
         invoiceIds,
         depositIds,
-        fastify.config.diaryAutoEvents,
+        request.user.id,
       );
 
       return reply.status(200).send(response);

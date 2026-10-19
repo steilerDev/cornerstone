@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { eq, inArray, and, sql, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
@@ -570,12 +571,15 @@ export function markInvoicesClaimed(
   sourceId: string,
   invoiceIds: string[],
   depositIds: string[],
-  diaryAutoEvents: boolean,
+  userId: string | null = null,
 ): MarkClaimedResponse {
   // 1. Validate input
   if (invoiceIds.length === 0 && depositIds.length === 0) {
     throw new ValidationError('At least one invoice or deposit ID must be provided');
   }
+
+  // One batch id per call: every system event of the submission carries it (ADR-040 W5)
+  const batchId = randomUUID();
 
   const claimedInvoiceIds: string[] = [];
   const claimedDepositIds: string[] = [];
@@ -695,11 +699,12 @@ export function markInvoicesClaimed(
         // Fire diary event
         onInvoiceStatusChanged(
           tx,
-          diaryAutoEvents,
           invoiceId,
-          invoice.invoiceNumber || 'N/A',
+          invoice.invoiceNumber,
           invoiceStatus,
           'claimed',
+          { userId },
+          { amount: invoice.amount, batchId },
         );
       }
     }
@@ -725,11 +730,17 @@ export function markInvoicesClaimed(
         const invoice = invoiceById.get(deposit.invoiceId)!;
         onDepositStatusChanged(
           tx,
-          diaryAutoEvents,
-          deposit.id,
-          invoice.invoiceNumber || 'N/A',
+          {
+            id: deposit.id,
+            invoiceId: deposit.invoiceId,
+            amount: deposit.amount,
+            entryType: deposit.entryType as 'deposit' | 'refund',
+          },
+          invoice.invoiceNumber,
           depStatus,
           'claimed',
+          { userId },
+          { batchId },
         );
       }
     }

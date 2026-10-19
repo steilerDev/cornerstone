@@ -18,8 +18,8 @@ this test file gives `config.ts` (the plugins one — there's a second, unrelate
 that also matches the coverage table's `config.ts` label, don't confuse the two rows) ~93.9%
 statements. The diff for #1991 is exactly: the new `parseStrictInteger` helper + 8
 `parseInt(...)` → `parseStrictInteger(...)` line swaps — nothing else. Those lines are ~100%
-covered. The remaining uncovered lines (SECURE_COOKIES boolean branch, DIARY_AUTO_EVENTS boolean
-branch, EXTERNAL_URL scheme/catch branches, BACKUP_DIR subdirectory check) are pre-existing,
+covered. The remaining uncovered lines (SECURE_COOKIES boolean branch, EXTERNAL_URL scheme/catch
+branches, BACKUP_DIR subdirectory check; the DIARY_AUTO_EVENTS parsing was removed in #2223, only a startup warning remains) are pre-existing,
 untouched by the diff, and explicitly out of scope per the issue's own notes ("scoped to integer
 variables... boolean/enum variables are out of scope"). Judge coverage against the diff, not the
 whole file, when the file predates the story by a long margin.

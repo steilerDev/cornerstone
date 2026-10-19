@@ -2739,7 +2739,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Task page > History tab shows status events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'."
   },
   "JRN-035": {
     "name": "Log invoice creation, invoice status and deposit status changes automatically",
@@ -2748,7 +2748,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Invoice / Offer page > History tab and Funding source page > History tab show invoice and report events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16."
   },
   "JRN-036": {
     "name": "Log projected milestone delays automatically",
@@ -2757,7 +2757,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Milestone page > History tab shows de-duplicated delay events; Home N3 shows one row per late milestone.",
-    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV. #2199: write-time de-dup part 1 (ADR-040 W2) — no event for a reached milestone, none when the projected date equals the latest event's."
+    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV. #2199: write-time de-dup part 1 (ADR-040 W2) — no event for a reached milestone, none when the projected date equals the latest event's. #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'."
   },
   "JRN-037": {
     "name": "Log subsidy application status changes automatically",
@@ -2766,15 +2766,15 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Grant page > History tab shows status events.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): Undo retracts the events of the undone change (ADR-040 W4)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): Undo retracts the events of the undone change (ADR-040 W4). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'."
   },
   "JRN-038": {
     "name": "Turn automatic diary events on or off for the whole instance",
     "from": "No UI — environment variable DIARY_AUTO_EVENTS (default true)",
-    "to": "Operator (container env) DIARY_AUTO_EVENTS — shown in Settings > Integrations (admin only)",
+    "to": "Settings > Integrations > History card (read-only: 'History is always on'); no setting — DIARY_AUTO_EVENTS removed (#2223)",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "Owner decision 8 Oct: system events are always written; a deployment that still sets the variable logs one startup warning."
   },
   "JRN-040": {
     "name": "Upload photos to a diary entry from a computer (drag and drop or file picker)",

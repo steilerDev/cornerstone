@@ -489,6 +489,19 @@
 }
 
 /**
+ * Inline info banner — quiet, primary-tinted; for neutral notices such as a deep link whose
+ * target no longer exists. Pair with .bannerRow and a text dismiss button.
+ */
+.bannerInfo {
+  background-color: var(--color-primary-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+/**
  * Inline error banner — red-tinted, displayed when an API call fails.
  * Seen in BudgetCategoriesPage, BudgetSourcesPage, SubsidyProgramsPage.
  */

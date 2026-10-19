@@ -660,6 +660,7 @@
       "remainingAriaLabel": "Remaining amount: {{amount}}"
     },
     "deposits": {
+      "paymentGone": "That progress payment no longer exists.",
       "sectionTitle": "Deposits",
       "countChip": "{{count}} deposits",
       "addButton": "Add deposit",

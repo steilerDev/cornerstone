@@ -4893,7 +4893,7 @@
     ],
     "frequency": "weekly",
     "roles": "all users (system-generated as a side effect of any user action)",
-    "dependsOn": "DIARY_AUTO_EVENTS=true (default)",
+    "dependsOn": "none (always written, #2223)",
     "entities": ["DiaryEntry", "WorkItem", "Area", "Milestone"],
     "endpoints": [],
     "mergedFrom": ["WRK-126"]
@@ -4908,7 +4908,7 @@
     ],
     "frequency": "weekly",
     "roles": "all users (system-generated as a side effect of any user action)",
-    "dependsOn": "DIARY_AUTO_EVENTS=true (default); DIARY_AUTO_EVENTS (default on)",
+    "dependsOn": "none (always written, #2223)",
     "entities": ["DiaryEntry", "Invoice", "InvoiceDeposit", "SubsidyProgram"],
     "endpoints": [],
     "mergedFrom": ["MNY-147"]
@@ -4922,7 +4922,7 @@
     ],
     "frequency": "weekly",
     "roles": "all users (system-generated as a side effect of any user action)",
-    "dependsOn": "DIARY_AUTO_EVENTS=true (default)",
+    "dependsOn": "none (always written, #2223)",
     "entities": ["DiaryEntry", "Milestone", "WorkItem"],
     "endpoints": [],
     "mergedFrom": []
@@ -4936,7 +4936,7 @@
     ],
     "frequency": "rare",
     "roles": "all users (system-generated as a side effect of any user action)",
-    "dependsOn": "DIARY_AUTO_EVENTS=true (default)",
+    "dependsOn": "none (always written, #2223)",
     "entities": ["DiaryEntry", "SubsidyProgram"],
     "endpoints": [],
     "mergedFrom": []
@@ -4948,7 +4948,7 @@
     "currentLocations": ["No UI — environment variable DIARY_AUTO_EVENTS (default true)"],
     "frequency": "setup-once",
     "roles": "server operator (env vars; no UI)",
-    "dependsOn": "DIARY_AUTO_EVENTS=true (default)",
+    "dependsOn": "none (always written, #2223)",
     "entities": ["DiaryEntry"],
     "endpoints": [],
     "mergedFrom": []

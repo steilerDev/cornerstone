@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
-import { diaryEntries } from '../db/schema.js';
+import { diaryEntries, milestones } from '../db/schema.js';
 import type {
   DiaryEntrySummary,
   DiaryEntryDetail,
@@ -129,6 +129,172 @@ describe('Diary Routes', () => {
         pageSize: 50,
         totalItems: 0,
         totalPages: 0,
+      });
+    });
+
+    describe('system event display (#2223)', () => {
+      function insertEvent(
+        minute: number,
+        overrides: Partial<typeof diaryEntries.$inferInsert> = {},
+      ) {
+        const createdAt = `2026-03-10T10:${String(minute).padStart(2, '0')}:00.000Z`;
+        return insertDiaryEntry({
+          entryType: 'invoice_status',
+          entryDate: '2026-03-10',
+          title: null,
+          body: '',
+          isAutomatic: true,
+          sourceEntityType: 'invoice',
+          sourceEntityId: 'inv-1',
+          metadata: JSON.stringify({
+            v: 1,
+            event: 'status_changed',
+            from: 'pending',
+            to: 'paid',
+            subjectLabel: 'INV-T-001',
+          }),
+          createdAt,
+          updatedAt: createdAt,
+          ...overrides,
+        });
+      }
+
+      function insertLateDelay(): string {
+        const now = '2026-03-01T00:00:00.000Z';
+        app.db
+          .insert(milestones)
+          .values({
+            id: 7,
+            title: 'Milestone A',
+            targetDate: '2026-03-01',
+            isCompleted: true,
+            completedAt: '2026-03-10T10:00:00.000Z',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        return insertEvent(30, {
+          entryType: 'milestone_delay',
+          sourceEntityType: 'milestone',
+          sourceEntityId: '7',
+          metadata: JSON.stringify({ v: 1, event: 'legacy' }),
+          title: 'Old',
+          body: 'Old body',
+        });
+      }
+
+      type ListBody = {
+        items: Array<DiaryEntrySummary & { hidden?: boolean; repeat?: { count: number } }>;
+        pagination: { totalItems: number };
+        hiddenCount: number;
+      };
+
+      it('always returns hiddenCount, 0 for an empty list', async () => {
+        const { cookie } = await createUserWithSession('u1@test.com', 'U1', 'password');
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json<ListBody>().hiddenCount).toBe(0);
+      });
+
+      it('collapses repeats and reports hiddenCount for a member', async () => {
+        const { cookie } = await createUserWithSession('u2@test.com', 'U2', 'password');
+        insertEvent(1);
+        insertEvent(2);
+        insertLateDelay();
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries',
+          headers: { cookie },
+        });
+
+        const body = response.json<ListBody>();
+        expect(body.items).toHaveLength(1);
+        expect(body.items[0]!.repeat).toMatchObject({ count: 2 });
+        expect(body.hiddenCount).toBe(1);
+        expect(body.pagination.totalItems).toBe(1);
+      });
+
+      it('accepts showHidden=true for a signed-in member and flags the hidden row', async () => {
+        const { cookie } = await createUserWithSession('u3@test.com', 'U3', 'password', 'member');
+        insertEvent(1);
+        const lateId = insertLateDelay();
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries?showHidden=true',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<ListBody>();
+        expect(body.items.find((i) => i.id === lateId)!.hidden).toBe(true);
+        expect(body.hiddenCount).toBe(1);
+        expect(body.pagination.totalItems).toBe(2);
+      });
+
+      it('accepts showHidden=false', async () => {
+        const { cookie } = await createUserWithSession('u4@test.com', 'U4', 'password');
+        insertLateDelay();
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries?showHidden=false',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json<ListBody>().items).toEqual([]);
+      });
+
+      it('rejects a non-boolean showHidden with 400', async () => {
+        const { cookie } = await createUserWithSession('u5@test.com', 'U5', 'password');
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries?showHidden=maybe',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('strips an unknown query parameter instead of rejecting the request', async () => {
+        const { cookie } = await createUserWithSession('u6@test.com', 'U6', 'password');
+        insertEvent(1);
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries?includeHidden=true&bogus=1',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json<ListBody>().items).toHaveLength(1);
+      });
+
+      it('keeps manual entries exactly as before: no repeat, no hidden', async () => {
+        const { cookie } = await createUserWithSession('u7@test.com', 'U7', 'password');
+        insertDiaryEntry({ title: 'Same', body: 'Same' });
+        insertDiaryEntry({ title: 'Same', body: 'Same' });
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries',
+          headers: { cookie },
+        });
+
+        const body = response.json<ListBody>();
+        expect(body.items).toHaveLength(2);
+        expect(body.items.every((i) => i.repeat === undefined && i.hidden === undefined)).toBe(
+          true,
+        );
       });
     });
 

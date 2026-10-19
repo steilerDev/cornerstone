@@ -205,14 +205,7 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
       fastify.db,
       undoStore,
       { userId, subject: { type: 'work_item', id }, reschedules: true },
-      () =>
-        workItemService.updateWorkItem(
-          fastify.db,
-          id,
-          data,
-          fastify.config.diaryAutoEvents,
-          userId,
-        ),
+      () => workItemService.updateWorkItem(fastify.db, id, data, { userId, undoable: true }),
     );
 
     return reply.status(200).send(undo ? { ...workItem, undo } : workItem);

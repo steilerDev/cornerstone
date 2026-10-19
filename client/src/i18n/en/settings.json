@@ -473,7 +473,7 @@
     "history": {
       "title": "History",
       "purpose": "Records changes to your project automatically in History.",
-      "hint": "It is on unless you turn it off. To turn it off, set the variable to false and restart Cornerstone."
+      "hint": "History is always on. It can't be turned off."
     },
     "money": {
       "title": "Currency & VAT",

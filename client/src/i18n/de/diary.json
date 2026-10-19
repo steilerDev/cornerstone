@@ -33,7 +33,7 @@
     "filterMode": "Filter",
     "filterModeAll": "Alle",
     "filterModeManual": "Manuell",
-    "filterModeAutomatic": "Automatisch",
+    "filterModeAutomatic": "Verlauf",
     "filterModeDrafts": "Entwürfe",
     "draftsChipGroupLabel": "Nach Entwurfsstatus filtern",
     "entryTypes": "Eintragstypen",
@@ -51,13 +51,13 @@
     "typeGroupAriaLabel": "Nach Eintragstyp filtern"
   },
   "entryTypes": {
-    "work_item_status": "Arbeitspaketstatus",
+    "work_item_status": "Aufgabenstatus",
     "invoice_status": "Rechnungsstatus",
-    "invoice_created": "Rechnung erstellt",
-    "milestone_delay": "Meilenstein-Verzögerung",
-    "budget_breach": "Budgetüberschreitung",
-    "auto_reschedule": "Automatische Umplanung",
-    "subsidy_status": "Förderprogrammstatus"
+    "invoice_created": "Rechnung erfasst",
+    "milestone_delay": "Meilenstein verschoben",
+    "budget_breach": "Über Budget",
+    "auto_reschedule": "Zeitplanänderung",
+    "subsidy_status": "Förderstatus"
   },
   "create": {
     "backLink": "← Tagebuch",
@@ -98,8 +98,7 @@
     "viewButton": "Ansicht",
     "editButton": "Bearbeiten",
     "by": "von",
-    "signed": "✓ Signiert",
-    "goToRelatedItem": "Zu verwandtem Element gehen"
+    "signed": "✓ Signiert"
   },
   "dateGroup": {
     "groupLabel": "Einträge am {{date}}"
@@ -177,7 +176,6 @@
   "detailPage": {
     "edit": "Bearbeiten",
     "delete": "Löschen",
-    "automatic": "Automatisch",
     "photosHeading": "Fotos ({{count}})",
     "photosEmpty": "Noch keine Fotos hinzugefügt.",
     "addPhotos": "Fotos hinzufügen",
@@ -382,5 +380,67 @@
     },
     "tryingAgain": "Wird erneut versucht…",
     "moreTypesSelected": "{{type}}, weitere Typen, ausgewählt"
+  },
+  "event": {
+    "object": {
+      "invoice": "Rechnung",
+      "offer": "Angebot",
+      "progressPayment": "Abschlagszahlung",
+      "refund": "Rückerstattung",
+      "grant": "Förderprogramm"
+    },
+    "linkObject": {
+      "task": "Aufgabe",
+      "invoice": "Rechnung",
+      "offer": "Angebot",
+      "progressPayment": "Abschlagszahlung",
+      "refund": "Rückerstattung",
+      "milestone": "Meilenstein",
+      "grant": "Förderprogramm"
+    },
+    "sentence": {
+      "named": "{{name}} wechselte von {{from}} zu {{to}}",
+      "namedChangedTo": "{{name}} änderte sich zu {{to}}",
+      "objectNumber": "{{object}} {{number}} wechselte von {{from}} zu {{to}}",
+      "objectNumberChangedTo": "{{object}} {{number}} änderte sich zu {{to}}",
+      "objectNumberAmount": "{{object}} {{number}} über {{amount}} wechselte von {{from}} zu {{to}}",
+      "payment": "{{object}} zu Rechnung {{number}} wechselte von {{from}} zu {{to}}",
+      "paymentChangedTo": "{{object}} zu Rechnung {{number}} änderte sich zu {{to}}",
+      "paymentAmount": "{{object}} über {{amount}} zu Rechnung {{number}} wechselte von {{from}} zu {{to}}",
+      "objectNamed": "{{object}} {{name}} wechselte von {{from}} zu {{to}}",
+      "objectNamedChangedTo": "{{object}} {{name}} änderte sich zu {{to}}",
+      "milestoneLate": "{{name}} ist {{late}}. Voraussichtlich {{projected}}, Ziel {{target}}.",
+      "recorded": "{{object}} {{number}} erfasst für {{company}}",
+      "recordedNoCompany": "{{object}} {{number}} erfasst"
+    },
+    "heading": {
+      "objectNumber": "{{object}} {{number}}"
+    },
+    "daysLate_one": "{{count}} Tag verspätet",
+    "daysLate_other": "{{count}} Tage verspätet",
+    "noNumber": "(keine Nummer)",
+    "noName": "(kein Name)",
+    "link": {
+      "open": "{{object}} öffnen",
+      "named": "{{label}}: {{subject}}",
+      "paymentNamed": "{{label}} über {{amount}} zu Rechnung {{number}}, {{date}}"
+    },
+    "removed": "Nicht mehr vorhanden",
+    "repeatBadge": "×{{count}}",
+    "repeatSameDay_one": "{{count}} Mal am {{date}}",
+    "repeatSameDay_other": "{{count}} Mal am {{date}}",
+    "repeatRange_one": "{{count}} Mal, {{from}} bis {{to}}",
+    "repeatRange_other": "{{count}} Mal, {{from}} bis {{to}}",
+    "hiddenNote_one": "{{count}} späterer Verzögerungshinweis ist ausgeblendet.",
+    "hiddenNote_other": "{{count}} spätere Verzögerungshinweise sind ausgeblendet.",
+    "showHidden": "Ausgeblendete anzeigen",
+    "hideHidden": "Erneut ausblenden",
+    "hiddenShown_one": "{{count}} ausgeblendeter Hinweis angezeigt",
+    "hiddenShown_other": "{{count}} ausgeblendete Hinweise angezeigt",
+    "hiddenHiddenAgain": "Ausgeblendete Hinweise sind wieder ausgeblendet",
+    "afterReached": "Nach Erreichen",
+    "afterReachedDetail": "Nach Erreichen des Meilensteins erfasst.",
+    "hiddenShowing_one": "{{count}} späterer Verzögerungshinweis wird angezeigt.",
+    "hiddenShowing_other": "{{count}} spätere Verzögerungshinweise werden angezeigt."
   }
 }

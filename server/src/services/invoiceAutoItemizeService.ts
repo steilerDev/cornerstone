@@ -221,13 +221,7 @@ export async function autoItemize(
       // 4-pre. Apply invoice metadata patch if provided (must be first in transaction)
       let effectiveInvoiceAmount = invoice.amount;
       if (body.invoicePatch) {
-        invoiceService.updateInvoice(
-          db,
-          invoice.vendorId,
-          invoiceId,
-          body.invoicePatch,
-          config.diaryAutoEvents,
-        );
+        invoiceService.updateInvoice(db, invoice.vendorId, invoiceId, body.invoicePatch);
         // Re-read the (possibly-updated) invoice amount for the Σ validation below
         const updatedInvoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
         if (updatedInvoice) {

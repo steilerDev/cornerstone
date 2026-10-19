@@ -187,8 +187,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["tab"],
-    "note": "One page for offers and invoices; converting an offer keeps id and URL. Breadcrumb Money › Invoices for both kinds. ?tab=cost|payments|history."
+    "carries": ["tab", "payment"],
+    "note": "One page for offers and invoices; converting an offer keeps id and URL. Breadcrumb Money › Invoices for both kinds. ?tab=cost|payments|history. ?payment=<id> scrolls to and highlights a progress payment (#2223)."
   },
   {
     "from": "/budget/invoices/:id/auto-itemize/:documentId",

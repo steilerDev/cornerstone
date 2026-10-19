@@ -4,22 +4,22 @@
  * Story #808: Automatic system event logging to diary
  *
  * Scenarios covered:
- * 1.  [smoke] Automatic entries appear in a flat "Automated Events" section in the diary timeline (mock API)
- *             UAT R2 fix #868: automatic events moved from details/summary collapsible to flat bordered div
+ * 1.  [smoke] System events appear as event rows in the diary timeline (mock API, v1 metadata)
+ *             #2223: FeedRow `system-event-<id>` replaces the diary card for automatic entries
  * 2.  Type chip filter for "work_item_status" sends correct type parameter to API
  *             UAT fix #840: DiaryEntryTypeSwitcher (all/manual/automatic tabs) removed;
  *             filtering is now done via individual type chip buttons in the filter bar
- * 3.  Automatic entry detail page renders the "Automatic" badge
+ * 3.  System event detail page renders the event layout (sentence, type badge, link; #2223)
  * 4.  Automatic entries do NOT render Edit or Delete buttons on detail page
- * 5.  Source entity section is rendered for entries with sourceEntityType/Id
+ * 5.  The "Open task" link row replaces the nested source section (#2223)
  * 6.  PATCH to an automatic entry returns 403 (AUTOMATIC_ENTRY_READONLY) (mock API)
- * 7.  Automatic entry from the list shows work_item_status type label
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
+import { mockDiaryList, mockSystemEvent } from '../../fixtures/systemEventMocks.js';
 import { API } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -30,27 +30,7 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 function makeMockAutomaticEntry(
   overrides: Partial<Record<string, unknown>> = {},
 ): Record<string, unknown> {
-  return {
-    id: 'mock-auto-event-001',
-    entryType: 'work_item_status',
-    entryDate: '2026-03-14',
-    title: '[Work Item] Status changed to in_progress',
-    body: 'Work item "Kitchen Installation" changed status from not_started to in_progress.',
-    metadata: {
-      changeSummary: 'Status changed from not_started to in_progress.',
-      previousValue: 'not_started',
-      newValue: 'in_progress',
-    },
-    isAutomatic: true,
-    isSigned: false,
-    sourceEntityType: 'work_item',
-    sourceEntityId: 'wi-kitchen-01',
-    photoCount: 0,
-    createdBy: null,
-    createdAt: '2026-03-14T09:00:00.000Z',
-    updatedAt: '2026-03-14T09:00:00.000Z',
-    ...overrides,
-  };
+  return { ...mockSystemEvent(), ...overrides };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +38,7 @@ function makeMockAutomaticEntry(
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'Automatic entry cards are rendered in the diary timeline (mock API)',
+    'System events are rendered as event rows in the diary timeline (mock API)',
     { tag: '@smoke' },
     async ({ page }) => {
       const diaryPage = new DiaryPage(page);
@@ -70,10 +50,7 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({
-              items: [mockEntry],
-              pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
-            }),
+            body: JSON.stringify(mockDiaryList([mockEntry])),
           });
         } else {
           await route.continue();
@@ -84,9 +61,10 @@ test.describe('Automatic entries in diary list (Scenario 1)', { tag: '@responsiv
         await diaryPage.goto();
         await diaryPage.waitForLoaded();
 
-        // UAT R7: automatic entries are now interleaved with manual entries in chronological order
-        // The entry card should be directly visible in the date group
-        await expect(diaryPage.entryCard(mockId)).toBeVisible();
+        await expect(diaryPage.systemEventRow(mockId)).toBeVisible();
+        await expect(diaryPage.systemEventRow(mockId)).toContainText(
+          'Kitchen Installation went from Not started to In progress',
+        );
       } finally {
         await page.unroute('**/api/diary-entries*');
       }
@@ -164,8 +142,10 @@ test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Automatic badge on detail page
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Automatic badge on detail page (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Automatic entry detail page shows the "Automatic" badge', async ({ page }) => {
+test.describe('Event layout on detail page (Scenario 3)', { tag: '@responsive' }, () => {
+  test('System event detail page shows sentence, type badge and link, no "Automatic" badge', async ({
+    page,
+  }) => {
     const detailPage = new DiaryEntryDetailPage(page);
     const mockId = 'mock-auto-event-badge-001';
     const mockEntry = makeMockAutomaticEntry({ id: mockId });
@@ -198,9 +178,12 @@ test.describe('Automatic badge on detail page (Scenario 3)', { tag: '@responsive
       await detailPage.goto(mockId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // "Automatic" badge should be visible
-      await expect(detailPage.automaticBadge).toBeVisible();
-      await expect(detailPage.automaticBadge).toHaveText('Automatic');
+      await expect(detailPage.systemEventRow(mockId)).toContainText(
+        'Kitchen Installation went from Not started to In progress',
+      );
+      await expect(page.getByTestId(`system-event-${mockId}-type`)).toHaveText('Task status');
+      await expect(detailPage.systemEventLink(mockId)).toHaveText(/Open task/);
+      await expect(page.getByText('Automatic', { exact: true })).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
@@ -260,8 +243,8 @@ test.describe('No Edit/Delete for automatic entries (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Source entity section for entries with source link
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Source entity section (Scenario 5)', () => {
-  test('Source entity section renders for automatic entries with sourceEntityType/Id', async ({
+test.describe('Link row replaces the source section (Scenario 5)', () => {
+  test('A system event offers an "Open task" link to its subject and no "Related to" section', async ({
     page,
   }) => {
     const detailPage = new DiaryEntryDetailPage(page);
@@ -300,12 +283,12 @@ test.describe('Source entity section (Scenario 5)', () => {
       await detailPage.goto(mockId);
       await expect(detailPage.loaded).toBeVisible();
 
-      // Source section must be visible
-      await expect(detailPage.sourceSection).toBeVisible();
-
-      // The section text should contain "Related to:"
-      const sectionText = await detailPage.sourceSection.textContent();
-      expect(sectionText?.toLowerCase()).toContain('related to');
+      await expect(detailPage.systemEventLink(mockId)).toHaveText(/Open task/);
+      await expect(detailPage.systemEventLink(mockId)).toHaveAttribute(
+        'href',
+        /\/work-items\/wi-kitchen-01/,
+      );
+      await expect(detailPage.sourceSection).toHaveCount(0);
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');

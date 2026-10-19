@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Fastify from 'fastify';
 import { buildApp } from '../app.js';
-import {
+import configPlugin, {
   INTEGRATION_ENV,
+  diaryAutoEventsWarning,
   effectivePhotoMaxFileSizeBytes,
   loadConfig,
   photoLimitWarning,
@@ -39,7 +41,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessEnabled: false,
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
-        diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
         vatRate: 0.19,
@@ -91,7 +92,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessEnabled: false,
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
-        diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
         vatRate: 0.19,
@@ -145,7 +145,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessEnabled: false,
         photoStoragePath: '/custom/path/photos',
         photoMaxFileSizeMb: 20,
-        diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
         vatRate: 0.19,
@@ -194,7 +193,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         paperlessEnabled: false,
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
-        diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
         vatRate: 0.19,
@@ -1560,5 +1558,108 @@ describe('LLM_PROVIDER validation (shared provider list)', () => {
 
   it.each(['openai', 'anthropic', 'gemini', 'ollama', 'generic'])('accepts %s', (provider) => {
     expect(loadConfig({ LLM_PROVIDER: provider }).llmProvider).toBe(provider);
+  });
+});
+
+describe('DIARY_AUTO_EVENTS removal (#2223, ADR-040 §8)', () => {
+  const WARNING =
+    'DIARY_AUTO_EVENTS is no longer used and has no effect; system events are always recorded. Remove it from your environment.';
+
+  it('has no diaryAutoEvents key in the loaded config', () => {
+    expect(loadConfig({})).not.toHaveProperty('diaryAutoEvents');
+  });
+
+  it.each(['true', 'false', 'maybe', ''])(
+    'loadConfig does not throw for DIARY_AUTO_EVENTS=%p and has no diaryAutoEvents key',
+    (value) => {
+      let config: ReturnType<typeof loadConfig> | undefined;
+      expect(() => {
+        config = loadConfig({ DIARY_AUTO_EVENTS: value });
+      }).not.toThrow();
+      expect(config).not.toHaveProperty('diaryAutoEvents');
+    },
+  );
+
+  it('diaryAutoEventsWarning is null when the variable is not set', () => {
+    expect(diaryAutoEventsWarning({})).toBeNull();
+    expect(diaryAutoEventsWarning({ DIARY_AUTO_EVENTS: undefined })).toBeNull();
+  });
+
+  it.each(['true', 'false', 'maybe', ''])(
+    'diaryAutoEventsWarning returns the exact sentence for %p and never echoes the value',
+    (value) => {
+      const warning = diaryAutoEventsWarning({ DIARY_AUTO_EVENTS: value });
+      expect(warning).toBe(WARNING);
+      if (value !== '') expect(warning).not.toContain(`=${value}`);
+    },
+  );
+
+  it('declares the History card with no environment variables', () => {
+    expect(INTEGRATION_ENV.diaryEvents).toEqual({ required: [], optional: [] });
+  });
+
+  describe('plugin level', () => {
+    let tempDir: string;
+    let originalEnv: NodeJS.ProcessEnv;
+
+    beforeEach(() => {
+      originalEnv = { ...process.env };
+      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-config-warn-'));
+      process.env.DATABASE_URL = join(tempDir, 'test.db');
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+      rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    async function startupWarnings(): Promise<string[]> {
+      const messages: string[] = [];
+      const bare = Fastify({
+        logger: {
+          level: 'warn',
+          stream: {
+            write: (chunk: string) => {
+              const line = JSON.parse(chunk) as { level: number; msg: string };
+              if (line.level === 40) messages.push(line.msg);
+            },
+          },
+        },
+      });
+      await bare.register(configPlugin);
+      await bare.ready();
+      await bare.close();
+      return messages;
+    }
+
+    it.each(['true', 'false', ''])(
+      'logs exactly one warning and starts when DIARY_AUTO_EVENTS=%p',
+      async (value) => {
+        process.env.DIARY_AUTO_EVENTS = value;
+
+        const messages = await startupWarnings();
+
+        expect(messages.filter((m) => m === WARNING)).toHaveLength(1);
+      },
+    );
+
+    it('logs no such warning when the variable is not set', async () => {
+      delete process.env.DIARY_AUTO_EVENTS;
+
+      const messages = await startupWarnings();
+
+      expect(messages).not.toContain(WARNING);
+    });
+
+    it('buildApp succeeds with the variable set to an invalid value', async () => {
+      process.env.DIARY_AUTO_EVENTS = 'maybe';
+      process.env.SECURE_COOKIES = 'false';
+      const app = await buildApp();
+      try {
+        expect(app.config).not.toHaveProperty('diaryAutoEvents');
+      } finally {
+        await app.close();
+      }
+    });
   });
 });

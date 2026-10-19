@@ -428,3 +428,9 @@
     font-size: var(--font-size-2xs);
   }
 }
+
+/* Neutral label badge: event type, repeat count, "After reached" (not a status) */
+.neutral {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}

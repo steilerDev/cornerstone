@@ -1364,4 +1364,61 @@ describe('Subsidy Program Service', () => {
       expect(otherLinks).toHaveLength(1);
     });
   });
+
+  describe('updateSubsidyProgram() system event (#2223)', () => {
+    function create() {
+      return subsidyProgramService.createSubsidyProgram(
+        db,
+        { name: 'Grant A', reductionType: 'percentage', reductionValue: 10 },
+        TEST_USER_ID,
+      );
+    }
+
+    function events() {
+      return db.select().from(schema.diaryEntries).all();
+    }
+
+    it('writes a v1 event with the grant name and the acting user for a status change', () => {
+      const program = create();
+
+      subsidyProgramService.updateSubsidyProgram(
+        db,
+        program.id,
+        { applicationStatus: 'approved' },
+        { userId: TEST_USER_ID, undoable: true },
+      );
+
+      const [event] = events();
+      expect(events()).toHaveLength(1);
+      expect(event!.entryType).toBe('subsidy_status');
+      expect(event!.sourceEntityType).toBe('subsidy_program');
+      expect(event!.sourceEntityId).toBe(program.id);
+      expect(event!.createdBy).toBe(TEST_USER_ID);
+      expect(event!.title).toBeNull();
+      expect(event!.body).toBe('');
+      expect(JSON.parse(event!.metadata!)).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'eligible',
+        to: 'approved',
+        subjectLabel: 'Grant A',
+      });
+    });
+
+    it('writes no creator when no context is passed (system)', () => {
+      const program = create();
+
+      subsidyProgramService.updateSubsidyProgram(db, program.id, { applicationStatus: 'applied' });
+
+      expect(events()[0]!.createdBy).toBeNull();
+    });
+
+    it('writes nothing when only other fields change', () => {
+      const program = create();
+
+      subsidyProgramService.updateSubsidyProgram(db, program.id, { name: 'Grant B' });
+
+      expect(events()).toHaveLength(0);
+    });
+  });
 });

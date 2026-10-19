@@ -28,7 +28,6 @@ export interface AppConfig {
   externalUrl?: string;
   photoStoragePath: string;
   photoMaxFileSizeMb: number;
-  diaryAutoEvents: boolean;
   diaryDraftRetentionDays: number; // 0 = cleanup disabled
   currency: string;
   /** VAT/sales-tax rate as a fraction (e.g. 0.19 = 19%), configured via VAT_RATE env var. Default: 0.19. */
@@ -87,7 +86,7 @@ export const INTEGRATION_ENV: {
   },
   calendarContacts: { required: [], optional: [] },
   backups: { required: ['BACKUP_CADENCE'], optional: ['BACKUP_RETENTION', 'BACKUP_DIR'] },
-  diaryEvents: { required: [], optional: ['DIARY_AUTO_EVENTS'] },
+  diaryEvents: { required: [], optional: [] },
   money: { required: [], optional: ['CURRENCY', 'VAT_RATE'] },
   photos: { required: [], optional: ['PHOTO_STORAGE_PATH', 'PHOTO_MAX_FILE_SIZE_MB'] },
   publicAddress: { required: [], optional: ['EXTERNAL_URL', 'TRUST_PROXY', 'SECURE_COOKIES'] },
@@ -104,6 +103,16 @@ export function effectivePhotoMaxFileSizeBytes(
 export function photoLimitWarning(config: Pick<AppConfig, 'photoMaxFileSizeMb'>): string | null {
   if (config.photoMaxFileSizeMb <= MULTIPART_FILE_SIZE_CAP_MB) return null;
   return `PHOTO_MAX_FILE_SIZE_MB=${config.photoMaxFileSizeMb} exceeds the ${MULTIPART_FILE_SIZE_CAP_MB} MB upload cap; photo uploads are limited to ${MULTIPART_FILE_SIZE_CAP_MB} MB`;
+}
+
+/**
+ * One-line startup warning when the removed DIARY_AUTO_EVENTS is still set (any value, including
+ * an empty string); else null. Never echoes the value. ADR-040 §8.
+ */
+export function diaryAutoEventsWarning(env: Record<string, string | undefined>): string | null {
+  return env.DIARY_AUTO_EVENTS === undefined
+    ? null
+    : 'DIARY_AUTO_EVENTS is no longer used and has no effect; system events are always recorded. Remove it from your environment.';
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -273,15 +282,6 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   const photoStoragePath =
     getValue('PHOTO_STORAGE_PATH') ?? path.join(path.dirname(databaseUrl), 'photos');
-
-  // Parse and validate DIARY_AUTO_EVENTS
-  const diaryAutoEventsStr = (getValue('DIARY_AUTO_EVENTS') ?? 'true').toLowerCase();
-  if (diaryAutoEventsStr !== 'true' && diaryAutoEventsStr !== 'false') {
-    errors.push(
-      `DIARY_AUTO_EVENTS must be 'true' or 'false', got: ${getValue('DIARY_AUTO_EVENTS')}`,
-    );
-  }
-  const diaryAutoEvents = diaryAutoEventsStr === 'true';
 
   // Parse and validate DIARY_DRAFT_RETENTION_DAYS
   const diaryDraftRetentionDaysStr = getValue('DIARY_DRAFT_RETENTION_DAYS') ?? '30';
@@ -469,7 +469,6 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     paperlessEnabled,
     photoStoragePath,
     photoMaxFileSizeMb,
-    diaryAutoEvents,
     diaryDraftRetentionDays,
     currency,
     vatRate,
@@ -497,6 +496,9 @@ export default fp(
     const photoWarning = photoLimitWarning(config);
     if (photoWarning) fastify.log.warn(photoWarning);
 
+    const diaryEventsWarning = diaryAutoEventsWarning(process.env);
+    if (diaryEventsWarning) fastify.log.warn(diaryEventsWarning);
+
     // Log the configuration (excluding sensitive values like oidcClientSecret, llmApiKey)
     fastify.log.info(
       {
@@ -517,7 +519,6 @@ export default fp(
         paperlessFilterTag: config.paperlessFilterTag,
         photoStoragePath: config.photoStoragePath,
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
-        diaryAutoEvents: config.diaryAutoEvents,
         diaryDraftRetentionDays: config.diaryDraftRetentionDays,
         currency: config.currency,
         vatRate: config.vatRate,

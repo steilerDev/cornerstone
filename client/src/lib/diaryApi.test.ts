@@ -127,6 +127,25 @@ describe('diaryApi', () => {
       );
     });
 
+    it('sends showHidden=true only when it is set (#2223)', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => emptyListResponse } as Response);
+
+      await listDiaryEntries({ showHidden: true });
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        '/api/diary-entries?showHidden=true',
+        expect.any(Object),
+      );
+
+      await listDiaryEntries({ showHidden: false });
+      expect(mockFetch).toHaveBeenLastCalledWith('/api/diary-entries', expect.any(Object));
+
+      await listDiaryEntries({ showHidden: true, dateTo: '2026-03-31' });
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        '/api/diary-entries?dateTo=2026-03-31&showHidden=true',
+        expect.any(Object),
+      );
+    });
+
     it('includes automatic param when provided', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

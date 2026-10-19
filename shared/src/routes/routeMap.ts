@@ -219,7 +219,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['tab'],
+    carries: ['tab', 'payment'],
     stage: 'done',
     parent: 'invoices',
   },

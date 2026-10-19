@@ -1,8 +1,9 @@
 /**
- * Unit tests for diaryAutoEventService.ts
+ * Unit tests for diaryAutoEventService.ts (the system event writer, ADR-040).
  *
- * EPIC-13: Construction Diary — Story #808
- * Tests all 6 event functions and fire-and-forget behavior.
+ * EPIC-13 Story #808; EPIC-21 #2223. Covers each writer's row (v1 metadata, no English text),
+ * W2 milestone de-duplication through the stored metadata, and fire-and-forget behaviour. The
+ * exact metadata shapes and key order live in diaryAutoEventService.metadata.test.ts.
  * Uses a real in-memory SQLite DB with migrations.
  */
 
@@ -20,14 +21,12 @@ import {
   onWorkItemStatusChanged,
   onInvoiceStatusChanged,
   onMilestoneDelayed,
-  parseMilestoneDelayProjectedDate,
-  onBudgetCategoryOverspend,
-  onAutoRescheduleCompleted,
   onSubsidyStatusChanged,
   onInvoiceCreated,
   onDepositStatusChanged,
+  SYSTEM_CONTEXT,
 } from './diaryAutoEventService.js';
-// diaryService is imported internally by diaryAutoEventService — not needed here
+import { __resetLedgerForTests } from './statusEventLedger.js';
 
 describe('diaryAutoEventService', () => {
   let db: BetterSQLite3Database<typeof schema>;
@@ -38,12 +37,14 @@ describe('diaryAutoEventService', () => {
     tempDir = mkdtempSync(join(tmpdir(), 'diary-auto-event-test-'));
     const dbPath = join(tempDir, 'test.db');
     sqlite = new Database(dbPath);
+    sqlite.pragma('foreign_keys = ON');
     runMigrations(sqlite, undefined);
     db = drizzle(sqlite, { schema });
+    __resetLedgerForTests();
   });
 
   afterEach(() => {
-    sqlite.close();
+    if (sqlite.open) sqlite.close();
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch {
@@ -52,122 +53,94 @@ describe('diaryAutoEventService', () => {
     jest.restoreAllMocks();
   });
 
-  // ─── Helper: query all diary entries directly ─────────────────────────────
-
   function getAllEntries() {
     return db.select().from(diaryEntries).all();
   }
 
-  // ─── onWorkItemStatusChanged ───────────────────────────────────────────────
+  function metaOf(index = 0): Record<string, unknown> {
+    return JSON.parse(getAllEntries()[index]!.metadata!) as Record<string, unknown>;
+  }
+
+  function insertUser(id: string): void {
+    const now = '2026-03-01T00:00:00.000Z';
+    db.insert(schema.users)
+      .values({
+        id,
+        email: `${id}@example.test`,
+        displayName: id,
+        role: 'member',
+        authProvider: 'local',
+        passwordHash: 'x',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+  }
 
   describe('onWorkItemStatusChanged', () => {
-    it('creates a diary entry when enabled=true', () => {
-      onWorkItemStatusChanged(
-        db,
-        true,
-        'wi-test-001',
-        'Foundation Work',
-        'not_started',
-        'in_progress',
-      );
+    it('writes an automatic row with no English text and the parameters in metadata', () => {
+      onWorkItemStatusChanged(db, 'wi-1', 'Task A', 'not_started', 'in_progress');
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
-
       const entry = entries[0]!;
       expect(entry.entryType).toBe('work_item_status');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('work_item');
-      expect(entry.sourceEntityId).toBe('wi-test-001');
+      expect(entry.sourceEntityId).toBe('wi-1');
       expect(entry.createdBy).toBeNull();
-      expect(entry.body).toContain('Foundation Work');
-      expect(entry.body).toContain('Not Started');
-      expect(entry.body).toContain('In Progress');
+      expect(entry.title).toBeNull();
+      expect(entry.body).toBe('');
+      expect(metaOf()).toMatchObject({
+        v: 1,
+        event: 'status_changed',
+        from: 'not_started',
+        to: 'in_progress',
+        subjectLabel: 'Task A',
+      });
     });
 
-    it('does not create a diary entry when enabled=false', () => {
-      onWorkItemStatusChanged(
-        db,
-        false,
-        'wi-test-002',
-        'Roof Installation',
-        'in_progress',
-        'completed',
-      );
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(0);
+    it('stores the acting user in created_by', () => {
+      insertUser('user-1');
+      onWorkItemStatusChanged(db, 'wi-2', 'Task A', 'not_started', 'completed', {
+        userId: 'user-1',
+      });
+      expect(getAllEntries()[0]!.createdBy).toBe('user-1');
     });
 
-    it('stores title with status change summary and null metadata', () => {
-      onWorkItemStatusChanged(
-        db,
-        true,
-        'wi-test-003',
-        'Electrical Wiring',
-        'not_started',
-        'completed',
-      );
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      expect(entries[0]!.title).not.toBeNull();
-      expect(entries[0]!.title).toContain('Not Started');
-      expect(entries[0]!.title).toContain('Completed');
-      expect(entries[0]!.metadata).toBeNull();
+    it('the system context has no user and is not undoable', () => {
+      expect(SYSTEM_CONTEXT).toEqual({ userId: null });
     });
   });
-
-  // ─── onInvoiceStatusChanged ────────────────────────────────────────────────
 
   describe('onInvoiceStatusChanged', () => {
-    it('creates a diary entry with entryType=invoice_status, body contains invoice number', () => {
-      onInvoiceStatusChanged(db, true, 'inv-001', 'INV-2026-042', 'pending', 'paid');
+    it('writes an invoice_status row with the number as subjectLabel', () => {
+      onInvoiceStatusChanged(db, 'inv-1', 'INV-T-001', 'pending', 'paid');
 
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
+      const entry = getAllEntries()[0]!;
       expect(entry.entryType).toBe('invoice_status');
-      expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('invoice');
-      expect(entry.sourceEntityId).toBe('inv-001');
-      expect(entry.body).toContain('INV-2026-042');
-      expect(entry.body).toContain('Pending');
-      expect(entry.body).toContain('Paid');
+      expect(entry.sourceEntityId).toBe('inv-1');
+      expect(entry.body).toBe('');
+      expect(metaOf().subjectLabel).toBe('INV-T-001');
     });
 
-    it('body uses invoiceNumber param (even if empty string, shows N/A)', () => {
-      // When invoiceNumber is empty string, the service uses 'N/A' per the template
-      onInvoiceStatusChanged(db, true, 'inv-002', '', 'pending', 'claimed');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      // Empty string is falsy, so template renders 'N/A'
-      expect(entries[0]!.body).toContain('N/A');
+    it.each([null, ''])('stores subjectLabel null for the invoice number %p (no "N/A")', (num) => {
+      onInvoiceStatusChanged(db, 'inv-2', num, 'pending', 'claimed');
+      expect(metaOf().subjectLabel).toBeNull();
+      expect(getAllEntries()[0]!.body).toBe('');
     });
 
-    it('stores title with status change summary and null metadata', () => {
-      onInvoiceStatusChanged(db, true, 'inv-003', 'INV-2026-100', 'pending', 'paid');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-      expect(entries[0]!.title).toContain('Pending');
-      expect(entries[0]!.title).toContain('Paid');
-      expect(entries[0]!.metadata).toBeNull();
-    });
-
-    it('does not create entry when enabled=false', () => {
-      onInvoiceStatusChanged(db, false, 'inv-004', 'INV-999', 'pending', 'paid');
-      expect(getAllEntries()).toHaveLength(0);
+    it('carries amount and batchId when given', () => {
+      onInvoiceStatusChanged(db, 'inv-3', 'INV-T-003', 'pending', 'claimed', SYSTEM_CONTEXT, {
+        amount: 1200,
+        batchId: 'batch-1',
+      });
+      expect(metaOf()).toMatchObject({ amount: 1200, batchId: 'batch-1' });
     });
   });
 
-  // ─── onMilestoneDelayed ────────────────────────────────────────────────────
-
-  describe('onMilestoneDelayed', () => {
+  describe('onMilestoneDelayed (W2)', () => {
     function insertMilestone(id: number, opts: { completed?: boolean } = {}) {
       const now = '2026-03-01T00:00:00.000Z';
       db.insert(schema.milestones)
@@ -183,93 +156,104 @@ describe('diaryAutoEventService', () => {
         .run();
     }
 
-    it('creates a diary entry with entryType=milestone_delay, body contains milestone name', () => {
+    it('writes a milestone_delay row with the dates and delay in metadata', () => {
       insertMilestone(42);
-      onMilestoneDelayed(db, true, 42, 'Foundation Complete', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 42, 'Milestone A', '2026-03-01', '2026-03-15');
 
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
+      const entry = getAllEntries()[0]!;
       expect(entry.entryType).toBe('milestone_delay');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('milestone');
       expect(entry.sourceEntityId).toBe('42');
-      expect(entry.body).toContain('Foundation Complete');
-      expect(entry.body).toContain('delayed by 14 days');
+      expect(entry.createdBy).toBeNull();
+      expect(entry.title).toBeNull();
+      expect(entry.body).toBe('');
+      expect(metaOf()).toEqual({
+        v: 1,
+        event: 'milestone_delayed',
+        targetDate: '2026-03-01',
+        projectedDate: '2026-03-15',
+        delayDays: 14,
+        subjectLabel: 'Milestone A',
+      });
     });
 
     it('converts milestoneId (number) to string for sourceEntityId', () => {
       insertMilestone(999);
-      onMilestoneDelayed(db, true, 999, 'Roof Complete', '2026-03-01', '2026-03-10');
-
-      const entries = getAllEntries();
-      expect(entries[0]!.sourceEntityId).toBe('999');
-    });
-
-    it('does not create entry when enabled=false', () => {
-      insertMilestone(1);
-      onMilestoneDelayed(db, false, 1, 'Some Milestone', '2026-03-01', '2026-03-15');
-      expect(getAllEntries()).toHaveLength(0);
+      onMilestoneDelayed(db, 999, 'Milestone B', '2026-03-01', '2026-03-10');
+      expect(getAllEntries()[0]!.sourceEntityId).toBe('999');
     });
 
     it('D-16: writes nothing for a completed milestone (AC4)', () => {
       insertMilestone(5, { completed: true });
-      onMilestoneDelayed(db, true, 5, 'Done Milestone', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 5, 'Done Milestone', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(0);
     });
 
     it('writes nothing when the milestone row does not exist', () => {
-      onMilestoneDelayed(db, true, 777, 'Ghost', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 777, 'Ghost', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(0);
     });
 
     it('writes nothing when the projected date is not later than the target date', () => {
       insertMilestone(6);
-      onMilestoneDelayed(db, true, 6, 'On Time', '2026-03-01', '2026-03-01');
-      onMilestoneDelayed(db, true, 6, 'Early', '2026-03-01', '2026-02-20');
+      onMilestoneDelayed(db, 6, 'On Time', '2026-03-01', '2026-03-01');
+      onMilestoneDelayed(db, 6, 'Early', '2026-03-01', '2026-02-20');
       expect(getAllEntries()).toHaveLength(0);
     });
 
     it('D-16: does not repeat an entry for the same projected date (AC3)', () => {
       insertMilestone(7);
-      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
-      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
-      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 7, 'Repeat', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(1);
     });
 
     it('writes a new entry for every real change of the projected date, including a return to an earlier one', () => {
       insertMilestone(8);
-      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 8, 'Moving', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(1);
-      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-20');
+      onMilestoneDelayed(db, 8, 'Moving', '2026-03-01', '2026-03-20');
       expect(getAllEntries()).toHaveLength(2);
-      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 8, 'Moving', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(3);
-      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 8, 'Moving', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(3);
+    });
+
+    it('compares against the newest event by insertion order when created_at ties', () => {
+      insertMilestone(13);
+      onMilestoneDelayed(db, 13, 'Tie', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 13, 'Tie', '2026-03-01', '2026-03-20');
+      sqlite.prepare("UPDATE diary_entries SET created_at = '2026-03-02T00:00:00.000Z'").run();
+      // The latest is the 20th; repeating the 15th is a real change, repeating the 20th is not
+      onMilestoneDelayed(db, 13, 'Tie', '2026-03-01', '2026-03-20');
+      expect(getAllEntries()).toHaveLength(2);
+      onMilestoneDelayed(db, 13, 'Tie', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(3);
     });
 
     it('is not suppressed by another milestone entry with the same projected date', () => {
       insertMilestone(9);
       insertMilestone(10);
-      onMilestoneDelayed(db, true, 9, 'First', '2026-03-01', '2026-03-15');
-      onMilestoneDelayed(db, true, 10, 'Second', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 9, 'First', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 10, 'Second', '2026-03-01', '2026-03-15');
       const entries = getAllEntries();
       expect(entries).toHaveLength(2);
       expect(entries.map((e) => e.sourceEntityId).sort()).toEqual(['10', '9']);
     });
 
-    it('is not suppressed by a legacy entry whose body has an unexpected shape', () => {
+    it('writes when the latest event is a legacy row without a projected date', () => {
       insertMilestone(11);
       db.insert(diaryEntries)
         .values({
           id: 'legacy-1',
           entryType: 'milestone_delay',
           entryDate: '2026-03-02',
-          title: 'Legacy',
-          body: 'Some free text without the projected date marker 2026-03-15',
+          title: null,
+          body: '',
+          metadata: JSON.stringify({ v: 1, event: 'legacy' }),
           isAutomatic: true,
           sourceEntityType: 'milestone',
           sourceEntityId: '11',
@@ -277,7 +261,28 @@ describe('diaryAutoEventService', () => {
           updatedAt: '2026-03-02T00:00:00.000Z',
         })
         .run();
-      onMilestoneDelayed(db, true, 11, 'Legacy MS', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, 11, 'Legacy MS', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(2);
+    });
+
+    it('writes when the latest event has malformed metadata (de-dup lookup ignores it)', () => {
+      insertMilestone(14);
+      db.insert(diaryEntries)
+        .values({
+          id: 'broken-1',
+          entryType: 'milestone_delay',
+          entryDate: '2026-03-02',
+          title: 'Old',
+          body: 'Old text',
+          metadata: '{not json',
+          isAutomatic: true,
+          sourceEntityType: 'milestone',
+          sourceEntityId: '14',
+          createdAt: '2026-03-02T00:00:00.000Z',
+          updatedAt: '2026-03-02T00:00:00.000Z',
+        })
+        .run();
+      onMilestoneDelayed(db, 14, 'Broken MS', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(2);
     });
 
@@ -287,215 +292,117 @@ describe('diaryAutoEventService', () => {
       jest.spyOn(db, 'select').mockImplementation(() => {
         throw new Error('db down');
       });
-      expect(() =>
-        onMilestoneDelayed(db, true, 12, 'Broken', '2026-03-01', '2026-03-15'),
-      ).not.toThrow();
+      expect(() => onMilestoneDelayed(db, 12, 'Broken', '2026-03-01', '2026-03-15')).not.toThrow();
       expect(warn).toHaveBeenCalled();
       jest.restoreAllMocks();
       expect(getAllEntries()).toHaveLength(0);
     });
   });
 
-  describe('parseMilestoneDelayProjectedDate', () => {
-    it('returns the projected date from a milestone-delay body', () => {
-      expect(
-        parseMilestoneDelayProjectedDate(
-          'Roof is delayed by 14 days (Target date 2026-03-01, new projected date 2026-03-15)',
-        ),
-      ).toBe('2026-03-15');
-    });
-
-    it('returns null for other text', () => {
-      expect(parseMilestoneDelayProjectedDate('Something else entirely')).toBeNull();
-      expect(parseMilestoneDelayProjectedDate('new projected date 2026-03-15 and more')).toBeNull();
-      expect(parseMilestoneDelayProjectedDate('')).toBeNull();
-    });
-  });
-
-  // ─── onBudgetCategoryOverspend ─────────────────────────────────────────────
-
-  describe('onBudgetCategoryOverspend', () => {
-    it('creates a diary entry with entryType=budget_breach, body contains category name', () => {
-      onBudgetCategoryOverspend(db, true, 'bc-structural', 'Structural Work');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
-      expect(entry.entryType).toBe('budget_breach');
-      expect(entry.isAutomatic).toBe(true);
-      expect(entry.sourceEntityType).toBe('budget_source');
-      expect(entry.sourceEntityId).toBe('bc-structural');
-      expect(entry.body).toContain('Structural Work');
-    });
-
-    it('does not create entry when enabled=false', () => {
-      onBudgetCategoryOverspend(db, false, 'bc-electrical', 'Electrical');
-      expect(getAllEntries()).toHaveLength(0);
-    });
-  });
-
-  // ─── onAutoRescheduleCompleted ─────────────────────────────────────────────
-
-  describe('onAutoRescheduleCompleted', () => {
-    // onAutoRescheduleCompleted is currently a no-op — diary entries are created
-    // for individual item changes instead. All calls produce zero diary entries.
-
-    it('does not create any diary entry (suppressed — no-op)', () => {
-      onAutoRescheduleCompleted(db, true, 5);
-      expect(getAllEntries()).toHaveLength(0);
-    });
-
-    it('does not create entry when count = 0', () => {
-      onAutoRescheduleCompleted(db, true, 0);
-      expect(getAllEntries()).toHaveLength(0);
-    });
-
-    it('does not create entry when enabled=false, even when count > 0', () => {
-      onAutoRescheduleCompleted(db, false, 10);
-      expect(getAllEntries()).toHaveLength(0);
-    });
-  });
-
-  // ─── onSubsidyStatusChanged ────────────────────────────────────────────────
-
   describe('onSubsidyStatusChanged', () => {
-    it('creates a diary entry with entryType=subsidy_status, body contains subsidy name', () => {
-      onSubsidyStatusChanged(db, true, 'sub-kfw-001', 'KfW Energy Grant', 'applied', 'approved');
+    it('writes a subsidy_status row with the grant name as subjectLabel', () => {
+      onSubsidyStatusChanged(db, 'sub-1', 'Grant A', 'applied', 'approved');
 
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
+      const entry = getAllEntries()[0]!;
       expect(entry.entryType).toBe('subsidy_status');
-      expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('subsidy_program');
-      expect(entry.sourceEntityId).toBe('sub-kfw-001');
-      expect(entry.body).toContain('KfW Energy Grant');
-      expect(entry.body).toContain('Approved');
-    });
-
-    it('stores title with status change summary and null metadata', () => {
-      onSubsidyStatusChanged(
-        db,
-        true,
-        'sub-bafa-002',
-        'BAFA Insulation Subsidy',
-        'applied',
-        'received',
-      );
-
-      const entries = getAllEntries();
-      expect(entries[0]!.title).toContain('Applied');
-      expect(entries[0]!.title).toContain('Received');
-      expect(entries[0]!.metadata).toBeNull();
-    });
-
-    it('does not create entry when enabled=false', () => {
-      onSubsidyStatusChanged(db, false, 'sub-001', 'Grant', 'applied', 'approved');
-      expect(getAllEntries()).toHaveLength(0);
+      expect(entry.sourceEntityId).toBe('sub-1');
+      expect(entry.title).toBeNull();
+      expect(metaOf()).toMatchObject({ from: 'applied', to: 'approved', subjectLabel: 'Grant A' });
     });
   });
-
-  // ─── onInvoiceCreated ─────────────────────────────────────────────────────
 
   describe('onInvoiceCreated', () => {
-    it('creates a diary entry with entryType=invoice_created, body contains invoice number and vendor name', () => {
-      onInvoiceCreated(db, true, 'inv-100', 'INV-2026-100', 'Acme Builders');
+    it('writes an invoice_created row with vendor and amount', () => {
+      insertUser('user-9');
+      onInvoiceCreated(
+        db,
+        { id: 'inv-100', invoiceNumber: 'INV-T-100', amount: 1200, status: 'pending' },
+        { id: 'vendor-1', name: 'Company A' },
+        { userId: 'user-9' },
+      );
 
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
+      const entry = getAllEntries()[0]!;
       expect(entry.entryType).toBe('invoice_created');
-      expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('invoice');
       expect(entry.sourceEntityId).toBe('inv-100');
-      expect(entry.body).toContain('INV-2026-100');
-      expect(entry.body).toContain('Acme Builders');
+      expect(entry.createdBy).toBe('user-9');
+      expect(entry.body).toBe('');
+      expect(metaOf()).toMatchObject({
+        subjectLabel: 'INV-T-100',
+        vendorId: 'vendor-1',
+        vendorName: 'Company A',
+        amount: 1200,
+        invoiceStatus: 'pending',
+      });
     });
 
-    it('stores title and null metadata', () => {
-      onInvoiceCreated(db, true, 'inv-101', 'INV-2026-101', 'Good Roof Co');
+    it('stores subjectLabel null for an invoice without a number', () => {
+      onInvoiceCreated(
+        db,
+        { id: 'inv-101', invoiceNumber: null, amount: 10, status: 'quotation' },
+        { id: 'vendor-1', name: 'Company A' },
+      );
+      expect(metaOf().subjectLabel).toBeNull();
+      expect(metaOf().invoiceStatus).toBe('quotation');
+      expect(getAllEntries()[0]!.createdBy).toBeNull();
+    });
+  });
 
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-      expect(entries[0]!.title).not.toBeNull();
-      expect(entries[0]!.metadata).toBeNull();
+  describe('onDepositStatusChanged (#1403, D-16)', () => {
+    const dep = { id: 'dep-1', invoiceId: 'inv-1', amount: 300, entryType: 'deposit' as const };
+
+    it('writes an invoice_status row whose subject is the invoice and which names the payment', () => {
+      onDepositStatusChanged(db, dep, 'INV-T-001', 'pending', 'paid');
+
+      const entry = getAllEntries()[0]!;
+      expect(entry.entryType).toBe('invoice_status');
+      expect(entry.sourceEntityType).toBe('invoice');
+      expect(entry.sourceEntityId).toBe('inv-1');
+      expect(entry.isAutomatic).toBe(true);
+      expect(entry.createdBy).toBeNull();
+      expect(metaOf()).toMatchObject({
+        depositId: 'dep-1',
+        depositEntryType: 'deposit',
+        amount: 300,
+        subjectLabel: 'INV-T-001',
+      });
     });
 
-    it('does not create entry when enabled=false', () => {
-      onInvoiceCreated(db, false, 'inv-102', 'INV-2026-102', 'Some Vendor');
+    it('writes nothing for a move to pending', () => {
+      onDepositStatusChanged(db, dep, 'INV-T-001', 'paid', 'pending');
       expect(getAllEntries()).toHaveLength(0);
     });
   });
-
-  // ─── onDepositStatusChanged (#1403) ────────────────────────────────────────
-
-  describe('onDepositStatusChanged', () => {
-    it('creates a diary entry with invoice_status entryType and invoice_deposit sourceEntityType when enabled=true', () => {
-      onDepositStatusChanged(db, true, 'deposit-001', 'INV-2026-001', 'pending', 'paid');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      const entry = entries[0]!;
-      expect(entry.entryType).toBe('invoice_status');
-      expect(entry.sourceEntityType).toBe('invoice_deposit');
-      expect(entry.sourceEntityId).toBe('deposit-001');
-      expect(entry.isAutomatic).toBe(true);
-      expect(entry.createdBy).toBeNull();
-    });
-
-    it('does not create a diary entry when enabled=false', () => {
-      onDepositStatusChanged(db, false, 'deposit-002', 'INV-2026-002', 'paid', 'claimed');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(0);
-    });
-
-    it('stores title containing status labels for pending → paid transition', () => {
-      onDepositStatusChanged(db, true, 'deposit-003', 'INV-2026-003', 'pending', 'paid');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      expect(entries[0]!.title).toContain('Pending');
-      expect(entries[0]!.title).toContain('Paid');
-    });
-
-    it('stores body referencing the invoice number', () => {
-      onDepositStatusChanged(db, true, 'deposit-004', 'INV-2026-004', 'paid', 'claimed');
-
-      const entries = getAllEntries();
-      expect(entries).toHaveLength(1);
-
-      expect(entries[0]!.body).toContain('INV-2026-004');
-      expect(entries[0]!.body).toContain('Paid');
-      expect(entries[0]!.body).toContain('Claimed');
-    });
-  });
-
-  // ─── Fire-and-forget behavior ──────────────────────────────────────────────
 
   describe('fire-and-forget behavior', () => {
     it('does not propagate errors and warns via console.warn when DB write fails', () => {
-      // Restore the suppress-all spy and replace with one that captures calls
       jest.restoreAllMocks();
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
       // Close the database to force an error in createAutomaticDiaryEntry
       sqlite.close();
 
-      // Calling any event function must NOT throw even with a broken DB
       expect(() => {
-        onWorkItemStatusChanged(db, true, 'wi-fail', 'Failing WI', 'not_started', 'in_progress');
+        onWorkItemStatusChanged(db, 'wi-fail', 'Failing WI', 'not_started', 'in_progress');
       }).not.toThrow();
 
-      // console.warn must have been called with the failure info
       expect(warnSpy).toHaveBeenCalled();
       const firstCallArgs = warnSpy.mock.calls[0]!;
       expect(firstCallArgs[0]).toContain('[diaryAutoEvent]');
+    });
+
+    it('a created_by that does not exist is swallowed and logged, not thrown', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      expect(() =>
+        onWorkItemStatusChanged(db, 'wi-fk', 'Task A', 'not_started', 'in_progress', {
+          userId: 'no-such-user',
+        }),
+      ).not.toThrow();
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(getAllEntries()).toHaveLength(0);
     });
   });
 });

@@ -1109,34 +1109,45 @@ describe('invoiceDepositService', () => {
       return db.select().from(schema.diaryEntries).all();
     }
 
-    it('scenario 32: update to paid with diaryAutoEvents=true creates a diary entry', () => {
+    it('scenario 32: update to paid writes a v1 event on the invoice, naming the payment (D-16)', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
-      updateDeposit(db, invoiceId, deposit.id, { status: 'paid' }, true);
+      updateDeposit(db, invoiceId, deposit.id, { status: 'paid' }, { userId });
 
       const entries = getAllDiaryEntries();
-      expect(entries.length).toBeGreaterThanOrEqual(1);
-
-      const entry = entries.find((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      expect(entry).toBeDefined();
-      expect(entry!.entryType).toBe('invoice_status');
-      expect(entry!.sourceEntityType).toBe('invoice_deposit');
-      expect(entry!.sourceEntityId).toBe(deposit.id);
+      expect(entries).toHaveLength(1);
+      const entry = entries[0]!;
+      expect(entry.entryType).toBe('invoice_status');
+      expect(entry.sourceEntityType).toBe('invoice');
+      expect(entry.sourceEntityId).toBe(invoiceId);
+      expect(entry.createdBy).toBe(userId);
+      expect(entry.title).toBeNull();
+      expect(entry.body).toBe('');
+      expect(JSON.parse(entry.metadata!)).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'paid',
+        subjectLabel: 'INV-001',
+        amount: 300,
+        depositEntryType: 'deposit',
+        depositId: deposit.id,
+      });
     });
 
-    it('scenario 33: update to paid with diaryAutoEvents=false creates no diary entry', () => {
+    it('scenario 33: a system context writes the event with no creator', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
-      updateDeposit(db, invoiceId, deposit.id, { status: 'paid' }, false);
+      updateDeposit(db, invoiceId, deposit.id, { status: 'paid' });
 
       const entries = getAllDiaryEntries();
-      const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      expect(depositEntries).toHaveLength(0);
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.createdBy).toBeNull();
     });
 
-    it('scenario 34: update to claimed creates diary entry', () => {
+    it('scenario 34: update to claimed writes a second event after the paid one', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(
@@ -1144,17 +1155,17 @@ describe('invoiceDepositService', () => {
         invoiceId,
         { amount: 300, dueDate: '2026-02-01', status: 'paid' },
         userId,
-        false, // don't create paid diary entry — isolate claimed test
       );
-      updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' }, true);
+      updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' }, { userId });
 
       const entries = getAllDiaryEntries();
-      const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      expect(depositEntries).toHaveLength(1);
-      expect(depositEntries[0]!.sourceEntityType).toBe('invoice_deposit');
+      expect(entries).toHaveLength(2);
+      expect(entries.every((e: DiaryRow) => e.sourceEntityType === 'invoice')).toBe(true);
+      const tos = entries.map((e: DiaryRow) => (JSON.parse(e.metadata!) as { to: string }).to);
+      expect(tos.sort()).toEqual(['claimed', 'paid']);
     });
 
-    it('scenario 35: update to pending (from paid) does not create diary entry', () => {
+    it('scenario 35: update to pending (from paid) does not write a new event', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(
@@ -1162,14 +1173,12 @@ describe('invoiceDepositService', () => {
         invoiceId,
         { amount: 300, dueDate: '2026-02-01', status: 'paid' },
         userId,
-        false, // suppress diary entry for paid creation
       );
-      updateDeposit(db, invoiceId, deposit.id, { status: 'pending' }, true);
+      const before = getAllDiaryEntries().length;
+      updateDeposit(db, invoiceId, deposit.id, { status: 'pending' }, { userId });
 
-      const entries = getAllDiaryEntries();
-      const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      // pending is not a triggering status — no new entry
-      expect(depositEntries).toHaveLength(0);
+      // pending is not a triggering status: nothing is added (a non-undoable create does not retract)
+      expect(getAllDiaryEntries()).toHaveLength(before);
     });
   });
 
@@ -1255,7 +1264,7 @@ describe('invoiceDepositService', () => {
   describe('createDeposit diary event', () => {
     type DiaryRow = typeof schema.diaryEntries.$inferSelect;
 
-    it('creates diary entry when creating deposit with status=paid and diaryAutoEvents=true', () => {
+    it('creates a v1 event when creating a deposit with status=paid', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(
@@ -1263,29 +1272,25 @@ describe('invoiceDepositService', () => {
         invoiceId,
         { amount: 300, dueDate: '2026-02-01', status: 'paid' },
         userId,
-        true,
       );
 
       const entries: DiaryRow[] = db.select().from(schema.diaryEntries).all();
-      const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      expect(depositEntries).toHaveLength(1);
-      expect(depositEntries[0]!.sourceEntityType).toBe('invoice_deposit');
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.sourceEntityType).toBe('invoice');
+      expect(entries[0]!.sourceEntityId).toBe(invoiceId);
+      expect(entries[0]!.createdBy).toBe(userId);
+      expect((JSON.parse(entries[0]!.metadata!) as { depositId: string }).depositId).toBe(
+        deposit.id,
+      );
     });
 
-    it('does not create diary entry when creating pending deposit (no status change)', () => {
+    it('does not create a diary entry when creating a pending deposit (no status change)', () => {
       const { userId, invoiceId } = setup();
 
-      const deposit = createDeposit(
-        db,
-        invoiceId,
-        { amount: 300, dueDate: '2026-02-01' },
-        userId,
-        true,
-      );
+      createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
 
       const entries: DiaryRow[] = db.select().from(schema.diaryEntries).all();
-      const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
-      expect(depositEntries).toHaveLength(0);
+      expect(entries).toHaveLength(0);
     });
   });
 

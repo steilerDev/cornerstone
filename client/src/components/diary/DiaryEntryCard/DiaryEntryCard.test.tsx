@@ -213,12 +213,6 @@ describe('DiaryEntryCard', () => {
 
   // ─── Automatic entry rendering ──────────────────────────────────────────────
 
-  it('applies the "automatic" CSS class to automatic entries', () => {
-    renderCard(automaticEntry);
-    const card = screen.getByTestId('diary-card-de-auto-1');
-    expect(card.getAttribute('class') ?? '').toContain('automatic');
-  });
-
   it('does not apply "automatic" CSS class to manual entries', () => {
     renderCard(manualEntry);
     const card = screen.getByTestId('diary-card-de-manual-1');
@@ -232,93 +226,19 @@ describe('DiaryEntryCard', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders a source entity link for automatic entries with work_item source', () => {
+  it('has no automatic branch: no "Go to related item" link and no automatic class (#2223)', () => {
+    // System events render through FeedRow; this card only shows manual entries.
     renderCard(automaticEntry);
-    const sourceLink = screen.getByTestId('source-link-wi-kitchen-1');
-    expect(sourceLink).toBeInTheDocument();
-    // Automatic entries show "Go to related item" regardless of sourceEntityTitle
-    expect(sourceLink).toHaveTextContent('Go to related item');
-  });
-
-  // ─── sourceEntityTitle display ──────────────────────────────────────────────
-
-  it('uses sourceEntityTitle as link text when provided', () => {
-    const entryWithTitle: DiaryEntrySummary = {
-      ...automaticEntry,
-      id: 'de-titled-1',
-      sourceEntityType: 'work_item',
-      sourceEntityId: 'wi-kitchen-2',
-      sourceEntityTitle: 'Kitchen Renovation',
-    };
-    renderCard(entryWithTitle);
-    const sourceLink = screen.getByTestId('source-link-wi-kitchen-2');
-    // Automatic entries always show "Go to related item"
-    expect(sourceLink).toHaveTextContent('Go to related item');
-  });
-
-  it('falls back to entity type label when sourceEntityTitle is null', () => {
-    const entryNoTitle: DiaryEntrySummary = {
-      ...automaticEntry,
-      id: 'de-notitle-1',
-      sourceEntityType: 'invoice',
-      sourceEntityId: 'inv-no-title',
-      sourceEntityTitle: null,
-    };
-    renderCard(entryNoTitle);
-    const sourceLink = screen.getByTestId('source-link-inv-no-title');
-    // Automatic entries always show "Go to related item"
-    expect(sourceLink).toHaveTextContent('Go to related item');
-  });
-
-  it('uses invoice sourceEntityTitle (invoice number) as link text', () => {
-    const invoiceEntryWithTitle: DiaryEntrySummary = {
-      ...automaticEntry,
-      id: 'de-inv-titled',
-      entryType: 'invoice_status',
-      sourceEntityType: 'invoice',
-      sourceEntityId: 'inv-456',
-      sourceEntityTitle: 'INV-2026-042',
-    };
-    renderCard(invoiceEntryWithTitle);
-    const sourceLink = screen.getByTestId('source-link-inv-456');
-    // Automatic entries always show "Go to related item"
-    expect(sourceLink).toHaveTextContent('Go to related item');
+    expect(screen.queryByText('Go to related item')).not.toBeInTheDocument();
+    expect(screen.getByTestId('diary-card-de-auto-1').getAttribute('class') ?? '').not.toContain(
+      'automatic',
+    );
   });
 
   it('source entity link for work_item points to /project/work-items/:sourceEntityId', () => {
     renderCard(automaticEntry);
     const sourceLink = screen.getByTestId('source-link-wi-kitchen-1');
     expect(sourceLink).toHaveAttribute('href', '/project/work-items/wi-kitchen-1');
-  });
-
-  it('renders invoice source link with correct route', () => {
-    const invoiceEntry: DiaryEntrySummary = {
-      ...automaticEntry,
-      id: 'de-inv',
-      entryType: 'invoice_status',
-      sourceEntityType: 'invoice',
-      sourceEntityId: 'inv-123',
-      sourceEntityTitle: null,
-    };
-    renderCard(invoiceEntry);
-    const sourceLink = screen.getByTestId('source-link-inv-123');
-    expect(sourceLink).toHaveTextContent('Go to related item');
-    expect(sourceLink).toHaveAttribute('href', '/budget/invoices/inv-123');
-  });
-
-  it('renders milestone source link with correct route', () => {
-    const milestoneEntry: DiaryEntrySummary = {
-      ...automaticEntry,
-      id: 'de-ms',
-      entryType: 'milestone_delay',
-      sourceEntityType: 'milestone',
-      sourceEntityId: 'ms-456',
-      sourceEntityTitle: null,
-    };
-    renderCard(milestoneEntry);
-    const sourceLink = screen.getByTestId('source-link-ms-456');
-    expect(sourceLink).toHaveTextContent('Go to related item');
-    expect(sourceLink).toHaveAttribute('href', '/project/milestones/ms-456');
   });
 
   // ─── Type badge ─────────────────────────────────────────────────────────────
@@ -394,7 +314,7 @@ describe('DiaryEntryCard', () => {
       );
     }
 
-    it('automatic entry: the related-item link carries the diary URL as origin, no name', () => {
+    it('the footer source link carries the diary URL as origin, no name', () => {
       renderProbed(automaticEntry);
 
       fireEvent.click(screen.getByTestId('source-link-wi-kitchen-1'));

@@ -661,10 +661,16 @@ describe('diaryService', () => {
         db,
         'work_item_status',
         '2026-03-14',
-        'Status changed from In Progress to Completed',
-        'Work item status changed to completed',
+        {
+          v: 1,
+          event: 'status_changed',
+          from: 'in_progress',
+          to: 'completed',
+          subjectLabel: 'Task A',
+        },
         'work_item',
         'wi-123',
+        null,
       );
 
       const result = listDiaryEntries(db, { automatic: true });
@@ -681,8 +687,8 @@ describe('diaryService', () => {
         db,
         'budget_breach',
         '2026-03-14',
-        'Budget category overspend detected',
-        'Budget threshold exceeded',
+        { v: 1, event: 'legacy' },
+        null,
         null,
         null,
       );
@@ -1961,6 +1967,307 @@ describe('diaryService', () => {
           ).isSigned,
         ).toBe(true);
       });
+    });
+  });
+
+  // ─── System events in the list (#2223, ADR-040 §6) ─────────────────────────
+
+  describe('system events in the list (#2223)', () => {
+    function statusMeta(to: string, extra: Record<string, unknown> = {}) {
+      return JSON.stringify({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to,
+        subjectLabel: 'INV-T-001',
+        ...extra,
+      });
+    }
+
+    function insertAuto(minute: number, overrides: Partial<typeof diaryEntries.$inferInsert> = {}) {
+      const createdAt = `2026-03-10T10:${String(minute).padStart(2, '0')}:00.000Z`;
+      return insertEntry({
+        isAutomatic: true,
+        entryType: 'invoice_status',
+        entryDate: '2026-03-10',
+        title: null,
+        body: '',
+        metadata: statusMeta('paid'),
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-1',
+        createdBy: null,
+        createdAt,
+        updatedAt: createdAt,
+        ...overrides,
+      });
+    }
+
+    function insertMilestone(id: number, completedAt: string | null) {
+      const now = '2026-03-01T00:00:00.000Z';
+      db.insert(milestones)
+        .values({
+          id,
+          title: 'Milestone A',
+          targetDate: '2026-03-01',
+          isCompleted: completedAt !== null,
+          completedAt,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function insertDelay(minute: number, milestoneId: number) {
+      return insertAuto(minute, {
+        entryType: 'milestone_delay',
+        sourceEntityType: 'milestone',
+        sourceEntityId: String(milestoneId),
+        metadata: JSON.stringify({
+          v: 1,
+          event: 'milestone_delayed',
+          targetDate: '2026-03-01',
+          projectedDate: '2026-03-14',
+          delayDays: 13,
+          subjectLabel: 'Milestone A',
+        }),
+      });
+    }
+
+    it('collapses exact repeats into the newest row with a repeat member', () => {
+      insertAuto(1);
+      insertAuto(2);
+      const newest = insertAuto(3);
+
+      const result = listDiaryEntries(db, {});
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]!.id).toBe(newest);
+      expect(result.items[0]!.repeat).toEqual({
+        count: 3,
+        firstAt: '2026-03-10T10:01:00.000Z',
+        lastAt: '2026-03-10T10:03:00.000Z',
+      });
+      expect(result.pagination.totalItems).toBe(1);
+      expect(result.pagination.totalPages).toBe(1);
+    });
+
+    it('omits repeat and hidden for ordinary rows and manual entries', () => {
+      insertAuto(1);
+      insertEntry({ title: 'Manual note' });
+
+      const result = listDiaryEntries(db, {});
+
+      expect(result.items).toHaveLength(2);
+      for (const item of result.items) {
+        expect(item).not.toHaveProperty('repeat');
+        expect(item).not.toHaveProperty('hidden');
+      }
+    });
+
+    it('never collapses manual entries', () => {
+      insertEntry({ title: 'Same', body: 'Same' });
+      insertEntry({ title: 'Same', body: 'Same' });
+      expect(listDiaryEntries(db, {}).items).toHaveLength(2);
+    });
+
+    it('hides delays logged after the milestone was reached and reports hiddenCount', () => {
+      insertMilestone(1, '2026-03-10T10:05:00.000Z');
+      insertDelay(1, 1);
+      const late = insertDelay(9, 1);
+
+      const result = listDiaryEntries(db, {});
+
+      expect(result.items.map((i) => i.id)).not.toContain(late);
+      expect(result.items).toHaveLength(1);
+      expect(result.hiddenCount).toBe(1);
+      expect(result.pagination.totalItems).toBe(1);
+    });
+
+    it('showHidden returns the late delay with hidden: true and the same hiddenCount', () => {
+      insertMilestone(1, '2026-03-10T10:05:00.000Z');
+      const early = insertDelay(1, 1);
+      const late = insertDelay(9, 1);
+
+      const result = listDiaryEntries(db, { showHidden: true });
+
+      expect(result.items.map((i) => [i.id, i.hidden])).toEqual([
+        [late, true],
+        [early, undefined],
+      ]);
+      expect(result.hiddenCount).toBe(1);
+      expect(result.pagination.totalItems).toBe(2);
+    });
+
+    it('hiddenCount is 0 when nothing is hidden', () => {
+      insertAuto(1);
+      expect(listDiaryEntries(db, {}).hiddenCount).toBe(0);
+    });
+
+    it('applies the type filter before the collapse and keeps paging stable', () => {
+      insertAuto(1);
+      insertAuto(2);
+      insertAuto(3, { entryType: 'work_item_status', sourceEntityType: 'work_item' });
+      for (let i = 0; i < 4; i++)
+        insertAuto(10 + i, { sourceEntityId: `inv-${i + 2}`, metadata: statusMeta('claimed') });
+
+      const first = listDiaryEntries(db, { type: 'invoice_status', page: 1, pageSize: 2 });
+      const second = listDiaryEntries(db, { type: 'invoice_status', page: 2, pageSize: 2 });
+      const third = listDiaryEntries(db, { type: 'invoice_status', page: 3, pageSize: 2 });
+
+      const ids = [...first.items, ...second.items, ...third.items].map((i) => i.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).toHaveLength(5);
+      expect(first.pagination).toMatchObject({ totalItems: 5, totalPages: 3, page: 1 });
+    });
+
+    it('sets sourceEntityExists true for a live subject and false for a deleted one', () => {
+      const now = new Date().toISOString();
+      db.insert(vendors)
+        .values({ id: 'vendor-x', name: 'Company A', createdAt: now, updatedAt: now })
+        .run();
+      db.insert(invoices)
+        .values({
+          id: 'inv-live',
+          vendorId: 'vendor-x',
+          invoiceNumber: 'INV-T-001',
+          amount: 100,
+          date: '2026-03-01',
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const live = insertAuto(1, { sourceEntityId: 'inv-live' });
+      const gone = insertAuto(2, { sourceEntityId: 'inv-gone' });
+
+      const items = listDiaryEntries(db, {}).items;
+
+      expect(items.find((i) => i.id === live)!.sourceEntityExists).toBe(true);
+      expect(items.find((i) => i.id === live)!.sourceEntityTitle).toBe('INV-T-001');
+      expect(items.find((i) => i.id === gone)!.sourceEntityExists).toBe(false);
+      expect(items.find((i) => i.id === gone)!.sourceEntityTitle).toBeNull();
+    });
+
+    it('distinguishes an invoice without a number (exists, no title) from a deleted invoice', () => {
+      const now = new Date().toISOString();
+      db.insert(vendors)
+        .values({ id: 'vendor-y', name: 'Company A', createdAt: now, updatedAt: now })
+        .run();
+      db.insert(invoices)
+        .values({
+          id: 'inv-nonumber',
+          vendorId: 'vendor-y',
+          invoiceNumber: null,
+          amount: 100,
+          date: '2026-03-01',
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const id = insertAuto(1, { sourceEntityId: 'inv-nonumber' });
+
+      const item = getDiaryEntry(db, id);
+
+      expect(item.sourceEntityExists).toBe(true);
+      expect(item.sourceEntityTitle).toBeNull();
+    });
+
+    it('resolves a grant name and existence for subsidy_program subjects', () => {
+      const now = new Date().toISOString();
+      db.insert(schema.subsidyPrograms)
+        .values({
+          id: 'grant-1',
+          name: 'Grant A',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const live = insertAuto(1, {
+        entryType: 'subsidy_status',
+        sourceEntityType: 'subsidy_program',
+        sourceEntityId: 'grant-1',
+      });
+      const gone = insertAuto(2, {
+        entryType: 'subsidy_status',
+        sourceEntityType: 'subsidy_program',
+        sourceEntityId: 'grant-gone',
+      });
+
+      const items = listDiaryEntries(db, {}).items;
+
+      const liveItem = items.find((i) => i.id === live)!;
+      expect(liveItem.sourceEntityTitle).toBe('Grant A');
+      expect(liveItem.sourceEntityExists).toBe(true);
+      expect(getDiaryEntry(db, live).sourceEntityTitle).toBe('Grant A');
+      const goneItem = items.find((i) => i.id === gone)!;
+      expect(goneItem.sourceEntityTitle).toBeNull();
+      expect(goneItem.sourceEntityExists).toBe(false);
+    });
+
+    it('sets sourceEntityExists for work items and milestones, and leaves it unset otherwise', () => {
+      const now = new Date().toISOString();
+      db.insert(workItems)
+        .values({
+          id: 'wi-live',
+          title: 'Task A',
+          status: 'not_started',
+          createdBy: testUserId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertMilestone(5, null);
+      const wi = insertAuto(1, {
+        entryType: 'work_item_status',
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-live',
+      });
+      const ms = insertAuto(2, {
+        entryType: 'milestone_delay',
+        sourceEntityType: 'milestone',
+        sourceEntityId: '5',
+      });
+      const noSource = insertAuto(3, {
+        entryType: 'budget_breach',
+        sourceEntityType: null,
+        sourceEntityId: null,
+        metadata: JSON.stringify({ v: 1, event: 'legacy' }),
+        title: 'Over budget',
+        body: 'Text',
+      });
+      const otherType = insertAuto(4, {
+        entryType: 'budget_breach',
+        sourceEntityType: 'budget_source',
+        sourceEntityId: 'bs-1',
+        metadata: JSON.stringify({ v: 1, event: 'legacy' }),
+        title: 'Over budget 2',
+        body: 'Text',
+      });
+
+      const items = listDiaryEntries(db, {}).items;
+
+      expect(items.find((i) => i.id === wi)!.sourceEntityExists).toBe(true);
+      expect(items.find((i) => i.id === ms)!.sourceEntityExists).toBe(true);
+      expect(items.find((i) => i.id === noSource)).not.toHaveProperty('sourceEntityExists');
+      expect(items.find((i) => i.id === otherType)).not.toHaveProperty('sourceEntityExists');
+    });
+
+    it('returns the v1 metadata of an automatic entry unchanged', () => {
+      const id = insertAuto(1, { metadata: statusMeta('paid', { amount: 1200 }) });
+      const detail = getDiaryEntry(db, id);
+      expect(detail.metadata).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'paid',
+        subjectLabel: 'INV-T-001',
+        amount: 1200,
+      });
+      expect(detail.title).toBeNull();
+      expect(detail.body).toBe('');
     });
   });
 });

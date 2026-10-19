@@ -202,6 +202,26 @@ export class DiaryPage {
     return this.page.getByTestId(`diary-card-${id}`);
   }
 
+  /** A system event row (automatic entry) by entry id: `FeedRow` test id `system-event-<id>`. */
+  systemEventRow(id: string): Locator {
+    return this.page.getByTestId(`system-event-${id}`);
+  }
+
+  /** The link row of a system event ("Open task", "Open progress payment", ...). */
+  systemEventLink(id: string): Locator {
+    return this.page.getByTestId(`system-event-${id}-link`);
+  }
+
+  /** The "Show hidden" / "Hide again" toggle of the hidden-notes line (`aria-pressed`). */
+  get showHiddenToggle(): Locator {
+    return this.page.getByTestId('diary-show-hidden');
+  }
+
+  /** The hidden-notes line above the feed ("1 later delay note is hidden."). */
+  get hiddenNote(): Locator {
+    return this.page.getByTestId('diary-hidden-note');
+  }
+
   /**
    * Get the type filter chip button for the given type.
    */

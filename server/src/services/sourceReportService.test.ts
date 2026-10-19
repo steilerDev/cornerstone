@@ -220,6 +220,25 @@ describe('sourceReportService', () => {
     return db.select().from(schema.diaryEntries).all().length;
   }
 
+  /** Insert a user (the acting user of a bank-report submission), returns its id. */
+  function insertUser(): string {
+    const id = `user-${++counter}`;
+    const now = ts();
+    db.insert(schema.users)
+      .values({
+        id,
+        email: `${id}@example.test`,
+        displayName: 'Test User',
+        role: 'member',
+        authProvider: 'local',
+        passwordHash: 'x',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
   /** Insert an area (Story #1923 AC5), returns its id. Migration seeds no default areas. */
   function insertArea(name: string, parentId: string | null = null): string {
     const id = `area-${++counter}`;
@@ -1959,8 +1978,8 @@ describe('sourceReportService', () => {
   describe('markInvoicesClaimed', () => {
     it('scenario 22: both invoiceIds and depositIds empty throws ValidationError', () => {
       const sourceId = insertSource();
-      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(ValidationError);
-      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, sourceId, [], [])).toThrow(ValidationError);
+      expect(() => markInvoicesClaimed(db, sourceId, [], [])).toThrow(
         'At least one invoice or deposit ID must be provided',
       );
     });
@@ -1971,7 +1990,7 @@ describe('sourceReportService', () => {
       const invId = insertInvoice(vendorId, { status: 'pending' });
       const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
 
-      const result = markInvoicesClaimed(db, sourceId, [], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -1995,10 +2014,10 @@ describe('sourceReportService', () => {
     it('nonexistent sourceId throws NotFoundError', () => {
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
-      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [])).toThrow(
         NotFoundError,
       );
-      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [])).toThrow(
         'Budget source not found',
       );
     });
@@ -2010,7 +2029,7 @@ describe('sourceReportService', () => {
       const inv2 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-2' });
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, sourceId, [inv1, inv2], [], true);
+      const result = markInvoicesClaimed(db, sourceId, [inv1, inv2], []);
 
       expect(result.claimedInvoiceIds.sort()).toEqual([inv1, inv2].sort());
       expect(result.claimedDepositIds).toEqual([]);
@@ -2031,7 +2050,7 @@ describe('sourceReportService', () => {
       const dep2 = insertDeposit(invId, { status: 'pending', amount: 200 });
       const today = new Date().toLocaleDateString('en-CA');
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [dep1, dep2], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [dep1, dep2]);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds.sort()).toEqual([dep1, dep2].sort());
@@ -2052,7 +2071,7 @@ describe('sourceReportService', () => {
       const invId = insertInvoice(vendorId, { status: 'paid' });
       const depId = insertDeposit(invId, { status: 'paid', amount: 100, paidDate: '2026-01-10' });
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -2083,7 +2102,7 @@ describe('sourceReportService', () => {
       const refundId = insertDeposit(invId, { status: 'pending', entryType: 'refund', amount: 50 });
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [refundId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [refundId]);
 
       expect(result.claimedInvoiceIds).toEqual([]); // invoice already claimed — not re-flipped
       expect(result.claimedDepositIds).toEqual([refundId]);
@@ -2104,12 +2123,12 @@ describe('sourceReportService', () => {
       const validInv = insertInvoice(vendorId, { status: 'pending' });
       const badInv = insertInvoice(vendorId, { status: 'quotation' }); // no deposit at all
 
-      expect(() => markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, sourceId, [validInv, badInv], [])).toThrow(
         InvoicesNotClaimableError,
       );
 
       try {
-        markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true);
+        markInvoicesClaimed(db, sourceId, [validInv, badInv], []);
       } catch (e) {
         const err = e as InvoicesNotClaimableError;
         expect(err.details).toMatchObject({ invoiceIds: [badInv] });
@@ -2128,9 +2147,9 @@ describe('sourceReportService', () => {
       const vendorId = insertVendor();
       const validInv = insertInvoice(vendorId, { status: 'pending' });
 
-      expect(() =>
-        markInvoicesClaimed(db, sourceId, [validInv, 'does-not-exist'], [], true),
-      ).toThrow(InvoicesNotClaimableError);
+      expect(() => markInvoicesClaimed(db, sourceId, [validInv, 'does-not-exist'], [])).toThrow(
+        InvoicesNotClaimableError,
+      );
 
       const reQueriedValid = db
         .select()
@@ -2145,7 +2164,7 @@ describe('sourceReportService', () => {
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'claimed' }); // no deposits at all
 
-      expect(() => markInvoicesClaimed(db, sourceId, [invId], [], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [])).toThrow(
         InvoicesNotClaimableError,
       );
     });
@@ -2156,21 +2175,42 @@ describe('sourceReportService', () => {
       const invId = insertInvoice(vendorId, { status: 'claimed' });
       const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'], no 'claimed' target
 
-      expect(() => markInvoicesClaimed(db, sourceId, [invId], [depId], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [depId])).toThrow(
         InvoicesNotClaimableError,
       );
     });
 
-    it('scenario 30: diaryAutoEvents=false suppresses diary entries but writes still happen', () => {
+    it('scenario 30: events are always written, one per flipped invoice, with creator, amount and batchId', () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
-      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const invId = insertInvoice(vendorId, {
+        status: 'pending',
+        invoiceNumber: 'INV-T-001',
+        amount: 1200,
+      });
+      const userId = insertUser();
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [], false);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [], userId);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
-      expect(diaryEntryCount()).toBe(before);
+      expect(diaryEntryCount()).toBe(before + 1);
+      const event = db.select().from(schema.diaryEntries).all().at(-1)!;
+      expect(event.createdBy).toBe(userId);
+      expect(event.title).toBeNull();
+      expect(event.body).toBe('');
+      const meta = JSON.parse(event.metadata!) as Record<string, unknown>;
+      expect(meta).toMatchObject({
+        v: 1,
+        event: 'status_changed',
+        from: 'pending',
+        to: 'claimed',
+        subjectLabel: 'INV-T-001',
+        amount: 1200,
+      });
+      expect(meta.batchId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
 
       const updatedInv = db
         .select()
@@ -2180,19 +2220,71 @@ describe('sourceReportService', () => {
       expect(updatedInv.status).toBe('claimed');
     });
 
-    it('scenario 31: invoice with a null invoiceNumber falls back to N/A in diary events', () => {
+    it('W5: every event of one call carries the same batchId; two calls get different ones', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const userId = insertUser();
+      const inv1 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-T-001' });
+      const inv2 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-T-002' });
+      const inv3 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-T-003' });
+      const dep = insertDeposit(inv3, { status: 'pending', amount: 100 });
+
+      markInvoicesClaimed(db, sourceId, [inv1, inv2], [dep], userId);
+      const firstBatch = db.select().from(schema.diaryEntries).all();
+      markInvoicesClaimed(db, sourceId, [inv3], [], userId);
+      const all = db.select().from(schema.diaryEntries).all();
+
+      const batchOf = (e: (typeof all)[number]) =>
+        (JSON.parse(e.metadata!) as { batchId: string }).batchId;
+      expect(firstBatch).toHaveLength(3);
+      const first = new Set(firstBatch.map(batchOf));
+      expect(first.size).toBe(1);
+      const second = all.filter((e) => !firstBatch.some((f) => f.id === e.id));
+      expect(second).toHaveLength(1);
+      expect(batchOf(second[0]!)).not.toBe([...first][0]);
+      expect(all.every((e) => e.createdBy === userId)).toBe(true);
+    });
+
+    it('W5: a deposit event carries amount, entry type, depositId and the invoice as source (D-16)', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'claimed', invoiceNumber: 'INV-T-004' });
+      const refundId = insertDeposit(invId, { status: 'pending', entryType: 'refund', amount: 50 });
+
+      markInvoicesClaimed(db, sourceId, [invId], [refundId]);
+
+      const event = db.select().from(schema.diaryEntries).all()[0]!;
+      expect(event.sourceEntityType).toBe('invoice');
+      expect(event.sourceEntityId).toBe(invId);
+      expect(event.createdBy).toBeNull();
+      const meta = JSON.parse(event.metadata!) as Record<string, unknown>;
+      expect(meta).toMatchObject({
+        from: 'pending',
+        to: 'claimed',
+        subjectLabel: 'INV-T-004',
+        amount: 50,
+        depositEntryType: 'refund',
+        depositId: refundId,
+      });
+      expect(typeof meta.batchId).toBe('string');
+    });
+
+    it('scenario 31: an invoice with a null invoiceNumber is stored without a label', () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending', invoiceNumber: null });
       const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([depId]);
-      // No assertion on diary event content here — onInvoiceStatusChanged/onDepositStatusChanged
-      // are exercised elsewhere; this scenario's purpose is exercising the `|| 'N/A'` fallback
-      // for a null invoiceNumber without throwing.
+      const labels = db
+        .select()
+        .from(schema.diaryEntries)
+        .all()
+        .map((e) => (JSON.parse(e.metadata!) as { subjectLabel: string | null }).subjectLabel);
+      expect(labels).toEqual([null, null]);
     });
 
     it('scenario 32: directly-claimable invoice with an already-claimed (non-transitionable) deposit → deposit left untouched', () => {
@@ -2201,7 +2293,7 @@ describe('sourceReportService', () => {
       const invId = insertInvoice(vendorId, { status: 'pending' });
       const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'] only
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([]); // already-claimed deposit is not re-claimed
@@ -2231,7 +2323,7 @@ describe('sourceReportService', () => {
         budgetSourceId: sourceA,
       });
 
-      const result = markInvoicesClaimed(db, sourceA, [invId], [depAId], true);
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depAId]);
 
       expect(result.claimedInvoiceIds).toEqual([]);
       expect(result.claimedDepositIds).toEqual([depAId]);
@@ -2255,7 +2347,7 @@ describe('sourceReportService', () => {
         budgetSourceId: sourceA,
       });
 
-      const result = markInvoicesClaimed(db, sourceA, [invId], [depId], true);
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -2277,7 +2369,7 @@ describe('sourceReportService', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -2300,7 +2392,7 @@ describe('sourceReportService', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = markInvoicesClaimed(db, sourceId, [validInv, quotationInv], [depId], true);
+      const result = markInvoicesClaimed(db, sourceId, [validInv, quotationInv], [depId]);
 
       expect(result.claimedInvoiceIds).toEqual([validInv]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -2319,7 +2411,7 @@ describe('sourceReportService', () => {
       const invId2 = insertInvoice(vendorId, { status: 'pending' });
       const dep2 = insertDeposit(invId2, { status: 'pending', amount: 100 }); // untagged, sweep-eligible
 
-      const result = markInvoicesClaimed(db, sourceId, [invId1], [dep2], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId1], [dep2]);
 
       expect(result.claimedInvoiceIds).toEqual([invId1]);
       expect(result.claimedDepositIds).toEqual([dep2]);

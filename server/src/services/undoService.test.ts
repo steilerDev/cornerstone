@@ -85,7 +85,7 @@ describe('undoService', () => {
       db,
       store,
       { userId: actor ?? userA, subject: { type: 'work_item', id }, reschedules: true },
-      () => workItemService.updateWorkItem(db, id, data, true, actor),
+      () => workItemService.updateWorkItem(db, id, data, { userId: actor, undoable: true }),
     );
   }
 
@@ -318,14 +318,28 @@ describe('undoService', () => {
           db,
           store,
           { userId: userA, subject: { type: 'invoice', id: inv.id }, reschedules: false },
-          () => invoiceService.updateInvoice(db, vendorId, inv.id, { notes: 'x' }, true, userA),
+          () =>
+            invoiceService.updateInvoice(
+              db,
+              vendorId,
+              inv.id,
+              { notes: 'x' },
+              { userId: userA, undoable: true },
+            ),
         );
         expect(quiet.undo).toBeNull();
         const loud = runUndoable(
           db,
           store,
           { userId: userA, subject: { type: 'invoice', id: inv.id }, reschedules: false },
-          () => invoiceService.updateInvoice(db, vendorId, inv.id, { status: 'paid' }, true, userA),
+          () =>
+            invoiceService.updateInvoice(
+              db,
+              vendorId,
+              inv.id,
+              { status: 'paid' },
+              { userId: userA, undoable: true },
+            ),
         );
         expect(loud.undo?.token).toMatch(TOKEN_SHAPE);
       });
@@ -346,8 +360,7 @@ describe('undoService', () => {
               invoiceId,
               depositId,
               { status: 'paid', paidDate: '2026-08-05' },
-              true,
-              userA,
+              { userId: userA, undoable: true },
             ),
         );
         expect(loud.undo?.token).toMatch(TOKEN_SHAPE);
@@ -372,8 +385,7 @@ describe('undoService', () => {
               db,
               program.id,
               { name: 'Grant 2' },
-              true,
-              userA,
+              { userId: userA, undoable: true },
             ),
         );
         expect(quiet.undo).toBeNull();
@@ -390,8 +402,7 @@ describe('undoService', () => {
               db,
               program.id,
               { applicationStatus: 'approved' },
-              true,
-              userA,
+              { userId: userA, undoable: true },
             ),
         );
         expect(loud.undo?.token).toMatch(TOKEN_SHAPE);
@@ -747,7 +758,14 @@ describe('undoService', () => {
           db,
           store,
           { userId: userA, subject: { type: 'invoice', id: inv.id }, reschedules: false },
-          () => invoiceService.updateInvoice(db, vendorId, inv.id, { status: 'paid' }, true, userA),
+          () =>
+            invoiceService.updateInvoice(
+              db,
+              vendorId,
+              inv.id,
+              { status: 'paid' },
+              { userId: userA, undoable: true },
+            ),
         );
         expect(statusEvents('invoice_status').length).toBe(eventsBefore + 1);
         applyUndo(db, store, undo!.token, userA);
@@ -773,8 +791,7 @@ describe('undoService', () => {
               invoiceId,
               depositId,
               { status: 'paid', paidDate: '2026-08-05' },
-              true,
-              userA,
+              { userId: userA, undoable: true },
             ),
         );
         applyUndo(db, store, undo!.token, userA);
@@ -806,8 +823,7 @@ describe('undoService', () => {
               db,
               program.id,
               { applicationStatus: 'approved' },
-              true,
-              userA,
+              { userId: userA, undoable: true },
             ),
         );
         applyUndo(db, store, undo!.token, userA);
@@ -1044,8 +1060,7 @@ describe('undoService', () => {
         invoiceId,
         depositId,
         { status: 'paid', paidDate: '2026-08-05' },
-        true,
-        userA,
+        { userId: userA, undoable: true },
       );
       expect(statusEvents('invoice_status')).toHaveLength(1);
       invoiceDepositService.updateDeposit(
@@ -1053,8 +1068,7 @@ describe('undoService', () => {
         invoiceId,
         depositId,
         { status: 'pending' },
-        true,
-        userA,
+        { userId: userA, undoable: true },
       );
       expect(statusEvents('invoice_status')).toHaveLength(0);
     });
@@ -1066,8 +1080,7 @@ describe('undoService', () => {
         invoiceId,
         depositId,
         { status: 'paid', paidDate: '2026-08-05' },
-        true,
-        userA,
+        { userId: userA, undoable: true },
       );
       jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS + 1));
       invoiceDepositService.updateDeposit(
@@ -1075,8 +1088,7 @@ describe('undoService', () => {
         invoiceId,
         depositId,
         { status: 'pending' },
-        true,
-        userA,
+        { userId: userA, undoable: true },
       );
       expect(statusEvents('invoice_status')).toHaveLength(1);
     });
@@ -1122,18 +1134,25 @@ describe('undoService', () => {
       expect(statusEvents()).toHaveLength(1);
     });
 
-    it('diaryAutoEvents=false writes no rows and raises no errors', () => {
+    it('system events are always written: the snapshot collects the new row and Undo removes it', () => {
       const wi = workItem('Walls');
       const { undo } = runUndoable(
         db,
         store,
         { userId: userA, subject: { type: 'work_item', id: wi.id }, reschedules: true },
-        () => workItemService.updateWorkItem(db, wi.id, { status: 'in_progress' }, false, userA),
+        () =>
+          workItemService.updateWorkItem(
+            db,
+            wi.id,
+            { status: 'in_progress' },
+            { userId: userA, undoable: true },
+          ),
       );
       expect(undo).not.toBeNull();
-      expect(statusEvents()).toHaveLength(0);
-      expect(statusSnapshot(undo!.token).written).toEqual([]);
+      expect(statusEvents()).toHaveLength(1);
+      expect(statusSnapshot(undo!.token).written).toHaveLength(1);
       expect(() => applyUndo(db, store, undo!.token, userA)).not.toThrow();
+      expect(statusEvents()).toHaveLength(0);
       expect(getWorkItemRow(wi.id).status).toBe('not_started');
     });
 
@@ -1151,8 +1170,7 @@ describe('undoService', () => {
         db,
         wi.id,
         { status: 'completed', actualEndDate: '2026-08-05' },
-        true,
-        userA,
+        { userId: userA, undoable: true },
       );
       const row = getWorkItemRow(wi.id);
       expect(row.actualEndDate).toBe('2026-08-05');

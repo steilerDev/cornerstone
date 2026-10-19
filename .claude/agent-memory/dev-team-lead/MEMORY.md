@@ -58,4 +58,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Areas index specs](areas-index-specs.md) — sharedComponents counts only X/X.tsx, dialog-file exports leak primaries, routemap.json has no stage, delete Undo is a contract change, contract 19 has no blockers
 - [Diary rules specs](diary-rules-specs.md) — first-content rule is client-only, undo snapshot vs type change, falsy-body merges, planned-contract status drift, photo dates
 - [Entry point specs](entry-point-specs.md) — carries = shared/ (backend), POM prefix selectors, consume/apply split, same-URL remount, getUserMedia needs no gesture
+- [System event specs](system-event-specs.md) — placeholder-stripped money labels, json_valid guards, collapse subject keys + tie-break, member vs admin hidden param, UX params ADR lacks
 - [Capture screen specs](capture-screen-specs.md) — planned allowedAdditions names, no in-app leave blocker, WebKit no fake camera, existing shell/formatter helpers, insecure context, draft URL remount

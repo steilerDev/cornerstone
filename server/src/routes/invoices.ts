@@ -122,10 +122,14 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
       const vendor = vendorService.getVendorById(fastify.db, request.params.vendorId);
       onInvoiceCreated(
         fastify.db,
-        fastify.config.diaryAutoEvents,
-        invoice.id,
-        invoice.invoiceNumber || 'N/A',
-        vendor.name,
+        {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          status: invoice.status,
+        },
+        { id: vendor.id, name: vendor.name },
+        { userId: request.user.id },
       );
 
       return reply.status(201).send({ invoice });
@@ -156,8 +160,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
             request.params.vendorId,
             request.params.invoiceId,
             request.body,
-            fastify.config.diaryAutoEvents,
-            userId,
+            { userId, undoable: true },
           ),
       );
       return reply.status(200).send(undo ? { invoice, undo } : { invoice });

@@ -216,7 +216,7 @@ describe('buildIntegrationsStatus', () => {
   });
 
   describe('simple cards', () => {
-    it('reports diary events, money, and public address flags', () => {
+    it('reports diary events as always on, money, and public address flags', () => {
       const s = build({
         DIARY_AUTO_EVENTS: 'false',
         CURRENCY: 'CHF',
@@ -224,7 +224,7 @@ describe('buildIntegrationsStatus', () => {
         TRUST_PROXY: 'true',
         SECURE_COOKIES: 'false',
       });
-      expect(s.diaryEvents.enabled).toBe(false);
+      expect(s.diaryEvents).toEqual({ enabled: true, env: { required: [], optional: [] } });
       expect(s.money).toMatchObject({ currency: 'CHF', vatRate: 0.077 });
       expect(s.publicAddress).toMatchObject({ trustProxy: true, secureCookies: false });
     });

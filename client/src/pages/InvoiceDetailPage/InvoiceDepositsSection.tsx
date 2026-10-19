@@ -418,7 +418,7 @@ function DepositRow({
   const menuItems = buildMenuItems(deposit, t, onEdit, onDelete);
 
   return (
-    <tr className={styles.tableRow}>
+    <tr className={styles.tableRow} data-payment-id={deposit.id} tabIndex={-1}>
       <td>{formatDate(deposit.dueDate)}</td>
       <td>
         <div className={styles.amountCell}>
@@ -473,7 +473,7 @@ function DepositCard({
   const menuItems = buildMenuItems(deposit, t, onEdit, onDelete);
 
   return (
-    <div className={styles.mobileCard}>
+    <div className={styles.mobileCard} data-payment-id={deposit.id} tabIndex={-1}>
       <div className={styles.cardTopRow}>
         <div className={styles.cardAmount}>
           {deposit.entryType === 'refund' && <Badge variants={refundVariants} value="refund" />}

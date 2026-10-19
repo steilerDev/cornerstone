@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-16",
+    "lastUpdated": "2026-10-19",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -1050,11 +1050,13 @@
       "en": {
         "singular": "Late",
         "chip": "Late · {{days}} d",
+        "sentenceOne": "{{count}} day late",
         "sentence": "{{count}} days late"
       },
       "de": {
         "singular": "Verspätet",
         "chip": "Verspätet · {{days}} T",
+        "sentenceOne": "{{count}} Tag verspätet",
         "sentence": "{{count}} Tage verspätet"
       },
       "deSource": "approved",
@@ -1933,6 +1935,34 @@
       },
       "deSource": "approved",
       "definition": "A grant's status changed.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Task status": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Task status"
+      },
+      "de": {
+        "singular": "Aufgabenstatus",
+        "note": "Approved by the product owner on #2223 (2026-10-19). Composed from the canon Task (Aufgabe) and the statusWord Status; gives the History filter chip and row badge a label distinct from Status change."
+      },
+      "deSource": "approved",
+      "definition": "A task's status changed.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Invoice status": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Invoice status"
+      },
+      "de": {
+        "singular": "Rechnungsstatus",
+        "note": "Approved by the product owner on #2223 (2026-10-19). Composed from the canon Invoice (Rechnung) and the statusWord Status; gives the History filter chip and row badge a label distinct from Status change."
+      },
+      "deSource": "approved",
+      "definition": "An invoice's status changed.",
       "doNotUse": [],
       "formerly": []
     },

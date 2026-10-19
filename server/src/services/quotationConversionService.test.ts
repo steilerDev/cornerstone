@@ -14,6 +14,7 @@ import type { ConvertQuotationRequest } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { convertQuotation } from './quotationConversionService.js';
+import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
 import { listAllInvoices } from './invoiceService.js';
 import { getSourceReport } from './sourceReportService.js';
 import {
@@ -349,46 +350,68 @@ describe('quotationConversionService', () => {
   // ─── Diary ──────────────────────────────────────────────────────────────────
 
   describe('diary event', () => {
-    it('scenario 3a: fires quotation -> new status after commit when enabled', () => {
+    it('scenario 3a: writes a v1 quotation -> new status event after commit, with amount and creator', () => {
       const { userId, invoiceId } = setup();
 
-      convertQuotation(db, invoiceId, request({ status: 'paid' }), userId, true);
+      convertQuotation(db, invoiceId, request({ status: 'paid' }), userId);
 
       const entries = diaryEntries();
       expect(entries).toHaveLength(1);
-      expect(entries[0]!.entryType).toBe('invoice_status');
-      expect(entries[0]!.title).toBe('Status changed from Quotation to Paid');
-      expect(entries[0]!.sourceEntityId).toBe(invoiceId);
+      const entry = entries[0]!;
+      expect(entry.entryType).toBe('invoice_status');
+      expect(entry.title).toBeNull();
+      expect(entry.body).toBe('');
+      expect(entry.sourceEntityType).toBe('invoice');
+      expect(entry.sourceEntityId).toBe(invoiceId);
+      expect(entry.createdBy).toBe(userId);
+      expect(JSON.parse(entry.metadata!)).toEqual({
+        v: 1,
+        event: 'status_changed',
+        from: 'quotation',
+        to: 'paid',
+        subjectLabel: getInvoiceRow(invoiceId).invoiceNumber,
+        amount: 10500,
+      });
     });
 
-    it('scenario 3b: does not fire when disabled', () => {
+    it('scenario 3b: records quotation -> pending for the default conversion', () => {
       const { userId, invoiceId } = setup();
 
-      convertQuotation(db, invoiceId, request(), userId, false);
+      convertQuotation(db, invoiceId, request(), userId);
 
-      expect(diaryEntries()).toHaveLength(0);
+      expect(diaryEntries()).toHaveLength(1);
+    });
+
+    it('is never retracted by a reverse change (conversion is not undoable)', () => {
+      const { userId, invoiceId } = setup();
+
+      convertQuotation(db, invoiceId, request({ status: 'paid' }), userId);
+      onInvoiceStatusChanged(db, invoiceId, 'X', 'paid', 'quotation', { userId, undoable: true });
+
+      expect(diaryEntries()).toHaveLength(2);
     });
 
     it('does not fire when the conversion is rejected', () => {
       const { userId, invoiceId } = setup();
 
-      expect(() => convertQuotation(db, invoiceId, request({ amount: 100 }), userId, true)).toThrow(
+      expect(() => convertQuotation(db, invoiceId, request({ amount: 100 }), userId)).toThrow(
         ItemizedSumExceedsInvoiceError,
       );
 
       expect(diaryEntries()).toHaveLength(0);
     });
 
-    it('uses N/A in the diary body when the invoice has no number', () => {
+    it('stores subjectLabel null when the invoice has no number', () => {
       const userId = insertUser();
       const invoiceId = insertInvoice(insertVendor(), { invoiceNumber: null });
 
-      convertQuotation(db, invoiceId, request(), userId, true);
+      convertQuotation(db, invoiceId, request(), userId);
 
-      expect(diaryEntries()[0]!.body).toContain('N/A');
+      const meta = JSON.parse(diaryEntries()[0]!.metadata!) as { subjectLabel: string | null };
+      expect(meta.subjectLabel).toBeNull();
+      expect(diaryEntries()[0]!.body).toBe('');
     });
   });
-
   // ─── Notes ──────────────────────────────────────────────────────────────────
 
   describe('notes', () => {
@@ -879,7 +902,6 @@ describe('quotationConversionService', () => {
               budgetLines: [{ id: line6k, itemizedAmount: 6300 }],
             }),
             userId,
-            true,
           );
         } catch (e) {
           caught = e;

@@ -36,7 +36,6 @@ export function convertQuotation(
   invoiceId: string,
   data: ConvertQuotationRequest,
   userId: string,
-  diaryAutoEvents: boolean = true,
 ): Invoice {
   const result = db.transaction(() => {
     // a. Load invoice
@@ -181,15 +180,18 @@ export function convertQuotation(
     return { invoiceNumber: newInvoiceNumber };
   });
 
-  // Diary event after commit
+  const converted = getInvoiceById(db, invoiceId);
+
+  // System event after commit (not undoable: conversion takes no part in A -> B -> A retraction)
   onInvoiceStatusChanged(
     db,
-    diaryAutoEvents,
     invoiceId,
-    result.invoiceNumber || 'N/A',
+    result.invoiceNumber ?? null,
     'quotation',
     data.status,
+    { userId },
+    { amount: converted.amount },
   );
 
-  return getInvoiceById(db, invoiceId);
+  return converted;
 }

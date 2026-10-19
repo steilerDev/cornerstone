@@ -69,7 +69,6 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   paperlessEnabled: false,
   photoStoragePath: '/app/data/photos',
   photoMaxFileSizeMb: 20,
-  diaryAutoEvents: false,
   diaryDraftRetentionDays: 30,
   currency: 'EUR',
   vatRate: 0.19,

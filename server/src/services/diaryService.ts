@@ -21,6 +21,7 @@ import {
   invoices,
   milestones,
   vendors,
+  subsidyPrograms,
 } from '../db/schema.js';
 import {
   NotFoundError,
@@ -55,6 +56,9 @@ import type {
   DiaryEntryType,
   DiarySourceEntityType,
   AreaSummary,
+  SystemEventMetadataV1,
+  AutomaticDiaryEntryType,
+  SystemEventRepeat,
 } from '@cornerstone/shared';
 import type { PaginationMeta } from '@cornerstone/shared';
 import {
@@ -71,6 +75,7 @@ import {
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_SEVERITIES,
 } from '@cornerstone/shared';
+import { listDisplayRows } from './systemEventDisplay.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 
@@ -291,17 +296,25 @@ function parseMetadata(metadata: string | null): DiaryEntryMetadata | null {
   }
 }
 
+/** A resolved source entity: live display name and whether the subject still exists. */
+interface ResolvedSourceEntity {
+  title: string | null;
+  /** true/false for work_item, invoice, milestone and subsidy_program; undefined otherwise. */
+  exists: boolean | undefined;
+}
+
 /**
- * Resolve the title of a source entity based on its type and ID.
- * Returns null if the entity type is null, the entity is not found, or the type is unknown.
+ * Resolve the live name of a source entity based on its type and ID, and whether it still exists.
+ * `title` is null when the type is null/unknown, the entity is gone, or it has no name
+ * (invoice without a number). `exists` is undefined for any other type or a null id.
  */
-function resolveSourceEntityTitle(
+function resolveSourceEntity(
   db: DbType,
   sourceEntityType: string | null,
   sourceEntityId: string | null,
-): string | null {
+): ResolvedSourceEntity {
   if (!sourceEntityType || !sourceEntityId) {
-    return null;
+    return { title: null, exists: undefined };
   }
 
   try {
@@ -312,7 +325,7 @@ function resolveSourceEntityTitle(
           .from(workItems)
           .where(eq(workItems.id, sourceEntityId))
           .get();
-        return result?.title ?? null;
+        return { title: result?.title ?? null, exists: result !== undefined };
       }
 
       case 'invoice': {
@@ -321,7 +334,7 @@ function resolveSourceEntityTitle(
           .from(invoices)
           .where(eq(invoices.id, sourceEntityId))
           .get();
-        return result?.invoiceNumber ?? null;
+        return { title: result?.invoiceNumber ?? null, exists: result !== undefined };
       }
 
       case 'milestone': {
@@ -330,15 +343,24 @@ function resolveSourceEntityTitle(
           .from(milestones)
           .where(eq(milestones.id, parseInt(sourceEntityId, 10)))
           .get();
-        return result?.title ?? null;
+        return { title: result?.title ?? null, exists: result !== undefined };
+      }
+
+      case 'subsidy_program': {
+        const result = db
+          .select({ name: subsidyPrograms.name })
+          .from(subsidyPrograms)
+          .where(eq(subsidyPrograms.id, sourceEntityId))
+          .get();
+        return { title: result?.name ?? null, exists: result !== undefined };
       }
 
       default:
-        return null;
+        return { title: null, exists: undefined };
     }
   } catch {
-    // If query fails, return null
-    return null;
+    // If query fails, resolve nothing
+    return { title: null, exists: undefined };
   }
 }
 
@@ -395,6 +417,11 @@ function toDiarySummary(
   sourceEntityTitle: string | null = null,
   sourceEntityArea: AreaSummary | null = null,
   db?: DbType,
+  extras: {
+    sourceEntityExists?: boolean;
+    repeat?: SystemEventRepeat | null;
+    hidden?: boolean;
+  } = {},
 ): DiaryEntrySummary {
   const metadata = parseMetadata(entry.metadata);
   // Denormalize vendorName for daily_log entries
@@ -425,6 +452,11 @@ function toDiarySummary(
     sourceEntityId: entry.sourceEntityId,
     sourceEntityArea,
     sourceEntityTitle,
+    ...(extras.sourceEntityExists !== undefined && {
+      sourceEntityExists: extras.sourceEntityExists,
+    }),
+    ...(extras.repeat ? { repeat: extras.repeat } : {}),
+    ...(extras.hidden ? { hidden: true } : {}),
     photoCount,
     createdBy: toDiaryUserSummary(user),
     createdAt: entry.createdAt,
@@ -578,7 +610,7 @@ function validateMetadata(
 export function listDiaryEntries(
   db: DbType,
   query: DiaryEntryListQuery,
-): { items: DiaryEntrySummary[]; pagination: PaginationMeta } {
+): { items: DiaryEntrySummary[]; pagination: PaginationMeta; hiddenCount: number } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
 
@@ -627,29 +659,36 @@ export function listDiaryEntries(
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Count total items
-  const countResult = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(diaryEntries)
-    .where(whereClause)
-    .get();
-  const totalItems = countResult?.count ?? 0;
+  // Apply the system event display rules (R1/R2, ADR-040 §6) and page the result.
+  const display = listDisplayRows(db, {
+    where: whereClause,
+    showHidden: query.showHidden === true,
+    page,
+    pageSize,
+  });
+  const totalItems = display.totalItems;
   const totalPages = Math.ceil(totalItems / pageSize);
+  const displayById = new Map(display.rows.map((r) => [r.id, r]));
 
-  // Fetch paginated entries with users and photo counts
-  const offset = (page - 1) * pageSize;
-  const entryRows = db
-    .select({
-      entry: diaryEntries,
-      user: users,
-    })
-    .from(diaryEntries)
-    .leftJoin(users, eq(users.id, diaryEntries.createdBy))
-    .where(whereClause)
-    .orderBy(desc(diaryEntries.entryDate), desc(diaryEntries.createdAt))
-    .limit(pageSize)
-    .offset(offset)
-    .all();
+  // Load the page rows with users, then restore the display order
+  const pageIds = display.rows.map((r) => r.id);
+  const loadedRows =
+    pageIds.length === 0
+      ? []
+      : db
+          .select({
+            entry: diaryEntries,
+            user: users,
+          })
+          .from(diaryEntries)
+          .leftJoin(users, eq(users.id, diaryEntries.createdBy))
+          .where(inArray(diaryEntries.id, pageIds))
+          .all();
+  const loadedById = new Map(loadedRows.map((row) => [row.entry.id, row]));
+  const entryRows = pageIds.flatMap((id) => {
+    const row = loadedById.get(id);
+    return row ? [row] : [];
+  });
 
   // Batch query photo counts
   const entryIds = entryRows.map((row) => row.entry.id);
@@ -674,24 +713,26 @@ export function listDiaryEntries(
 
   // Resolve source entity titles and areas for all entries
   const items = entryRows.map((row) => {
-    const sourceEntityTitle = resolveSourceEntityTitle(
-      db,
-      row.entry.sourceEntityType,
-      row.entry.sourceEntityId,
-    );
+    const source = resolveSourceEntity(db, row.entry.sourceEntityType, row.entry.sourceEntityId);
     const sourceEntityArea = resolveSourceEntityArea(
       db,
       row.entry.sourceEntityType,
       row.entry.sourceEntityId,
       areaMap,
     );
+    const displayRow = displayById.get(row.entry.id);
     return toDiarySummary(
       row.entry,
       row.user,
       photoCountMap.get(row.entry.id) ?? 0,
-      sourceEntityTitle,
+      source.title,
       sourceEntityArea,
       db,
+      {
+        sourceEntityExists: source.exists,
+        repeat: displayRow?.repeat ?? null,
+        hidden: displayRow?.hidden ?? false,
+      },
     );
   });
 
@@ -703,6 +744,7 @@ export function listDiaryEntries(
       totalItems,
       totalPages,
     },
+    hiddenCount: display.hiddenCount,
   };
 }
 
@@ -727,11 +769,7 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
 
   const photoCount = countEntryPhotos(db, id);
 
-  const sourceEntityTitle = resolveSourceEntityTitle(
-    db,
-    row.entry.sourceEntityType,
-    row.entry.sourceEntityId,
-  );
+  const source = resolveSourceEntity(db, row.entry.sourceEntityType, row.entry.sourceEntityId);
 
   const areaMap = loadAreaMap(db);
   const sourceEntityArea = resolveSourceEntityArea(
@@ -741,7 +779,9 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     areaMap,
   );
 
-  return toDiarySummary(row.entry, row.user, photoCount, sourceEntityTitle, sourceEntityArea, db);
+  return toDiarySummary(row.entry, row.user, photoCount, source.title, sourceEntityArea, db, {
+    sourceEntityExists: source.exists,
+  });
 }
 
 /**
@@ -940,11 +980,7 @@ export function updateDiaryEntry(
 
   const photoCount = countEntryPhotos(db, id);
 
-  const sourceEntityTitle = resolveSourceEntityTitle(
-    db,
-    row!.entry.sourceEntityType,
-    row!.entry.sourceEntityId,
-  );
+  const source = resolveSourceEntity(db, row!.entry.sourceEntityType, row!.entry.sourceEntityId);
 
   const areaMap = loadAreaMap(db);
   const sourceEntityArea = resolveSourceEntityArea(
@@ -954,7 +990,9 @@ export function updateDiaryEntry(
     areaMap,
   );
 
-  return toDiarySummary(row!.entry, row!.user, photoCount, sourceEntityTitle, sourceEntityArea, db);
+  return toDiarySummary(row!.entry, row!.user, photoCount, source.title, sourceEntityArea, db, {
+    sourceEntityExists: source.exists,
+  });
 }
 
 /**
@@ -1054,12 +1092,12 @@ export async function deleteDiaryEntry(
  */
 export function createAutomaticDiaryEntry(
   db: DbType,
-  entryType: string,
+  entryType: AutomaticDiaryEntryType,
   entryDate: string,
-  title: string,
-  body: string,
-  sourceEntityType: string | null,
+  metadata: SystemEventMetadataV1,
+  sourceEntityType: DiarySourceEntityType | null,
   sourceEntityId: string | null,
+  createdBy: string | null,
 ): string {
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -1067,16 +1105,16 @@ export function createAutomaticDiaryEntry(
   db.insert(diaryEntries)
     .values({
       id,
-      entryType: entryType as typeof diaryEntries.entryType._.data,
+      entryType,
       entryDate,
-      title,
-      body,
-      metadata: null,
+      title: null,
+      body: '',
+      metadata: JSON.stringify(metadata),
       status: 'saved',
       isAutomatic: true,
       sourceEntityType,
       sourceEntityId,
-      createdBy: null,
+      createdBy,
       createdAt: now,
       updatedAt: now,
     })

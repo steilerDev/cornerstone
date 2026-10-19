@@ -588,7 +588,8 @@
         "claimedDateRequired": "Einreichungsdatum ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
         "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
-      }
+      },
+      "paymentGone": "Diese Abschlagszahlung existiert nicht mehr."
     },
     "convertModal": {
       "title": "Angebot in Endrechnung umwandeln",
