@@ -111,6 +111,7 @@ const PATHS: Record<string, () => string> = {
   home: () => routeUrl('home'),
   dashboard: () => routeUrl('dashboard'),
   areas: () => routeUrl('areas'),
+  history: () => routeUrl('history'),
   companies: () => routeUrl('companies'),
   companyNew: () => routeUrl('companyNew'),
   company: () => routeUrl('company', { id: seed.vendorId }),
