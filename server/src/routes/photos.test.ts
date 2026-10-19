@@ -537,6 +537,8 @@ describe('Photo Routes', () => {
         'password',
       );
 
+      // A diary_entry upload target must exist as a manual entry (#2220)
+      const entryId = insertDiaryEntry({ status: 'draft' });
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
@@ -545,7 +547,7 @@ describe('Photo Routes', () => {
           contentType: 'image/jpeg',
         },
         { name: 'entityType', value: 'diary_entry' },
-        { name: 'entityId', value: 'entry-abc' },
+        { name: 'entityId', value: entryId },
       ]);
 
       await app.inject({
@@ -562,7 +564,7 @@ describe('Photo Routes', () => {
         'shot.jpg',
         'image/jpeg',
         'diary_entry',
-        'entry-abc',
+        entryId,
         userId,
         undefined, // caption
         undefined, // areaId
@@ -2131,6 +2133,86 @@ describe('Photo Routes', () => {
         const id = insertDiaryEntry({ status: 'saved', metadata: '{not json' });
         const response = await upload(cookie, id);
         expect(response.statusCode).toBe(201);
+      });
+
+      it('returns 404 NOT_FOUND for a diary entry that does not exist and writes nothing (#2220)', async () => {
+        const cookie = await login('target-missing@example.com');
+        const response = await upload(cookie, '44444444-4444-4444-4444-444444444444');
+        expect(response.statusCode).toBe(404);
+        expect(JSON.parse(response.body).error.code).toBe('NOT_FOUND');
+        expect(mockUploadPhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 403 IMMUTABLE_ENTRY for an automatic entry and writes nothing (#2220)', async () => {
+        const cookie = await login('target-auto@example.com');
+        const id = insertDiaryEntry({
+          isAutomatic: true,
+          entryType: 'work_item_status',
+          createdBy: null,
+          status: 'saved',
+        });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(403);
+        const err = JSON.parse(response.body) as ApiErrorResponse;
+        expect(err.error.code).toBe('IMMUTABLE_ENTRY');
+        expect(err.error.message).toBe('Automatic diary entries cannot be modified');
+        expect(mockUploadPhoto).not.toHaveBeenCalled();
+      });
+
+      it('reports the automatic reason when an automatic entry also carries signatures (#2220)', async () => {
+        const cookie = await login('target-auto-signed@example.com');
+        const id = insertDiaryEntry({
+          isAutomatic: true,
+          entryType: 'work_item_status',
+          createdBy: null,
+          status: 'saved',
+          metadata: signedMeta,
+        });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(403);
+        expect((JSON.parse(response.body) as ApiErrorResponse).error.message).toBe(
+          'Automatic diary entries cannot be modified',
+        );
+        expect(mockUploadPhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 201 for a manual draft entry (#2220)', async () => {
+        const cookie = await login('target-manual-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft' });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(201);
+        expect(mockUploadPhoto).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not check existence for non-diary entity types (#2220)', async () => {
+        const cookie = await login('target-nondiary@example.com');
+        const { body, contentType } = buildMultipartBody([
+          {
+            name: 'file',
+            value: Buffer.from('fake-jpeg-data'),
+            filename: 'photo.jpg',
+            contentType: 'image/jpeg',
+          },
+          { name: 'entityType', value: 'test' },
+          { name: 'entityId', value: '55555555-5555-5555-5555-555555555555' },
+        ]);
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/photos',
+          headers: { cookie, 'content-type': contentType },
+          payload: body,
+        });
+        expect(response.statusCode).toBe(201);
+      });
+
+      it('validates entityId length before the target check (#2220)', async () => {
+        const cookie = await login('target-order@example.com');
+        const response = await upload(cookie, 'x'.repeat(37));
+        expect(response.statusCode).toBe(400);
+        expect((JSON.parse(response.body) as ApiErrorResponse).error.message).toBe(
+          'Invalid entityType or entityId',
+        );
+        expect(mockUploadPhoto).not.toHaveBeenCalled();
       });
 
       it('does not apply the lock to non-diary entity types', async () => {

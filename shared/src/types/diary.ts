@@ -90,6 +90,10 @@ export interface DailyLogMetadata {
 export interface SiteVisitMetadata {
   inspectorName?: string | null;
   outcome?: DiaryInspectionOutcome | null;
+  /** HH:mm, same rules as DailyLogMetadata.workStart (#2220) */
+  workStart?: string | null;
+  /** HH:mm, strictly after workStart when both are set (#2220) */
+  workEnd?: string | null;
   signatures?: DiarySignatureEntry[] | null;
 }
 
@@ -217,8 +221,9 @@ export type DiaryEntryDetail = DiaryEntrySummary;
  * Request body for creating a manual diary entry.
  *
  * When `status` is omitted or `'saved'`, the server enforces full validation:
- * `body` must be a non-empty string, `entryDate` must be an ISO date, and
- * type-specific required metadata fields must be present.
+ * the entry needs a title, text or a photo (a new entry has no photos, so title
+ * or text), `entryDate` must be an ISO date, and type-specific required
+ * metadata fields must be present.
  *
  * When `status === 'draft'`, validation is relaxed (see ADR-022):
  * - `body` may be omitted or empty
@@ -226,7 +231,7 @@ export type DiaryEntryDetail = DiaryEntrySummary;
  * - Type-specific required fields are not enforced
  * - Metadata shape validation (enum values, types) is still enforced
  *
- * `entryType` is always required and immutable after creation.
+ * `entryType` is always required; it can change later only while the entry is a draft.
  */
 export interface CreateDiaryEntryRequest {
   entryType: ManualDiaryEntryType;
@@ -238,7 +243,7 @@ export interface CreateDiaryEntryRequest {
   /** Required when `status === 'saved'`. Optional for drafts (defaults to today). */
   entryDate?: string;
   title?: string | null;
-  /** Required when `status === 'saved'`. Optional/empty for drafts. */
+  /** Optional; a saved entry needs a title, text or a photo (#2220). */
   body?: string;
   metadata?: DiaryEntryMetadata | null;
 }
@@ -248,13 +253,15 @@ export interface CreateDiaryEntryRequest {
  *
  * Validation rules mirror create:
  * - If the entry is currently `status === 'draft'`, validation is relaxed.
- * - If the entry is `status === 'saved'`, full validation applies and the
- *   entry cannot be reverted to a draft (no `status` field accepted here).
+ * - If the entry is `status === 'saved'`, it needs a title, text or at least one photo, and it
+ *   cannot be reverted to a draft (no `status` field accepted here).
  *
  * Use `PATCH /api/diary-entries/:id/promote` to transition draft → saved.
- * `entryType` is immutable and cannot be changed via this endpoint.
+ * `entryType` may change only while the entry is a draft; on a saved entry it returns 400 VALIDATION_ERROR (#2220).
  */
 export interface UpdateDiaryEntryRequest {
+  /** Accepted only while the entry is a draft (#2220). */
+  entryType?: ManualDiaryEntryType;
   entryDate?: string;
   title?: string | null;
   body?: string;
@@ -303,3 +310,27 @@ export interface DiaryEntryListQuery {
 
 /** Paginated diary entry list response. */
 export type DiaryEntryListResponse = PaginatedResponse<DiaryEntrySummary>;
+
+// ─── Lookup (#2220) ───────────────────────────────────────────────────────────
+
+/** Query for GET /api/diary-entries/lookup: manual entries with the same date and title. */
+export interface DiaryEntryLookupQuery {
+  entryDate: string;
+  title: string;
+  /** Leave this entry out of the matches (the capture screen's own draft). */
+  excludeId?: string;
+}
+
+/** One entry matched by the lookup. */
+export interface DiaryEntryLookupMatch {
+  id: string;
+  entryType: ManualDiaryEntryType;
+  title: string;
+  status: DiaryEntryStatus;
+  photoCount: number;
+}
+
+/** Response of GET /api/diary-entries/lookup (at most 5 matches). */
+export interface DiaryEntryLookupResponse {
+  matches: DiaryEntryLookupMatch[];
+}

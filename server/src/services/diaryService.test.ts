@@ -323,13 +323,25 @@ describe('diaryService', () => {
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidEntryTypeError);
     });
 
-    it('throws ValidationError when body is empty string', () => {
+    it('throws ValidationError when body is blank and there is no title', () => {
       const request: CreateDiaryEntryRequest = {
         entryType: 'general_note',
         entryDate: '2026-03-14',
         body: '   ',
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
+    });
+
+    it('accepts a blank body when a title is present (#2220)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        title: 'Formwork check',
+        body: '   ',
+      };
+      const result = createDiaryEntry(db, testUserId, request);
+      expect(result.title).toBe('Formwork check');
+      expect(result.body).toBe('');
     });
 
     it('throws InvalidMetadataError for invalid daily_log metadata (weather: tornado)', () => {
@@ -818,13 +830,24 @@ describe('diaryService', () => {
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
     });
 
-    it('creating saved entry without body throws ValidationError', () => {
+    it('creating saved entry without body and without title throws ValidationError', () => {
       const request = {
         entryType: 'general_note' as const,
         entryDate: '2026-03-14',
-        // no body
+        // no body, no title
       } as CreateDiaryEntryRequest;
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
+    });
+
+    it('creating saved entry with a title but without body succeeds (#2220)', () => {
+      const request = {
+        entryType: 'general_note' as const,
+        entryDate: '2026-03-14',
+        title: 'Screed day 2',
+      } as CreateDiaryEntryRequest;
+      const result = createDiaryEntry(db, testUserId, request);
+      expect(result.status).toBe('saved');
+      expect(result.body).toBe('');
     });
 
     it('creating saved entry without entryDate throws ValidationError', () => {
@@ -840,17 +863,20 @@ describe('diaryService', () => {
   // ─── updateDiaryEntry draft relaxed validation (Story #1426) ───────────────
 
   describe('updateDiaryEntry draft vs saved validation', () => {
-    it('updates draft entry with body=""; succeeds (relaxed validation)', () => {
+    it('updates draft entry with body=""; clears the text (relaxed validation)', () => {
       const id = insertEntry({ status: 'draft', body: 'Initial body' });
       const result = updateDiaryEntry(db, id, { body: '' });
-      // Body stays as the old value when empty string is passed (falsy guard in update)
-      // The important thing is no ValidationError is thrown
-      expect(result).toBeDefined();
+      expect(result.body).toBe('');
     });
 
-    it('updating saved entry with body="" throws ValidationError', () => {
-      const id = insertEntry({ status: 'saved', body: 'Non-empty body' });
+    it('updating saved entry with body="" and no title or photo throws ValidationError', () => {
+      const id = insertEntry({ status: 'saved', title: null, body: 'Non-empty body' });
       expect(() => updateDiaryEntry(db, id, { body: '' })).toThrow(ValidationError);
+    });
+
+    it('updating saved entry with body="" succeeds when it has a title (#2220)', () => {
+      const id = insertEntry({ status: 'saved', title: 'Formwork check', body: 'Non-empty body' });
+      expect(updateDiaryEntry(db, id, { body: '' }).body).toBe('');
     });
   });
 
@@ -1659,11 +1685,16 @@ describe('diaryService', () => {
       );
     });
 
-    it('rejects a blank body', () => {
-      const id = draft({ body: '   ' });
+    it('rejects a draft with no title, no text and no photo', () => {
+      const id = draft({ title: null, body: '   ' });
       expect(() => promoteDiaryEntry(db, id, {})).toThrow(
-        'Entry body is required and cannot be empty',
+        'A saved entry needs a title, text or at least one photo',
       );
+    });
+
+    it('promotes a draft that has only a title (#2220)', () => {
+      const id = draft({ title: 'Formwork check', body: '' });
+      expect(promoteDiaryEntry(db, id, {}).status).toBe('saved');
     });
 
     it('site_visit requires inspectorName and outcome', () => {

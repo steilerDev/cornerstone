@@ -590,7 +590,7 @@ describe('Diary Routes', () => {
       expect(result.entryType).toBe('general_note');
     });
 
-    it('Scenario 20: POST without body and without status → 400 VALIDATION_ERROR (saved entries require body)', async () => {
+    it('Scenario 20: POST without body, title and status → 400 VALIDATION_ERROR (saved entries need a title, text or photo)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
 
       const response = await app.inject({
@@ -599,13 +599,27 @@ describe('Diary Routes', () => {
         headers: { cookie },
         payload: {
           entryType: 'general_note',
-          // No body, no status — should fail because saved mode requires body
+          // No body, no title, no status — saved mode needs a title, text or photo
         },
       });
 
       expect(response.statusCode).toBe(400);
       const error = response.json<ApiErrorResponse>();
       expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('Scenario 20b: POST with a title only and no status → 201 saved (#2220)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/diary-entries',
+        headers: { cookie },
+        payload: { entryType: 'general_note', entryDate: '2026-03-14', title: 'Formwork check' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json<DiaryEntrySummary>().status).toBe('saved');
     });
   });
 

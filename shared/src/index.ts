@@ -456,6 +456,9 @@ export type {
   PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
   DiaryEntryListResponse,
+  DiaryEntryLookupQuery,
+  DiaryEntryLookupMatch,
+  DiaryEntryLookupResponse,
 } from './types/diary.js';
 
 // Application Config
