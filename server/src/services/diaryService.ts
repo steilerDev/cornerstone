@@ -990,7 +990,9 @@ export function lookupDiaryEntries(
   const title = (query.title ?? '').trim();
   const folded = foldSearchText(title);
   if (title === '' || title.length > MAX_LOOKUP_TITLE_LENGTH || folded === '') {
-    throw new ValidationError('title must be 1-1000 characters', { field: 'title' });
+    throw new ValidationError('title must not be blank and at most 1000 characters', {
+      field: 'title',
+    });
   }
 
   const conditions: SQL[] = [
