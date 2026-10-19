@@ -871,10 +871,10 @@ describe('AreasPage', () => {
         message: 'Shed deleted',
         dedupeKey: 'area-delete-shed',
       });
-      await expectStatus('Shed deleted');
+      expect(status()).not.toHaveTextContent('Shed deleted');
     });
 
-    it('names a sub-area by its full path in the title, announcement and toast', async () => {
+    it('names a sub-area by its full path in the title and toast', async () => {
       const user = userEvent.setup();
       await renderReady();
       mockFetchAreasWithCounts.mockResolvedValue(TREE.filter((a) => a.id !== 'upper'));
@@ -887,7 +887,7 @@ describe('AreasPage', () => {
 
       await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
       expect(mockShowUndoToast.mock.calls[0]![0].message).toBe('House › Upper floor deleted');
-      await expectStatus('House › Upper floor deleted');
+      expect(status()).not.toHaveTextContent('deleted');
     });
 
     it('focuses the next sibling after a delete', async () => {

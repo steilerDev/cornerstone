@@ -33,12 +33,26 @@
   user-select: none;
 }
 
-.item[data-drop='before'] {
-  box-shadow: inset 0 2px 0 var(--color-primary);
+.item {
+  position: relative;
 }
 
-.item[data-drop='after'] {
-  box-shadow: inset 0 -2px 0 var(--color-primary);
+/* Drop line: above the row, never covered by its background */
+.item[data-drop]::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+  pointer-events: none;
+}
+
+.item[data-drop='before']::after {
+  top: 0;
+}
+
+.item[data-drop='after']::after {
+  bottom: 0;
 }
 
 /* Phone: line 1 = main | actions, line 2 = the cells under the name */

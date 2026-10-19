@@ -60,7 +60,6 @@ const areaIdSchema = {
   },
 };
 
-// JSON schema for GET /api/areas (list areas with optional search)
 // JSON schema for PATCH /api/areas/reorder: the shared reorder body plus the parent whose
 // children are reordered (null = top level)
 const reorderBase = buildReorderSchema();
@@ -75,6 +74,7 @@ const reorderAreasSchema = {
   },
 };
 
+// JSON schema for GET /api/areas (list areas with optional search)
 const listAreasSchema = {
   querystring: {
     type: 'object',

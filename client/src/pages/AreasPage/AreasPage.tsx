@@ -300,7 +300,6 @@ export function AreasPage() {
       const token = await remove(id);
       pendingFocusRef.current = { kind: 'rowMenu', ids: neighbours };
       setDeleteState(null);
-      announce(t('index.toast.deleted', { name: path }));
       showUndoToast({
         message: t('index.toast.deleted', { name: path }),
         dedupeKey: `area-delete-${id}`,

@@ -404,7 +404,7 @@ export function updateArea(db: DbType, id: string, data: UpdateAreaRequest): Are
 
   // Sibling-name duplicate check: runs when the name or the parent changes
   if (data.name !== undefined || data.parentId !== undefined) {
-    const effectiveName = (updates.name ?? existing.name) as string;
+    const effectiveName = updates.name ?? existing.name;
     const effectiveParentId = data.parentId !== undefined ? data.parentId : existing.parentId;
 
     const duplicate = db

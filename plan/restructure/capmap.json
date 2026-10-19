@@ -3945,7 +3945,7 @@
   "PLT-091": {
     "name": "Switch between the reference-data tabs on the Manage page (deep-linkable)",
     "from": "/settings/manage > inner tabs: Household | Areas (default) | Trades | Orientations | Budget Categories | Household Item Categories (URL ?tab=household|areas|trades|orientations|budget-categories|hi-categories)",
-    "to": "Settings > Project setup (/settings/manage, URL kept; one page with sections House, Cost categories, Purchase categories, Photo orientations and 'Managed on other pages' rows for Trades and Areas (Areas row opens /areas once served; until then an interim Areas card); no index column; ?tab=x scrolls to #x, ?tab=areas -> /areas once served; no third tab level)",
+    "to": "Settings > Project setup (/settings/manage, URL kept; one page with sections House, Cost categories, Purchase categories, Photo orientations and 'Managed on other pages' rows for Trades and Areas (Areas row opens /areas); no index column; ?tab=x scrolls to #x, ?tab=areas -> /areas; no third tab level)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Project setup sections reachable by ?tab= anchors; areas via /areas.",

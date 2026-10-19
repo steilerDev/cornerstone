@@ -48,6 +48,11 @@
   font-size: var(--font-size-base);
 }
 
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
 .searchClear {
   position: absolute;
   inset-block: 0;
