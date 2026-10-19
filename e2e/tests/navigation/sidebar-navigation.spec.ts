@@ -51,6 +51,7 @@ const SECTION_LANDINGS = [
   { id: 'money', path: () => routeUrl('budgetOverview') },
   { id: 'companies', path: () => routeUrl('companies') },
   { id: 'areas', path: () => routeUrl('areas') },
+  { id: 'history', path: () => routeUrl('history') },
   { id: 'settings', path: () => routeUrl('settingsManage') },
 ] as const;
 
