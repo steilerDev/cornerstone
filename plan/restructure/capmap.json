@@ -3804,7 +3804,7 @@
     "to": "Settings > Users (admin only)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays). #2204: h1 \"Users\", tab title \"Users · Settings · ‹house›\"."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays). #2204: h1 \"Users\", tab title \"Users · Settings · ‹house›\". #2219: the Status chip shows Locked (warning pair) with the unlock time; member role-guard E2E covers every admin URL, derived from the route map."
   },
   "PLT-073": {
     "name": "Search users by name or email",
@@ -3820,7 +3820,7 @@
     "to": "Settings > Users (admin only) > filters Role, Status",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the Status filter gains Locked (Active / Locked / Deactivated; Active excludes locked accounts)."
   },
   "PLT-075": {
     "name": "Sort users by name, email, role, member-since date or status",
@@ -3828,7 +3828,7 @@
     "to": "Settings > Users (admin only) > sort",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: sorting by Status works (Active, Locked, Deactivated); it was a no-op before."
   },
   "PLT-077": {
     "name": "Create a local user with a password",
@@ -3852,7 +3852,7 @@
     "to": "Settings > Users (admin only) > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2219: the row ⋯ is the shared OverflowMenu (menu roles, arrow keys, 44px trigger, focus return)."
   },
   "PLT-080": {
     "name": "Promote a member to admin or demote an admin, without losing the last admin",
@@ -3868,7 +3868,7 @@
     "to": "Settings > Users (admin only) > row ⋯ > Deactivate (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Users › Deactivate (ConfirmDialog, no list)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Users › Deactivate (ConfirmDialog, no list). #2219: the row ⋯ is the shared OverflowMenu (menu roles, arrow keys, 44px trigger, focus return)."
   },
   "PLT-082": {
     "name": "See how each user signs in (Local, Local + OIDC, OIDC, OIDC awaiting first sign-in)",
@@ -3884,7 +3884,7 @@
     "to": "Settings > Users (admin only) > row ⋯ > Unlock (shown when locked)",
     "change": "promoted",
     "gate": "none",
-    "note": "API-only today."
+    "note": "#2219: built. Settings › Users › row ⋯ › Unlock, shown only while the account is locked (Status chip 'Locked' with 'Until ‹time›'); no confirmation; success toast; the list API returns lockedUntil to admins only."
   },
   "PLT-084": {
     "name": "See whether automatic backups are scheduled, when the last one ran (and if it succeeded) and the next two run times",

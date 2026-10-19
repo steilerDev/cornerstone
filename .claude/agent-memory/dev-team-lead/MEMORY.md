@@ -54,4 +54,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Server-search picker specs](server-search-picker-specs.md) — capped-list → SearchPicker: focus-to-body on select, entity filter vs portaled listbox, enum vs eq, baseline sim
 - [Integrations page specs](integrations-page-specs.md) — statusVocabulary leaves = glossary terms, new components/ dir = baseline rise, NavAnchor uncounted, admin-only fields on member screens, userinfo in URLs
 - [Auth gate specs](auth-gate-specs.md) — /auth/me never 401s; only 401 or user:null signs out; no catch-alls; refresh keeps user; fail-closed; abort E2E recipe
+- [Users unlock specs](users-unlock-specs.md) — GET /api/users is member-visible, union-key ns closed list, portaled menu vs row POMs, dead sortKey, closure≠per-page primary
 - [Areas index specs](areas-index-specs.md) — sharedComponents counts only X/X.tsx, dialog-file exports leak primaries, routemap.json has no stage, delete Undo is a contract change, contract 19 has no blockers

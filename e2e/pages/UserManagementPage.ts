@@ -206,17 +206,88 @@ export class UserManagementPage {
     return null;
   }
 
+  /**
+   * The visible rendering of this user: the table row (>= 768px) or the mobile card. DataTable
+   * mounts both and hides one with CSS, so the scope keeps only the visible one.
+   */
+  rowScope(email: string): Locator {
+    const tableRow = this.table.locator('tbody tr').filter({ hasText: email });
+    const card = this.page.locator('[class*="cardHeader"]').filter({ hasText: email });
+    return tableRow.or(card).filter({ visible: true });
+  }
+
+  /** The row menu trigger ("Actions for ‹name›") of the visible rendering. */
+  rowMenuTrigger(email: string): Locator {
+    return this.rowScope(email).getByTestId(/^user-menu-button-/);
+  }
+
+  /** The open row menu. OverflowMenu portals it to <body>, so it is never inside the row. */
+  get rowMenu(): Locator {
+    return this.page.getByRole('menu');
+  }
+
+  /** An item of the open row menu, by its visible name. */
+  menuItem(name: string): Locator {
+    return this.rowMenu.getByRole('menuitem', { name, exact: true });
+  }
+
+  /** Opens the row menu with a click and waits for it. */
+  async openRowMenu(email: string): Promise<void> {
+    const trigger = this.rowMenuTrigger(email);
+    await trigger.waitFor({ state: 'visible' });
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await this.rowMenu.waitFor({ state: 'visible' });
+  }
+
+  /** Status cell of the visible rendering (table cell, or the card's Status row). */
+  statusCell(email: string): Locator {
+    // Status is the last data column; the actions menu column follows it
+    const tableCell = this.table
+      .locator('tbody tr')
+      .filter({ hasText: email })
+      .locator('td:nth-last-child(2)');
+    const cardValue = this.page
+      .locator('[class*="cardHeader"]')
+      .filter({ hasText: email })
+      .locator('[class*="cardRow"]')
+      .filter({ hasText: 'Status' })
+      .locator('[class*="cardValue"]');
+    return tableCell.or(cardValue).filter({ visible: true });
+  }
+
+  /** The "Until …" line under a locked badge. */
+  lockedUntilText(email: string): Locator {
+    return this.statusCell(email).getByText(/^Until /);
+  }
+
+  /**
+   * Status column filter (table only; the phone card list has no column headers): opens the
+   * popover, ticks `label` and closes it again.
+   */
+  async filterStatus(label: string): Promise<void> {
+    await this.page.getByRole('button', { name: 'Filter by Status' }).click();
+    const option = this.page.getByRole('checkbox', { name: label, exact: true });
+    await option.waitFor({ state: 'visible' });
+    await option.check();
+    await this.page.keyboard.press('Escape');
+    await option.waitFor({ state: 'hidden' });
+  }
+
+  /** Sorts by the Status column (table only). */
+  async sortByStatus(): Promise<void> {
+    await this.table.locator('thead th').filter({ hasText: 'Status' }).click();
+  }
+
+  /** Opens the row menu and clicks Unlock (the caller asserts the toast). */
+  async unlock(email: string): Promise<void> {
+    await this.openRowMenu(email);
+    await this.menuItem('Unlock').click();
+  }
+
   async openEditModal(email: string): Promise<void> {
-    const row = await this.getUserRow(email);
-    if (!row) {
-      throw new Error(`User with email ${email} not found`);
-    }
-    // DataTable: actions are behind a ⋮ menu — open it first
-    const menuButton = row.getByTestId(/^user-menu-button-/);
-    await menuButton.scrollIntoViewIfNeeded();
-    await menuButton.click();
-    const editButton = row.getByTestId(/^user-edit-/);
-    await editButton.click();
+    await this.openRowMenu(email);
+    await this.menuItem('Edit').click();
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
 
@@ -238,16 +309,8 @@ export class UserManagementPage {
   }
 
   async openDeactivateModal(email: string): Promise<void> {
-    const row = await this.getUserRow(email);
-    if (!row) {
-      throw new Error(`User with email ${email} not found`);
-    }
-    // DataTable: actions are behind a ⋮ menu — open it first
-    const menuButton = row.getByTestId(/^user-menu-button-/);
-    await menuButton.scrollIntoViewIfNeeded();
-    await menuButton.click();
-    const deactivateButton = row.getByTestId(/^user-deactivate-/);
-    await deactivateButton.click();
+    await this.openRowMenu(email);
+    await this.menuItem('Deactivate').click();
     await this.deactivateModalHeading.waitFor({ state: 'visible' });
   }
 

@@ -234,7 +234,7 @@ export function DavAccessCard() {
             ) : (
               <button
                 type="button"
-                className={styles.primaryButton}
+                className={styles.secondaryButton}
                 data-testid="account-sync-generate"
                 aria-disabled={isGenerating ? 'true' : undefined}
                 onClick={() => void handleGenerate()}

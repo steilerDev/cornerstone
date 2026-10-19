@@ -307,6 +307,24 @@ describe('Search Routes', () => {
       expect(body.groups[0]!.total).toBe(2);
     });
 
+    it('finds Fussboden and Fußboden titles alike through the route', async () => {
+      const now = new Date().toISOString();
+      const insert = (id: string, title: string) =>
+        app.db
+          .insert(workItems)
+          .values({ id, title, status: 'not_started', createdAt: now, updatedAt: now })
+          .run();
+      insert('f1', 'Fußboden zq7token');
+      insert('f2', 'Fussboden zq7token');
+      for (const q of ['fussboden', 'fußboden', 'Fußboden', 'FUSSBODEN']) {
+        const body = (
+          await get(`/api/search?q=${encodeURIComponent(q)}&types=work_item`)
+        ).json<SearchResponse>();
+        const ids = body.groups[0]!.items.map((i) => i.id).sort();
+        expect(ids).toEqual(['f1', 'f2']);
+      }
+    });
+
     it('applies the default limit of 5 and the explicit limit', async () => {
       const now = new Date().toISOString();
       for (let i = 0; i < 8; i++) {

@@ -514,5 +514,6 @@
     "notSetUp": "Not set up"
   },
   "backupRun": { "succeeded": "Succeeded", "failed": "Failed" },
+  "userAccountStatus": { "active": "Active", "locked": "Locked", "deactivated": "Deactivated" },
   "integrationsLink": { "label": "See Integrations" }
 }

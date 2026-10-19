@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserListItem } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -10,12 +10,23 @@ import type { DataTableSurface } from '../../components/DataTable/dataTableTestI
 import { Badge } from '../../components/Badge/Badge.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
+import type { OverflowMenuItem } from '../../components/OverflowMenu/OverflowMenu.js';
+import { useToast } from '../../components/Toast/ToastContext.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import {
+  USER_ACCOUNT_STATUSES,
+  isSameLocalDay,
+  userAccountStatus,
+} from '../../lib/userAccountStatus.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import {
   listUsers,
   adminUpdateUser,
   createUser,
   deactivateUser,
+  unlockUser,
   type ListUsersResponse,
   type AdminUpdateUserPayload,
   type CreateUserPayload,
@@ -67,24 +78,32 @@ const EMPTY_CREATE_FORM: CreateFormData = {
 /** Length in Unicode code points (matches server-side AJV counting). */
 const codePoints = (value: string): number => Array.from(value).length;
 
+/** DataTable enum filters are multi-select and arrive comma-joined (e.g. `active,locked`). */
+const splitFilterValues = (value: string | undefined): string[] =>
+  value ? value.split(',').filter(Boolean) : [];
+
 export function UserManagementPage() {
-  const { formatDate } = useFormatters();
+  const { formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const pageTitle = tCommon('navigation.users');
   useDocumentTitle(pageTitle);
   const { user: currentUser, oidcEnabled } = useAuth();
+  const { showToast } = useToast();
+  const statusBadges = useStatusBadgeVariants();
+  const accountSet = I18N_UNION_KEYS.userAccountStatus;
 
   const isAdmin = currentUser?.role === 'admin';
 
   // Data state
-  const [users, setUsers] = useState<UserResponse[]>([]);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [loadedAt, setLoadedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
   // Edit modal state
-  const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
+  const [editingUser, setEditingUser] = useState<UserListItem | null>(null);
   const [editFormData, setEditFormData] = useState<EditFormData>({
     displayName: '',
     email: '',
@@ -107,12 +126,17 @@ export function UserManagementPage() {
   const pendingFieldFocusRef = useRef<string | null>(null);
 
   // Deactivate modal state
-  const [deactivatingUser, setDeactivatingUser] = useState<UserResponse | null>(null);
+  const [deactivatingUser, setDeactivatingUser] = useState<UserListItem | null>(null);
   const [deactivateError, setDeactivateError] = useState<string>('');
   const [isDeactivating, setIsDeactivating] = useState(false);
 
-  // Action menu state
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  // The row menu trigger that opened the deactivate confirm (Cancel returns focus there)
+  const deactivateReturnRef = useRef<HTMLElement | null>(null);
+
+  // Unlock state
+  const [unlockingIds, setUnlockingIds] = useState<ReadonlySet<string>>(() => new Set());
+  // Where focus goes once an unlock settles: the row's menu trigger, or the search field
+  const unlockFocusRef = useRef<{ testId: string } | 'search' | null>(null);
 
   // Table state
   const [tableState, setTableState] = useState<TableState>(() => ({
@@ -150,6 +174,7 @@ export function UserManagementPage() {
       try {
         const response: ListUsersResponse = await listUsers();
         setUsers(response.users);
+        setLoadedAt(new Date().toISOString());
       } catch (err) {
         if (err instanceof ApiClientError) {
           setError(translateApiError(err.error.code, tErrors));
@@ -171,6 +196,7 @@ export function UserManagementPage() {
     try {
       const response: ListUsersResponse = await listUsers();
       setUsers(response.users);
+      setLoadedAt(new Date().toISOString());
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -182,7 +208,8 @@ export function UserManagementPage() {
     }
   };
 
-  const openEditModal = (user: UserResponse) => {
+  const openEditModal = (user: UserListItem) => {
+    if (user.deactivatedAt) return;
     setEditingUser(user);
     setEditFormData({
       displayName: user.displayName,
@@ -191,7 +218,6 @@ export function UserManagementPage() {
     });
     setEditErrors({});
     setEditApiError('');
-    setActiveMenuId(null);
   };
 
   const closeEditModal = () => {
@@ -258,7 +284,7 @@ export function UserManagementPage() {
       const updatedUser = await adminUpdateUser(editingUser.id, payload);
 
       // Update users list
-      setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+      setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u)));
       closeEditModal();
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -380,11 +406,57 @@ export function UserManagementPage() {
     }
   };
 
-  const openDeactivateModal = (user: UserResponse) => {
+  const openDeactivateModal = (user: UserListItem, surface: DataTableSurface) => {
+    deactivateReturnRef.current = document.querySelector<HTMLElement>(
+      `[data-testid="${dataTableTestId('user-menu-button', user.id, surface)}"]`,
+    );
     setDeactivatingUser(user);
     setDeactivateError('');
-    setActiveMenuId(null);
   };
+
+  const handleUnlock = async (user: UserListItem, surface: DataTableSurface) => {
+    if (unlockingIds.has(user.id)) return;
+    unlockFocusRef.current = {
+      testId: dataTableTestId('user-menu-button', user.id, surface),
+    };
+    setUnlockingIds((prev) => new Set(prev).add(user.id));
+    try {
+      await unlockUser(user.id);
+      // The row leaves an active status filter that no longer matches its new (Active) status
+      const statusSelected = splitFilterValues(tableState.filters.get('status')?.value);
+      if (statusSelected.length > 0 && !statusSelected.includes('active')) {
+        unlockFocusRef.current = 'search';
+      }
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, lockedUntil: null } : u)));
+      showToast('success', t('userManagement.unlock.success', { name: user.displayName }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        showToast('error', translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        showToast('error', tCommon('requestErrors.network'));
+      } else {
+        showToast('error', t('userManagement.unlock.error', { name: user.displayName }));
+      }
+    } finally {
+      setUnlockingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(user.id);
+        return next;
+      });
+    }
+  };
+
+  // Once an unlock settles (success or error), return focus: OverflowMenu does not restore it
+  useEffect(() => {
+    const target = unlockFocusRef.current;
+    if (!target || unlockingIds.size > 0) return;
+    unlockFocusRef.current = null;
+    if (target === 'search') {
+      document.querySelector<HTMLInputElement>('[data-page-search]')?.focus();
+    } else {
+      document.querySelector<HTMLElement>(`[data-testid="${target.testId}"]`)?.focus();
+    }
+  }, [users, unlockingIds]);
 
   const closeDeactivateModal = () => {
     setDeactivatingUser(null);
@@ -429,20 +501,6 @@ export function UserManagementPage() {
     [t],
   );
 
-  const statusVariants = useMemo(
-    (): BadgeVariantMap => ({
-      active: {
-        label: t('userManagement.status.active')!,
-        className: badgeStyles.userActive!,
-      },
-      deactivated: {
-        label: t('userManagement.status.deactivated')!,
-        className: badgeStyles.userDeactivated!,
-      },
-    }),
-    [t],
-  );
-
   // Client-side filtering and sorting
   const filtered = useMemo(() => {
     let result = [...users];
@@ -458,19 +516,15 @@ export function UserManagementPage() {
     }
 
     // Role filter
-    const roleFilter = tableState.filters.get('role')?.value;
-    if (roleFilter) {
-      result = result.filter((u) => u.role === roleFilter);
+    const roleFilter = splitFilterValues(tableState.filters.get('role')?.value);
+    if (roleFilter.length > 0) {
+      result = result.filter((u) => roleFilter.includes(u.role));
     }
 
     // Status filter
-    const statusFilter = tableState.filters.get('status')?.value;
-    if (statusFilter) {
-      result = result.filter((u) => {
-        if (statusFilter === 'active') return !u.deactivatedAt;
-        if (statusFilter === 'deactivated') return !!u.deactivatedAt;
-        return true;
-      });
+    const statusFilter = splitFilterValues(tableState.filters.get('status')?.value);
+    if (statusFilter.length > 0) {
+      result = result.filter((u) => statusFilter.includes(userAccountStatus(u)));
     }
 
     // Sorting
@@ -488,6 +542,9 @@ export function UserManagementPage() {
         } else if (tableState.sortBy === 'role') {
           aVal = a.role;
           bVal = b.role;
+        } else if (tableState.sortBy === 'deactivatedAt') {
+          aVal = USER_ACCOUNT_STATUSES.indexOf(userAccountStatus(a));
+          bVal = USER_ACCOUNT_STATUSES.indexOf(userAccountStatus(b));
         } else if (tableState.sortBy === 'createdAt') {
           aVal = new Date(a.createdAt).getTime();
           bVal = new Date(b.createdAt).getTime();
@@ -504,7 +561,7 @@ export function UserManagementPage() {
 
   // Column definitions
   const columns = useMemo(
-    (): ColumnDef<UserResponse>[] => [
+    (): ColumnDef<UserListItem>[] => [
       {
         key: 'displayName',
         label: t('userManagement.tableHeaders.name')!,
@@ -566,77 +623,81 @@ export function UserManagementPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          { value: 'active', label: t('userManagement.status.active') },
-          { value: 'deactivated', label: t('userManagement.status.deactivated') },
-        ],
+        enumOptions: USER_ACCOUNT_STATUSES.map((st) => ({
+          value: st,
+          label: tCommon(accountSet.key(st)),
+        })),
         defaultVisible: true,
-        render: (u) => (
-          <Badge variants={statusVariants} value={!u.deactivatedAt ? 'active' : 'deactivated'} />
-        ),
+        render: (u) => {
+          const status = userAccountStatus(u);
+          return (
+            <span className={styles.statusCell}>
+              <Badge variants={statusBadges.userAccount} value={status} />
+              {status === 'locked' && u.lockedUntil && (
+                <span className={styles.lockedUntil}>
+                  {t('userManagement.lockedUntil', {
+                    when:
+                      loadedAt && isSameLocalDay(u.lockedUntil, loadedAt)
+                        ? formatTime(u.lockedUntil)
+                        : formatDateTime(u.lockedUntil),
+                  })}
+                </span>
+              )}
+            </span>
+          );
+        },
       },
     ],
-    [t, formatDate, roleVariants, statusVariants],
+    [
+      t,
+      tCommon,
+      formatDate,
+      formatTime,
+      formatDateTime,
+      roleVariants,
+      statusBadges,
+      accountSet,
+      loadedAt,
+    ],
   );
 
-  // Close action menu on outside click and Escape key
-  useEffect(() => {
-    if (!activeMenuId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(`.${styles.actionsMenu}`)) {
-        setActiveMenuId(null);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [activeMenuId]);
-
   // Render actions menu
-  const renderActions = (user: UserResponse, surface: DataTableSurface) => {
+  const renderActions = (user: UserListItem, surface: DataTableSurface) => {
     const isActive = !user.deactivatedAt;
+    const items: OverflowMenuItem[] = [
+      {
+        id: 'edit',
+        label: t('userManagement.actions.edit'),
+        onClick: () => openEditModal(user),
+        ariaDisabled: !isActive,
+        testId: dataTableTestId('user-edit', user.id, surface),
+      },
+    ];
+    if (userAccountStatus(user) === 'locked') {
+      items.push({
+        id: 'unlock',
+        label: t('userManagement.actions.unlock'),
+        onClick: () => void handleUnlock(user, surface),
+        ariaDisabled: unlockingIds.has(user.id),
+        testId: dataTableTestId('user-unlock', user.id, surface),
+      });
+    }
+    if (isActive) {
+      items.push({
+        id: 'deactivate',
+        label: t('userManagement.actions.deactivate'),
+        variant: 'destructive',
+        onClick: () => openDeactivateModal(user, surface),
+        testId: dataTableTestId('user-deactivate', user.id, surface),
+      });
+    }
     return (
-      <div className={styles.actionsMenu}>
-        <button
-          type="button"
-          className={styles.menuButton}
-          onClick={() => setActiveMenuId(activeMenuId === user.id ? null : user.id)}
-          aria-label={t('userManagement.actions.menuAriaLabel')}
-          data-testid={dataTableTestId('user-menu-button', user.id, surface)}
-        >
-          ⋮
-        </button>
-        {activeMenuId === user.id && (
-          <div className={styles.menuDropdown}>
-            <button
-              type="button"
-              className={styles.menuItem}
-              onClick={() => openEditModal(user)}
-              disabled={!isActive}
-              data-testid={dataTableTestId('user-edit', user.id, surface)}
-            >
-              {t('userManagement.actions.edit')}
-            </button>
-            {isActive && (
-              <button
-                type="button"
-                className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                onClick={() => openDeactivateModal(user)}
-                data-testid={dataTableTestId('user-deactivate', user.id, surface)}
-              >
-                {t('userManagement.actions.deactivate')}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <OverflowMenu
+        usePortal
+        items={items}
+        triggerAriaLabel={t('userManagement.actions.menuAriaLabel', { name: user.displayName })}
+        data-testid={dataTableTestId('user-menu-button', user.id, surface)}
+      />
     );
   };
 
@@ -658,7 +719,7 @@ export function UserManagementPage() {
         ) : undefined
       }
     >
-      <DataTable<UserResponse>
+      <DataTable<UserListItem>
         pageKey="users"
         searchEverywhere={false}
         columns={columns}
@@ -977,6 +1038,7 @@ export function UserManagementPage() {
           error={deactivateError || null}
           onConfirm={() => void handleDeactivateConfirm()}
           onCancel={closeDeactivateModal}
+          returnFocusRef={deactivateReturnRef}
           testIdPrefix="user-deactivate"
         />
       )}

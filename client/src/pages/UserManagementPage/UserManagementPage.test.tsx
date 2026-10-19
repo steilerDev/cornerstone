@@ -5,14 +5,14 @@
  * Component tests for UserManagementPage.tsx
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserListItem } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSettings from '../../i18n/en/settings.json';
@@ -47,18 +47,22 @@ const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockAdminUpdateUser = jest.fn<typeof UsersApiTypes.adminUpdateUser>();
 const mockDeactivateUser = jest.fn<typeof UsersApiTypes.deactivateUser>();
 const mockCreateUser = jest.fn<typeof UsersApiTypes.createUser>();
+const mockUnlockUser = jest.fn<typeof UsersApiTypes.unlockUser>();
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
   adminUpdateUser: mockAdminUpdateUser,
   createUser: mockCreateUser,
   deactivateUser: mockDeactivateUser,
+  unlockUser: mockUnlockUser,
   getProfile: jest.fn(),
   updateProfile: jest.fn(),
   changePassword: jest.fn(),
 }));
 
 // Mock formatters
+const mockFormatTime = jest.fn((d: string | null | undefined) => (d ? `TIME(${d})` : '—'));
+const mockFormatDateTime = jest.fn((d: string | null | undefined) => (d ? `DATETIME(${d})` : '—'));
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDayRange: (start: Date, end: Date) =>
     `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
@@ -66,6 +70,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
     formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,
     formatPercent: (n: number) => `${n}%`,
+    formatTime: mockFormatTime,
+    formatDateTime: mockFormatDateTime,
   }),
   formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
   formatCurrency: (n: number) => `€${n.toFixed(2)}`,
@@ -74,7 +80,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
 
-const makeUser = (overrides: Partial<UserResponse> = {}): UserResponse => ({
+const makeUser = (overrides: Partial<UserListItem> = {}): UserListItem => ({
   id: 'user-1',
   displayName: 'Alice Admin',
   email: 'alice@example.com',
@@ -118,6 +124,10 @@ describe('UserManagementPage', () => {
     mockAdminUpdateUser.mockReset();
     mockDeactivateUser.mockReset();
     mockCreateUser.mockReset();
+    mockUnlockUser.mockReset();
+    mockUnlockUser.mockResolvedValue(undefined);
+    mockFormatTime.mockClear();
+    mockFormatDateTime.mockClear();
     mockListPreferencesUsers.mockReset();
     mockListPreferencesUsers.mockResolvedValue([]);
     mockUseAuth.mockReturnValue({
@@ -495,7 +505,7 @@ describe('UserManagementPage', () => {
       fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
 
       const editBtn = screen.getByTestId('user-edit-user-1');
-      expect(editBtn).toBeDisabled();
+      expect(editBtn).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('does not show deactivate button for deactivated user', async () => {
@@ -854,7 +864,7 @@ describe('UserManagementPage', () => {
   });
 
   describe('deactivate dialog (#2209)', () => {
-    async function openDialog(overrides: Partial<UserResponse> = {}) {
+    async function openDialog(overrides: Partial<UserListItem> = {}) {
       mockListUsers.mockResolvedValue({
         users: [makeUser({ id: 'user-1', displayName: 'Alice Admin', ...overrides })],
       });
@@ -1465,9 +1475,9 @@ describe('UserManagementPage', () => {
     });
 
     it('disables the form while creating', async () => {
-      let resolveCreate: (u: UserResponse) => void = () => {};
+      let resolveCreate: (u: UserListItem) => void = () => {};
       mockCreateUser.mockImplementationOnce(
-        () => new Promise<UserResponse>((resolve) => (resolveCreate = resolve)),
+        () => new Promise<UserListItem>((resolve) => (resolveCreate = resolve)),
       );
       await openCreate();
       fillValidLocal();
@@ -1636,6 +1646,450 @@ describe('UserManagementPage', () => {
         ).toBeInTheDocument();
       });
       expect(mockAdminUpdateUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('account status, lock and unlock (#2219)', () => {
+    const NOW = new Date(2026, 5, 15, 9, 0).toISOString();
+    const SAME_DAY_LATER = new Date(2026, 5, 15, 9, 30).toISOString();
+    const NEXT_DAY = new Date(2026, 5, 16, 9, 30).toISOString();
+
+    const alice = () => makeUser({ id: 'u-active', displayName: 'Alice Active' });
+    const locked = (overrides: Partial<UserListItem> = {}) =>
+      makeUser({
+        id: 'u-locked',
+        displayName: 'Lena Locked',
+        email: 'lena@example.com',
+        role: 'member',
+        lockedUntil: SAME_DAY_LATER,
+        ...overrides,
+      });
+    const deactivated = (overrides: Partial<UserListItem> = {}) =>
+      makeUser({
+        id: 'u-off',
+        displayName: 'Dana Deactivated',
+        email: 'dana@example.com',
+        deactivatedAt: '2026-02-01T00:00:00.000Z',
+        ...overrides,
+      });
+
+    async function renderWith(users: UserListItem[]) {
+      jest.useFakeTimers({ doNotFake: ['setTimeout', 'setInterval', 'queueMicrotask'] });
+      jest.setSystemTime(new Date(NOW));
+      mockListUsers.mockResolvedValue({ users });
+      const { ToastList } = await import('../../components/Toast/Toast.js');
+      const view = render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/settings/users']}>
+            <UserManagementPage />
+          </MemoryRouter>
+          <ToastList />
+        </ToastProvider>,
+      );
+      await waitFor(() => expect(screen.getAllByRole('row').length).toBeGreaterThan(1));
+      return view;
+    }
+
+    const firstRow = () => within(screen.getByRole('table')).getAllByRole('row')[1]!;
+
+    const tableRowNames = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('row')
+        .slice(1)
+        .map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+
+    const openMenu = (id: string) => fireEvent.click(screen.getByTestId(`user-menu-button-${id}`));
+
+    async function chooseStatusFilter(label: string) {
+      fireEvent.click(screen.getByRole('button', { name: 'Filter by Status' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Filter by Status' });
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: label }));
+      return dialog;
+    }
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    describe('rendering', () => {
+      it('shows a Locked badge and "Until <time>" for a lock ending later today', async () => {
+        await renderWith([locked()]);
+        expect(within(firstRow()).getByText('Locked')).toBeInTheDocument();
+        expect(within(firstRow()).getByText(`Until TIME(${SAME_DAY_LATER})`)).toBeInTheDocument();
+        expect(mockFormatTime).toHaveBeenCalledWith(SAME_DAY_LATER);
+        expect(mockFormatDateTime).not.toHaveBeenCalled();
+      });
+
+      it('shows date and time for a lock ending on another day than the load', async () => {
+        await renderWith([locked({ lockedUntil: NEXT_DAY })]);
+        expect(within(firstRow()).getByText(`Until DATETIME(${NEXT_DAY})`)).toBeInTheDocument();
+        expect(mockFormatDateTime).toHaveBeenCalledWith(NEXT_DAY);
+        expect(mockFormatTime).not.toHaveBeenCalled();
+      });
+
+      it('shows Active, with no "Until" and no Unlock, once the lock has expired (server sends null)', async () => {
+        await renderWith([locked({ lockedUntil: null })]);
+        expect(within(firstRow()).getByText('Active')).toBeInTheDocument();
+        expect(within(firstRow()).queryByText(/^Until /)).toBeNull();
+        openMenu('u-locked');
+        expect(screen.queryByTestId('user-unlock-u-locked')).toBeNull();
+      });
+
+      it('shows a payload without lockedUntil (member view) as Active', async () => {
+        await renderWith([alice()]);
+        expect(within(firstRow()).getByText('Active')).toBeInTheDocument();
+        expect(within(firstRow()).queryByText('Locked')).toBeNull();
+      });
+
+      it('shows only Deactivated for a deactivated and locked account, with no Unlock item', async () => {
+        await renderWith([deactivated({ lockedUntil: SAME_DAY_LATER })]);
+        expect(within(firstRow()).getByText('Deactivated')).toBeInTheDocument();
+        expect(within(firstRow()).queryByText('Locked')).toBeNull();
+        expect(within(firstRow()).queryByText(/^Until /)).toBeNull();
+        openMenu('u-off');
+        expect(screen.queryByTestId('user-unlock-u-off')).toBeNull();
+        expect(screen.queryByRole('menuitem', { name: 'Unlock' })).toBeNull();
+      });
+
+      it('offers Unlock only on a locked row', async () => {
+        await renderWith([alice(), locked()]);
+        openMenu('u-active');
+        expect(screen.queryByTestId('user-unlock-u-active')).toBeNull();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        openMenu('u-locked');
+        expect(screen.getByTestId('user-unlock-u-locked')).toBeInTheDocument();
+      });
+    });
+
+    describe('status filter and sort', () => {
+      it('lists the filter options Active, Locked, Deactivated in that order', async () => {
+        await renderWith([alice(), locked(), deactivated()]);
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by Status' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Filter by Status' });
+        expect(
+          within(dialog)
+            .getAllByRole('checkbox')
+            .map((c) => c.getAttribute('aria-label')),
+        ).toEqual(['Active', 'Locked', 'Deactivated']);
+      });
+
+      it.each([
+        ['Active', ['Alice Active']],
+        ['Locked', ['Lena Locked']],
+        ['Deactivated', ['Dana Deactivated']],
+      ])('"%s" shows only matching accounts (Active excludes locked)', async (label, expected) => {
+        await renderWith([alice(), locked(), deactivated()]);
+        await chooseStatusFilter(label);
+        await waitFor(() => expect(tableRowNames()).toEqual(expected));
+      });
+
+      it('sorts by status Active, Locked, Deactivated and reverses on a second click', async () => {
+        await renderWith([deactivated(), locked(), alice()]);
+        fireEvent.click(screen.getByRole('columnheader', { name: /Status/ }));
+        await waitFor(() =>
+          expect(tableRowNames()).toEqual(['Alice Active', 'Lena Locked', 'Dana Deactivated']),
+        );
+        fireEvent.click(screen.getByRole('columnheader', { name: /Status/ }));
+        await waitFor(() =>
+          expect(tableRowNames()).toEqual(['Dana Deactivated', 'Lena Locked', 'Alice Active']),
+        );
+      });
+    });
+
+    describe('other column sorts and list reload', () => {
+      const people = () => [
+        makeUser({
+          id: 'p1',
+          displayName: 'Bea',
+          email: 'z@example.com',
+          role: 'member',
+          createdAt: '2026-03-01T00:00:00.000Z',
+        }),
+        makeUser({
+          id: 'p2',
+          displayName: 'Abe',
+          email: 'y@example.com',
+          role: 'admin',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+        makeUser({
+          id: 'p3',
+          displayName: 'Cal',
+          email: 'x@example.com',
+          role: 'member',
+          createdAt: '2026-02-01T00:00:00.000Z',
+        }),
+      ];
+
+      it.each([
+        ['Name', ['Abe', 'Bea', 'Cal']],
+        ['Email', ['Cal', 'Abe', 'Bea']],
+        ['Role', ['Abe', 'Bea', 'Cal']],
+        ['Member Since', ['Abe', 'Cal', 'Bea']],
+      ])('sorts ascending by %s', async (header, expected) => {
+        await renderWith(people());
+        fireEvent.click(screen.getByRole('columnheader', { name: new RegExp(header) }));
+        await waitFor(() => expect(tableRowNames()).toEqual(expected));
+      });
+
+      it('shows the translated list error when the reload after a deactivation fails', async () => {
+        await renderWith([alice()]);
+        mockListUsers.mockRejectedValueOnce(
+          new ApiClientError(403, { code: 'FORBIDDEN', message: 'RAW-SERVER-SENTINEL' }),
+        );
+        openMenu('u-active');
+        fireEvent.click(screen.getByTestId('user-deactivate-u-active'));
+        await screen.findByRole('alertdialog');
+        fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+        expect(await screen.findByText(enErrors.FORBIDDEN)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      });
+
+      it('shows the generic list error when the reload fails without an API error', async () => {
+        await renderWith([alice()]);
+        mockListUsers.mockRejectedValueOnce(new Error('boom'));
+        openMenu('u-active');
+        fireEvent.click(screen.getByTestId('user-deactivate-u-active'));
+        await screen.findByRole('alertdialog');
+        fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+        expect(await screen.findByText(enSettings.userManagement.loadError)).toBeInTheDocument();
+      });
+    });
+
+    describe('multi-select filters', () => {
+      it('shows both Active and Locked accounts for a two-value status filter', async () => {
+        await renderWith([alice(), locked(), deactivated()]);
+        const dialog = await chooseStatusFilter('Active');
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Locked' }));
+        await waitFor(() => expect(tableRowNames()).toEqual(['Alice Active', 'Lena Locked']));
+      });
+
+      it('shows every account again when all statuses are selected', async () => {
+        await renderWith([alice(), locked(), deactivated()]);
+        const dialog = await chooseStatusFilter('Active');
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Locked' }));
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Deactivated' }));
+        await waitFor(() => expect(tableRowNames()).toHaveLength(3));
+      });
+
+      it('shows admins and members for a two-value role filter and one role for a single value', async () => {
+        await renderWith([alice(), locked()]);
+        fireEvent.click(screen.getByRole('button', { name: 'Filter by Role' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Filter by Role' });
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Member' }));
+        await waitFor(() => expect(tableRowNames()).toEqual(['Lena Locked']));
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Administrator' }));
+        await waitFor(() => expect(tableRowNames()).toEqual(['Alice Active', 'Lena Locked']));
+      });
+    });
+
+    describe('unlock flow', () => {
+      it('calls unlockUser once, toasts success and flips the row to Active without reloading', async () => {
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+
+        expect(
+          await screen.findByText('Unlocked Lena Locked. They can sign in again.'),
+        ).toBeInTheDocument();
+        expect(mockUnlockUser).toHaveBeenCalledTimes(1);
+        expect(mockUnlockUser).toHaveBeenCalledWith('u-locked');
+        expect(mockListUsers).toHaveBeenCalledTimes(1);
+        expect(within(firstRow()).getByText('Active')).toBeInTheDocument();
+        expect(within(firstRow()).queryByText(/^Until /)).toBeNull();
+      });
+
+      it('returns focus to the row menu trigger after unlocking from the keyboard', async () => {
+        await renderWith([locked()]);
+        const trigger = screen.getByTestId('user-menu-button-u-locked');
+        trigger.focus();
+        fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus());
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Edit' }), { key: 'ArrowDown' });
+        const unlock = screen.getByRole('menuitem', { name: 'Unlock' });
+        expect(unlock).toHaveFocus();
+        fireEvent.click(unlock);
+        await screen.findByText('Unlocked Lena Locked. They can sign in again.');
+        expect(screen.getByTestId('user-menu-button-u-locked')).toHaveFocus();
+      });
+
+      it('moves focus to the list search field when the row leaves the Locked filter', async () => {
+        await renderWith([alice(), locked()]);
+        await chooseStatusFilter('Locked');
+        await waitFor(() => expect(tableRowNames()).toEqual(['Lena Locked']));
+        fireEvent.keyDown(document, { key: 'Escape' });
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+
+        await waitFor(() => expect(screen.queryByTestId('user-menu-button-u-locked')).toBeNull());
+        const search = document.querySelector<HTMLInputElement>('[data-page-search]')!;
+        expect(search).not.toBeNull();
+        expect(document.activeElement).toBe(search);
+      });
+
+      it('returns focus to the row menu trigger after a failed unlock', async () => {
+        mockUnlockUser.mockRejectedValueOnce(new Error('x'));
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        await screen.findByText('Could not unlock Lena Locked. Try again.');
+        expect(screen.getByTestId('user-menu-button-u-locked')).toHaveFocus();
+      });
+
+      it('moves focus to the search field when the row leaves a multi-value filter', async () => {
+        await renderWith([alice(), locked(), deactivated()]);
+        const dialog = await chooseStatusFilter('Locked');
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Deactivated' }));
+        await waitFor(() => expect(tableRowNames()).toEqual(['Lena Locked', 'Dana Deactivated']));
+        fireEvent.keyDown(document, { key: 'Escape' });
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        await waitFor(() => expect(screen.queryByTestId('user-menu-button-u-locked')).toBeNull());
+        expect(document.activeElement).toBe(document.querySelector('[data-page-search]'));
+      });
+
+      it('keeps focus on the trigger when the new Active status stays inside the filter', async () => {
+        await renderWith([alice(), locked()]);
+        const dialog = await chooseStatusFilter('Locked');
+        fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Active' }));
+        await waitFor(() => expect(tableRowNames()).toEqual(['Alice Active', 'Lena Locked']));
+        fireEvent.keyDown(document, { key: 'Escape' });
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        await screen.findByText('Unlocked Lena Locked. They can sign in again.');
+        expect(screen.getByTestId('user-menu-button-u-locked')).toHaveFocus();
+      });
+
+      it('shows the translated error for an ApiClientError, never the server message', async () => {
+        mockUnlockUser.mockRejectedValueOnce(
+          new ApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
+        );
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+
+        expect(await screen.findByText(enErrors.NOT_FOUND)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+        expect(within(firstRow()).getByText('Locked')).toBeInTheDocument();
+      });
+
+      it('shows the network message for a NetworkError', async () => {
+        mockUnlockUser.mockRejectedValueOnce(new NetworkError('offline', new Error('offline')));
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      });
+
+      it('shows the generic message for any other error and keeps the row locked', async () => {
+        mockUnlockUser.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        expect(await screen.findByText('Could not unlock Lena Locked. Try again.')).toBeVisible();
+        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+        expect(within(firstRow()).getByText('Locked')).toBeInTheDocument();
+      });
+
+      it('ignores a second activation while the unlock is pending', async () => {
+        let resolve!: () => void;
+        mockUnlockUser.mockImplementationOnce(() => new Promise<void>((r) => (resolve = r)));
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-unlock-u-locked'));
+        openMenu('u-locked');
+        const again = screen.getByTestId('user-unlock-u-locked');
+        expect(again).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(again);
+        expect(mockUnlockUser).toHaveBeenCalledTimes(1);
+        await act(async () => {
+          resolve();
+          await Promise.resolve();
+        });
+        await screen.findByText('Unlocked Lena Locked. They can sign in again.');
+      });
+    });
+
+    describe('row menu', () => {
+      it('names the trigger "Actions for <name>"', async () => {
+        await renderWith([alice()]);
+        expect(screen.getByTestId('user-menu-button-u-active')).toHaveAccessibleName(
+          'Actions for Alice Active',
+        );
+      });
+
+      it('lists Edit, Unlock, Deactivate as menu items in that order for a locked account', async () => {
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
+          'Edit',
+          'Unlock',
+          'Deactivate',
+        ]);
+      });
+
+      it('marks Edit aria-disabled on a deactivated row and opens no dialog when activated', async () => {
+        await renderWith([deactivated()]);
+        openMenu('u-off');
+        const edit = screen.getByTestId('user-edit-u-off');
+        expect(edit).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(edit);
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+
+      it('opens with ArrowDown, moves with the keyboard, and Escape returns focus to the trigger', async () => {
+        await renderWith([locked()]);
+        const trigger = screen.getByTestId('user-menu-button-u-locked');
+        trigger.focus();
+        fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus());
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Edit' }), { key: 'ArrowDown' });
+        expect(screen.getByRole('menuitem', { name: 'Unlock' })).toHaveFocus();
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Unlock' }), { key: 'End' });
+        expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toHaveFocus();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+        expect(trigger).toHaveFocus();
+      });
+
+      it('returns focus to the trigger when the deactivate confirmation is cancelled', async () => {
+        await renderWith([alice()]);
+        openMenu('u-active');
+        fireEvent.click(screen.getByTestId('user-deactivate-u-active'));
+        await screen.findByRole('alertdialog');
+        fireEvent.click(screen.getByTestId('user-deactivate-cancel'));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+        expect(screen.getByTestId('user-menu-button-u-active')).toHaveFocus();
+      });
+
+      it('keeps a locked row Locked after a successful edit (merge, not replace)', async () => {
+        mockAdminUpdateUser.mockResolvedValueOnce(
+          makeUser({
+            id: 'u-locked',
+            displayName: 'Lena Renamed',
+            email: 'lena@example.com',
+            role: 'member',
+          }),
+        );
+        await renderWith([locked()]);
+        openMenu('u-locked');
+        fireEvent.click(screen.getByTestId('user-edit-u-locked'));
+        const name = await screen.findByLabelText(/Display name/i);
+        fireEvent.change(name, { target: { value: 'Lena Renamed' } });
+        fireEvent.submit(name.closest('form')!);
+
+        await waitFor(() => expect(tableRowNames()).toEqual(['Lena Renamed']));
+        expect(within(firstRow()).getByText('Locked')).toBeInTheDocument();
+        expect(within(firstRow()).getByText(`Until TIME(${SAME_DAY_LATER})`)).toBeInTheDocument();
+      });
+
+      it('keeps every data-testid unique with the portaled menu open on a locked row', async () => {
+        const { container } = await renderWith([alice(), locked()]);
+        openMenu('u-locked');
+        expect(screen.getByTestId('user-unlock-u-locked')).toBeInTheDocument();
+        expect(findDuplicateTestIds(container)).toEqual([]);
+        expect(findDuplicateTestIds(document.body)).toEqual([]);
+      });
     });
   });
 });

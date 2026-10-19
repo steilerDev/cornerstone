@@ -21,6 +21,8 @@ import {
 } from '@cornerstone/shared';
 import type { BackupRunOutcome, IntegrationStatus } from '../../lib/integrationStatus.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
+import type { UserAccountStatus } from '../../lib/userAccountStatus.js';
+import { USER_ACCOUNT_STATUSES } from '../../lib/userAccountStatus.js';
 import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariant } from './Badge.js';
@@ -69,6 +71,12 @@ const INTEGRATION_STATUS_CLASS: Record<IntegrationStatus, string> = {
 const BACKUP_RUN_CLASS: Record<BackupRunOutcome, string> = {
   succeeded: badgeStyles.success!,
   failed: badgeStyles.error!,
+};
+
+const USER_ACCOUNT_STATUS_CLASS: Record<UserAccountStatus, string> = {
+  active: badgeStyles.userActive!,
+  locked: badgeStyles.warning!,
+  deactivated: badgeStyles.userDeactivated!,
 };
 
 const TASK_STATUS_CLASS: Record<WorkItemStatus, string> = {
@@ -168,6 +176,20 @@ export function buildBackupRunVariants(t: StatusLabelT): Record<BackupRunOutcome
     result[outcome] = {
       label: t(set.key(outcome), { ns: set.ns }),
       className: BACKUP_RUN_CLASS[outcome],
+    };
+  }
+  return result;
+}
+
+export function buildUserAccountStatusVariants(
+  t: StatusLabelT,
+): Record<UserAccountStatus, BadgeVariant> {
+  const set = I18N_UNION_KEYS.userAccountStatus;
+  const result = {} as Record<UserAccountStatus, BadgeVariant>;
+  for (const status of USER_ACCOUNT_STATUSES) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns }),
+      className: USER_ACCOUNT_STATUS_CLASS[status],
     };
   }
   return result;

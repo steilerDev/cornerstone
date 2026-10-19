@@ -556,6 +556,11 @@
     "succeeded": "Erfolgreich",
     "failed": "Fehlgeschlagen"
   },
+  "userAccountStatus": {
+    "active": "Aktiv",
+    "locked": "Gesperrt",
+    "deactivated": "Deaktiviert"
+  },
   "integrationsLink": {
     "label": "Zu den Integrationen"
   }

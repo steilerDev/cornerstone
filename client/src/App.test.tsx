@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { ROUTE_MAP } from '@cornerstone/shared';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
@@ -134,6 +135,7 @@ jest.unstable_mockModule('./lib/usersApi.js', () => ({
   adminUpdateUser: jest.fn<typeof UsersApiTypes.adminUpdateUser>(),
   deactivateUser: jest.fn<typeof UsersApiTypes.deactivateUser>(),
   createUser: jest.fn<typeof UsersApiTypes.createUser>(),
+  unlockUser: jest.fn<typeof UsersApiTypes.unlockUser>(),
 }));
 
 // InvoicesPage calls fetchAllInvoices and createInvoice on mount.
@@ -693,6 +695,34 @@ describe('App', () => {
         oidcEnabled: false,
       });
     }
+
+    it('covers every admin-guarded page of the route map with a member test above', () => {
+      // The ids whose member-sees-No-access test lives in this describe (users, backups,
+      // integrations). A new admin page fails here until its member test is added and listed.
+      const COVERED_BY_MEMBER_TESTS = [
+        'settingsUsers',
+        'settingsBackups',
+        'settingsIntegrations',
+      ].sort();
+      interface LooseEntry {
+        id?: string;
+        kind: string;
+        guard: string;
+        stage: string;
+        match?: { condition?: string; appliesTo?: readonly string[]; query?: object };
+      }
+      const entries: readonly LooseEntry[] = ROUTE_MAP;
+      const adminPages = entries
+        .filter((e) => e.kind === 'page' && e.guard === 'admin' && e.stage !== 'planned')
+        .map((e) => e.id)
+        .sort();
+      expect(adminPages).toEqual(COVERED_BY_MEMBER_TESTS);
+
+      const notAdminRule = entries.find(
+        (e) => e.kind === 'redirect' && e.match?.condition === 'not-admin',
+      );
+      expect([...(notAdminRule?.match?.appliesTo ?? [])].sort()).toEqual(COVERED_BY_MEMBER_TESTS);
+    });
 
     it('shows No access in place for a member at /settings/users without loading users', async () => {
       window.history.pushState({}, 'Users', '/settings/users');

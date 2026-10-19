@@ -13,6 +13,7 @@ import {
   buildRefundVariants,
   buildScheduleSignalVariants,
   buildTaskStatusVariants,
+  buildUserAccountStatusVariants,
 } from '../components/Badge/statusBadgeVariants.js';
 
 /** Memoised, translated Badge variant maps for every status vocabulary (#2195). */
@@ -22,6 +23,7 @@ export function useStatusBadgeVariants() {
     () => ({
       integration: buildIntegrationStatusVariants(t),
       backupRun: buildBackupRunVariants(t),
+      userAccount: buildUserAccountStatusVariants(t),
       invoice: buildInvoiceStatusVariants(t),
       progressPayment: buildProgressPaymentStatusVariants(t),
       task: buildTaskStatusVariants(t),

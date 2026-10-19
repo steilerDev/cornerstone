@@ -511,4 +511,41 @@ describe('usersApi', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('unlockUser()', () => {
+    it('posts to /users/:id/unlock without a body and resolves void', async () => {
+      mockPost.mockResolvedValue(undefined);
+
+      const result = await usersApi.unlockUser('user-123');
+
+      expect(mockPost).toHaveBeenCalledTimes(1);
+      expect(mockPost).toHaveBeenCalledWith('/users/user-123/unlock');
+      expect(result).toBeUndefined();
+    });
+
+    it('propagates errors from apiClient', async () => {
+      mockPost.mockRejectedValue(new Error('Not found'));
+
+      await expect(usersApi.unlockUser('missing')).rejects.toThrow('Not found');
+    });
+  });
+
+  describe('listUsers() lock state (#2219)', () => {
+    it('passes lockedUntil through untouched for admin rows and keeps its absence for members', async () => {
+      const payload = {
+        users: [
+          { id: 'a', lockedUntil: '2026-06-15T09:30:00.000Z' },
+          { id: 'b', lockedUntil: null },
+          { id: 'c' },
+        ],
+      };
+      mockGet.mockResolvedValue(payload);
+
+      const result = await usersApi.listUsers();
+
+      expect(result.users[0]!.lockedUntil).toBe('2026-06-15T09:30:00.000Z');
+      expect(result.users[1]!.lockedUntil).toBeNull();
+      expect(result.users[2]).not.toHaveProperty('lockedUntil');
+    });
+  });
 });

@@ -62,14 +62,16 @@
       "localAndOidc": "Local + OIDC",
       "oidcPending": "OIDC (awaiting first sign-in)"
     },
-    "status": {
-      "active": "Active",
-      "deactivated": "Deactivated"
-    },
+    "lockedUntil": "Until {{when}}",
     "actions": {
       "edit": "Edit",
+      "unlock": "Unlock",
       "deactivate": "Deactivate",
-      "menuAriaLabel": "User actions menu"
+      "menuAriaLabel": "Actions for {{name}}"
+    },
+    "unlock": {
+      "success": "Unlocked {{name}}. They can sign in again.",
+      "error": "Could not unlock {{name}}. Try again."
     },
     "editModal": {
       "title": "Edit User",

@@ -764,6 +764,134 @@ describe('User Routes', () => {
     });
   });
 
+  describe('GET /api/users lockedUntil (#2219)', () => {
+    function lockUser(id: string, lockedUntil: string | null, attempts: number): void {
+      app.db
+        .update(users)
+        .set({ lockedUntil, failedLoginAttempts: attempts })
+        .where(eq(users.id, id))
+        .run();
+    }
+
+    type Row = UserResponse & { lockedUntil?: string | null };
+
+    async function makeMember(email: string, name: string) {
+      return userService.createLocalUser(app.db, email, name, 'password123456', 'member');
+    }
+
+    it('admin gets lockedUntil on every row: future ISO, null never locked, null expired', async () => {
+      const { cookie } = await createUserWithSession('adm@example.com', 'Adm', 'password123456');
+      const locked = await makeMember('locked@example.com', 'Locked');
+      const fresh = await makeMember('fresh@example.com', 'Fresh');
+      const expired = await makeMember('expired@example.com', 'Expired');
+      const future = new Date(Date.now() + 10 * 60_000).toISOString();
+      lockUser(locked.id, future, 10);
+      lockUser(expired.id, new Date(Date.now() - 60_000).toISOString(), 10);
+
+      const response = await app.inject({ method: 'GET', url: '/api/users', headers: { cookie } });
+      expect(response.statusCode).toBe(200);
+      const rows = response.json<{ users: Row[] }>().users;
+      expect(rows).toHaveLength(4);
+      for (const row of rows) expect(row).toHaveProperty('lockedUntil');
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      expect(byId.get(locked.id)!.lockedUntil).toBe(future);
+      expect(byId.get(fresh.id)!.lockedUntil).toBeNull();
+      expect(byId.get(expired.id)!.lockedUntil).toBeNull();
+    });
+
+    it('admin still gets lockedUntil for a locked and deactivated user', async () => {
+      const { cookie } = await createUserWithSession('adm@example.com', 'Adm', 'password123456');
+      const target = await makeMember('both@example.com', 'Both');
+      const future = new Date(Date.now() + 10 * 60_000).toISOString();
+      lockUser(target.id, future, 10);
+      app.db
+        .update(users)
+        .set({ deactivatedAt: new Date().toISOString() })
+        .where(eq(users.id, target.id))
+        .run();
+
+      const response = await app.inject({ method: 'GET', url: '/api/users', headers: { cookie } });
+      const row = response.json<{ users: Row[] }>().users.find((r) => r.id === target.id)!;
+      expect(row.lockedUntil).toBe(future);
+    });
+
+    it('member gets no lockedUntil key on any row, even when someone is locked', async () => {
+      const { cookie } = await createUserWithSession(
+        'mem@example.com',
+        'Mem',
+        'password123456',
+        'member',
+      );
+      const locked = await makeMember('locked@example.com', 'Locked');
+      lockUser(locked.id, new Date(Date.now() + 600_000).toISOString(), 10);
+
+      const response = await app.inject({ method: 'GET', url: '/api/users', headers: { cookie } });
+      expect(response.statusCode).toBe(200);
+      const rows = response.json<{ users: Row[] }>().users;
+      expect(rows).toHaveLength(2);
+      for (const row of rows) expect(row).not.toHaveProperty('lockedUntil');
+    });
+
+    it('returns 401 without a session', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/users' });
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('unlock resets the lock and the list then shows null', async () => {
+      const { cookie } = await createUserWithSession('adm@example.com', 'Adm', 'password123456');
+      const locked = await makeMember('locked@example.com', 'Locked');
+      lockUser(locked.id, new Date(Date.now() + 600_000).toISOString(), 10);
+
+      const before = await app.inject({ method: 'GET', url: '/api/users', headers: { cookie } });
+      const lockedBefore = before.json<{ users: Row[] }>().users.find((r) => r.id === locked.id)!;
+      expect(lockedBefore.lockedUntil).not.toBeNull();
+
+      const unlock = await app.inject({
+        method: 'POST',
+        url: `/api/users/${locked.id}/unlock`,
+        headers: { cookie },
+      });
+      expect(unlock.statusCode).toBe(204);
+
+      const after = await app.inject({ method: 'GET', url: '/api/users', headers: { cookie } });
+      const lockedAfter = after.json<{ users: Row[] }>().users.find((r) => r.id === locked.id)!;
+      expect(lockedAfter.lockedUntil).toBeNull();
+    });
+
+    it('GET /me for a locked user never carries lockedUntil', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'self@example.com',
+        'Self',
+        'password123456',
+        'admin',
+      );
+      lockUser(userId, new Date(Date.now() + 600_000).toISOString(), 10);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me',
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<Row>()).not.toHaveProperty('lockedUntil');
+    });
+
+    it('PATCH /api/users/:id response never carries lockedUntil', async () => {
+      const { cookie } = await createUserWithSession('adm@example.com', 'Adm', 'password123456');
+      const target = await makeMember('target@example.com', 'Target');
+      lockUser(target.id, new Date(Date.now() + 600_000).toISOString(), 10);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/users/${target.id}`,
+        headers: { cookie },
+        payload: { displayName: 'Renamed' },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<Row>()).not.toHaveProperty('lockedUntil');
+    });
+  });
+
   describe('PATCH /api/users/:id', () => {
     it('returns 401 when not authenticated', async () => {
       // Given: No session cookie

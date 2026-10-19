@@ -45,6 +45,7 @@ import {
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
+import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 
@@ -210,6 +211,8 @@ export const I18N_UNION_KEYS = {
   integrationStatus: unionKeySet('common', 'integrationStatus', INTEGRATION_STATUSES),
   /** common — last automatic backup outcome chip (#2217). */
   backupRun: unionKeySet('common', 'backupRun', BACKUP_RUN_OUTCOMES),
+  /** common — account chip on Settings > Users (Active, Locked, Deactivated) (#2219). */
+  userAccountStatus: unionKeySet('common', 'userAccountStatus', USER_ACCOUNT_STATUSES),
   /** common — New menu / New sheet entry label. */
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
 } as const;

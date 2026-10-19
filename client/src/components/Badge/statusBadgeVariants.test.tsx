@@ -13,6 +13,7 @@ import {
   MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { USER_ACCOUNT_STATUSES } from '../../lib/userAccountStatus.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
 import enCommon from '../../i18n/en/common.json';
 import enBudget from '../../i18n/en/budget.json';
@@ -22,6 +23,7 @@ import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
   buildBackupRunVariants,
+  buildUserAccountStatusVariants,
   buildDefectStatusVariants,
   buildFundingSourceStatusVariants,
   buildGrantStatusVariants,
@@ -378,6 +380,14 @@ describe.each([
     'backupRun',
     { succeeded: 'Succeeded', failed: 'Failed' },
     { succeeded: 'success', failed: 'error' },
+  ],
+  [
+    'buildUserAccountStatusVariants (#2219)',
+    buildUserAccountStatusVariants,
+    USER_ACCOUNT_STATUSES,
+    'userAccountStatus',
+    { active: 'Active', locked: 'Locked', deactivated: 'Deactivated' },
+    { active: 'userActive', locked: 'warning', deactivated: 'userDeactivated' },
   ],
 ] as const)('%s', (_name, build, members, key, labels, classes) => {
   const variants = build(realT) as Record<string, { label: string; className?: string }>;

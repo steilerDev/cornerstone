@@ -229,12 +229,14 @@ export default async function userRoutes(fastify: FastifyInstance) {
    *
    * List all users (all authenticated users).
    * Supports optional ?q=search query parameter for case-insensitive search on email/displayName.
+   * Admin callers also get `lockedUntil` per row (#2219); members never do.
    */
   fastify.get('/', { schema: listUsersSchema }, async (request, reply) => {
     const { q } = request.query as { q?: string };
 
     const userRows = userService.listUsers(fastify.db, q);
-    const users = userRows.map(userService.toUserResponse);
+    const isAdmin = request.user?.role === 'admin';
+    const users = userRows.map((row) => userService.toUserListItem(row, isAdmin));
 
     return reply.status(200).send({ users });
   });

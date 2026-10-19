@@ -1,5 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
-import type { UserResponse } from '@cornerstone/shared';
+import type { UserListResponse, UserResponse } from '@cornerstone/shared';
 
 /**
  * Fetches the current user's profile.
@@ -28,8 +28,13 @@ export function changePassword(data: {
 /**
  * List users response shape.
  */
-export interface ListUsersResponse {
-  users: UserResponse[];
+export type ListUsersResponse = UserListResponse;
+
+/**
+ * Clears a login lockout (admin only). 204.
+ */
+export function unlockUser(userId: string): Promise<void> {
+  return post<void>(`/users/${userId}/unlock`);
 }
 
 /**
