@@ -80,21 +80,15 @@ export function useColumnPreferences<T>(
 
         // Handle backwards compatibility: if saved value is an array, treat as visible list
         if (Array.isArray(saved)) {
-          /* eslint-disable @eslint-react/set-state-in-effect -- loading and initializing column state from stored preferences */
           setVisibleColumns(new Set(saved));
           setColumnOrder(defaultColumnOrder);
-          /* eslint-enable @eslint-react/set-state-in-effect */
         } else if (saved && typeof saved === 'object') {
           // New format: { visible: string[], order: string[] }
           if (Array.isArray(saved.visible)) {
-            /* eslint-disable @eslint-react/set-state-in-effect -- loading and initializing column state from stored preferences */
             setVisibleColumns(new Set(saved.visible));
-            /* eslint-enable @eslint-react/set-state-in-effect */
           }
           if (Array.isArray(saved.order)) {
-            /* eslint-disable @eslint-react/set-state-in-effect -- loading and initializing column state from stored preferences */
             setColumnOrder(saved.order);
-            /* eslint-enable @eslint-react/set-state-in-effect */
           }
         }
       } catch {
