@@ -10,7 +10,7 @@
       "DashboardPage": { "destinations": 16, "primaryButtons": 2, "searchFields": 0 },
       "DiaryCapturePage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
       "DiaryEntryDetailPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 0 },
-      "DiaryPage": { "destinations": 4, "primaryButtons": 8, "searchFields": 1 },
+      "DiaryPage": { "destinations": 3, "primaryButtons": 8, "searchFields": 1 },
       "HouseholdItemDetailPage": { "destinations": 3, "primaryButtons": 12, "searchFields": 1 },
       "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "HouseholdItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },

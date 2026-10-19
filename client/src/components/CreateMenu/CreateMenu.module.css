@@ -89,6 +89,8 @@
 
 .tileLast {
   border: 2px solid var(--color-primary);
+  /* The 2px border is 1px wider: keep the icon and label aligned with the other tiles. */
+  padding: calc(var(--spacing-3) - 1px) calc(var(--spacing-2) - 1px);
   background-color: var(--color-primary-bg);
 }
 

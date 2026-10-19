@@ -1,10 +1,11 @@
 import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { useSearchParams, useLocation, Link } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { useTranslation } from 'react-i18next';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
-import { useCreateEntryLink, useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { originStateFor } from '../../navigation/origin.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import type {
   DiaryEntryType,
@@ -58,7 +59,8 @@ export default function DiaryPage() {
   useKeyboardShortcuts(listShortcuts);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
-  const logToday = useCreateEntryLink('diaryEntry');
+  // "Log today" is today by definition: no date or area from the page's create context.
+  const logTodayState = originStateFor(location);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusedKeyRef = useRef<string | null>(null);
 
@@ -306,8 +308,8 @@ export default function DiaryPage() {
             </p>
           </div>
           <NavAnchor
-            to={logToday.to}
-            state={logToday.state}
+            to={routeUrl('diaryEntryNew')}
+            state={logTodayState}
             className={`${shared.btnPrimary} ${styles.createButton}`}
             data-testid="diary-log-today"
           >
@@ -345,9 +347,14 @@ export default function DiaryPage() {
           }}
         >
           <p>{t('empty.title')}</p>
-          <Link to={routeUrl('diaryEntryNew')} className={shared.btnPrimary} ref={emptyStateCtaRef}>
+          <NavAnchor
+            to={routeUrl('diaryEntryNew')}
+            state={logTodayState}
+            className={shared.btnPrimary}
+            ref={emptyStateCtaRef}
+          >
             {t('empty.createButton')}
-          </Link>
+          </NavAnchor>
         </div>
       )}
 
