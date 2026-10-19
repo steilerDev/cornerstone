@@ -1,24 +1,28 @@
 /**
- * E2E tests for the daily_log vendor + work start/end time + computed duration feature
+ * E2E tests for the daily_log company + work start/end time + computed duration feature
  *
  * Story #1672: Daily log — vendor selector, work start/end time, computed duration
+ * Story #2221: on the capture screen the vendor is the Company chip group (suggestions plus
+ * "Other company…" which opens the company picker) and the times are Start/End chips
+ * (Now · Other time).
  *
  * Scenarios covered:
- * 1. [smoke] Vendor selection happy path: create vendor + entry, open edit page, search and
- *            select vendor, save, verify vendor name appears in detail page metadata summary.
- * 2. Time entry + duration: fill start 08:00 and end 16:30, verify "8.50 h" in form,
- *            save, verify times and duration on detail page.
- * 3. End ≤ start validation: fill start 16:00 end 08:00, attempt save, verify inline error
- *            "End time must be after start time" visible and times NOT persisted after reload.
- * 4. All fields then clear vendor: add vendor + times via UI, save, reload, clear vendor, save,
- *            verify vendor no longer appears in summary.
- * 5. [smoke] Smoke: bare daily_log entry loads on edit page, vendor SearchPicker is present,
- *            no duration display shown when both times absent.
- * 6. [responsive] Responsive: at current viewport, time inputs are usable and no horizontal overflow.
+ * 1. [smoke] Company selection happy path: create vendor + entry, open the edit URL, pick the
+ *            company through "Other company…", Save changes, verify the vendor name appears in
+ *            the detail page metadata summary.
+ * 2. Time entry + duration: set start 08:00 and end 16:30 with Other time, verify the duration in
+ *            the form, save, verify times and duration on the detail page.
+ * 3. End ≤ start validation: start 16:00, end 08:00, attempt save, verify the inline error
+ *            "End must be after start." and that the times are NOT persisted after reload.
+ * 4. All fields then clear company: add company + times via UI, tap the pressed company chip
+ *            to clear it, save, verify the vendor no longer appears in the summary.
+ * 5. [smoke] Smoke: bare daily_log entry loads on the edit URL, company chips are present and
+ *            none pressed, no duration display shown when both times absent.
+ * 6. [responsive] Responsive: at current viewport, time chips are usable and no horizontal overflow.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import {
   createDiaryEntryViaApi,
@@ -51,15 +55,38 @@ async function createDailyLogEntry(
   });
 }
 
+/** Tap "Other company…" and pick `name` in the company picker (sheet or modal). */
+async function pickCompany(capture: DiaryCapturePage, name: string): Promise<void> {
+  await capture.openCompanyPicker();
+  await capture.companyPicker.pick(name);
+  capture.taps += 1;
+  await expect(capture.companyPicker.input).toHaveCount(0);
+}
+
+/** Set a time with its "Other time" chip and the native input. */
+async function setTime(
+  capture: DiaryCapturePage,
+  which: 'start' | 'end',
+  value: string,
+): Promise<void> {
+  if (which === 'start') {
+    await capture.tap(capture.startOther);
+    await capture.startInput.fill(value);
+  } else {
+    await capture.tap(capture.endChip('Other time'));
+    await capture.endInput.fill(value);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Vendor selection happy path (@smoke)
+// Scenario 1: Company selection happy path (@smoke)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Vendor selection happy path (Scenario 1)', () => {
+test.describe('Company selection happy path (Scenario 1)', () => {
   test(
-    'User can search and select a vendor on daily_log edit page; vendor name appears in summary',
+    'User can pick a company on the daily_log edit URL; vendor name appears in summary',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
+      const capture = new DiaryCapturePage(page);
       const detailPage = new DiaryEntryDetailPage(page);
       let entryId: string | null = null;
       let vendorId: string | null = null;
@@ -69,31 +96,20 @@ test.describe('Vendor selection happy path (Scenario 1)', () => {
         vendorId = await createVendorViaApi(page, { name: vendorName });
         entryId = await createDailyLogEntry(page, testPrefix);
 
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+        await capture.gotoEdit(entryId);
+        await expect(capture.heading).toContainText('Edit entry · ');
 
-        // The SearchPicker input (id="daily-log-vendor") should be visible when no vendor is selected
-        await expect(editPage.dailyLogVendorSearch).toBeVisible();
+        // No company is chosen yet
+        await expect(capture.otherCompanyChip).toBeVisible();
+        await expect(capture.companyChip(vendorName)).toHaveCount(0);
 
-        // Focus the input and type the vendor name — SearchPicker shows items on focus,
-        // but typing filters to our specific vendor
-        await editPage.dailyLogVendorSearch.click();
-        await editPage.dailyLogVendorSearch.fill(vendorName);
+        await pickCompany(capture, vendorName);
 
-        // Wait for the portal dropdown to appear and the option to be visible
-        const portalDropdown = page.locator('[data-search-picker-dropdown]');
-        await expect(portalDropdown).toBeVisible();
-
-        const vendorOption = portalDropdown.getByRole('option', { name: vendorName });
-        await expect(vendorOption).toBeVisible();
-        await vendorOption.click();
-
-        // After selection: the SearchPicker hides the input and shows selectedDisplay with clear button
-        await expect(editPage.dailyLogVendorSearch).not.toBeVisible();
-        await expect(editPage.dailyLogVendorClearButton).toBeVisible();
+        // After picking: the company shows as a pressed chip
+        await expect(capture.companyChip(vendorName)).toHaveAttribute('aria-pressed', 'true');
 
         // Save the entry — PATCH /api/diary-entries/:id
-        await editPage.save();
+        await capture.saveChanges();
 
         // Navigate to detail page
         await page.waitForURL(new RegExp(`/diary/${entryId}$`));
@@ -115,38 +131,31 @@ test.describe('Vendor selection happy path (Scenario 1)', () => {
 // Scenario 2: Time entry + duration happy path
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Time entry and duration display (Scenario 2)', () => {
-  test('Filling start 08:00 and end 16:30 shows "8.50 h" duration in form; times shown on detail page', async ({
+  test('Setting start 08:00 and end 16:30 shows the duration in the form; times shown on detail page', async ({
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let entryId: string | null = null;
 
     try {
       entryId = await createDailyLogEntry(page, testPrefix);
 
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(entryId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // Fill work start and end time
-      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
-      await editPage.workStartTimeInput.fill('08:00');
-      await editPage.workEndTimeInput.fill('16:30');
+      // Set work start and end time
+      await setTime(capture, 'start', '08:00');
+      await setTime(capture, 'end', '16:30');
 
-      // Trigger blur to ensure React state update fires (onFieldBlur is wired for saved entries)
-      await editPage.workEndTimeInput.press('Tab');
-
-      // Duration should appear: 16:30 - 08:00 = 510 minutes = 8.5 hours = "8.50 h"
-      await expect(editPage.workDurationDisplay).toBeVisible();
-      await expect(editPage.workDurationDisplay).not.toHaveText('');
-      // Wait for React to commit the duration value (avoids stale-read race on WebKit)
-      await expect(editPage.workDurationDisplay).not.toHaveText('0.00 h');
-      const durationText = await editPage.workDurationDisplay.textContent();
-      expect(durationText?.trim()).toBe('8.50 h');
+      // Duration should appear: 16:30 - 08:00 = 510 minutes = 8.5 hours
+      await expect(capture.duration).toBeVisible();
+      await expect(capture.duration).toContainText('Duration:');
+      await expect(capture.duration).toContainText('8.50 h');
 
       // Save the entry
-      await editPage.save();
+      await capture.saveChanges();
 
       // Navigate to detail page
       await page.waitForURL(new RegExp(`/diary/${entryId}$`));
@@ -172,44 +181,34 @@ test.describe('End-time ≤ start-time validation (Scenario 3)', () => {
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let entryId: string | null = null;
 
     try {
       entryId = await createDailyLogEntry(page, testPrefix);
 
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(entryId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // Fill end time ≤ start time
-      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
-      await editPage.workStartTimeInput.fill('16:00');
-      await editPage.workEndTimeInput.fill('08:00');
+      // Set an end time ≤ start time
+      await setTime(capture, 'start', '16:00');
+      await setTime(capture, 'end', '08:00');
 
-      // Duration must NOT appear (end < start → computeWorkDuration returns null)
-      await expect(editPage.workDurationDisplay).not.toBeVisible();
+      // The error shows at once and no duration appears (end < start)
+      await expect(page.getByText('End must be after start.')).toBeVisible();
+      await expect(capture.duration).toHaveCount(0);
 
-      // Attempt to save — submit button click should trigger validation
-      await editPage.submitButton.click();
-
-      // Validation error should appear
-      await expect(editPage.workTimeValidationError).toBeVisible();
-      await expect(editPage.workTimeValidationError).toContainText(
-        'End time must be after start time',
-      );
-
-      // URL should not have changed (still on /edit)
+      // Attempt to save — the form must not leave the edit URL
+      await capture.tap(capture.saveButton);
+      await expect(page.getByText('End must be after start.')).toBeVisible();
       expect(page.url()).toContain('/edit');
 
       // Reload the page and confirm times were NOT persisted
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
-      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
-
-      const startValue = await editPage.workStartTimeInput.inputValue();
-      const endValue = await editPage.workEndTimeInput.inputValue();
-      expect(startValue).toBe('');
-      expect(endValue).toBe('');
+      await capture.gotoEdit(entryId);
+      await expect(capture.startOther).toHaveAttribute('aria-expanded', 'false');
+      await expect(capture.endChip('Other time')).toHaveAttribute('aria-expanded', 'false');
+      await expect(capture.startInput).toHaveValue('');
+      await expect(capture.endInput).toHaveValue('');
     } finally {
       if (entryId) await deleteDiaryEntryViaApi(page, entryId);
     }
@@ -217,14 +216,14 @@ test.describe('End-time ≤ start-time validation (Scenario 3)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: All fields then clear vendor (within same edit session)
+// Scenario 4: All fields then clear the company (within the same edit session)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Clear vendor after selection (Scenario 4)', () => {
-  test('Vendor selected in UI can be cleared; after clear and save, vendor no longer appears in summary', async ({
+test.describe('Clear company after selection (Scenario 4)', () => {
+  test('Company chosen in UI can be cleared; after clear and save, vendor no longer appears in summary', async ({
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let entryId: string | null = null;
     let vendorId: string | null = null;
@@ -234,36 +233,23 @@ test.describe('Clear vendor after selection (Scenario 4)', () => {
       vendorId = await createVendorViaApi(page, { name: vendorName });
       entryId = await createDailyLogEntry(page, testPrefix);
 
-      // Open edit page
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(entryId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // Select vendor via SearchPicker
-      await editPage.dailyLogVendorSearch.click();
-      await editPage.dailyLogVendorSearch.fill(vendorName);
-      const portalDropdown = page.locator('[data-search-picker-dropdown]');
-      await expect(portalDropdown).toBeVisible();
-      const vendorOption = portalDropdown.getByRole('option', { name: vendorName });
-      await expect(vendorOption).toBeVisible();
-      await vendorOption.click();
+      // Choose the company via the picker
+      await pickCompany(capture, vendorName);
+      await expect(capture.companyChip(vendorName)).toHaveAttribute('aria-pressed', 'true');
 
-      // Confirm vendor selected — clear button is visible, search input is hidden
-      await expect(editPage.dailyLogVendorClearButton).toBeVisible();
-      await expect(editPage.dailyLogVendorSearch).not.toBeVisible();
+      // Also set times to exercise the full set of fields
+      await setTime(capture, 'start', '09:00');
+      await setTime(capture, 'end', '17:00');
 
-      // Also fill times to exercise the full set of new fields
-      await editPage.workStartTimeInput.fill('09:00');
-      await editPage.workEndTimeInput.fill('17:00');
-
-      // Now clear the vendor using the clear (×) button
-      await editPage.dailyLogVendorClearButton.click();
-
-      // After clearing: search input is visible again, clear button is gone
-      await expect(editPage.dailyLogVendorSearch).toBeVisible();
-      await expect(editPage.dailyLogVendorClearButton).not.toBeVisible();
+      // Clear the company by tapping its pressed chip
+      await capture.tap(capture.companyChip(vendorName));
+      await expect(capture.companyChip(vendorName)).toHaveCount(0);
 
       // Save the entry (vendor should be null, times should be saved)
-      await editPage.save();
+      await capture.saveChanges();
       await page.waitForURL(new RegExp(`/diary/${entryId}$`));
       await detailPage.loaded.waitFor({ state: 'visible' });
 
@@ -283,36 +269,38 @@ test.describe('Clear vendor after selection (Scenario 4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Smoke — bare daily_log entry loads, vendor picker present, no duration
+// Scenario 5: Smoke — bare daily_log entry loads, company chips present, no duration
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Edit page loads for bare daily_log (Scenario 5)', { tag: '@responsive' }, () => {
   test(
-    'Bare daily_log entry: edit page loads, vendor SearchPicker is present, no duration shown',
+    'Bare daily_log entry: edit URL loads, company chips are present, no duration shown',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
+      const capture = new DiaryCapturePage(page);
       let entryId: string | null = null;
 
       try {
         // Create a bare daily_log entry with no metadata (no times, no vendor)
         entryId = await createDailyLogEntry(page, testPrefix);
 
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+        await capture.gotoEdit(entryId);
+        await expect(capture.heading).toContainText('Edit entry · ');
 
-        // Vendor SearchPicker input must be present (no vendor selected yet)
-        await expect(editPage.dailyLogVendorSearch).toBeVisible();
+        // The company group offers "Other company…" and no chip is pressed
+        await expect(capture.otherCompanyChip).toBeVisible();
+        await expect(
+          page.getByTestId('capture-company').locator('button[aria-pressed="true"]'),
+        ).toHaveCount(0);
 
-        // Work time inputs must be present and empty
-        await expect(editPage.workStartTimeInput).toBeVisible();
-        await expect(editPage.workEndTimeInput).toBeVisible();
-        const startVal = await editPage.workStartTimeInput.inputValue();
-        const endVal = await editPage.workEndTimeInput.inputValue();
-        expect(startVal).toBe('');
-        expect(endVal).toBe('');
+        // Start and End chips are present and unset
+        await expect(capture.startNow).toBeVisible();
+        await expect(capture.startOther).toBeVisible();
+        await expect(capture.endNow).toBeVisible();
+        await expect(capture.startOther).toHaveAttribute('aria-expanded', 'false');
+        await expect(capture.endChip('Other time')).toHaveAttribute('aria-expanded', 'false');
 
         // Duration display must NOT be visible (both times absent)
-        await expect(editPage.workDurationDisplay).not.toBeVisible();
+        await expect(capture.duration).toHaveCount(0);
       } finally {
         if (entryId) await deleteDiaryEntryViaApi(page, entryId);
       }
@@ -321,29 +309,29 @@ test.describe('Edit page loads for bare daily_log (Scenario 5)', { tag: '@respon
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Responsive — time inputs usable, no horizontal overflow
+// Scenario 6: Responsive — time chips usable, no horizontal overflow
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Time inputs are visible and there is no horizontal overflow on the edit page', async ({
+  test('Time inputs are usable and there is no horizontal overflow on the edit page', async ({
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let entryId: string | null = null;
 
     try {
       entryId = await createDailyLogEntry(page, testPrefix);
 
-      await editPage.goto(entryId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(entryId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // Both time inputs must be visible and interactive
-      await expect(editPage.workStartTimeInput).toBeVisible();
-      await expect(editPage.workEndTimeInput).toBeVisible();
-
-      // Inputs must be enabled (not disabled)
-      await expect(editPage.workStartTimeInput).toBeEnabled();
-      await expect(editPage.workEndTimeInput).toBeEnabled();
+      // Both time inputs open from their "Other time" chip and are enabled
+      await setTime(capture, 'start', '08:00');
+      await setTime(capture, 'end', '12:00');
+      await expect(capture.startInput).toBeVisible();
+      await expect(capture.endInput).toBeVisible();
+      await expect(capture.startInput).toBeEnabled();
+      await expect(capture.endInput).toBeEnabled();
 
       // No horizontal overflow: scrollWidth should equal clientWidth on <body>
       const hasHorizontalOverflow = await page.evaluate(() => {
@@ -351,18 +339,14 @@ test.describe('Responsive layout (Scenario 6)', { tag: '@responsive' }, () => {
       });
       expect(hasHorizontalOverflow).toBe(false);
 
-      // At mobile viewport (≤767px), the two time inputs should be stacked vertically
-      // (single column). At wider viewports they may be side-by-side. Either layout is valid;
-      // just confirm both are reachable and no clipping occurs.
+      // At mobile viewport (≤767px) the inputs must fit within the viewport width
       const viewportWidth = page.viewportSize()?.width ?? 1440;
 
       if (viewportWidth <= 767) {
-        // On mobile: verify inputs don't overflow their container
-        const startBox = await editPage.workStartTimeInput.boundingBox();
-        const endBox = await editPage.workEndTimeInput.boundingBox();
+        const startBox = await capture.startInput.boundingBox();
+        const endBox = await capture.endInput.boundingBox();
 
         if (startBox && endBox) {
-          // Both inputs must fit within the viewport width
           expect(startBox.x + startBox.width).toBeLessThanOrEqual(viewportWidth + 1);
           expect(endBox.x + endBox.width).toBeLessThanOrEqual(viewportWidth + 1);
         }

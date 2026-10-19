@@ -52,8 +52,6 @@
     "bankReport": "Bank report",
     "fundingSources": "Funding sources",
     "grants": "Grants",
-    "newDiaryEntry": "New diary entry",
-    "editDiaryEntry": "Edit diary entry",
     "diaryEntry": "Diary entry",
     "diaryEntryNotFound": "Diary entry not found",
     "diaryEntryUntitled": "{{type}} · {{date}}"
@@ -270,9 +268,21 @@
       "claimed": "Submitted",
       "quotation": "Offer"
     },
-    "progressPayment": { "pending": "To pay", "paid": "Paid", "claimed": "Submitted" },
-    "task": { "not_started": "Not started", "in_progress": "In progress", "completed": "Done" },
-    "scheduleSignal": { "late": "Late · {{days}} d", "held_up": "Held up", "critical": "Critical" },
+    "progressPayment": {
+      "pending": "To pay",
+      "paid": "Paid",
+      "claimed": "Submitted"
+    },
+    "task": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "completed": "Done"
+    },
+    "scheduleSignal": {
+      "late": "Late · {{days}} d",
+      "held_up": "Held up",
+      "critical": "Critical"
+    },
     "purchase": {
       "planned": "Planned",
       "purchased": "Ordered",
@@ -292,9 +302,20 @@
       "received": "Received",
       "rejected": "Rejected"
     },
-    "fundingSource": { "active": "Active", "exhausted": "Used up", "closed": "Closed" },
-    "defect": { "open": "Open", "in_progress": "Being fixed", "resolved": "Fixed" },
-    "budgetVerdict": { "on_budget": "On budget", "over_budget": "Over budget" },
+    "fundingSource": {
+      "active": "Active",
+      "exhausted": "Used up",
+      "closed": "Closed"
+    },
+    "defect": {
+      "open": "Open",
+      "in_progress": "Being fixed",
+      "resolved": "Fixed"
+    },
+    "budgetVerdict": {
+      "on_budget": "On budget",
+      "over_budget": "Over budget"
+    },
     "diaryType": {
       "daily_log": "Daily log",
       "site_visit": "Site visit",
@@ -304,23 +325,39 @@
     }
   },
   "statusAction": {
-    "task": { "start": "Start", "markDone": "Mark done" },
+    "task": {
+      "start": "Start",
+      "markDone": "Mark done"
+    },
     "purchase": {
       "markOrdered": "Mark ordered",
       "markDeliveryScheduled": "Mark delivery scheduled",
       "markDelivered": "Mark delivered"
     },
-    "milestone": { "markReached": "Mark reached" },
-    "invoice": { "markPaid": "Mark paid" },
-    "progressPayment": { "markPaid": "Mark paid", "markSubmitted": "Mark submitted" },
+    "milestone": {
+      "markReached": "Mark reached"
+    },
+    "invoice": {
+      "markPaid": "Mark paid"
+    },
+    "progressPayment": {
+      "markPaid": "Mark paid",
+      "markSubmitted": "Mark submitted"
+    },
     "grant": {
       "markApplied": "Mark applied",
       "markApproved": "Mark approved",
       "markReceived": "Mark received",
       "markRejected": "Mark rejected"
     },
-    "fundingSource": { "markUsedUp": "Mark used up", "markClosed": "Mark closed" },
-    "defect": { "markBeingFixed": "Mark being fixed", "markFixed": "Mark fixed" }
+    "fundingSource": {
+      "markUsedUp": "Mark used up",
+      "markClosed": "Mark closed"
+    },
+    "defect": {
+      "markBeingFixed": "Mark being fixed",
+      "markFixed": "Mark fixed"
+    }
   },
   "statusMenu": {
     "nowLabel": "Now: {{status}}",
@@ -513,7 +550,16 @@
     "off": "Off",
     "notSetUp": "Not set up"
   },
-  "backupRun": { "succeeded": "Succeeded", "failed": "Failed" },
-  "userAccountStatus": { "active": "Active", "locked": "Locked", "deactivated": "Deactivated" },
-  "integrationsLink": { "label": "See Integrations" }
+  "backupRun": {
+    "succeeded": "Succeeded",
+    "failed": "Failed"
+  },
+  "userAccountStatus": {
+    "active": "Active",
+    "locked": "Locked",
+    "deactivated": "Deactivated"
+  },
+  "integrationsLink": {
+    "label": "See Integrations"
+  }
 }

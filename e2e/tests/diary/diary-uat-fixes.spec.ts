@@ -14,9 +14,8 @@
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
  * 4.  Source entity title displayed in diary card source link
  * 5.  Automatic events are in a flat "Automated Events" section (UAT R2 #868: changed from collapsible) per date group
- * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — two-step draft flow:
- *     blur → POST draft → /diary/:id/edit → promote → /diary/:id
- *     Note: #1426 replaced the single-step submit flow with auto-draft on blur
+ * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — capture flow:
+ *     first character → POST draft → /diary/:id/edit → Save entry → /diary/:id
  * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
  * 8.  Diary detail page has no print button
  */
@@ -24,8 +23,7 @@
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -269,51 +267,47 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsive' }, () => {
   test(
-    'Submitting the create form navigates to /diary/:id (detail page)',
+    'Saving the new entry navigates to /diary/:id (detail page)',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      const createPage = new DiaryEntryCreatePage(page);
-      const editPage = new DiaryEntryEditPage(page);
+      const capture = new DiaryCapturePage(page);
       let createdId: string | null = null;
 
       try {
-        await createPage.goto();
+        await capture.goto();
 
-        // #1435 flow: clicking the type card fires POST /api/diary-entries immediately.
-        // Register the POST listener BEFORE clicking.
+        // #2221 flow: the first character creates the draft (POST) and the URL becomes
+        // /diary/:id/edit (replace history). Register the POST listener BEFORE typing.
         const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        await createPage.typeCard('general_note').click();
+        await capture.typeTitle(`${testPrefix} UAT Create Nav Test`);
         const draftResponse = await draftResponsePromise;
         expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
 
         const responseBody = (await draftResponse.json()) as { id: string };
         createdId = responseBody.id;
 
-        // #1435 flow: after type-card-click draft creation, navigate to /diary/:id/edit (replace history)
         await page.waitForURL(new RegExp(`/diary/${createdId}/edit$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}/edit$`));
 
-        // Draft badge should be visible on the edit page
-        await expect(editPage.draftBadge).toBeVisible();
+        // The capture form (a "New entry" screen with Save entry) stays on screen
+        await expect(capture.heading).toContainText('New entry');
+        await expect(capture.saveButton).toHaveText('Save entry');
 
-        // Fill body and title on the edit page before promoting
-        await editPage.bodyTextarea.fill(`${testPrefix} create nav to detail body`);
-        await editPage.titleInput.waitFor({ state: 'visible' });
-        await editPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
+        await capture.typeText(`${testPrefix} create nav to detail body`);
 
-        // Register the promote PATCH listener BEFORE clicking Save
+        // Register the promote PATCH listener BEFORE tapping Save
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
             resp.request().method() === 'PATCH',
         );
 
-        // Click "Save" — promotes the draft to saved status
-        await editPage.submitButton.scrollIntoViewIfNeeded();
-        await editPage.submitButton.click();
+        // Tap "Save entry" — promotes the draft to saved status
+        await capture.saveButton.scrollIntoViewIfNeeded();
+        await capture.saveEntry();
         const promoteResponse = await promoteResponsePromise;
         expect(promoteResponse.ok(), 'Promote should succeed').toBeTruthy();
 

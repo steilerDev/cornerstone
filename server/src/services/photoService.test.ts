@@ -29,7 +29,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { ValidationError } from '../errors/AppError.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/AppError.js';
 import type * as PhotoServiceModule from './photoService.js';
 
 // ─── Mock sharp BEFORE any module import that uses it ─────────────────────────
@@ -1499,6 +1499,487 @@ describe('photoService', () => {
       const v = encodeURIComponent(photo.annotatedAt ?? photo.updatedAt);
       expect(photo.thumbnailUrl).toBe(`/api/photos/${photo.id}/thumbnail?v=${v}`);
       expect(photo.fileUrl).toBe(`/api/photos/${photo.id}/file`);
+    });
+  });
+
+  // ─── Undoable delete (#2221) ──────────────────────────────────────────────
+
+  describe('undoable delete (#2221)', () => {
+    const PHOTO_ID = 'photo-undo-1';
+    const FILE_NAMES = ['original.jpg', 'thumbnail.webp', 'annotated.webp'];
+    const SIGNED_META = JSON.stringify({
+      signatures: [{ signerName: 'A', signerType: 'self', signatureDataUrl: 'data:x' }],
+    });
+
+    function seedArea(id = 'area-1'): string {
+      const now = '2026-01-01T00:00:00.000Z';
+      db.insert(schema.areas)
+        .values({ id, name: `Area ${id}`, sortOrder: 0, createdAt: now, updatedAt: now })
+        .run();
+      return id;
+    }
+
+    function seedOrientation(id = 'orient-1'): string {
+      const now = '2026-01-01T00:00:00.000Z';
+      db.insert(schema.orientations)
+        .values({ id, name: `North ${id}`, sortOrder: 0, createdAt: now, updatedAt: now })
+        .run();
+      return id;
+    }
+
+    function seedEntry(overrides: Partial<typeof schema.diaryEntries.$inferInsert> = {}): string {
+      const id = overrides.id ?? 'entry-1';
+      const now = '2026-03-14T08:00:00.000Z';
+      db.insert(schema.diaryEntries)
+        .values({
+          id,
+          entryType: 'daily_log',
+          entryDate: '2026-03-14',
+          title: 'Synthetic entry',
+          body: 'Body',
+          metadata: null,
+          status: 'saved',
+          isAutomatic: false,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+          ...overrides,
+        })
+        .run();
+      return id;
+    }
+
+    function seedPhoto(overrides: Partial<typeof schema.photos.$inferInsert> = {}) {
+      const values: typeof schema.photos.$inferInsert = {
+        id: PHOTO_ID,
+        entityType: 'diary_entry',
+        entityId: 'entry-1',
+        filename: 'original.jpg',
+        originalFilename: 'site.jpg',
+        mimeType: 'image/jpeg',
+        fileSize: 4321,
+        width: 800,
+        height: 600,
+        takenAt: '2026-03-14T07:30:00.000Z',
+        caption: 'North wall, first course',
+        areaId: null,
+        orientationId: null,
+        sortOrder: 3,
+        createdBy: userId,
+        createdAt: '2026-03-14T08:00:00.000Z',
+        updatedAt: '2026-03-15T09:00:00.000Z',
+        annotatedAt: '2026-03-16T10:00:00.000Z',
+        ...overrides,
+      };
+      db.insert(schema.photos).values(values).run();
+      return values;
+    }
+
+    function seedFiles(id = PHOTO_ID): void {
+      const dir = join(tempStoragePath, id);
+      mkdirSync(dir, { recursive: true });
+      for (const name of FILE_NAMES) writeFileSync(join(dir, name), `${id}:${name}`);
+    }
+
+    function rowOf(id = PHOTO_ID) {
+      return db.select().from(schema.photos).where(eq(schema.photos.id, id)).get();
+    }
+
+    function restore(snapshot: ReturnType<typeof photoService.trashPhoto>): void {
+      db.transaction((tx) => photoService.restoreTrashedPhoto(tx, tempStoragePath, snapshot));
+    }
+
+    function expectConflict(snapshot: ReturnType<typeof photoService.trashPhoto>): void {
+      let error: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({
+        changed: [{ type: 'photo', id: snapshot.row.id }],
+      });
+      expect(rowOf()).toBeUndefined();
+      expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID, 'original.jpg'))).toBe(true);
+    }
+
+    describe('photoTrashDir()', () => {
+      it('is the .trash folder inside the photo storage path', () => {
+        expect(photoService.photoTrashDir('/data/photos')).toBe(join('/data/photos', '.trash'));
+      });
+    });
+
+    describe('trashPhoto()', () => {
+      it('deletes the row and moves the photo directory into .trash', () => {
+        seedEntry();
+        const values = seedPhoto();
+        seedFiles();
+
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(rowOf()).toBeUndefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+        for (const name of FILE_NAMES) {
+          expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID, name))).toBe(true);
+        }
+        expect(snapshot.row).toEqual(expect.objectContaining(values));
+      });
+
+      it('leaves other photos and their files untouched', () => {
+        seedPhoto();
+        seedFiles();
+        seedPhoto({ id: 'photo-other', sortOrder: 4 });
+        seedFiles('photo-other');
+
+        photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(rowOf('photo-other')).toBeDefined();
+        expect(existsSync(join(tempStoragePath, 'photo-other', 'original.jpg'))).toBe(true);
+      });
+
+      it('still deletes the row when the photo directory does not exist', () => {
+        seedPhoto();
+
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(rowOf()).toBeUndefined();
+        expect(snapshot.row.id).toBe(PHOTO_ID);
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+      });
+
+      it('throws NotFoundError for a missing photo and moves nothing', () => {
+        seedFiles('orphan-dir');
+
+        expect(() => photoService.trashPhoto(db, tempStoragePath, 'missing')).toThrow(
+          NotFoundError,
+        );
+
+        expect(existsSync(join(tempStoragePath, 'orphan-dir', 'original.jpg'))).toBe(true);
+        expect(existsSync(join(tempStoragePath, '.trash', 'missing'))).toBe(false);
+      });
+
+      it('keeps the row deleted and the directory in place when the move fails', () => {
+        seedPhoto();
+        seedFiles();
+        // A file named .trash makes mkdir/rename fail with a non-ENOENT error
+        writeFileSync(join(tempStoragePath, '.trash'), 'not a directory');
+
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(snapshot.row.id).toBe(PHOTO_ID);
+        expect(rowOf()).toBeUndefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID, 'original.jpg'))).toBe(true);
+      });
+    });
+
+    describe('restoreTrashedPhoto()', () => {
+      it('re-inserts every column with the original id and moves all files back', () => {
+        seedEntry();
+        const areaId = seedArea();
+        const orientationId = seedOrientation();
+        const values = seedPhoto({ areaId, orientationId });
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toEqual(values);
+        expect(rowOf()).toEqual(
+          expect.objectContaining({
+            id: PHOTO_ID,
+            caption: 'North wall, first course',
+            annotatedAt: '2026-03-16T10:00:00.000Z',
+            sortOrder: 3,
+            createdAt: '2026-03-14T08:00:00.000Z',
+            updatedAt: '2026-03-15T09:00:00.000Z',
+            entityType: 'diary_entry',
+            entityId: 'entry-1',
+            areaId,
+            orientationId,
+            createdBy: userId,
+          }),
+        );
+        for (const name of FILE_NAMES) {
+          expect(existsSync(join(tempStoragePath, PHOTO_ID, name))).toBe(true);
+        }
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+      });
+
+      it('returns the photo to its original position and cache version through getPhoto', () => {
+        seedEntry();
+        seedPhoto({ sortOrder: 0, id: 'p-a' });
+        seedPhoto({ sortOrder: 1 });
+        seedPhoto({ sortOrder: 2, id: 'p-c' });
+        seedFiles();
+        const before = photoService.getPhoto(db, PHOTO_ID);
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(photoService.getPhoto(db, PHOTO_ID)).toEqual(before);
+        expect(
+          photoService.getPhotosForEntity(db, 'diary_entry', 'entry-1').map((p) => p.id),
+        ).toEqual(['p-a', PHOTO_ID, 'p-c']);
+      });
+
+      it('restores a photo on a non-diary entity without consulting any diary entry', () => {
+        seedPhoto({ entityType: 'room', entityId: 'room-1' });
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()?.entityType).toBe('room');
+      });
+
+      it('restores a photo of a signed draft entry (drafts stay editable)', () => {
+        seedEntry({ status: 'draft', metadata: SIGNED_META });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toBeDefined();
+      });
+
+      it('restores a photo of a saved entry whose signatures array is empty', () => {
+        seedEntry({ metadata: JSON.stringify({ signatures: [] }) });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toBeDefined();
+      });
+
+      it('fails open on unparseable entry metadata, as the photo routes do', () => {
+        seedEntry({ metadata: '{not json' });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toBeDefined();
+      });
+
+      it('restores area and orientation as null when they were deleted meanwhile', () => {
+        seedEntry();
+        const areaId = seedArea();
+        const orientationId = seedOrientation();
+        seedPhoto({ areaId, orientationId });
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        db.delete(schema.areas).where(eq(schema.areas.id, areaId)).run();
+        db.delete(schema.orientations).where(eq(schema.orientations.id, orientationId)).run();
+
+        restore(snapshot);
+
+        expect(rowOf()).toEqual(
+          expect.objectContaining({
+            areaId: null,
+            orientationId: null,
+            caption: expect.any(String),
+          }),
+        );
+      });
+
+      it('keeps area and orientation when they still exist', () => {
+        seedEntry();
+        const areaId = seedArea();
+        const orientationId = seedOrientation();
+        seedPhoto({ areaId, orientationId });
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toEqual(expect.objectContaining({ areaId, orientationId }));
+      });
+
+      it('restores createdBy as null when the user was deleted meanwhile', () => {
+        seedEntry();
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        db.delete(schema.users).where(eq(schema.users.id, userId)).run();
+
+        restore(snapshot);
+
+        expect(rowOf()?.createdBy).toBeNull();
+      });
+
+      it('restores a photo that never had a creator, area or orientation', () => {
+        seedEntry();
+        seedPhoto({ createdBy: null });
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toEqual(
+          expect.objectContaining({ createdBy: null, areaId: null, orientationId: null }),
+        );
+      });
+
+      it('throws ConflictError with the photo as changed when the diary entry is gone', () => {
+        seedEntry();
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        db.delete(schema.diaryEntries).where(eq(schema.diaryEntries.id, 'entry-1')).run();
+
+        expectConflict(snapshot);
+      });
+
+      it('throws ConflictError when the diary entry is automatic', () => {
+        seedEntry({ isAutomatic: true });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expectConflict(snapshot);
+      });
+
+      it('throws ConflictError when the diary entry is saved and signed', () => {
+        seedEntry({ status: 'saved', metadata: SIGNED_META });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expectConflict(snapshot);
+      });
+
+      it('throws ConflictError when the entry was signed and saved inside the window', () => {
+        seedEntry({ status: 'draft' });
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        db.update(schema.diaryEntries)
+          .set({ status: 'saved', metadata: SIGNED_META })
+          .where(eq(schema.diaryEntries.id, 'entry-1'))
+          .run();
+
+        expectConflict(snapshot);
+      });
+
+      it('throws NotFoundError and inserts no row when neither trash nor live files exist', () => {
+        seedEntry();
+        seedPhoto();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        // The move found nothing to trash, and no live directory exists either
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+
+        expect(() => restore(snapshot)).toThrow(NotFoundError);
+
+        expect(rowOf()).toBeUndefined();
+      });
+
+      it('checks the files before inserting: a purged trash yields NotFoundError and no row', () => {
+        seedEntry();
+        seedPhoto();
+        seedFiles();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(() => restore(snapshot)).toThrow(NotFoundError);
+
+        expect(rowOf()).toBeUndefined();
+      });
+
+      it('accepts a directory that stayed in place when the move had failed', () => {
+        seedEntry();
+        seedPhoto();
+        seedFiles();
+        writeFileSync(join(tempStoragePath, '.trash'), 'not a directory');
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        restore(snapshot);
+
+        expect(rowOf()).toBeDefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID, 'original.jpg'))).toBe(true);
+      });
+
+      it('reports a conflict before a missing-files error when both apply', () => {
+        seedEntry({ isAutomatic: true });
+        seedPhoto();
+        const snapshot = photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(() => restore(snapshot)).toThrow(ConflictError);
+      });
+    });
+
+    describe('purgeTrashedPhoto()', () => {
+      it('removes only that photo from the trash', () => {
+        seedPhoto();
+        seedFiles();
+        seedPhoto({ id: 'photo-two' });
+        seedFiles('photo-two');
+        photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+        photoService.trashPhoto(db, tempStoragePath, 'photo-two');
+
+        photoService.purgeTrashedPhoto(tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, '.trash', PHOTO_ID))).toBe(false);
+        expect(existsSync(join(tempStoragePath, '.trash', 'photo-two', 'original.jpg'))).toBe(true);
+      });
+
+      it('does not throw when the trash or the photo is absent', () => {
+        expect(() => photoService.purgeTrashedPhoto(tempStoragePath, 'nothing')).not.toThrow();
+        expect(() =>
+          photoService.purgeTrashedPhoto(join(tempStoragePath, 'no-such-root'), 'x'),
+        ).not.toThrow();
+      });
+
+      it('swallows a filesystem error', () => {
+        // A path segment containing a NUL byte makes rmSync throw
+        expect(() => photoService.purgeTrashedPhoto(tempStoragePath, 'bad\0id')).not.toThrow();
+      });
+    });
+
+    describe('purgePhotoTrash()', () => {
+      it('empties the whole trash and keeps live photos', async () => {
+        seedPhoto();
+        seedFiles();
+        seedPhoto({ id: 'photo-live' });
+        seedFiles('photo-live');
+        photoService.trashPhoto(db, tempStoragePath, PHOTO_ID);
+
+        await photoService.purgePhotoTrash(tempStoragePath);
+
+        expect(existsSync(join(tempStoragePath, '.trash'))).toBe(false);
+        expect(existsSync(join(tempStoragePath, 'photo-live', 'original.jpg'))).toBe(true);
+      });
+
+      it('resolves when there is no trash', async () => {
+        await expect(photoService.purgePhotoTrash(tempStoragePath)).resolves.toBeUndefined();
+      });
+    });
+
+    describe('hard-delete paths stay permanent', () => {
+      it('deletePhoto removes the files without using the trash', async () => {
+        seedPhoto();
+        seedFiles();
+
+        await photoService.deletePhoto(db, tempStoragePath, PHOTO_ID);
+
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+        expect(existsSync(join(tempStoragePath, '.trash'))).toBe(false);
+      });
+
+      it('deletePhotosForEntity removes rows and files without using the trash', async () => {
+        seedPhoto();
+        seedFiles();
+
+        await photoService.deletePhotosForEntity(db, tempStoragePath, 'diary_entry', 'entry-1');
+
+        expect(rowOf()).toBeUndefined();
+        expect(existsSync(join(tempStoragePath, PHOTO_ID))).toBe(false);
+        expect(existsSync(join(tempStoragePath, '.trash'))).toBe(false);
+      });
     });
   });
 });

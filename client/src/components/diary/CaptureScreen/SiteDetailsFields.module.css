@@ -1,0 +1,140 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.input {
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-base);
+}
+
+.narrow {
+  max-width: 10rem;
+}
+
+.timeEnd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.duration {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.materials {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.material {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-1) var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.materialText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.removeMaterial {
+  flex-shrink: 0;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+}
+
+.materialInput {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.materialInput .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addButton {
+  flex-shrink: 0;
+  min-height: var(--touch-target-min);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.disclosure {
+  composes: disclosure from '../../ObjectForm/ObjectForm.module.css';
+}
+
+.chevron {
+  composes: chevron from '../../ObjectForm/ObjectForm.module.css';
+}
+
+.chevronOpen {
+  composes: chevronOpen from '../../ObjectForm/ObjectForm.module.css';
+}
+
+.moreBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.moreBody[hidden] {
+  display: none;
+}
+
+.addSignature {
+  align-self: flex-start;
+  min-height: var(--touch-target-min);
+}

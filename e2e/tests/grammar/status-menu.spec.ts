@@ -32,7 +32,7 @@ import { StatusMenuControl } from '../../pages/components/StatusMenuControl.js';
 import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { API } from '../../fixtures/testData.js';
 import {
   createWorkItemViaApi,
@@ -590,7 +590,7 @@ test.describe('StatusMenu — grant, funding source and defect', { tag: '@respon
     testPrefix,
   }) => {
     const detail = new DiaryEntryDetailPage(page);
-    const edit = new DiaryEntryEditPage(page);
+    const edit = new DiaryCapturePage(page);
     const toasts = new ToastRegion(page);
     const id = await createDiaryEntryViaApi(page, {
       entryType: 'issue',
@@ -613,10 +613,11 @@ test.describe('StatusMenu — grant, funding source and defect', { tag: '@respon
       await toasts.undoViaButton();
       await expect(menu.trigger).toHaveText('Open');
 
-      // The saved-entry edit form no longer carries a status select
-      await edit.goto(id);
-      await expect(edit.heading).toBeVisible();
-      await expect(edit.resolutionStatusSelect).toHaveCount(0);
+      // The saved-entry edit screen carries no status control (neither select nor chips)
+      await edit.gotoEdit(id);
+      await expect(edit.heading).toContainText('Edit entry · ');
+      await expect(page.locator('[data-testid^="capture-status-"]')).toHaveCount(0);
+      await expect(page.locator('#resolution-status')).toHaveCount(0);
     } finally {
       await deleteDiaryEntryViaApi(page, id);
     }

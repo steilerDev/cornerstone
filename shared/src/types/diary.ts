@@ -53,13 +53,16 @@ export interface DiarySignatureEntry {
 }
 
 /** Weather conditions for daily logs. */
-export type DiaryWeather = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' | 'other';
+export const DIARY_WEATHERS = ['sunny', 'cloudy', 'rainy', 'snowy', 'stormy', 'other'] as const;
+export type DiaryWeather = (typeof DIARY_WEATHERS)[number];
 
 /** Site visit inspection outcome. */
-export type DiaryInspectionOutcome = 'pass' | 'fail' | 'conditional';
+export const DIARY_INSPECTION_OUTCOMES = ['pass', 'conditional', 'fail'] as const;
+export type DiaryInspectionOutcome = (typeof DIARY_INSPECTION_OUTCOMES)[number];
 
 /** Issue severity levels. */
-export type DiaryIssueSeverity = 'low' | 'medium' | 'high' | 'critical';
+export const DIARY_ISSUE_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+export type DiaryIssueSeverity = (typeof DIARY_ISSUE_SEVERITIES)[number];
 
 /**
  * Issue resolution statuses.

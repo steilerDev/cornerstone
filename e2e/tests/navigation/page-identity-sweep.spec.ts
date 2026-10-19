@@ -94,6 +94,8 @@ interface SweepRow {
   finalPath?: () => string;
   /** The single h1; null = not asserted (documented exemption). */
   h1: string | null;
+  /** Source of a regular expression for an h1 that carries a date ("New entry · Mon, Oct 19"). */
+  h1Pattern?: string;
   /** Title override for the exempt rows; otherwise `<h1> · [<section> · ]<house>`. */
   title?: RegExp;
   /** Breadcrumb row expected (non-view pages). The 404 page renders none. */
@@ -252,7 +254,9 @@ const ROWS: SweepRow[] = [
   {
     id: 'diaryEntryNew',
     path: () => routeUrl('diaryEntryNew'),
-    h1: 'New diary entry',
+    // #2221: the h1 names the day the entry is for ("New entry · Mon, Oct 19")
+    h1: null,
+    h1Pattern: 'New entry · [^·]+',
     crumbs: true,
     active: DIARY,
   },
@@ -266,7 +270,8 @@ const ROWS: SweepRow[] = [
   {
     id: 'diaryEntryEdit',
     path: () => routeUrl('diaryEntryEdit', { id: seed.diaryId }),
-    h1: 'Edit diary entry',
+    h1: null,
+    h1Pattern: 'Edit entry · [^·]+',
     crumbs: true,
     active: DIARY,
   },
@@ -531,15 +536,18 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
 
       // The h1 first (the title is set in an effect after the page has rendered)
       const headings = page.getByRole('heading', { level: 1 });
-      if (row.h1 !== null) {
+      if (row.h1Pattern !== undefined) {
+        await expect(headings).toHaveCount(1);
+        await expect(headings).toHaveText(new RegExp(`^${row.h1Pattern}$`));
+      } else if (row.h1 !== null) {
         await expect(headings).toHaveCount(1);
         await expect(headings).toHaveText(row.h1);
       }
       if (row.dialog !== undefined) {
         await expect(page.getByRole('dialog', { name: row.dialog, exact: true })).toBeVisible();
       }
-      const title =
-        row.title ?? new RegExp(`^${escapeRegExp(row.h1 ?? '')} · (.* · )?${escapeRegExp(HOUSE)}$`);
+      const titleHead = row.h1Pattern ?? escapeRegExp(row.h1 ?? '');
+      const title = row.title ?? new RegExp(`^${titleHead} · (.* · )?${escapeRegExp(HOUSE)}$`);
       await expect(page).toHaveTitle(title);
 
       // Breadcrumb row: parents of non-view pages; views and the 404 page have none

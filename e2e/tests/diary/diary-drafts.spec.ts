@@ -2,35 +2,35 @@
  * E2E tests for Diary Draft Lifecycle
  *
  * Bug Fix #1426: Diary photos lost on upload failure
- * UX Polish #1435: Type-card click fires POST immediately; removes form step from create page.
+ * Story #2221: the capture screen. The first photo or character creates the draft; the
+ * screen is the same on /diary/new and /diary/:id/edit.
  *
  * Scenarios covered:
- * 1.  [smoke] Auto-draft creation on type-card click: click type card → POST fires → URL changes to /diary/:id/edit, Draft badge visible
- * 2.  Draft persists on reload (triggered via type-card click)
+ * 1.  [smoke] Auto-draft creation: type the first character → POST fires → URL changes to /diary/:id/edit, the capture screen stays
+ * 2.  Draft persists on reload
  * 3.  URL is replace history (browser back → /diary, not /diary/new)
- * 4.  No draft without interaction (navigate away without clicking any card)
- * 5.  Auto-save on metadata change (daily_log weather select)
- * 6.  Photo attach — happy path (attach 2 photos, per-photo state, photos in grid)
- *     Photo immediate appearance sub-test: upload → photo appears in PhotoGrid without reload
- * 7.  Photo attach — concurrency (4 photos, max 3 uploading simultaneously)
+ * 4.  No draft without interaction (picking a date, type or tag chips creates nothing)
+ * 5.  Auto-save on metadata change (daily_log weather chip)
+ * 6.  Photo attach — happy path (attach 2 photos, per-photo state, tiles in the strip)
+ *     Photo immediate appearance sub-test: upload → tile appears and uploads without reload
+ * 7.  [removed] Concurrency of the old upload queue; upload progress is covered in capture-screen.spec.ts
  * 8.  Photo upload failure → retry (page.route() intercept)
- * 9.  Promote draft — happy path (fill required fields, Save → detail page, no Draft badge)
- * 10. Promote draft — validation error (empty body, Save → error, still on edit, still draft)
- * 11. Discard draft (Discard Draft → "Discard this entry?" dialog → /diary, entry gone)
+ * 9.  Promote draft — happy path (type text, Save entry → detail page)
+ * 10. Promote draft — an empty draft cannot be saved (Save is aria-disabled with a reason)
+ * 11. Discard draft (⋯ → Discard entry → "Discard this entry?" dialog → /diary, entry gone)
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
  * 13. Drafts chip (default pressed; click → hides drafts, saved visible; click again → drafts restored)
  * 14. Clicking draft in list navigates to /diary/:id/edit
  * 15. Dashboard excludes drafts; shows entry after promote
- * 16. [responsive] Draft edit page on mobile (badge, auto-save indicator, discard button visible, no scroll)
- * 17. [responsive] Photo upload queue on tablet (per-photo status visible and tappable)
- * 18. Editing a saved entry unchanged (save → no Draft badge, no discard button)
+ * 16. [responsive] Draft edit page on mobile (menu, Save entry, no scroll)
+ * 17. [responsive] Photo controls on tablet (Choose from library visible and tappable)
+ * 18. Editing a saved entry (Edit entry, Save changes, no menu)
  */
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
-import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
 import {
@@ -38,6 +38,8 @@ import {
   createDiaryEntryViaApi,
   deleteDiaryEntryViaApi,
 } from '../../fixtures/apiHelpers.js';
+import { capturePhotos } from '../../fixtures/capturePhotos.js';
+import { entryStatus, getEntry, listEntryPhotos } from '../../fixtures/captureSeed.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -60,84 +62,78 @@ function waitForDiaryListResponse(page: Page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Auto-draft creation on type-card click
+// Scenario 1: Auto-draft creation on the first character
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Auto-draft creation on type-card click (Scenario 1)', { tag: '@responsive' }, () => {
-  test(
-    '[smoke] Clicking a type card auto-creates a draft and navigates to /diary/:id/edit',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const createPage = new DiaryEntryCreatePage(page);
-      const editPage = new DiaryEntryEditPage(page);
-      let draftId: string | null = null;
+test.describe(
+  'Auto-draft creation on the first character (Scenario 1)',
+  { tag: '@responsive' },
+  () => {
+    test(
+      '[smoke] Typing the first character auto-creates a draft and navigates to /diary/:id/edit',
+      { tag: '@smoke' },
+      async ({ page, testPrefix }) => {
+        const capture = new DiaryCapturePage(page);
+        let draftId: string | null = null;
 
-      try {
-        await createPage.goto();
+        try {
+          await capture.goto();
 
-        // Register the POST response listener BEFORE clicking — type-card click fires
-        // POST /api/diary-entries immediately (status: 'draft').
-        const draftResponsePromise = page.waitForResponse(
-          (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-        );
+          // Register the POST response listener BEFORE typing — the first character fires
+          // POST /api/diary-entries immediately (status: 'draft').
+          const draftResponsePromise = page.waitForResponse(
+            (resp) =>
+              resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+          );
 
-        await createPage.typeCard('general_note').click();
-        const draftResponse = await draftResponsePromise;
-        expect(draftResponse.ok(), 'Draft creation response should be OK').toBeTruthy();
+          await capture.typeTitle(`${testPrefix} draft`);
+          const draftResponse = await draftResponsePromise;
+          expect(draftResponse.ok(), 'Draft creation response should be OK').toBeTruthy();
 
-        const responseBody = (await draftResponse.json()) as { id: string };
-        draftId = responseBody.id;
+          const responseBody = (await draftResponse.json()) as { id: string };
+          draftId = responseBody.id;
 
-        // URL should change to /diary/:id/edit (replace navigation)
-        await page.waitForURL(/diary\/.+\/edit$/);
-        expect(page.url()).toMatch(new RegExp(`/diary/${draftId}/edit$`));
+          // URL should change to /diary/:id/edit (replace navigation)
+          await page.waitForURL(/diary\/.+\/edit$/);
+          expect(page.url()).toMatch(new RegExp(`/diary/${draftId}/edit$`));
 
-        // Draft badge must be visible
-        await expect(editPage.draftBadge).toBeVisible();
-
-        // Heading should be the edit page heading
-        await expect(editPage.heading).toBeVisible();
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
-});
+          // The capture screen stays: a "New entry" heading and Save entry (not Save changes)
+          await expect(capture.heading).toContainText('New entry');
+          await expect(capture.saveButton).toHaveText('Save entry');
+        } finally {
+          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        }
+      },
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Draft persists on reload
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Draft persists on reload (Scenario 2)', () => {
-  test('Draft entry created via type-card click is still visible after a full page reload', async ({
+  test('Draft entry created by typing is still visible after a full page reload', async ({
     page,
+    testPrefix,
   }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
+    const title = `${testPrefix} reload`;
 
     try {
-      await createPage.goto();
-
-      // Register the POST listener BEFORE clicking the type card
-      const draftResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-      );
-
-      await createPage.typeCard('general_note').click();
-      const draftResponse = await draftResponsePromise;
-      expect(draftResponse.ok()).toBeTruthy();
-
-      const responseBody = (await draftResponse.json()) as { id: string };
-      draftId = responseBody.id;
-
-      await page.waitForURL(/diary\/.+\/edit$/);
-      await expect(editPage.draftBadge).toBeVisible();
+      await capture.goto();
+      await capture.typeTitle(title);
+      draftId = await capture.waitForDraft();
+      // The rest of the title is autosaved a moment after the draft exists: wait for the server
+      await expect.poll(async () => (await getEntry(page, draftId!)).title).toBe(title);
 
       // Reload the page — the draft should persist (served from server)
       await page.reload();
-      await editPage.heading.waitFor({ state: 'visible' });
+      await capture.waitForForm();
 
-      // Draft badge should still be visible after reload
-      await expect(editPage.draftBadge).toBeVisible();
+      // Still a draft with what was typed
+      await expect(capture.heading).toContainText('New entry');
+      await expect(capture.saveButton).toHaveText('Save entry');
+      await expect(capture.titleInput).toHaveValue(title);
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -148,10 +144,11 @@ test.describe('Draft persists on reload (Scenario 2)', () => {
 // Scenario 3: URL is replace history (browser back → /diary)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
-  test('Browser back after type-card-click draft navigates to /diary, not /diary/new', async ({
+  test('Browser back after the draft is created navigates to /diary, not /diary/new', async ({
     page,
+    testPrefix,
   }) => {
-    const createPage = new DiaryEntryCreatePage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
@@ -162,23 +159,10 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
       });
 
       // Now navigate to /diary/new
-      await page.goto(DIARY_CREATE_ROUTE);
-      await createPage.heading.waitFor({ state: 'visible' });
+      await capture.goto();
 
-      // Register POST listener BEFORE clicking the type card
-      const draftResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-      );
-
-      await createPage.typeCard('general_note').click();
-      const draftResponse = await draftResponsePromise;
-      expect(draftResponse.ok()).toBeTruthy();
-
-      const responseBody = (await draftResponse.json()) as { id: string };
-      draftId = responseBody.id;
-
-      // Wait for navigation to /diary/:id/edit
-      await page.waitForURL(/diary\/.+\/edit$/);
+      await capture.typeTitle(`${testPrefix} history`);
+      draftId = await capture.waitForDraft();
 
       // Press browser back — should navigate to /diary (the entry before /diary/new in history)
       // because navigate({ replace: true }) was used when creating the draft
@@ -198,17 +182,20 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
 // Scenario 4: No draft without interaction
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('No draft created without interaction (Scenario 4)', () => {
-  test('Navigating away from /diary/new without clicking any type card creates no draft', async ({
+  test('Picking a date and a type on /diary/new and leaving creates no draft', async ({
     page,
     testPrefix,
   }) => {
-    const createPage = new DiaryEntryCreatePage(page);
+    const capture = new DiaryCapturePage(page);
     const diaryPage = new DiaryPage(page);
 
-    // Navigate to /diary/new — type selector is visible, but do NOT click any card
-    await createPage.goto();
+    // Open /diary/new and use the chips, but type nothing and add no photo
+    await capture.goto();
+    await capture.tap(capture.dateChip('yesterday'));
+    await capture.selectType('delivery');
+    await expect(capture.typeChip('delivery')).toHaveAttribute('aria-pressed', 'true');
 
-    // Navigate directly to /diary without clicking a type card
+    // Navigate directly to /diary
     await page.goto(DIARY_ROUTE);
     await diaryPage.heading.waitFor({ state: 'visible' });
 
@@ -241,39 +228,36 @@ test.describe('No draft created without interaction (Scenario 4)', () => {
 // Scenario 5: Auto-save on metadata change
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Auto-save on metadata change (Scenario 5)', () => {
-  test('Changing weather select on a draft triggers auto-save; value persists on reload', async ({
+  test('Tapping a weather chip on a draft triggers auto-save; value persists on reload', async ({
     page,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
       // Create a draft daily_log via API
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
 
-      await editPage.goto(draftId);
-      await expect(editPage.draftBadge).toBeVisible();
+      await capture.gotoEdit(draftId);
+      await expect(capture.saveButton).toHaveText('Save entry');
+      await capture.openMoreDetails();
 
-      // Weather select — ensure it's visible and change it
-      await editPage.weatherSelect.waitFor({ state: 'visible' });
-
-      // Register the PATCH listener before changing the select (immediate auto-save for selects)
+      // Register the PATCH listener before tapping the chip (a chip saves at once)
       const autoSavePatchPromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${draftId}`) &&
           resp.request().method() === 'PATCH',
       );
 
-      await editPage.weatherSelect.selectOption('sunny');
+      await capture.tap(capture.weatherChip('sunny'));
       await autoSavePatchPromise;
+      await expect(capture.savedText).toBeVisible();
 
       // Reload and verify the weather value was persisted
       await page.reload();
-      await editPage.heading.waitFor({ state: 'visible' });
-      await editPage.weatherSelect.waitFor({ state: 'visible' });
-
-      const persistedValue = await editPage.weatherSelect.inputValue();
-      expect(persistedValue).toBe('sunny');
+      await capture.waitForForm();
+      await capture.openMoreDetails();
+      await expect(capture.weatherChip('sunny')).toHaveAttribute('aria-pressed', 'true');
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -284,7 +268,7 @@ test.describe('Auto-save on metadata change (Scenario 5)', () => {
 // Scenario 6: Photo attach — happy path
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Attaching 2 photos to a draft shows uploading then succeeded state', async ({
+  test('Attaching 2 photos to a draft shows uploading then uploaded state', async ({
     page,
     testPrefix,
   }) => {
@@ -293,157 +277,46 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
-        state: 'visible',
-      });
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(draftId);
 
-      // Create 2 minimal image files
-      const file1 = {
-        name: `photo1-${testPrefix}.jpg`,
-        mimeType: 'image/jpeg',
-        buffer: Buffer.from(
-          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAHxAAAQQCAwEAAAAAAAAAAAAAAQACAxESITFBUf/aAAgBAQAA/wBZkNBrSHb3L2oqXQgqUSRhqX',
-          'base64',
-        ),
-      };
-      const file2 = {
-        name: `photo2-${testPrefix}.jpg`,
-        mimeType: 'image/jpeg',
-        buffer: Buffer.from(
-          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAHxAAAQQCAwEAAAAAAAAAAAAAAQACAxESITFBUf/aAAgBAQAA/wBZkNBrSHb3L2oqXQgqUSRhqX',
-          'base64',
-        ),
-      };
-
-      // Get the hidden file input
-      const fileInput = page.getByTestId('photo-file-input');
-
-      await fileInput.setInputFiles([file1, file2]);
-
-      // PR #1674 introduced PhotoMetadataModal: selecting files opens a modal asking for
-      // caption, area, and orientation before uploading. Each file gets its own modal step.
-      // After saving file 1, the modal stays open showing file 2. After saving file 2, it closes.
-      const modal = page.getByRole('dialog', { name: 'Add photo details' });
-
-      // Register POST /api/photos response listener BEFORE clicking Save so we don't miss it.
-      const upload1Promise = page.waitForResponse(
+      // Picking photos starts the upload at once: no per-photo details step any more
+      const uploadResponse = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
+      await capture.chooseFromLibrary(capturePhotos(2, `${testPrefix}-att`));
+      await uploadResponse;
 
-      // Save file 1 metadata — modal stays open (now shows file 2)
-      await modal.waitFor({ state: 'visible' });
-      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-
-      // Save file 2 metadata — modal closes after last file
-      await modal.waitFor({ state: 'visible' });
-      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-      await expect(modal).not.toBeVisible();
-
-      // Wait for first upload to complete (both are now in-flight)
-      await upload1Promise;
-
-      // Verify the photo upload section is still visible (photo section rendered).
-      // On touch devices (tablet/mobile), isTouchDevice=true so the mobile button pair
-      // renders instead of the drag-and-drop zone (data-testid="photo-upload-zone").
-      // Use viewport width as a proxy for touch-device detection.
-      const viewportWidth = page.viewportSize()?.width ?? 1920;
-      if (viewportWidth <= 1024) {
-        // Touch device: mobile button pair; use "Upload Photos" button as anchor
-        await expect(page.getByRole('button', { name: 'Upload Photos' }).first()).toBeVisible();
-      } else {
-        // Desktop: drag-and-drop zone always present (wrapper div, not affected by isProcessing)
-        await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
-      }
+      // Both tiles end up uploaded and the server has both photos
+      await capture.waitForUploaded(2);
+      await expect.poll(async () => (await listEntryPhotos(page, draftId!)).length).toBe(2);
+      await expect(capture.strip).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
   });
 
   // ── Photo immediate appearance sub-test (#1435) ──────────────────────────
-  test('Photo appears in PhotoGrid immediately after upload (without page reload)', async ({
+  test('Photo appears in the strip immediately after picking (without page reload)', async ({
     page,
+    testPrefix,
   }) => {
     let draftId: string | null = null;
 
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      const mockPhotoId = `mock-photo-${Date.now()}`;
-      const mockPhoto = {
-        id: mockPhotoId,
-        entityType: 'diary_entry',
-        entityId: draftId,
-        mimeType: 'image/jpeg',
-        filename: 'test.jpg',
-        sizeBytes: 100,
-        caption: null,
-        sortOrder: 0,
-        uploadedAt: new Date().toISOString(),
-      };
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(draftId);
+      await expect(capture.tiles).toHaveCount(0);
 
-      // Intercept the upload POST — return a fake 201 so the server never sees the request.
-      // This avoids rejection of the tiny test file and lets us control the returned photo id.
-      await page.route('**/api/photos', async (route) => {
-        if (route.request().method() === 'POST') {
-          await route.fulfill({
-            status: 201,
-            contentType: 'application/json',
-            body: JSON.stringify({ photo: mockPhoto }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
+      await capture.chooseFromLibrary(capturePhotos(1, `${testPrefix}-now`));
 
-      // Intercept the GET so the refresh() fetch (triggered by onUpload) returns the mocked photo.
-      // DiaryEntryEditPage passes onUpload={() => photosResult.refresh()} to PhotoUpload.
-      // refresh() increments fetchCount → useEffect re-runs → GET /api/photos?entityType=diary_entry&entityId=:id
-      // Without this mock the server returns [] (the photo was never really stored).
-      await page.route(
-        `**/api/photos?entityType=diary_entry&entityId=${draftId}`,
-        async (route) => {
-          if (route.request().method() === 'GET') {
-            await route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify({ photos: [mockPhoto] }),
-            });
-          } else {
-            await route.continue();
-          }
-        },
-      );
-
-      await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
-        state: 'visible',
-      });
-
-      const fileInput = page.getByTestId('photo-file-input');
-      const minimalFile = {
-        name: 'test.jpg',
-        mimeType: 'image/jpeg' as const,
-        buffer: Buffer.from('test'),
-      };
-      await fileInput.setInputFiles([minimalFile]);
-
-      // PR #1674 introduced PhotoMetadataModal: selecting a file via any input opens a modal
-      // asking for caption, area, and orientation before the upload is enqueued.
-      // Dismiss the modal by clicking "Save & upload" to trigger the actual upload.
-      const modal = page.getByRole('dialog', { name: 'Add photo details' });
-      await modal.waitFor({ state: 'visible' });
-      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-      await expect(modal).not.toBeVisible();
-
-      // The photo card should appear without a page reload.
-      // This proves: (1) the POST mock fired, (2) onUpload called photosResult.refresh(),
-      // (3) the GET mock returned the photo, (4) React re-rendered the PhotoGrid.
-      // PhotoCard renders data-testid="photo-card-{id}" (PhotoCard.tsx line 53).
-      await expect(page.getByTestId(`photo-card-${mockPhotoId}`)).toBeVisible({ timeout: 10000 });
+      // The tile appears without a page reload, then settles on uploaded
+      await expect(capture.tiles).toHaveCount(1);
+      await capture.waitForUploaded(1);
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      await page.unrouteAll();
     }
   });
 });
@@ -462,96 +335,42 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
-        state: 'visible',
-      });
+      const capture = new DiaryCapturePage(page);
+      await capture.gotoEdit(draftId);
 
-      // Route: first call fails with 500, second call (retry) succeeds
+      // Route: the first call fails with 400 (a 5xx would be retried automatically), the
+      // second call (the user's Retry) goes through to the server
       await page.route('**/api/photos', async (route) => {
         if (route.request().method() === 'POST') {
           callCount++;
           if (callCount === 1) {
             await route.fulfill({
-              status: 500,
+              status: 400,
               contentType: 'application/json',
-              body: JSON.stringify({
-                error: { code: 'INTERNAL_ERROR', message: 'Upload failed' },
-              }),
+              body: JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'Rejected' } }),
             });
-          } else {
-            // uploadPhoto() expects { photo: { ... } } (wrapped in a "photo" key)
-            await route.fulfill({
-              status: 201,
-              contentType: 'application/json',
-              body: JSON.stringify({
-                photo: {
-                  id: `mock-photo-retry-${testPrefix}`,
-                  entityType: 'diary_entry',
-                  entityId: draftId,
-                  filename: `retry-test-${testPrefix}.jpg`,
-                  mimeType: 'image/jpeg',
-                  fileSize: 1024,
-                  url: `/photos/mock-retry.jpg`,
-                  thumbnailUrl: `/photos/mock-retry-thumb.jpg`,
-                  createdAt: new Date().toISOString(),
-                },
-              }),
-            });
+            return;
           }
-        } else {
-          await route.continue();
         }
+        await route.continue();
       });
 
-      const minimalFile = {
-        name: `retry-photo-${testPrefix}.jpg`,
-        mimeType: 'image/jpeg' as const,
-        buffer: Buffer.from(
-          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAHxAAAQQCAwEAAAAAAAAAAAAAAQACAxESITFBUf/aAAgBAQAA/wBZkNBrSHb3L2oqXQgqUSRhqX',
-          'base64',
-        ),
-      };
+      await capture.chooseFromLibrary(capturePhotos(1, `${testPrefix}-retry`));
 
-      const fileInput = page.getByTestId('photo-file-input');
+      // The failed state shows a Retry button on the tile
+      await expect(capture.tile(0)).toHaveAttribute('data-state', 'failed');
+      await expect(capture.tileRetry(0)).toBeVisible();
 
-      // Register the response listener BEFORE selecting files so we don't miss it.
-      const firstUploadResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
-      );
-
-      await fileInput.setInputFiles([minimalFile]);
-
-      // PR #1674 introduced PhotoMetadataModal: selecting a file opens a modal for metadata
-      // before uploading. Save the modal to trigger the upload.
-      const modal = page.getByRole('dialog', { name: 'Add photo details' });
-      await modal.waitFor({ state: 'visible' });
-      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-      await expect(modal).not.toBeVisible();
-
-      // Now wait for the first (failing) upload response
-      await firstUploadResponse;
-
-      // The failed state should show a retry button
-      // aria-label pattern: "Retry {filename}" from t('photoUpload.retryButton') + ' ' + entry.file.name
-      const retryButton = page.getByRole('button', {
-        name: new RegExp(`Retry ${minimalFile.name}`, 'i'),
-      });
-      await expect(retryButton).toBeVisible();
-
-      // Register the second upload (retry) response listener
       const retryResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
-
-      await retryButton.click();
+      await capture.tap(capture.tileRetry(0));
       const retryResponse = await retryResponsePromise;
       expect(retryResponse.ok(), 'Retry upload should succeed').toBeTruthy();
 
-      // After successful retry, the queue item is removed (succeeded items remove after 2s delay
-      // in the real component, but the route.fulfill is instant in tests so it removes quickly).
-      // The retry button should no longer be visible.
-      await expect(retryButton).not.toBeVisible();
+      // After the retry the tile is uploaded and the Retry button is gone
+      await capture.waitForUploaded(1);
+      await expect(capture.tileRetry(0)).toHaveCount(0);
     } finally {
       await page.unroute('**/api/photos');
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
@@ -564,33 +383,31 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' }, () => {
   test(
-    'Filling required fields and clicking Save promotes the draft and navigates to /diary/:id',
+    'Typing text and tapping Save entry promotes the draft and navigates to /diary/:id',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
+      const capture = new DiaryCapturePage(page);
       const detailPage = new DiaryEntryDetailPage(page);
       let draftId: string | null = null;
 
       try {
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        await editPage.goto(draftId);
-        await expect(editPage.draftBadge).toBeVisible();
+        await capture.gotoEdit(draftId);
+        await expect(capture.saveButton).toHaveText('Save entry');
 
-        // Fill required fields for promote
-        await editPage.bodyTextarea.fill(`${testPrefix} promote happy path body`);
+        // Something to save: the text
+        await capture.typeText(`${testPrefix} promote happy path body`);
+        await capture.saveButton.scrollIntoViewIfNeeded();
 
-        // The submit button for draft is "Save" (promoteButton)
-        await editPage.submitButton.scrollIntoViewIfNeeded();
-
-        // Register the promote PATCH listener before clicking
+        // Register the promote PATCH listener before tapping
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${draftId}/promote`) &&
             resp.request().method() === 'PATCH',
         );
 
-        await editPage.submitButton.click();
+        await capture.saveEntry();
         const promoteResponse = await promoteResponsePromise;
         expect(promoteResponse.ok(), 'Promote response should be OK').toBeTruthy();
 
@@ -598,13 +415,9 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         await page.waitForURL(new RegExp(`/diary/${draftId}$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${draftId}$`));
 
-        // Detail page should load — no Draft badge
+        // Detail page should load — no draft indicator
         await detailPage.loaded.waitFor({ state: 'visible' });
-        // Draft badge is only on the edit page; on detail page there should be no "Draft" text
-        // in the badge region. The entry is now saved, so no draft indicator.
         await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
-
-        // draftId still holds the same id — use it to delete the now-promoted entry
       } finally {
         if (draftId) await deleteDiaryEntryViaApi(page, draftId);
       }
@@ -613,56 +426,34 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: Promote draft — validation error
+// Scenario 10: Promote draft — nothing to save
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Promote draft — validation error (Scenario 10)', () => {
-  test('Clicking Save with empty body shows validation error; URL unchanged; entry stays draft', async ({
+test.describe('Promote draft — validation (Scenario 10)', () => {
+  test('An empty draft cannot be saved: Save entry is disabled with a reason; entry stays draft', async ({
     page,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await editPage.goto(draftId);
-      await expect(editPage.draftBadge).toBeVisible();
+      await capture.gotoEdit(draftId);
+      await expect(capture.textArea).toHaveValue('');
 
-      // Ensure body is empty (draft created without body)
-      await editPage.bodyTextarea.waitFor({ state: 'visible' });
-      const currentBody = await editPage.bodyTextarea.inputValue();
-      if (currentBody.trim()) {
-        await editPage.bodyTextarea.clear();
-      }
+      // Save entry is aria-disabled and says what is missing
+      await capture.saveButton.scrollIntoViewIfNeeded();
+      await expect(capture.saveButton).toHaveAttribute('aria-disabled', 'true');
+      await expect(capture.saveReason).toHaveText('Add a photo, a title or some text.');
 
-      // Click Save without filling body
-      await editPage.submitButton.scrollIntoViewIfNeeded();
-      await editPage.submitButton.click();
-
-      // Validation errors render as role="alert" elements after a React state update.
-      // First, wait for ANY validation error alert to appear (diaryEditPage.getValidationErrors
-      // returns all role="alert" elements, which may include body-error, entry-date-error, etc.).
-      // This gives React time to process the state update from validateForm().
-      const validationAlertsLocator = page.locator('[role="alert"]');
-      await expect(validationAlertsLocator.first()).toBeVisible();
-
-      // Now verify the specific body-error element exists and is visible
-      // (it may not appear immediately if React batches the state update differently in CI)
-      if ((await page.locator('#body-error').count()) > 0) {
-        await expect(page.locator('#body-error')).toBeVisible();
-      } else {
-        // If body-error is not found, check that getValidationErrors() reports at least one error
-        // This fallback handles cases where the error is rendered but not with id="body-error"
-        const errors = await editPage.getValidationErrors();
-        expect(errors.length).toBeGreaterThan(0);
-        expect(errors.some((e) => e.includes('required'))).toBeTruthy();
-      }
-
-      // Verify URL hasn't changed (no navigation occurred due to validation error)
+      // Tapping it does nothing: no navigation, still a draft
+      await capture.saveButton.click({ force: true });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
+      await expect(capture.saveButton).toHaveText('Save entry');
 
-      // Draft badge should still be visible
-      await expect(editPage.draftBadge).toBeVisible();
+      // Typing the text enables it
+      await capture.typeText('Now there is something to save');
+      await expect(capture.saveButton).not.toHaveAttribute('aria-disabled', 'true');
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -673,37 +464,37 @@ test.describe('Promote draft — validation error (Scenario 10)', () => {
 // Scenario 11: Discard draft
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Discard draft (Scenario 11)', { tag: '@responsive' }, () => {
-  test('Discard Draft button → confirmation modal → confirm → navigates to /diary; entry gone', async ({
+  test('Discard entry → confirmation dialog → confirm → navigates to /diary; entry gone', async ({
     page,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const diaryPage = new DiaryPage(page);
     let draftId: string | null = null;
 
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await editPage.goto(draftId);
-      await expect(editPage.draftBadge).toBeVisible();
+      await capture.gotoEdit(draftId);
 
-      // Open discard confirmation modal
-      await editPage.openDiscardModal();
-      await expect(editPage.discardModal).toBeVisible();
-      await expect(editPage.discardModal).toHaveAccessibleName('Discard this entry?');
-      await expect(editPage.discardModalConfirm).toHaveText('Discard');
-      await expect(editPage.discardModalCancel).toHaveText('Keep entry');
+      // Open the discard confirmation dialog from the ⋯ menu
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      await capture.discardDialog.waitForOpen();
+      await expect(capture.discardDialog.dialog).toHaveAccessibleName('Discard this entry?');
+      await expect(capture.discardDialog.confirmButton).toHaveText('Discard');
+      await expect(capture.discardDialog.cancelButton).toHaveText('Keep entry');
 
       // Confirm discard
-      await editPage.confirmDiscard();
+      await capture.discardDialog.confirm();
 
       // Should navigate to /diary
       await page.waitForURL('**/diary');
       expect(page.url()).not.toMatch(/\/diary\/[a-zA-Z0-9-]+/);
 
-      // The entry should no longer be visible in the list
+      // The entry no longer exists and is not in the list
       await waitForDiaryListLoaded(diaryPage);
-      const card = diaryPage.entryCard(draftId);
-      await expect(card).not.toBeVisible();
+      await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
+      await expect.poll(() => entryStatus(page, draftId!)).toBe(404);
 
       // Mark deleted so finally block doesn't try again
       draftId = null;
@@ -718,32 +509,28 @@ test.describe('Discard draft (Scenario 11)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Cancel button inside discard modal keeps the draft and stays on edit page', async ({
+  test('Keep entry inside the discard dialog keeps the draft and stays on the edit page', async ({
     page,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await editPage.goto(draftId);
-      await expect(editPage.draftBadge).toBeVisible();
+      await capture.gotoEdit(draftId);
 
-      await editPage.openDiscardModal();
-      await expect(editPage.discardModal).toBeVisible();
+      await capture.tap(capture.menuButton);
+      await capture.tap(capture.discardItem);
+      await capture.discardDialog.waitForOpen();
 
-      // Click "Keep entry" to cancel
-      await editPage.discardModalCancel.click();
+      // Tap "Keep entry" to cancel
+      await capture.discardDialog.cancel();
 
-      // Modal should be gone
-      await expect(editPage.discardModal).not.toBeVisible();
-
-      // URL should still be on the edit page
+      // URL should still be on the edit page and the entry still exists
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
-
-      // Draft badge should still be visible
-      await expect(editPage.draftBadge).toBeVisible();
+      await expect(capture.saveButton).toHaveText('Save entry');
+      expect(await entryStatus(page, draftId)).toBe(200);
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -859,20 +646,12 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
     // NOTE (bug #1829): test.slow() only triples the *overall* per-test timeout
     // (15s -> 45s here) — it does NOT triple actionTimeout/expect.timeout, and it
     // is a single shared ceiling for every step in the test PLUS the finally-block
-    // cleanup below. The previous version of this test paired test.slow() (45s
-    // total) with several individual step timeouts of 30_000-45_000ms each —
-    // any one of which could alone consume the entire budget. Under heavy 8-worker
-    // CI load the cumulative real time across steps regularly ate the whole 45s,
-    // starving the `deleteDiaryEntryViaApi` cleanup call and surfacing as
-    // "apiRequestContext.delete: Test timeout of 45000ms exceeded" — a cleanup
-    // symptom, not a cleanup cause. Use an explicit absolute timeout instead, and
-    // keep per-step ceilings proportionate (real durations are expected to be a
-    // few seconds; these are "something is actually stuck" ceilings, not budget
-    // reservations).
+    // cleanup below. Use an explicit absolute timeout instead, and keep per-step
+    // ceilings proportionate.
     test.setTimeout(60_000);
 
     const diaryPage = new DiaryPage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
@@ -889,8 +668,6 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
 
       // Register the getDiaryEntry response listener BEFORE clicking the card so the
       // response cannot arrive and be missed between the click and the listener attachment.
-      // DiaryEntryEditPage calls GET /api/diary-entries/:id immediately on mount;
-      // the heading and draft badge only render after this response resolves.
       const entryLoadPromise = page.waitForResponse(
         (resp) =>
           resp.url().endsWith(`/api/diary-entries/${draftId}`) &&
@@ -906,32 +683,21 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
       await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 15_000 });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
-      // Explicitly await the getDiaryEntry API response before asserting the heading/badge.
-      // Under heavy CI load the server can take several seconds to respond; waiting for
-      // the actual response ensures the heading assertion fires only after data is
-      // in-flight, preventing the hardcoded timeout from being the bottleneck.
+      // The capture screen renders after getDiaryEntry() returns.
       await entryLoadPromise;
+      await capture.waitForForm();
 
-      // The heading and draft badge render after getDiaryEntry() returns.
-      await expect(editPage.heading).toBeVisible({ timeout: 15_000 });
-
-      // Edit page should show the draft badge (entry.status === 'draft')
-      await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 });
+      // A draft reads "New entry" with Save entry (entry.status === 'draft')
+      await expect(capture.heading).toContainText('New entry', { timeout: 15_000 });
+      await expect(capture.saveButton).toHaveText('Save entry', { timeout: 15_000 });
     } finally {
-      // Guarantee cleanup gets its own dedicated time budget on top of whatever
-      // remains, regardless of how much of the test's overall timeout the steps
-      // above consumed. testInfo.setTimeout(timeout) is additive to the current
-      // remaining deadline (not a reset to an absolute value), so this always adds
-      // 15s of headroom from "now" — see https://playwright.dev/docs/test-timeouts.
+      // Guarantee cleanup gets its own dedicated time budget on top of whatever remains.
       testInfo.setTimeout(testInfo.timeout + 15_000);
       if (draftId) {
         try {
           await deleteDiaryEntryViaApi(page, draftId);
         } catch (error) {
-          // Best-effort cleanup: a slow/failed delete must not mask this test's
-          // actual pass/fail outcome or itself blow the (already-extended) test
-          // timeout. The container is torn down after the run, so an orphaned
-          // draft here is harmless.
+          // Best-effort cleanup: a slow/failed delete must not mask this test's outcome.
           console.warn(`[diary-drafts] cleanup failed for draft ${draftId}:`, error);
         }
       }
@@ -948,7 +714,7 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
     testPrefix,
   }) => {
     const dashboardPage = new DashboardPage(page);
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
@@ -957,8 +723,6 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       // Navigate to dashboard — register diary entries API listener BEFORE goto() to avoid
       // race where the response arrives before the listener is attached.
       // DashboardPage fetches GET /api/diary-entries?pageSize=5&status=saved — drafts excluded.
-      // Filter for the specific dashboard query (status=saved and pageSize param) to avoid matching
-      // other diary-entry responses (e.g. individual entry fetches from edit page navigation).
       let diaryApiPromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
@@ -971,28 +735,25 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       await page.waitForLoadState('networkidle');
 
       // The Recent Diary card should NOT contain our draft entry.
-      // data-testid="recent-diary-{id}" is set by RecentDiaryCard for each entry.
       // DashboardPage renders two layouts simultaneously (desktop grid + mobile
       // sections), so the same testId can appear twice when the entry IS present.
-      // Use .first() to avoid strict-mode violations regardless of match count.
       await expect(page.getByTestId(`recent-diary-${draftId}`).first()).not.toBeVisible();
 
       // Now promote the draft to saved
-      await editPage.goto(draftId);
-      await expect(editPage.draftBadge).toBeVisible();
-      await editPage.bodyTextarea.fill(`${testPrefix} promoted for dashboard test`);
-      await editPage.submitButton.scrollIntoViewIfNeeded();
+      await capture.gotoEdit(draftId);
+      await expect(capture.saveButton).toHaveText('Save entry');
+      await capture.typeText(`${testPrefix} promoted for dashboard test`);
+      await capture.saveButton.scrollIntoViewIfNeeded();
 
       const promotePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${draftId}/promote`) &&
           resp.request().method() === 'PATCH',
       );
-      await editPage.submitButton.click();
+      await capture.saveEntry();
       await promotePromise;
 
       // Navigate back to dashboard and reload to pick up the newly saved entry.
-      // Register the diary entries listener BEFORE goto() to avoid a race.
       diaryApiPromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
@@ -1001,17 +762,10 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       );
       await dashboardPage.goto();
       await diaryApiPromise;
-      // Wait for all concurrent dashboard API calls to settle (budget, timeline, invoices, etc.)
-      // before asserting on card content. waitForCardsLoaded() only waits for the first skeleton
-      // to hide, which may not be the diary card. networkidle ensures the full allSettled batch
-      // has completed and React has re-rendered with the diary entries.
+      // Wait for the full allSettled batch before asserting on card content.
       await page.waitForLoadState('networkidle');
 
       // The promoted entry should now appear in Recent Diary.
-      // Use a slightly longer timeout (compared to the 7s default) to account for CI latency
-      // in processing the full dashboard data load.
-      // DashboardPage renders both desktop and mobile layouts simultaneously, so
-      // the same testId can appear twice. Use .first() to avoid strict-mode violations.
       await expect(page.getByTestId(`recent-diary-${draftId}`).first()).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
@@ -1027,21 +781,21 @@ test.describe(
   { tag: '@responsive' },
   () => {
     test(
-      'Draft badge, Discard Draft button visible without horizontal scroll on current viewport',
+      'Save entry and the ⋯ menu are visible without horizontal scroll on current viewport',
       { tag: '@responsive' },
       async ({ page }) => {
-        const editPage = new DiaryEntryEditPage(page);
+        const capture = new DiaryCapturePage(page);
         let draftId: string | null = null;
 
         try {
           draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-          await editPage.goto(draftId);
-          await expect(editPage.draftBadge).toBeVisible();
+          await capture.gotoEdit(draftId);
+          await expect(capture.saveButton).toHaveText('Save entry');
 
-          // Scroll into view and verify discard button is visible
-          await editPage.discardDraftButton.scrollIntoViewIfNeeded();
-          await expect(editPage.discardDraftButton).toBeVisible();
+          // The sticky bar keeps Save entry on screen; the ⋯ menu holds Discard entry
+          await expect(capture.saveButton).toBeInViewport();
+          await expect(capture.menuButton).toBeVisible();
 
           // No horizontal scroll
           const hasHorizontalScroll = await page.evaluate(() => {
@@ -1057,68 +811,47 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17: Responsive — photo upload queue on tablet
+// Scenario 17: Responsive — photo controls on tablet
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe(
-  'Responsive — photo upload queue on tablet (Scenario 17)',
-  { tag: '@responsive' },
-  () => {
-    test(
-      'Photo upload zone and queue container are visible on current viewport',
-      { tag: '@responsive' },
-      async ({ page }) => {
-        let draftId: string | null = null;
+test.describe('Responsive — photo controls on tablet (Scenario 17)', { tag: '@responsive' }, () => {
+  test(
+    'Choose from library is visible on current viewport without horizontal scroll',
+    { tag: '@responsive' },
+    async ({ page }) => {
+      const capture = new DiaryCapturePage(page);
+      let draftId: string | null = null;
 
-        try {
-          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-          await page.goto(`/diary/${draftId}/edit`);
-          await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
-            state: 'visible',
-          });
+        await capture.gotoEdit(draftId);
 
-          // The photo upload section should be visible (not hidden behind scroll).
-          // On touch devices (tablet/mobile), PhotoUpload renders a mobile button pair
-          // (isTouchDevice=true via `hover: none`) instead of the drag-and-drop zone
-          // (data-testid="photo-upload-zone"). Use viewport width as a proxy for
-          // touch device detection, matching the same threshold used in photo-capture-flow.spec.ts.
-          const viewportWidth = page.viewportSize()?.width ?? 1920;
-          const isMobileOrTablet = viewportWidth <= 1024;
+        // The photo controls come first on every viewport (Take photos too on touch devices)
+        await capture.chooseButton.scrollIntoViewIfNeeded();
+        await expect(capture.chooseButton).toBeVisible();
+        await expect(capture.chooseButton).toBeEnabled();
 
-          if (isMobileOrTablet) {
-            // Touch device: mobile button pair is shown; "Upload Photos" button is the anchor
-            const uploadBtn = page.getByRole('button', { name: 'Upload Photos' }).first();
-            await uploadBtn.scrollIntoViewIfNeeded();
-            await expect(uploadBtn).toBeVisible();
-          } else {
-            // Desktop: drag-and-drop zone with data-testid="photo-upload-zone"
-            const photoUploadZone = page.getByTestId('photo-upload-zone');
-            await photoUploadZone.scrollIntoViewIfNeeded();
-            await expect(photoUploadZone).toBeVisible();
-          }
-
-          // No horizontal scroll
-          const hasHorizontalScroll = await page.evaluate(() => {
-            return document.documentElement.scrollWidth > window.innerWidth;
-          });
-          expect(hasHorizontalScroll).toBe(false);
-        } finally {
-          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        }
-      },
-    );
-  },
-);
+        // No horizontal scroll
+        const hasHorizontalScroll = await page.evaluate(() => {
+          return document.documentElement.scrollWidth > window.innerWidth;
+        });
+        expect(hasHorizontalScroll).toBe(false);
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    },
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Editing a saved entry unchanged
+// Scenario 18: Editing a saved entry
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Editing a saved entry (Scenario 18)', { tag: '@responsive' }, () => {
-  test('Editing and saving a saved entry shows no Draft badge and no Discard Draft button', async ({
+  test('Editing and saving a saved entry shows no draft menu and Save changes', async ({
     page,
     testPrefix,
   }) => {
-    const editPage = new DiaryEntryEditPage(page);
+    const capture = new DiaryCapturePage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let savedId: string | null = null;
 
@@ -1129,30 +862,28 @@ test.describe('Editing a saved entry (Scenario 18)', { tag: '@responsive' }, () 
         body: `${testPrefix} saved entry for saved-mode test`,
       });
 
-      await editPage.goto(savedId);
-      await expect(editPage.heading).toBeVisible();
+      await capture.gotoEdit(savedId);
+      await expect(capture.heading).toContainText('Edit entry · ');
 
-      // No Draft badge for a saved entry
-      await expect(editPage.draftBadge).not.toBeVisible();
+      // No ⋯ menu (no Discard entry) for a saved entry
+      await expect(capture.menuButton).toHaveCount(0);
 
-      // No Discard Draft button for a saved entry
-      await expect(editPage.discardDraftButton).not.toBeVisible();
-
-      // The submit button should say "Save Changes" (not "Save" as in draft mode)
-      await expect(page.getByRole('button', { name: 'Save Changes', exact: true })).toBeVisible();
+      // The button says "Save changes" (not "Save entry" as in draft mode)
+      await expect(capture.saveButton).toHaveText('Save changes');
 
       // Edit and save
       const updatedBody = `${testPrefix} saved-mode updated body`;
-      await editPage.bodyTextarea.fill(updatedBody);
-      await editPage.submitButton.scrollIntoViewIfNeeded();
-      await editPage.save();
+      await capture.typeText(updatedBody);
+      await capture.saveButton.scrollIntoViewIfNeeded();
+      await capture.saveChanges();
 
       // Should navigate to detail page
       await page.waitForURL(new RegExp(`/diary/${savedId}$`));
       expect(page.url()).toContain(`/diary/${savedId}`);
 
-      // Detail page — no draft badge
+      // Detail page — updated text, no draft badge
       await detailPage.loaded.waitFor({ state: 'visible' });
+      await expect(detailPage.entryBody).toContainText(updatedBody);
       await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
     } finally {
       if (savedId) await deleteDiaryEntryViaApi(page, savedId);

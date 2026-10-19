@@ -222,12 +222,15 @@ jest.unstable_mockModule('./lib/preferencesApi.js', () => ({
 
 // DashboardPage calls listDiaryEntries on mount (RecentDiaryCard).
 const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 jest.unstable_mockModule('./lib/diaryApi.js', () => ({
   listDiaryEntries: mockListDiaryEntries,
   createDiaryEntry: jest.fn<typeof DiaryApiTypes.createDiaryEntry>(),
   updateDiaryEntry: jest.fn<typeof DiaryApiTypes.updateDiaryEntry>(),
   deleteDiaryEntry: jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>(),
-  getDiaryEntry: jest.fn<typeof DiaryApiTypes.getDiaryEntry>(),
+  getDiaryEntry: mockGetDiaryEntry,
+  promoteDiaryEntry: jest.fn<typeof DiaryApiTypes.promoteDiaryEntry>(),
+  lookupDiaryEntries: jest.fn<typeof DiaryApiTypes.lookupDiaryEntries>(),
 }));
 
 // BackupsPage (admin only) loads these on mount; a member must never trigger them (D-23).
@@ -326,6 +329,7 @@ describe('App', () => {
     mockFetchSubsidyPrograms.mockReset();
     mockListPreferences.mockReset();
     mockListDiaryEntries.mockReset();
+    mockGetDiaryEntry.mockReset();
     mockFetchHouseholdSettings.mockReset();
     mockFetchHouseholdSettings.mockResolvedValue({
       householdName: 'Synthetic House',
@@ -562,6 +566,55 @@ describe('App', () => {
     await waitFor(() =>
       expect(document.title).toBe('Invoices \u00B7 Money \u00B7 Synthetic House'),
     );
+  }, 15000);
+
+  it('serves /diary/new with the capture screen (Story #2221)', async () => {
+    mockListDiaryEntries.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 50, totalPages: 0, totalItems: 0 },
+    });
+    window.history.pushState({}, 'New entry', '/diary/new');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('capture-screen', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /^New entry · / })).toBeInTheDocument();
+    expect(mockGetDiaryEntry).not.toHaveBeenCalled();
+  }, 15000);
+
+  it('serves /diary/:id/edit with the same capture screen and loads the entry (Story #2221)', async () => {
+    mockListDiaryEntries.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 50, totalPages: 0, totalItems: 0 },
+    });
+    mockGetDiaryEntry.mockResolvedValue({
+      id: 'draft-9',
+      entryType: 'daily_log',
+      entryDate: '2026-10-18',
+      title: 'Screed',
+      body: '',
+      metadata: null,
+      isAutomatic: false,
+      isSigned: false,
+      status: 'draft',
+    } as never);
+    // The page loads the entry's photos through the real photo API; answer that one request.
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ photos: [] }),
+    })) as unknown as typeof fetch;
+    window.history.pushState({}, 'Edit entry', '/diary/draft-9/edit');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('capture-screen', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(mockGetDiaryEntry).toHaveBeenCalledWith('draft-9');
+    expect(screen.getByTestId('capture-title-input')).toHaveValue('Screed');
+    globalThis.fetch = originalFetch;
   }, 15000);
 
   it('renders the Photos page at /photos (Story #2162)', async () => {

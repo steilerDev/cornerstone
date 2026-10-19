@@ -2546,15 +2546,15 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3. #2212: Global › New menu › Diary entry → Site diary › New diary entry (/diary/new; ?date= pre-fills the entry date). The phone ＋ opens the New sheet, with Diary entry as the first row, until 2.3 restores one-tap capture. #2220: GET /api/diary-entries/lookup (same date, folded title, manual entries incl. drafts, max 5, excludeId) backs 'Add to that entry instead'; a draft's type can change until it is saved."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3. #2212: Global › New menu › Diary entry → Site diary › New diary entry (/diary/new; ?date= pre-fills the entry date). The phone ＋ opens the New sheet, with Diary entry as the first row, until 2.3 restores one-tap capture. #2220: GET /api/diary-entries/lookup (same date, folded title, manual entries incl. drafts, max 5, excludeId) backs 'Add to that entry instead'; a draft's type can change until it is saved. #2221: built. /diary/new always starts an empty entry (no draft until the first photo or character); ?areaId= and ?date= pre-select the Area and Date chips. Entry points (＋ choice sheet, 'Also create' row, Log today) are #2222."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
     "from": "/diary/:id/edit > form > \"Entry Date *\", \"Title\", \"Entry *\" (textarea with n/10000 counter)",
-    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Date chips (Today · Yesterday · Pick), Title chips from recent titles + text field, Text (optional once a photo is attached)",
+    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Date chips (Today · Yesterday · Pick), Title chips from recent titles + title field, Text (optional)",
     "change": "same",
     "gate": "none",
-    "note": "23 of 75 saved entries were written on a later day (8 the next day), so the entry date is always visible and editable; photo dates follow the entry date (owner rule). #2220: the server accepts a saved entry with a title, text or a photo (text optional); entryDate is validated as a real date and stays editable on unlocked entries; photo dates are the entry date on the spot endpoints (no per-photo date stored); site_visit accepts Start/End (workStart/workEnd)."
+    "note": "23 of 75 saved entries were written on a later day (8 the next day), so the entry date is always visible and editable; photo dates follow the entry date (owner rule). #2220: the server accepts a saved entry with a title, text or a photo (text optional); entryDate is validated as a real date and stays editable on unlocked entries; photo dates are the entry date on the spot endpoints (no per-photo date stored); site_visit accepts Start/End (workStart/workEnd). #2221: built. h1 'New entry · ‹weekday date›' follows the date chip."
   },
   "JRN-014": {
     "name": "Autosave a draft while typing and see its save status",
@@ -2562,7 +2562,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > autosave status text",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2221: built. Autosave text 'Saved ‹time›' in the sticky bar (drafts only; saved entries save on 'Save changes')."
   },
   "JRN-015": {
     "name": "Save (promote) a draft into a final diary entry with validation",
@@ -2570,7 +2570,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > sticky 'Save entry'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2220: promote needs a title, text or a photo (not text); type-specific required details unchanged."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2220: promote needs a title, text or a photo (not text); type-specific required details unchanged. #2221: built. Save entry is aria-disabled with a reason until there is a title, text or an uploaded photo."
   },
   "JRN-016": {
     "name": "Discard a draft entry together with its photos",
@@ -2578,7 +2578,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > ⋯ > Discard entry (modal 'Discard this entry?')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry edit (draft) › Discard draft → ConfirmDialog “Discard this entry?”. #2220: discard (DELETE with photo cascade) and the orphan-draft cleanup are unchanged; the server still accepts a content-free draft (photo-first path), and the 'no draft until the first photo or character' rule is the capture screen's (#2221)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry edit (draft) › Discard draft → ConfirmDialog “Discard this entry?”. #2220: discard (DELETE with photo cascade) and the orphan-draft cleanup are unchanged; the server still accepts a content-free draft (photo-first path), and the 'no draft until the first photo or character' rule is the capture screen's (#2221). #2221: built. ⋯ > Discard entry; with no draft yet it just leaves."
   },
   "JRN-017": {
     "name": "Resume an unfinished draft later from the diary list",
@@ -2586,7 +2586,7 @@
     "to": "Site diary > Site diary list > 'Unfinished' row; Home > Tidy up (draft older than 1 day: Continue · Discard)",
     "change": "promoted",
     "gate": "none",
-    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\"."
+    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\". #2221: built. Resuming a draft also resumes its waiting photo uploads."
   },
   "JRN-018": {
     "name": "Automatically delete abandoned drafts after a retention period",
@@ -2594,7 +2594,7 @@
     "to": "System (no UI) — daily draft cleanup",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2221: built. Built as described."
   },
   "JRN-019": {
     "name": "Record weather, temperature and number of workers on a daily log",
@@ -2604,7 +2604,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Capture > 'More details' (1) > Weather / Temperature fields",
-    "note": "Workers used in 82% of logs, weather 0% (USE §4.5). Workers, start time and company default to the last entry (filled in 60–82% of real logs; Routines graft)."
+    "note": "Workers used in 82% of logs, weather 0% (USE §4.5). Nothing is pre-filled; Workers chips 1 · 2 · 3 · 4+ (#2221, AC6). #2221: built."
   },
   "JRN-020": {
     "name": "Record which vendor worked on site on a daily log",
@@ -2612,7 +2612,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Site details > Company: suggestion chips ranked by the companies used with the chosen title, then companies with tasks in that area's floor; nothing pre-selected; 'Other company…' picker",
     "change": "same",
     "gate": "none",
-    "note": "Pre-filling the last entry's company would be wrong for 44 of 74 real entries; the title-based first suggestion is right in 24 of 30 cases (R-B1, O-M1)."
+    "note": "Pre-filling the last entry's company would be wrong for 44 of 74 real entries; the title-based first suggestion is right in 24 of 30 cases (R-B1, O-M1). #2221: built. Suggestion chips (companies used with the same title, then companies with tasks on that floor), nothing pre-selected, 'Other company…' picker with New company."
   },
   "JRN-021": {
     "name": "Record work start and end times and see the computed work duration",
@@ -2620,7 +2620,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Site details > Start / End: chips with recent start times and 'Now'; nothing pre-filled",
     "change": "same",
     "gate": "none",
-    "note": "Start time defaults to the last entry's start time."
+    "note": "Start/End chips offer recent times and 'Now'; nothing pre-filled (#2221, AC6). #2221: built."
   },
   "JRN-022": {
     "name": "Record an inspection on a site-visit entry (inspector name and outcome)",
@@ -2630,7 +2630,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Capture > Type 'Site visit' (1)",
-    "note": "'Site visit' (DE 'Begehung') sits at the first level of the type selector: Daily log · Site visit · Delivery · More (Defect · Note) (owner, 7 Oct, PLAN §2.0 #10). Capture records start and end time with the computed duration."
+    "note": "'Site visit' (DE 'Begehung') sits at the first level of the type selector: Daily log · Site visit · Delivery · More (Defect · Note) (owner, 7 Oct, PLAN §2.0 #10). Capture records start and end time with the computed duration. #2221: built. Inspector and Outcome required on save; Start/End with duration."
   },
   "JRN-023": {
     "name": "Record a delivery with its supplier and a list of delivered materials",
@@ -2638,7 +2638,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Type 'Delivery' > Company, Materials",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2221: built. Company chosen by chips or picker, stored as the company name."
   },
   "JRN-024": {
     "name": "Log a site issue with severity and resolution status",
@@ -2648,7 +2648,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > Type 'Other ▾' (1) > Defect (2)",
-    "note": "Made more visible in Site diary because it serves a frequent job (rare use). #2209: Site diary › entry page › Defect StatusMenu (Open / Being fixed / Fixed, with Undo); the saved-entry edit loses Status; capture and drafts keep it; signed or automatic defects show a plain badge."
+    "note": "Made more visible in Site diary because it serves a frequent job (rare use). #2209: Site diary › entry page › Defect StatusMenu (Open / Being fixed / Fixed, with Undo); the saved-entry edit loses Status; capture and drafts keep it; signed or automatic defects show a plain badge. #2221: built. Severity and Status (new and draft only; saved entries change status on the entry page)."
   },
   "JRN-025": {
     "name": "Write a general note",
@@ -2658,7 +2658,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > Type 'Other ▾' (1) > Note (2)",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use). #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
   },
   "JRN-026": {
     "name": "Add signature slots to a daily log, site visit or issue entry",
@@ -2668,7 +2668,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > 'More details' (1) > 'Add signature' (2)",
-    "note": "0 real use."
+    "note": "0 real use. #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
   },
   "JRN-027": {
     "name": "Sign as yourself or on behalf of a vendor",
@@ -2678,7 +2678,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > 'More details' (1) > 'Add signature' (2) > Signer field",
-    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable. #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
   },
   "JRN-028": {
     "name": "Draw, clear, accept or remove a handwritten signature",
@@ -2688,7 +2688,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > 'More details' (1) > 'Add signature' (2) > signature pad",
-    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable. #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
   },
   "JRN-029": {
     "name": "Lock a signed entry as an immutable record by saving it",
@@ -2696,7 +2696,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > 'Save entry' on a signed entry locks it",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (rare use). #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
   },
   "JRN-030": {
     "name": "View the captured signatures of an entry",
@@ -2722,7 +2722,7 @@
     "to": "Site diary > Entry page > Edit -> Site diary > Capture (/diary/new, /diary/:id/edit)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step. #2209: Site diary › entry edit (saved entry) has no defect Status field (Defect StatusMenu on the entry page); drafts keep it."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step. #2209: Site diary › entry edit (saved entry) has no defect Status field (Defect StatusMenu on the entry page); drafts keep it. #2221: built. Saved-entry edit uses the capture screen without autosave ('Save changes', Cancel asks 'Discard changes?'); signed or automatic entries show a message instead of the form."
   },
   "JRN-033": {
     "name": "Delete a diary entry and its photos",
@@ -2779,10 +2779,10 @@
   "JRN-040": {
     "name": "Upload photos to a diary entry from a computer (drag and drop or file picker)",
     "from": "/diary/:id/edit > \"Photos\" card > drop zone \"Drag photos here or\" + \"Upload Photos\"",
-    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Photos at the top: drop zone / 'Add photos'",
+    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Photos at the top: drop zone (from 1024px) / 'Choose from library'",
     "change": "promoted",
     "gate": "none",
-    "note": "Photos above text and Done (P03)."
+    "note": "Photos above text and Done (P03). #2221: built. Built as described."
   },
   "JRN-041": {
     "name": "Take a photo with the phone camera directly into a diary entry",
@@ -2791,15 +2791,15 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q19",
-    "note": "Persistence rule (R-M13): shots go to IndexedDB at once, the draft is created on the first shot, uploads resume after a reload, and the screen shows 'n photos waiting'."
+    "note": "Persistence rule (R-M13): shots go to IndexedDB at once, the draft is created on the first shot, uploads resume after a reload, and the screen shows 'n photos waiting'. #2221: built. Built (RapidCamera); camera-app fallback when access is denied or unavailable; shots stored in IndexedDB first (memory-only when storage is unavailable)."
   },
   "JRN-042": {
     "name": "Pick several photos from the phone library into a diary entry",
     "from": "/diary/:id/edit (touch device) > \"Upload Photos\"",
-    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > 'Add from library' (multi-select)",
+    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > 'Choose from library' (multi-select)",
     "change": "promoted",
     "gate": "none",
-    "note": "After picking, select a subset of thumbnails and tap Area / Orientation to tag just those (Routines subset tagging)."
+    "note": "After picking, select a subset of thumbnails and tap Area / Orientation to tag just those (Routines subset tagging). #2221: built. Built as described."
   },
   "JRN-043": {
     "name": "Tag each new photo with a description, area and orientation before it uploads",
@@ -2808,7 +2808,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Capture: sticky Area and Orientation chips tag new or selected photos; tapping a thumbnail edits its tags and caption.",
-    "note": "Replaces one metadata dialog per photo (JRN-05, WALK-07). Benchmark: the real median entry, 5 photos at 4 spots (usability-judge blind spot 1). Tag chips never pre-select from a previous entry; the household's own last spot is offered first."
+    "note": "Replaces one metadata dialog per photo (JRN-05, WALK-07). Benchmark: the real median entry, 5 photos at 4 spots (usability-judge blind spot 1). Tag chips never pre-select from a previous entry; the household's own last spot is offered first. #2221: built. Decision 13 provenance (a chip change re-tags only untagged or retro-tagged photos)."
   },
   "JRN-044": {
     "name": "Follow uploads in a per-file queue with retry and remove",
@@ -2816,7 +2816,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > photo strip (per-photo progress, Retry, remove)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2221: built. Strip tiles Waiting / progress / Failed + Retry / Remove; 'n photos waiting to upload' also on the entry page."
   },
   "JRN-045": {
     "name": "Have uploads auto-processed (HEIC to JPEG, EXIF rotation, thumbnails, size limit)",
@@ -2824,7 +2824,7 @@
     "to": "System (no UI) — HEIC, EXIF rotation, thumbnails, size limit",
     "change": "same",
     "gate": "none",
-    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations)."
+    "note": "No user interface today and none needed; the behaviour is unchanged and its status is visible to admins where relevant (Settings > Integrations). #2221: built. Unchanged."
   },
   "JRN-046": {
     "name": "See an entry's photos as a thumbnail grid with captions",
@@ -2832,15 +2832,15 @@
     "to": "Site diary > Entry page > Photos (first section); Site diary > Site diary list > photo strip",
     "change": "same",
     "gate": "none",
-    "note": "Thumbnails on list cards (P30)."
+    "note": "Thumbnails on list cards (P30). #2221: built. Unchanged."
   },
   "JRN-047": {
     "name": "Delete a photo directly from the edit-page grid",
     "from": "/diary/:id/edit > thumbnail hover/focus > \"×\" (or Delete key on a focused thumbnail)",
-    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > thumbnail ⋯ > Remove (Undo toast)",
+    "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > photo tile Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2221: built. Built as described."
   },
   "JRN-048": {
     "name": "Reorder the photos of an entry (API only)",

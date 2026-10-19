@@ -1,0 +1,238 @@
+.modal {
+  width: min(92vw, 40rem);
+  max-width: 40rem;
+  padding: 0;
+  overflow: hidden;
+  background: var(--color-photo-stage-bg);
+}
+
+/* Off-theme camera chrome: only --color-photo-* tokens */
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin: calc(-1 * var(--spacing-4));
+  min-height: calc(100dvh - var(--spacing-12) - var(--spacing-2) - env(safe-area-inset-top));
+  padding: var(--spacing-3) var(--spacing-4) max(env(safe-area-inset-bottom), var(--spacing-3));
+  background: var(--color-photo-stage-bg);
+  color: var(--color-photo-text);
+}
+
+@media (min-width: 768px) {
+  .stage {
+    margin: 0;
+    min-height: 0;
+    padding: var(--spacing-4);
+  }
+}
+
+.viewfinder {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 16rem;
+  border-radius: var(--radius-md);
+  background: var(--color-photo-panel-bg);
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .viewfinder {
+    flex: 0 0 auto;
+    aspect-ratio: 4 / 3;
+  }
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: var(--color-photo-text);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  background: var(--color-photo-bar-bg);
+  /* Stays above the starting / error panel, which is absolutely positioned later in the DOM */
+  z-index: var(--z-raised);
+}
+
+.textButton,
+.doneButton,
+.panelButton,
+.roundButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--color-photo-border);
+  border-radius: var(--radius-md);
+  background: var(--color-photo-control-bg);
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.textButton {
+  background: transparent;
+  border-color: transparent;
+}
+
+.doneButton {
+  margin-left: auto;
+  background: var(--color-photo-active-bg);
+}
+
+.textButton:hover,
+.doneButton:hover,
+.panelButton:hover,
+.roundButton:hover {
+  background: var(--color-photo-control-bg-hover);
+}
+
+.textButton:focus-visible,
+.doneButton:focus-visible,
+.panelButton:focus-visible,
+.roundButton:focus-visible,
+.shutter:focus-visible {
+  outline: 2px solid var(--color-photo-focus-ring);
+  outline-offset: 2px;
+}
+
+.roundButton {
+  width: 2.75rem;
+  padding: 0;
+  border-radius: var(--radius-full);
+}
+
+.roundButton[aria-pressed='true'] {
+  background: var(--color-photo-active-bg);
+  border-color: var(--color-photo-focus-ring);
+}
+
+.counter {
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  background: var(--color-photo-active-bg);
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-16) var(--spacing-4) var(--spacing-6);
+  background: var(--color-photo-panel-bg);
+  text-align: center;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-photo-text);
+}
+
+.panelText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-photo-text-secondary);
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-3);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.tray {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-1);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trayImage {
+  flex: 0 0 auto;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  border: 1px solid var(--color-photo-border);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.shutter {
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: 0;
+  border: 4px solid var(--color-photo-text);
+  border-radius: var(--radius-full);
+  background: var(--color-photo-text);
+  box-shadow: inset 0 0 0 3px var(--color-photo-stage-bg);
+  cursor: pointer;
+}
+
+.shutter[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.shutter:active:not([aria-disabled='true']) {
+  background: var(--color-photo-text-secondary);
+}
+
+.extras {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-2);
+}
+
+.chips {
+  min-width: 0;
+}
+
+.srOnly {
+  composes: srOnly from '../../styles/shared.module.css';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shutter,
+  .textButton,
+  .doneButton,
+  .roundButton {
+    transition: none;
+  }
+}

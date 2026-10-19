@@ -9,7 +9,7 @@
  * P1  Invoice create modal picker (`#invoice-vendor`)
  * P2  Invoice edit modal picker (`#edit-vendor`): the form stacks over the modal, one Escape
  *     closes only the company form
- * P3  Diary daily-log picker (`#daily-log-vendor`)
+ * P3  Diary daily-log company picker ("Other company…" on the capture screen)
  * P4  Purchase form picker (`#vendorId`): the company form is a child step of the purchase form;
  *     focus is checked when the step opens and when it closes (Back and Save)
  * (The Paperless review picker is covered by invoices/paperless-invoice-inline-vendor.spec.ts.)
@@ -27,7 +27,7 @@ import { API } from '../../fixtures/testData.js';
 import { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
 import { CreateMenu } from '../../pages/components/CreateMenu.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
-import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
+import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { HouseholdItemCreatePage } from '../../pages/HouseholdItemCreatePage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
@@ -335,8 +335,8 @@ test.describe('Company picker - daily log (AC5)', { tag: '@responsive' }, () => 
     page,
     testPrefix,
   }) => {
-    const edit = new DiaryEntryEditPage(page);
-    const picker = new CompanyPickerControl(page, 'daily-log-vendor');
+    const capture = new DiaryCapturePage(page);
+    const picker = capture.companyPicker;
     const existing = `${testPrefix} Log Existing Co 2213`;
     const typed = `${testPrefix} Log New Co 2213`;
     const existingId = await createCompany(page, existing);
@@ -347,7 +347,8 @@ test.describe('Company picker - daily log (AC5)', { tag: '@responsive' }, () => 
       title: `${testPrefix} 2213 log`,
     });
     try {
-      await edit.goto(entryId);
+      await capture.gotoEdit(entryId);
+      await capture.openCompanyPicker();
       await expect(picker.input).toBeVisible();
 
       await exerciseCreateRow(page, picker, existing, existing.toUpperCase(), typed);
@@ -356,11 +357,13 @@ test.describe('Company picker - daily log (AC5)', { tag: '@responsive' }, () => 
       await picker.openCreateForm(typed);
       await picker.form.save();
       await picker.form.waitForClosed();
-      await expect(picker.input).toBeHidden();
-      await expect(picker.clearButton).toBeFocused();
+
+      // Save selects the new company: the picker closes and the company is the pressed chip
+      await expect(picker.input).toHaveCount(0);
+      await expect(capture.companyChip(typed)).toHaveAttribute('aria-pressed', 'true');
 
       // The entry keeps the new company once saved
-      await edit.save();
+      await capture.saveChanges();
       await page.waitForURL(new RegExp(`/diary/${entryId}$`));
       await expect(page.locator('main')).toContainText(typed);
     } finally {

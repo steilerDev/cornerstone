@@ -56,3 +56,4 @@
 - [fix-search-capped-choosers.md](fix-search-capped-choosers.md) — SearchPicker-chooser fix PR: SearchPickerControl/CompanyFilterControl POMs, settle-then-ArrowDown pick helper, focus-on-body defects A/B/C.
 - [story-2217-integrations.md](story-2217-integrations.md) — #2217 Integrations POM/test ids, Paperless-off Documents rules, shared mock helpers, run traps.
 - [story-2218-areas-index.md](story-2218-areas-index.md) — #2218 Areas index POM/test ids, per-test tag + cleanup order, 200 {undo} delete, skeleton locator.
+- [story-2221-capture-screen.md](story-2221-capture-screen.md) — #2221 DiaryCapturePage POM + tap counter, arm64 media crash/stubs, shutter cooldown, 3 live defects.

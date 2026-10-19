@@ -33,6 +33,7 @@ import {
   ImmutableEntryError,
 } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
 import * as photoSpotService from '../services/photoSpotService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import { diaryEntries } from '../db/schema.js';
@@ -629,9 +630,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
   /**
    * DELETE /:id
-   * Delete a photo and its associated files.
+   * Delete a photo (#2221): the row is removed and its files move to the photo trash for the
+   * Undo window.
    *
-   * Returns: 204 No Content, 404, or 403 if the diary entry is signed and saved
+   * Returns: 200 { undo }, 404, or 403 if the diary entry is signed and saved
    */
   fastify.delete(
     '/:id',
@@ -650,9 +652,16 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         throw new ImmutableEntryError('Signed diary entries cannot be modified');
       }
 
-      await photoService.deletePhoto(fastify.db, fastify.config.photoStoragePath, id);
+      const storage = fastify.config.photoStoragePath;
+      const snapshot = photoService.trashPhoto(fastify.db, storage, id);
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'photo', id },
+        restore: (tx) => photoService.restoreTrashedPhoto(tx, storage, snapshot),
+        discard: () => photoService.purgeTrashedPhoto(storage, id),
+      });
 
-      return reply.status(204).send();
+      return reply.status(200).send({ undo });
     },
   );
 }

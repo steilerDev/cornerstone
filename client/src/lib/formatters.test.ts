@@ -8,6 +8,7 @@ import {
   formatDate,
   formatDayMonth,
   formatTime,
+  formatClockTime,
   formatDateTime,
   computeActualDuration,
   formatWeekdayShort,
@@ -1046,5 +1047,39 @@ describe('formatDayMonth', () => {
 
   it('createFormatters passes the fallback through', () => {
     expect(createFormatters('en-US', 'EUR').formatDayMonth(null, 'none')).toBe('none');
+  });
+});
+
+// ─── formatClockTime ──────────────────────────────────────────────────────────
+
+describe('formatClockTime', () => {
+  it('formats HH:mm as 12-hour time in en-US', () => {
+    expect(formatClockTime('14:05', 'en-US')).toMatch(/^2:05\sPM$/);
+  });
+
+  it('formats HH:mm as 24-hour time in de-DE', () => {
+    expect(formatClockTime('14:05', 'de-DE')).toMatch(/^14:05/);
+  });
+
+  it('defaults to en-US', () => {
+    expect(formatClockTime('09:00')).toMatch(/^9:00\sAM$/);
+  });
+
+  it.each(['25:00', '09:60', '9:00', '', 'ab:cd'])('returns the default fallback for %p', (v) => {
+    expect(formatClockTime(v, 'en-US')).toBe('—');
+  });
+
+  it('returns a custom fallback for invalid input', () => {
+    expect(formatClockTime('25:00', 'en-US', '')).toBe('');
+  });
+
+  it('returns the fallback when Intl rejects the locale', () => {
+    expect(formatClockTime('10:00', 'not a locale!!', 'x')).toBe('x');
+  });
+
+  it('createFormatters binds formatClockTime to the locale', () => {
+    expect(createFormatters('de-DE', 'EUR').formatClockTime('14:05')).toMatch(/^14:05/);
+    expect(createFormatters('en-US', 'EUR').formatClockTime('14:05')).toMatch(/PM/);
+    expect(createFormatters('en-US', 'EUR').formatClockTime('zz', '?')).toBe('?');
   });
 });

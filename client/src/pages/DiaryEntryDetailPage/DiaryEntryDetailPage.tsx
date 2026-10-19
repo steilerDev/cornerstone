@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
@@ -19,6 +19,8 @@ import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
+import { PhotosWaitingNotice } from '../../components/photos/PhotoStrip/PhotosWaitingNotice.js';
+import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
@@ -46,6 +48,9 @@ export default function DiaryEntryDetailPage() {
   } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusedKeyRef = useRef<string | null>(null);
   const { t } = useTranslation('diary');
   const { t: tErrors } = useTranslation('errors');
   const { t: tc } = useTranslation('common');
@@ -118,6 +123,14 @@ export default function DiaryEntryDetailPage() {
       ? tc('navigation.diaryEntryNotFound')
       : (displayTitle ?? tc('navigation.diaryEntry'));
   useDocumentTitle(h1Text);
+
+  // Arriving from the capture screen: the heading takes focus once per navigation.
+  useEffect(() => {
+    if (isLoading || !readFocusHeading(location.state)) return;
+    if (focusedKeyRef.current === location.key || !headingRef.current) return;
+    focusedKeyRef.current = location.key;
+    headingRef.current.focus();
+  }, [isLoading, location.key, location.state]);
 
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
@@ -229,7 +242,9 @@ export default function DiaryEntryDetailPage() {
             <DiaryEntryTypeBadge entryType={entry.entryType} size="lg" />
           </div>
           <div className={styles.headerContent}>
-            <h1 className={styles.title}>{h1Text}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+              {h1Text}
+            </h1>
             <div className={styles.meta}>
               <span className={styles.date}>{formatDate(entry.entryDate)}</span>
               {entry.isAutomatic && (
@@ -296,6 +311,7 @@ export default function DiaryEntryDetailPage() {
           ))}
 
         {/* Photos Section */}
+        <PhotosWaitingNotice draftId={entry.id} />
         {!(isLocked && photosResult.photos.length === 0) && !entry.isAutomatic && (
           <div className={styles.photoSection}>
             <div className={styles.photoSectionHeader}>

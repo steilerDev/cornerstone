@@ -6,6 +6,7 @@ import {
   updateDiaryEntry,
   deleteDiaryEntry,
   promoteDiaryEntry,
+  lookupDiaryEntries,
 } from './diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntryDetail } from '@cornerstone/shared';
 
@@ -507,6 +508,48 @@ describe('diaryApi', () => {
       await listDiaryEntries({});
 
       expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries', expect.any(Object));
+    });
+  });
+
+  // ─── lookupDiaryEntries ────────────────────────────────────────────────────
+
+  describe('lookupDiaryEntries', () => {
+    const lookupResponse = { matches: [] };
+
+    it('sends GET with entryDate and title, omitting excludeId when unset', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => lookupResponse } as Response);
+
+      const result = await lookupDiaryEntries({ entryDate: '2026-03-14', title: 'Screed pour' });
+
+      expect(result).toEqual(lookupResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries/lookup?entryDate=2026-03-14&title=Screed+pour',
+        expect.any(Object),
+      );
+    });
+
+    it('adds excludeId when given', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => lookupResponse } as Response);
+
+      await lookupDiaryEntries({ entryDate: '2026-03-14', title: 'Plaster', excludeId: 'de-9' });
+
+      const url = mockFetch.mock.calls[0]![0] as string;
+      expect(url).toContain('excludeId=de-9');
+    });
+
+    it('passes the abort signal through to fetch', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => lookupResponse } as Response);
+      const controller = new AbortController();
+
+      await lookupDiaryEntries(
+        { entryDate: '2026-03-14', title: 'Plaster' },
+        { signal: controller.signal },
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ signal: controller.signal }),
+      );
     });
   });
 });

@@ -204,8 +204,6 @@ describe('NAV_LABEL_KEYS', () => {
     'newInvoice',
     'splitWithAi',
     // #2204: diary entry words
-    'newDiaryEntry',
-    'editDiaryEntry',
     'diaryEntry',
     'diaryEntryNotFound',
     'diaryEntryUntitled',

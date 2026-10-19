@@ -19,10 +19,14 @@ export class SearchPickerControl {
   /** The "Clear selection" button; scope it to the picker's host when the page has several. */
   readonly clearButton: Locator;
 
-  constructor(page: Page, inputId: string, scope?: Locator) {
+  /**
+   * `inputId` is the DOM id of the input; pass the input's own locator instead for a picker that
+   * has no id (the capture screen's company dialog, found by its aria-label).
+   */
+  constructor(page: Page, inputId: string | Locator, scope?: Locator) {
     this.page = page;
-    this.inputId = inputId;
-    this.input = (scope ?? page).locator(`#${inputId}`);
+    this.inputId = typeof inputId === 'string' ? inputId : '';
+    this.input = typeof inputId === 'string' ? (scope ?? page).locator(`#${inputId}`) : inputId;
     this.dropdown = page.locator('[data-search-picker-dropdown]');
     this.clearButton = (scope ?? page).getByRole('button', {
       name: 'Clear selection',

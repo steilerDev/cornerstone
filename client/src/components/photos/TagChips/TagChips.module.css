@@ -1,0 +1,27 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.root[data-tone='onPhoto'] .rowLabel {
+  color: var(--color-photo-text);
+}
+
+.pickerBody {
+  min-height: 12rem;
+}

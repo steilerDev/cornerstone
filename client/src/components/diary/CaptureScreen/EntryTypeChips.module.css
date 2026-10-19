@@ -1,0 +1,36 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.more {
+  composes: chip chipAction from '../../FilterChipGroup/FilterChipGroup.module.css';
+}
+
+.more[data-current='true'] {
+  background: var(--color-bg-inverse);
+  border-color: var(--color-bg-inverse);
+  border-style: solid;
+  color: var(--color-text-inverse);
+}

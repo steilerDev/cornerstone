@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Photo } from '@cornerstone/shared';
+import type { DeletePhotoResponse, Photo } from '@cornerstone/shared';
 import {
   getPhotosForEntity,
   uploadPhoto as uploadPhotoApi,
   updatePhoto as updatePhotoApi,
   deletePhoto as deletePhotoApi,
 } from '../lib/photoApi.js';
+import { undoChange } from '../lib/undoApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import { translateApiError } from '../lib/errorTranslation.js';
 
@@ -19,7 +20,10 @@ export interface UsePhotosResult {
     caption?: string,
     onProgress?: (percent: number) => void,
   ) => Promise<Photo>;
-  deletePhoto: (id: string) => Promise<void>;
+  /** Deletes the photo and resolves with the undo token. */
+  deletePhoto: (id: string) => Promise<DeletePhotoResponse>;
+  /** Restores a deleted photo from its undo token, then reloads the entity's photos. Rejects on 404/409. */
+  restorePhoto: (token: DeletePhotoResponse['undo']) => Promise<void>;
   updatePhoto: (id: string, data: { caption?: string | null; sortOrder?: number }) => Promise<void>;
   updatePhotoInList: (updatedPhoto: Photo) => void;
   refresh: () => void;
@@ -114,10 +118,21 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
   );
 
   const deletePhoto = useCallback(async (id: string) => {
-    await deletePhotoApi(id);
+    const response = await deletePhotoApi(id);
     // Optimistically remove from local state immediately for better UX
     setPhotos((prev) => prev.filter((photo) => photo.id !== id));
+    return response;
   }, []);
+
+  const restorePhoto = useCallback(
+    async (token: DeletePhotoResponse['undo']) => {
+      if (!entityType || !entityId) return;
+      await undoChange(token.token);
+      // The restored photo keeps its id and sort order; reload the list for its position.
+      setPhotos(await getPhotosForEntity(entityType, entityId));
+    },
+    [entityType, entityId],
+  );
 
   const updatePhoto = useCallback(
     async (id: string, data: { caption?: string | null; sortOrder?: number }) => {
@@ -142,6 +157,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     error,
     uploadPhoto,
     deletePhoto,
+    restorePhoto,
     updatePhoto,
     updatePhotoInList,
     refresh,

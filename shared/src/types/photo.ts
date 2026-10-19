@@ -8,6 +8,7 @@
 import type { OrientationResponse, OrientationSummary } from './orientation.js';
 import type { AreaResponse, AreaSummary } from './area.js';
 import type { DiaryEntryType } from './diary.js';
+import type { UndoToken } from './undo.js';
 
 export type PhotoEntityType = 'diary_entry' | 'room' | 'surface' | 'test';
 
@@ -72,6 +73,11 @@ export interface PhotoSpotsResponse {
   spots: PhotoSpotSummary[];
   areas: AreaResponse[];
   orientations: OrientationResponse[];
+}
+
+/** Response of `DELETE /api/photos/:id` (#2221): the delete is undoable. */
+export interface DeletePhotoResponse {
+  undo: UndoToken;
 }
 
 export interface PhotoSpotDiaryEntry {

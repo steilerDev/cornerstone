@@ -58,4 +58,134 @@ describe('FilterChipGroup', () => {
     expect(screen.getByTestId('spot-group-chip-b')).toBeInTheDocument();
     expect(screen.queryByTestId('filter-chip-b')).not.toBeInTheDocument();
   });
+
+  it('uses labelledBy instead of aria-label when both are given', () => {
+    render(
+      <>
+        <span id="lbl">Area</span>
+        <FilterChipGroup
+          options={OPTIONS}
+          value="all"
+          onChange={() => {}}
+          ariaLabel="ignored"
+          labelledBy="lbl"
+        />
+      </>,
+    );
+    const group = screen.getByRole('group', { name: 'Area' });
+    expect(group).not.toHaveAttribute('aria-label');
+    expect(group).toHaveAttribute('aria-labelledby', 'lbl');
+  });
+
+  it('exposes layout and tone as data attributes with defaults', () => {
+    const { rerender } = render(
+      <FilterChipGroup options={OPTIONS} value="all" onChange={() => {}} ariaLabel="G" />,
+    );
+    expect(screen.getByRole('group')).toHaveAttribute('data-layout', 'scroll');
+    expect(screen.getByRole('group')).toHaveAttribute('data-tone', 'default');
+    rerender(
+      <FilterChipGroup
+        options={OPTIONS}
+        value="all"
+        onChange={() => {}}
+        ariaLabel="G"
+        layout="wrap"
+        tone="onPhoto"
+      />,
+    );
+    expect(screen.getByRole('group')).toHaveAttribute('data-layout', 'wrap');
+    expect(screen.getByRole('group')).toHaveAttribute('data-tone', 'onPhoto');
+  });
+
+  it('puts data-chip-value on every chip', () => {
+    render(<FilterChipGroup options={OPTIONS} value="all" onChange={() => {}} ariaLabel="G" />);
+    expect(screen.getByTestId('filter-chip-b')).toHaveAttribute('data-chip-value', 'b');
+  });
+
+  it('deselects the pressed chip with an empty value only when deselectable', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <FilterChipGroup options={OPTIONS} value="a" onChange={onChange} ariaLabel="G" />,
+    );
+    fireEvent.click(screen.getByTestId('filter-chip-a'));
+    expect(onChange).toHaveBeenLastCalledWith('a');
+    rerender(
+      <FilterChipGroup
+        options={OPTIONS}
+        value="a"
+        onChange={onChange}
+        ariaLabel="G"
+        deselectable
+      />,
+    );
+    fireEvent.click(screen.getByTestId('filter-chip-a'));
+    expect(onChange).toHaveBeenLastCalledWith('');
+    fireEvent.click(screen.getByTestId('filter-chip-b'));
+    expect(onChange).toHaveBeenLastCalledWith('b');
+  });
+
+  it('action chips call onSelect, not onChange, and carry aria attributes', () => {
+    const onChange = jest.fn();
+    const onSelect = jest.fn();
+    render(
+      <FilterChipGroup
+        options={[
+          ...OPTIONS,
+          {
+            value: 'more',
+            label: 'More',
+            action: true,
+            onSelect,
+            ariaLabel: 'More areas',
+            ariaExpanded: true,
+            ariaControls: 'panel',
+            ariaHasPopup: 'menu',
+            trailing: <svg data-testid="chev" />,
+            testId: 'custom-more',
+          },
+        ]}
+        value="more"
+        onChange={onChange}
+        ariaLabel="G"
+      />,
+    );
+    const chip = screen.getByTestId('custom-more');
+    expect(chip).not.toHaveAttribute('aria-pressed');
+    expect(chip).toHaveAttribute('aria-expanded', 'true');
+    expect(chip).toHaveAttribute('aria-controls', 'panel');
+    expect(chip).toHaveAttribute('aria-haspopup', 'menu');
+    expect(chip).toHaveAttribute('aria-label', 'More areas');
+    expect(screen.getByTestId('chev').parentElement).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(chip);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('action chip with actionPressed is pressed; without onSelect click is a no-op', () => {
+    render(
+      <FilterChipGroup
+        options={[{ value: 'p', label: 'Pick', action: true, actionPressed: true }]}
+        value=""
+        onChange={() => {}}
+        ariaLabel="G"
+      />,
+    );
+    const chip = screen.getByTestId('filter-chip-p');
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(chip);
+  });
+
+  it('attaches groupRef to the group element', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    render(
+      <FilterChipGroup
+        options={OPTIONS}
+        value="all"
+        onChange={() => {}}
+        ariaLabel="G"
+        groupRef={ref}
+      />,
+    );
+    expect(ref.current).toBe(screen.getByRole('group'));
+  });
 });

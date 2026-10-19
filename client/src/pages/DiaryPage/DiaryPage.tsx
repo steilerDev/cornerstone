@@ -1,6 +1,7 @@
 import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useLocation, Link } from 'react-router-dom';
+import { readFocusHeading } from '../../navigation/focusHeading.js';
 import { useTranslation } from 'react-i18next';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useOpenCreate } from '../../navigation/useOpenCreate.js';
@@ -55,6 +56,17 @@ export default function DiaryPage() {
   );
   useKeyboardShortcuts(listShortcuts);
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusedKeyRef = useRef<string | null>(null);
+
+  // Arriving after Discard: the heading takes focus once per navigation.
+  useEffect(() => {
+    if (!readFocusHeading(location.state) || focusedKeyRef.current === location.key) return;
+    if (!headingRef.current) return;
+    focusedKeyRef.current = location.key;
+    headingRef.current.focus();
+  }, [location.key, location.state]);
 
   const [totalItems, setTotalItems] = useState(0);
   const [firstBatchFailed, setFirstBatchFailed] = useState(false);
@@ -283,7 +295,9 @@ export default function DiaryPage() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div>
-            <h1 className={styles.title}>{pageTitle}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+              {pageTitle}
+            </h1>
             <p className={styles.subtitle}>
               {totalItems}{' '}
               {totalItems === 1 ? t('page.entryCountSingular') : t('page.entryCountPlural')}
