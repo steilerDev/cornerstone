@@ -2027,3 +2027,17 @@ see translated seed names, so company search takes a client-resolved `tradeIds` 
 translated-seed entity must clear (or deliberately keep) the key; check all three services together.
 Related: delete-impact (contract 19) deliberately has no `trade` entry; blocked-delete counts come from
 the list's `vendorCount` and the 409 details.
+
+## Timeout-bump "flake fixes": trace the timer to the awaited call (PR #2316)
+
+A test-only PR raised `waitFor` ceilings, saying the draft create waits on an 800 ms typing debounce. In
+fact the create fired on the first keystroke; the debounce gated only later PATCHes of an existing draft.
+The CI log showed `Received number of calls: 0` after typing had finished plus 1 s. A count of 0, rather
+than a late call, means slack is not the cause. Real cause: an rAF focus-return (`afterTypeChange`; rAF
+is in the test's `doNotFake` list) fired between `user.type`'s click and its keystrokes, so the text went
+to the type chip. **How to apply:** for any timeout-bump PR:
+1. Trace the named timer to the exact call being awaited.
+2. Read the received value in the CI failure.
+3. Look for real rAF or focus moves between a click and a following `user.type`.
+
+Reproduce with a temporary probe: `user.click(input)`, a 60 ms pause, then `user.keyboard(...)`.
