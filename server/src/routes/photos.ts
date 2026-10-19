@@ -16,6 +16,7 @@ import type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
   PhotoEntityType,
+  DiaryEntryStatus,
 } from '@cornerstone/shared';
 import {
   hasDiarySignatures,
@@ -39,6 +40,26 @@ import { diaryEntries } from '../db/schema.js';
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 /**
+ * Signature-lock decision for a loaded diary row: saved with a non-empty signatures array
+ * in metadata. Drafts are never locked (#2124). Unparseable metadata fails open (not locked).
+ */
+function isDiaryRowSignatureLocked(entry: {
+  status: DiaryEntryStatus;
+  metadata: string | null;
+}): boolean {
+  let parsed: unknown;
+  try {
+    parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
+  } catch {
+    return false;
+  }
+  return isDiaryEntrySignatureLocked({
+    isSigned: hasDiarySignatures(parsed),
+    status: entry.status,
+  });
+}
+
+/**
  * Check if a diary entry is signature-locked: saved with a non-empty
  * signatures array in metadata. Drafts are never locked (#2124).
  * Returns false if the entry is not found or its metadata is unparseable.
@@ -56,17 +77,38 @@ function isDiaryEntryLocked(
   if (!entry) {
     return false;
   }
+  return isDiaryRowSignatureLocked(entry);
+}
 
-  let parsed: unknown;
-  try {
-    parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
-  } catch {
-    return false;
+/**
+ * Upload target check for diary photos (#2220): the entry must exist, be manual, and not be
+ * signature-locked. Throws; returns nothing.
+ * @throws NotFoundError (404) if the entry does not exist
+ * @throws ImmutableEntryError (403) if the entry is automatic or signature-locked
+ */
+function assertDiaryPhotoUploadTarget(
+  db: BetterSQLite3Database<typeof schemaTypes>,
+  diaryEntryId: string,
+): void {
+  const entry = db
+    .select({
+      isAutomatic: diaryEntries.isAutomatic,
+      status: diaryEntries.status,
+      metadata: diaryEntries.metadata,
+    })
+    .from(diaryEntries)
+    .where(eq(diaryEntries.id, diaryEntryId))
+    .get();
+
+  if (!entry) {
+    throw new NotFoundError('Diary entry not found');
   }
-  return isDiaryEntrySignatureLocked({
-    isSigned: hasDiarySignatures(parsed),
-    status: entry.status,
-  });
+  if (entry.isAutomatic) {
+    throw new ImmutableEntryError('Automatic diary entries cannot be modified');
+  }
+  if (isDiaryRowSignatureLocked(entry)) {
+    throw new ImmutableEntryError('Signed diary entries cannot be modified');
+  }
 }
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -190,7 +232,8 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *   - entityId: entity ID (UUID)
    *   - caption (optional): photo caption
    *
-   * Returns: 201 with { photo } or 403 if the diary entry is signed and saved
+   * Returns: 201 with { photo }; for entityType 'diary_entry': 404 if the entry does not exist,
+   * 403 IMMUTABLE_ENTRY if it is automatic or signed and saved (#2220)
    */
   fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) throw new UnauthorizedError();
@@ -227,8 +270,8 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const areaId = areaIdField?.value ?? undefined;
     const orientationId = orientationIdField?.value ?? undefined;
 
-    if (entityType === 'diary_entry' && isDiaryEntryLocked(fastify.db, entityId)) {
-      throw new ImmutableEntryError('Signed diary entries cannot be modified');
+    if (entityType === 'diary_entry') {
+      assertDiaryPhotoUploadTarget(fastify.db, entityId);
     }
 
     // Validate file size against config limit

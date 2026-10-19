@@ -11,11 +11,13 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as diaryService from '../services/diaryService.js';
 import { runUndoable, undoStore } from '../services/undoService.js';
+import { MANUAL_DIARY_ENTRY_TYPES } from '@cornerstone/shared';
 import type {
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
   PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
+  DiaryEntryLookupQuery,
 } from '@cornerstone/shared';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -69,12 +71,27 @@ const getDiaryEntrySchema = {
   },
 };
 
+/** JSON schema for GET /api/diary-entries/lookup (#2220) */
+const lookupDiaryEntriesSchema = {
+  querystring: {
+    type: 'object',
+    required: ['entryDate', 'title'],
+    properties: {
+      entryDate: { type: 'string' },
+      title: { type: 'string', maxLength: 1000 },
+      excludeId: { type: 'string' },
+    },
+    additionalProperties: false,
+  },
+};
+
 /** JSON schema for PATCH /api/diary-entries/:id (update entry) */
 const updateDiaryEntrySchema = {
   body: {
     type: 'object',
     minProperties: 1,
     properties: {
+      entryType: { type: 'string', enum: [...MANUAL_DIARY_ENTRY_TYPES] },
       entryDate: { type: 'string' },
       title: { type: ['string', 'null'] },
       body: { type: 'string', maxLength: 10000 },
@@ -143,6 +160,25 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /api/diary-entries/lookup
+   * Manual entries with the same date and title (case/umlaut-insensitive), max 5.
+   * Auth required: Yes (both admin and member)
+   * Note: Must be registered before GET /:id.
+   */
+  fastify.get<{ Querystring: DiaryEntryLookupQuery }>(
+    '/lookup',
+    { schema: lookupDiaryEntriesSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const result = diaryService.lookupDiaryEntries(fastify.db, request.query);
+      return reply.status(200).send(result);
+    },
+  );
+
+  /**
    * POST /api/diary-entries
    * Create a new manual diary entry.
    * Auth required: Yes (both admin and member)
@@ -201,7 +237,7 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
    * PATCH /api/diary-entries/:id
    * Update a diary entry.
    * Auth required: Yes (both admin and member)
-   * Note: entryType and isAutomatic are immutable and cannot be changed.
+   * Note: entryType can change only while the entry is a draft (#2220); isAutomatic is immutable.
    */
   fastify.patch<{ Params: { id: string }; Body: UpdateDiaryEntryRequest }>(
     '/:id',
@@ -209,6 +245,13 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       if (!request.user) {
         throw new UnauthorizedError();
+      }
+
+      // A type change never returns an undo token (#2220): a change away from `issue` drops
+      // resolutionStatus, and the status-undo snapshot cannot restore the entry type.
+      if (request.body.entryType !== undefined) {
+        const changed = diaryService.updateDiaryEntry(fastify.db, request.params.id, request.body);
+        return reply.status(200).send(changed);
       }
 
       const { result: entry, undo } = runUndoable(

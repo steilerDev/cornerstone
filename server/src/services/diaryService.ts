@@ -31,6 +31,7 @@ import {
   AlreadySavedError,
 } from '../errors/AppError.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
+import { isValidIsoDate } from './shared/validators.js';
 import { deletePhotosForEntity } from './photoService.js';
 import type {
   DiaryEntrySummary,
@@ -39,6 +40,9 @@ import type {
   UpdateDiaryEntryRequest,
   PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
+  DiaryEntryLookupQuery,
+  DiaryEntryLookupMatch,
+  DiaryEntryLookupResponse,
   DiaryUserSummary,
   ManualDiaryEntryType,
   DiaryEntryMetadata,
@@ -57,6 +61,7 @@ import {
   hasDiarySignatures,
   isDiaryEntrySignatureLocked,
   MAX_SIGNATURES_PER_ENTRY,
+  foldSearchText,
   MAX_SIGNER_NAME_LENGTH,
   MAX_SIGNATURE_DATA_URL_LENGTH,
   SIGNATURE_DATA_URL_PATTERN,
@@ -168,6 +173,116 @@ const MANUAL_ENTRY_TYPES = new Set<ManualDiaryEntryType>([
   'issue',
   'general_note',
 ]);
+
+/** Maximum matches returned by the lookup (contract 5). */
+const LOOKUP_LIMIT = 5;
+/** Maximum length of the lookup title parameter. */
+const MAX_LOOKUP_TITLE_LENGTH = 1000;
+
+/**
+ * Metadata keys each manual type knows (#2220). A type change keeps only these keys;
+ * `general_note` knows none.
+ */
+const METADATA_KEYS_BY_TYPE: Record<ManualDiaryEntryType, readonly string[]> = {
+  daily_log: [
+    'weather',
+    'temperatureCelsius',
+    'workersOnSite',
+    'vendorId',
+    'workStart',
+    'workEnd',
+    'signatures',
+  ],
+  site_visit: ['inspectorName', 'outcome', 'workStart', 'workEnd', 'signatures'],
+  delivery: ['vendor', 'materials', 'deliveryConfirmed'],
+  issue: ['severity', 'resolutionStatus', 'signatures'],
+  general_note: [],
+};
+
+/** Trim a title; null, undefined and blank all become null. */
+function normalizeTitle(title: string | null | undefined): string | null {
+  if (title === null || title === undefined) return null;
+  const trimmed = title.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/** @throws ValidationError unless the value is a real calendar date (YYYY-MM-DD). */
+function assertValidEntryDate(value: string): void {
+  if (!isValidIsoDate(value)) {
+    throw new ValidationError('Entry date must be a valid date in YYYY-MM-DD format', {
+      field: 'entryDate',
+    });
+  }
+}
+
+/** Number of photos attached to a diary entry. */
+function countEntryPhotos(db: DbType, id: string): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(photos)
+    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
+    .get();
+  return row?.count ?? 0;
+}
+
+/**
+ * Content rule for saved entries (#2220): a title, text or at least one photo.
+ * @throws ValidationError otherwise
+ */
+function assertHasContent(title: string | null, body: string, photoCount: number): void {
+  if ((title === null || title.trim() === '') && body.trim() === '' && photoCount === 0) {
+    throw new ValidationError('A saved entry needs a title, text or at least one photo', {
+      fields: ['title', 'body', 'photos'],
+    });
+  }
+}
+
+/**
+ * Keep only the metadata keys the target type knows; an empty result is null (#2220).
+ */
+function filterMetadataForType(
+  metadata: DiaryEntryMetadata | null | undefined,
+  type: ManualDiaryEntryType,
+): DiaryEntryMetadata | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const source = metadata as Record<string, unknown>;
+  const kept: Record<string, unknown> = {};
+  for (const key of METADATA_KEYS_BY_TYPE[type]) {
+    if (key in source) kept[key] = source[key];
+  }
+  return Object.keys(kept).length === 0 ? null : (kept as DiaryEntryMetadata);
+}
+
+/**
+ * Validate workStart/workEnd (HH:mm or null, end strictly after start) for daily_log
+ * and site_visit metadata.
+ * @throws InvalidMetadataError
+ */
+function validateWorkTimes(
+  entryType: string,
+  md: { workStart?: unknown; workEnd?: unknown },
+): void {
+  const HH_MM_REGEX = /^\d{2}:\d{2}$/;
+  if (md.workStart !== undefined && md.workStart !== null) {
+    if (typeof md.workStart !== 'string' || !HH_MM_REGEX.test(md.workStart)) {
+      throw new InvalidMetadataError(
+        `${entryType} workStart must be a valid HH:mm time string or null`,
+      );
+    }
+  }
+  if (md.workEnd !== undefined && md.workEnd !== null) {
+    if (typeof md.workEnd !== 'string' || !HH_MM_REGEX.test(md.workEnd)) {
+      throw new InvalidMetadataError(
+        `${entryType} workEnd must be a valid HH:mm time string or null`,
+      );
+    }
+  }
+  if (md.workStart && md.workEnd) {
+    if ((md.workEnd as string) <= (md.workStart as string)) {
+      throw new InvalidMetadataError(`${entryType} workEnd must be strictly after workStart`);
+    }
+  }
+}
 
 /**
  * Convert database user row to DiaryUserSummary shape.
@@ -389,29 +504,7 @@ function validateMetadata(
           );
         }
       }
-      // Validate workStart is HH:mm or null
-      const HH_MM_REGEX = /^\d{2}:\d{2}$/;
-      if (dlm.workStart !== undefined && dlm.workStart !== null) {
-        if (typeof dlm.workStart !== 'string' || !HH_MM_REGEX.test(dlm.workStart)) {
-          throw new InvalidMetadataError(
-            'daily_log workStart must be a valid HH:mm time string or null',
-          );
-        }
-      }
-      // Validate workEnd is HH:mm or null
-      if (dlm.workEnd !== undefined && dlm.workEnd !== null) {
-        if (typeof dlm.workEnd !== 'string' || !HH_MM_REGEX.test(dlm.workEnd)) {
-          throw new InvalidMetadataError(
-            'daily_log workEnd must be a valid HH:mm time string or null',
-          );
-        }
-      }
-      // Cross-field: end must be strictly after start when both present
-      if (dlm.workStart && dlm.workEnd) {
-        if (dlm.workEnd <= dlm.workStart) {
-          throw new InvalidMetadataError('daily_log workEnd must be strictly after workStart');
-        }
-      }
+      validateWorkTimes('daily_log', dlm);
       break;
     }
 
@@ -432,6 +525,7 @@ function validateMetadata(
           );
         }
       }
+      validateWorkTimes('site_visit', svm);
       validateSignatures('site_visit', svm.signatures);
       break;
     }
@@ -647,11 +741,7 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     throw new NotFoundError('Diary entry not found');
   }
 
-  const photoCount = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(photos)
-    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
-    .get();
+  const photoCount = countEntryPhotos(db, id);
 
   const sourceEntityTitle = resolveSourceEntityTitle(
     db,
@@ -667,21 +757,14 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     areaMap,
   );
 
-  return toDiarySummary(
-    row.entry,
-    row.user,
-    photoCount?.count ?? 0,
-    sourceEntityTitle,
-    sourceEntityArea,
-    db,
-  );
+  return toDiarySummary(row.entry, row.user, photoCount, sourceEntityTitle, sourceEntityArea, db);
 }
 
 /**
  * Create a new diary entry.
  * Only manual entry types can be created by users; automatic types are system-generated.
  * When status='draft', validation is relaxed: body and entryDate are optional.
- * When status='saved' or omitted, full validation applies.
+ * When status='saved' or omitted, a title, text or photo is required (#2220).
  * @throws ValidationError if entryType is automatic
  * @throws InvalidMetadataError if metadata validation fails
  */
@@ -701,20 +784,11 @@ export function createDiaryEntry(
   const isDraft = data.status === 'draft';
   const status = data.status ?? 'saved';
 
-  // Validate body: required and non-empty for saved, optional/empty for drafts
-  let trimmedBody: string;
+  const title = normalizeTitle(data.title);
+  const trimmedBody = data.body?.trim() ?? '';
+  if (data.entryDate !== undefined) assertValidEntryDate(data.entryDate);
   if (!isDraft) {
-    // Saved entry requires non-empty body
-    if (!data.body) {
-      throw new ValidationError('Entry body is required');
-    }
-    trimmedBody = data.body.trim();
-    if (trimmedBody.length === 0) {
-      throw new ValidationError('Entry body cannot be empty');
-    }
-  } else {
-    // Draft allows empty or missing body
-    trimmedBody = data.body?.trim() ?? '';
+    assertHasContent(title, trimmedBody, 0);
   }
 
   // Validate metadata (both drafts and saved entries enforce type validation)
@@ -743,7 +817,7 @@ export function createDiaryEntry(
       id,
       entryType: data.entryType,
       entryDate: entryDate || '',
-      title: data.title || null,
+      title,
       body: trimmedBody,
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       status,
@@ -764,7 +838,7 @@ export function createDiaryEntry(
       id,
       entryType: data.entryType,
       entryDate: entryDate || '',
-      title: data.title || null,
+      title,
       body: trimmedBody,
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
       status,
@@ -786,7 +860,8 @@ export function createDiaryEntry(
 /**
  * Update a diary entry.
  * Cannot update automatic entries.
- * Validation rules depend on entry status: drafts have relaxed validation, saved entries have full validation.
+ * Validation rules depend on entry status: drafts have relaxed validation, saved entries need a
+ * title, text or photo. `entryType` may change only on drafts (#2220).
  * @throws NotFoundError if entry does not exist
  * @throws ImmutableEntryError if entry is automatic, or saved and signed
  * @throws InvalidMetadataError if metadata validation fails
@@ -814,38 +889,55 @@ export function updateDiaryEntry(
     throw new ImmutableEntryError('Signed diary entries cannot be modified');
   }
 
-  // Determine if entry is a draft
-  const currentIsDraft = entry.status === 'draft';
-
-  // Validate body if provided
-  if (data.body !== undefined) {
-    const trimmedBody = data.body.trim();
-    // For saved entries, body must be non-empty. For drafts, empty is allowed.
-    if (!currentIsDraft && trimmedBody.length === 0) {
-      throw new ValidationError('Entry body cannot be empty');
+  if (data.entryType !== undefined) {
+    if (entry.status !== 'draft') {
+      throw new ValidationError('Entry type can only change while the entry is a draft', {
+        field: 'entryType',
+      });
+    }
+    if (!MANUAL_ENTRY_TYPES.has(data.entryType)) {
+      throw new InvalidEntryTypeError(
+        'Only manual entry types are allowed: daily_log, site_visit, delivery, issue, general_note',
+      );
     }
   }
+  const targetType = (data.entryType ?? entry.entryType) as ManualDiaryEntryType;
+  const typeChanged = targetType !== entry.entryType;
 
-  // Validate metadata if provided
-  if (data.metadata !== undefined) {
-    validateMetadata(entry.entryType, data.metadata, db);
-  }
+  if (data.entryDate !== undefined) assertValidEntryDate(data.entryDate);
 
-  // Validate metadata size
-  if (data.metadata !== null && data.metadata !== undefined) {
-    if (JSON.stringify(data.metadata).length > 2_097_152) {
+  // Metadata: on a type change, keep only keys the new type knows, then validate for it
+  const metadataTouched = data.metadata !== undefined || typeChanged;
+  let nextMetadata: DiaryEntryMetadata | null = null;
+  if (metadataTouched) {
+    const base = data.metadata !== undefined ? data.metadata : parseMetadata(entry.metadata);
+    nextMetadata = typeChanged ? filterMetadataForType(base, targetType) : (base ?? null);
+    validateMetadata(targetType, nextMetadata, db);
+    if (nextMetadata !== null && JSON.stringify(nextMetadata).length > 2_097_152) {
       throw new ValidationError('Metadata must not exceed 2MB when serialized');
     }
   }
 
-  // Update entry
+  const nextTitle = data.title !== undefined ? normalizeTitle(data.title) : entry.title;
+  const nextBody = data.body !== undefined ? data.body.trim() : entry.body;
+
+  if (entry.status === 'saved') {
+    assertHasContent(nextTitle, nextBody, countEntryPhotos(db, id));
+  }
+
+  // Update entry (created_by is never touched)
   const now = new Date().toISOString();
   db.update(diaryEntries)
     .set({
+      entryType: targetType,
       entryDate: data.entryDate ?? entry.entryDate,
-      title: data.title !== undefined ? data.title : entry.title,
-      body: data.body ? data.body.trim() : entry.body,
-      metadata: data.metadata !== undefined ? JSON.stringify(data.metadata) : entry.metadata,
+      title: nextTitle,
+      body: nextBody,
+      metadata: metadataTouched
+        ? nextMetadata === null
+          ? null
+          : JSON.stringify(nextMetadata)
+        : entry.metadata,
       updatedAt: now,
     })
     .where(eq(diaryEntries.id, id))
@@ -862,11 +954,7 @@ export function updateDiaryEntry(
     .where(eq(diaryEntries.id, id))
     .get();
 
-  const photoCount = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(photos)
-    .where(and(eq(photos.entityType, 'diary_entry'), eq(photos.entityId, id)))
-    .get();
+  const photoCount = countEntryPhotos(db, id);
 
   const sourceEntityTitle = resolveSourceEntityTitle(
     db,
@@ -882,14 +970,75 @@ export function updateDiaryEntry(
     areaMap,
   );
 
-  return toDiarySummary(
-    row!.entry,
-    row!.user,
-    photoCount?.count ?? 0,
-    sourceEntityTitle,
-    sourceEntityArea,
-    db,
-  );
+  return toDiarySummary(row!.entry, row!.user, photoCount, sourceEntityTitle, sourceEntityArea, db);
+}
+
+/**
+ * Look up manual diary entries (drafts and saved) with the same date and the same title
+ * (case- and umlaut-insensitive exact match, contract 5, #2220). At most 5 matches, newest first.
+ * @throws ValidationError if entryDate or title is missing/invalid
+ */
+export function lookupDiaryEntries(
+  db: DbType,
+  query: DiaryEntryLookupQuery,
+): DiaryEntryLookupResponse {
+  if (!query.entryDate || !isValidIsoDate(query.entryDate)) {
+    throw new ValidationError('entryDate must be a valid date in YYYY-MM-DD format', {
+      field: 'entryDate',
+    });
+  }
+  const title = (query.title ?? '').trim();
+  const folded = foldSearchText(title);
+  if (title === '' || title.length > MAX_LOOKUP_TITLE_LENGTH || folded === '') {
+    throw new ValidationError('title must not be blank and at most 1000 characters', {
+      field: 'title',
+    });
+  }
+
+  const conditions: SQL[] = [
+    eq(diaryEntries.entryDate, query.entryDate),
+    eq(diaryEntries.isAutomatic, false),
+    sql`${diaryEntries.title} IS NOT NULL`,
+    // SQLite trim() strips spaces only; trim tab/newline/CR as well to agree with JS trim().
+    sql`fold(trim(${diaryEntries.title}, ' ' || char(9, 10, 13))) = ${folded}`,
+  ];
+  if (query.excludeId) {
+    conditions.push(sql`${diaryEntries.id} <> ${query.excludeId}`);
+  }
+
+  const rows = db
+    .select({
+      id: diaryEntries.id,
+      entryType: diaryEntries.entryType,
+      title: diaryEntries.title,
+      status: diaryEntries.status,
+    })
+    .from(diaryEntries)
+    .where(and(...conditions))
+    .orderBy(desc(diaryEntries.createdAt), desc(diaryEntries.id))
+    .limit(LOOKUP_LIMIT)
+    .all();
+
+  const ids = rows.map((r) => r.id);
+  let countMap = new Map<string, number>();
+  if (ids.length > 0) {
+    const counts = db
+      .select({ entityId: photos.entityId, count: sql<number>`COUNT(*)` })
+      .from(photos)
+      .where(and(eq(photos.entityType, 'diary_entry'), inArray(photos.entityId, ids)))
+      .groupBy(photos.entityId)
+      .all();
+    countMap = new Map(counts.map((r) => [r.entityId, r.count]));
+  }
+
+  const matches: DiaryEntryLookupMatch[] = rows.map((r) => ({
+    id: r.id,
+    entryType: r.entryType as ManualDiaryEntryType,
+    title: r.title as string,
+    status: r.status as DiaryEntryStatus,
+    photoCount: countMap.get(r.id) ?? 0,
+  }));
+  return { matches };
 }
 
 /**
@@ -985,18 +1134,18 @@ export function promoteDiaryEntry(
 
   // Compute final values using overrides from request or current entry values
   const finalEntryDate = data.entryDate ?? entry.entryDate;
-  const finalTitle = data.title !== undefined ? data.title : entry.title;
-  const finalBody = data.body ?? entry.body;
+  const finalTitle = data.title !== undefined ? normalizeTitle(data.title) : entry.title;
+  const finalBody = (data.body ?? entry.body).trim();
   const finalMetadata = data.metadata !== undefined ? data.metadata : parseMetadata(entry.metadata);
 
   // Validate required fields for saved entry
-  if (!finalEntryDate || !/^\d{4}-\d{2}-\d{2}$/.test(finalEntryDate)) {
-    throw new ValidationError('Entry date is required and must be in YYYY-MM-DD format');
+  if (!finalEntryDate || !isValidIsoDate(finalEntryDate)) {
+    throw new ValidationError('Entry date is required and must be in YYYY-MM-DD format', {
+      field: 'entryDate',
+    });
   }
 
-  if (!finalBody || finalBody.trim().length === 0) {
-    throw new ValidationError('Entry body is required and cannot be empty');
-  }
+  assertHasContent(finalTitle, finalBody, countEntryPhotos(db, id));
 
   // Validate type-specific required metadata
   const entryType = entry.entryType;
@@ -1039,7 +1188,7 @@ export function promoteDiaryEntry(
     .set({
       entryDate: finalEntryDate,
       title: finalTitle,
-      body: finalBody.trim(),
+      body: finalBody,
       metadata: finalMetadata ? JSON.stringify(finalMetadata) : null,
       status: 'saved',
       updatedAt: now,

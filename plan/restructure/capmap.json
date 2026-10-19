@@ -2546,7 +2546,7 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3. #2212: Global › New menu › Diary entry → Site diary › New diary entry (/diary/new; ?date= pre-fills the entry date). The phone ＋ opens the New sheet, with Diary entry as the first row, until 2.3 restores one-tap capture."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3. #2212: Global › New menu › Diary entry → Site diary › New diary entry (/diary/new; ?date= pre-fills the entry date). The phone ＋ opens the New sheet, with Diary entry as the first row, until 2.3 restores one-tap capture. #2220: GET /api/diary-entries/lookup (same date, folded title, manual entries incl. drafts, max 5, excludeId) backs 'Add to that entry instead'; a draft's type can change until it is saved."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
@@ -2554,7 +2554,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Date chips (Today · Yesterday · Pick), Title chips from recent titles + text field, Text (optional once a photo is attached)",
     "change": "same",
     "gate": "none",
-    "note": "23 of 75 saved entries were written on a later day (8 the next day), so the entry date is always visible and editable; photo dates follow the entry date (owner rule)."
+    "note": "23 of 75 saved entries were written on a later day (8 the next day), so the entry date is always visible and editable; photo dates follow the entry date (owner rule). #2220: the server accepts a saved entry with a title, text or a photo (text optional); entryDate is validated as a real date and stays editable on unlocked entries; photo dates are the entry date on the spot endpoints (no per-photo date stored); site_visit accepts Start/End (workStart/workEnd)."
   },
   "JRN-014": {
     "name": "Autosave a draft while typing and see its save status",
@@ -2570,7 +2570,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > sticky 'Save entry'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (weekly use). #2220: promote needs a title, text or a photo (not text); type-specific required details unchanged."
   },
   "JRN-016": {
     "name": "Discard a draft entry together with its photos",
@@ -2578,7 +2578,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > ⋯ > Discard entry (modal 'Discard this entry?')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry edit (draft) › Discard draft → ConfirmDialog “Discard this entry?”."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry edit (draft) › Discard draft → ConfirmDialog “Discard this entry?”. #2220: discard (DELETE with photo cascade) and the orphan-draft cleanup are unchanged; the server still accepts a content-free draft (photo-first path), and the 'no draft until the first photo or character' rule is the capture screen's (#2221)."
   },
   "JRN-017": {
     "name": "Resume an unfinished draft later from the diary list",
