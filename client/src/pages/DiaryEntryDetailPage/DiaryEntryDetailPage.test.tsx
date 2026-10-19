@@ -684,7 +684,7 @@ describe('DiaryEntryDetailPage', () => {
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Kitchen tiling');
       expect(row.tagName).toBe('DIV');
       expect(row).toHaveTextContent('Kitchen tiling went from Not started to Done');
-      expect(row).toHaveTextContent('Status change');
+      expect(row).toHaveTextContent('Task status');
       expect(row.querySelector('[class*="time"]')).toBeNull();
     });
 
