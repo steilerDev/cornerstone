@@ -590,7 +590,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 | Command                    | Description                                                                     |
 | -------------------------- | ------------------------------------------------------------------------------- |
 | `npm run dev`              | Start both server and client in watch mode                                      |
-| `npm run dev:server`       | Start only the Fastify server (node --watch)                                    |
+| `npm run dev:server`       | Start only the Fastify server (tsc --watch + node --watch dist/server.js)       |
 | `npm run dev:client`       | Start only the Webpack dev server                                               |
 | `npm run build`            | Build all packages (shared -> client -> server)                                 |
 | `npm test`                 | Run all tests                                                                   |
