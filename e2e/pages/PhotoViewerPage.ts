@@ -46,6 +46,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 // ── Annotator shape types (mirror of client/src/.../useUndoStack.ts) ─────────
 // SOURCE: client/src/components/photos/PhotoAnnotator/useUndoStack.ts — keep in sync
@@ -532,6 +533,7 @@ export class PhotoViewerPage {
     await this.page.mouse.click(clickX, clickY);
     // Inline input should open
     await this.inlineInput.waitFor({ state: 'visible' });
+    await expect(this.inlineInput).toBeFocused();
     await this.inlineInput.fill(text);
     await this.page.keyboard.press('Enter');
     await this.inlineInput.waitFor({ state: 'hidden' });
@@ -542,6 +544,7 @@ export class PhotoViewerPage {
    */
   async discardTextInput(): Promise<void> {
     await this.inlineInput.waitFor({ state: 'visible' });
+    await expect(this.inlineInput).toBeFocused();
     await this.page.keyboard.press('Escape');
     await this.inlineInput.waitFor({ state: 'hidden' });
   }
@@ -571,6 +574,7 @@ export class PhotoViewerPage {
 
     // Inline input appears at midpoint
     await this.inlineInput.waitFor({ state: 'visible' });
+    await expect(this.inlineInput).toBeFocused();
     if (label !== '') {
       await this.inlineInput.fill(label);
     }
@@ -694,6 +698,7 @@ export class PhotoViewerPage {
    */
   async enterTextLabel(text: string): Promise<void> {
     await this.inlineInput.waitFor({ state: 'visible' });
+    await expect(this.inlineInput).toBeFocused();
     await this.inlineInput.fill(text);
     await this.page.keyboard.press('Enter');
     await this.inlineInput.waitFor({ state: 'hidden' });

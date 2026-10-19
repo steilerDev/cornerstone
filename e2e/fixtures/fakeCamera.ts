@@ -13,9 +13,15 @@
 
 import type { Page } from '@playwright/test';
 
-/** One `videoinput`; `getUserMedia` resolves with an animated canvas stream. */
-export async function installFakeCamera(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+/**
+ * One `videoinput`; `getUserMedia` resolves with an animated canvas stream, after `startDelayMs`
+ * when given (the camera then stays in its starting state, shutter aria-disabled).
+ */
+export async function installFakeCamera(
+  page: Page,
+  options: { startDelayMs?: number } = {},
+): Promise<void> {
+  await page.addInitScript((startDelayMs: number) => {
     const canvas = document.createElement('canvas');
     canvas.width = 640;
     canvas.height = 480;
@@ -32,8 +38,18 @@ export async function installFakeCamera(page: Page): Promise<void> {
       requestAnimationFrame(draw);
     };
     draw();
+    // WebKit pauses requestAnimationFrame for pages it considers hidden (parallel workers); a
+    // timer keeps the canvas changing so the capture stream keeps delivering frames.
+    window.setInterval(() => {
+      if (context) {
+        context.fillStyle = `hsl(${(frame * 4) % 360}, 60%, 50%)`;
+        context.fillRect(0, 0, 8, 8);
+        frame += 1;
+      }
+    }, 50);
     const mediaDevices = {
       getUserMedia: async () => {
+        if (startDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, startDelayMs));
         const stream = canvas.captureStream(30);
         // Stopping a canvas capture track crashes the arm64 headless Chromium shell used for local
         // container runs ("Target crashed"); the shared canvas never needs stopping.
@@ -49,7 +65,7 @@ export async function installFakeCamera(page: Page): Promise<void> {
       removeEventListener: () => undefined,
     };
     Object.defineProperty(navigator, 'mediaDevices', { value: mediaDevices, configurable: true });
-  });
+  }, options.startDelayMs ?? 0);
 }
 
 /** One `videoinput` is listed, but `getUserMedia` rejects with `NotAllowedError`. */

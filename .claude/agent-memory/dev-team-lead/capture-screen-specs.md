@@ -20,6 +20,9 @@ Found while speccing #2221 (P2.2). Each was a UX or orchestrator premise that th
 10. **`plan:build` refuses a new screen with more than 1 primary.** The only path is to seed the new screen's row by hand and then run `plan:build`. In #2221 the hand seed left the retired screens' rows in place (and zeroed one), and `plan:check` only noted "baseline is behind". In review, always run `plan:build` after a hand seed and diff the result.
 11. **`position: sticky` cannot pin to the viewport in this shell.** The main column is an overflow scroller that never scrolls. `StickyActionBar` became `position: fixed` with an in-flow spacer. Don't spec "sticky" bars again.
 
+12. **Plan tap budgets undercount the shipped entry path** (#2227): plan §5.6 counted "＋ 1" as opening capture, but the shipped ＋ sheet needs a tile/row tap too. Recount from Home with the real sheet; native picker = files + 1; the median (4 spots) hits 15 only if every spot move changes one chip. Escalate budget gaps with options instead of pre-filling.
+13. **In-flight IndexedDB writes survive in-app leave** (App-root engine), but `handleCreated` would `navigate` back after unmount — guard it with a mounted ref whenever a story makes "leave while writing" a supported path.
+
 **How to apply:** any capture/photo/upload story, any story adding shared components, any UX spec with leave dialogs or camera E2E.
 
 Related: [[restructure-baseline-hazards]], [[dialog-route-specs]], [[ux-visual-spec-verification]], [[diary-rules-specs]], [[object-home-move-specs]]

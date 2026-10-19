@@ -7,31 +7,37 @@ title: Capturing Photos
 
 Photos are attached to [diary entries](manual-entries) and document progress, deliveries, issues, and site conditions. Cornerstone's photo flow is built mobile-first: you can snap a photo with your phone camera on site, tag it with where it was taken and which way it faces, and have it uploaded to the entry in a couple of taps.
 
-## Adding photos
+## Taking photos with the in-app camera
 
-Open a diary entry for editing and use the **Add Photos** control. On a phone or tablet this offers your device camera as well as the photo library; on a desktop you can pick files or drag and drop them onto the upload area.
+On the capture screen of a diary entry, select **Take photos**. The in-app camera opens full screen over a live viewfinder. You can also reach it from **＋ › Log now › Photo**, which opens the camera straight away.
 
-You can add one photo or several at once. Each file uploads as soon as it is queued -- there is no separate "submit" step -- and the upload queue shows progress per file with the option to retry any that fail.
+The camera is built for quick walks around the site:
 
-## The photo details modal
+- **Area** and **Orientation** chips sit over the viewfinder. Choose them once and every shot you take after that is tagged with them, until you change them. For example, pick *Ground floor · Kitchen* and *North side*, take five shots, then switch to *Upstairs · Bathroom* for the next ones.
+- Each shot is saved on your phone the moment you take it, and uploads to the entry in the background. Uploads keep going if you reload the page or come back later.
+- **n photos waiting to upload** shows in the viewfinder while any photo of the entry has not reached the server yet. Photos stay on the phone until they have uploaded.
+- **Remove last photo** deletes the shot you just took.
+- The exit button reads **Review (n)** when you have taken n photos. Select it to go back to the entry and check them. With no photos taken, it reads **Close**.
 
-When you pick a photo, Cornerstone opens a **photo details** modal before the upload completes so you can tag the shot while the context is fresh. A **preview of the selected photo** appears at the top of the modal so you can confirm you picked the right shot before filling in the details below:
-
-| Field | Description |
-|-------|-------------|
-| **Description** | An optional caption (up to 500 characters). The placeholder reads *Add a description… (optional)*. |
-| **Area** | The [area](/guides/work-items/areas-and-trades) the photo was taken in -- pick from your area hierarchy. Optional. |
-| **Orientation** | The label for the direction or viewpoint the photo shows, chosen from your managed list of [orientations](#orientations). Optional. |
-
-### Picking the area
-
-The area picker is hierarchy-aware. Each option is indented to show its depth in your area tree, and the **full ancestor path** (e.g. *Ground Floor › Kitchen*) appears beneath the area name. This makes it easy to tell apart rooms that share the same name on different floors -- for example a "Bathroom" on the ground floor and another upstairs. Once you select an area, the picker collapses to show just the concise area name.
-
-Tap **Save & upload** to store the photo with its metadata, or **Cancel** to skip the file. You can always edit a photo's caption, area, and orientation later with **Edit tags** in the photo viewer.
-
-:::tip
-On a phone the modal is full-width with large touch targets so you can fill it in one-handed on site. Tagging the **area** and **orientation** as you go means your photos are already organized by the time you are back at a desk.
+:::caution
+While a shot is still being saved, the browser warns you before you reload or close the tab. Review and Close wait for any shot still being saved, and show *Saving photos…* while they do.
 :::
+
+### Allowing camera access
+
+The first time you open the camera, your browser asks for permission to use the camera. Choose **Allow**. The in-app camera needs a secure connection, such as HTTPS. On a plain `http://` address on your home network, the browser does not offer the in-app camera.
+
+If you refuse access, or the browser cannot provide a camera, the viewfinder is not shown and Cornerstone opens your phone's camera app instead. You can turn camera access back on in your browser's site settings.
+
+### Using the camera app for full-size photos
+
+Select **Use camera app** to open your phone's own camera. Its photos are full size and are kept in your phone's photo library as well as in the diary entry. Use it when you need the sharpest photos, for example for a close-up of a defect.
+
+The in-app camera can produce smaller photos than your phone's camera. When the preview is lower quality than your phone's camera, a hint appears: *This preview is lower quality than your phone's camera. For full-size photos, use the camera app.* Select **Not now** to hide the hint for the rest of this browser session. The hint never stops you from taking photos.
+
+### Adding existing photos
+
+Photos you already have on the phone can be added with **Choose from library**. They upload in the same way as photos taken in the camera.
 
 ## Orientations
 
@@ -49,7 +55,7 @@ Navigate to **Manage** in the sidebar and open the **Orientations** tab. Under *
 
 Click **Create orientation** to add it. The list below shows every orientation with its sort-order label; each row has **Edit** and **Delete** actions. Deleting an orientation asks for confirmation first.
 
-Once you have created orientations they appear in the **Orientation** picker in the photo details modal. The picker searches as you type, matching your query against both the orientation **name** and its **description** -- so typing *street* finds *From the street* even when "street" only appears in the description.
+Once you have created orientations they appear in the **Orientation** chips over the camera and in the **Orientation** picker when you tag a photo. The picker searches as you type, matching your query against both the orientation **name** and its **description** -- so typing *street* finds *From the street* even when "street" only appears in the description.
 
 ## Working with photos after upload
 

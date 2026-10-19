@@ -186,12 +186,22 @@ export function CaptureScreen({
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const moveProgressRef = useRef(new Map<string, MoveProgress>());
 
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const handleCreated = (id: string) => {
-    onDraftCreated(id);
     if (nullItemIdsRef.current.length > 0) {
       api.assignDraft(nullItemIdsRef.current, id);
       nullItemIdsRef.current = [];
     }
+    // A shot stored after the user left still joins its draft, but never pulls them back.
+    if (!mountedRef.current) return;
+    onDraftCreated(id);
     navigate(routeUrl('diaryEntryEdit', { id }), {
       replace: true,
       state: forwardOriginState(location.state),
@@ -305,7 +315,8 @@ export function CaptureScreen({
 
   // ── Leave guards ────────────────────────────────────────────────────────────────────────────
 
-  const guardUnload = (mode === 'saved' && draft.dirty) || photos.hasMemoryOnlyItems;
+  const guardUnload =
+    (mode === 'saved' && draft.dirty) || photos.hasMemoryOnlyItems || photos.savingCount > 0;
   useEffect(() => {
     if (!guardUnload) return undefined;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -972,6 +983,8 @@ export function CaptureScreen({
           onClose={photos.camera.onClose}
           onUseCameraApp={photos.camera.onUseCameraApp}
           shotCount={photos.camera.shotCount}
+          savingCount={photos.camera.savingCount}
+          waitingCount={photos.camera.waitingCount}
           lastShotUrl={photos.camera.lastShotUrl}
           onRemoveLast={photos.camera.onRemoveLast}
           returnFocusRef={photos.inputs.takeButtonRef}

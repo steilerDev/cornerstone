@@ -10,8 +10,8 @@
  *            order survives a reload; choosing Delivery then puts Delivery first.
  * Q4  <1024  Note tile: capture screen on Note, title focused, `start` consumed, no draft; saves a Note.
  * Q5  <1024  Delivery tile: Delivery chip pressed, title focused, Company and Materials visible.
- * Q6  <1024  Photo tile (fake camera): the camera opens without another tap, no draft; Done lands
- *            on "Take photos"; a reload leaves the camera closed.
+ * Q6  <1024  Photo tile (fake camera): the camera opens without another tap, no draft; Close (no shots)
+ *            lands on "Take photos"; a reload leaves the camera closed.
  * Q7  <1024  Photo tile without a camera: no dialog, "Take photos" focused.
  * Q8  all    `areaId` presets the Area chip; an unknown id is ignored silently.
  * Q9  >=1024 Diary header "Log today" opens today's capture screen; the New menu still has
@@ -125,6 +125,8 @@ test.describe('Log now tiles in the New sheet', { tag: '@responsive' }, () => {
     await page.goto(ROUTES.home);
     await createMenu.chooseQuickLog('note');
     await expect(page).toHaveURL(/\/diary\/new/);
+    // The screen removes `start` with a replace navigation: a goto before it is interrupted.
+    await expectStartConsumed(page);
 
     await page.goto(ROUTES.home);
     await createMenu.open();
@@ -229,7 +231,8 @@ test.describe('Log now tiles in the New sheet', { tag: '@responsive' }, () => {
     await expectStartConsumed(page);
     expect(posts.count()).toBe(0);
 
-    await capture.camera.done.click();
+    await expect(capture.camera.exit).toHaveText('Close');
+    await capture.camera.exit.click();
     await expect(capture.camera.dialog).toBeHidden();
     await expect(capture.takePhotosButton).toBeFocused();
     expect(posts.count()).toBe(0);

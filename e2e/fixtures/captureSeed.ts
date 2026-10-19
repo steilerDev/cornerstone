@@ -14,6 +14,7 @@ import {
 
 export interface ApiPhoto {
   id: string;
+  originalFilename: string;
   areaId: string | null;
   orientationId: string | null;
   annotatedAt: string | null;
@@ -36,6 +37,16 @@ export function todayIso(offsetDays = 0): string {
   date.setDate(date.getDate() + offsetDays);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * Entry date for a seeded entry whose title must show as a title chip. The chips are the 6 newest
+ * saved entries (by date) of the shared database, so a seed dated yesterday is pushed out by the
+ * entries other parallel tests save today. A date a year or more ahead always ranks first, is
+ * never "today" (no "Add to that entry instead" offer) and differs per call.
+ */
+export function titleSeedDate(): string {
+  return todayIso(365 + Math.floor(Math.random() * 365));
 }
 
 /** A name that is unique per test run and worker. */
@@ -108,6 +119,26 @@ export async function photosTagged(
   return `${photos.length}/${count} photos, ${wrong.length} untagged or mis-tagged: ${JSON.stringify(
     wrong.map((p) => [p.areaId, p.orientationId]),
   )}`;
+}
+
+/**
+ * 'ok' when the entry's photos, in capture order, carry exactly the expected (area, orientation)
+ * pairs; otherwise a short diagnostic. Capture order is the file-name order (`capture-<ms>.jpg`
+ * for shots, `<prefix>-<n>.png` for library files): the API lists by `sortOrder` (0 for every
+ * capture photo) and then `createdAt`, which concurrent uploads can reorder. Poll it.
+ */
+export async function photosTaggedInOrder(
+  page: Page,
+  entryId: string,
+  expected: ReadonlyArray<{ areaId: string; orientationId: string }>,
+): Promise<string> {
+  const photos = (await listEntryPhotos(page, entryId)).sort((a, b) =>
+    a.originalFilename.localeCompare(b.originalFilename),
+  );
+  const actual = photos.map((p) => [p.areaId, p.orientationId]);
+  const wanted = expected.map((e) => [e.areaId, e.orientationId]);
+  if (JSON.stringify(actual) === JSON.stringify(wanted)) return 'ok';
+  return `expected ${JSON.stringify(wanted)}, got ${JSON.stringify(actual)}`;
 }
 
 export async function getEntry(page: Page, id: string): Promise<ApiDiaryEntry> {

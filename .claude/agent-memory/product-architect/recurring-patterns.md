@@ -2070,3 +2070,9 @@ synchronous paths. Trace each callback to its caller: `PhotoViewer.handleAnnotat
 but `PhotoAnnotator` calls `onSave` after `await uploadAnnotation`; an unmount mid-await nulls the ref
 and the annotator's `catch` swallows the TypeError. Also: contract prose like "registered before /:id"
 is unneeded and easy to get wrong — find-my-way ranks static segments over params in any order.
+
+### Two-phase producers: UI list vs host list (PR #2324)
+
+When a child updates its own view at phase 1 (frame encoded: tray thumbnail) and the host records at
+phase 2 (stored: `shotKeys`), any "act on the last one" control (Remove last) targets different items
+during the gap. Check whether an in-flight counter (`savingCount`) exists and gate the control on it.

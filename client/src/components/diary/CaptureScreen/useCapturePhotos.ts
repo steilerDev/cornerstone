@@ -116,6 +116,7 @@ export function useCapturePhotos({
   const [annotateKey, setAnnotateKey] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [shotKeys, setShotKeys] = useState<string[]>([]);
+  const [savingCount, setSavingCount] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [recentVersion, setRecentVersion] = useState(0);
   const [hasVideoInput, setHasVideoInput] = useState(false);
@@ -391,10 +392,15 @@ export function useCapturePhotos({
 
   // ── Adding ──────────────────────────────────────────────────────────────────────────────────
 
-  const addFiles = useCallback(
-    async (files: readonly File[], source: CaptureSource) => {
-      if (files.length === 0) return;
-      const chips = stickyRef.current;
+  /** Writes the files to the capture store and records them; resolves once they are stored. */
+  const storeFiles = useCallback(
+    async (
+      files: readonly File[],
+      source: CaptureSource,
+      onStored?: () => void,
+      chipsAtPress?: typeof stickyRef.current,
+    ) => {
+      const chips = chipsAtPress ?? stickyRef.current;
       const live = source === 'camera' ? 'live' : 'added';
       const tags: CaptureTags = {
         areaId: chips.areaId,
@@ -408,6 +414,16 @@ export function useCapturePhotos({
       const ids = await api.add(files, { draftId: startDraftId, source, tags });
       setOrder((prev) => [...prev, ...ids]);
       if (source === 'camera') setShotKeys((prev) => [...prev, ...ids]);
+      // Same synchronous continuation: the saving count drops in the render that raises shotKeys.
+      onStored?.();
+      return { ids, startDraftId };
+    },
+    [api, getDraftId],
+  );
+
+  /** Joins stored items to their draft (assigns now, or queues them until the draft exists). */
+  const attachDraft = useCallback(
+    async (ids: readonly string[], startDraftId: string | null) => {
       const nowDraftId = getDraftId();
       if (nowDraftId) {
         if (!startDraftId) api.assignDraft(ids, nowDraftId);
@@ -418,6 +434,37 @@ export function useCapturePhotos({
     },
     [api, ensureDraft, getDraftId, nullItemIdsRef],
   );
+
+  const addFiles = useCallback(
+    async (files: readonly File[], source: CaptureSource) => {
+      if (files.length === 0) return;
+      const stored = await storeFiles(files, source);
+      await attachDraft(stored.ids, stored.startDraftId);
+    },
+    [attachDraft, storeFiles],
+  );
+
+  /** Shutter press: counted as saving from the press until the shot is stored (or fails). */
+  const onShot = (frame: Promise<File>) => {
+    setSavingCount((c) => c + 1);
+    const chips = stickyRef.current;
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      setSavingCount((c) => Math.max(0, c - 1));
+    };
+    void (async () => {
+      try {
+        const file = await frame;
+        const stored = await storeFiles([file], 'camera', release, chips);
+        release();
+        await attachDraft(stored.ids, stored.startDraftId);
+      } catch {
+        release();
+      }
+    })();
+  };
 
   const onLibraryChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -681,6 +728,7 @@ export function useCapturePhotos({
     uploadedCount,
     pendingCount: pendingItems.length,
     hasMemoryOnlyItems,
+    savingCount,
     mostCommonAreaId,
     chips: {
       areaId: effectiveAreaId,
@@ -728,10 +776,12 @@ export function useCapturePhotos({
     },
     camera: {
       open: cameraOpen,
-      onShot: (file: File) => void addFiles([file], 'camera'),
+      onShot,
       onClose: () => setCameraOpen(false),
       onUseCameraApp: () => cameraInputRef.current?.click(),
       shotCount: shotKeys.length,
+      savingCount,
+      waitingCount: pendingItems.length,
       lastShotUrl: lastShotTile?.thumbnailUrl,
       onRemoveLast: removeLastShot,
     },

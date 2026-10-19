@@ -7,16 +7,29 @@
  *
  * Take photos is visible on a fine pointer because the device reports a videoinput; the camera
  * dialog opens with focus on the shutter; Enter takes a photo; shots are tagged with the live
- * chips; Remove last photo; Done returns focus to Take photos and leaves no dialog open.
+ * chips; Remove last photo; the exit ("Review (n)") returns focus to Take photos and leaves no
+ * dialog open.
+ *
+ * #2227 K2: the median entry (5 photos at 4 spots from the ＋ sheet) walked on the REAL fake
+ * device at a phone viewport (390x844, touch, mobile emulation): exactly 15 taps, tags per photo
+ * in capture order, orientation staying pressed across area changes. No HTTPS and no real camera
+ * are involved (localhost is a secure context).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import {
+  medianExpected,
+  seedMedianScenario,
+  walkMedianWithCamera,
+} from '../../fixtures/captureMedian.js';
+import {
   CaptureSeed,
+  photosTaggedInOrder,
   currentUserId,
   listEntryPhotos,
   seedRecentTags,
 } from '../../fixtures/captureSeed.js';
+import { ROUTES } from '../../fixtures/testData.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 
 test.use({
@@ -53,17 +66,18 @@ test.describe('Viewfinder with the Chromium fake device', () => {
       await capture.openCamera();
       await expect(capture.camera.shutter).toBeFocused();
 
+      await expect(capture.camera.exit).toHaveText('Close');
       await capture.camera.setArea(area.name);
       await capture.camera.setOrientation(orientation.name);
 
       await capture.camera.shutter.focus();
       await page.keyboard.press('Enter');
-      await expect(capture.camera.counter).toHaveText('1 photo');
+      await expect(capture.camera.exit).toHaveText('Review (1)');
       await capture.shoot(2);
-      await expect(capture.camera.counter).toHaveText('3 photos');
+      await expect(capture.camera.exit).toHaveText('Review (3)');
 
-      await capture.tap(capture.camera.removeLast);
-      await expect(capture.camera.counter).toHaveText('2 photos');
+      await capture.removeLastShot();
+      await expect(capture.camera.exit).toHaveText('Review (2)');
 
       await capture.closeCamera();
       await expect(capture.camera.dialog).toHaveCount(0);
@@ -86,6 +100,40 @@ test.describe('Viewfinder with the Chromium fake device', () => {
       expect(photos.every((p) => p.areaId === area.id && p.orientationId === orientation.id)).toBe(
         true,
       );
+    } finally {
+      await seed.cleanup();
+    }
+  });
+});
+
+test.describe('Median entry on the Chromium fake device at a phone viewport (K2, #2227)', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'Chromium-only launch flags');
+  test.skip(process.arch !== 'x64', 'fake media device crashes headless Chromium on arm64');
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('K2: 5 photos at 4 spots from the plus sheet take exactly 15 taps', async ({
+    page,
+    testPrefix,
+  }, testInfo) => {
+    test.slow();
+    const seed = new CaptureSeed(page, testPrefix);
+    try {
+      const s = await seedMedianScenario(page, seed, testPrefix, 'Real camera');
+      const capture = new DiaryCapturePage(page);
+      await page.goto(ROUTES.home);
+      capture.resetTaps();
+
+      const entryId = await walkMedianWithCamera(capture, s);
+      seed.trackEntry(entryId);
+
+      testInfo.annotations.push({
+        type: 'taps',
+        description: `${testInfo.project.name} K2: ${capture.taps}`,
+      });
+      expect(capture.taps).toBeLessThanOrEqual(15);
+      expect(capture.taps).toBe(15);
+
+      await expect.poll(() => photosTaggedInOrder(page, entryId, medianExpected(s))).toBe('ok');
     } finally {
       await seed.cleanup();
     }

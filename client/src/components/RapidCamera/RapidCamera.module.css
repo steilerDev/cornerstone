@@ -58,23 +58,76 @@
   pointer-events: none;
 }
 
-.topBar {
+.topArea {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  /* Stays above the starting / error panel, which is absolutely positioned later in the DOM */
+  z-index: var(--z-raised);
+  pointer-events: none;
+}
+
+.topArea > * {
+  pointer-events: auto;
+}
+
+.topBar {
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--spacing-2);
   padding: var(--spacing-2);
   background: var(--color-photo-bar-bg);
-  /* Stays above the starting / error panel, which is absolutely positioned later in the DOM */
-  z-index: var(--z-raised);
+}
+
+.topBar > * {
+  min-width: 0;
+}
+
+.topBar .textButton {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The button is inline-flex, so the ellipsis lives on the label span */
+.labelClip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiting {
+  margin: 0;
+  padding: var(--spacing-1) var(--spacing-2);
+  background: var(--color-photo-bar-bg);
+  color: var(--color-photo-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: var(--spacing-2);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background: var(--color-photo-bar-bg);
+  color: var(--color-photo-text);
+  font-size: var(--font-size-sm);
+}
+
+.hint p {
+  margin: 0;
+  flex: 1 1 100%;
 }
 
 .textButton,
-.doneButton,
+.reviewButton,
 .panelButton,
 .roundButton {
   display: inline-flex;
@@ -96,25 +149,32 @@
   border-color: transparent;
 }
 
-.doneButton {
+.reviewButton {
   margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: var(--color-photo-active-bg);
 }
 
 .textButton:hover,
-.doneButton:hover,
+.reviewButton:hover,
 .panelButton:hover,
 .roundButton:hover {
   background: var(--color-photo-control-bg-hover);
 }
 
 .textButton:focus-visible,
-.doneButton:focus-visible,
+.reviewButton:focus-visible,
 .panelButton:focus-visible,
 .roundButton:focus-visible,
 .shutter:focus-visible {
   outline: 2px solid var(--color-photo-focus-ring);
   outline-offset: 2px;
+}
+
+.textButton[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .roundButton {
@@ -126,15 +186,6 @@
 .roundButton[aria-pressed='true'] {
   background: var(--color-photo-active-bg);
   border-color: var(--color-photo-focus-ring);
-}
-
-.counter {
-  padding: var(--spacing-1) var(--spacing-3);
-  border-radius: var(--radius-full);
-  background: var(--color-photo-active-bg);
-  color: var(--color-photo-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
 }
 
 .panel {
@@ -175,6 +226,14 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: var(--spacing-3);
+}
+
+.controlStart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-1);
+  min-width: 0;
 }
 
 .tray {
@@ -237,7 +296,7 @@
 @media (prefers-reduced-motion: reduce) {
   .shutter,
   .textButton,
-  .doneButton,
+  .reviewButton,
   .roundButton {
     transition: none;
   }
