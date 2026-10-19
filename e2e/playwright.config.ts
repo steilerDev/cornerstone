@@ -23,9 +23,11 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* CI workers: 2 on ubuntu-latest (2 vCPUs). With 16 shards splitting the
-     suite, each shard runs ~1-2 test files. Halved from 4 to reduce CPU
-     contention that caused desktop tests to hit the 10s timeout. */
+  /* CI workers: 2 on ubuntu-latest (2 vCPUs). CI runs E2E per viewport project,
+     each sharded on its own (desktop 4 shards, tablet 6, mobile 6 = 16 jobs; see
+     the E2E matrix in .github/workflows/ci.yml), so every job runs one project's
+     slice of the suite. Halved from 4 to reduce CPU contention that caused
+     desktop tests to hit the 10s timeout. */
   workers: process.env.CI ? 2 : undefined,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters

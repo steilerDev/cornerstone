@@ -268,7 +268,7 @@ Cornerstone uses a two-tier release model:
 
 Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (zero warnings), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+Full E2E tests (16 jobs, sharded per viewport: desktop ×4, tablet ×6, mobile ×6 — see the `e2e` matrix in `ci.yml`) run on all PRs for visibility. `Quality Gates` covers ESLint (zero warnings), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ### Local Validation Policy
 

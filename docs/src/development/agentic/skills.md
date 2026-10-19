@@ -114,13 +114,13 @@ Or take the autonomous path:
 **Workflow**:
 1. Sync `beta` with `main`
 2. Create the promotion PR from `beta` to `main` with a change inventory
-3. Wait for the CI gates, including E2E Gates (16 shards × 3 viewports)
+3. Wait for the CI gates, including E2E Gates (16 jobs: desktop ×4, tablet ×6, mobile ×6)
 4. Human reviews and approves -- feedback loops back into fixes until approved
 5. Docs-writer updates the docs site, README highlights, and release summary
 6. Lessons learned are synced back into the agent checklists
 7. Merge commit to `main` (preserves individual commits for semantic-release), then post-merge sync
 
-**Gate**: E2E Gates (all 16 shards × 3 viewports passing), human approval
+**Gate**: E2E Gates (all 16 jobs, desktop/tablet/mobile, passing), human approval
 
 **Output**: Release tagged on `main`, Docker image on `latest`/`1.x`/`1.x.x` tags
 
