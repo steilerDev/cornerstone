@@ -2041,3 +2041,9 @@ to the type chip. **How to apply:** for any timeout-bump PR:
 3. Look for real rAF or focus moves between a click and a following `user.type`.
 
 Reproduce with a temporary probe: `user.click(input)`, a 60 ms pause, then `user.keyboard(...)`.
+
+Round 2 trap: `waitFor(() => expect(chip).toHaveFocus())` was vacuous. `user.click` had already focused
+the chip, so the wait passed before the rAF ran. A wait proves nothing when its condition is already true
+before the event it is meant to await. Flush the frame instead:
+`await act(() => new Promise<void>((r) => window.requestAnimationFrame(() => r())))`. rAF callbacks run in
+FIFO order, so the component's frame has run by then.

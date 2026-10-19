@@ -585,9 +585,9 @@ describe('CaptureScreen: saving a new entry', () => {
     const user = userEvent.setup();
     renderScreen();
     await user.click(screen.getByTestId('capture-type-site_visit'));
-    // The screen returns focus to the chip one animation frame later; typing before that lands the
-    // text on the chip instead of the title and no draft is created.
-    await waitFor(() => expect(screen.getByTestId('capture-type-site_visit')).toHaveFocus());
+    // Wait one animation frame so the screen's focus return to the chip (after a type change) has
+    // run before typing; otherwise a slow runner lands the text on the chip.
+    await act(() => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())));
     await user.type(screen.getByTestId('capture-title-input'), 'Inspection');
     await draftCreated();
 
