@@ -279,13 +279,21 @@ function match(overrides: Partial<DiaryEntryLookupMatch> = {}): DiaryEntryLookup
 }
 
 /**
+ * Timeout for waits on the debounced draft create. The typing debounce is 800 ms, so waitFor's
+ * default 1000 ms leaves only 200 ms of slack, which a loaded CI shard exceeds.
+ */
+const CREATE_WAIT = { timeout: 3000 };
+
+/**
  * Waits for the draft to exist by its real signals (the create call resolved and the screen moved
  * to the draft URL), not for the autosave text, which flips to "Saving…" on a slow runner.
+ * Both waits use CREATE_WAIT because the create only fires after the 800 ms typing debounce.
  */
 async function draftCreated() {
-  await waitFor(() => expect(mockCreate).toHaveBeenCalled());
-  await waitFor(() =>
-    expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1/edit'),
+  await waitFor(() => expect(mockCreate).toHaveBeenCalled(), CREATE_WAIT);
+  await waitFor(
+    () => expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1/edit'),
+    CREATE_WAIT,
   );
   await act(async () => {});
 }
@@ -414,7 +422,7 @@ describe('CaptureScreen: a new entry', () => {
 
     await user.type(screen.getByTestId('capture-title-input'), 'Sc');
 
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1), CREATE_WAIT);
     expect(mockCreate.mock.calls[0]![0]).toMatchObject({
       entryType: 'daily_log',
       status: 'draft',
@@ -435,7 +443,7 @@ describe('CaptureScreen: a new entry', () => {
 
     await user.type(screen.getByTestId('capture-text-input'), 'x');
 
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1), CREATE_WAIT);
     expect(mockCreate.mock.calls[0]![0]).toMatchObject({ body: 'x' });
   });
 
@@ -448,7 +456,7 @@ describe('CaptureScreen: a new entry', () => {
       target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] },
     });
 
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1), CREATE_WAIT);
     await waitFor(() => expect(engine.assignDraft).toHaveBeenCalledWith(['n1'], 'draft-1'));
   });
 
@@ -461,7 +469,7 @@ describe('CaptureScreen: a new entry', () => {
 
     expect(await screen.findByText("Couldn't start the entry. Try again.")).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(2), CREATE_WAIT);
     await waitFor(() =>
       expect(screen.queryByText("Couldn't start the entry. Try again.")).not.toBeInTheDocument(),
     );
@@ -529,7 +537,7 @@ describe('CaptureScreen: saving a new entry', () => {
     const user = userEvent.setup();
     renderScreen({ state: { origin: { to: '/diary' } } });
     await user.type(screen.getByTestId('capture-title-input'), 'Plaster');
-    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled(), CREATE_WAIT);
     await draftCreated();
 
     await user.click(saveButton());
@@ -883,7 +891,7 @@ describe('CaptureScreen: discard', () => {
     fireEvent.change(screen.getByTestId('capture-library-input'), {
       target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] },
     });
-    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled(), CREATE_WAIT);
 
     await user.click(screen.getByRole('button', { name: 'More actions' }));
     await user.click(screen.getByTestId('capture-discard'));
@@ -1325,7 +1333,7 @@ describe('CaptureScreen: suggestions', () => {
 
     expect(screen.getByTestId('capture-title-input')).toHaveValue('Screed');
     expect(screen.getByTestId('capture-title-chip-Screed')).toHaveAttribute('aria-pressed', 'true');
-    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1), CREATE_WAIT);
 
     await user.click(screen.getByTestId('capture-title-chip-Screed'));
     expect(screen.getByTestId('capture-title-input')).toHaveValue('');
