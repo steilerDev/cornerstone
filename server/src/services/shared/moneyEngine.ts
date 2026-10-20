@@ -128,7 +128,7 @@ export interface GrantResult {
   counted: boolean;
   /** lineId -> share of this grant */
   lineShares: Map<string, Scen>;
-  /** itemKey -> total share of this grant (line shares + item-level shares) */
+  /** itemKey -> total share of this grant (sum of its line shares) */
   itemTotals: Map<string, Scen>;
 }
 

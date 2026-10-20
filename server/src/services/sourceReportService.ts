@@ -95,6 +95,38 @@ function mergeContributions(
   return combined;
 }
 
+/** Rail B rows of a source: deposits tagged to it. Shared by the bank report and the draw-down set. */
+function loadRailBRows(db: DbType, sourceId: string): RailBContributionRow[] {
+  return db.all<RailBContributionRow>(
+    sql`SELECT
+      d.invoice_id AS invoiceId,
+      d.amount AS amount,
+      d.status AS status,
+      d.entry_type AS entryType
+    FROM invoice_deposits d
+    WHERE d.budget_source_id = ${sourceId}`,
+  );
+}
+
+/** Rounds each invoice's raw contribution to whole cents and drops zero rows. */
+function roundContributions(raw: Map<string, number>): Map<string, number> {
+  const rounded = new Map<string, number>();
+  for (const [invoiceId, rawAmount] of raw) {
+    const roundedAmount = toCents(rawAmount) / 100;
+    if (roundedAmount !== 0) {
+      rounded.set(invoiceId, roundedAmount);
+    }
+  }
+  return rounded;
+}
+
+/** Total of already-rounded invoice amounts, rounded to whole cents. */
+function sumRoundedAmounts(amounts: Iterable<number>): number {
+  let sum = 0;
+  for (const amount of amounts) sum += amount;
+  return toCents(sum) / 100;
+}
+
 /**
  * Combines Rail A and Rail B contributions per invoice, rounds each invoice to whole cents and
  * drops zero rows. One combiner for the bank report and the money service (ADR-039).
@@ -109,14 +141,7 @@ export function combineSourceContributions(
     computeLineContributionsExcludingTagged(railARows, targetStatuses),
     sumTaggedDepositContributionsByInvoice(railBRows, targetStatuses),
   );
-  const rounded = new Map<string, number>();
-  for (const [invoiceId, rawAmount] of combined) {
-    const roundedAmount = toCents(rawAmount) / 100;
-    if (roundedAmount !== 0) {
-      rounded.set(invoiceId, roundedAmount);
-    }
-  }
-  return rounded;
+  return roundContributions(combined);
 }
 
 /**
@@ -145,19 +170,11 @@ export function getDrawDownSet(
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
     WHERE ${railALineFilter(sourceId)}`,
   );
-  const railBRows = db.all<RailBContributionRow>(
-    sql`SELECT
-      d.invoice_id AS invoiceId,
-      d.amount AS amount,
-      d.status AS status,
-      d.entry_type AS entryType
-    FROM invoice_deposits d
-    WHERE d.budget_source_id = ${sourceId}`,
-  );
+  const railBRows = loadRailBRows(db, sourceId);
 
   const combined = combineSourceContributions(railARows, railBRows, REPORT_TYPE_STATUSES.claim);
   const invoicesOut = Array.from(combined, ([invoiceId, amount]) => ({ invoiceId, amount }));
-  const totalAmount = toCents(invoicesOut.reduce((sum, inv) => sum + inv.amount, 0)) / 100;
+  const totalAmount = sumRoundedAmounts(invoicesOut.map((inv) => inv.amount));
   return { invoices: invoicesOut, totalAmount };
 }
 
@@ -305,45 +322,27 @@ export async function getSourceReport(
   }
 
   // Step c: Rail B - deposits tagged to this source
-  type RailBRow = {
-    invoiceId: string;
-    amount: number;
-    status: string;
-    entryType: string;
-  };
-
-  const railBRows = db.all<RailBRow>(
-    sql`SELECT
-      d.invoice_id AS invoiceId,
-      d.amount AS amount,
-      d.status AS status,
-      d.entry_type AS entryType
-    FROM invoice_deposits d
-    WHERE d.budget_source_id = ${sourceId}`,
-  );
+  const railBRows = loadRailBRows(db, sourceId);
 
   const railBContributions = sumTaggedDepositContributionsByInvoice(railBRows, targetStatuses);
 
   // Step d: Merge Rail B-only invoices (deposits with no budget lines)
   for (const invoiceId of railBContributions.keys()) {
     if (!invoiceMetadata.has(invoiceId)) {
-      // Rail B-only invoice: fetch metadata
-      const inv = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
-      if (inv) {
-        const vendorLookup = db.all<{ vendor_id: string; vendor_name: string }>(
-          sql`SELECT id AS vendor_id, name AS vendor_name FROM vendors WHERE id = ${inv.vendorId}`,
-        );
-        if (vendorLookup.length > 0) {
-          invoiceMetadata.set(invoiceId, {
-            vendorId: inv.vendorId,
-            vendorName: vendorLookup[0]!.vendor_name,
-            invoiceNumber: inv.invoiceNumber,
-            date: inv.date,
-            status: inv.status,
-            invoiceAmount: inv.amount,
-          });
-        }
-      }
+      // Rail B-only invoice: fetch metadata. The tagged deposit's invoice and its (NOT NULL)
+      // vendor exist by foreign key, so both lookups are non-null.
+      const inv = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;
+      const vendor = db.get<{ vendor_name: string }>(
+        sql`SELECT name AS vendor_name FROM vendors WHERE id = ${inv.vendorId}`,
+      )!;
+      invoiceMetadata.set(invoiceId, {
+        vendorId: inv.vendorId,
+        vendorName: vendor.vendor_name,
+        invoiceNumber: inv.invoiceNumber,
+        date: inv.date,
+        status: inv.status,
+        invoiceAmount: inv.amount,
+      });
     }
   }
 
@@ -478,7 +477,7 @@ export async function getSourceReport(
       }
     } catch (err) {
       console.warn('[sourceReport] Paperless.getDocuments failed, degrading to null ASN/title', {
-        error: err instanceof Error ? err.message : String(err),
+        error: (err as Error).message, // the Paperless client always throws Error
       });
     }
   }
@@ -540,15 +539,12 @@ export async function getSourceReport(
 
   // Build report invoices
   const reportInvoices: SourceReportInvoice[] = [];
-  for (const [invoiceId, rawAmount] of combinedContributions) {
+  for (const [invoiceId, roundedAmount] of roundContributions(combinedContributions)) {
     const metadata = invoiceMetadata.get(invoiceId)!;
-    const roundedAmount = toCents(rawAmount) / 100;
-
-    if (roundedAmount === 0) continue;
 
     const lineKind = roundedAmount > 0 ? 'invoice' : 'refund-adjustment';
 
-    const links = linksByInvoiceId.get(invoiceId) ?? [];
+    const links = linksByInvoiceId.get(invoiceId)!;
     const documents: SourceReportDocument[] = links.map((link) => {
       const paperlessEntry = paperlessDocMap.get(link.paperlessDocumentId);
       return {
@@ -569,11 +565,11 @@ export async function getSourceReport(
       invoiceAmount: metadata.invoiceAmount,
       allocatedAmount: roundedAmount,
       lineKind,
-      isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
-      splitKind: splitKindMap.get(invoiceId) ?? null,
+      isSplit: isSplitMap.get(invoiceId)!, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
+      splitKind: splitKindMap.get(invoiceId)!,
       documents,
       budgetLinesForSource: budgetLinesByInvoiceId.get(invoiceId) ?? [],
-      depositsVisibleToSource: depositsByInvoiceId.get(invoiceId) ?? [],
+      depositsVisibleToSource: depositsByInvoiceId.get(invoiceId)!,
     });
   }
 
@@ -619,8 +615,7 @@ export async function getSourceReport(
   }
 
   // Compute total from rounded lines
-  const totalAmount =
-    toCents(reportInvoices.reduce((sum, inv) => sum + inv.allocatedAmount, 0)) / 100;
+  const totalAmount = sumRoundedAmounts(reportInvoices.map((inv) => inv.allocatedAmount));
 
   return {
     type,
@@ -721,12 +716,7 @@ export function markInvoicesClaimed(
       const hasClaimableDeposits =
         invoiceSweepEligibleDeposits.length > 0 &&
         invoiceSweepEligibleDeposits.some((dep) => {
-          const depStatus = dep.status as string;
-          return (
-            ALLOWED_TRANSITIONS[depStatus as keyof typeof ALLOWED_TRANSITIONS]?.includes(
-              'claimed',
-            ) ?? false
-          );
+          return ALLOWED_TRANSITIONS[dep.status].includes('claimed');
         });
 
       const isClaimable = claimableDirectly || hasClaimableDeposits;
@@ -800,10 +790,7 @@ export function markInvoicesClaimed(
 
     // Step f: Write deposits (sweep every sweep-eligible deposit whose status allows transition to claimed)
     for (const deposit of sweepEligibleDeposits) {
-      const depStatus = deposit.status as string;
-      const allowedTransitions = ALLOWED_TRANSITIONS[depStatus as keyof typeof ALLOWED_TRANSITIONS];
-
-      if (allowedTransitions?.includes('claimed')) {
+      if (ALLOWED_TRANSITIONS[deposit.status].includes('claimed')) {
         tx.update(invoiceDeposits)
           .set({
             status: 'claimed',
@@ -826,7 +813,7 @@ export function markInvoicesClaimed(
             entryType: deposit.entryType as 'deposit' | 'refund',
           },
           invoice.invoiceNumber,
-          depStatus,
+          deposit.status,
           'claimed',
           { userId },
           { batchId, budgetSourceId: sourceId },

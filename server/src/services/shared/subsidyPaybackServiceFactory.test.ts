@@ -13,24 +13,14 @@ import { NotFoundError } from '../../errors/AppError.js';
 
 const workItemConfig = {
   entityTable: 'work_items',
-  junctionTable: 'work_item_subsidies',
-  junctionAlias: 'wis',
-  junctionEntityIdColumn: 'work_item_id',
-  budgetLinesTable: 'work_item_budgets',
-  budgetLinesEntityIdColumn: 'work_item_id',
-  supportsInvoices: true,
+  kind: 'work_item',
   entityLabel: 'Work item',
   entityIdResponseKey: 'workItemId',
 } as const;
 
 const householdItemConfig = {
   entityTable: 'household_items',
-  junctionTable: 'household_item_subsidies',
-  junctionAlias: 'his',
-  junctionEntityIdColumn: 'household_item_id',
-  budgetLinesTable: 'household_item_budgets',
-  budgetLinesEntityIdColumn: 'household_item_id',
-  supportsInvoices: false,
+  kind: 'household_item',
   entityLabel: 'Household item',
   entityIdResponseKey: 'householdItemId',
 } as const;

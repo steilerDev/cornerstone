@@ -445,7 +445,7 @@ describe('grants (formula 4)', () => {
         ...over,
       });
 
-    it('pays reduction_value per linked item and splits it equally over the items', () => {
+    it("pays reduction_value per linked item, split equally over each item's eligible lines", () => {
       const result = computeMoney(input({ lines: twoItems, grants: [fixed()] }));
       const g = result.grants[0]!;
       expect(cents(g.uncapped)).toEqual([100000, 100000, 100000]);
@@ -469,17 +469,24 @@ describe('grants (formula 4)', () => {
       expect(g.itemTotals.get('work_item:wi-2')!.expected).toBe(35000);
     });
 
-    it('splits a capped fixed payout with an odd cent by item key (first key gets the extra cent)', () => {
+    it('spreads a capped fixed payout with an odd cent by line id (the smaller line id gets the extra cent)', () => {
+      // 'x' sits on wi-2 and 'y' on wi-1: line-id order (x before y) differs from item-key order
       const result = computeMoney(
-        input({ lines: twoItems, grants: [fixed({ maximumAmount: 700.01 })] }),
+        input({
+          lines: [
+            line('y', { itemId: 'wi-1', plannedAmount: 1000 }),
+            line('x', { itemId: 'wi-2', plannedAmount: 3000 }),
+          ],
+          grants: [fixed({ maximumAmount: 700.01 })],
+        }),
       );
       const g = result.grants[0]!;
       expect(g.payout.expected).toBe(70001);
-      expect(g.itemTotals.get('work_item:wi-1')!.expected).toBe(35001);
-      expect(g.itemTotals.get('work_item:wi-2')!.expected).toBe(35000);
-      expect(
-        g.itemTotals.get('work_item:wi-1')!.expected + g.itemTotals.get('work_item:wi-2')!.expected,
-      ).toBe(70001);
+      // amounts are 500.00 each (value per item, below each line cost): a tie, decided by line id
+      expect(g.lineShares.get('x')!.expected).toBe(35001);
+      expect(g.lineShares.get('y')!.expected).toBe(35000);
+      expect(g.itemTotals.get('work_item:wi-2')!.expected).toBe(35001);
+      expect(g.itemTotals.get('work_item:wi-1')!.expected).toBe(35000);
     });
 
     it('splits an item share equally over its eligible lines, not in proportion to cost', () => {

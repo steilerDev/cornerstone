@@ -7,12 +7,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 const getPayback = createSubsidyPaybackService({
   entityTable: 'work_items',
-  junctionTable: 'work_item_subsidies',
-  junctionAlias: 'wis',
-  junctionEntityIdColumn: 'work_item_id',
-  budgetLinesTable: 'work_item_budgets',
-  budgetLinesEntityIdColumn: 'work_item_id',
-  supportsInvoices: true,
+  kind: 'work_item',
   entityLabel: 'Work item',
   entityIdResponseKey: 'workItemId',
 });

@@ -978,7 +978,7 @@ export function getBudgetBreakdown(
 
   // ── Per-source payback attribution (filtered run) ──
   // Σ best / worst counted line shares of the filtered run, bucketed by the line's budget
-  // source ('unassigned' for lines without a source and for item-level shares).
+  // source ('unassigned' for lines without a source).
   const sourcePaybackMap = new Map<string, { min: number; max: number }>();
   for (const [sourceKey, share] of filteredMoney.sourceGrants) {
     sourcePaybackMap.set(sourceKey, { min: toMajor(share.best), max: toMajor(share.worst) });

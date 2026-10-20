@@ -3,17 +3,14 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../../db/schema.js';
 import { NotFoundError } from '../../errors/AppError.js';
 import { getItemGrantPayback } from '../moneyService.js';
+import type { MoneyItemKind } from './moneyEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 export interface SubsidyPaybackConfig {
+  /** Constant table name, used for the 404 lookup only. */
   entityTable: string;
-  junctionTable: string;
-  junctionAlias: string;
-  junctionEntityIdColumn: string;
-  budgetLinesTable: string;
-  budgetLinesEntityIdColumn: string;
-  supportsInvoices: boolean;
+  kind: MoneyItemKind;
   entityLabel: string;
   entityIdResponseKey: string;
 }
@@ -26,8 +23,6 @@ export interface SubsidyPaybackConfig {
 export function createSubsidyPaybackService(
   config: SubsidyPaybackConfig,
 ): (db: DbType, entityId: string, vatRate: number) => unknown {
-  const kind = config.entityTable === 'household_items' ? 'household_item' : 'work_item';
-
   return function getPayback(db: DbType, entityId: string, vatRate: number): unknown {
     const item = db.get<{ id: string }>(
       sql`SELECT id FROM ${sql.raw(config.entityTable)} WHERE id = ${entityId}`,
@@ -36,7 +31,7 @@ export function createSubsidyPaybackService(
       throw new NotFoundError(`${config.entityLabel} not found`);
     }
 
-    const payback = getItemGrantPayback(db, vatRate, kind, entityId);
+    const payback = getItemGrantPayback(db, vatRate, config.kind, entityId);
     return {
       [config.entityIdResponseKey]: entityId,
       minTotalPayback: payback.minTotalPayback,
