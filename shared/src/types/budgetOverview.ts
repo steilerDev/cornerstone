@@ -4,6 +4,8 @@
  * subsidy reductions, and four remaining-funds perspectives.
  */
 
+import type { MoneySummary } from './money.js';
+
 /**
  * Budget verdict of "Left to spend" (ADR-039 §4, strict rule): over_budget when the expected
  * figure is below zero, otherwise on_budget; null (no verdict) is not a member. There is no
@@ -32,17 +34,21 @@ export interface BudgetOverview {
   remainingVsActualPaid: number; // availableFunds - actualCostPaid
   remainingVsActualClaimed: number; // availableFunds - actualCostClaimed
 
-  /** Payback-adjusted remaining vs min planned: availableFunds + minTotalPayback - minPlanned */
+  /**
+   * Payback-adjusted remaining vs min planned: availableFunds + minTotalPayback - minPlanned.
+   * Grant-derived: payback comes from the money service (ADR-039).
+   */
   remainingVsMinPlannedWithPayback: number;
   /** Payback-adjusted remaining vs max planned: availableFunds + maxTotalPayback - maxPlanned */
   remainingVsMaxPlannedWithPayback: number;
 
   subsidySummary: {
+    /** Derived from the money service (ADR-039): counted (approved/received) grants, expected scenario. */
     totalReductions: number;
     activeSubsidyCount: number;
-    /** Sum of min expected payback across all work items with linked subsidies */
+    /** Derived from the money service (ADR-039): counted grants in the best scenario. */
     minTotalPayback: number;
-    /** Sum of max expected payback across all work items with linked subsidies */
+    /** Derived from the money service (ADR-039): counted grants in the worst scenario. */
     maxTotalPayback: number;
     /** Subsidies whose uncapped payback exceeds their maximumAmount cap */
     oversubscribedSubsidies: OversubscribedSubsidy[];
@@ -62,4 +68,6 @@ export interface OversubscribedSubsidy {
 
 export interface BudgetOverviewResponse {
   overview: BudgetOverview;
+  /** The one money service's figures (ADR-039). */
+  money: MoneySummary;
 }

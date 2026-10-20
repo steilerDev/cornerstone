@@ -305,7 +305,7 @@ describe('getBudgetBreakdown', () => {
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
         maximumAmount: opts.maximumAmount ?? null,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })
@@ -1871,6 +1871,109 @@ describe('getBudgetBreakdown', () => {
       // subsidyPaybackMax = 0 (srcA lines excluded from filtered engine run)
       expect(srcAFilteredEntry!.subsidyPaybackMax).toBe(0);
       expect(srcAFilteredEntry!.subsidyPaybackMin).toBe(0);
+    });
+  });
+  // ─── ADR-039 money service rules ──────────────────────────────────────────
+
+  describe('grant figures come from the money service (ADR-039, #2228)', () => {
+    it('ignores eligible and applied grants in the item, total and source paybacks', () => {
+      // Rule: only approved/received grants are counted.
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      for (const applicationStatus of ['eligible', 'applied'] as const) {
+        linkWorkItemSubsidy(
+          workItemId,
+          insertSubsidyProgram({
+            reductionType: 'percentage',
+            reductionValue: 10,
+            applicationStatus,
+          }),
+        );
+      }
+
+      const result = getBudgetBreakdown(db, 0.19);
+
+      expect(result.workItems.totals.subsidyPayback).toBe(0);
+      expect(result.workItems.totals.minSubsidyPayback).toBe(0);
+      expect(result.money.workItems[workItemId]!.expectedGrants.expected).toBe(0);
+    });
+
+    it('applies the eligible-costs cap to the item payback and lists the grant in subsidyAdjustments', () => {
+      // Rule: the cap applies to items and the breakdown (rate x min(eligible cost, cap)).
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const progId = insertSubsidyProgram({
+        name: 'Capped Grant',
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 500,
+      });
+      linkWorkItemSubsidy(workItemId, progId);
+
+      const result = getBudgetBreakdown(db, 0.19);
+
+      const item = result.workItems.areas
+        .flatMap((a) => a.items)
+        .find((i) => i.workItemId === workItemId)!;
+      expect(item.subsidyPayback).toBe(50);
+      expect(item.minSubsidyPayback).toBe(50);
+      expect(result.subsidyAdjustments).toEqual([
+        {
+          subsidyProgramId: progId,
+          name: 'Capped Grant',
+          maximumAmount: 500,
+          maxPayout: 50,
+          minExcess: 30,
+          maxExcess: 70,
+        },
+      ]);
+    });
+
+    it('splits a payout over lines by largest remainder so the item gets the exact payout', () => {
+      // Rule: largest-remainder allocation in cents (3 x 3.33 / 3.34 at 10% -> 1.00 exactly).
+      const { workItemId } = insertWorkItem({ plannedAmount: 3.33, confidence: 'invoice' });
+      insertWorkItemBudgetLine({ workItemId, plannedAmount: 3.33, confidence: 'invoice' });
+      insertWorkItemBudgetLine({ workItemId, plannedAmount: 3.34, confidence: 'invoice' });
+      linkWorkItemSubsidy(
+        workItemId,
+        insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 }),
+      );
+
+      const result = getBudgetBreakdown(db, 0.19);
+
+      const item = result.workItems.areas
+        .flatMap((a) => a.items)
+        .find((i) => i.workItemId === workItemId)!;
+      expect(item.subsidyPayback).toBe(1);
+      expect(result.money.workItems[workItemId]!.expectedGrants).toEqual({
+        expected: 1,
+        best: 1,
+        worst: 1,
+      });
+    });
+
+    it('keeps money unfiltered while the legacy grant fields follow the source filter', () => {
+      const srcA = insertBudgetSource({ name: 'Source A' });
+      const { workItemId } = insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'invoice',
+        budgetSourceId: srcA,
+      });
+      linkWorkItemSubsidy(
+        workItemId,
+        insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 }),
+      );
+
+      const filtered = getBudgetBreakdown(db, 0.19, new Set([srcA]));
+      const unfiltered = getBudgetBreakdown(db, 0.19);
+
+      expect(filtered.workItems.totals.subsidyPayback).toBe(0);
+      expect(filtered.money).toEqual(unfiltered.money);
+      expect(filtered.money.workItems[workItemId]!.expectedGrants.expected).toBe(100);
+    });
+
+    it('lists orphan lines and the not-yet-split remainder in money', () => {
+      const result = getBudgetBreakdown(db, 0.19);
+      expect(result.money.orphanLines.expectedCost.expected).toBe(0);
+      expect(result.money.notYetSplit).toEqual({ amount: 0, recordCount: 0 });
     });
   });
 });

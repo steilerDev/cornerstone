@@ -6,6 +6,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { getBudgetOverview } from './budgetOverviewService.js';
+import { computeProjectMoney } from './moneyService.js';
 
 describe('getBudgetOverview', () => {
   let sqlite: Database.Database;
@@ -252,7 +253,7 @@ describe('getBudgetOverview', () => {
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
         maximumAmount: opts.maximumAmount ?? null,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })
@@ -954,7 +955,9 @@ describe('getBudgetOverview', () => {
       const prog2 = insertSubsidyProgram({
         reductionType: 'fixed',
         reductionValue: 1000,
-        applicationStatus: 'eligible',
+        // Rule (ADR-039): only approved/received grants are counted, so this fixed grant is
+        // 'received' (it was 'eligible' before the rule).
+        applicationStatus: 'received',
         categoryIds: [catB],
       });
 
@@ -1865,6 +1868,105 @@ describe('getBudgetOverview', () => {
         const result = getBudgetOverview(db, 0.19);
         expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
       });
+    });
+  });
+  // ─── ADR-039 money service: grant-derived legacy fields ──────────────────
+
+  describe('grant-derived fields come from the money service (ADR-039, #2228)', () => {
+    it('does not count eligible or applied grants in totalReductions or the payback range', () => {
+      // Rule: only approved/received grants are counted.
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
+      for (const applicationStatus of ['eligible', 'applied'] as const) {
+        const progId = insertSubsidyProgram({
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus,
+        });
+        linkWorkItemSubsidy(workItemId, progId);
+      }
+
+      const { subsidySummary } = getBudgetOverview(db, 0.19);
+
+      expect(subsidySummary.totalReductions).toBe(0);
+      expect(subsidySummary.minTotalPayback).toBe(0);
+      expect(subsidySummary.maxTotalPayback).toBe(0);
+      // the grants still count as active programs
+      expect(subsidySummary.activeSubsidyCount).toBe(2);
+    });
+
+    it('counts approved and received grants: expected -> totalReductions, best -> min, worst -> max', () => {
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      for (const applicationStatus of ['approved', 'received'] as const) {
+        const progId = insertSubsidyProgram({
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus,
+        });
+        linkWorkItemSubsidy(workItemId, progId);
+      }
+
+      const { subsidySummary } = getBudgetOverview(db, 0.19);
+
+      expect(subsidySummary.totalReductions).toBe(200);
+      expect(subsidySummary.minTotalPayback).toBe(160);
+      expect(subsidySummary.maxTotalPayback).toBe(240);
+    });
+
+    it('reports a capped grant in oversubscribedSubsidies with the scenario excess', () => {
+      // Rule: the eligible-costs cap applies (rate x min(eligible cost, cap)).
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const progId = insertSubsidyProgram({
+        name: 'Capped Grant',
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 500,
+      });
+      linkWorkItemSubsidy(workItemId, progId);
+
+      const { subsidySummary } = getBudgetOverview(db, 0.19);
+
+      expect(subsidySummary.totalReductions).toBe(50);
+      expect(subsidySummary.oversubscribedSubsidies).toEqual([
+        {
+          subsidyProgramId: progId,
+          name: 'Capped Grant',
+          maximumAmount: 500,
+          maxPayout: 50,
+          uncappedMinPayback: 80,
+          uncappedMaxPayback: 120,
+          minExcess: 30,
+          maxExcess: 70,
+        },
+      ]);
+    });
+
+    it('derives the payback-adjusted remaining figures from the same paybacks', () => {
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkWorkItemSubsidy(workItemId, progId);
+
+      const o = getBudgetOverview(db, 0.19);
+
+      expect(o.remainingVsMinPlannedWithPayback).toBe(
+        o.availableFunds + o.subsidySummary.minTotalPayback - o.minPlanned,
+      );
+      expect(o.remainingVsMaxPlannedWithPayback).toBe(
+        o.availableFunds + o.subsidySummary.maxTotalPayback - o.maxPlanned,
+      );
+    });
+
+    it('reuses a project run handed in by the route (one computation per request)', () => {
+      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      linkWorkItemSubsidy(workItemId, progId);
+      const project = computeProjectMoney(db, 0.19);
+
+      const withProject = getBudgetOverview(db, 0.19, project);
+
+      expect(withProject).toEqual(getBudgetOverview(db, 0.19));
+      expect(withProject.subsidySummary.totalReductions).toBe(
+        project.summary.expectedGrants.expected,
+      );
     });
   });
 });

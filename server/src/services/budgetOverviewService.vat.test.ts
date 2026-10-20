@@ -153,7 +153,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
         maximumAmount: opts.maximumAmount ?? null,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })

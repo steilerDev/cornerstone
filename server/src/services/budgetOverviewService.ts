@@ -3,16 +3,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
 import type { BudgetOverview, OversubscribedSubsidy } from '@cornerstone/shared';
-import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
-import type {
-  LinkedSubsidy,
-  SubsidyCapMeta,
-  PerSubsidyTotals,
-} from './shared/subsidyCalculationEngine.js';
 import {
   computeDepositAwareAggregates,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
+import { computeMoney, toMajor } from './shared/moneyEngine.js';
+import { loadMoneyInput, type ProjectMoney } from './moneyService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -27,15 +23,22 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *     margin     = CONFIDENCE_MARGINS[line.confidence]
  *     raw_min    = line.planned_amount * (1 - margin)
  *     raw_max    = line.planned_amount * (1 + margin)
- *     subsidy_reduction = sum of applicable reductions (category-matched, non-rejected)
- *     min_planned = max(0, raw_min - subsidy_reduction)
- *     max_planned = max(0, raw_max - subsidy_reduction)
+ *
+ * Grant-derived fields (`subsidySummary`, the payback-adjusted remaining figures) come from the
+ * money service (ADR-039, #2228): counted (approved/received) grants only, capped, per scenario.
+ * The legacy cost fields (`minPlanned`, `actualCost*`, `remainingVs*` without payback) are
+ * unchanged until their last consumer moves to the money service.
  *
  *   Available Funds = SUM(active budget_sources.total_amount)
  *   Actual Cost     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL)
  *   Actual Paid     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL AND invoices.status IN ('paid', 'claimed'))
  */
-export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
+export function getBudgetOverview(
+  db: DbType,
+  vatRate: number,
+  project?: Pick<ProjectMoney, 'result'>,
+): BudgetOverview {
+  const money = project ?? { result: computeMoney(loadMoneyInput(db, vatRate)) };
   // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
   //
   // better-sqlite3 12.10.0 (PR #1527) ships SQLite 3.53.1, which exposes
@@ -116,86 +119,6 @@ export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
     FROM household_item_budgets`,
   );
 
-  // ── 3. Active subsidies with their applicable category IDs ─────────────────
-  // Returns one row per subsidy program (non-rejected).
-  const subsidyRows = db.all<{
-    subsidyId: string;
-    name: string;
-    reductionType: string;
-    reductionValue: number;
-    maximumAmount: number | null;
-    includesNoCategoryItems: number;
-  }>(
-    sql`SELECT
-      id                          AS subsidyId,
-      name                        AS name,
-      reduction_type              AS reductionType,
-      reduction_value             AS reductionValue,
-      maximum_amount              AS maximumAmount,
-      includes_no_category_items  AS includesNoCategoryItems
-    FROM subsidy_programs
-    WHERE application_status != 'rejected'`,
-  );
-
-  // Map subsidyId -> Set of applicable category IDs
-  const subsidyCategoryRows = db.all<{ subsidyId: string; budgetCategoryId: string }>(
-    sql`SELECT
-      subsidy_program_id  AS subsidyId,
-      budget_category_id  AS budgetCategoryId
-    FROM subsidy_program_categories`,
-  );
-
-  const subsidyCategoryMap = new Map<string, Set<string>>();
-  for (const row of subsidyCategoryRows) {
-    let cats = subsidyCategoryMap.get(row.subsidyId);
-    if (!cats) {
-      cats = new Set<string>();
-      subsidyCategoryMap.set(row.subsidyId, cats);
-    }
-    cats.add(row.budgetCategoryId);
-  }
-
-  // ── 4. Entity -> subsidy links (non-rejected, both work items + household items) ──
-  // Map entityId -> Set of active subsidy IDs linked to that entity
-  const entitySubsidyRows = db.all<{ entityId: string; subsidyProgramId: string }>(
-    sql`SELECT
-      wis.work_item_id       AS entityId,
-      wis.subsidy_program_id AS subsidyProgramId
-    FROM work_item_subsidies wis
-    INNER JOIN subsidy_programs sp ON sp.id = wis.subsidy_program_id
-    WHERE sp.application_status != 'rejected'
-    UNION ALL
-    SELECT
-      his.household_item_id  AS entityId,
-      his.subsidy_program_id AS subsidyProgramId
-    FROM household_item_subsidies his
-    INNER JOIN subsidy_programs sp ON sp.id = his.subsidy_program_id
-    WHERE sp.application_status != 'rejected'`,
-  );
-
-  const entitySubsidyMap = new Map<string, Set<string>>();
-  for (const row of entitySubsidyRows) {
-    let progs = entitySubsidyMap.get(row.entityId);
-    if (!progs) {
-      progs = new Set<string>();
-      entitySubsidyMap.set(row.entityId, progs);
-    }
-    progs.add(row.subsidyProgramId);
-  }
-
-  // Build a lookup map for subsidy metadata
-  const subsidyMeta = new Map<
-    string,
-    { reductionType: string; reductionValue: number; includesNoCategoryItems: boolean }
-  >();
-  for (const row of subsidyRows) {
-    subsidyMeta.set(row.subsidyId, {
-      reductionType: row.reductionType,
-      reductionValue: row.reductionValue,
-      includesNoCategoryItems: row.includesNoCategoryItems === 1,
-    });
-  }
-
   // ── 5. Per-line invoice aggregates (for blended projected model) ──────────────
   // Include both work item and household item budget lines
   // Track whether each line's invoice is a quotation for margin calculation
@@ -231,29 +154,9 @@ export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
     });
   }
 
-  // ── 6. For fixed subsidies: count matching budget lines per work_item+subsidy ─
-  // We need to divide a fixed subsidy equally across the budget lines that match
-  // the subsidy's applicable categories for that work item.
-  //
-  // Pre-compute: for each (workItemId, subsidyId) pair, how many of that work
-  // item's budget lines have a budget_category_id that is in the subsidy's
-  // applicable categories.
-  //
-  // We'll compute this lazily per-line below.
-
   // ── 7. Compute per-line planned amounts ──────────────────────────────────────
   let totalMinPlanned = 0;
   let totalMaxPlanned = 0;
-
-  // Per-work-item fixed subsidy line counts (memoized):
-  // key = `${workItemId}:${subsidyId}` -> count of matching lines
-  const fixedSubsidyLineCountCache = new Map<string, number>();
-
-  // Per-subsidy uncapped reduction totals (point estimate, no confidence margin).
-  // Capped against maximumAmount after the line loop (see step 3 below) so the
-  // response stays internally consistent with minTotalPayback/maxTotalPayback,
-  // which are capped the same way (#1808).
-  const perSubsidyReductionTotals = new Map<string, number>();
 
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
@@ -267,65 +170,6 @@ export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
     const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
     const rawMin = effective(line) * (1 - margin);
     const rawMax = effective(line) * (1 + margin);
-
-    // Compute subsidy reduction for this line, accumulated per subsidy (capped
-    // against maximumAmount after the loop — see step 3 below)
-    const linkedSubsidyIds = entitySubsidyMap.get(line.entityId);
-    if (linkedSubsidyIds) {
-      for (const subsidyId of linkedSubsidyIds) {
-        const meta = subsidyMeta.get(subsidyId);
-        if (!meta) continue;
-
-        const applicableCategories = subsidyCategoryMap.get(subsidyId);
-        const isUniversalSubsidy = !applicableCategories || applicableCategories.size === 0;
-        if (!isUniversalSubsidy) {
-          const categoryMatches =
-            line.budgetCategoryId === null
-              ? meta.includesNoCategoryItems
-              : applicableCategories.has(line.budgetCategoryId);
-          if (!categoryMatches) continue;
-        }
-
-        // Determine cost basis: use invoice amount if available, otherwise effective planned amount
-        const costBasis = lineInvoiceMap.has(line.id)
-          ? lineInvoiceMap.get(line.id)!.actualCost
-          : effective(line);
-
-        let lineSubsidyContribution = 0;
-
-        // This subsidy applies to this line
-        if (meta.reductionType === 'percentage') {
-          lineSubsidyContribution = costBasis * (meta.reductionValue / 100);
-        } else if (meta.reductionType === 'fixed') {
-          // Divide fixed amount equally across all matching budget lines for
-          // this (entity, subsidy) combination.
-          const cacheKey = `${line.entityId}:${subsidyId}`;
-          let matchingLineCount = fixedSubsidyLineCountCache.get(cacheKey);
-          if (matchingLineCount === undefined) {
-            // Universal subsidies match ALL budget lines for the entity;
-            // category-scoped subsidies match only lines with a matching category.
-            matchingLineCount = budgetLines.filter(
-              (l) =>
-                l.entityId === line.entityId &&
-                (isUniversalSubsidy ||
-                  (l.budgetCategoryId === null
-                    ? meta.includesNoCategoryItems
-                    : applicableCategories.has(l.budgetCategoryId))),
-            ).length;
-            // Guard: if somehow 0, use 1 to avoid division by zero
-            if (matchingLineCount === 0) matchingLineCount = 1;
-            fixedSubsidyLineCountCache.set(cacheKey, matchingLineCount);
-          }
-          const perLineAmount = meta.reductionValue / matchingLineCount;
-          lineSubsidyContribution = Math.min(perLineAmount, costBasis);
-        }
-
-        perSubsidyReductionTotals.set(
-          subsidyId,
-          (perSubsidyReductionTotals.get(subsidyId) ?? 0) + lineSubsidyContribution,
-        );
-      }
-    }
 
     const rawMinPlanned = rawMin;
     const rawMaxPlanned = rawMax;
@@ -382,146 +226,31 @@ export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
     WHERE application_status != 'rejected'`,
   );
 
-  // ── 9a. Aggregate subsidy payback across all work items ─────────────────
-  //
-  // Replicates subsidyPaybackService logic globally across all budget lines.
-  // For percentage subsidies: iterate over matching budget lines per work item.
-  //   - Lines WITH invoices: min=max=actualCost (from lineInvoiceMap)
-  //   - Lines WITHOUT invoices: apply confidence margin to plannedAmount
-  //   Payback = minAmount * rate/100  (min) and maxAmount * rate/100 (max)
-  // For fixed subsidies: minPayback = maxPayback = reductionValue
-  // Only non-rejected subsidies linked to a work item are included.
-  //
-  // Note: subsidyMeta and workItemSubsidyMap already fetched above.
-
-  // Aggregate per-subsidy payback totals across all entities
-  const perSubsidyPayback = new Map<string, { min: number; max: number }>();
-
-  // Group budget lines by entityId for efficient per-entity processing
-  const linesByEntity = new Map<
-    string,
-    {
-      id: string;
-      entityId: string;
-      plannedAmount: number;
-      confidence: string;
-      budgetCategoryId: string | null;
-      includesVat: number | null;
-    }[]
-  >();
-  for (const line of budgetLines) {
-    let arr = linesByEntity.get(line.entityId);
-    if (!arr) {
-      arr = [];
-      linesByEntity.set(line.entityId, arr);
-    }
-    arr.push(line);
-  }
-
-  // For each entity that has linked subsidies, compute payback
-  for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
-    const entityLines = linesByEntity.get(entityId) ?? [];
-
-    // Build engine inputs from the entity's budget lines (using effective amounts)
-    const engineLines = entityLines.map((line) => ({
-      id: line.id,
-      budgetCategoryId: line.budgetCategoryId,
-      plannedAmount: effective(line),
-      confidence: line.confidence,
+  // ── 9a. Grant-derived figures from the money service (ADR-039) ───────────
+  // Counted (approved/received) grants only, capped, recomputed per scenario:
+  // expected -> totalReductions, best -> minTotalPayback, worst -> maxTotalPayback.
+  const { expectedGrants, grants } = money.result;
+  const oversubscribedSubsidies: OversubscribedSubsidy[] = grants
+    .filter((g) => g.capped)
+    .map((g) => ({
+      subsidyProgramId: g.input.id,
+      name: g.input.name,
+      maximumAmount: g.input.maximumAmount ?? 0,
+      maxPayout: toMajor(g.payout.worst),
+      uncappedMinPayback: toMajor(g.uncapped.best),
+      uncappedMaxPayback: toMajor(g.uncapped.worst),
+      minExcess: toMajor(Math.max(0, g.uncapped.best - g.payout.best)),
+      maxExcess: toMajor(g.uncapped.worst - g.payout.worst),
     }));
 
-    const engineSubsidies: LinkedSubsidy[] = [];
-    for (const subsidyId of linkedSubsidyIds) {
-      const meta = subsidyMeta.get(subsidyId);
-      if (!meta) continue;
-      engineSubsidies.push({
-        subsidyProgramId: subsidyId,
-        name: subsidyId,
-        reductionType: meta.reductionType as 'percentage' | 'fixed',
-        reductionValue: meta.reductionValue,
-        includesNoCategoryItems: meta.includesNoCategoryItems,
-      });
-    }
-
-    const { subsidies: entitySubsidyEffects } = computeSubsidyEffects(
-      engineLines,
-      engineSubsidies,
-      subsidyCategoryMap,
-      lineInvoiceMap,
-    );
-
-    // Accumulate per-subsidy totals
-    for (const effect of entitySubsidyEffects) {
-      const existing = perSubsidyPayback.get(effect.subsidyProgramId);
-      if (existing) {
-        existing.min += effect.minPayback;
-        existing.max += effect.maxPayback;
-      } else {
-        perSubsidyPayback.set(effect.subsidyProgramId, {
-          min: effect.minPayback,
-          max: effect.maxPayback,
-        });
-      }
-    }
-  }
-
-  // Build per-subsidy totals and cap metadata for applySubsidyCaps
-  const perSubsidyTotals: PerSubsidyTotals[] = [];
-  for (const [subsidyProgramId, totals] of perSubsidyPayback) {
-    perSubsidyTotals.push({
-      subsidyProgramId,
-      uncappedMinPayback: totals.min,
-      uncappedMaxPayback: totals.max,
-    });
-  }
-
-  const subsidyCapMeta: SubsidyCapMeta[] = subsidyRows.map((row) => ({
-    subsidyProgramId: row.subsidyId,
-    name: row.name,
-    reductionType: row.reductionType as 'percentage' | 'fixed',
-    reductionValue: row.reductionValue,
-    maximumAmount: row.maximumAmount,
-  }));
-
-  const capResult = applySubsidyCaps(perSubsidyTotals, subsidyCapMeta);
-
-  const oversubscribedSubsidies: OversubscribedSubsidy[] = capResult.oversubscribedSubsidies.map(
-    (s) => ({
-      subsidyProgramId: s.subsidyProgramId,
-      name: s.name,
-      maximumAmount: s.maximumAmount,
-      maxPayout: s.maxPayout,
-      uncappedMinPayback: s.uncappedMinPayback,
-      uncappedMaxPayback: s.uncappedMaxPayback,
-      minExcess: s.minExcess,
-      maxExcess: s.maxExcess,
-    }),
-  );
-
-  // ── 9b. Apply maximumAmount caps to totalReductions (#1808) ─────────────
-  // totalReductions is a point estimate (no confidence margin), but must respect
-  // the same per-subsidy maximumAmount cap as minTotalPayback/maxTotalPayback so
-  // the response stays internally consistent. Reuse applySubsidyCaps by feeding
-  // the same point-estimate total as both the "min" and "max" input for each
-  // subsidy — the capped min and capped max collapse to the same value, which is
-  // the capped point estimate. Only cappedMinPayback is read; the oversubscribed
-  // list from this call is intentionally discarded (the existing capResult above,
-  // computed from the payback engine, is what's surfaced in the response).
-  const reductionCapInputs: PerSubsidyTotals[] = [];
-  for (const [subsidyProgramId, total] of perSubsidyReductionTotals) {
-    reductionCapInputs.push({
-      subsidyProgramId,
-      uncappedMinPayback: total,
-      uncappedMaxPayback: total,
-    });
-  }
-  const totalReductions = applySubsidyCaps(reductionCapInputs, subsidyCapMeta).cappedMinPayback;
+  const minTotalPayback = toMajor(expectedGrants.best);
+  const maxTotalPayback = toMajor(expectedGrants.worst);
 
   const subsidySummary = {
-    totalReductions,
+    totalReductions: toMajor(expectedGrants.expected),
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
-    minTotalPayback: capResult.cappedMinPayback,
-    maxTotalPayback: capResult.cappedMaxPayback,
+    minTotalPayback,
+    maxTotalPayback,
     oversubscribedSubsidies,
   };
 
@@ -532,11 +261,9 @@ export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
 
-  // Payback-adjusted remaining perspectives (using capped payback values)
-  const remainingVsMinPlannedWithPayback =
-    availableFunds + capResult.cappedMinPayback - totalMinPlanned;
-  const remainingVsMaxPlannedWithPayback =
-    availableFunds + capResult.cappedMaxPayback - totalMaxPlanned;
+  // Payback-adjusted remaining perspectives (money service payback, ADR-039)
+  const remainingVsMinPlannedWithPayback = availableFunds + minTotalPayback - totalMinPlanned;
+  const remainingVsMaxPlannedWithPayback = availableFunds + maxTotalPayback - totalMaxPlanned;
 
   return {
     availableFunds,

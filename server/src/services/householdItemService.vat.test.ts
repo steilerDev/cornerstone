@@ -63,7 +63,14 @@ describe('householdItemService — configured VAT rate', () => {
     return item.id;
   }
 
-  function linkPercentageSubsidy(itemId: string, percent: number): void {
+  function linkPercentageSubsidy(
+    itemId: string,
+    percent: number,
+    opts: {
+      status?: 'eligible' | 'applied' | 'approved' | 'received';
+      cap?: number | null;
+    } = {},
+  ): void {
     const id = `sp-hi-vat-${++counter}`;
     const now = new Date().toISOString();
     db.insert(schema.subsidyPrograms)
@@ -72,7 +79,8 @@ describe('householdItemService — configured VAT rate', () => {
         name: `Subsidy ${id}`,
         reductionType: 'percentage',
         reductionValue: percent,
-        applicationStatus: 'eligible',
+        applicationStatus: opts.status ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
+        maximumAmount: opts.cap ?? null,
         createdAt: now,
         updatedAt: now,
       })
@@ -198,5 +206,52 @@ describe('householdItemService — configured VAT rate', () => {
     const created = householdItemService.createHouseholdItem(db, userId, { name: 'Empty' }, 0.2);
 
     expect(created.totalPlannedAmount).toBe(0);
+  });
+  describe('subsidyReduction is the counted expected grant share (ADR-039, #2228)', () => {
+    it.each(['eligible', 'applied'] as const)(
+      'does not count a %s grant (rule: only approved/received are counted)',
+      (status) => {
+        const id = createItem('Gross table', true);
+        linkPercentageSubsidy(id, 10, { status });
+
+        const { items } = householdItemService.listHouseholdItems(db, {}, 0.19);
+
+        expect(items[0]!.budgetSummary.subsidyReduction).toBe(0);
+        expect(items[0]!.budgetSummary.netCost).toBe(100);
+      },
+    );
+
+    it('counts a received grant on the item', () => {
+      const id = createItem('Gross table', true);
+      linkPercentageSubsidy(id, 10, { status: 'received' });
+
+      const { items } = householdItemService.listHouseholdItems(db, {}, 0.19);
+
+      expect(items[0]!.budgetSummary.subsidyReduction).toBe(10);
+      expect(items[0]!.budgetSummary.netCost).toBe(90);
+    });
+
+    it('applies the eligible-costs cap (rule: cap applies to items)', () => {
+      const id = createItem('Gross table', true);
+      linkPercentageSubsidy(id, 10, { cap: 50 });
+
+      const detail = householdItemService.getHouseholdItemById(db, id, 0.19);
+
+      // 10% of min(100, 50) = 5, not 10
+      expect(detail.budgetSummary.subsidyReduction).toBe(5);
+      expect(detail.budgetSummary.netCost).toBe(95);
+    });
+
+    it('is 0 for an item without any grant, in the list and in the detail', () => {
+      const id = createItem('Plain item', true);
+
+      expect(
+        householdItemService.listHouseholdItems(db, {}, 0.19).items[0]!.budgetSummary
+          .subsidyReduction,
+      ).toBe(0);
+      expect(
+        householdItemService.getHouseholdItemById(db, id, 0.19).budgetSummary.subsidyReduction,
+      ).toBe(0);
+    });
   });
 });

@@ -437,6 +437,7 @@ describe('WorkItemDetailPage', () => {
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockFetchWorkItemSubsidies.mockResolvedValue([]);
     mockFetchWorkItemSubsidyPayback.mockResolvedValue({
+      expectedTotalPayback: 0,
       workItemId: 'work-1',
       minTotalPayback: 0,
       maxTotalPayback: 0,

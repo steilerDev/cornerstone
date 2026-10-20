@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2228 money service tests](story-2228-money-service-tests.md) (2026-10-19) — AC8 fixture via buildApp, grant default flip ripple, discretionary rails quirk, client literal patching
 - [Story #2226 photo tag server tests](story-2226-photo-tags-server-tests.md) (2026-10-19) — real-flow tags/undo file, moved-export mock break, local ts-jest target workaround
 - [Story #2218 Areas index tests](story-2218-areas-index-tests.md) (2026-10-19) — ObjectForm host testId, hidden More fields, TreeTable announce kinds, blocked-by-total fixtures
 

@@ -105,7 +105,7 @@ describe('Household Item Subsidy Payback Routes', () => {
         eligibility: null,
         reductionType: options.reductionType ?? 'percentage',
         reductionValue: options.reductionValue ?? 10,
-        applicationStatus: options.applicationStatus ?? 'eligible',
+        applicationStatus: options.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         applicationDeadline: null,
         notes: null,
         createdBy: null,
@@ -398,6 +398,7 @@ describe('Household Item Subsidy Payback Routes', () => {
         'password123',
       );
       const hi = createTestHouseholdItem('Item', userId);
+      insertBudgetLine({ householdItemId: hi.id, plannedAmount: 10000, confidence: 'invoice' });
       const spId = createTestSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
       linkSubsidyToHouseholdItem(hi.id, spId);
 
@@ -415,7 +416,8 @@ describe('Household Item Subsidy Payback Routes', () => {
       expect(body.subsidies[0]!.maxPayback).toBe(3000);
     });
 
-    it('returns fixed amount even when item has no budget lines', async () => {
+    it('pays nothing for a fixed subsidy when the item has no budget line', async () => {
+      // Rule (legacy fixed grants, shown unchanged): value per item, split over eligible lines, each part capped at the line cost; an item without an eligible line pays 0.
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -433,8 +435,8 @@ describe('Household Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<HouseholdItemSubsidyPaybackResponse>();
-      expect(body.minTotalPayback).toBe(1500);
-      expect(body.maxTotalPayback).toBe(1500);
+      expect(body.minTotalPayback).toBe(0);
+      expect(body.maxTotalPayback).toBe(0);
     });
   });
 
@@ -543,6 +545,8 @@ describe('Household Item Subsidy Payback Routes', () => {
         'password123',
       );
       const hi = createTestHouseholdItem('Item', userId);
+      // a line is needed: a fixed grant on an item without an eligible line pays 0
+      insertBudgetLine({ householdItemId: hi.id, plannedAmount: 1000, confidence: 'invoice' });
 
       const statuses = ['eligible', 'applied', 'approved', 'received'] as const;
       for (const status of statuses) {
@@ -562,9 +566,12 @@ describe('Household Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<HouseholdItemSubsidyPaybackResponse>();
+      // Rule (ADR-039): all non-rejected grants are listed; only approved/received (counted) sum up.
       expect(body.subsidies).toHaveLength(4);
-      expect(body.minTotalPayback).toBe(400);
-      expect(body.maxTotalPayback).toBe(400);
+      expect(body.subsidies.map((e) => e.counted)).toEqual([false, false, true, true]);
+      expect(body.minTotalPayback).toBe(200);
+      expect(body.maxTotalPayback).toBe(200);
+      expect(body.expectedTotalPayback).toBe(200);
     });
   });
 
@@ -693,6 +700,58 @@ describe('Household Item Subsidy Payback Routes', () => {
       expect(body.minTotalPayback).toBe(0);
       expect(body.maxTotalPayback).toBe(0);
       expect(body.subsidies).toHaveLength(0);
+    });
+  });
+  describe('ADR-039 money service fields (#2228)', () => {
+    it('returns counted, expectedPayback and expectedTotalPayback for a household item', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const hi = createTestHouseholdItem('Item', userId);
+      app.db
+        .insert(schema.householdItemBudgets)
+        .values({
+          id: 'hib-adr039',
+          householdItemId: hi.id,
+          plannedAmount: 1000,
+          confidence: 'own_estimate',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
+      const received = createTestSubsidyProgram({
+        name: 'A received',
+        reductionValue: 10,
+        applicationStatus: 'received',
+      });
+      const eligible = createTestSubsidyProgram({
+        name: 'B eligible',
+        reductionValue: 20,
+        applicationStatus: 'eligible',
+      });
+      linkSubsidyToHouseholdItem(hi.id, received);
+      linkSubsidyToHouseholdItem(hi.id, eligible);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/household-items/${hi.id}/subsidy-payback`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<HouseholdItemSubsidyPaybackResponse>();
+      // Rule: eligible/applied are listed with counted false and excluded from the totals.
+      expect(body.subsidies.map((e) => e.counted)).toEqual([true, false]);
+      expect(body.subsidies[0]).toMatchObject({
+        minPayback: 80,
+        maxPayback: 120,
+        expectedPayback: 100,
+      });
+      expect(body.expectedTotalPayback).toBe(100);
+      expect(body.minTotalPayback).toBe(80);
+      expect(body.maxTotalPayback).toBe(120);
     });
   });
 });

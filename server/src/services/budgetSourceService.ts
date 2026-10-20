@@ -284,8 +284,8 @@ function countBudgetLineReferences(db: DbType, sourceId: string): number {
  * Includes:
  * 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status,
  *    split proportionally by deposits (excluding tagged)
- * 2. Lines with no budget_source: amount allocated to budget lines where source is NULL,
- *    split proportionally by deposits (excluding tagged)
+ * 2. Lines with no budget_source or assigned to the own-funds source by id: amount allocated to
+ *    those budget lines, split proportionally by deposits (excluding tagged)
  * 3. Deposits tagged to the discretionary source
  */
 function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
@@ -360,7 +360,13 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     }
   }
 
-  // 2. Lines with no budget_source with deposit-aware split (excluding tagged)
+  // 2. Lines with no budget_source, or assigned to the own-funds source by id (auto-itemize and
+  // the default source write 'discretionary-system'), with deposit-aware split (excluding tagged).
+  // The remainder rail above is amount minus everything itemized, so nothing is counted twice.
+  const ownFundsMatch = (alias: 'wib' | 'hib') =>
+    discretionarySourceId
+      ? sql`(${sql.raw(alias)}.budget_source_id IS NULL OR ${sql.raw(alias)}.budget_source_id = ${discretionarySourceId})`
+      : sql`${sql.raw(alias)}.budget_source_id IS NULL`;
   const noSourceRows = db.all<DepositAwareRow & { deposit_budget_source_id: string | null }>(
     sql`SELECT
       ibl.id              AS ibl_id,
@@ -379,12 +385,12 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     WHERE (
       (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
         SELECT 1 FROM work_item_budgets wib
-        WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id IS NULL
+        WHERE wib.id = ibl.work_item_budget_id AND ${ownFundsMatch('wib')}
       ))
       OR
       (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
         SELECT 1 FROM household_item_budgets hib
-        WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id IS NULL
+        WHERE hib.id = ibl.household_item_budget_id AND ${ownFundsMatch('hib')}
       ))
     )`,
   );
@@ -554,6 +560,25 @@ function getSourceAmounts(
     projectedMinAmount: projectedRange.projectedMinAmount,
     projectedMaxAmount: projectedRange.projectedMaxAmount,
   };
+}
+
+/**
+ * Paid and submitted amounts of a funding source (ADR-039 money service).
+ * `paid` = claimed + unclaimed (everything paid out, whether or not submitted to the bank);
+ * `submitted` = claimed. Same Rail A / Rail B helpers as the source list (`paidAmount` /
+ * `claimedAmount`), without the projected-range queries.
+ */
+export function getSourcePaidAndSubmitted(
+  db: DbType,
+  row: Pick<typeof budgetSources.$inferSelect, 'id' | 'isDiscretionary'>,
+): { paid: number; submitted: number } {
+  const claimed = row.isDiscretionary
+    ? computeDiscretionaryInvoiceAmount(db, 'claimed')
+    : computeClaimedAmount(db, row.id);
+  const unclaimed = row.isDiscretionary
+    ? computeDiscretionaryInvoiceAmount(db, 'paid')
+    : computeUnclaimedAmount(db, row.id);
+  return { paid: claimed + unclaimed, submitted: claimed };
 }
 
 /**

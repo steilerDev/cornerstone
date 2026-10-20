@@ -10,6 +10,44 @@ import type { FastifyInstance } from 'fastify';
 import type { BudgetOverviewResponse } from '@cornerstone/shared';
 import * as schema from '../db/schema.js';
 
+// Snapshot of the legacy overview key set: ADR-039 adds `money` next to it, no key changes.
+const EXPECTED_OVERVIEW_KEYS = [
+  'actualCost',
+  'actualCostClaimed',
+  'actualCostPaid',
+  'availableFunds',
+  'maxPlanned',
+  'minPlanned',
+  'remainingVsActualClaimed',
+  'remainingVsActualCost',
+  'remainingVsActualPaid',
+  'remainingVsMaxPlanned',
+  'remainingVsMaxPlannedWithPayback',
+  'remainingVsMinPlanned',
+  'remainingVsMinPlannedWithPayback',
+  'sourceCount',
+  'subsidySummary',
+];
+const EXPECTED_MONEY_KEYS = [
+  'activeSourceCount',
+  'afterGrants',
+  'byArea',
+  'byType',
+  'expectedCost',
+  'expectedGrants',
+  'fundingTotal',
+  'grants',
+  'leftToSpend',
+  'notYetPaid',
+  'notYetSplit',
+  'paid',
+  'possibleGrants',
+  'readyToSubmit',
+  'records',
+  'sources',
+  'stillToPay',
+];
+
 describe('Budget Overview Routes', () => {
   let app: FastifyInstance;
   let tempDir: string;
@@ -249,6 +287,63 @@ describe('Budget Overview Routes', () => {
       // subsidySummary object
       expect(typeof overview.subsidySummary.totalReductions).toBe('number');
       expect(typeof overview.subsidySummary.activeSubsidyCount).toBe('number');
+    });
+
+    it('adds the money service object next to the unchanged overview key set (ADR-039)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget/overview',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetOverviewResponse>();
+      expect(Object.keys(body).sort()).toEqual(['money', 'overview']);
+      expect(Object.keys(body.overview).sort()).toEqual(EXPECTED_OVERVIEW_KEYS);
+      expect(Object.keys(body.money).sort()).toEqual(EXPECTED_MONEY_KEYS);
+      expect(body.money.leftToSpend.verdict).toBeNull();
+      expect(body.money.sources.map((x) => x.id)).toEqual(['discretionary-system']);
+    });
+
+    it('serves the legacy grant fields and money from one computation (they agree)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const sourceId = insertBudgetSource(5000);
+      const workItemId = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+      app.db
+        .insert(schema.subsidyPrograms)
+        .values({
+          id: 'sp-route',
+          name: 'Route Grant',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'approved',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        .run();
+      app.db
+        .insert(schema.workItemSubsidies)
+        .values({ workItemId, subsidyProgramId: 'sp-route' })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget/overview',
+        headers: { cookie },
+      });
+
+      const body = response.json<BudgetOverviewResponse>();
+      expect(body.money.expectedGrants).toEqual({ expected: 100, best: 80, worst: 120 });
+      expect(body.overview.subsidySummary.totalReductions).toBe(body.money.expectedGrants.expected);
+      expect(body.overview.subsidySummary.minTotalPayback).toBe(body.money.expectedGrants.best);
+      expect(body.overview.subsidySummary.maxTotalPayback).toBe(body.money.expectedGrants.worst);
+      expect(body.overview.availableFunds).toBe(body.money.fundingTotal);
     });
 
     it('returns zeroes and seeded categories for empty project', async () => {

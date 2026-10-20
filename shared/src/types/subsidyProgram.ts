@@ -111,10 +111,12 @@ export type WorkItemSubsidyPaybackEntry = SubsidyPaybackEntry;
  */
 export interface WorkItemSubsidyPaybackResponse {
   workItemId: string;
-  /** Minimum total payback across all non-rejected linked subsidies. */
+  /** Best-scenario total over the counted (approved/received) linked grants. */
   minTotalPayback: number;
-  /** Maximum total payback across all non-rejected linked subsidies. */
+  /** Worst-scenario total over the counted (approved/received) linked grants. */
   maxTotalPayback: number;
+  /** Expected-scenario total over the counted (approved/received) linked grants. */
+  expectedTotalPayback: number;
   /** Per-subsidy breakdown. Empty array when no subsidies are linked. */
   subsidies: WorkItemSubsidyPaybackEntry[];
 }

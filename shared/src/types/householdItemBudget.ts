@@ -58,7 +58,11 @@ export type HouseholdItemSubsidyPaybackEntry = SubsidyPaybackEntry;
  */
 export interface HouseholdItemSubsidyPaybackResponse {
   householdItemId: string;
+  /** Best-scenario total over the counted (approved/received) linked grants. */
   minTotalPayback: number;
+  /** Worst-scenario total over the counted (approved/received) linked grants. */
   maxTotalPayback: number;
+  /** Expected-scenario total over the counted (approved/received) linked grants. */
+  expectedTotalPayback: number;
   subsidies: HouseholdItemSubsidyPaybackEntry[];
 }

@@ -1,3 +1,4 @@
+import type { BreakdownMoney, MoneyCostFigures, MoneySummary } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from './budgetOverviewApi.js';
 import type {
@@ -5,6 +6,48 @@ import type {
   BudgetOverviewResponse,
   BudgetBreakdownResponse,
 } from '@cornerstone/shared';
+
+// Required by the extended BudgetBreakdown type (ADR-039 money service, #2228): an empty `money`.
+const zeroMoneyRange = { expected: 0, best: 0, worst: 0 };
+const zeroCostFigures = (): MoneyCostFigures => ({
+  expectedCost: { ...zeroMoneyRange },
+  expectedGrants: { ...zeroMoneyRange },
+  afterGrants: { ...zeroMoneyRange },
+});
+const emptyBreakdownMoney = (): BreakdownMoney => ({
+  workItems: {},
+  householdItems: {},
+  orphanLines: zeroCostFigures(),
+  notYetSplit: { amount: 0, recordCount: 0 },
+});
+
+// Required by the extended BudgetOverviewResponse type (ADR-039 money service, #2228): an empty `money`.
+const emptyMoneySummary = (): MoneySummary => {
+  const range = () => ({ expected: 0, best: 0, worst: 0 });
+  const figures = () => ({ expectedCost: range(), expectedGrants: range(), afterGrants: range() });
+  return {
+    leftToSpend: { ...range(), verdict: null },
+    fundingTotal: 0,
+    activeSourceCount: 0,
+    expectedCost: range(),
+    expectedGrants: range(),
+    possibleGrants: range(),
+    afterGrants: range(),
+    paid: 0,
+    stillToPay: 0,
+    notYetPaid: range(),
+    notYetSplit: { amount: 0, recordCount: 0 },
+    readyToSubmit: { count: 0, amount: 0 },
+    records: {
+      offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+      invoices: { count: 0, amount: 0, paid: 0, stillToPay: 0 },
+    },
+    sources: [],
+    grants: [],
+    byType: { work_items: figures(), household_items: figures() },
+    byArea: [],
+  };
+};
 
 describe('budgetOverviewApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -46,7 +89,10 @@ describe('budgetOverviewApi', () => {
 
   describe('fetchBudgetOverview', () => {
     it('sends GET request to /api/budget/overview', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -59,7 +105,10 @@ describe('budgetOverviewApi', () => {
     });
 
     it('returns the overview object from the response', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -72,7 +121,10 @@ describe('budgetOverviewApi', () => {
     });
 
     it('returns overview with all top-level numeric fields (Story 5.11 shape)', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -90,7 +142,10 @@ describe('budgetOverviewApi', () => {
     });
 
     it('returns overview with four remaining perspectives', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -106,7 +161,10 @@ describe('budgetOverviewApi', () => {
     });
 
     it('returns overview with subsidySummary fields', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -183,6 +241,7 @@ describe('budgetOverviewApi', () => {
   describe('fetchBudgetBreakdown', () => {
     const stubBreakdownResponse: BudgetBreakdownResponse = {
       breakdown: {
+        money: emptyBreakdownMoney(),
         workItems: {
           areas: [],
           totals: {

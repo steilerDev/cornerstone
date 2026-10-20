@@ -256,6 +256,24 @@ export type {
   BudgetVerdict,
 } from './types/budgetOverview.js';
 
+// Money service (ADR-039)
+export type {
+  MoneyItemType,
+  MoneyRange,
+  LeftToSpend,
+  NotYetSplit,
+  ReadyToSubmit,
+  MoneyRecordTotals,
+  MoneyOfferTotals,
+  MoneyCostFigures,
+  MoneyAreaFigures,
+  MoneySourceFigures,
+  MoneyGrantFigures,
+  MoneySummary,
+  BreakdownMoney,
+} from './types/money.js';
+export { MONEY_ITEM_TYPES } from './types/money.js';
+
 // Budget Breakdown
 export type {
   CostDisplay,

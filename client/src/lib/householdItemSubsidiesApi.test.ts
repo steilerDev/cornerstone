@@ -277,6 +277,7 @@ describe('householdItemSubsidiesApi', () => {
   describe('fetchHouseholdItemSubsidyPayback', () => {
     it('sends GET request to /api/household-items/:householdItemId/subsidy-payback', async () => {
       const mockResponse: HouseholdItemSubsidyPaybackResponse = {
+        expectedTotalPayback: 0,
         householdItemId: 'hi-123',
         minTotalPayback: 0,
         maxTotalPayback: 0,
@@ -298,11 +299,14 @@ describe('householdItemSubsidiesApi', () => {
 
     it('returns payback response with correct structure', async () => {
       const mockResponse: HouseholdItemSubsidyPaybackResponse = {
+        expectedTotalPayback: 0,
         householdItemId: 'hi-123',
         minTotalPayback: 1000,
         maxTotalPayback: 2000,
         subsidies: [
           {
+            expectedPayback: 0,
+            counted: true,
             subsidyProgramId: 'subsidy-1',
             name: 'Solar Rebate',
             reductionType: 'percentage',
@@ -329,6 +333,7 @@ describe('householdItemSubsidiesApi', () => {
 
     it('returns zero payback when no subsidies are linked', async () => {
       const mockResponse: HouseholdItemSubsidyPaybackResponse = {
+        expectedTotalPayback: 0,
         householdItemId: 'hi-123',
         minTotalPayback: 0,
         maxTotalPayback: 0,
@@ -349,11 +354,14 @@ describe('householdItemSubsidiesApi', () => {
 
     it('returns multiple subsidies in payback breakdown', async () => {
       const mockResponse: HouseholdItemSubsidyPaybackResponse = {
+        expectedTotalPayback: 0,
         householdItemId: 'hi-123',
         minTotalPayback: 4000,
         maxTotalPayback: 6000,
         subsidies: [
           {
+            expectedPayback: 0,
+            counted: true,
             subsidyProgramId: 'subsidy-1',
             name: 'Solar Rebate',
             reductionType: 'percentage',
@@ -362,6 +370,8 @@ describe('householdItemSubsidiesApi', () => {
             maxPayback: 3000,
           },
           {
+            expectedPayback: 0,
+            counted: true,
             subsidyProgramId: 'subsidy-2',
             name: 'Energy Grant',
             reductionType: 'fixed',

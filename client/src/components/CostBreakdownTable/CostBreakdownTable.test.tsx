@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import type { BreakdownMoney, MoneyCostFigures } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -236,6 +237,7 @@ function buildOverview(
  */
 function buildEmptyBreakdown(): BudgetBreakdown {
   return {
+    money: emptyBreakdownMoney(),
     workItems: {
       areas: [],
       totals: {
@@ -306,6 +308,7 @@ function buildBreakdownWithWI(
   const hasInvoice = opts.hasInvoice ?? actualCost > 0;
 
   return {
+    money: emptyBreakdownMoney(),
     workItems: {
       areas: [
         {
@@ -421,6 +424,7 @@ function buildBreakdownWithHI(
   const householdItemId = opts.householdItemId ?? 'hi-1';
 
   return {
+    money: emptyBreakdownMoney(),
     workItems: {
       areas: [],
       totals: {
@@ -543,6 +547,7 @@ function buildBreakdownWithSourcedWI(opts: {
   budgetSources?: BudgetSourceSummaryBreakdown[];
 }): BudgetBreakdown {
   return {
+    money: emptyBreakdownMoney(),
     workItems: {
       areas: [
         {
@@ -625,6 +630,20 @@ function buildBreakdownWithSourcedWI(opts: {
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
+
+// Required by the extended BudgetBreakdown type (ADR-039 money service, #2228): an empty `money`.
+const zeroMoneyRange = { expected: 0, best: 0, worst: 0 };
+const zeroCostFigures = (): MoneyCostFigures => ({
+  expectedCost: { ...zeroMoneyRange },
+  expectedGrants: { ...zeroMoneyRange },
+  afterGrants: { ...zeroMoneyRange },
+});
+const emptyBreakdownMoney = (): BreakdownMoney => ({
+  workItems: {},
+  householdItems: {},
+  orphanLines: zeroCostFigures(),
+  notYetSplit: { amount: 0, recordCount: 0 },
+});
 
 describe('CostBreakdownTable', () => {
   // ── 15. Renders section heading ──────────────────────────────────────────
@@ -957,6 +976,7 @@ describe('CostBreakdownTable', () => {
 
   it('renders both area nodes after expanding WI section', () => {
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -1045,6 +1065,7 @@ describe('CostBreakdownTable', () => {
 
   it('renders "No Area" area node when items have no area', () => {
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -1116,6 +1137,7 @@ describe('CostBreakdownTable', () => {
 
   it('shows HI section even when WI section has no areas', () => {
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [],
         totals: {
@@ -1489,6 +1511,7 @@ describe('CostBreakdownTable', () => {
 
   it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds", "Remaining Budget"', () => {
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -2825,6 +2848,7 @@ describe('CostBreakdownTable', () => {
   function buildNestedBreakdownWithWI(opts: { budgetLines?: boolean } = {}): BudgetBreakdown {
     const budgetLines = opts.budgetLines ?? false;
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -2931,6 +2955,7 @@ describe('CostBreakdownTable', () => {
    */
   function buildNestedBreakdownWithHI(): BudgetBreakdown {
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [],
         totals: {
@@ -3205,6 +3230,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     };
 
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -3301,6 +3327,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     };
 
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [],
         totals: {
@@ -3790,6 +3817,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     // src-1 weight = 9600/12000 = 0.8 → payback = 800
     // src-2 weight = 2400/12000 = 0.2 → payback = 200
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -3905,6 +3933,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     // Two lines with plannedAmount=0 → totalCost=0 → equal weight 1/n
     // Entity subsidyPayback=1000 → each source gets 500
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -4095,6 +4124,7 @@ describe('Server-driven render path (#1360)', () => {
    */
   function buildServerFilteredBreakdown(): BudgetBreakdown {
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -4301,6 +4331,7 @@ describe('Server-driven render path (#1360)', () => {
   // must remain visible so the user can re-select sources.
   it('renders full table — source rows and totals — when all sources are deselected but sources are configured (Scenario 24)', () => {
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [],
         totals: {
@@ -4390,6 +4421,7 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
    */
   function buildTwoSourceBreakdown(): BudgetBreakdown {
     return {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {
@@ -4629,6 +4661,7 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
   it('Remaining Budget Net column = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback when source is deselected (Scenario 7)', () => {
     // Use a breakdown with WI subsidy payback to make adjustedTotalPayback > 0
     const breakdown: BudgetBreakdown = {
+      money: emptyBreakdownMoney(),
       workItems: {
         areas: [
           {

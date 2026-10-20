@@ -1,12 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import { getBudgetOverview } from '../services/budgetOverviewService.js';
+import { computeProjectMoney } from '../services/moneyService.js';
 import { getBudgetBreakdown } from '../services/budgetBreakdownService.js';
 
 export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/budget/overview
-   * Returns aggregated budget data for the project dashboard.
+   * Returns aggregated budget data for the project dashboard, plus the money service's
+   * figures (`money`, ADR-039).
    * Auth required: Yes (both admin and member)
    */
   fastify.get('/overview', async (request, reply) => {
@@ -14,8 +16,10 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
-    const overview = getBudgetOverview(fastify.db, fastify.config.vatRate);
-    return reply.status(200).send({ overview });
+    // One money computation per request: the legacy grant-derived fields and `money` share it.
+    const project = computeProjectMoney(fastify.db, fastify.config.vatRate);
+    const overview = getBudgetOverview(fastify.db, fastify.config.vatRate, project);
+    return reply.status(200).send({ overview, money: project.summary });
   });
 
   /**

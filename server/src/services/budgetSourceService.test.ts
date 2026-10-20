@@ -3847,4 +3847,172 @@ describe('Budget Source Service', () => {
       expect(disc.claimedAmount).toBe(0);
     });
   });
+  // ─── getSourcePaidAndSubmitted (ADR-039 money service helper, #2228) ───────
+
+  describe('getSourcePaidAndSubmitted()', () => {
+    function insertInvoiceWithoutLines(amount: number, status: 'pending' | 'paid' | 'claimed') {
+      const ts = new Date(Date.now() + ++workItemCounter).toISOString();
+      const vendorId = `vendor-paid-${workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-paid-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount,
+          date: '2026-01-01',
+          status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    it('is { 0, 0 } for a source without invoices', () => {
+      const source = insertRawSource({ name: 'Quiet Source' });
+      expect(
+        budgetSourceService.getSourcePaidAndSubmitted(db, {
+          id: source.id,
+          isDiscretionary: false,
+        }),
+      ).toEqual({ paid: 0, submitted: 0 });
+    });
+
+    it('reports paid = claimed + unclaimed and submitted = claimed, as the source list does', () => {
+      const source = insertRawSource({ name: 'Loan', totalAmount: 100000 });
+      const { budgetId: claimedLine } = insertRawWorkItemWithSource(source.id, 5000);
+      const { budgetId: paidLine } = insertRawWorkItemWithSource(source.id, 5000);
+      insertClaimedInvoice(claimedLine, 300);
+      insertPaidInvoice(paidLine, 200);
+
+      const result = budgetSourceService.getSourcePaidAndSubmitted(db, {
+        id: source.id,
+        isDiscretionary: false,
+      });
+
+      expect(result).toEqual({ paid: 500, submitted: 300 });
+      const listed = budgetSourceService.getBudgetSourceById(db, source.id, 0.19);
+      expect(result.paid).toBe(listed.paidAmount);
+      expect(result.submitted).toBe(listed.claimedAmount);
+    });
+
+    it('counts a deposit tagged to the source (Rail B) as paid', () => {
+      const source = insertRawSource({ name: 'Loan' });
+      const ts = new Date().toISOString();
+      const invoiceId = insertInvoiceWithoutLines(1000, 'pending');
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id: 'dep-tagged',
+          invoiceId,
+          amount: 100,
+          dueDate: '2026-03-01',
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: source.id,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+
+      expect(
+        budgetSourceService.getSourcePaidAndSubmitted(db, {
+          id: source.id,
+          isDiscretionary: false,
+        }),
+      ).toEqual({ paid: 100, submitted: 0 });
+    });
+
+    describe('own-funds lines assigned by id (rule: step 2 includes discretionary-system as well as NULL)', () => {
+      it('counts a paid invoice on a line assigned to discretionary-system in paidAmount only', () => {
+        const { budgetId } = insertRawWorkItemWithSource('discretionary-system', 500);
+        insertPaidInvoice(budgetId, 500);
+
+        const own = getDiscretionarySource();
+        expect(own.paidAmount).toBe(500);
+        expect(own.claimedAmount).toBe(0);
+        expect(
+          budgetSourceService.getSourcePaidAndSubmitted(db, {
+            id: 'discretionary-system',
+            isDiscretionary: true,
+          }),
+        ).toEqual({ paid: 500, submitted: 0 });
+      });
+
+      it('counts a claimed invoice on such a line in claimedAmount (and paidAmount)', () => {
+        const { budgetId } = insertRawWorkItemWithSource('discretionary-system', 300);
+        insertClaimedInvoice(budgetId, 300);
+
+        const own = getDiscretionarySource();
+        expect(own.claimedAmount).toBe(300);
+        expect(own.paidAmount).toBe(300);
+      });
+
+      it('does not count the same money twice with the remainder rail', () => {
+        // invoice 1,000 itemized 600 on an own-funds line: 600 via the line, 400 via the remainder
+        const { budgetId } = insertRawWorkItemWithSource('discretionary-system', 600);
+        insertPaidInvoice(budgetId, 600);
+        insertInvoiceWithoutLines(400, 'paid');
+
+        expect(getDiscretionarySource().paidAmount).toBe(1000);
+      });
+
+      it('leaves other sources unaffected', () => {
+        const loan = insertRawSource({ name: 'Loan' });
+        const { budgetId: loanLine } = insertRawWorkItemWithSource(loan.id, 700);
+        insertPaidInvoice(loanLine, 700);
+        const { budgetId: ownLine } = insertRawWorkItemWithSource('discretionary-system', 200);
+        insertPaidInvoice(ownLine, 200);
+
+        expect(budgetSourceService.getBudgetSourceById(db, loan.id, 0.19).paidAmount).toBe(700);
+        expect(getDiscretionarySource().paidAmount).toBe(200);
+      });
+
+      it('counts household-item lines assigned to own funds as well', () => {
+        const { budgetId } = insertRawHouseholdItemWithSource('discretionary-system', 250);
+        insertPaidInvoiceForHouseholdItem(budgetId, 250);
+
+        expect(getDiscretionarySource().paidAmount).toBe(250);
+      });
+
+      it('falls back to NULL-source lines only when no own-funds row exists', () => {
+        const { budgetId: nullLine } = insertRawWorkItemWithSource('discretionary-system', 100);
+        sqlite.pragma('foreign_keys = OFF');
+        sqlite
+          .prepare('UPDATE work_item_budgets SET budget_source_id = NULL WHERE id = ?')
+          .run(nullLine);
+        const loan = insertRawSource({ name: 'Loan' });
+        const { budgetId: loanLine } = insertRawWorkItemWithSource(loan.id, 900);
+        insertPaidInvoice(nullLine, 100);
+        insertPaidInvoice(loanLine, 900);
+        sqlite.prepare("DELETE FROM budget_sources WHERE id = 'discretionary-system'").run();
+        sqlite.pragma('foreign_keys = ON');
+
+        const result = budgetSourceService.getSourcePaidAndSubmitted(db, {
+          id: 'discretionary-system',
+          isDiscretionary: true,
+        });
+
+        // the NULL-source line still counts; the loan-assigned line does not
+        expect(result).toEqual({ paid: 100, submitted: 0 });
+      });
+    });
+
+    it('uses the discretionary rails for the own-funds source (unitemized remainders)', () => {
+      insertInvoiceWithoutLines(400, 'paid');
+      insertInvoiceWithoutLines(150, 'claimed');
+
+      const result = budgetSourceService.getSourcePaidAndSubmitted(db, {
+        id: 'discretionary-system',
+        isDiscretionary: true,
+      });
+
+      expect(result).toEqual({ paid: 550, submitted: 150 });
+      const listed = getDiscretionarySource();
+      expect(result.paid).toBe(listed.paidAmount);
+      expect(result.submitted).toBe(listed.claimedAmount);
+    });
+  });
 });

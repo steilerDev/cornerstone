@@ -2076,3 +2076,7 @@ is unneeded and easy to get wrong — find-my-way ranks static segments over par
 When a child updates its own view at phase 1 (frame encoded: tray thumbnail) and the host records at
 phase 2 (stored: `shotKeys`), any "act on the last one" control (Remove last) targets different items
 during the gap. Check whether an in-flight counter (`savingCount`) exists and gate the control on it.
+
+## Extract-and-share refactors: does the old caller use the extracted helper? (PR #2325)
+
+When a spec says "extract X and have both callers use it", check that the **original** caller calls the new helper and does not keep an inline copy. In #2325, `combineSourceContributions` was exported for the draw-down set, but `getSourceReport` kept its own rounding/zero-drop and Rail B query, while the wiki claimed they were shared. Consistency tests on one fixture hide this kind of fork. Grep the old caller for the helper's body (e.g. `toCents(rawAmount) / 100`).

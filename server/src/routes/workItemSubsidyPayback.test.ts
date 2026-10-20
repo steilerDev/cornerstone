@@ -98,7 +98,7 @@ describe('Work Item Subsidy Payback Routes', () => {
         eligibility: null,
         reductionType: opts.reductionType ?? 'percentage',
         reductionValue: opts.reductionValue ?? 10,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         applicationDeadline: null,
         notes: null,
         createdBy: null,
@@ -330,6 +330,7 @@ describe('Work Item Subsidy Payback Routes', () => {
         'password123',
       );
       const workItemId = createTestWorkItem('Work Item', userId);
+      createBudgetLine(workItemId, 10000, null, 'invoice');
 
       const subsidyId = createTestSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
       linkSubsidy(workItemId, subsidyId);
@@ -535,6 +536,54 @@ describe('Work Item Subsidy Payback Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+  describe('ADR-039 money service fields (#2228)', () => {
+    it('returns counted, expectedPayback and expectedTotalPayback; not-counted grants stay out of the totals', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      const workItemId = createTestWorkItem('Work Item', userId);
+      createBudgetLine(workItemId, 1000, null, 'own_estimate');
+      const approved = createTestSubsidyProgram({
+        name: 'A approved',
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'approved',
+      });
+      const applied = createTestSubsidyProgram({
+        name: 'B applied',
+        reductionType: 'percentage',
+        reductionValue: 20,
+        applicationStatus: 'applied',
+      });
+      linkSubsidy(workItemId, approved);
+      linkSubsidy(workItemId, applied);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${workItemId}/subsidy-payback`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<WorkItemSubsidyPaybackResponse>();
+      // Rule: eligible/applied are listed with counted false and excluded from the totals.
+      expect(body.subsidies.map((e) => [e.subsidyProgramId, e.counted])).toEqual([
+        [approved, true],
+        [applied, false],
+      ]);
+      expect(body.subsidies[0]).toMatchObject({
+        minPayback: 80,
+        maxPayback: 120,
+        expectedPayback: 100,
+      });
+      expect(body.subsidies[1]!.expectedPayback).toBe(200);
+      expect(body.expectedTotalPayback).toBe(100);
+      expect(body.minTotalPayback).toBe(80);
+      expect(body.maxTotalPayback).toBe(120);
     });
   });
 });

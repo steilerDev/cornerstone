@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import type { BreakdownMoney, MoneyCostFigures } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, waitFor, render, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -92,6 +93,20 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// Required by the extended BudgetBreakdown type (ADR-039 money service, #2228): an empty `money`.
+const zeroMoneyRange = { expected: 0, best: 0, worst: 0 };
+const zeroCostFigures = (): MoneyCostFigures => ({
+  expectedCost: { ...zeroMoneyRange },
+  expectedGrants: { ...zeroMoneyRange },
+  afterGrants: { ...zeroMoneyRange },
+});
+const emptyBreakdownMoney = (): BreakdownMoney => ({
+  workItems: {},
+  householdItems: {},
+  orphanLines: zeroCostFigures(),
+  notYetSplit: { amount: 0, recordCount: 0 },
+});
+
 describe('BudgetOverviewPage', () => {
   let BudgetOverviewPage: React.ComponentType;
 
@@ -180,6 +195,7 @@ describe('BudgetOverviewPage', () => {
     },
     subsidyAdjustments: [],
     budgetSources: [],
+    money: emptyBreakdownMoney(),
   };
 
   beforeEach(async () => {
@@ -381,6 +397,7 @@ describe('BudgetOverviewPage', () => {
 
       // Provide a non-empty breakdown with budget sources so the expand button appears
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
+        money: emptyBreakdownMoney(),
         workItems: {
           areas: [
             {

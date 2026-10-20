@@ -47,7 +47,7 @@ describe('subsidy payback services — configured VAT rate', () => {
         name: `Subsidy ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
-        applicationStatus: 'eligible',
+        applicationStatus: 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../../db/migrate.js';
@@ -12,24 +13,14 @@ import { NotFoundError } from '../../errors/AppError.js';
 
 const workItemConfig = {
   entityTable: 'work_items',
-  junctionTable: 'work_item_subsidies',
-  junctionAlias: 'wis',
-  junctionEntityIdColumn: 'work_item_id',
-  budgetLinesTable: 'work_item_budgets',
-  budgetLinesEntityIdColumn: 'work_item_id',
-  supportsInvoices: true,
+  kind: 'work_item',
   entityLabel: 'Work item',
   entityIdResponseKey: 'workItemId',
 } as const;
 
 const householdItemConfig = {
   entityTable: 'household_items',
-  junctionTable: 'household_item_subsidies',
-  junctionAlias: 'his',
-  junctionEntityIdColumn: 'household_item_id',
-  budgetLinesTable: 'household_item_budgets',
-  budgetLinesEntityIdColumn: 'household_item_id',
-  supportsInvoices: false,
+  kind: 'household_item',
   entityLabel: 'Household item',
   entityIdResponseKey: 'householdItemId',
 } as const;
@@ -117,7 +108,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         eligibility: null,
         reductionType: opts.reductionType ?? 'percentage',
         reductionValue: opts.reductionValue ?? 10,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         applicationDeadline: null,
         notes: null,
         createdBy: null,
@@ -501,6 +492,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
     it('returns reductionValue as min === max for fixed subsidy on work item', () => {
       const getPayback = createSubsidyPaybackService(workItemConfig);
       const workItemId = insertWorkItem();
+      insertWiBudgetLine({ workItemId, plannedAmount: 10000, confidence: 'invoice' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
@@ -519,6 +511,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
     it('returns reductionValue as min === max for fixed subsidy on household item', () => {
       const getPayback = createSubsidyPaybackService(householdItemConfig);
       const hiId = insertHouseholdItem();
+      insertHiBudgetLine({ householdItemId: hiId, plannedAmount: 10000, confidence: 'invoice' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 2500 });
       db.insert(schema.householdItemSubsidies)
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
@@ -536,7 +529,8 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       expect(result.subsidies[0]!.maxPayback).toBe(2500);
     });
 
-    it('returns fixed amount even with no budget lines', () => {
+    it('pays nothing for a fixed subsidy with no budget lines', () => {
+      // Rule (legacy fixed grants, shown unchanged): value per item, split over eligible lines, each part capped at the line cost; an item without an eligible line pays 0.
       const getPayback = createSubsidyPaybackService(householdItemConfig);
       const hiId = insertHouseholdItem();
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
@@ -546,8 +540,8 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
 
       const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
-      expect(result['minTotalPayback']).toBe(3000);
-      expect(result['maxTotalPayback']).toBe(3000);
+      expect(result['minTotalPayback']).toBe(0);
+      expect(result['maxTotalPayback']).toBe(0);
     });
   });
 
@@ -652,6 +646,156 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       // All lines (invoice margin=0): (1000+500)*10% = 150
       expect(result['minTotalPayback']).toBeCloseTo(150);
       expect(result['maxTotalPayback']).toBeCloseTo(150);
+    });
+  });
+  // ─── ADR-039 money service rules ───────────────────────────────────────────
+
+  describe('values come from the money service (ADR-039, #2228)', () => {
+    type PaybackResult = {
+      minTotalPayback: number;
+      maxTotalPayback: number;
+      expectedTotalPayback: number;
+      subsidies: Array<{
+        subsidyProgramId: string;
+        minPayback: number;
+        maxPayback: number;
+        expectedPayback: number;
+        counted: boolean;
+      }>;
+    };
+
+    it('uses the invoice link of a household budget line (rule: household invoice links used)', () => {
+      const getPayback = createSubsidyPaybackService(householdItemConfig);
+      const hiId = insertHouseholdItem();
+      const lineId = insertHiBudgetLine({
+        householdItemId: hiId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const now = new Date().toISOString();
+      const vendorId = insertVendor();
+      db.insert(schema.invoices)
+        .values({
+          id: 'inv-hi',
+          vendorId,
+          amount: 800,
+          status: 'pending',
+          date: '2026-01-10',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: 'inv-hi',
+          householdItemBudgetId: lineId,
+          itemizedAmount: 800,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
+      db.insert(schema.householdItemSubsidies)
+        .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
+        .run();
+
+      const result = getPayback(db, hiId, 0.19) as PaybackResult;
+
+      // itemized 800 at face value in every scenario: 10% = 80, no own_estimate margin
+      expect([result.minTotalPayback, result.maxTotalPayback, result.expectedTotalPayback]).toEqual(
+        [80, 80, 80],
+      );
+    });
+
+    it('lists a not-counted grant with counted false and keeps it out of the totals', () => {
+      const getPayback = createSubsidyPaybackService(workItemConfig);
+      const wiId = insertWorkItem();
+      insertWiBudgetLine({ workItemId: wiId, plannedAmount: 1000, confidence: 'invoice' });
+      const approved = insertSubsidyProgram({
+        name: 'A approved',
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'approved',
+      });
+      const applied = insertSubsidyProgram({
+        name: 'B applied',
+        reductionType: 'percentage',
+        reductionValue: 50,
+        applicationStatus: 'applied',
+      });
+      for (const subsidyProgramId of [approved, applied]) {
+        db.insert(schema.workItemSubsidies).values({ workItemId: wiId, subsidyProgramId }).run();
+      }
+
+      const result = getPayback(db, wiId, 0.19) as PaybackResult;
+
+      // rule: eligible/applied are not counted
+      expect(
+        result.subsidies.map((e) => [e.subsidyProgramId, e.counted, e.expectedPayback]),
+      ).toEqual([
+        [approved, true, 100],
+        [applied, false, 500],
+      ]);
+      expect(result.expectedTotalPayback).toBe(100);
+      expect(result.minTotalPayback).toBe(100);
+      expect(result.maxTotalPayback).toBe(100);
+    });
+
+    it('pays a capped grant its capped payout (rule: cap applies to items)', () => {
+      const getPayback = createSubsidyPaybackService(workItemConfig);
+      const wiId = insertWorkItem();
+      insertWiBudgetLine({ workItemId: wiId, plannedAmount: 600, confidence: 'invoice' });
+      insertWiBudgetLine({ workItemId: wiId, plannedAmount: 400, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 50 });
+      db.update(schema.subsidyPrograms)
+        .set({ maximumAmount: 500 })
+        .where(eq(schema.subsidyPrograms.id, subsidyId))
+        .run();
+      db.insert(schema.workItemSubsidies)
+        .values({ workItemId: wiId, subsidyProgramId: subsidyId })
+        .run();
+
+      const result = getPayback(db, wiId, 0.19) as PaybackResult;
+
+      // 50% of min(1000, 500) = 250 instead of 500
+      expect(result.expectedTotalPayback).toBe(250);
+      expect(result.subsidies[0]).toMatchObject({
+        minPayback: 250,
+        maxPayback: 250,
+        expectedPayback: 250,
+      });
+    });
+
+    it('shares a capped grant pro rata between two items by largest remainder', () => {
+      const getPayback = createSubsidyPaybackService(workItemConfig);
+      const wi1 = insertWorkItem('Item one');
+      const wi2 = insertWorkItem('Item two');
+      insertWiBudgetLine({ workItemId: wi1, plannedAmount: 100, confidence: 'invoice' });
+      insertWiBudgetLine({ workItemId: wi2, plannedAmount: 200, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 100 });
+      db.update(schema.subsidyPrograms)
+        .set({ maximumAmount: 100.01 })
+        .where(eq(schema.subsidyPrograms.id, subsidyId))
+        .run();
+      for (const workItemId of [wi1, wi2]) {
+        db.insert(schema.workItemSubsidies)
+          .values({ workItemId, subsidyProgramId: subsidyId })
+          .run();
+      }
+
+      const a = getPayback(db, wi1, 0.19) as PaybackResult;
+      const b = getPayback(db, wi2, 0.19) as PaybackResult;
+
+      // payout 100.01 split 1:2 -> 33.34 + 66.67 (cents add up exactly)
+      expect(a.expectedTotalPayback).toBe(33.34);
+      expect(b.expectedTotalPayback).toBe(66.67);
+      expect(Math.round((a.expectedTotalPayback + b.expectedTotalPayback) * 100)).toBe(10001);
+    });
+
+    it('keeps the 404 for an unknown item', () => {
+      const getPayback = createSubsidyPaybackService(householdItemConfig);
+      expect(() => getPayback(db, 'missing', 0.19)).toThrow('Household item not found');
     });
   });
 });
