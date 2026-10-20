@@ -5,6 +5,7 @@
  */
 
 import type { ConfidenceLevel } from './workItemBudget.js';
+import type { BreakdownMoney } from './money.js';
 
 /**
  * Cost display mode for an entity.
@@ -46,9 +47,11 @@ export interface BreakdownWorkItem {
   actualCost: number;
   actualCostPaid: number;
   actualCostPending: number;
+  /** Worst-scenario counted grant share (money service, ADR-039). */
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
+  /** Best-scenario counted grant share (money service, ADR-039). */
   minSubsidyPayback: number;
   costDisplay: CostDisplay;
   budgetLines: BreakdownBudgetLine[];
@@ -86,9 +89,11 @@ export interface BreakdownHouseholdItem {
   actualCost: number;
   actualCostPaid: number;
   actualCostPending: number;
+  /** Worst-scenario counted grant share (money service, ADR-039). */
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
+  /** Best-scenario counted grant share (money service, ADR-039). */
   minSubsidyPayback: number;
   costDisplay: CostDisplay;
   budgetLines: BreakdownBudgetLine[];
@@ -168,6 +173,8 @@ export interface BudgetBreakdown {
   };
   subsidyAdjustments: SubsidyAdjustment[];
   budgetSources: BudgetSourceSummaryBreakdown[];
+  /** Unfiltered per-item money from the money service (same run as the overview's `money`). */
+  money: BreakdownMoney;
 }
 
 /**

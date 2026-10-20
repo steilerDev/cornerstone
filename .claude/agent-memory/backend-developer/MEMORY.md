@@ -108,4 +108,5 @@ Running from the parent project root uses a different config and may not format 
 - `sandbox-git.md` — open when git add/commit/push fails in a sandbox worktree: sharedRepository object-write workarounds, ALTDIR commit workflow
 - `story_1030.md` — areas & trades rework story notes (migration 0028)
 - `completed-work.md` — historical log of completed stories/PRs
+- [money-service.md](money-service.md) — ADR-039 integer-cent money engine/service (#2228): layout, scenario semantics, consumers
 - [system-events.md](system-events.md) — system event writer/context, R1/R2 display SQL, migration 0047, pitfalls (#2223)

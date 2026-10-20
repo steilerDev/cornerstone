@@ -344,6 +344,8 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
     overrides: Partial<HouseholdItemSubsidyPaybackEntry> = {},
   ): HouseholdItemSubsidyPaybackEntry {
     return {
+      expectedPayback: 0,
+      counted: true,
       subsidyProgramId: 'sp-1',
       name: 'Green Energy Fund',
       reductionType: 'percentage',
@@ -358,6 +360,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
     overrides: Partial<HouseholdItemSubsidyPaybackResponse> = {},
   ): HouseholdItemSubsidyPaybackResponse {
     return {
+      expectedTotalPayback: 0,
       householdItemId: 'item-1',
       minTotalPayback: 0,
       maxTotalPayback: 0,

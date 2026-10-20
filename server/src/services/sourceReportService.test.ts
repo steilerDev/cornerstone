@@ -19,7 +19,13 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { getSourceReport, markInvoicesClaimed } from './sourceReportService.js';
+import {
+  getSourceReport,
+  markInvoicesClaimed,
+  REPORT_TYPE_STATUSES,
+  combineSourceContributions,
+  getDrawDownSet,
+} from './sourceReportService.js';
 import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../errors/AppError.js';
 import { _resetFilterTagCache } from './paperlessService.js';
 
@@ -2442,6 +2448,130 @@ describe('sourceReportService', () => {
         .all()
         .find((i) => i.id === invId2)!;
       expect(updatedInv2.status).toBe('pending');
+    });
+  });
+  // ─── ADR-039 / #2228: the draw-down set shared with the money service ──────
+
+  describe('REPORT_TYPE_STATUSES', () => {
+    it('maps each report type to its invoice/deposit status slice', () => {
+      expect([...REPORT_TYPE_STATUSES['budget-overview']].sort()).toEqual(
+        ['claimed', 'paid', 'pending', 'quotation'].sort(),
+      );
+      expect([...REPORT_TYPE_STATUSES['claim']].sort()).toEqual(['paid', 'pending']);
+      expect([...REPORT_TYPE_STATUSES['proof-of-funds']]).toEqual(['claimed']);
+    });
+  });
+
+  describe('combineSourceContributions', () => {
+    type RailA = Parameters<typeof combineSourceContributions>[0][number];
+
+    function railA(over: Partial<RailA> & { ibl_id: string; invoice_id: string }): RailA {
+      return {
+        itemized_amount: 100,
+        invoice_amount: 100,
+        invoice_status: 'pending',
+        deposit_id: null,
+        deposit_amount: null,
+        deposit_status: null,
+        deposit_entry_type: null,
+        deposit_budget_source_id: null,
+        ...over,
+      };
+    }
+
+    it('merges Rail A and Rail B per invoice within the status slice', () => {
+      const combined = combineSourceContributions(
+        [railA({ ibl_id: 'a1', invoice_id: 'inv-1', itemized_amount: 600, invoice_amount: 1000 })],
+        [{ invoiceId: 'inv-1', amount: 400, status: 'paid', entryType: 'deposit' }],
+        REPORT_TYPE_STATUSES.claim,
+      );
+      expect(combined.get('inv-1')).toBe(1000);
+    });
+
+    it('rounds each invoice to whole cents (no float noise) and drops claimed rows outside the slice', () => {
+      const combined = combineSourceContributions(
+        [
+          railA({ ibl_id: 'a1', invoice_id: 'inv-1', itemized_amount: 0.1, invoice_amount: 0.3 }),
+          railA({ ibl_id: 'a2', invoice_id: 'inv-1', itemized_amount: 0.2, invoice_amount: 0.3 }),
+          railA({ ibl_id: 'a3', invoice_id: 'inv-2', invoice_status: 'claimed' }),
+        ],
+        [],
+        REPORT_TYPE_STATUSES.claim,
+      );
+      expect(combined.get('inv-1')).toBe(0.3);
+      expect(combined.has('inv-2')).toBe(false);
+    });
+
+    it('drops an invoice whose contributions net to zero and keeps a negative refund adjustment', () => {
+      const combined = combineSourceContributions(
+        [railA({ ibl_id: 'a1', invoice_id: 'inv-1', itemized_amount: 100, invoice_amount: 100 })],
+        [
+          { invoiceId: 'inv-1', amount: 100, status: 'paid', entryType: 'refund' },
+          { invoiceId: 'inv-3', amount: 50, status: 'paid', entryType: 'refund' },
+        ],
+        REPORT_TYPE_STATUSES.claim,
+      );
+      expect(combined.has('inv-1')).toBe(false);
+      expect(combined.get('inv-3')).toBe(-50);
+    });
+
+    it('does not mutate the status slice it is given', () => {
+      const statuses = new Set(['pending']);
+      combineSourceContributions([], [], statuses);
+      expect([...statuses]).toEqual(['pending']);
+    });
+  });
+
+  describe('getDrawDownSet', () => {
+    it('is empty for a source without funded invoices', () => {
+      const sourceId = insertSource();
+      expect(getDrawDownSet(db, sourceId)).toEqual({ invoices: [], totalAmount: 0 });
+    });
+
+    it('lists exactly what the claim report lists, with the same total', async () => {
+      const sourceId = insertSource();
+      const otherSource = insertSource();
+      const vendorId = insertVendor();
+      const pending = insertInvoice(vendorId, { amount: 1000, status: 'pending' });
+      insertInvoiceBudgetLine(pending, insertWorkItemBudget(sourceId), 1000);
+      const paid = insertInvoice(vendorId, { amount: 250.25, status: 'paid' });
+      insertInvoiceBudgetLine(paid, insertWorkItemBudget(sourceId), 250.25);
+      const claimed = insertInvoice(vendorId, { amount: 500, status: 'claimed' });
+      insertInvoiceBudgetLine(claimed, insertWorkItemBudget(sourceId), 500);
+      const foreign = insertInvoice(vendorId, { amount: 700, status: 'pending' });
+      insertInvoiceBudgetLine(foreign, insertWorkItemBudget(otherSource), 700);
+
+      const set = getDrawDownSet(db, sourceId);
+      const report = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(set.totalAmount).toBe(report.totalAmount);
+      expect(set.totalAmount).toBe(1250.25);
+      expect(set.invoices.map((i) => i.invoiceId).sort()).toEqual([pending, paid].sort());
+      expect(set.invoices.length).toBe(
+        report.invoices.filter((i) => i.lineKind === 'invoice').length,
+      );
+    });
+
+    it('includes a deposit tagged to the source and a negative refund adjustment', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const hostInvoice = insertInvoice(vendorId, { amount: 2000, status: 'pending' });
+      insertDeposit(hostInvoice, { amount: 500, status: 'paid', budgetSourceId: sourceId });
+      const refundHost = insertInvoice(vendorId, { amount: 300, status: 'paid' });
+      insertDeposit(refundHost, {
+        amount: 100,
+        status: 'paid',
+        entryType: 'refund',
+        budgetSourceId: sourceId,
+      });
+
+      const set = getDrawDownSet(db, sourceId);
+      const report = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(set.invoices.find((i) => i.invoiceId === hostInvoice)!.amount).toBe(500);
+      expect(set.invoices.find((i) => i.invoiceId === refundHost)!.amount).toBe(-100);
+      expect(set.totalAmount).toBe(400);
+      expect(set.totalAmount).toBe(report.totalAmount);
     });
   });
 });

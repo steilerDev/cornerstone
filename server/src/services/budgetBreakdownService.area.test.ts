@@ -240,7 +240,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
         name: opts.name ?? `Subsidy ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
-        applicationStatus: 'eligible',
+        applicationStatus: 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: ts,
         updatedAt: ts,
       })

@@ -204,10 +204,17 @@ export interface SubsidyPaybackEntry {
   name: string;
   reductionType: 'percentage' | 'fixed';
   reductionValue: number;
-  /** Minimum expected payback (lower bound based on confidence margins). */
+  /**
+   * Best-scenario share of this grant (every unlinked line at the low end of its margin).
+   * Names a scenario, not an ordering: for a capped grant `minPayback` can exceed `maxPayback`.
+   */
   minPayback: number;
-  /** Maximum expected payback (upper bound based on confidence margins). */
+  /** Worst-scenario share of this grant (every unlinked line at the high end of its margin). */
   maxPayback: number;
+  /** Expected-scenario share of this grant. */
+  expectedPayback: number;
+  /** true for approved/received grants; totals count only these. */
+  counted: boolean;
 }
 
 /**

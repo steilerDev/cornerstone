@@ -113,7 +113,7 @@ describe('subsidyPaybackService', () => {
         eligibility: null,
         reductionType: opts.reductionType ?? 'percentage',
         reductionValue: opts.reductionValue ?? 10,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         applicationDeadline: null,
         notes: null,
         createdBy: null,
@@ -506,6 +506,7 @@ describe('subsidyPaybackService', () => {
   describe('fixed subsidies', () => {
     it('returns the reductionValue as minPayback and maxPayback (min === max) for a fixed subsidy', () => {
       const workItemId = insertWorkItem();
+      insertBudgetLine({ workItemId, plannedAmount: 10000, confidence: 'invoice' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
@@ -517,15 +518,16 @@ describe('subsidyPaybackService', () => {
       expect(result.subsidies[0]!.maxPayback).toBe(5000);
     });
 
-    it('returns fixed amount even when work item has no budget lines', () => {
+    it('pays nothing for a fixed subsidy when the work item has no budget line', () => {
+      // Rule (legacy fixed grants, shown unchanged): value per item, split over eligible lines, each part capped at the line cost; an item without an eligible line pays 0.
       const workItemId = insertWorkItem();
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 2000 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
       const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
-      expect(result.minTotalPayback).toBe(2000);
-      expect(result.maxTotalPayback).toBe(2000);
+      expect(result.minTotalPayback).toBe(0);
+      expect(result.maxTotalPayback).toBe(0);
     });
 
     it('returns fixed amount regardless of budget line amounts', () => {
@@ -604,9 +606,13 @@ describe('subsidyPaybackService', () => {
 
       const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
+      // Rule (ADR-039): every non-rejected grant is listed, but only approved/received grants
+      // (counted) enter the totals: 2 x 100 instead of 4 x 100.
       expect(result.subsidies).toHaveLength(4);
-      expect(result.minTotalPayback).toBe(400);
-      expect(result.maxTotalPayback).toBe(400);
+      expect(result.subsidies.map((e) => e.counted)).toEqual([false, false, true, true]);
+      expect(result.minTotalPayback).toBe(200);
+      expect(result.maxTotalPayback).toBe(200);
+      expect(result.expectedTotalPayback).toBe(200);
     });
   });
 

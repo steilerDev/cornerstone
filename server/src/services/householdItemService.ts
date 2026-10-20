@@ -28,6 +28,7 @@ import { toLikeContainsPattern } from './shared/likePattern.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { getExpectedGrantsByHouseholdItem } from './moneyService.js';
 import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
@@ -125,60 +126,21 @@ function getTotalActualAmount(db: DbType, householdItemId: string): number {
 }
 
 /**
- * Calculate the total subsidy reduction for a household item.
- * Sums up all reductions from linked subsidy programs (non-rejected).
- * For percentage subsidies, computes based on matching budget lines with confidence margins.
- * For fixed subsidies, uses the fixed reduction value.
- */
-function getTotalSubsidyReduction(db: DbType, householdItemId: string, vatRate: number): number {
-  // Fetch linked subsidies (non-rejected)
-  const linkedSubsidies = db
-    .select({
-      id: subsidyPrograms.id,
-      reductionType: subsidyPrograms.reductionType,
-      reductionValue: subsidyPrograms.reductionValue,
-    })
-    .from(householdItemSubsidies)
-    .innerJoin(subsidyPrograms, eq(subsidyPrograms.id, householdItemSubsidies.subsidyProgramId))
-    .where(
-      and(
-        eq(householdItemSubsidies.householdItemId, householdItemId),
-        sql`${subsidyPrograms.applicationStatus} != 'rejected'`,
-      ),
-    )
-    .all();
-
-  if (linkedSubsidies.length === 0) {
-    return 0;
-  }
-
-  let totalReduction = 0;
-
-  for (const subsidy of linkedSubsidies) {
-    if (subsidy.reductionType === 'fixed') {
-      totalReduction += subsidy.reductionValue;
-    } else if (subsidy.reductionType === 'percentage') {
-      // For percentage subsidies, compute the reduction as percentage of planned amount
-      const plannedAmount = getTotalPlannedAmount(db, householdItemId, vatRate);
-      const reduction = plannedAmount * (subsidy.reductionValue / 100);
-      totalReduction += reduction;
-    }
-  }
-
-  return totalReduction;
-}
-
-/**
  * Compute the budget aggregates for a household item.
+ * `subsidyReduction` is the item's counted expected grant share from the money service.
  */
 function getBudgetSummary(
   db: DbType,
   householdItemId: string,
   vatRate: number,
+  expectedGrants?: Map<string, number>,
 ): HouseholdItemBudgetAggregate {
   const totalPlanned = getTotalPlannedAmount(db, householdItemId, vatRate);
   const totalActual = getTotalActualAmount(db, householdItemId);
-  const subsidyReduction = getTotalSubsidyReduction(db, householdItemId, vatRate);
+  // The item's counted grant share, expected scenario (money service, ADR-039). Lists pass a map
+  // computed once per request; a single item computes it on demand.
+  const subsidyReduction =
+    (expectedGrants ?? getExpectedGrantsByHouseholdItem(db, vatRate)).get(householdItemId) ?? 0;
   const netCost = totalPlanned - subsidyReduction;
 
   return {
@@ -220,6 +182,7 @@ export function toHouseholdItemSummary(
   item: typeof householdItems.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
   vatRate: number,
+  expectedGrants?: Map<string, number>,
 ): HouseholdItemSummary {
   const vendor = item.vendorId
     ? (db.select().from(vendors).where(eq(vendors.id, item.vendorId)).get() ?? null)
@@ -249,7 +212,7 @@ export function toHouseholdItemSummary(
     url: item.url,
     budgetLineCount: getBudgetLineCount(db, item.id),
     totalPlannedAmount: getTotalPlannedAmount(db, item.id, vatRate),
-    budgetSummary: getBudgetSummary(db, item.id, vatRate),
+    budgetSummary: getBudgetSummary(db, item.id, vatRate, expectedGrants),
     createdBy: toUserSummary(createdByUser),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -679,7 +642,11 @@ export function listHouseholdItems(
     .offset(offset)
     .all();
 
-  const items = itemRows.map((item) => toHouseholdItemSummary(db, item, areaMap, vatRate));
+  // Counted grant shares are computed once for the whole page (money service, ADR-039)
+  const expectedGrants = getExpectedGrantsByHouseholdItem(db, vatRate);
+  const items = itemRows.map((item) =>
+    toHouseholdItemSummary(db, item, areaMap, vatRate, expectedGrants),
+  );
 
   const filterMeta: FilterMeta = {
     plannedCost: { min: metaRow?.plannedCostMin ?? 0, max: metaRow?.plannedCostMax ?? 0 },

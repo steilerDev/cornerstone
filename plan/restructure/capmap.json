@@ -973,7 +973,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q4",
-    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used."
+    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used. #2228: Left to spend (expected/best/worst, strict verdict), Funding total, Expected cost, Expected grants, Paid, Still to pay served by the money service (`money` on GET /api/budget/overview); UI in 4.5 (Money › Overview) and 3.3 (Home › Pulse)."
   },
   "MNY-010": {
     "name": "Expand Available funds into per-source allocated cost, payback and net headroom",
@@ -981,7 +981,7 @@
     "to": "Money > Overview > funding rows always visible ('Allocated €x of €y' with a bar; only an over-allocation gets its own amount); Money > Financing cards ('Unallocated' per source); Money > Overview > Breakdown 'By funding source'",
     "change": "promoted",
     "gate": "none",
-    "note": "Per-source headroom is called 'Unallocated' (Frei), never 'Left', so 'Left' names one figure (SIM-01)."
+    "note": "Per-source headroom is called 'Unallocated' (Frei), never 'Left', so 'Left' names one figure (SIM-01). #2228: per-source allocated / unallocated / over-allocated in `money.sources`; UI in 4.5/4.10."
   },
   "MNY-011": {
     "name": "Filter the whole breakdown by financing source",
@@ -1030,7 +1030,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Funding source page summary: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated (projected range shown per line state in the Cost tab).",
-    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
+    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2228: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated per source in `money.sources` (Rail A/B reused); UI in 4.10."
   },
   "MNY-025": {
     "name": "Create a financing source (bank loan, credit line, savings, other)",
@@ -1116,7 +1116,7 @@
     "to": "Money > Funding source page > primary 'Prepare bank report'; Money > Financing > primary 'Prepare bank report' + card ⋯; Home > Needs attention N8 'Ready to submit' (one definition: not submitted, To pay or Paid, funded by a bank loan or credit line — the same set the draw-down request lists)",
     "change": "promoted",
     "gate": "none",
-    "note": "On real data one loan source has a single item ready to submit. Own-funds items never count (R-m7)."
+    "note": "On real data one loan source has a single item ready to submit. Own-funds items never count (R-m7). #2228: Ready to submit = the bank report's draw-down set (one predicate, `getDrawDownSet`); loan and credit-line sources only; own funds never count."
   },
   "MNY-036": {
     "name": "View subsidy programs with status, reduction, cap, oversubscription, deadline and categories",
@@ -3647,7 +3647,7 @@
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Home > Pulse); every old URL redirects there in one hop.",
     "decision": "Q4",
-    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card."
+    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3."
   },
   "PLT-055": {
     "name": "See a budget health verdict (On Budget / At Risk / Over Budget)",
@@ -3657,7 +3657,7 @@
     "gate": "none",
     "acceptance": "Pulse verdict chip from the money service (On budget / Over budget).",
     "decision": "Q4",
-    "note": "One health rule shared with Money > Overview (P02). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card."
+    "note": "One health rule shared with Money > Overview (P02). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3."
   },
   "PLT-056": {
     "name": "See planned cost range, actual spend and expected subsidy savings on the dashboard",
@@ -3666,7 +3666,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not)."
+    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not). #2228: Expected cost, Paid, Expected grants served by the money service."
   },
   "PLT-057": {
     "name": "Be warned on the dashboard when subsidies are oversubscribed",
@@ -3675,7 +3675,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained."
+    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained. #2228: grants[].capped / uncappedPayout replace the oversubscription computation (the legacy `oversubscribedSubsidies` field is derived from it)."
   },
   "PLT-058": {
     "name": "Jump from the dashboard to the budget overview",

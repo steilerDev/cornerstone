@@ -257,7 +257,7 @@ describe('VAT_RATE is honored by budget routes', () => {
           name: 'Ten percent',
           reductionType: 'percentage',
           reductionValue: 10,
-          applicationStatus: 'eligible',
+          applicationStatus: 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
           createdAt: now,
           updatedAt: now,
         })
@@ -302,7 +302,7 @@ describe('VAT_RATE is honored by budget routes', () => {
           name: 'Ten percent WI',
           reductionType: 'percentage',
           reductionValue: 10,
-          applicationStatus: 'eligible',
+          applicationStatus: 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
           createdAt: now,
           updatedAt: now,
         })

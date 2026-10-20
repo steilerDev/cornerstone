@@ -153,7 +153,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
         name: `Subsidy Program ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })
@@ -297,7 +297,8 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
   // ─── Fixed subsidies ──────────────────────────────────────────────────────
 
   it('fixed subsidy: capped at itemized amount when itemized amount is smaller than per-line share', () => {
-    // plannedAmount=10000, invoiced at 50, fixed subsidy=1000 → reduction=min(1000,50)=50
+    // Rule (ADR-039, legacy fixed grants shown unchanged): each line's part is capped at that
+    // line's cost, so a 1,000 grant on a line invoiced at 50 pays 50.
     const catId = insertBudgetCategory('Cat-Fixed-Cap');
     const { workItemId, budgetLineId } = insertWorkItemWithBudget({
       plannedAmount: 10000,
@@ -309,8 +310,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
 
     const result = getBudgetOverview(db, 0.19);
 
-    // perLineAmount = 1000/1 = 1000; costBasis = 50; min(1000, 50) = 50
-    expect(result.subsidySummary.totalReductions).toBeCloseTo(50, 5);
+    expect(result.subsidySummary.totalReductions).toBe(50);
   });
 
   it('fixed subsidy: NOT capped when itemized amount exceeds per-line share', () => {

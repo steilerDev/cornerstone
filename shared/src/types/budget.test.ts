@@ -582,6 +582,8 @@ describe('SubsidyPaybackEntry interface', () => {
       reductionValue: 15,
       minPayback: 850,
       maxPayback: 1200,
+      expectedPayback: 850,
+      counted: true,
     };
 
     expect(entry.subsidyProgramId).toBe('sp-001');
@@ -600,6 +602,8 @@ describe('SubsidyPaybackEntry interface', () => {
       reductionValue: 5000,
       minPayback: 5000,
       maxPayback: 5000,
+      expectedPayback: 5000,
+      counted: true,
     };
 
     expect(entry.reductionType).toBe('fixed');
@@ -616,6 +620,8 @@ describe('SubsidyPaybackEntry interface', () => {
       reductionValue: 20,
       minPayback: 2000,
       maxPayback: 2800,
+      expectedPayback: 2000,
+      counted: true,
     };
 
     expect(entry.minPayback).toBeLessThanOrEqual(entry.maxPayback);
@@ -630,6 +636,8 @@ describe('SubsidyPaybackEntry interface', () => {
         reductionValue: 10,
         minPayback: 100,
         maxPayback: 150,
+        expectedPayback: 100,
+        counted: true,
       },
       {
         subsidyProgramId: 'sp-f',
@@ -638,6 +646,8 @@ describe('SubsidyPaybackEntry interface', () => {
         reductionValue: 3000,
         minPayback: 3000,
         maxPayback: 3000,
+        expectedPayback: 3000,
+        counted: true,
       },
     ];
 
@@ -951,6 +961,8 @@ describe('WorkItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', () =>
       reductionValue: 25,
       minPayback: 500,
       maxPayback: 750,
+      expectedPayback: 500,
+      counted: true,
     };
 
     const wiEntry: WorkItemSubsidyPaybackEntry = base;
@@ -966,6 +978,8 @@ describe('WorkItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', () =>
       reductionValue: 2000,
       minPayback: 2000,
       maxPayback: 2000,
+      expectedPayback: 2000,
+      counted: true,
     };
 
     const base: SubsidyPaybackEntry = wiEntry;
@@ -983,6 +997,8 @@ describe('HouseholdItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', 
       reductionValue: 300,
       minPayback: 300,
       maxPayback: 300,
+      expectedPayback: 300,
+      counted: true,
     };
 
     const hiEntry: HouseholdItemSubsidyPaybackEntry = base;
@@ -998,6 +1014,8 @@ describe('HouseholdItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', 
       reductionValue: 12,
       minPayback: 240,
       maxPayback: 360,
+      expectedPayback: 240,
+      counted: true,
     };
 
     const base: SubsidyPaybackEntry = hiEntry;
@@ -1014,6 +1032,8 @@ describe('HouseholdItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', 
       reductionValue: 5,
       minPayback: 50,
       maxPayback: 75,
+      expectedPayback: 50,
+      counted: true,
     };
 
     const hiEntry: HouseholdItemSubsidyPaybackEntry = wiEntry;

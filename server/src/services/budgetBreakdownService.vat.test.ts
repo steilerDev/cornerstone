@@ -122,7 +122,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
         maximumAmount: opts.maximumAmount ?? null,
-        applicationStatus: opts.applicationStatus ?? 'eligible',
+        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
         createdAt: now,
         updatedAt: now,
       })

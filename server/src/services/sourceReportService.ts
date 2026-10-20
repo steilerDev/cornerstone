@@ -40,6 +40,128 @@ function today(): string {
 }
 
 /**
+ * Invoice statuses (and deposit statuses) that a report type includes.
+ * `claim` is the draw-down set: what is ready to submit to the bank (ADR-039).
+ */
+export const REPORT_TYPE_STATUSES: Record<SourceReportType, ReadonlySet<string>> = {
+  'budget-overview': new Set(['quotation', 'pending', 'paid', 'claimed']),
+  claim: new Set(['pending', 'paid']),
+  'proof-of-funds': new Set(['claimed']),
+};
+
+/**
+ * Rail A predicate: invoice budget lines (`ibl`) whose budget line is funded by `sourceId`.
+ * Shared by the bank report and the draw-down set so both select exactly the same lines.
+ * Embedded in a query over `invoice_budget_lines ibl`.
+ */
+function railALineFilter(sourceId: string) {
+  return sql`(
+      (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM work_item_budgets wib2
+        WHERE wib2.id = ibl.work_item_budget_id AND wib2.budget_source_id = ${sourceId}
+      ))
+      OR
+      (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM household_item_budgets hib2
+        WHERE hib2.id = ibl.household_item_budget_id AND hib2.budget_source_id = ${sourceId}
+      ))
+    )`;
+}
+
+/** Rail B rows: deposits tagged to a source. */
+interface RailBContributionRow {
+  invoiceId: string;
+  amount: number;
+  status: string;
+  entryType: string;
+}
+
+type RailAContributionRow = Parameters<typeof computeLineContributionsExcludingTagged>[0][number];
+
+/** Merges Rail A line contributions and Rail B tagged-deposit contributions per invoice (raw sums). */
+function mergeContributions(
+  railALineContributions: Map<string, { invoiceId: string; contribution: number }>,
+  railBContributions: Map<string, number>,
+): Map<string, number> {
+  const combined = new Map<string, number>();
+  for (const [_iblId, lineContrib] of railALineContributions) {
+    const existing = combined.get(lineContrib.invoiceId) ?? 0;
+    combined.set(lineContrib.invoiceId, existing + lineContrib.contribution);
+  }
+  for (const [invoiceId, railBAmount] of railBContributions) {
+    const existing = combined.get(invoiceId) ?? 0;
+    combined.set(invoiceId, existing + railBAmount);
+  }
+  return combined;
+}
+
+/**
+ * Combines Rail A and Rail B contributions per invoice, rounds each invoice to whole cents and
+ * drops zero rows. One combiner for the bank report and the money service (ADR-039).
+ */
+export function combineSourceContributions(
+  railARows: RailAContributionRow[],
+  railBRows: RailBContributionRow[],
+  statuses: ReadonlySet<string>,
+): Map<string, number> {
+  const targetStatuses = new Set(statuses);
+  const combined = mergeContributions(
+    computeLineContributionsExcludingTagged(railARows, targetStatuses),
+    sumTaggedDepositContributionsByInvoice(railBRows, targetStatuses),
+  );
+  const rounded = new Map<string, number>();
+  for (const [invoiceId, rawAmount] of combined) {
+    const roundedAmount = toCents(rawAmount) / 100;
+    if (roundedAmount !== 0) {
+      rounded.set(invoiceId, roundedAmount);
+    }
+  }
+  return rounded;
+}
+
+/**
+ * The draw-down set of a funding source: exactly what the `claim` bank report lists
+ * (pending/paid, Rail A + Rail B, per-invoice rounding, zero rows dropped). Amounts may be
+ * negative (refund adjustments); `totalAmount` is computed as `getSourceReport` computes it.
+ */
+export function getDrawDownSet(
+  db: DbType,
+  sourceId: string,
+): { invoices: Array<{ invoiceId: string; amount: number }>; totalAmount: number } {
+  const railARows = db.all<DepositAwareRow & { deposit_budget_source_id: string | null }>(
+    sql`SELECT
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status,
+      d.entry_type        AS deposit_entry_type,
+      d.budget_source_id  AS deposit_budget_source_id
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    WHERE ${railALineFilter(sourceId)}`,
+  );
+  const railBRows = db.all<RailBContributionRow>(
+    sql`SELECT
+      d.invoice_id AS invoiceId,
+      d.amount AS amount,
+      d.status AS status,
+      d.entry_type AS entryType
+    FROM invoice_deposits d
+    WHERE d.budget_source_id = ${sourceId}`,
+  );
+
+  const combined = combineSourceContributions(railARows, railBRows, REPORT_TYPE_STATUSES.claim);
+  const invoicesOut = Array.from(combined, ([invoiceId, amount]) => ({ invoiceId, amount }));
+  const totalAmount = toCents(invoicesOut.reduce((sum, inv) => sum + inv.amount, 0)) / 100;
+  return { invoices: invoicesOut, totalAmount };
+}
+
+/**
  * Get a source report for a given budget source and report type.
  * Story #1891: Implements Rail A (line-derived via ExcludingTagged) + Rail B (deposit-direct).
  * The report includes all invoices whose budget lines or deposits reference this source,
@@ -63,22 +185,7 @@ export async function getSourceReport(
   }
 
   // 2. Determine target statuses based on report type
-  const targetStatuses = new Set<string>();
-  switch (type) {
-    case 'budget-overview':
-      targetStatuses.add('quotation');
-      targetStatuses.add('pending');
-      targetStatuses.add('paid');
-      targetStatuses.add('claimed');
-      break;
-    case 'claim':
-      targetStatuses.add('pending');
-      targetStatuses.add('paid');
-      break;
-    case 'proof-of-funds':
-      targetStatuses.add('claimed');
-      break;
-  }
+  const targetStatuses = new Set<string>(REPORT_TYPE_STATUSES[type]);
 
   // Step a: Query rows (invoice + deposits) for Rail A (line-derived via ExcludingTagged)
   type RailARow = DepositAwareRow & {
@@ -129,17 +236,7 @@ export async function getSourceReport(
     LEFT JOIN household_items hi ON hi.id = hib.household_item_id
     LEFT JOIN areas awi ON awi.id = wi.area_id
     LEFT JOIN areas ahi ON ahi.id = hi.area_id
-    WHERE (
-      (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM work_item_budgets wib2
-        WHERE wib2.id = ibl.work_item_budget_id AND wib2.budget_source_id = ${sourceId}
-      ))
-      OR
-      (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM household_item_budgets hib2
-        WHERE hib2.id = ibl.household_item_budget_id AND hib2.budget_source_id = ${sourceId}
-      ))
-    )`,
+    WHERE ${railALineFilter(sourceId)}`,
   );
 
   // Step b: Rail A contributions per invoice (excluding tagged deposits)
@@ -250,16 +347,8 @@ export async function getSourceReport(
     }
   }
 
-  // Step e: Combined contributions (Rail A + Rail B)
-  const combinedContributions = new Map<string, number>();
-  for (const [_iblId, lineContrib] of railALineContributions) {
-    const existing = combinedContributions.get(lineContrib.invoiceId) ?? 0;
-    combinedContributions.set(lineContrib.invoiceId, existing + lineContrib.contribution);
-  }
-  for (const [invoiceId, railBAmount] of railBContributions) {
-    const existing = combinedContributions.get(invoiceId) ?? 0;
-    combinedContributions.set(invoiceId, existing + railBAmount);
-  }
+  // Step e: Combined contributions (Rail A + Rail B), same merge as combineSourceContributions
+  const combinedContributions = mergeContributions(railALineContributions, railBContributions);
 
   // Step f: Compute isSplit for all report invoices in one query
   // isSplit = true if invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits

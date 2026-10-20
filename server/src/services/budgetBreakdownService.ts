@@ -16,17 +16,13 @@ import type {
   SubsidyAdjustment,
   BudgetSourceSummaryBreakdown,
 } from '@cornerstone/shared';
-import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import { getDescendantIds } from './areaService.js';
 import {
   computeDepositAwareAggregates,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
-import type {
-  LinkedSubsidy,
-  SubsidyCapMeta,
-  PerSubsidyTotals,
-} from './shared/subsidyCalculationEngine.js';
+import { computeMoney, itemKey, toMajor, zeroScen } from './shared/moneyEngine.js';
+import { getBreakdownMoney, loadMoneyInput } from './moneyService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -42,7 +38,9 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  * - If no budget lines are invoiced: costDisplay='projected', show projectedMin–projectedMax
  * - If mixed: costDisplay='mixed', show both
  *
- * Applies subsidy payback per entity using the same logic as budgetOverviewService.
+ * Grant paybacks come from the money service (ADR-039, #2228): per item the counted
+ * (approved/received) grant share, `subsidyPayback` in the worst scenario and
+ * `minSubsidyPayback` in the best scenario, computed on the filtered line set.
  *
  * @param db Database instance
  * @param deselectedSources Set of budget source IDs (and/or literal 'unassigned') to exclude
@@ -277,154 +275,16 @@ export function getBudgetBreakdown(
   const filteredWiLineRows = workItemLineRows.filter((r) => !isLineFiltered(r.budgetSourceId));
   const filteredHiLineRows = hiLineRows.filter((r) => !isLineFiltered(r.budgetSourceId));
 
-  // ── 5. Queries E/F/G/H: Subsidy data (same pattern as budgetOverviewService) ──
-  const subsidyRows = db.all<{
-    subsidyId: string;
-    name: string;
-    reductionType: string;
-    reductionValue: number;
-    maximumAmount: number | null;
-    includesNoCategoryItems: number;
-  }>(
-    sql`SELECT
-      id                          AS subsidyId,
-      name                        AS name,
-      reduction_type              AS reductionType,
-      reduction_value             AS reductionValue,
-      maximum_amount              AS maximumAmount,
-      includes_no_category_items  AS includesNoCategoryItems
-    FROM subsidy_programs
-    WHERE application_status != 'rejected'`,
-  );
-
-  const subsidyCategoryRows = db.all<{ subsidyId: string; budgetCategoryId: string }>(
-    sql`SELECT
-      subsidy_program_id  AS subsidyId,
-      budget_category_id  AS budgetCategoryId
-    FROM subsidy_program_categories`,
-  );
-
-  const subsidyCategoryMap = new Map<string, Set<string>>();
-  for (const row of subsidyCategoryRows) {
-    let cats = subsidyCategoryMap.get(row.subsidyId);
-    if (!cats) {
-      cats = new Set<string>();
-      subsidyCategoryMap.set(row.subsidyId, cats);
-    }
-    cats.add(row.budgetCategoryId);
-  }
-
-  // Entity -> subsidy links (both WI and HI)
-  const entitySubsidyRows = db.all<{ entityId: string; subsidyProgramId: string }>(
-    sql`SELECT
-      wis.work_item_id       AS entityId,
-      wis.subsidy_program_id AS subsidyProgramId
-    FROM work_item_subsidies wis
-    INNER JOIN subsidy_programs sp ON sp.id = wis.subsidy_program_id
-    WHERE sp.application_status != 'rejected'
-    UNION ALL
-    SELECT
-      his.household_item_id  AS entityId,
-      his.subsidy_program_id AS subsidyProgramId
-    FROM household_item_subsidies his
-    INNER JOIN subsidy_programs sp ON sp.id = his.subsidy_program_id
-    WHERE sp.application_status != 'rejected'`,
-  );
-
-  const entitySubsidyMap = new Map<string, Set<string>>();
-  for (const row of entitySubsidyRows) {
-    let progs = entitySubsidyMap.get(row.entityId);
-    if (!progs) {
-      progs = new Set<string>();
-      entitySubsidyMap.set(row.entityId, progs);
-    }
-    progs.add(row.subsidyProgramId);
-  }
-
-  // Build subsidy metadata map
-  const subsidyMeta = new Map<
-    string,
-    { reductionType: string; reductionValue: number; includesNoCategoryItems: boolean }
-  >();
-  for (const row of subsidyRows) {
-    subsidyMeta.set(row.subsidyId, {
-      reductionType: row.reductionType,
-      reductionValue: row.reductionValue,
-      includesNoCategoryItems: row.includesNoCategoryItems === 1,
-    });
-  }
-
-  // ── Helper: Compute per-entity subsidy payback ──────────────────────────────
-  function computeEntitySubsidyPayback(
-    entityId: string,
-    budgetLines: Array<{
-      id: string;
-      plannedAmount: number;
-      confidence: string;
-      budgetCategoryId: string | null;
-    }>,
-    invoiceMap: Map<string, { actualCost: number; isQuotation: boolean }>,
-    useMinMargin: boolean = false,
-  ): number {
-    const linkedSubsidyIds = entitySubsidyMap.get(entityId);
-    if (!linkedSubsidyIds || linkedSubsidyIds.size === 0) {
-      return 0;
-    }
-
-    // Build engine inputs from the entity's budget lines
-    const engineLines = budgetLines.map((line) => ({
-      id: line.id,
-      budgetCategoryId: line.budgetCategoryId,
-      plannedAmount: line.plannedAmount,
-      confidence: line.confidence,
-    }));
-
-    const engineSubsidies: LinkedSubsidy[] = [];
-    for (const subsidyId of linkedSubsidyIds) {
-      const meta = subsidyMeta.get(subsidyId);
-      if (!meta) continue;
-      engineSubsidies.push({
-        subsidyProgramId: subsidyId,
-        name: subsidyId,
-        reductionType: meta.reductionType as 'percentage' | 'fixed',
-        reductionValue: meta.reductionValue,
-        includesNoCategoryItems: meta.includesNoCategoryItems,
-      });
-    }
-
-    if (useMinMargin) {
-      // For min margin: create a custom invoice map that adjusts all lines by min margin
-      const minInvoiceMap = new Map<string, number>();
-      for (const line of budgetLines) {
-        const invoiceData = invoiceMap.get(line.id);
-        if (invoiceData !== undefined) {
-          const cost = typeof invoiceData === 'number' ? invoiceData : invoiceData.actualCost;
-          minInvoiceMap.set(line.id, cost);
-        } else {
-          const margin =
-            CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
-            CONFIDENCE_MARGINS.own_estimate;
-          minInvoiceMap.set(line.id, line.plannedAmount * (1 - margin));
-        }
-      }
-      const { minTotalPayback } = computeSubsidyEffects(
-        engineLines,
-        engineSubsidies,
-        subsidyCategoryMap,
-        minInvoiceMap,
-      );
-      return minTotalPayback;
-    } else {
-      // For max margin: use the provided invoice map as-is (which uses max margin or actual cost)
-      const { maxTotalPayback } = computeSubsidyEffects(
-        engineLines,
-        engineSubsidies,
-        subsidyCategoryMap,
-        invoiceMap,
-      );
-      return maxTotalPayback;
-    }
-  }
+  // ── 5. Money service runs (ADR-039) ────────────────────────────────────────
+  // The engine input is loaded once and run twice: unfiltered (the response's `money`, same as
+  // the overview's) and over the filtered line set (legacy grant fields). The filter applies
+  // BEFORE the grant engine, so grants are recomputed on the surviving lines, capped and spread.
+  const moneyInput = loadMoneyInput(db, vatRate);
+  const unfilteredMoney = computeMoney(moneyInput);
+  const filteredMoney =
+    deselectedSources.size === 0
+      ? unfilteredMoney
+      : computeMoney(moneyInput, { includeLine: (line) => !isLineFiltered(line.budgetSourceId) });
 
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
@@ -730,46 +590,12 @@ export function getBudgetBreakdown(
     item.rawProjectedMax += rawMax;
   }
 
-  // Build budget category and source maps for work items
-  const wiBudgetLineCategoryMap = new Map<string, string | null>();
-  const wiBudgetLineSourceMap = new Map<string, string | null>();
-  const wiBudgetLineIncludesVatMap = new Map<string, number | null>();
-  for (const row of filteredWiLineRows) {
-    wiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
-    wiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
-    wiBudgetLineIncludesVatMap.set(row.budgetLineId, row.includesVat);
-  }
-
   // Apply subsidy payback and cost display
   for (const item of wiEntityData.values()) {
-    const subsidyPayback = computeEntitySubsidyPayback(
-      item.workItemId,
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
-      })),
-      wiLineInvoiceMap,
-      false,
-    );
-    const minSubsidyPayback = computeEntitySubsidyPayback(
-      item.workItemId,
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
-      })),
-      wiLineInvoiceMap,
-      true,
-    );
+    const share =
+      filteredMoney.items.get(itemKey('work_item', item.workItemId))?.grants ?? zeroScen();
+    const subsidyPayback = toMajor(share.worst);
+    const minSubsidyPayback = toMajor(share.best);
 
     item.subsidyPayback = subsidyPayback;
     item.minSubsidyPayback = minSubsidyPayback;
@@ -917,46 +743,13 @@ export function getBudgetBreakdown(
     item.rawProjectedMax += rawMax;
   }
 
-  // Build budget category and source maps for household items
-  const hiBudgetLineCategoryMap = new Map<string, string | null>();
-  const hiBudgetLineSourceMap = new Map<string, string | null>();
-  const hiBudgetLineIncludesVatMap = new Map<string, number | null>();
-  for (const row of filteredHiLineRows) {
-    hiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
-    hiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
-    hiBudgetLineIncludesVatMap.set(row.budgetLineId, row.includesVat);
-  }
-
   // Apply subsidy payback and cost display
   for (const item of hiEntityData.values()) {
-    const subsidyPayback = computeEntitySubsidyPayback(
-      item.householdItemId,
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
-      })),
-      hiLineInvoiceMap,
-      false,
-    );
-    const minSubsidyPayback = computeEntitySubsidyPayback(
-      item.householdItemId,
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
-      })),
-      hiLineInvoiceMap,
-      true,
-    );
+    const share =
+      filteredMoney.items.get(itemKey('household_item', item.householdItemId))?.grants ??
+      zeroScen();
+    const subsidyPayback = toMajor(share.worst);
+    const minSubsidyPayback = toMajor(share.best);
 
     item.subsidyPayback = subsidyPayback;
     item.minSubsidyPayback = minSubsidyPayback;
@@ -1019,126 +812,17 @@ export function getBudgetBreakdown(
     },
   );
 
-  // ── Aggregate per-subsidy payback totals for cap enforcement ─────────────────
-  const perSubsidyPayback = new Map<string, { min: number; max: number }>();
-
-  // Re-iterate all FILTERED entities to collect per-subsidy payback
-  const allEntityLines = new Map<
-    string,
-    Array<{
-      id: string;
-      plannedAmount: number;
-      confidence: string;
-      budgetCategoryId: string | null;
-    }>
-  >();
-
-  for (const row of filteredWiLineRows) {
-    let arr = allEntityLines.get(row.workItemId);
-    if (!arr) {
-      arr = [];
-      allEntityLines.set(row.workItemId, arr);
-    }
-    arr.push({
-      id: row.budgetLineId,
-      plannedAmount: effective(row),
-      confidence: row.confidence,
-      budgetCategoryId: row.budgetCategoryId,
-    });
-  }
-
-  for (const row of filteredHiLineRows) {
-    let arr = allEntityLines.get(row.householdItemId);
-    if (!arr) {
-      arr = [];
-      allEntityLines.set(row.householdItemId, arr);
-    }
-    arr.push({
-      id: row.budgetLineId,
-      plannedAmount: effective(row),
-      confidence: row.confidence,
-      budgetCategoryId: row.budgetCategoryId,
-    });
-  }
-
-  // Combined invoice map for subsidy effect calculations
-  const combinedInvoiceMap = new Map<
-    string,
-    number | { actualCost: number; isQuotation: boolean }
-  >();
-  for (const [k, v] of wiLineInvoiceMap) combinedInvoiceMap.set(k, v);
-  for (const [k, v] of hiLineInvoiceMap) combinedInvoiceMap.set(k, v);
-
-  for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
-    const entityLines = allEntityLines.get(entityId) ?? [];
-    const engineLines = entityLines.map((line) => ({
-      id: line.id,
-      budgetCategoryId: line.budgetCategoryId,
-      plannedAmount: line.plannedAmount,
-      confidence: line.confidence,
+  // ── Subsidy adjustments: capped grants of the filtered run (ADR-039) ─────────
+  const subsidyAdjustments: SubsidyAdjustment[] = filteredMoney.grants
+    .filter((g) => g.capped)
+    .map((g) => ({
+      subsidyProgramId: g.input.id,
+      name: g.input.name,
+      maximumAmount: g.input.maximumAmount ?? 0,
+      maxPayout: toMajor(g.payout.worst),
+      minExcess: toMajor(Math.max(0, g.uncapped.best - g.payout.best)),
+      maxExcess: toMajor(g.uncapped.worst - g.payout.worst),
     }));
-
-    const engineSubsidies: LinkedSubsidy[] = [];
-    for (const subsidyId of linkedSubsidyIds) {
-      const meta = subsidyMeta.get(subsidyId);
-      if (!meta) continue;
-      engineSubsidies.push({
-        subsidyProgramId: subsidyId,
-        name: subsidyId,
-        reductionType: meta.reductionType as 'percentage' | 'fixed',
-        reductionValue: meta.reductionValue,
-        includesNoCategoryItems: meta.includesNoCategoryItems,
-      });
-    }
-
-    const { subsidies: entityEffects } = computeSubsidyEffects(
-      engineLines,
-      engineSubsidies,
-      subsidyCategoryMap,
-      combinedInvoiceMap,
-    );
-
-    for (const effect of entityEffects) {
-      const existing = perSubsidyPayback.get(effect.subsidyProgramId);
-      if (existing) {
-        existing.min += effect.minPayback;
-        existing.max += effect.maxPayback;
-      } else {
-        perSubsidyPayback.set(effect.subsidyProgramId, {
-          min: effect.minPayback,
-          max: effect.maxPayback,
-        });
-      }
-    }
-  }
-
-  const perSubsidyTotals: PerSubsidyTotals[] = [];
-  for (const [subsidyProgramId, totals] of perSubsidyPayback) {
-    perSubsidyTotals.push({
-      subsidyProgramId,
-      uncappedMinPayback: totals.min,
-      uncappedMaxPayback: totals.max,
-    });
-  }
-
-  const subsidyCapMeta: SubsidyCapMeta[] = subsidyRows.map((row) => ({
-    subsidyProgramId: row.subsidyId,
-    name: row.name,
-    reductionType: row.reductionType as 'percentage' | 'fixed',
-    reductionValue: row.reductionValue,
-    maximumAmount: row.maximumAmount,
-  }));
-
-  const capResult = applySubsidyCaps(perSubsidyTotals, subsidyCapMeta);
-
-  const subsidyAdjustments: SubsidyAdjustment[] = capResult.oversubscribedSubsidies.map((s) => ({
-    subsidyProgramId: s.subsidyProgramId,
-    name: s.name,
-    maximumAmount: s.maximumAmount,
-    maxPayout: s.maxPayout,
-    minExcess: s.minExcess,
-    maxExcess: s.maxExcess,
-  }));
 
   // ── Aggregate per-source projectedMin/Max for the budgetSources array ────────
   // Query budget source metadata
@@ -1292,87 +976,12 @@ export function getBudgetBreakdown(
   }
   const hasUnassignedLines = unassignedProjMin > 0 || unassignedProjMax > 0;
 
-  // ── Per-source payback attribution (pro-rata, filtered lines only) ──
-  // For each entity that survived the filter, distribute its payback
-  // across its surviving budget lines weighted by max-perspective cost,
-  // then bucket by budgetSourceId.
+  // ── Per-source payback attribution (filtered run) ──
+  // Σ best / worst counted line shares of the filtered run, bucketed by the line's budget
+  // source ('unassigned' for lines without a source and for item-level shares).
   const sourcePaybackMap = new Map<string, { min: number; max: number }>();
-
-  function addSourcePayback(
-    entityLines: Array<{
-      id: string;
-      budgetSourceId: string | null;
-      plannedAmount: number;
-      confidence: string;
-      actualCost: number;
-      hasInvoice: boolean;
-      isQuotation: boolean;
-    }>,
-    maxPayback: number,
-    minPayback: number,
-  ): void {
-    if (maxPayback === 0 && minPayback === 0) return;
-
-    // Weight by max-perspective resolved cost of each surviving line
-    const lineCosts = entityLines.map((line) => {
-      const margin =
-        CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
-        CONFIDENCE_MARGINS.own_estimate;
-      if (line.hasInvoice && !line.isQuotation) return line.actualCost;
-      if (line.isQuotation) return line.actualCost * 1.05;
-      return line.plannedAmount * (1 + margin);
-    });
-    const totalCost = lineCosts.reduce((s, c) => s + c, 0);
-    const n = entityLines.length;
-
-    entityLines.forEach((line, i) => {
-      const weight = totalCost === 0 ? (n > 0 ? 1 / n : 0) : (lineCosts[i] ?? 0) / totalCost;
-      const key = line.budgetSourceId ?? 'unassigned';
-      const existing = sourcePaybackMap.get(key) ?? { min: 0, max: 0 };
-      existing.max += maxPayback * weight;
-      existing.min += minPayback * weight;
-      sourcePaybackMap.set(key, existing);
-    });
-  }
-
-  // Walk filtered WI entities
-  for (const item of wiEntityData.values()) {
-    addSourcePayback(
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        budgetSourceId: bl.budgetSourceId,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        actualCost: bl.actualCost,
-        hasInvoice: bl.hasInvoice,
-        isQuotation: bl.isQuotation,
-      })),
-      item.subsidyPayback,
-      item.minSubsidyPayback,
-    );
-  }
-
-  // Walk filtered HI entities
-  for (const item of hiEntityData.values()) {
-    addSourcePayback(
-      item.budgetLines.map((bl) => ({
-        id: bl.id,
-        budgetSourceId: bl.budgetSourceId,
-        plannedAmount: effective({
-          plannedAmount: bl.plannedAmount,
-          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
-        }),
-        confidence: bl.confidence,
-        actualCost: bl.actualCost,
-        hasInvoice: bl.hasInvoice,
-        isQuotation: bl.isQuotation,
-      })),
-      item.subsidyPayback,
-      item.minSubsidyPayback,
-    );
+  for (const [sourceKey, share] of filteredMoney.sourceGrants) {
+    sourcePaybackMap.set(sourceKey, { min: toMajor(share.best), max: toMajor(share.worst) });
   }
 
   // ── Build budgetSources array with new shape ──
@@ -1425,5 +1034,6 @@ export function getBudgetBreakdown(
     },
     subsidyAdjustments,
     budgetSources,
+    money: getBreakdownMoney({ result: unfilteredMoney }),
   };
 }
