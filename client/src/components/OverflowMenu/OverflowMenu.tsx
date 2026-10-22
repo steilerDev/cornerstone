@@ -63,6 +63,10 @@ export interface OverflowMenuChoiceOption {
   label: string;
   lang?: string;
   testId?: string;
+  /** Unavailable but still focusable (aria-disabled); activation is a no-op and the menu stays open. */
+  ariaDisabled?: boolean;
+  /** Why it is unavailable; the option's accessible description. Used with `ariaDisabled`. */
+  description?: string;
 }
 
 export interface OverflowMenuChoiceGroup {
@@ -487,6 +491,9 @@ export function OverflowMenu({
             <div className={styles.options}>
               {entry.options.map((option) => {
                 const selected = option.value === entry.value;
+                const descriptionId = option.description
+                  ? `${menuId}-${entry.id}-${option.value}-desc`
+                  : undefined;
                 return (
                   <button
                     key={option.value}
@@ -495,12 +502,22 @@ export function OverflowMenu({
                     aria-checked={selected}
                     tabIndex={-1}
                     lang={option.lang}
-                    className={`${styles.option} ${selected ? styles.optionSelected : ''}`}
+                    className={`${styles.option} ${selected ? styles.optionSelected : ''} ${option.ariaDisabled ? styles.optionDisabled : ''}`}
+                    aria-disabled={option.ariaDisabled ? 'true' : undefined}
+                    aria-describedby={descriptionId}
                     data-testid={option.testId}
-                    onClick={() => entry.onChange(option.value)}
+                    onClick={() => {
+                      if (option.ariaDisabled) return;
+                      entry.onChange(option.value);
+                    }}
                   >
                     {selected && <span aria-hidden="true">✓ </span>}
                     {option.label}
+                    {descriptionId && (
+                      <span id={descriptionId} className={sharedStyles.srOnly}>
+                        {option.description}
+                      </span>
+                    )}
                   </button>
                 );
               })}

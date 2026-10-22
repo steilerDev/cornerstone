@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and, asc, sql, gte, lte, inArray } from 'drizzle-orm';
+import { eq, desc, and, asc, sql, gte, lte, inArray, type SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, users, invoiceDeposits, invoiceBudgetLines } from '../db/schema.js';
@@ -13,6 +13,9 @@ import type {
   PaginationMeta,
   InvoiceStatusBreakdown,
   InvoiceStatusSummary,
+  InvoiceChipCounts,
+  InvoiceChipTally,
+  InvoiceChipsOutsideToPay,
   FilterMeta,
 } from '@cornerstone/shared';
 import {
@@ -161,6 +164,66 @@ export function listInvoices(db: DbType, vendorId: string): Invoice[] {
 }
 
 /**
+ * The one definition of "To pay" (an open item, story #2046 / MNY-055): the invoice is itself
+ * pending, OR it has at least one pending deposit (of either entryType) - a pending refund alone
+ * qualifies. Used by the `openOnly` list filter and by the chip counts.
+ */
+function openItemCondition(): SQL {
+  return sql`(${invoices.status} = 'pending' OR EXISTS (
+        SELECT 1 FROM invoice_deposits d
+        WHERE d.invoice_id = ${invoices.id} AND d.status = 'pending'
+      ))`;
+}
+
+/**
+ * Counts per list chip in ONE pass over invoices joined to vendors (EPIC-21 P4.2). The chips
+ * overlap (To pay includes quotations with a pending progress payment), so a GROUP BY status
+ * cannot produce them. `outside` counts the rows that are not in To pay.
+ */
+function countInvoiceChips(
+  db: DbType,
+  where: SQL | undefined,
+): { tally: InvoiceChipTally; outside: InvoiceChipsOutsideToPay } {
+  const open = openItemCondition();
+  const countIf = (cond: SQL) => sql<number>`COALESCE(SUM(CASE WHEN ${cond} THEN 1 ELSE 0 END), 0)`;
+  const isOffer = sql`${invoices.status} = 'quotation'`;
+  const isPaid = sql`${invoices.status} = 'paid'`;
+  const isSubmitted = sql`${invoices.status} = 'claimed'`;
+  const notOpen = sql`NOT ${open}`;
+  const row = db
+    .select({
+      all: sql<number>`COUNT(*)`,
+      toPay: countIf(open),
+      offers: countIf(isOffer),
+      paid: countIf(isPaid),
+      submitted: countIf(isSubmitted),
+      outAll: countIf(notOpen),
+      outOffers: countIf(sql`${isOffer} AND ${notOpen}`),
+      outPaid: countIf(sql`${isPaid} AND ${notOpen}`),
+      outSubmitted: countIf(sql`${isSubmitted} AND ${notOpen}`),
+    })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(where)
+    .get();
+  return {
+    tally: {
+      toPay: row!.toPay,
+      offers: row!.offers,
+      paid: row!.paid,
+      submitted: row!.submitted,
+      all: row!.all,
+    },
+    outside: {
+      offers: row!.outOffers,
+      paid: row!.outPaid,
+      submitted: row!.outSubmitted,
+      all: row!.outAll,
+    },
+  };
+}
+
+/**
  * List all invoices across all vendors with pagination, filtering, sorting, and a status summary.
  * `q` matches the invoice number, the company (vendor) name, or the invoice description (notes).
  */
@@ -187,50 +250,46 @@ export function listAllInvoices(
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
   filterMeta: FilterMeta;
+  chipCounts: InvoiceChipCounts;
 } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
   const openOnly = query.openOnly === true;
 
-  // Build base conditions (excluding numeric amount range filter)
-  const baseConditions = [];
-  if (query.status) {
-    baseConditions.push(eq(invoices.status, query.status));
-  }
+  // Filter conditions shared by the rows and the chip counts (everything except status,
+  // openOnly and the numeric amount range).
+  const filterConditions: SQL[] = [];
   if (query.vendorId) {
-    baseConditions.push(eq(invoices.vendorId, query.vendorId));
+    filterConditions.push(eq(invoices.vendorId, query.vendorId));
   }
   if (query.q) {
     const pattern = toLikeContainsPattern(query.q);
-    baseConditions.push(
+    filterConditions.push(
       sql`(LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\' OR LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\' OR LOWER(${invoices.notes}) LIKE LOWER(${pattern}) ESCAPE '\\')`,
     );
   }
   if (query.dateFrom) {
-    baseConditions.push(gte(invoices.date, query.dateFrom));
+    filterConditions.push(gte(invoices.date, query.dateFrom));
   }
   if (query.dateTo) {
-    baseConditions.push(lte(invoices.date, query.dateTo));
+    filterConditions.push(lte(invoices.date, query.dateTo));
   }
   if (query.dueDateFrom) {
-    baseConditions.push(gte(invoices.dueDate, query.dueDateFrom));
+    filterConditions.push(gte(invoices.dueDate, query.dueDateFrom));
   }
   if (query.dueDateTo) {
-    baseConditions.push(lte(invoices.dueDate, query.dueDateTo));
+    filterConditions.push(lte(invoices.dueDate, query.dueDateTo));
+  }
+  // Base conditions = filters + status + openOnly (excluding the numeric amount range).
+  // openOnly (story #2046 AC1/AC2) sits in baseConditions, not just `conditions`, so
+  // filterMeta's amount bounds reflect the open set being viewed, like `status`.
+  const baseConditions: SQL[] = [...filterConditions];
+  if (query.status) {
+    baseConditions.push(eq(invoices.status, query.status));
   }
   if (openOnly) {
-    // Story #2046 (AC1/AC2): an invoice is an "open item" if it is itself pending,
-    // OR it has at least one pending deposit (of either entryType) — a pending
-    // refund alone qualifies (AC18/AC20). Placed in baseConditions (not just
-    // `conditions`) so filterMeta's amount bounds reflect the open set being viewed,
-    // consistent with how `status` is already handled.
-    baseConditions.push(
-      sql`(${invoices.status} = 'pending' OR EXISTS (
-        SELECT 1 FROM invoice_deposits d
-        WHERE d.invoice_id = ${invoices.id} AND d.status = 'pending'
-      ))`,
-    );
+    baseConditions.push(openItemCondition());
   }
 
   const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
@@ -247,13 +306,14 @@ export function listAllInvoices(
     .get();
 
   // Build full conditions with numeric amount range filter for main query
-  const conditions = [...baseConditions];
+  const amountConditions: SQL[] = [];
   if (query.amountMin !== undefined) {
-    conditions.push(gte(invoices.amount, query.amountMin));
+    amountConditions.push(gte(invoices.amount, query.amountMin));
   }
   if (query.amountMax !== undefined) {
-    conditions.push(lte(invoices.amount, query.amountMax));
+    amountConditions.push(lte(invoices.amount, query.amountMax));
   }
+  const conditions = [...baseConditions, ...amountConditions];
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -455,11 +515,25 @@ export function listAllInvoices(
     amount: { min: metaRow!.amountMin, max: metaRow!.amountMax },
   };
 
+  // Chip counts (EPIC-21 P4.2): "matching" ignores status/openOnly, "totals" ignores everything.
+  const matchingConditions = [...filterConditions, ...amountConditions];
+  const matching = countInvoiceChips(
+    db,
+    matchingConditions.length > 0 ? and(...matchingConditions) : undefined,
+  );
+  const totals = countInvoiceChips(db, undefined);
+  const chipCounts: InvoiceChipCounts = {
+    matching: matching.tally,
+    outsideToPay: matching.outside,
+    totals: totals.tally,
+  };
+
   return {
     invoices: invoiceList,
     pagination: { page, pageSize, totalItems, totalPages },
     summary,
     filterMeta,
+    chipCounts,
   };
 }
 

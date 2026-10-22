@@ -25,6 +25,12 @@ import type * as BackupsApiTypes from './lib/backupsApi.js';
 import type * as SettingsApiTypes from './lib/settingsApi.js';
 import type * as AppTypes from './App.js';
 
+const EMPTY_CHIP_COUNTS = {
+  matching: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+  outsideToPay: { offers: 0, paid: 0, submitted: 0, all: 0 },
+  totals: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+};
+
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
 const mockLogin = jest.fn<typeof AuthApiTypes.login>();
 const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
@@ -464,6 +470,7 @@ describe('App', () => {
     mockFetchAllInvoices.mockResolvedValue({
       invoices: [],
       pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+      chipCounts: EMPTY_CHIP_COUNTS,
       summary: {
         pending: { count: 0, totalAmount: 0 },
         paid: { count: 0, totalAmount: 0 },

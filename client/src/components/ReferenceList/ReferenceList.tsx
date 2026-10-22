@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DeleteImpactEntityType } from '@cornerstone/shared';
@@ -14,6 +14,7 @@ import { Skeleton } from '../Skeleton/Skeleton.js';
 import styles from './ReferenceList.module.css';
 import { ReferenceListDialog } from './ReferenceListDialog.js';
 import { moveId, positionOf } from './reorder.js';
+import { REFERENCE_LIST_SEARCH_MIN_ROWS, filterReferenceItems } from './referenceListSearch.js';
 import { useReorder } from './useReorder.js';
 import type { ReorderSource } from './useReorder.js';
 
@@ -43,6 +44,10 @@ export interface ReferenceListLabels {
   readonly editItem: string;
   readonly empty: string;
   readonly loadFailed: string;
+  /** "Search cost categories": the search field's placeholder and accessible name. */
+  readonly search: string;
+  /** "No cost categories match." */
+  readonly noMatch: string;
   /** Shown on a 409 CONFLICT from create or update. */
   readonly duplicateName: string;
   /** Lead of the blocked delete dialog when DELETE answers 409; omit when delete never 409s. */
@@ -119,6 +124,9 @@ export function ReferenceList({
   const entriesLanguage = useEntriesLanguage() ?? undefined;
   const headingId = `${anchorId}-heading`;
   const instructionsId = useId();
+  const searchHintId = useId();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -128,8 +136,13 @@ export function ReferenceList({
   const [deleteState, setDeleteState] = useState<DeleteState | null>(null);
   const [reorderPending, setReorderPending] = useState(false);
   const [reorderFailed, setReorderFailed] = useState(false);
+  const [rawQuery, setRawQuery] = useState('');
 
   const ready = status === 'ready';
+  const showSearch = ready && (items.length >= REFERENCE_LIST_SEARCH_MIN_ROWS || rawQuery !== '');
+  const query = showSearch ? rawQuery : '';
+  const searching = query.trim() !== '';
+  const visibleItems = filterReferenceItems(items, query);
   const ids = items.map((item) => item.id);
   const byId = new Map(items.map((item) => [item.id, item]));
   const nameOf = (id: string) => byId.get(id)?.name ?? '';
@@ -144,7 +157,7 @@ export function ReferenceList({
     const pending = pendingFocusRef.current;
     if (!pending || dialog !== null || deleteState !== null) return;
     const find = (testId: string) =>
-      sectionRef.current?.querySelector<HTMLElement>(`[data-testid="${testId}"]`) ?? null;
+      sectionRef.current!.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
     let target: HTMLElement | null = null;
     if (pending.kind === 'menu') target = find(`${testIdPrefix}-menu-${pending.id}`);
     else if (pending.kind === 'handle') target = find(`${testIdPrefix}-handle-${pending.id}`);
@@ -155,7 +168,7 @@ export function ReferenceList({
       }
       target ??= headingRef.current;
     } else target = headingRef.current;
-    if (!target?.isConnected) return;
+    if (!target) return;
     target.focus();
     const sticky = (pending.kind === 'menu' || pending.kind === 'handle') && pending.sticky;
     if (!(sticky && reorderPending)) pendingFocusRef.current = null;
@@ -166,7 +179,6 @@ export function ReferenceList({
     movedId: string,
     source: ReorderSource | 'menu',
   ) => {
-    if (reorderPending) return;
     setReorderFailed(false);
     setReorderPending(true);
     pendingFocusRef.current = {
@@ -185,7 +197,7 @@ export function ReferenceList({
 
   const reorder = useReorder({
     ids,
-    disabled: reorderPending || !ready,
+    disabled: reorderPending || !ready || searching,
     listRef,
     onCommit: (nextIds, movedId, source) => void commitReorder(nextIds, movedId, source),
     onAnnounce,
@@ -193,16 +205,38 @@ export function ReferenceList({
   });
 
   const moveBy = (id: string, delta: -1 | 1) => {
-    const index = ids.indexOf(id);
-    const target = index + delta;
-    if (index === -1 || target < 0 || target >= ids.length || reorderPending) return;
-    const next = moveId(ids, id, target);
+    // The menu entries are aria-disabled at the ends and while a move is pending.
+    const next = moveId(ids, id, ids.indexOf(id) + delta);
     onAnnounce(t('referenceList.dropped', { name: nameOf(id), ...positionOf(next, id) }));
     void commitReorder(next, id, 'menu');
   };
 
+  // Match count, announced once typing settles (no announcement per keystroke).
+  const handleQueryChange = (next: string) => {
+    setRawQuery(next);
+    if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = null;
+    if (next.trim() === '') return;
+    announceTimerRef.current = setTimeout(() => {
+      const count = filterReferenceItems(items, next).length;
+      onAnnounce(count === 0 ? labels.noMatch : t('referenceList.matches', { count }));
+    }, 500);
+  };
+
+  useEffect(
+    () => () => {
+      if (announceTimerRef.current) clearTimeout(announceTimerRef.current);
+    },
+    [],
+  );
+
+  const clearSearch = () => {
+    handleQueryChange('');
+    searchRef.current!.focus();
+  };
+
   const handleRetry = () => {
-    headingRef.current?.focus();
+    headingRef.current!.focus();
     onRetry();
   };
 
@@ -212,30 +246,33 @@ export function ReferenceList({
   };
 
   const handleDialogSubmit = async (values: ReferenceListValues | Partial<ReferenceListValues>) => {
-    if (!dialog) return;
-    if (dialog.mode === 'new') {
+    // Only the open dialog submits.
+    const current = dialog!;
+    if (current.mode === 'new') {
       const created = await onCreate(values as ReferenceListValues);
       pendingFocusRef.current = { kind: 'menu', id: created.id };
       setDialog(null);
-      onAnnounce(t('referenceList.added', { name: values.name ?? '' }));
+      onAnnounce(t('referenceList.added', { name: (values as ReferenceListValues).name }));
     } else {
-      await onUpdate(dialog.id, values);
-      pendingFocusRef.current = { kind: 'menu', id: dialog.id };
+      await onUpdate(current.id, values);
+      pendingFocusRef.current = { kind: 'menu', id: current.id };
       setDialog(null);
-      onAnnounce(t('referenceList.saved', { name: values.name ?? nameOf(dialog.id) }));
+      onAnnounce(t('referenceList.saved', { name: values.name ?? nameOf(current.id) }));
     }
   };
 
   const focusAfterRemoving = (id: string): PendingFocus => {
-    const index = ids.indexOf(id);
-    const neighbours = [ids[index + 1], ids[index - 1]].filter((other) => other !== undefined);
+    const shown = searching ? visibleItems.map((item) => item.id) : ids;
+    const index = shown.indexOf(id);
+    const neighbours = [shown[index + 1], shown[index - 1]].filter((other) => other !== undefined);
     return neighbours.length > 0 ? { kind: 'rowMenu', ids: neighbours } : { kind: 'heading' };
   };
 
   const handleDelete = async () => {
-    if (!deleteState || deleteState.busy || deleteState.blocked) return;
-    const { item } = deleteState;
-    setDeleteState({ ...deleteState, busy: true, error: null });
+    // ConfirmDialog offers the action only when idle and not blocked.
+    const current = deleteState!;
+    const { item } = current;
+    setDeleteState({ ...current, busy: true, error: null });
     try {
       await onDelete(item.id);
       pendingFocusRef.current = focusAfterRemoving(item.id);
@@ -276,8 +313,30 @@ export function ReferenceList({
       );
     }
     if (items.length === 0) return <EmptyState message={labels.empty} />;
+    const matchesNothing = searching && visibleItems.length === 0;
     return (
       <>
+        {showSearch && (
+          <div className={styles.toolbar}>
+            <input
+              ref={searchRef}
+              type="search"
+              className={styles.search}
+              value={rawQuery}
+              placeholder={labels.search}
+              aria-label={labels.search}
+              autoComplete="off"
+              onChange={(event) => handleQueryChange(event.target.value)}
+              data-testid={`${testIdPrefix}-search`}
+            />
+          </div>
+        )}
+        {matchesNothing && (
+          <EmptyState
+            message={labels.noMatch}
+            action={{ label: t('referenceList.clearSearch'), onClick: clearSearch }}
+          />
+        )}
         {reorderFailed && (
           <div className={styles.banner} role="alert" data-testid={`${testIdPrefix}-reorder-error`}>
             {t('referenceList.reorderFailed')}
@@ -286,107 +345,115 @@ export function ReferenceList({
         <span hidden id={instructionsId}>
           {t('referenceList.reorderInstructions')}
         </span>
-        <ul
-          ref={listRef}
-          className={styles.list}
-          aria-label={labels.title}
-          data-has-color={fields.color ? 'true' : undefined}
-          data-reordering={reorder.drag ? 'true' : undefined}
-        >
-          {reorder.orderedIds.map((id) => {
-            const item = byId.get(id);
-            if (!item) return null;
-            const position = ids.indexOf(id);
-            const { drag } = reorder;
-            const dropping =
-              drag && drag.overIndex !== drag.fromIndex && drag.overIndex === position;
-            const drop = dropping
-              ? drag.overIndex > drag.fromIndex
-                ? 'after'
-                : 'before'
-              : undefined;
-            const picked = reorder.pickedId === id || drag?.id === id;
-            const textLang = item.translated ? undefined : entriesLanguage;
-            return (
-              <li
-                key={id}
-                className={styles.row}
-                data-testid={`${testIdPrefix}-row-${id}`}
-                data-dragging={picked ? 'true' : undefined}
-                data-drop={drop}
-              >
-                <button
-                  type="button"
-                  className={styles.handle}
-                  aria-label={t('referenceList.reorderHandle', { name: item.name })}
-                  aria-describedby={instructionsId}
-                  data-testid={`${testIdPrefix}-handle-${id}`}
-                  {...reorder.handleProps(id)}
+        {searching && (
+          <span hidden id={searchHintId}>
+            {t('referenceList.reorderWhileSearching')}
+          </span>
+        )}
+        {!matchesNothing && (
+          <ul
+            ref={listRef}
+            className={styles.list}
+            aria-label={labels.title}
+            data-has-color={fields.color ? 'true' : undefined}
+            data-reordering={reorder.drag ? 'true' : undefined}
+          >
+            {(searching ? visibleItems.map((item) => item.id) : reorder.orderedIds).map((id) => {
+              const item = byId.get(id)!;
+              const position = ids.indexOf(id);
+              const { drag } = reorder;
+              const dropping =
+                drag && drag.overIndex !== drag.fromIndex && drag.overIndex === position;
+              const drop = dropping
+                ? drag.overIndex > drag.fromIndex
+                  ? 'after'
+                  : 'before'
+                : undefined;
+              const picked = reorder.pickedId === id || drag?.id === id;
+              const textLang = item.translated ? undefined : entriesLanguage;
+              return (
+                <li
+                  key={id}
+                  className={styles.row}
+                  data-testid={`${testIdPrefix}-row-${id}`}
+                  data-dragging={picked ? 'true' : undefined}
+                  data-drop={drop}
                 >
-                  <span aria-hidden="true">⠿</span>
-                </button>
-                {fields.color && (
-                  <span
-                    aria-hidden="true"
-                    className={styles.swatch}
-                    data-color={item.color ? 'set' : undefined}
-                    style={
-                      item.color
-                        ? ({ '--reference-color': item.color } as CSSProperties)
-                        : undefined
+                  <button
+                    type="button"
+                    className={styles.handle}
+                    aria-label={t('referenceList.reorderHandle', { name: item.name })}
+                    aria-describedby={
+                      searching ? `${instructionsId} ${searchHintId}` : instructionsId
                     }
-                  />
-                )}
-                <span className={styles.text}>
-                  <span className={styles.name} title={item.name} lang={textLang}>
-                    {item.name}
-                  </span>
-                  {item.description && (
-                    <span className={styles.itemDescription} lang={textLang}>
-                      {item.description}
-                    </span>
+                    data-testid={`${testIdPrefix}-handle-${id}`}
+                    {...reorder.handleProps(id)}
+                  >
+                    <span aria-hidden="true">⠿</span>
+                  </button>
+                  {fields.color && (
+                    <span
+                      aria-hidden="true"
+                      className={styles.swatch}
+                      data-color={item.color ? 'set' : undefined}
+                      style={
+                        item.color
+                          ? ({ '--reference-color': item.color } as CSSProperties)
+                          : undefined
+                      }
+                    />
                   )}
-                </span>
-                <OverflowMenu
-                  usePortal
-                  triggerAriaLabel={t('referenceList.actionsFor', { name: item.name })}
-                  data-testid={`${testIdPrefix}-menu-${id}`}
-                  items={[
-                    {
-                      id: 'edit',
-                      label: t('button.edit'),
-                      onClick: () => setDialog({ mode: 'edit', id }),
-                      testId: `${testIdPrefix}-edit-${id}`,
-                    },
-                    {
-                      id: 'move-up',
-                      label: t('referenceList.moveUp'),
-                      onClick: () => moveBy(id, -1),
-                      ariaDisabled: position <= 0 || reorderPending,
-                      testId: `${testIdPrefix}-move-up-${id}`,
-                    },
-                    {
-                      id: 'move-down',
-                      label: t('referenceList.moveDown'),
-                      onClick: () => moveBy(id, 1),
-                      ariaDisabled: position >= ids.length - 1 || reorderPending,
-                      testId: `${testIdPrefix}-move-down-${id}`,
-                    },
-                    { kind: 'separator', id: 'separator' },
-                    {
-                      id: 'delete',
-                      label: t('button.delete'),
-                      variant: 'destructive',
-                      onClick: () =>
-                        setDeleteState({ item, busy: false, blocked: false, error: null }),
-                      testId: `${testIdPrefix}-delete-${id}`,
-                    },
-                  ]}
-                />
-              </li>
-            );
-          })}
-        </ul>
+                  <span className={styles.text}>
+                    <span className={styles.name} title={item.name} lang={textLang}>
+                      {item.name}
+                    </span>
+                    {item.description && (
+                      <span className={styles.itemDescription} lang={textLang}>
+                        {item.description}
+                      </span>
+                    )}
+                  </span>
+                  <OverflowMenu
+                    usePortal
+                    triggerAriaLabel={t('referenceList.actionsFor', { name: item.name })}
+                    data-testid={`${testIdPrefix}-menu-${id}`}
+                    items={[
+                      {
+                        id: 'edit',
+                        label: t('button.edit'),
+                        onClick: () => setDialog({ mode: 'edit', id }),
+                        testId: `${testIdPrefix}-edit-${id}`,
+                      },
+                      {
+                        id: 'move-up',
+                        label: t('referenceList.moveUp'),
+                        onClick: () => moveBy(id, -1),
+                        ariaDisabled: position <= 0 || reorderPending || searching,
+                        testId: `${testIdPrefix}-move-up-${id}`,
+                      },
+                      {
+                        id: 'move-down',
+                        label: t('referenceList.moveDown'),
+                        onClick: () => moveBy(id, 1),
+                        ariaDisabled: position >= ids.length - 1 || reorderPending || searching,
+                        testId: `${testIdPrefix}-move-down-${id}`,
+                      },
+                      { kind: 'separator', id: 'separator' },
+                      {
+                        id: 'delete',
+                        label: t('button.delete'),
+                        variant: 'destructive',
+                        onClick: () =>
+                          setDeleteState({ item, busy: false, blocked: false, error: null }),
+                        testId: `${testIdPrefix}-delete-${id}`,
+                      },
+                    ]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </>
     );
   };
@@ -402,6 +469,14 @@ export function ReferenceList({
       <div className={styles.header}>
         <h2 id={headingId} ref={headingRef} tabIndex={-1} className={styles.title}>
           {labels.title}
+          {ready ? (
+            <>
+              {' '}
+              <span className={styles.count} data-testid={`${testIdPrefix}-count`}>
+                {t('referenceList.count', { count: items.length })}
+              </span>
+            </>
+          ) : null}
         </h2>
         <button
           type="button"
@@ -434,7 +509,7 @@ export function ReferenceList({
       {deleteState && (
         <ConfirmDialog
           title={t('confirmDialog.deleteTitle', { name: deleteState.item.name })}
-          lead={deleteState.blocked ? labels.deleteBlocked?.(deleteState.item.name) : undefined}
+          lead={deleteState.blocked ? labels.deleteBlocked!(deleteState.item.name) : undefined}
           consequences={deleteImpactType && !deleteState.blocked ? deleteImpact : undefined}
           irreversible={!deleteState.blocked}
           blocked={deleteState.blocked}
@@ -445,7 +520,7 @@ export function ReferenceList({
           error={deleteState.error}
           onConfirm={() => void handleDelete()}
           onCancel={() => {
-            if (!deleteState.busy) setDeleteState(null);
+            setDeleteState(null);
           }}
           returnFocusRef={headingRef}
           testIdPrefix={`${testIdPrefix}-delete-dialog`}

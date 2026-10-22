@@ -201,3 +201,21 @@
     transition: none;
   }
 }
+
+.count {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.toolbar {
+  margin-bottom: var(--spacing-3);
+}
+
+.search {
+  composes: input from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.search:focus-visible {
+  box-shadow: var(--shadow-focus);
+}

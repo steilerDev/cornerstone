@@ -148,6 +148,21 @@ describe('DiaryFilters: containers', () => {
     expect(screen.queryByTestId('diary-filters-sheet')).toBeNull();
   });
 
+  it('keeps the shared Filters shell ids and a secondary (non-primary) Done button', async () => {
+    media.set(WIDE, false);
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByTestId('diary-filters-button'));
+    expect(screen.getByTestId('diary-filters-button')).toHaveAttribute(
+      'aria-controls',
+      'diary-filters-sheet',
+    );
+    expect(screen.getByTestId('diary-filters-sheet')).toHaveAttribute('id', 'diary-filters-sheet');
+    expect(screen.getByTestId('diary-filters-done').className).toContain('btnSecondary');
+    expect(screen.getByTestId('diary-filters-done').className).not.toContain('btnPrimary');
+    expect(screen.getByTestId('diary-filters-sheet-clear')).toBeInTheDocument();
+  });
+
   it('moves focus to the first control of the panel on open', async () => {
     const user = userEvent.setup();
     setup();

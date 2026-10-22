@@ -37,6 +37,30 @@ function renderTitle(options: {
   return { log };
 }
 
+describe('PageTitle suffix (#2234)', () => {
+  it('appends the suffix after the title in a plain h1', () => {
+    render(
+      <RecordingRouter entries={['/x']} log={createRouterLog()}>
+        <PageTitle title="Tasks" suffix="(47)" />
+      </RecordingRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Tasks (47)');
+  });
+
+  it('puts the suffix after the view-menu button and out of its name', () => {
+    render(
+      <RecordingRouter entries={['/project/work-items']} log={createRouterLog()}>
+        <ViewMenuContext value={modelAt('/project/work-items')}>
+          <PageTitle title="Tasks" suffix="(3 of 9)" />
+        </ViewMenuContext>
+      </RecordingRouter>,
+    );
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1.textContent).toBe('Tasks (3 of 9)');
+    expect(within(h1).getByRole('button', { name: 'Tasks' })).toBeInTheDocument();
+  });
+});
+
 describe('PageTitle without a view menu', () => {
   it('renders a plain h1 with no button and no tabIndex', () => {
     renderTitle({ model: null });

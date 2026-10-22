@@ -19,7 +19,7 @@ Areas represent physical locations or spaces within your project -- rooms, floor
 
 ### Creating Areas
 
-Navigate to **Manage** in the sidebar to access the areas and trades management page. Under the **Areas** section, click **Add Area** and provide:
+Navigate to **Areas** in the sidebar. Select **New area** and provide:
 
 - **Name** -- A short label (e.g., "Kitchen")
 - **Color** -- Pick from a color palette for visual identification
@@ -64,7 +64,7 @@ Trades represent specialties of work -- the types of professional services invol
 
 ### Creating Trades
 
-On the **Manage** page, under the **Trades** section, click **Add Trade** and provide:
+Trades are managed on the **Companies** page. Open the **Trades** list there (**Settings > Project setup** also links to it under **Trades**), select **New trade**, and provide:
 
 - **Name** -- A short label (e.g., "Electrical")
 - **Color** -- Pick from a color palette for visual identification
@@ -76,11 +76,13 @@ Each vendor can be assigned a trade to indicate their specialty. When creating o
 
 ## Managing Areas & Trades
 
-From the **Manage** page you can:
+From the **Areas** page you can:
 
-- **Edit** an area or trade's name, color, or description
+- **Edit** an area's name, color, or description
 - **Reorder** items using drag handles or sort order
 - **Reparent** an area by changing its parent
-- **Delete** an area or trade (this removes the association from all items that use it)
+- **Delete** an area (this removes the association from all items that use it)
 
-![Manage page with areas and trades](/img/screenshots/manage-light.png)
+From the **Trades** list on the **Companies** page you can rename a trade, merge duplicate trades, and delete a trade.
+
+![Areas page with a list of areas](/img/screenshots/manage-light.png)

@@ -19,6 +19,34 @@ describe('TriStateCheckbox', () => {
     jest.clearAllMocks();
   });
 
+  describe('hideLabel (#2234)', () => {
+    it('keeps the label as the accessible name without visible text', () => {
+      render(
+        <TriStateCheckbox
+          checked={false}
+          indeterminate={false}
+          onChange={jest.fn()}
+          label="Select all"
+          hideLabel
+        />,
+      );
+      expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeInTheDocument();
+      expect(screen.queryByText('Select all')).toBeNull();
+    });
+
+    it('shows the label text by default', () => {
+      render(
+        <TriStateCheckbox
+          checked={false}
+          indeterminate={false}
+          onChange={jest.fn()}
+          label="Select all"
+        />,
+      );
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+    });
+  });
+
   // ─── Basic rendering ──────────────────────────────────────────────────────
 
   describe('rendering', () => {

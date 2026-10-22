@@ -87,6 +87,44 @@ describe('useColumnPreferences', () => {
     });
   });
 
+  describe('minimal column shape (#2234)', () => {
+    it('accepts columns that carry only key and defaultVisible', () => {
+      const columns = [{ key: 'name' }, { key: 'hidden', defaultVisible: false }] as const;
+      const { result } = renderHook(() => useColumnPreferences('test-page', columns));
+
+      expect([...result.current.visibleColumns]).toEqual(['name']);
+      expect(result.current.columnOrder).toEqual(['name', 'hidden']);
+    });
+  });
+
+  describe('partial stored payloads', () => {
+    it.each([
+      ['an object without visible or order', '{}'],
+      ['a scalar', '5'],
+      ['null', 'null'],
+    ])('keeps the defaults for %s', (_label, value) => {
+      mockUsePreferences.mockReturnValue(
+        makeUsePreferencesResult([makePreference('table.test-page.columns', value)]),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
+
+      expect([...result.current.visibleColumns]).toEqual(['title', 'amount']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+    });
+
+    it('applies only the visible list when order is missing', () => {
+      mockUsePreferences.mockReturnValue(
+        makeUsePreferencesResult([
+          makePreference('table.test-page.columns', JSON.stringify({ visible: ['id'] })),
+        ]),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
+
+      expect([...result.current.visibleColumns]).toEqual(['id']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+    });
+  });
+
   describe('loading from preferences', () => {
     it('loads visible columns from stored preferences when key matches', async () => {
       mockUsePreferences.mockReturnValue(

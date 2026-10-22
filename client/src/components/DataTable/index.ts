@@ -17,6 +17,8 @@ export { DataTableRow } from './DataTableRow.js';
 export { DataTableCard } from './DataTableCard.js';
 export { DataTablePagination } from './DataTablePagination.js';
 export { DataTableColumnSettings } from './DataTableColumnSettings.js';
+export { ColumnSettingsList } from './ColumnSettingsList.js';
+export type { ColumnSettingsListProps } from './ColumnSettingsList.js';
 export { DataTableFilterPopover } from './DataTableFilterPopover.js';
 
 // Filters
@@ -38,4 +40,7 @@ export type { EntityFilterProps } from './filters/EntityFilter.js';
 export { useTableState } from '../../hooks/useTableState.js';
 export { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 export type { UseTableStateResult, UseTableStateOptions } from '../../hooks/useTableState.js';
-export type { UseColumnPreferencesResult } from '../../hooks/useColumnPreferences.js';
+export type {
+  UseColumnPreferencesResult,
+  ColumnPreferenceColumn,
+} from '../../hooks/useColumnPreferences.js';

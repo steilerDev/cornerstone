@@ -595,6 +595,12 @@ export function glossaryLabels(glossary) {
 
 /**
  * Compare a measurement with the baseline.
+ *
+ * Exemptions reported as `unrecorded` ("baseline is behind", recorded by plan:build) instead of as
+ * rises: a new money label equal to an English glossary form (#2192), and an existing screen's
+ * searchFields going 0 → 1 (#2234; a screen gaining its one own search field, the same cap a new
+ * screen gets). The counter does not see `data-page-search`: it already skips pickers and the
+ * command search, but any other first search field on a screen is exempt too. 1 → 2 still fails.
  * @param {any} baseline parsed baseline.json
  * @param {ReturnType<typeof auditClient>} measured
  * @param {Set<string>} [approvedLabels] normalised glossary labels (see glossaryLabels)
@@ -622,7 +628,15 @@ export function compareBaseline(baseline, measured, approvedLabels = new Set()) 
       continue;
     }
     for (const metric of ['destinations', 'primaryButtons', 'searchFields']) {
-      compareNumber(`${name}.${metric}`, b[metric] ?? 0, m[metric]);
+      const oldValue = b[metric] ?? 0;
+      // An existing screen's first search field (0 → 1, #2234) is "baseline is behind", not a rise.
+      if (metric === 'searchFields' && m.searchFields > oldValue && m.searchFields <= 1) {
+        unrecorded.push(
+          `${name}.searchFields: ${oldValue} → ${m.searchFields} (first search field, not yet recorded)`,
+        );
+        continue;
+      }
+      compareNumber(`${name}.${metric}`, oldValue, m[metric]);
     }
   }
   for (const name of Object.keys(baseScreens)) {

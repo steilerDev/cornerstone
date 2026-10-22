@@ -1,4 +1,4 @@
-import { use, type Ref } from 'react';
+import { use, type ReactNode, type Ref } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { OverflowMenu, type OverflowMenuLinkItem } from '../OverflowMenu/index.js';
@@ -14,13 +14,15 @@ export interface PageTitleProps {
   readonly headingRef?: Ref<HTMLHeadingElement>;
   /** Entries language when the title is the user's own text (plain h1 only). */
   readonly lang?: string;
+  /** Extra heading content after the title, e.g. the list count "(47)". Not part of the view-menu button's name. */
+  readonly suffix?: ReactNode;
 }
 
 /**
  * The page's single h1. Below 1024 px, on a section's main view or one of its views, the h1
  * wraps a button that opens the section's view menu ("Tasks ▾"); elsewhere it is plain text.
  */
-export function PageTitle({ title, className, headingRef, lang }: PageTitleProps) {
+export function PageTitle({ title, className, headingRef, lang, suffix }: PageTitleProps) {
   const model = use(ViewMenuContext);
   const { t } = useTranslation('common');
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ export function PageTitle({ title, className, headingRef, lang }: PageTitleProps
     return (
       <h1 className={className} ref={headingRef} tabIndex={headingRef ? -1 : undefined} lang={lang}>
         {title}
+        {suffix ? <> {suffix}</> : null}
       </h1>
     );
   }
@@ -75,6 +78,7 @@ export function PageTitle({ title, className, headingRef, lang }: PageTitleProps
               <path d="M5 8l5 5 5-5" />
             </svg>
           </button>
+          {suffix ? <> {suffix}</> : null}
         </h1>
       )}
     />

@@ -152,6 +152,12 @@ jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.
 // React must be imported for JSX in the mock factory above
 import React from 'react';
 
+const EMPTY_CHIP_COUNTS = {
+  matching: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+  outsideToPay: { offers: 0, paid: 0, submitted: 0, all: 0 },
+  totals: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+};
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -246,12 +252,14 @@ const populatedSummary = {
 const emptyResponse: InvoiceListPaginatedResponse = {
   invoices: [],
   pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+  chipCounts: EMPTY_CHIP_COUNTS,
   summary: emptySummary,
 };
 
 const populatedResponse: InvoiceListPaginatedResponse = {
   invoices: [sampleInvoice1, sampleInvoice2],
   pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 2 },
+  chipCounts: EMPTY_CHIP_COUNTS,
   summary: populatedSummary,
 };
 
@@ -1970,6 +1978,7 @@ describe('InvoicesPage', () => {
     const refundResponse: InvoiceListPaginatedResponse = {
       invoices: [refundInvoice],
       pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+      chipCounts: EMPTY_CHIP_COUNTS,
       summary: {
         pending: { count: 1, totalAmount: 10000 },
         paid: { count: 0, totalAmount: 0 },

@@ -292,9 +292,9 @@ describe('ManagePage (Settings > Project setup)', () => {
 
       expect(sectionHeadings()).toEqual([
         'House',
-        'Cost categories',
-        'Purchase categories',
-        'Photo orientations',
+        'Cost categories (2)',
+        'Purchase categories (2)',
+        'Photo orientations (2)',
         'Managed on other pages',
       ]);
     });
@@ -699,6 +699,58 @@ describe('ManagePage (Settings > Project setup)', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('photo-orientations-row-or-1')).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  describe('list search (#2234)', () => {
+    const many = <T,>(make: (i: number) => T): T[] =>
+      Array.from({ length: 8 }, (_, i) => make(i + 1));
+
+    it('shows no search field while each list has fewer than 8 rows', async () => {
+      await loaded();
+
+      expect(screen.queryByTestId('cost-categories-search')).toBeNull();
+      expect(screen.queryByTestId('purchase-categories-search')).toBeNull();
+      expect(screen.queryByTestId('photo-orientations-search')).toBeNull();
+    });
+
+    it('names each list search after its own items and words no-match per list', async () => {
+      const user = userEvent.setup();
+      budgetApi.fetchBudgetCategories.mockResolvedValue({
+        categories: many((i) => costRow({ id: `bc-${i}`, name: `Cost ${i}`, sortOrder: i })),
+      });
+      householdApi.fetchHouseholdItemCategories.mockResolvedValue({
+        categories: many((i) =>
+          purchaseRow({ id: `hic-${i}`, name: `Purchase ${i}`, sortOrder: i }),
+        ),
+      });
+      orientationApi.fetchOrientations.mockResolvedValue({
+        orientations: many((i) =>
+          orientationRow({ id: `or-${i}`, name: `View ${i}`, sortOrder: i }),
+        ),
+      });
+      renderPage();
+      await screen.findByTestId('cost-categories-search');
+
+      expect(screen.getByTestId('cost-categories-search')).toHaveAttribute(
+        'placeholder',
+        'Search cost categories',
+      );
+      expect(screen.getByTestId('purchase-categories-search')).toHaveAttribute(
+        'placeholder',
+        'Search purchase categories',
+      );
+      expect(screen.getByTestId('photo-orientations-search')).toHaveAttribute(
+        'placeholder',
+        'Search orientations',
+      );
+
+      await user.type(screen.getByTestId('cost-categories-search'), 'zzz');
+      await user.type(screen.getByTestId('purchase-categories-search'), 'zzz');
+      await user.type(screen.getByTestId('photo-orientations-search'), 'zzz');
+      expect(screen.getByText('No cost categories match.')).toBeInTheDocument();
+      expect(screen.getByText('No purchase categories match.')).toBeInTheDocument();
+      expect(screen.getByText('No orientations match.')).toBeInTheDocument();
     });
   });
 

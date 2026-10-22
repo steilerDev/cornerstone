@@ -132,7 +132,7 @@ for (const list of LISTS) {
         await setup.goto(list.key === 'costCategories' ? 'cost-categories' : 'purchase-categories');
         const control = controlFor(setup, list);
 
-        await expect(control.heading).toHaveText(list.title);
+        await expect(control.heading).toContainText(list.title);
         // Other workers may add categories, so assert presence rather than the exact count
         await expect(control.items.first()).toBeVisible();
         const names = await control.orderOfNames();

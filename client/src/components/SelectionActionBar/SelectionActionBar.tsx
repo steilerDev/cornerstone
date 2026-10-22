@@ -9,10 +9,13 @@ export interface SelectionActionBarProps {
   onClear: () => void;
   /** Pre-translated "Clear selection" text */
   clearLabel: string;
-  /** Primary action button(s), right-aligned */
+  /** Action buttons (never a primary), right-aligned */
   children: ReactNode;
   /** Optional positioning/width override */
   className?: string;
+  /** Announce the count through this bar's own live region (default true); false when the host announces. */
+  announce?: boolean;
+  testId?: string;
 }
 
 export function SelectionActionBar({
@@ -21,10 +24,16 @@ export function SelectionActionBar({
   clearLabel,
   children,
   className,
+  announce = true,
+  testId,
 }: SelectionActionBarProps) {
   return (
-    <div className={`${styles.bar} ${className ?? ''}`}>
-      <span className={styles.count} aria-live="polite" aria-atomic="true">
+    <div className={`${styles.bar} ${className ?? ''}`} data-testid={testId}>
+      <span
+        className={styles.count}
+        aria-live={announce ? 'polite' : undefined}
+        aria-atomic={announce ? 'true' : undefined}
+      >
         {countLabel}
       </span>
       <div className={styles.actions}>

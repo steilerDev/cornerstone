@@ -137,6 +137,11 @@ function buildPaginatedResponse(invoices: Invoice[]): InvoiceListPaginatedRespon
       openPayable: { count: 0, totalAmount: 0 },
       refundsDue: { count: 0, totalAmount: 0 },
     },
+    chipCounts: {
+      matching: { toPay: invoices.length, offers: 0, paid: 0, submitted: 0, all: invoices.length },
+      outsideToPay: { offers: 0, paid: 0, submitted: 0, all: 0 },
+      totals: { toPay: invoices.length, offers: 0, paid: 0, submitted: 0, all: invoices.length },
+    },
   };
 }
 

@@ -79,7 +79,7 @@ Use the search field to find entries by their text. Select **Filters** to narrow
 - **Company** -- Show the entries that name a company, such as a daily log for that company or a delivery from it
 - **Dates** -- Set **From** and **To** to show only entries in that range. If **From** is after **To**, the list keeps the last valid range and shows a message under the dates
 
-On a phone, the filters open in a sheet. On a larger screen they open in a panel next to the list. Filters apply as soon as you change them. Below the search field, each active filter appears as a chip you can remove with its **×** button, and **Clear all** removes every filter and the search. If no entries match, the list says so and offers **Clear filters**.
+On a phone, the filters open in a sheet. On a larger screen they open in a panel next to the list. Filters apply as soon as you change them. On a phone, the sheet has two buttons at the bottom: **Clear all** removes every filter, and **Done** closes the sheet. Below the search field, each active filter appears as a chip you can remove with its **×** button, and **Clear all** removes every filter and the search. If no entries match, the list says so and offers **Clear filters**.
 
 ## The Entry Page
 

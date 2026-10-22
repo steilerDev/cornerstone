@@ -2123,3 +2123,16 @@ glossary canon ("this budget source" → "this funding source"). Only an exact E
 exempt. Specs that check "no new money word" by scanning one namespace miss renames in other
 namespaces. Run `plan:check` before `plan:build`, because `plan:build` re-records the values and hides
 the rise. Escalate the rename to the dev-team-lead instead of re-recording it silently.
+
+## Capmap edits: rename and placement-only stories (#2234)
+
+- Renaming a capability's `name` in `capmap.json` must change `capabilities.json` too: `build-capmap`
+  fails "name differs from capabilities.json". A `change` value change (same → merged) alters the
+  summary histogram, so `plan:check` reports `summary.json is stale` until `plan:build`.
+- `clicks` needs a matching `clickPath` with `(n)` step markers; `clicksFromPath` derives the number.
+- A template story (shared component, pages adopt later) records template-level capability wording
+  (WRK-011 load-all) but leaves page-specific placements (Companies Trades into ⋯) and route-map
+  `carries` to the adopter story, so the maps never describe a page that is not built yet.
+- The baseline analyzer counts search inputs by `type="search"`/role/`t('…search…')` and skips pickers
+  and CommandSearch; it does not read `data-page-search`. The #2234 0 → 1 searchFields exemption
+  therefore cannot be narrowed to page-search fields (the motivating ReferenceList field is unmarked).

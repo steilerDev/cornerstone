@@ -172,8 +172,13 @@ export type {
   InvoiceStatusSummary,
   InvoiceStatusBreakdown,
   InvoiceListPaginatedResponse,
+  InvoiceListChip,
+  InvoiceChipTally,
+  InvoiceChipsOutsideToPay,
+  InvoiceChipCounts,
   InvoiceDetailResponse,
 } from './types/invoice.js';
+export { INVOICE_LIST_CHIPS } from './types/invoice.js';
 
 // Invoice Budget Lines
 export type {

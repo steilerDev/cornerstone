@@ -95,6 +95,12 @@ export function ManagePage() {
             loadFailed: t('projectSetup.costCategories.loadFailed', {
               items: t('projectSetup.costCategories.items'),
             }),
+            search: t('projectSetup.costCategories.search', {
+              items: t('projectSetup.costCategories.items'),
+            }),
+            noMatch: t('projectSetup.costCategories.noMatch', {
+              items: t('projectSetup.costCategories.items'),
+            }),
             duplicateName: t('projectSetup.costCategories.duplicateName'),
             deleteBlocked: (name) => t('projectSetup.costCategories.deleteBlocked', { name }),
           }}
@@ -128,6 +134,12 @@ export function ManagePage() {
             loadFailed: t('projectSetup.purchaseCategories.loadFailed', {
               items: t('projectSetup.purchaseCategories.items'),
             }),
+            search: t('projectSetup.purchaseCategories.search', {
+              items: t('projectSetup.purchaseCategories.items'),
+            }),
+            noMatch: t('projectSetup.purchaseCategories.noMatch', {
+              items: t('projectSetup.purchaseCategories.items'),
+            }),
             duplicateName: t('projectSetup.purchaseCategories.duplicateName'),
             deleteBlocked: (name) => t('projectSetup.purchaseCategories.deleteBlocked', { name }),
           }}
@@ -159,6 +171,12 @@ export function ManagePage() {
               items: t('projectSetup.orientations.items'),
             }),
             loadFailed: t('projectSetup.orientations.loadFailed', {
+              items: t('projectSetup.orientations.items'),
+            }),
+            search: t('projectSetup.orientations.search', {
+              items: t('projectSetup.orientations.items'),
+            }),
+            noMatch: t('projectSetup.orientations.noMatch', {
               items: t('projectSetup.orientations.items'),
             }),
             duplicateName: t('projectSetup.orientations.duplicateName'),

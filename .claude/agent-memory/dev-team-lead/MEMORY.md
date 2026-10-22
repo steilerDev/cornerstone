@@ -68,4 +68,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Attention service specs](attention-service-specs.md) — "identical to page X" w/o X, money-layer rule, toEqual-pinned shapes, contract gaps (link/standing), ADR vs plan, one UTC today
 - [Shell popover specs](shell-popover-specs.md) — AnchoredPanel outside-press vs portaled children, nested Escape, popover z over dialogs, provider result literals, live counts vs exact titles
 - [Consistency test specs](consistency-test-specs.md) — "tests only" hides real gaps: former-name figures, same label/different count, 2nd definitions; API-bracketed E2E retry; registry
+- [Object list specs](object-list-specs.md) — analyzer follows `import type` (DataTable closure +5 primaries), searchFields 0→1 rule, PO rulings vs adopter scope, overlapping facets
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

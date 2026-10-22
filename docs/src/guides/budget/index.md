@@ -11,7 +11,7 @@ The budget system in Cornerstone helps you track construction costs across your 
 
 The budget system provides:
 
-- **Budget Categories** -- Organize costs into categories like "Electrical", "Plumbing", or "Windows & Doors"
+- **Cost Categories** -- Organize costs into categories like "Electrical", "Plumbing", or "Windows & Doors"
 - **Financing Sources** -- Track where money comes from (construction loan, savings, family loan) with depletion tracking, inline expansion of all attached budget lines, and a mass-move tool to reassign lines to a different source
 - **Work Item Budget Lines** -- Link estimated costs to work items with confidence levels that reflect estimate accuracy
 - **Invoices** -- Track vendor invoices and their line-item links to budget lines (vendor records now live under the Settings section -- see [Invoices & Vendors](vendors-and-invoices))
@@ -31,7 +31,7 @@ When a vendor submits an **invoice**, you link the relevant budget lines to the 
 
 ## Next Steps
 
-- [Budget Categories](categories) -- Create and manage budget categories
+- [Cost Categories](categories) -- Create and manage cost categories in Settings > Project setup
 - [Financing Sources](financing-sources) -- Track funding sources, inline expansion of attached lines, and mass-move
 - [Work Item Budgets](work-item-budgets) -- Add cost estimates to work items
 - [Invoices](vendors-and-invoices) -- Track invoices and link them to budget lines (vendors are managed from Settings)

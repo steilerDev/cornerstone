@@ -64,6 +64,19 @@ test.describe('Diary Filters surface (#2225)', { tag: '@responsive' }, () => {
     await expect(diary.filtersButton).toBeFocused();
   });
 
+  test('F1a: from 768px, opening the panel moves focus to its first control', async ({ page }) => {
+    test.skip(!isWide(page), 'the anchored panel only exists from 768px');
+    const diary = new DiaryPage(page);
+    await diary.goto();
+    await diary.waitForLoaded();
+
+    await diary.filtersButton.click();
+    await expect(diary.filtersPanel).toBeVisible();
+    // Focus is inside the panel (not left on the Filters button or the body)
+    await expect(diary.filtersPanel.locator(':focus')).toHaveCount(1);
+    await expect(diary.filtersButton).not.toBeFocused();
+  });
+
   test('F1b: a filter change keeps the surface open (filters apply live)', async ({
     page,
     testPrefix,

@@ -322,6 +322,31 @@ describe('top bar and user menu composites (#2206)', () => {
   });
 });
 
+describe('object list row states (#2234)', () => {
+  it('light: primary text on the selected row wash (--color-primary-bg) is at least 4.5:1', () => {
+    expect(
+      tokenRatio('light', '--color-text-primary', '--color-primary-bg'),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['--color-bg-primary', '--color-bg-page'])(
+    'dark: primary text on the selected row wash composited over %s is at least 4.5:1',
+    (base) => {
+      const bg = compositeOver('dark', '--color-primary-bg', base);
+      expect(ratio(resolve('dark', '--color-text-primary'), bg)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each(['light', 'dark'] as const)(
+    '%s: muted text on the hovered row (--color-bg-secondary) is at least 4.5:1',
+    (theme) => {
+      expect(
+        tokenRatio(theme, '--color-text-muted', '--color-bg-secondary'),
+      ).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+});
+
 // ── Removed tokens ───────────────────────────────────────────────────────────
 
 function listCssFiles(dir: string): string[] {
