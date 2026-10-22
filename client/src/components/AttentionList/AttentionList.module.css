@@ -31,7 +31,6 @@
   min-height: var(--touch-target-min);
 }
 
-/* "Not now" / "Show again": a text button, no fill. */
 .showAll {
   composes: btnSecondary from '../../styles/shared.module.css';
   align-self: flex-start;
