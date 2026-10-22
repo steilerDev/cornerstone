@@ -2098,3 +2098,11 @@ makes a group one stop. It also skips natively focusable elements outside the se
 `[contenteditable]`). Grep the dialogs for `type="radio"` (MoreSheet, ConvertQuotationModal,
 InvoiceDepositFormModal) and ask for junction-only stepping or radio-group collapsing. Watch for a
 rewritten "middle control" test that now locks the new behaviour in.
+
+## Outside-press exclusion selectors also match the host (#2231, 2026-10-22)
+
+A popover that ignores presses inside `[aria-modal="true"]` / `[data-anchored-panel]` (so a dialog or
+menu layered OVER it does not dismiss it) also ignores presses inside its OWN host dialog/panel, so
+a StatusMenu inside the catch-up Modal or the bell panel stops closing on a press elsewhere in the host.
+Ask for the exclusion to apply only when the matched container does not contain the panel anchor
+(`hit && !hit.contains(anchorRef.current)`), and for a test with the popover nested in a host.

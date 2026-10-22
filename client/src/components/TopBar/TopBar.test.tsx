@@ -4,7 +4,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import type React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { AttentionContext } from '../../attention/attentionContext.js';
+import type { ShellAttention } from '../../attention/attentionContext.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { makeAttention, makeRow } from '../../test/attentionFixtures.js';
 import type * as TopBarTypes from './TopBar.js';
 import type * as CommandSearchContextTypes from '../CommandSearch/CommandSearchContext.js';
 
@@ -42,6 +45,24 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+function fakeAttention(count = 0): ShellAttention {
+  const rows = Array.from({ length: count }, (_, i) =>
+    makeRow('N1', { subject: { type: 'work_item', id: `t${i}`, label: `Task ${i}`, area: null } }),
+  );
+  return {
+    data: makeAttention(rows),
+    status: 'ready',
+    error: null,
+    includeSnoozed: false,
+    setIncludeSnoozed: jest.fn(),
+    refresh: jest.fn(),
+    retry: jest.fn(),
+    removeRow: jest.fn(),
+    refreshStale: jest.fn(),
+    homeHeadingRef: { current: null },
+  };
+}
+
 describe('TopBar', () => {
   let TopBarModule: typeof TopBarTypes;
   let CommandSearchModule: typeof CommandSearchContextTypes;
@@ -68,11 +89,13 @@ describe('TopBar', () => {
     jest.restoreAllMocks();
   });
 
-  function renderBar(slotRef: (el: HTMLDivElement | null) => void = () => {}) {
+  function renderBar(slotRef: (el: HTMLDivElement | null) => void = () => {}, attentionCount = 0) {
     const log = createRouterLog();
     const utils = render(
       <RecordingRouter entries={['/project/overview']} log={log}>
-        <TopBarModule.TopBar breadcrumbSlotRef={slotRef} />
+        <AttentionContext value={fakeAttention(attentionCount)}>
+          <TopBarModule.TopBar breadcrumbSlotRef={slotRef} />
+        </AttentionContext>
       </RecordingRouter>,
     );
     return { log, ...utils };
@@ -88,7 +111,9 @@ describe('TopBar', () => {
           onOpen={onOpen}
           onClose={() => {}}
         >
-          <TopBarModule.TopBar breadcrumbSlotRef={() => {}} />
+          <AttentionContext value={fakeAttention()}>
+            <TopBarModule.TopBar breadcrumbSlotRef={() => {}} />
+          </AttentionContext>
         </CommandSearchModule.CommandSearchProvider>
       </RecordingRouter>,
     );
@@ -186,35 +211,28 @@ describe('TopBar', () => {
     });
   });
 
-  describe('placeholders', () => {
-    const TEST_IDS = ['top-bar-attention'];
-
-    it.each(TEST_IDS)('%s is aria-disabled, focusable and not natively disabled', (id) => {
+  describe('attention bell (#2231)', () => {
+    it('is a live popup trigger: focusable, not aria-disabled, not natively disabled', () => {
       renderBar();
-      const button = screen.getByTestId(id);
-      expect(button).toHaveAttribute('aria-disabled', 'true');
+      const button = screen.getByTestId('top-bar-attention');
+      expect(button).not.toHaveAttribute('aria-disabled');
       expect(button).not.toHaveAttribute('disabled');
       expect(button).toHaveAttribute('type', 'button');
+      expect(button).toHaveAttribute('aria-haspopup', 'dialog');
       button.focus();
       expect(button).toHaveFocus();
     });
 
-    it.each(TEST_IDS)('%s does nothing when clicked', (id) => {
-      const error = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const { log } = renderBar();
-      fireEvent.click(screen.getByTestId(id));
-      expect(log.actions).toEqual([]);
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(error).not.toHaveBeenCalled();
+    it('opens the Needs attention popover on click', () => {
+      renderBar();
+      fireEvent.click(screen.getByTestId('top-bar-attention'));
+      expect(screen.getByRole('dialog', { name: 'Needs attention' })).toBeInTheDocument();
     });
 
-    it('does not claim a popup or shortcut it does not have yet', () => {
-      renderBar();
-      for (const id of TEST_IDS) {
-        expect(screen.getByTestId(id)).not.toHaveAttribute('aria-haspopup');
-        expect(screen.getByTestId(id)).not.toHaveAttribute('aria-keyshortcuts');
-      }
+    it('shows the shell count in its name and badge', () => {
+      renderBar(() => {}, 3);
+      expect(screen.getByTestId('top-bar-attention')).toHaveAccessibleName('Needs attention, 3');
+      expect(screen.getByTestId('top-bar-attention-badge')).toHaveTextContent('3');
     });
   });
 

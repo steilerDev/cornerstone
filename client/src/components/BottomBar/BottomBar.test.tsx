@@ -221,6 +221,19 @@ describe('BottomBar', () => {
       expect(badge).toHaveTextContent('1');
       expect(badge).toHaveAttribute('aria-hidden', 'true');
       expect(home).toHaveAttribute('aria-label', 'Home, 1 needs attention');
+      expect(screen.getByTestId('bottom-bar-home-badge')).toBe(badge);
+    });
+
+    it('has no badge element at 0 and keeps the exact count in the name above the cap', () => {
+      const { unmount } = renderBar('/', { homeBadge: 0 });
+      expect(screen.queryByTestId('bottom-bar-home-badge')).toBeNull();
+      unmount();
+      renderBar('/', { homeBadge: 120 });
+      expect(screen.getByTestId('bottom-bar-home-badge')).toHaveTextContent(/^99\+$/);
+      expect(screen.getByTestId('bottom-bar-home')).toHaveAttribute(
+        'aria-label',
+        'Home, 120 need attention',
+      );
     });
 
     it('uses the plural name for several items', () => {

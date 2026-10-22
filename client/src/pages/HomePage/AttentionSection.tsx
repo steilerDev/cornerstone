@@ -5,6 +5,7 @@ import { AttentionList } from '../../components/AttentionList/AttentionList.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FeedGroup } from '../../components/FeedRow/FeedGroup.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { NEEDS_ATTENTION_LIMIT } from '../../attention/attentionContext.js';
 import type { UseAttentionResult } from '../../hooks/useAttention.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
@@ -12,8 +13,7 @@ import { CatchUpDialog } from './CatchUpDialog.js';
 import { SectionError } from './SectionError.js';
 import styles from './HomePage.module.css';
 
-/** Rows shown before "Show all (n)". */
-export const NEEDS_ATTENTION_LIMIT = 8;
+export { NEEDS_ATTENTION_LIMIT };
 
 export interface AttentionSectionProps {
   attention: UseAttentionResult;

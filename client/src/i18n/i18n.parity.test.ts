@@ -419,6 +419,12 @@ describe('#2206 top bar and user menu keys', () => {
     'searchShortcutOther',
     'new',
     'attention',
+    // #2231: the live bell
+    'attentionCount_one',
+    'attentionCount_other',
+    'attentionOpenHome',
+    'attentionLoadFailed',
+    'attentionRetry',
     'accountMenu',
   ];
   const USER_MENU_KEYS = [

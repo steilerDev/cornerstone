@@ -118,6 +118,11 @@
     "searchShortcutOther": "Strg K",
     "new": "Neu",
     "attention": "Braucht dich",
+    "attentionCount_one": "Braucht dich, {{count}}",
+    "attentionCount_other": "Braucht dich, {{count}}",
+    "attentionOpenHome": "Start öffnen",
+    "attentionLoadFailed": "Braucht dich konnte nicht geladen werden.",
+    "attentionRetry": "Erneut versuchen",
     "accountMenu": "Kontomenü für {{name}}"
   },
   "attention": {

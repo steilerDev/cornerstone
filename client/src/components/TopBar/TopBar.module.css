@@ -126,10 +126,6 @@
   background-color: var(--color-bg-hover);
 }
 
-.bell {
-  composes: btnIcon from '../../styles/shared.module.css';
-}
-
 .search:focus-visible,
 .newButton:focus-visible {
   border-color: var(--color-border-focus);
@@ -137,8 +133,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .search,
-  .newButton,
-  .bell {
+  .newButton {
     transition: none;
   }
 }

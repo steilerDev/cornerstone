@@ -55,6 +55,18 @@ function edge(items: HTMLElement[], forward: boolean): HTMLElement[] {
 /** Active traps in open order: only the last (topmost dialog) handles Escape and Tab. */
 const activeTraps: symbol[] = [];
 
+/** Escape events already consumed by an inner layer (a nested popover). */
+const handledEscapes = new WeakSet<Event>();
+
+/** Marks an Escape as handled: a trapping dialog further out then skips it. */
+export function markEscapeHandled(e: Event): void {
+  handledEscapes.add(e);
+}
+
+export function isEscapeHandled(e: Event): boolean {
+  return handledEscapes.has(e);
+}
+
 /** While active: Escape calls onEscape; Tab and Shift+Tab wrap inside the container. */
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
@@ -70,6 +82,7 @@ export function useFocusTrap(
     const token = Symbol('focus-trap');
     activeTraps.push(token);
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && handledEscapes.has(e)) return;
       if (activeTraps[activeTraps.length - 1] !== token) return;
       if (e.key === 'Escape') {
         // Handled by the topmost dialog: keyboard handlers further out (a viewer) must skip it

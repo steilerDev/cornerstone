@@ -166,7 +166,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       path: () => string;
       /** null: the h1 is intentionally not asserted (Home / Companies keep their own). */
       h1: (() => string) | string | null;
-      title: (() => string) | string;
+      title: (() => string) | string | RegExp;
       /** #2212: a create URL renders its list (h1) with this dialog open over it. */
       dialog?: string;
     }
@@ -251,7 +251,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         name: 'Home (title only; its h1 is owned by #2230)',
         path: () => ROUTES.home,
         h1: null,
-        title: `Home · ${HOUSE}`,
+        title: new RegExp(`^(\\(\\d+\\) )?Home · ${HOUSE}$`),
       },
       {
         name: 'Companies',

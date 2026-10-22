@@ -6,6 +6,7 @@ import { navHref } from '../../navigation/navActive.js';
 import type { NavActive } from '../../navigation/navActive.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { NAV_SECTIONS, PHONE_BAR, PHONE_BAR_SECTIONS } from '../../navigation/navConfig.js';
+import { CountBadge } from '../Badge/CountBadge.js';
 import { useCreateMenuShell } from '../CreateMenu/CreateMenuContext.js';
 import styles from './BottomBar.module.css';
 
@@ -149,8 +150,8 @@ export function BottomBar({
               </li>
             );
           }
-          const section = NAV_SECTIONS.find((s) => s.id === slot);
-          if (!section) return null;
+          // Every phone-bar slot has a section in NavConfig.
+          const section = NAV_SECTIONS.find((s) => s.id === slot) as (typeof NAV_SECTIONS)[number];
           const isCurrent = active?.sectionId === slot;
           const badgeCount =
             slot === 'home' && homeBadge !== undefined && homeBadge > 0 ? homeBadge : 0;
@@ -168,11 +169,11 @@ export function BottomBar({
               >
                 <span className={styles.icon}>
                   {ICONS[slot]}
-                  {badgeCount > 0 && (
-                    <span className={styles.badge} aria-hidden="true">
-                      {badgeCount > 99 ? '99+' : badgeCount}
-                    </span>
-                  )}
+                  <CountBadge
+                    count={badgeCount}
+                    className={styles.homeBadge}
+                    testId="bottom-bar-home-badge"
+                  />
                 </span>
                 <span className={styles.label}>{t(section.labelKey)}</span>
               </NavAnchor>

@@ -13,6 +13,8 @@ import { useRealLocationKey } from '../../navigation/realLocation.js';
 import { useNavContext } from '../../navigation/useNavContext.js';
 import { ViewMenuContext, viewMenuFor } from '../../navigation/viewMenu.js';
 import { ImmersiveShellContext } from './immersiveShellContext.js';
+import { AttentionProvider } from '../../attention/AttentionProvider.js';
+import { useShellAttention } from '../../attention/useShellAttention.js';
 import { BottomBar } from '../BottomBar/BottomBar.js';
 import { CommandSearch } from '../CommandSearch/CommandSearch.js';
 import { CommandSearchProvider } from '../CommandSearch/CommandSearchContext.js';
@@ -29,8 +31,9 @@ import styles from './AppShell.module.css';
  * and the More sheet. The switch is JS (never CSS display:none), so exactly one navigation, one
  * banner and one Log out exist at any width.
  */
-export function AppShell() {
+function AppShellFrame() {
   const { t } = useTranslation('common');
+  const { data: attentionData } = useShellAttention();
   const wide = useMediaQuery(TOP_BAR_MEDIA_QUERY);
   const { user } = useAuth();
   const location = useLocation();
@@ -137,6 +140,7 @@ export function AppShell() {
                           moreControlsId={sheetId}
                           moreButtonRef={moreButtonRef}
                           onMoreClick={() => setMoreOpenKey(location.key)}
+                          homeBadge={attentionData?.count}
                         />
                       )}
                       <div className={styles.mainContent}>
@@ -177,5 +181,14 @@ export function AppShell() {
         </CommandSearchProvider>
       </CreateMenuProvider>
     </ShortcutRegistryProvider>
+  );
+}
+
+/** The app frame inside the one shell attention state (Home, the bell and the bottom bar read it). */
+export function AppShell() {
+  return (
+    <AttentionProvider>
+      <AppShellFrame />
+    </AttentionProvider>
   );
 }

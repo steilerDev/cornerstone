@@ -223,6 +223,28 @@ describe('composeDocumentTitle', () => {
     expect(composeDocumentTitle({})).toBe('Cornerstone');
   });
 
+  it('puts a prefix before the whole title (#2231)', () => {
+    expect(
+      composeDocumentTitle({ page: 'Home', section: 'Home', house: 'Testhaus', prefix: '(3)' }),
+    ).toBe('(3) Home · Testhaus');
+  });
+
+  it('trims the prefix', () => {
+    expect(composeDocumentTitle({ page: 'Home', house: 'Testhaus', prefix: '  (12) ' })).toBe(
+      '(12) Home · Testhaus',
+    );
+  });
+
+  it.each([null, undefined, '', '   '])('leaves the title unchanged for prefix %p', (prefix) => {
+    expect(composeDocumentTitle({ page: 'Home', house: 'Testhaus', prefix })).toBe(
+      'Home · Testhaus',
+    );
+  });
+
+  it('prefixes the product-name fallback too', () => {
+    expect(composeDocumentTitle({ prefix: '(1)' })).toBe('(1) Cornerstone');
+  });
+
   it('trims every part', () => {
     expect(composeDocumentTitle({ page: ' A ', section: ' B ', house: ' C ' })).toBe('A · B · C');
   });

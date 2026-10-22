@@ -3288,7 +3288,7 @@
     "gate": "none",
     "acceptance": "Bottom bar (5 slots) and More sheet list every destination of the sidebar; More opens and closes; closed sheet is inert.",
     "decision": "Q1d",
-    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert. #2212: Global › bottom bar: ＋ New is a button that opens the New sheet (no longer a link to /diary/new)."
+    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert. #2212: Global › bottom bar: ＋ New is a button that opens the New sheet (no longer a link to /diary/new). #2231: built. The Home slot shows the Needs-attention count (CountBadge, 99+ cap; the slot's aria-label carries the exact count) from the shell attention state; no badge at 0, while loading or after an error."
   },
   "PLT-011": {
     "name": "Follow old bookmarks and legacy URLs to their new locations",
@@ -3585,7 +3585,7 @@
     "to": "Home (/) — landing page after sign-in",
     "change": "same",
     "gate": "none",
-    "note": "No double redirect; h1 = house name. #2230: built. Home is served at / (route `home` done; /project/overview and /project redirect to / in one hop). The h1 is \"Home\" with the subtitle ‹house› · ‹date› (replaces \"h1 = house name\")."
+    "note": "No double redirect; h1 = house name. #2230: built. Home is served at / (route `home` done; /project/overview and /project redirect to / in one hop). The h1 is \"Home\" with the subtitle ‹house› · ‹date› (replaces \"h1 = house name\"). #2231: while Needs attention has rows, the tab title on Home reads \"(n) Home · ‹house›\" (n = the Needs-attention heading count)."
   },
   "PLT-048": {
     "name": "Start creating a work item, household item, milestone, diary entry or invoice from the dashboard",

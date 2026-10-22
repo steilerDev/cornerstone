@@ -1,0 +1,72 @@
+.bell {
+  composes: btnIcon from '../../styles/shared.module.css';
+  position: relative;
+}
+
+.bell[aria-expanded='true'] {
+  background-color: var(--color-bg-hover);
+}
+
+.bellBadge {
+  position: absolute;
+  top: var(--spacing-1);
+  inset-inline-end: var(--spacing-1);
+}
+
+.popover {
+  width: calc(var(--spacing-16) * 7);
+  max-width: 100%;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.heading:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.body {
+  padding: var(--spacing-4);
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
+}
+
+.openHome {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell {
+    transition: none;
+  }
+}

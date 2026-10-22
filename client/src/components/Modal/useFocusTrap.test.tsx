@@ -5,7 +5,12 @@ import { describe, it, expect, jest } from '@jest/globals';
 import { useRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
+import {
+  getFocusableElements,
+  isEscapeHandled,
+  markEscapeHandled,
+  useFocusTrap,
+} from './useFocusTrap.js';
 
 function Harness({ active, onEscape }: { active: boolean; onEscape: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -685,5 +690,48 @@ describe('useFocusTrap Escape and the stack (#2230)', () => {
     screen.getByText('i2').focus();
     expect(tab().defaultPrevented).toBe(true);
     expect(screen.getByText('i1')).toHaveFocus();
+  });
+});
+
+describe('markEscapeHandled (#2231)', () => {
+  function escapeEvent() {
+    return new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  }
+
+  it('reports only marked events as handled', () => {
+    const marked = escapeEvent();
+    const other = escapeEvent();
+    markEscapeHandled(marked);
+    expect(isEscapeHandled(marked)).toBe(true);
+    expect(isEscapeHandled(other)).toBe(false);
+  });
+
+  it('an Escape marked by an inner layer does not call onEscape and is not prevented', () => {
+    const onEscape = jest.fn();
+    render(<Harness active onEscape={onEscape} />);
+    const event = escapeEvent();
+    markEscapeHandled(event);
+    document.dispatchEvent(event);
+    expect(onEscape).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('the next, unmarked Escape is handled normally', () => {
+    const onEscape = jest.fn();
+    render(<Harness active onEscape={onEscape} />);
+    const handled = escapeEvent();
+    markEscapeHandled(handled);
+    document.dispatchEvent(handled);
+    document.dispatchEvent(escapeEvent());
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it('marking a Tab event does not stop the Tab wrap', () => {
+    render(<Harness active onEscape={() => {}} />);
+    screen.getByText('last').focus();
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    markEscapeHandled(tab);
+    document.dispatchEvent(tab);
+    expect(screen.getByText('first')).toHaveFocus();
   });
 });

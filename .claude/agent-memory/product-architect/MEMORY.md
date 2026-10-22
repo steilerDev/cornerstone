@@ -22,6 +22,7 @@
 - [plan:check "baseline is behind"](recurring-patterns.md) — exits 0 but is still a same-PR re-baseline finding (PR #2318)
 - [`?.`→`!` on async callbacks](recurring-patterns.md) — trace the caller; annotator onSave runs after an await; route-order prose (PR #2323)
 - [Two-phase producers](recurring-patterns.md) — tray at encode vs host at store: gate "remove last" on the in-flight count (PR #2324)
+- [Outside-press exclusions match the host](recurring-patterns.md) — `closest([aria-modal])` also hits the popover's own host dialog; exclude only containers without the anchor (#2231)
 - [Extract-and-share refactors](recurring-patterns.md) — check the original caller really uses the extracted helper; one-fixture consistency tests hide forks (PR #2325)
 - [Redefined stored flag](recurring-patterns.md) — grep UI copy, type JSDoc and all wiki notes of the field (is_late, PR #2326)
 - [Focus trap owning every Tab](recurring-patterns.md) — per-radio Tab stops, skipped `<summary>`; ask for junction-only stepping (PR #2327)

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
+import { HOME_ATTENTION_STALE_MS } from '../../attention/attentionContext.js';
+import { useShellAttention } from '../../attention/useShellAttention.js';
 import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
 import type { OverflowMenuEntry } from '../../components/OverflowMenu/OverflowMenu.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
-import { useAttention } from '../../hooks/useAttention.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useLoadOnce } from '../../hooks/useLoadOnce.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
@@ -41,13 +42,33 @@ export function HomePage() {
   const { houseName } = useHouseName();
   const originState = useOriginState();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  useDocumentTitle(tCommon('navigation.home'));
+  const attention = useShellAttention();
+  const attentionCount = attention.data?.count ?? 0;
+  useDocumentTitle(tCommon('navigation.home'), {
+    prefix: attentionCount > 0 ? t('count', { count: attentionCount }) : null,
+  });
 
   const [today] = useState<string>(() => todayLocalIsoDate());
 
   const prefs = useHomePreferences();
   const setup = useLoadOnce(getHomeSetup);
-  const attention = useAttention();
+
+  // Home stays as fresh as before (the request is deduplicated with the provider's first load),
+  // and "Hidden for now" does not outlive Home: the bell lists unsnoozed rows only.
+  const { refreshStale, setIncludeSnoozed } = attention;
+  useEffect(() => {
+    refreshStale(HOME_ATTENTION_STALE_MS);
+  }, [refreshStale]);
+  const includeSnoozedRef = useRef(attention.includeSnoozed);
+  useEffect(() => {
+    includeSnoozedRef.current = attention.includeSnoozed;
+  }, [attention.includeSnoozed]);
+  useEffect(
+    () => () => {
+      if (includeSnoozedRef.current) setIncludeSnoozed(false);
+    },
+    [setIncludeSnoozed],
+  );
 
   // A create dialog routed over Home (company, task, ...) changes the real location when it
   // closes: reload the checklist silently so finished steps tick off.
@@ -59,7 +80,7 @@ export function HomePage() {
     previousKeyRef.current = realKey;
     refreshSetup();
   }, [realKey, refreshSetup]);
-  const attentionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const attentionHeadingRef = attention.homeHeadingRef;
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
