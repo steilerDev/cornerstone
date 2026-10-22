@@ -8,6 +8,8 @@
  * This pattern is used across budgetServiceFactory, budgetSourceService, and budgetOverviewService.
  */
 
+import { toCents } from './money.js';
+
 /**
  * Raw row type for (invoice_budget_line, invoice, deposit?) jointures.
  * Used by computeDepositAwareAggregates to compute proportional splits.
@@ -545,6 +547,116 @@ export interface InvoiceDepositRow {
   deposit_amount: number | null;
   deposit_status: string | null;
   deposit_entry_type: string | null;
+}
+
+/**
+ * Row for the open-payment decomposition: an `InvoiceDepositRow` plus the dates and labels the
+ * attention rules (N4-N6) need.
+ */
+export interface OpenPaymentRow extends InvoiceDepositRow {
+  invoice_date: string;
+  invoice_due_date: string | null;
+  invoice_number: string | null;
+  vendor_name: string;
+  deposit_due_date: string | null;
+}
+
+/** One still-payable amount with its own due date (final payment or progress payment). */
+export interface OpenPaymentItem {
+  kind: 'final' | 'progress';
+  invoiceId: string;
+  /** Set for progress payments, null for the final payment. */
+  depositId: string | null;
+  invoiceStatus: string;
+  invoiceNumber: string | null;
+  vendorName: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  /** Major units, rounded to cents. */
+  amount: number;
+}
+
+/**
+ * Per-due-date decomposition of `computeOpenAmounts` (#2229), in integer cents. Per invoice,
+ * Σ item cents = toCents(computeOpenAmounts(rows).byInvoice.get(id)), so Σ all items equals the
+ * money summary's "still to pay".
+ *
+ * - final: invoice status pending and residual = max(0, amount - Σ non-refund entries of any
+ *   status) > 0; due date is the invoice's.
+ * - progress: every non-refund entry with status pending, on an invoice of any status (offers
+ *   included); due date is the entry's.
+ * - Pending refunds produce no item.
+ *
+ * Order: invoice id, final before progress, then deposit id.
+ */
+export function computeOpenPaymentItems(rows: OpenPaymentRow[]): OpenPaymentItem[] {
+  interface Entry {
+    depositId: string;
+    cents: number;
+    status: string;
+    entryType: string;
+    dueDate: string | null;
+  }
+  const invoices = new Map<string, { row: OpenPaymentRow; entries: Entry[] }>();
+  for (const row of rows) {
+    let info = invoices.get(row.invoice_id);
+    if (!info) {
+      info = { row, entries: [] };
+      invoices.set(row.invoice_id, info);
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      if (!info.entries.some((e) => e.depositId === row.deposit_id)) {
+        info.entries.push({
+          depositId: row.deposit_id,
+          cents: toCents(row.deposit_amount),
+          status: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
+          dueDate: row.deposit_due_date,
+        });
+      }
+    }
+  }
+
+  const items: OpenPaymentItem[] = [];
+  for (const invoiceId of [...invoices.keys()].sort()) {
+    const { row, entries } = invoices.get(invoiceId)!;
+    const base = {
+      invoiceId,
+      invoiceStatus: row.invoice_status,
+      invoiceNumber: row.invoice_number,
+      vendorName: row.vendor_name,
+      invoiceDate: row.invoice_date,
+    };
+
+    let nonRefundCents = 0;
+    for (const e of entries) if (e.entryType !== 'refund') nonRefundCents += e.cents;
+    if (row.invoice_status === 'pending') {
+      const residual = Math.max(0, toCents(row.invoice_amount) - nonRefundCents);
+      if (residual > 0) {
+        items.push({
+          ...base,
+          kind: 'final',
+          depositId: null,
+          dueDate: row.invoice_due_date,
+          amount: residual / 100,
+        });
+      }
+    }
+
+    const progress = entries
+      .filter((e) => e.entryType !== 'refund' && e.status === 'pending')
+      .sort((a, b) => (a.depositId < b.depositId ? -1 : a.depositId > b.depositId ? 1 : 0));
+    for (const e of progress) {
+      items.push({
+        ...base,
+        kind: 'progress',
+        depositId: e.depositId,
+        dueDate: e.dueDate,
+        amount: e.cents / 100,
+      });
+    }
+  }
+  return items;
 }
 
 /**

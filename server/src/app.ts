@@ -66,6 +66,7 @@ import backupRoutes from './routes/backups.js';
 import undoRoutes from './routes/undo.js';
 import deleteImpactRoutes from './routes/deleteImpact.js';
 import searchRoutes from './routes/search.js';
+import attentionRoutes from './routes/attention.js';
 import * as backupService from './services/backupService.js';
 import * as photoService from './services/photoService.js';
 import * as draftCleanupService from './services/draftCleanupService.js';
@@ -286,6 +287,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(undoRoutes, { prefix: '/api/undo' });
   await app.register(deleteImpactRoutes, { prefix: '/api/delete-impact' });
   await app.register(searchRoutes, { prefix: '/api/search' });
+  await app.register(attentionRoutes, { prefix: '/api/attention' });
 
   // Initialize automatic backup scheduler (if configured)
   backupService.initScheduler(app.db, app.config, app.log);

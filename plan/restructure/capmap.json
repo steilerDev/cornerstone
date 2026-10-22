@@ -226,7 +226,7 @@
     "to": "Tasks > Task page > header 'Late · n d' chip; Tasks > Tasks list > Late group; Home > Needs attention (N1, N2)",
     "change": "promoted",
     "gate": "none",
-    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs."
+    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs. #2229: N1/N2 rows use contract 4's isLate (the Late definition for every surface), with holds-up counts incl. milestone gates; UI in 3.3, Tasks list in 5.1."
   },
   "WRK-030": {
     "name": "Assign or change a work item's area",
@@ -2586,7 +2586,7 @@
     "to": "Site diary > Site diary list > 'Unfinished' row; Home > Tidy up (draft older than 1 day: Continue · Discard)",
     "change": "promoted",
     "gate": "none",
-    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\". #2221: built. Resuming a draft also resumes its waiting photo uploads."
+    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\". #2221: built. Resuming a draft also resumes its waiting photo uploads. #2229: H1 Tidy up row for drafts untouched for more than 1 day (Continue · Discard); UI in 3.3."
   },
   "JRN-018": {
     "name": "Automatically delete abandoned drafts after a retention period",
@@ -3727,7 +3727,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Home This-week critical line with next deadline, days remaining and health chip; 'Critical' chips; Schedule highlight on by default; items on the path visible in the Schedule.",
-    "note": "Real data (engine replication, matches today's card): 10 tasks on the path; the next deadline is 14 days away, Warning (C-01, R-M7)."
+    "note": "Real data (engine replication, matches today's card): 10 tasks on the path; the next deadline is 14 days away, Warning (C-01, R-M7). #2229: the critical line (task, must end by, days left, level on_track/warning/critical/overdue, count) is served by `GET /api/attention` (`criticalLine`); UI in 3.3."
   },
   "PLT-064": {
     "name": "Open the next critical work item from the dashboard",
@@ -3736,7 +3736,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Critical line and every Home row link to the task page.",
-    "note": "Moves to Home, the one home of its object (principle 2); the old URL keeps working (weekly use)."
+    "note": "Moves to Home, the one home of its object (principle 2); the old URL keeps working (weekly use). #2229: every attention row and the critical line carry a link (route id + params) to the object's page; UI in 3.3."
   },
   "PLT-065": {
     "name": "See a 5-day mini Gantt around today and open the full schedule from it",
@@ -3754,7 +3754,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Still to pay' (sum, count) -> Invoices To pay sorted oldest first with Overdue chips and footer sum; N4–N6 rows on Home.",
-    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02)."
+    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3."
   },
   "PLT-067": {
     "name": "See the newest quotations and the quotes total on the dashboard",
@@ -3780,7 +3780,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Financing > Grants cards with status chips; Home N11 for deadlines within 14 days.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants. #2195: grant status words read the canonical grant key set (AC3)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants. #2195: grant status words read the canonical grant key set (AC3). #2229: N11 rows for eligible/applied grants with a deadline within 14 days; UI in 3.3."
   },
   "PLT-070": {
     "name": "See and open the most recent diary entries from the dashboard",

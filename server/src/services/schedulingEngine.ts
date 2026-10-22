@@ -13,6 +13,7 @@
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import { isPurchaseLate } from './shared/purchaseLate.js';
 import {
   workItems,
   workItemDependencies,
@@ -691,7 +692,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-const MILESTONE_NODE_PREFIX = 'milestone:';
+export const MILESTONE_NODE_PREFIX = 'milestone:';
 
 export interface ScheduleGraph {
   /** Real work items (stored dates) followed by the `milestone:<id>` virtual nodes. */
@@ -727,7 +728,7 @@ export interface ScheduleProjection {
   criticalMilestoneIds: Set<number>;
 }
 
-function todayUtc(): string {
+export function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
@@ -1125,7 +1126,7 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
 
       if (hiDeps.length === 0 && !hi.earliestDeliveryDate) {
         // No dependencies and no earliest delivery constraint — HI is unconstrained
-        hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
+        hiDeliveryDates.set(hi.id, { targetDate: null, isLate: isPurchaseLate(hi, today) });
         continue;
       }
 
@@ -1198,26 +1199,20 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
 
       // ── 10. Apply floor rules ─────────────────────────────────────────────────────
 
-      let isLate = false;
-
       if (hi.actualDeliveryDate) {
         // Actual date overrides CPM — use it directly
         targetDate = hi.actualDeliveryDate;
-      } else if (hi.status === 'planned' || hi.status === 'purchased') {
-        // Floor to today; mark as late if floored
-        const targetBeforeFloor = targetDate;
+      } else if (
+        hi.status === 'planned' ||
+        hi.status === 'purchased' ||
+        hi.status === 'scheduled'
+      ) {
+        // Floor the target to today
         targetDate = maxDate(targetDate, today);
-        if (targetDate !== targetBeforeFloor) {
-          isLate = true;
-        }
-      } else if (hi.status === 'scheduled') {
-        // Floor to today; mark as late if floored
-        const targetBeforeFloor = targetDate;
-        targetDate = maxDate(targetDate, today);
-        if (targetDate !== targetBeforeFloor) {
-          isLate = true;
-        }
       }
+
+      // Late is the one purchase definition: past its planned (entered) delivery date
+      const isLate = isPurchaseLate(hi, today);
 
       hiDeliveryDates.set(hi.id, { targetDate, isLate });
     }

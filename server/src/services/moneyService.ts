@@ -28,7 +28,12 @@ import type {
   SubsidyReductionType,
 } from '@cornerstone/shared';
 import { toCents } from './shared/money.js';
-import type { InvoiceDepositRow } from './shared/depositAggregateUtils.js';
+import {
+  computeOpenPaymentItems,
+  type InvoiceDepositRow,
+  type OpenPaymentItem,
+  type OpenPaymentRow,
+} from './shared/depositAggregateUtils.js';
 import {
   computeMoney,
   computePayments,
@@ -252,6 +257,32 @@ function loadDepositRows(db: DbType): InvoiceDepositRow[] {
     FROM invoices i
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id`,
   );
+}
+
+/**
+ * Every still-payable amount with its own due date (#2229, attention rules N4-N6): the
+ * per-due-date decomposition of "still to pay". One query; Σ amounts = `summary.stillToPay`.
+ */
+export function listOpenPayments(db: Pick<DbType, 'all'>): OpenPaymentItem[] {
+  const rows = db.all<OpenPaymentRow>(
+    sql`SELECT
+      i.id             AS invoice_id,
+      i.amount         AS invoice_amount,
+      i.status         AS invoice_status,
+      i.date           AS invoice_date,
+      i.due_date       AS invoice_due_date,
+      i.invoice_number AS invoice_number,
+      v.name           AS vendor_name,
+      d.id             AS deposit_id,
+      d.amount         AS deposit_amount,
+      d.status         AS deposit_status,
+      d.entry_type     AS deposit_entry_type,
+      d.due_date       AS deposit_due_date
+    FROM invoices i
+    INNER JOIN vendors v ON v.id = i.vendor_id
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id`,
+  );
+  return computeOpenPaymentItems(rows);
 }
 
 // ─── Assembly ────────────────────────────────────────────────────────────────

@@ -158,6 +158,11 @@ export interface MoneyResult {
   /** budgetSourceId (or 'unassigned') -> counted grant shares attributed to it */
   sourceGrants: Map<string, Scen>;
   notYetSplit: { amountCents: number; recordCount: number };
+  /**
+   * invoiceId -> unsplit remainder in cents (only remainders >= 100 cents). Feeds the H2
+   * "Tidy up" rows of the attention service; Σ = `notYetSplit.amountCents`.
+   */
+  notYetSplitByInvoice: Map<string, number>;
   expectedCost: Scen;
   expectedGrants: Scen;
   possibleGrants: Scen;
@@ -417,9 +422,11 @@ export function computeMoney(input: MoneyInput, options: ComputeMoneyOptions = {
   // 2. Not yet split
   let notYetSplitCents = 0;
   let notYetSplitRecords = 0;
+  const notYetSplitByInvoice = new Map<string, number>();
   for (const invoice of input.invoices) {
     const remainder = toCents(invoice.amount) - invoice.itemizedCents;
     if (remainder >= 100) {
+      notYetSplitByInvoice.set(invoice.id, remainder);
       notYetSplitCents += remainder;
       notYetSplitRecords += 1;
     }
@@ -526,6 +533,7 @@ export function computeMoney(input: MoneyInput, options: ComputeMoneyOptions = {
     orphan,
     sourceGrants,
     notYetSplit: { amountCents: notYetSplitCents, recordCount: notYetSplitRecords },
+    notYetSplitByInvoice,
     expectedCost,
     expectedGrants,
     possibleGrants,
