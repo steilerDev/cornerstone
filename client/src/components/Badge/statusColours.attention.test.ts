@@ -23,7 +23,7 @@ function rule(css: string, name: string): string | null {
 
 const PAIRS: Array<[string, string, string]> = [
   ['attentionRed', '--color-status-blocked-bg', '--color-status-blocked-text'],
-  ['attentionAmber', '--color-warning-badge-bg', '--color-warning-text-on-light'],
+  ['attentionAmber', '--color-warning-badge-bg', '--color-warning-badge-text'],
   ['attentionTidy', '--color-status-not-started-bg', '--color-status-not-started-text'],
   ['criticalOnTrack', '--color-status-completed-bg', '--color-status-completed-text'],
   ['verdictOnBudget', '--color-success-badge-bg', '--color-success-badge-text'],
