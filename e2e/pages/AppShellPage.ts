@@ -79,6 +79,16 @@ export class AppShellPage {
   readonly userMenuTrigger: Locator;
   /** The open user-menu panel. >= 1024px only. */
   readonly userMenu: Locator;
+  /** The Needs attention bell (#2231), >= 1024px only; its name carries the exact count. */
+  readonly attentionBell: Locator;
+  /** The bell's count pill (decorative, "99+" above 99), >= 1024px only; absent at 0. */
+  readonly attentionBadge: Locator;
+  /** The bell's popover dialog, >= 1024px only. */
+  readonly attentionPanel: Locator;
+  /** The popover's "Open Home" footer link. */
+  readonly openHomeLink: Locator;
+  /** The count pill on the bottom bar's Home slot (#2231), < 1024px only; absent at 0. */
+  readonly homeSlotBadge: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -97,12 +107,32 @@ export class AppShellPage {
     this.settingsNav = page.getByRole('navigation', { name: /^(Settings|Einstellungen)$/ });
     this.userMenuTrigger = page.getByTestId('user-menu-trigger');
     this.userMenu = page.getByTestId('user-menu');
+    this.attentionBell = page.getByTestId('top-bar-attention');
+    this.attentionBadge = page.getByTestId('top-bar-attention-badge');
+    this.attentionPanel = page.getByTestId('top-bar-attention-panel');
+    this.openHomeLink = page.getByTestId('top-bar-attention-open-home');
+    this.homeSlotBadge = page.getByTestId('bottom-bar-home-badge');
   }
 
   /** True below the shell breakpoint (1023/1024): bottom bar + More sheet instead of the sidebar. */
   isCompact(): boolean {
     const width = this.page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER;
     return width < 1024;
+  }
+
+  /** The direct-child rows of the bell popover's list (`bell-attention-row-<key>`). */
+  attentionPanelRows(): Locator {
+    return this.page.getByTestId('bell-attention-list').locator(':scope > li');
+  }
+
+  /** One popover row by its attention key. */
+  attentionPanelRow(key: string): Locator {
+    return this.page.getByTestId(`bell-attention-row-${key}`);
+  }
+
+  /** The count pill of whichever shell is showing (bell >= 1024px, Home slot below). */
+  shellBadge(): Locator {
+    return this.isCompact() ? this.homeSlotBadge : this.attentionBadge;
   }
 
   // ---------------------------------------------------------------------------------------

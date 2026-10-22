@@ -10,7 +10,8 @@ import {
   useFloating,
 } from '@floating-ui/react';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
-import { useFocusTrap } from './useFocusTrap.js';
+import { useDialogLevel } from './dialogLayer.js';
+import { markEscapeHandled, useFocusTrap } from './useFocusTrap.js';
 import styles from './AnchoredPanel.module.css';
 
 export type AnchoredPanelDismissReason = 'escape' | 'outside' | 'route';
@@ -29,8 +30,19 @@ export interface AnchoredPanelProps {
   /** Pass `location.key`: a change while open dismisses with reason `route`. */
   readonly closeSignal?: unknown;
   readonly testId?: string;
+  /** Side of the anchor the panel aligns to (default `bottom-start`). */
+  readonly placement?: 'bottom-start' | 'bottom-end';
+  /**
+   * `popover` (default) sits above every dialog. `dialog` takes a place in the dialog stack
+   * instead, so a dialog opened from inside the panel renders above it.
+   */
+  readonly layer?: 'popover' | 'dialog';
   readonly children: ReactNode;
 }
+
+/** Presses that are not "outside" the panel. */
+const OUTSIDE_PRESS_EXCLUSIONS =
+  '[data-search-picker-dropdown], [data-anchored-panel], [aria-modal="true"], [data-toast-container]';
 
 /**
  * Non-modal popover anchored to an element (Floating UI, ADR-033). Mounted only while open and
@@ -48,12 +60,16 @@ export function AnchoredPanel({
   trapFocus = false,
   closeSignal,
   testId,
+  placement = 'bottom-start',
+  layer = 'popover',
   children,
 }: AnchoredPanelProps) {
+  // Dialogs opened later (a row's ConfirmDialog) stack above a `dialog`-layer panel.
+  const level = useDialogLevel(open && layer === 'dialog');
   const { refs, floatingStyles, isPositioned } = useFloating({
     open,
     strategy: 'fixed',
-    placement: 'bottom-start',
+    placement,
     middleware: [
       offset(4),
       flip({ padding: 8 }),
@@ -83,8 +99,13 @@ export function AnchoredPanel({
   useClickOutside(
     [anchorRef, panelRef],
     (event) => {
-      const target = event.target as Element | null;
-      if (target?.closest?.('[data-search-picker-dropdown]')) return;
+      const target = event.target as Element;
+      // Not "outside": a SearchPicker dropdown, a nested panel (a row's menu), a stacked dialog
+      // and the toast region (Undo).
+      // A container that holds the anchor is the panel's own host (its dialog or parent panel):
+      // a press elsewhere inside it is still outside this panel.
+      const hit = target.closest(OUTSIDE_PRESS_EXCLUSIONS);
+      if (hit && !hit.contains(anchorRef.current)) return;
       onDismissRef.current('outside');
     },
     open,
@@ -97,11 +118,15 @@ export function AnchoredPanel({
   });
   useEffect(() => {
     if (!open || trapFocus) return;
+    // Capture phase: a nested menu inside a trapping panel dismisses first and marks the Escape
+    // handled, so the outer trap skips it.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismissRef.current('escape');
+      if (e.key !== 'Escape') return;
+      markEscapeHandled(e);
+      onDismissRef.current('escape');
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [open, trapFocus]);
 
   // A route change while open closes the panel (the signal at open time is the baseline).
@@ -121,8 +146,12 @@ export function AnchoredPanel({
           panelRef.current = node;
           refs.setFloating(node);
         }}
-        style={isPositioned ? floatingStyles : { ...floatingStyles, opacity: 0 }}
+        style={{
+          ...(isPositioned ? floatingStyles : { ...floatingStyles, opacity: 0 }),
+          ...(layer === 'dialog' ? { zIndex: `calc(var(--z-modal) + ${level * 2})` } : {}),
+        }}
         className={styles.panel}
+        data-anchored-panel=""
         role={role}
         aria-label={ariaLabel}
         aria-describedby={ariaDescribedBy}

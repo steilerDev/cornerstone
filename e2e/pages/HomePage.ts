@@ -44,6 +44,8 @@ export class HomePage {
   readonly whatMovedLink: Locator;
 
   readonly needsAttention: Locator;
+  /** The Needs attention h2 (its text carries the "(n)" detail). */
+  readonly needsAttentionHeading: Locator;
   readonly showAllButton: Locator;
   readonly catchUpLine: Locator;
   readonly reviewAllButton: Locator;
@@ -89,6 +91,7 @@ export class HomePage {
     this.whatMovedLink = page.getByTestId('home-menu-what-moved');
 
     this.needsAttention = page.getByTestId('home-needs-attention');
+    this.needsAttentionHeading = this.needsAttention.getByRole('heading', { level: 2 });
     this.showAllButton = page.getByTestId('needs-attention-show-all');
     this.catchUpLine = page.getByTestId('home-catch-up-line');
     this.reviewAllButton = page.getByTestId('home-catch-up-review');

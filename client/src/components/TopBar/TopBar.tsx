@@ -7,6 +7,7 @@ import { isApplePlatform } from '../../lib/platform.js';
 import { useCommandSearch } from '../CommandSearch/CommandSearchContext.js';
 import { CreateMenu } from '../CreateMenu/CreateMenu.js';
 import { UserMenu } from '../UserMenu/UserMenu.js';
+import { AttentionBell } from './AttentionBell.js';
 import styles from './TopBar.module.css';
 
 export interface TopBarProps {
@@ -112,28 +113,7 @@ function DesktopTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotR
           </kbd>
         </button>
         <CreateMenu triggerClassName={styles.newButton} />
-        <button
-          type="button"
-          aria-disabled="true"
-          aria-label={t('topBar.attention')}
-          className={styles.bell}
-          data-testid="top-bar-attention"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3L4 11z" />
-            <path d="M6.5 14a1.5 1.5 0 0 0 3 0" />
-          </svg>
-        </button>
+        <AttentionBell />
         <UserMenu />
       </div>
     </header>

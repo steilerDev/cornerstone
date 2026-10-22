@@ -83,7 +83,7 @@ export function removeAttentionRow(
 }
 
 /**
- * The attention rows (Home now, the shell bell in 3.4). Loads once on mount; `refresh` refetches
+ * The attention rows (Home and the shell bell, through AttentionProvider). Loads once on mount; `refresh` refetches
  * silently after every action so the optimistic state is replaced by the server's.
  */
 export function useAttention(): UseAttentionResult {

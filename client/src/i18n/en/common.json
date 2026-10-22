@@ -118,6 +118,11 @@
     "searchShortcutOther": "Ctrl K",
     "new": "New",
     "attention": "Needs attention",
+    "attentionCount_one": "Needs attention, {{count}}",
+    "attentionCount_other": "Needs attention, {{count}}",
+    "attentionOpenHome": "Open Home",
+    "attentionLoadFailed": "Couldn't load Needs attention.",
+    "attentionRetry": "Try again",
     "accountMenu": "Account menu for {{name}}"
   },
   "attention": {

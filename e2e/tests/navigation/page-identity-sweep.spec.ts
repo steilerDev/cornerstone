@@ -326,7 +326,7 @@ const ROWS: SweepRow[] = [
     id: 'home',
     path: () => routeUrl('home'),
     h1: 'Home',
-    title: new RegExp(`^Home · ${HOUSE}$`),
+    title: new RegExp(`^(\\(\\d+\\) )?Home · ${HOUSE}$`),
     crumbs: false,
     active: HOME,
   },

@@ -106,7 +106,7 @@ test.describe('Top bar (desktop)', () => {
       await expect(search.locator('kbd')).toHaveText('Ctrl K');
 
       const newButton = banner.getByRole('button', { name: 'New', exact: true });
-      const bell = banner.getByRole('button', { name: 'Needs attention', exact: true });
+      const bell = banner.getByRole('button', { name: /^Needs attention(, \d+)?$/ });
       await expect(newButton).toBeVisible();
       await expect(bell).toBeVisible();
       await expect(appShell.userMenuTrigger).toHaveAccessibleName(/^Account menu for /);
@@ -115,10 +115,12 @@ test.describe('Top bar (desktop)', () => {
       await expect(newButton).toHaveAttribute('aria-haspopup', 'menu');
       await expect(newButton).not.toHaveAttribute('aria-disabled', 'true');
 
-      // Search is live since #2211 (opens the command search); the bell is still a placeholder
+      // Search is live since #2211 (opens the command search); the bell is live since #2231
+      // (its popover is covered by attention-badge.spec.ts)
       await expect(search).not.toHaveAttribute('aria-disabled');
       await expect(search).toHaveAttribute('aria-haspopup', 'dialog');
-      await expect(bell).toHaveAttribute('aria-disabled', 'true');
+      await expect(bell).toHaveAttribute('aria-haspopup', 'dialog');
+      await expect(bell).not.toHaveAttribute('aria-disabled');
     });
 
     test('E5: keyboard order, visible focus and the menu-button pattern', async ({ page }) => {

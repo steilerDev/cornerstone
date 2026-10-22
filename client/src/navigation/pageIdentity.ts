@@ -121,6 +121,8 @@ export function composeDocumentTitle(parts: {
   page?: string | null;
   section?: string | null;
   house?: string | null;
+  /** Leading marker such as the attention count "(3)"; Home only. */
+  prefix?: string | null;
 }): string {
   const page = parts.page?.trim() ?? '';
   const section = parts.section?.trim() ?? '';
@@ -129,5 +131,7 @@ export function composeDocumentTitle(parts: {
   if (page) segments.push(page);
   if (section && section !== page) segments.push(section);
   segments.push(house);
-  return segments.join(TITLE_SEPARATOR);
+  const title = segments.join(TITLE_SEPARATOR);
+  const prefix = parts.prefix?.trim() ?? '';
+  return prefix ? `${prefix} ${title}` : title;
 }

@@ -607,7 +607,19 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(block).not.toBeNull();
     const rules = parseRules(block?.[0] ?? '');
     const rule = rules.find((r) => r.selectors.includes('.search'));
-    expect(rule?.selectors).toEqual(['.search', '.newButton', '.bell']);
+    expect(rule?.selectors).toEqual(['.search', '.newButton']);
+    expect(rule?.decls.get('transition')).toBe('none');
+  });
+
+  it('the attention bell turns its transition off for reduced motion (#2231)', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'components', 'TopBar', 'AttentionBell.module.css'),
+      'utf8',
+    );
+    const block = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([^@]*?\})\s*\}/.exec(css);
+    expect(block).not.toBeNull();
+    const rule = parseRules(block?.[0] ?? '').find((r) => r.selectors.includes('.bell'));
+    expect(rule?.selectors).toEqual(['.bell']);
     expect(rule?.decls.get('transition')).toBe('none');
   });
 

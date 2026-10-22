@@ -639,7 +639,7 @@ test.describe('Scenario 4 — LLM suggestion badge (TOTAL_MISMATCH)', () => {
       await autoItemizePage.waitForAnalyzingDone();
 
       // ── SuggestionBadge should appear near the amount field ───────────────
-      const badge = page.locator('[class*="badge"]').first();
+      const badge = page.locator('main [class*="badge"]').first();
       await expect(badge).toBeVisible();
 
       // Badge text shows the suggested value

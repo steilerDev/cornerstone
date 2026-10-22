@@ -14,7 +14,11 @@ import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 import { useState } from 'react';
 import { RealLocationKeyContext } from '../../navigation/realLocation.js';
+import type { ReactElement } from 'react';
 import { renderHome } from '../../test/homeRender.js';
+import type { HomeRenderOptions } from '../../test/homeRender.js';
+import { useShellAttention } from '../../attention/useShellAttention.js';
+import type * as ProviderModule from '../../attention/AttentionProvider.js';
 import {
   AREA_KITCHEN,
   makeAttention,
@@ -26,9 +30,10 @@ import {
 } from '../../test/attentionFixtures.js';
 
 const mockGetAttention = jest.fn<typeof AttentionApiTypes.getAttention>();
+const mockNotNow = jest.fn<typeof AttentionApiTypes.notNow>();
 jest.unstable_mockModule('../../lib/attentionApi.js', () => ({
   getAttention: mockGetAttention,
-  notNow: jest.fn<typeof AttentionApiTypes.notNow>(),
+  notNow: mockNotNow,
   undoNotNow: jest.fn<typeof AttentionApiTypes.undoNotNow>(),
 }));
 
@@ -68,6 +73,7 @@ jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
 }));
 
 let HomePage: typeof PageModule.HomePage;
+let AttentionProvider: typeof ProviderModule.AttentionProvider;
 let media: MatchMediaControl;
 
 function pref(key: string, value: string): UserPreference {
@@ -90,8 +96,16 @@ function mockEverything(stored: UserPreference[] = []) {
   mockListDiaryEntries.mockResolvedValue(diaryResponse());
 }
 
+/** Home reads the shell attention state: render it inside the provider AppShell mounts. */
+function renderWithAttention(ui: ReactElement, options: HomeRenderOptions = {}) {
+  return renderHome(ui, {
+    ...options,
+    wrap: (children) => <AttentionProvider>{children}</AttentionProvider>,
+  });
+}
+
 async function renderPage() {
-  renderHome(<HomePage />);
+  renderWithAttention(<HomePage />);
   await screen.findByRole('heading', { level: 1, name: 'Home' });
 }
 
@@ -101,7 +115,10 @@ async function sectionsShown() {
 }
 
 beforeEach(async () => {
-  if (!HomePage) ({ HomePage } = await import('./HomePage.js'));
+  if (!HomePage) {
+    ({ HomePage } = await import('./HomePage.js'));
+    ({ AttentionProvider } = await import('../../attention/AttentionProvider.js'));
+  }
   [
     mockGetAttention,
     mockGetHomeWeek,
@@ -110,6 +127,7 @@ beforeEach(async () => {
     mockListDiaryEntries,
     mockListPreferences,
     mockUpsertPreference,
+    mockNotNow,
   ].forEach((mock) => mock.mockReset());
   mockHouseName = null;
   media = installMatchMedia({ '(min-width: 1024px)': true, '(min-width: 768px)': true });
@@ -513,7 +531,7 @@ describe('HomePage set-up state refresh on navigation (#2230)', () => {
   it('does not refetch the set-up state on the initial render', async () => {
     mockEverything();
     mockGetHomeSetup.mockResolvedValue(BEFORE);
-    renderHome(<KeyedHome />);
+    renderWithAttention(<KeyedHome />);
     await screen.findByTestId('home-setup');
 
     expect(mockGetHomeSetup).toHaveBeenCalledTimes(1);
@@ -522,7 +540,7 @@ describe('HomePage set-up state refresh on navigation (#2230)', () => {
   it('refetches the set-up state once when the real location key changes and updates the step', async () => {
     mockEverything();
     mockGetHomeSetup.mockResolvedValueOnce(BEFORE).mockResolvedValueOnce(AFTER);
-    renderHome(<KeyedHome />);
+    renderWithAttention(<KeyedHome />);
     const row = await screen.findByTestId('home-setup-row-house');
     expect(row).toHaveTextContent('To do:');
 
@@ -538,7 +556,7 @@ describe('HomePage set-up state refresh on navigation (#2230)', () => {
   it('does not refetch again when the same key is provided on a re-render', async () => {
     mockEverything();
     mockGetHomeSetup.mockResolvedValue(BEFORE);
-    renderHome(<KeyedHome />);
+    renderWithAttention(<KeyedHome />);
     await screen.findByTestId('home-setup');
     await userEvent.click(screen.getByTestId('change-key'));
     await waitFor(() => expect(mockGetHomeSetup).toHaveBeenCalledTimes(2));
@@ -546,5 +564,139 @@ describe('HomePage set-up state refresh on navigation (#2230)', () => {
     await userEvent.click(screen.getByTestId('change-key'));
 
     expect(mockGetHomeSetup).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('HomePage and the shell attention state (#2231)', () => {
+  const lateRows = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      makeRow('N1', {
+        subject: { type: 'work_item', id: `t${i}`, label: `Task ${i}`, area: null },
+        link: { route: 'workItem', params: { id: `t${i}` }, query: {} },
+      }),
+    );
+
+  function CountProbe() {
+    const { data, includeSnoozed } = useShellAttention();
+    return (
+      <p data-testid="shell-probe">{`${data ? data.count : 'none'}|${String(includeSnoozed)}`}</p>
+    );
+  }
+
+  it('prefixes the document title with the Needs attention count', async () => {
+    mockEverything();
+    mockGetAttention.mockResolvedValue(makeAttention(lateRows(3)));
+    await renderPage();
+    await waitFor(() => expect(document.title).toMatch(/^\(3\) Home · /));
+  });
+
+  it('shows the same number in the heading detail and the title prefix', async () => {
+    mockEverything();
+    mockGetAttention.mockResolvedValue(makeAttention(lateRows(3)));
+    await renderPage();
+    await sectionsShown();
+    expect(within(screen.getByTestId('home-needs-attention')).getByText('(3)')).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toMatch(/^\(3\) Home/));
+  });
+
+  it('has no title prefix at a count of 0', async () => {
+    mockEverything();
+    mockGetAttention.mockResolvedValue(makeAttention([]));
+    await renderPage();
+    await sectionsShown();
+    expect(document.title).toMatch(/^Home · /);
+    expect(document.title).not.toMatch(/\(/);
+  });
+
+  it('has no title prefix while the first load is pending', async () => {
+    mockEverything();
+    mockGetAttention.mockReturnValue(new Promise(() => {}));
+    await renderPage();
+    expect(document.title).not.toMatch(/\(/);
+  });
+
+  it('updates the title and the heading together after "Not now" on a row', async () => {
+    mockEverything();
+    // The server's view: three rows until "Not now" has been posted, two after.
+    mockGetAttention.mockImplementation(async () =>
+      makeAttention(mockNotNow.mock.calls.length > 0 ? lateRows(3).slice(1) : lateRows(3)),
+    );
+    mockNotNow.mockResolvedValue({ key: 'k', snoozedUntil: '2026-03-17' });
+    await renderPage();
+    await sectionsShown();
+    await waitFor(() => expect(document.title).toMatch(/^\(3\) Home/));
+
+    const rows = screen.getByTestId('home-needs-attention').querySelectorAll('li');
+    await userEvent.click(within(rows[0] as HTMLElement).getByRole('button', { name: /Not now/ }));
+
+    await waitFor(() => expect(document.title).toMatch(/^\(2\) Home/));
+    expect(within(screen.getByTestId('home-needs-attention')).getByText('(2)')).toBeInTheDocument();
+  });
+
+  it('does not request attention a second time right after mount (shared load)', async () => {
+    mockEverything();
+    await renderPage();
+    await sectionsShown();
+    expect(mockGetAttention).toHaveBeenCalledTimes(1);
+  });
+
+  it('attaches its Needs attention heading to the shell homeHeadingRef', async () => {
+    mockEverything();
+    let headingRef: ReturnType<typeof useShellAttention>['homeHeadingRef'] | null = null;
+    function RefProbe() {
+      headingRef = useShellAttention().homeHeadingRef;
+      return null;
+    }
+    renderWithAttention(
+      <>
+        <RefProbe />
+        <HomePage />
+      </>,
+    );
+    await sectionsShown();
+    expect(headingRef!.current).toBe(
+      within(screen.getByTestId('home-needs-attention')).getByRole('heading', { level: 2 }),
+    );
+  });
+
+  describe('Hidden for now does not outlive Home', () => {
+    function Shell() {
+      const [showHome, setShowHome] = useState(true);
+      return (
+        <>
+          <CountProbe />
+          <button type="button" data-testid="leave-home" onClick={() => setShowHome(false)}>
+            leave
+          </button>
+          {showHome ? <HomePage /> : null}
+        </>
+      );
+    }
+
+    it('resets includeSnoozed when Home unmounts', async () => {
+      mockEverything();
+      mockGetAttention.mockResolvedValue(makeAttention(lateRows(2), [], { snoozedCount: 1 }));
+      renderWithAttention(<Shell />);
+      await screen.findByTestId('home-attention-hidden-toggle');
+      await userEvent.click(screen.getByTestId('home-attention-hidden-toggle'));
+      await waitFor(() => expect(screen.getByTestId('shell-probe')).toHaveTextContent('2|true'));
+
+      await userEvent.click(screen.getByTestId('leave-home'));
+
+      await waitFor(() => expect(screen.getByTestId('shell-probe')).toHaveTextContent('2|false'));
+      expect(mockGetAttention).toHaveBeenLastCalledWith({ includeSnoozed: false });
+    });
+
+    it('does not touch includeSnoozed on unmount when it was never turned on', async () => {
+      mockEverything();
+      renderWithAttention(<Shell />);
+      await sectionsShown();
+      const calls = mockGetAttention.mock.calls.length;
+
+      await userEvent.click(screen.getByTestId('leave-home'));
+
+      expect(screen.getByTestId('shell-probe')).toHaveTextContent('1|false');
+      expect(mockGetAttention.mock.calls.length).toBe(calls);
+    });
   });
 });

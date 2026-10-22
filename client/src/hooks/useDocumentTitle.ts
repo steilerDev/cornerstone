@@ -25,6 +25,8 @@ export interface DocumentTitleOptions {
    * the overlay unmounts (its effect re-runs on the navigation that closes the dialog).
    */
   readonly overlay?: boolean;
+  /** Leading marker before the title, e.g. Home's attention count "(3)". Null/empty = none. */
+  readonly prefix?: string | null;
 }
 
 /** Number of mounted overlay titles; page titles stay silent while it is above zero. */
@@ -50,6 +52,7 @@ export function useDocumentTitle(
     page: pageTitle,
     section: withSection ? sectionLabel : null,
     house: withHouse ? houseName : null,
+    prefix: options?.prefix ?? null,
   });
 
   const overlay = options?.overlay === true;

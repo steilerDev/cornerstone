@@ -128,21 +128,10 @@
   box-sizing: border-box;
 }
 
-.badge {
+.homeBadge {
   position: absolute;
   top: calc(-1 * var(--spacing-1));
   inset-inline-start: 60%;
-  box-sizing: border-box;
-  min-width: var(--spacing-4);
-  height: var(--spacing-4);
-  padding-inline: var(--spacing-1);
-  border-radius: var(--radius-full);
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--spacing-4);
-  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

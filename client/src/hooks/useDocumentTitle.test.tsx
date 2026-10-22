@@ -76,6 +76,40 @@ describe('useDocumentTitle', () => {
     expect(document.title).toBe('Sign in · Cornerstone');
   });
 
+  it('omits the section on a path the route map does not know', () => {
+    render(
+      <MemoryRouter initialEntries={['/no-such-page']}>
+        <Page title="Synthetic" />
+      </MemoryRouter>,
+    );
+    expect(document.title).toBe('Synthetic · Cornerstone');
+  });
+
+  it('puts the prefix option before the title (#2231)', () => {
+    houseState.name = 'Testhaus';
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Page title="Home" options={{ prefix: '(3)' }} />
+      </MemoryRouter>,
+    );
+    expect(document.title).toBe('(3) Home · Testhaus');
+  });
+
+  it('adds and drops the prefix as the option changes', () => {
+    houseState.name = 'Testhaus';
+    const ui = (prefix: string | null) => (
+      <MemoryRouter initialEntries={['/']}>
+        <Page title="Home" options={{ prefix }} />
+      </MemoryRouter>
+    );
+    const { rerender } = render(ui(null));
+    expect(document.title).toBe('Home · Testhaus');
+    rerender(ui('(2)'));
+    expect(document.title).toBe('(2) Home · Testhaus');
+    rerender(ui(null));
+    expect(document.title).toBe('Home · Testhaus');
+  });
+
   it('updates when the page title changes (a rename)', () => {
     const { rerender } = render(
       <MemoryRouter initialEntries={['/project/work-items/w-1']}>

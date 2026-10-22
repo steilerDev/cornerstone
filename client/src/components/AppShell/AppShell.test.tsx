@@ -18,6 +18,9 @@ import { useCreateContext } from '../CreateMenu/CreateMenuContext.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 import type * as AppShellTypes from './AppShell.js';
 import type * as SearchApiTypes from '../../lib/searchApi.js';
+import type * as AttentionApiTypes from '../../lib/attentionApi.js';
+import { useShellAttention } from '../../attention/useShellAttention.js';
+import { makeAttention, makeRow } from '../../test/attentionFixtures.js';
 
 let mockRole: 'admin' | 'member' | null = 'admin';
 
@@ -71,6 +74,14 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 // The command search is mounted by the shell; its API is mocked with an empty result.
 const mockSearch = jest.fn<typeof SearchApiTypes.searchEverywhere>();
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({ searchEverywhere: mockSearch }));
+
+// The shell mounts the attention provider, which loads GET /api/attention.
+const mockGetAttention = jest.fn<typeof AttentionApiTypes.getAttention>();
+jest.unstable_mockModule('../../lib/attentionApi.js', () => ({
+  getAttention: mockGetAttention,
+  notNow: jest.fn(),
+  undoNotNow: jest.fn(),
+}));
 
 const PAGE_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'n', handler: () => {}, description: 'New synthetic task' },
@@ -140,6 +151,8 @@ describe('AppShell', () => {
     }
     mockRole = 'admin';
     installMatchMedia(false);
+    mockGetAttention.mockReset();
+    mockGetAttention.mockResolvedValue(makeAttention([]));
   });
 
   afterEach(async () => {
@@ -1236,6 +1249,79 @@ describe('AppShell', () => {
       resizeTo(true);
       expect(screen.getByTestId('top-bar')).toBeInTheDocument();
       expect(shellRoot()).not.toHaveClass('immersive');
+    });
+  });
+
+  describe('attention badge (#2231)', () => {
+    function rows(n: number) {
+      return Array.from({ length: n }, (_, i) =>
+        makeRow('N1', {
+          subject: { type: 'work_item', id: `t${i}`, label: `Task ${i}`, area: null },
+        }),
+      );
+    }
+
+    function CountProbe() {
+      const { data } = useShellAttention();
+      return <p data-testid="probe-count">{data ? data.count : 'none'}</p>;
+    }
+
+    it('compact: the Home slot shows the provider count and its exact name', async () => {
+      mockGetAttention.mockResolvedValue(makeAttention(rows(3)));
+      renderAt('/budget/overview', <div>page</div>);
+
+      expect(await screen.findByTestId('bottom-bar-home-badge')).toHaveTextContent(/^3$/);
+      expect(screen.getByTestId('bottom-bar-home')).toHaveAttribute(
+        'aria-label',
+        'Home, 3 need attention',
+      );
+      expect(screen.queryByTestId('top-bar-attention')).not.toBeInTheDocument();
+    });
+
+    it('compact: no badge at a count of 0', async () => {
+      mockGetAttention.mockResolvedValue(makeAttention([]));
+      renderAt('/budget/overview', <CountProbe />);
+
+      await waitFor(() => expect(screen.getByTestId('probe-count')).toHaveTextContent('0'));
+      expect(screen.queryByTestId('bottom-bar-home-badge')).not.toBeInTheDocument();
+    });
+
+    it('compact: no badge after a failed load', async () => {
+      mockGetAttention.mockRejectedValue(new Error('offline'));
+      renderAt('/budget/overview', <div>page</div>);
+
+      await waitFor(() => expect(mockGetAttention).toHaveBeenCalled());
+      expect(screen.queryByTestId('bottom-bar-home-badge')).not.toBeInTheDocument();
+    });
+
+    it('compact: caps the slot badge at 99+ with the exact count in the name', async () => {
+      mockGetAttention.mockResolvedValue(makeAttention(rows(9), [], { count: 120 }));
+      renderAt('/budget/overview', <div>page</div>);
+
+      expect(await screen.findByTestId('bottom-bar-home-badge')).toHaveTextContent(/^99\+$/);
+      expect(screen.getByTestId('bottom-bar-home')).toHaveAttribute(
+        'aria-label',
+        'Home, 120 need attention',
+      );
+    });
+
+    it('wide: the bell shows the provider count and there is no bottom bar badge', async () => {
+      installMatchMedia(true);
+      mockGetAttention.mockResolvedValue(makeAttention(rows(3)));
+      renderAt('/budget/overview', <div>page</div>);
+
+      expect(await screen.findByTestId('top-bar-attention-badge')).toHaveTextContent(/^3$/);
+      expect(screen.getByTestId('top-bar-attention')).toHaveAccessibleName('Needs attention, 3');
+      expect(screen.queryByTestId('bottom-bar-home-badge')).not.toBeInTheDocument();
+    });
+
+    it('the page content reads the same single request as the shell (one getAttention)', async () => {
+      mockGetAttention.mockResolvedValue(makeAttention(rows(2)));
+      renderAt('/budget/overview', <CountProbe />);
+
+      await waitFor(() => expect(screen.getByTestId('probe-count')).toHaveTextContent('2'));
+      expect(screen.getByTestId('bottom-bar-home-badge')).toHaveTextContent(/^2$/);
+      expect(mockGetAttention).toHaveBeenCalledTimes(1);
     });
   });
 });

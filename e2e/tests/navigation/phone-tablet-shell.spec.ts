@@ -108,13 +108,11 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await page.goto(ROUTES.home);
       await expect(appShell.bottomBar).toBeVisible();
 
-      await expect(appShell.bottomBar.locator('[data-testid^="bottom-bar-"]')).toHaveText([
-        'Home',
-        'Site diary',
-        'New',
-        'Photos',
-        'More',
-      ]);
+      // The Home slot may carry the Needs-attention count (#2231): its pill is not a slot and
+      // its digits are part of the slot's text
+      await expect(
+        appShell.bottomBar.locator('[data-testid^="bottom-bar-"]:not([data-testid$="-badge"])'),
+      ).toHaveText([/^(\d+\+?)?Home$/, 'Site diary', 'New', 'Photos', 'More']);
 
       // Every label is visible at 12px and every slot is a 44px touch target
       for (const [id, label] of [
@@ -344,13 +342,9 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await appShell.languageOption('de').click();
       await saved;
       await expect(appShell.languageOption('de')).toBeChecked();
-      await expect(appShell.bottomBar.locator('[data-testid^="bottom-bar-"]')).toHaveText([
-        'Start',
-        'Bautagebuch',
-        'Neu',
-        'Fotos',
-        'Mehr',
-      ]);
+      await expect(
+        appShell.bottomBar.locator('[data-testid^="bottom-bar-"]:not([data-testid$="-badge"])'),
+      ).toHaveText([/^(\d+\+?)?Start$/, 'Bautagebuch', 'Neu', 'Fotos', 'Mehr']);
       await appShell.closeMoreSheet();
 
       // The longest label is never truncated, at a phone and at a tablet width
