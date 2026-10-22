@@ -205,6 +205,11 @@ jest.unstable_mockModule('./lib/homeApi.js', () => ({
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
 jest.unstable_mockModule('./lib/budgetOverviewApi.js', () => ({
   fetchBudgetOverview: mockFetchBudgetOverview,
+  // The Money overview page reads the full response (#2232): wrap the overview mock.
+  fetchBudgetOverviewResponse: async () => ({
+    overview: await mockFetchBudgetOverview(),
+    money: { leftToSpend: { expected: 0, best: 0, worst: 0, verdict: null } },
+  }),
   fetchBudgetBreakdown: jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>(),
 }));
 

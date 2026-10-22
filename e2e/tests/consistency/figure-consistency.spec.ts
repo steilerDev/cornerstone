@@ -1,0 +1,344 @@
+/**
+ * E2E consistency test across money and attention surfaces (#2232, EPIC-21 P3.5, ADR-039 §7):
+ * "one answer per question". Every surface registered in fixtures/figureSurfaces.ts must show the
+ * server's answer; a figure with one name has one number everywhere.
+ *
+ * Real data: the shared E2E database is written by other specs, so shared project figures are
+ * compared with the read-API / read-page / read-API retry (as home.spec H8d does); exact checks use
+ * records this test creates (a company with an invoice, a chain of three tasks). Synthetic names
+ * and invented amounts only.
+ *
+ * Scenarios
+ * FC1 (desktop, AC1)       project figures equal the money service on every registered surface
+ * FC2 (desktop, AC1)       a company's Still to pay: both page markers equal the API balance
+ * FC3 (desktop, AC1)       "Holds up n tasks": API, Home attention row and Schedule tooltip agree
+ * FC4 (@responsive, AC4)   at most one Left to spend figure per screen; no former names visible
+ * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
+ */
+
+import fs from 'node:fs';
+import type { Page } from '@playwright/test';
+import { test, expect } from '../../fixtures/isolatedUser.js';
+import {
+  createVendorViaApi,
+  createWorkItemViaApi,
+  deleteVendorViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+import { API } from '../../fixtures/testData.js';
+import { dayOffset } from '../../fixtures/homeMocks.js';
+import {
+  COMPANY_SURFACE,
+  HOME_ATTENTION_SURFACE,
+  LEFT_SCREENS,
+  PENDING_SURFACES,
+  PROJECT_SURFACES,
+  SCHEDULE_TOOLTIP_SURFACE,
+} from '../../fixtures/figureSurfaces.js';
+import type { ProjectFigure } from '../../fixtures/figureSurfaces.js';
+import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
+import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
+import { HomePage } from '../../pages/HomePage.js';
+
+test.use({
+  isolatedUserPerWorker: { emailPrefix: 'consistency', displayName: 'E2E Consistency User' },
+});
+
+interface MoneyAnswer {
+  leftToSpend: { expected: number; verdict: string | null };
+  stillToPay: number;
+  stillToPayCount: number;
+  readyToSubmit: { amount: number; count: number };
+}
+
+const cents = (amount: number): number => Math.round(amount * 100);
+
+async function readMoney(page: Page): Promise<MoneyAnswer> {
+  const response = await page.request.get(API.budgetOverview);
+  expect(response.ok(), `GET ${API.budgetOverview}: ${response.status()}`).toBeTruthy();
+  return ((await response.json()) as { money: MoneyAnswer }).money;
+}
+
+function expectedFigures(money: MoneyAnswer): Partial<Record<ProjectFigure, number | null>> {
+  return {
+    leftToSpend: money.leftToSpend.verdict === null ? null : cents(money.leftToSpend.expected),
+    stillToPay: cents(money.stillToPay),
+    stillToPayCount: money.stillToPayCount,
+    readyToSubmit: cents(money.readyToSubmit.amount),
+  };
+}
+
+async function setPreference(page: Page, key: string, value: string): Promise<void> {
+  const response = await page.request.patch('/api/users/me/preferences', { data: { key, value } });
+  expect(response.ok(), `PATCH preference ${key}: ${response.status()}`).toBeTruthy();
+}
+
+/** A company with one pending invoice of 1,234.56 and a paid progress payment of 200.00. */
+async function seedCompany(page: Page, testPrefix: string): Promise<{ vendorId: string }> {
+  const vendorId = await createVendorViaApi(page, { name: `${testPrefix} Consistency Company` });
+  const invoice = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+    data: {
+      invoiceNumber: `${testPrefix}-INV-FC`,
+      amount: 1234.56,
+      date: '2026-03-01',
+      status: 'pending',
+    },
+  });
+  expect(invoice.ok(), `POST invoice: ${invoice.status()}`).toBeTruthy();
+  const invoiceId = ((await invoice.json()) as { invoice: { id: string } }).invoice.id;
+  const deposit = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
+    data: { amount: 200, dueDate: '2026-03-10', status: 'pending' },
+  });
+  expect(deposit.ok(), `POST progress payment: ${deposit.status()}`).toBeTruthy();
+  const depositId = ((await deposit.json()) as { deposit: { id: string } }).deposit.id;
+  const paid = await page.request.patch(`/api/invoices/${invoiceId}/deposits/${depositId}`, {
+    data: { status: 'paid', paidDate: '2026-03-11' },
+  });
+  expect(paid.ok(), `PATCH progress payment paid: ${paid.status()}`).toBeTruthy();
+  return { vendorId };
+}
+
+async function removeCompany(page: Page, vendorId: string): Promise<void> {
+  const list = await page.request.get(`${API.vendors}/${vendorId}/invoices`);
+  if (list.ok()) {
+    const body = (await list.json()) as { invoices?: Array<{ id: string }> };
+    for (const invoice of body.invoices ?? []) {
+      await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoice.id}`);
+    }
+  }
+  await deleteVendorViaApi(page, vendorId);
+}
+
+test.describe('Figure consistency', () => {
+  test.beforeEach(async ({ page }) => {
+    await setPreference(page, 'locale', 'en');
+    await setPreference(page, 'home.movedNoticeSeen', 'true');
+    // A fresh database can be in set-up mode; dismissing it shows the Pulse
+    await setPreference(page, 'home.setupDismissed', 'true');
+  });
+
+  test('FC1: project figures are identical on every registered surface (AC1)', async ({ page }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1024,
+      'desktop only (FC4 covers all viewports)',
+    );
+    const mismatches = async (): Promise<{ stable: boolean; problems: string[] }> => {
+      const before = await readMoney(page);
+      const expected = expectedFigures(before);
+      const problems: string[] = [];
+      for (const surface of PROJECT_SURFACES) {
+        await surface.open(page);
+        if (surface.isAvailable && !(await surface.isAvailable(page))) continue;
+        for (const [figure, reader] of Object.entries(surface.read) as Array<
+          [ProjectFigure, (p: Page) => Promise<number | null>]
+        >) {
+          const actual = await reader(page);
+          if (actual !== expected[figure]) {
+            problems.push(`${surface.id} ${figure}: page ${actual}, API ${expected[figure]}`);
+          }
+        }
+      }
+      const after = await readMoney(page);
+      return { stable: JSON.stringify(before) === JSON.stringify(after), problems };
+    };
+    let last: { stable: boolean; problems: string[] } = { stable: false, problems: ['not run'] };
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      last = await mismatches();
+      // Another worker wrote while the pages were read: the comparison proves nothing, retry
+      if (last.stable) break;
+    }
+    expect(last.stable, 'the money figures kept changing under the read').toBe(true);
+    expect(last.problems).toEqual([]);
+  });
+
+  test('FC2: a company Still to pay is the same on both markers and in the API (AC1)', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1024,
+      'desktop only (FC4 covers all viewports)',
+    );
+    let vendorId: string | null = null;
+    try {
+      ({ vendorId } = await seedCompany(page, testPrefix));
+      const response = await page.request.get(`${API.vendors}/${vendorId}`);
+      expect(response.ok()).toBeTruthy();
+      const balance = ((await response.json()) as { vendor: { outstandingBalance: number } }).vendor
+        .outstandingBalance;
+      expect(balance).toBeGreaterThan(0);
+
+      // The stat card and the invoices header (the header needs the loaded invoice list)
+      await page.goto(routeUrl('company', { id: vendorId }));
+      await expect(page.locator('[data-figure="still-to-pay"]')).toHaveCount(2);
+      const markers = await COMPANY_SURFACE.readAll(page, { companyId: vendorId });
+      expect(markers).toEqual([cents(balance), cents(balance)]);
+    } finally {
+      if (vendorId) await removeCompany(page, vendorId);
+    }
+  });
+
+  test('FC3: "Holds up n tasks" is one number on the API, Home and the Schedule (AC1)', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1200,
+      'Gantt tooltips on hover are desktop-only',
+    );
+    const ids: string[] = [];
+    try {
+      // A is late (a distinctive date keeps it out of other specs' N2 groups); B waits for A, C for B
+      const a = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Holds-up A`,
+        status: 'not_started',
+        startDate: dayOffset(-11),
+        endDate: dayOffset(-9),
+      });
+      ids.push(a);
+      const b = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Holds-up B`,
+        status: 'not_started',
+        startDate: dayOffset(5),
+        endDate: dayOffset(7),
+      });
+      ids.push(b);
+      const c = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Holds-up C`,
+        status: 'not_started',
+        startDate: dayOffset(12),
+        endDate: dayOffset(14),
+      });
+      ids.push(c);
+      for (const [successor, predecessorId] of [
+        [b, a],
+        [c, b],
+      ] as const) {
+        const dependency = await page.request.post(`${API.workItems}/${successor}/dependencies`, {
+          data: { predecessorId, dependencyType: 'finish_to_start' },
+        });
+        expect(dependency.ok(), `POST dependency: ${dependency.status()}`).toBeTruthy();
+      }
+
+      // The API: attention row (own row, or an item of its N2 group) and the timeline
+      const attention = await page.request.get('/api/attention');
+      expect(attention.ok()).toBeTruthy();
+      interface Row {
+        key: string;
+        subject: { id: string };
+        holdsUp: { count: number } | null;
+        params: { items?: Array<{ id: string; holdsUp: { count: number } }> };
+      }
+      const rows = ((await attention.json()) as { rows: Row[] }).rows;
+      const own = rows.find((row) => row.subject.id === a && row.holdsUp);
+      const group = rows.find((row) => row.params.items?.some((item) => item.id === a));
+      const apiCount =
+        own?.holdsUp?.count ?? group?.params.items?.find((item) => item.id === a)?.holdsUp.count;
+      expect(apiCount, 'the late task A is in Needs attention').toBe(2);
+
+      const timeline = await page.request.get('/api/timeline');
+      expect(timeline.ok()).toBeTruthy();
+      const holdsUp = (
+        (await timeline.json()) as {
+          holdsUp: { workItems: Record<string, { count: number }> };
+        }
+      ).holdsUp;
+      expect(holdsUp.workItems[a]?.count).toBe(2);
+
+      // Home: the same number in A's row
+      const home = await HOME_ATTENTION_SURFACE.readAll(page, {
+        workItemId: a,
+        groupKey: own ? undefined : group?.key,
+      });
+      expect(home).toEqual([2]);
+
+      // Schedule: the same number in the tooltip, while the list shows the one direct successor
+      const tooltip = await SCHEDULE_TOOLTIP_SURFACE.readAll(page, { workItemId: a });
+      expect(tooltip).toEqual([2]);
+      await expect(page.getByTestId('gantt-tooltip-holds-up')).toContainText(
+        `${testPrefix} Holds-up B`,
+      );
+      await expect(page.getByTestId('gantt-tooltip-holds-up')).not.toContainText(
+        `${testPrefix} Holds-up C`,
+      );
+    } finally {
+      for (const id of ids.reverse()) await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test(
+    'FC4: at most one Left to spend figure per screen, and no former name (AC4)',
+    { tag: '@responsive' },
+    async ({ page, testPrefix }) => {
+      const glossary = JSON.parse(
+        fs.readFileSync(new URL('../../../client/src/i18n/glossary.json', import.meta.url), 'utf8'),
+      ) as { terms: Record<string, { formerly: string[] }> };
+      const formerly = glossary.terms['Left to spend']?.formerly ?? [];
+      expect(formerly.length).toBeGreaterThan(0);
+
+      let vendorId: string | null = null;
+      try {
+        ({ vendorId } = await seedCompany(page, testPrefix));
+        const urls: Record<(typeof LEFT_SCREENS)[number], string> = {
+          home: routeUrl('home'),
+          budgetOverview: routeUrl('budgetOverview'),
+          invoices: routeUrl('invoices'),
+          company: routeUrl('company', { id: vendorId }),
+        } as never;
+
+        for (const screen of LEFT_SCREENS) {
+          await test.step(`screen ${screen}`, async () => {
+            await page.goto(urls[screen]);
+            if (screen === 'home') {
+              await new HomePage(page).pulseTile('left-to-spend').waitFor({ state: 'visible' });
+            } else if (screen === 'budgetOverview') {
+              await new BudgetOverviewPage(page).waitForLoaded();
+            } else {
+              await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+            }
+            const figures = page.locator('[data-figure="left-to-spend"]').filter({ visible: true });
+            const count = await figures.count();
+            expect(count, `${screen}: Left to spend figures`).toBeLessThanOrEqual(1);
+            if (screen === 'home') expect(count).toBe(1);
+            if (screen === 'budgetOverview') {
+              // The empty state (no items, no sources) shows no breakdown and so no figure
+              const hasRow = await new BudgetOverviewPage(page).leftToSpendRow.count();
+              if (hasRow > 0) expect(count).toBe(1);
+            }
+            for (const former of formerly) {
+              const exact = new RegExp(
+                `^\\s*${former.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`,
+                'i',
+              );
+              await expect(
+                page.getByText(exact).filter({ visible: true }),
+                `${screen}: former name "${former}"`,
+              ).toHaveCount(0);
+            }
+          });
+        }
+      } finally {
+        if (vendorId) await removeCompany(page, vendorId);
+      }
+    },
+  );
+});
+
+test.describe('Figure surface registry', () => {
+  test('FC5: a pending surface cannot become served without registering itself (AC3)', async () => {
+    const entries = ROUTE_MAP as unknown as ReadonlyArray<{ id: string; stage: string }>;
+    const routeIds = new Set(entries.map((entry) => entry.id));
+    const gated = PENDING_SURFACES.filter((pending) => routeIds.has(pending.screen));
+    // At least the Financing surface (4.10) is tied to a route
+    expect(gated.map((pending) => pending.screen)).toContain('financing');
+    for (const pending of gated) {
+      const entry = entries.find((candidate) => candidate.id === pending.screen);
+      expect(
+        entry?.stage,
+        `story ${pending.story} serves "${pending.screen}": move it from PENDING_SURFACES to the registry`,
+      ).not.toBe('done');
+    }
+    // Every pending entry names the story that owns it
+    for (const pending of PENDING_SURFACES) expect(pending.story).toMatch(/^\d+\.\d+$/);
+  });
+});

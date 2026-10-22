@@ -67,6 +67,8 @@ export interface GanttTooltipWorkItemData {
    * in the tooltip on touch (pointer: coarse) devices.
    */
   workItemId?: string;
+  /** From `GET /api/timeline` `holdsUp` (computeHoldsUp); 0 when absent. */
+  holdsUpCount?: number;
 }
 
 export interface GanttTooltipMilestoneData {
@@ -89,6 +91,8 @@ export interface GanttTooltipMilestoneData {
    * The click handler calls onMilestoneNavigate with the milestone ID.
    */
   milestoneId?: number;
+  /** From `GET /api/timeline` `holdsUp` (computeHoldsUp); 0 when absent. */
+  holdsUpCount?: number;
 }
 
 export interface GanttTooltipArrowData {
@@ -172,6 +176,7 @@ function WorkItemTooltipContent({
   isTouchDevice?: boolean;
 }) {
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
   const { resolvedLocale } = useLocale();
   const originState = useOriginState();
@@ -202,6 +207,7 @@ function WorkItemTooltipContent({
   const dependencies = data.dependencies ?? [];
   const waitsFor = dependencies.filter((d) => d.role === 'predecessor');
   const holdsUp = dependencies.filter((d) => d.role === 'successor');
+  const holdsUpCount = data.holdsUpCount ?? 0;
 
   // Whether the duration section rendered a trailing separator.
   // Used to avoid a double separator when there is no owner row between the
@@ -249,16 +255,20 @@ function WorkItemTooltipContent({
     label: string,
     entries: GanttTooltipDependencyEntry[],
     testId: string,
+    headline?: string,
   ) {
-    if (entries.length === 0) return null;
+    if (entries.length === 0 && headline === undefined) return null;
     const shown = entries.slice(0, MAX_DEPS_SHOWN);
     const overflow = entries.length - shown.length;
     return (
       <div className={styles.linkedItemsSection} data-testid={testId}>
-        <span className={styles.linkedItemsLabel}>
-          {label} ({entries.length})
+        <span
+          className={styles.linkedItemsLabel}
+          data-figure={headline !== undefined ? 'holds-up' : undefined}
+        >
+          {headline !== undefined ? headline : `${label} (${entries.length})`}
         </span>
-        <ul className={styles.linkedItemsList} aria-label={label}>
+        <ul className={styles.linkedItemsList} aria-label={label} hidden={entries.length === 0}>
           {shown.map((dep, idx) => (
             // eslint-disable-next-line @eslint-react/no-array-index-key -- dependency list filtered at render time; composite key with title+index is stable
             <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
@@ -379,7 +389,9 @@ function WorkItemTooltipContent({
       )}
 
       {/* Waits for / Holds up — one separator before the first non-empty group */}
-      {dependencies.length > 0 && <div className={styles.separator} aria-hidden="true" />}
+      {(dependencies.length > 0 || holdsUpCount > 0) && (
+        <div className={styles.separator} aria-hidden="true" />
+      )}
       {renderDependencyGroup(
         t('gantt.tooltip.workItem.waitsFor'),
         waitsFor,
@@ -389,6 +401,9 @@ function WorkItemTooltipContent({
         t('gantt.tooltip.workItem.holdsUp'),
         holdsUp,
         'gantt-tooltip-holds-up',
+        holdsUp.length > 0 || holdsUpCount > 0
+          ? tCommon('attention.holdsUp.tasks', { count: holdsUpCount })
+          : undefined,
       )}
 
       {/* Touch device navigation affordance — "View item" link visible only on pointer: coarse */}
@@ -538,8 +553,8 @@ function MilestoneTooltipContent({
             </div>
           ) : (
             <div className={styles.linkedItemsSection}>
-              <span className={styles.linkedItemsLabel}>
-                {t('gantt.tooltip.milestone.blockedByThis')} ({dependentWorkItems.length})
+              <span className={styles.linkedItemsLabel} data-figure="holds-up">
+                {tCommon('attention.holdsUp.tasks', { count: data.holdsUpCount ?? 0 })}
               </span>
               <ul
                 className={styles.linkedItemsList}

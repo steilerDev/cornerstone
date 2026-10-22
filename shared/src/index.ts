@@ -355,6 +355,7 @@ export type {
   TimelineHouseholdItem,
   TimelineDateRange,
   TimelineResponse,
+  TimelineHoldsUp,
 } from './types/timeline.js';
 
 // Paperless-ngx API Types

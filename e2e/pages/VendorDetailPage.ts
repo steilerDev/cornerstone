@@ -47,6 +47,8 @@ export class VendorDetailPage {
   readonly statsGrid: Locator;
   readonly totalInvoicesStat: Locator;
   readonly outstandingBalanceStat: Locator;
+  /** Every Still to pay marker on the page (stat card and invoices header, #2232). */
+  readonly stillToPayFigures: Locator;
 
   // Info card (read view)
   readonly infoCard: Locator;
@@ -127,6 +129,7 @@ export class VendorDetailPage {
     this.totalInvoicesStat = this.statsGrid
       .locator('[class*="statCard"]')
       .filter({ hasText: /Total Invoices/ });
+    this.stillToPayFigures = page.locator('[data-figure="still-to-pay"]');
     this.outstandingBalanceStat = this.statsGrid
       .locator('[class*="statCard"]')
       .filter({ hasText: /Outstanding Balance/ });

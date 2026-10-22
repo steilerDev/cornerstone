@@ -2,14 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql, gte, lte, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import {
-  invoices,
-  vendors,
-  users,
-  invoiceDeposits,
-  budgetSources,
-  invoiceBudgetLines,
-} from '../db/schema.js';
+import { invoices, vendors, users, invoiceDeposits, invoiceBudgetLines } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -32,6 +25,7 @@ import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
+import { getReadyToSubmit } from './moneyService.js';
 import {
   onInvoiceStatusChanged,
   SYSTEM_CONTEXT,
@@ -39,11 +33,10 @@ import {
 } from './diaryAutoEventService.js';
 import {
   aggregateInvoiceStatusBreakdown,
-  aggregateClaimableBreakdown,
+  computeQuotationCoveredByDeposits,
   computeFinalPaymentAmount,
   computeFinalPaymentAmounts,
   computeOpenAmounts,
-  type InvoiceDepositRowWithDiscretionary,
 } from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -271,7 +264,7 @@ export function listAllInvoices(
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
     .where(whereClause)
     .get();
-  const totalItems = countResult?.count ?? 0;
+  const totalItems = countResult!.count;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // ORDER BY
@@ -319,8 +312,7 @@ export function listAllInvoices(
   // Compute deposit-aware GLOBAL summary across ALL invoices (filter-independent).
   // The page filters only narrow the listed rows; the header summary always shows totals
   // across the entire dataset so users can see what the other filter values would yield.
-  // budget_sources is joined to determine which deposits are discretionary (for claimable tile).
-  const summaryRawRows: InvoiceDepositRowWithDiscretionary[] = db
+  const summaryRawRows = db
     .select({
       invoice_id: invoices.id,
       invoice_amount: invoices.amount,
@@ -329,15 +321,16 @@ export function listAllInvoices(
       deposit_amount: invoiceDeposits.amount,
       deposit_status: invoiceDeposits.status,
       deposit_entry_type: invoiceDeposits.entryType,
-      deposit_is_discretionary: budgetSources.isDiscretionary,
     })
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
-    .leftJoin(budgetSources, eq(budgetSources.id, invoiceDeposits.budgetSourceId))
     .all();
 
   const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
-  const { claimable, quotationCoveredByDeposits } = aggregateClaimableBreakdown(summaryRawRows);
+  const quotationCoveredByDeposits = computeQuotationCoveredByDeposits(summaryRawRows);
+  // Ready to submit has one definition (ADR-039 §5): the money service's draw-down set.
+  const readyToSubmit = getReadyToSubmit(db);
+  const claimable = { count: readyToSubmit.count, totalAmount: readyToSubmit.amount };
   const finalPaymentAmountsByInvoice = computeFinalPaymentAmounts(summaryRawRows);
   // Story #2046 (AC14/AC16/AC19): the summaryRawRows query already spans every
   // invoice, so it is a superset of InvoiceDepositRow and can be passed straight in.
@@ -366,8 +359,8 @@ export function listAllInvoices(
     claimed: aggregated['claimed'] ?? { ...defaultSummary },
     quotation: aggregated['quotation'] ?? { ...defaultSummary },
     overdue: {
-      count: overdueRow?.count ?? 0,
-      totalAmount: overdueRow?.totalAmount ?? 0,
+      count: overdueRow!.count,
+      totalAmount: overdueRow!.totalAmount,
     },
     claimable,
     quotationCoveredByDeposits,
@@ -393,11 +386,12 @@ export function listAllInvoices(
     const userCache = new Map<string, UserSummary | null>();
     const resolveCreatedBy = (createdBy: string | null): UserSummary | null => {
       if (!createdBy) return null;
-      if (!userCache.has(createdBy)) {
-        const user = db.select().from(users).where(eq(users.id, createdBy)).get();
-        userCache.set(createdBy, toUserSummary(user));
-      }
-      return userCache.get(createdBy) ?? null;
+      const cached = userCache.get(createdBy);
+      if (cached !== undefined) return cached;
+      const user = db.select().from(users).where(eq(users.id, createdBy)).get();
+      const summary = toUserSummary(user);
+      userCache.set(createdBy, summary);
+      return summary;
     };
 
     for (const depositRow of depositRows) {
@@ -449,8 +443,8 @@ export function listAllInvoices(
       budgetLines,
       remainingAmount,
       deposits: openOnly ? (depositsByInvoice.get(row.id) ?? []) : [],
-      finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id) ?? row.amount,
-      ...(openOnly ? { openAmount: openAmounts.byInvoice.get(row.id) ?? 0 } : {}),
+      finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id)!,
+      ...(openOnly ? { openAmount: openAmounts.byInvoice.get(row.id)! } : {}),
       createdBy: toUserSummary(createdByUser),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -458,7 +452,7 @@ export function listAllInvoices(
   });
 
   const filterMeta: FilterMeta = {
-    amount: { min: metaRow?.amountMin ?? 0, max: metaRow?.amountMax ?? 0 },
+    amount: { min: metaRow!.amountMin, max: metaRow!.amountMax },
   };
 
   return {
@@ -643,7 +637,7 @@ export function updateInvoice(
         .from(invoiceBudgetLines)
         .where(eq(invoiceBudgetLines.invoiceId, invoiceId))
         .get();
-      const itemizedTotal = itemizedRow?.sum ?? 0;
+      const itemizedTotal = itemizedRow!.sum;
       if (exceedsAmount(itemizedTotal, data.amount)) {
         throw new ItemizedSumExceedsInvoiceError(
           `Sum of itemized amounts (${itemizedTotal}) would exceed invoice total (${data.amount})`,

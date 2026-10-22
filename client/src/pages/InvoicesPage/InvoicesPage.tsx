@@ -388,9 +388,8 @@ export function InvoicesPage() {
 
     // Sync filters
     for (const [paramKey, filter] of newState.filters.entries()) {
-      if (filter.value) {
-        params.set(paramKey, filter.value);
-      }
+      // DataTable drops empty filter values, so every entry here has a value
+      params.set(paramKey, filter.value);
     }
 
     // Mutual exclusivity: choosing a status filter turns "open items" mode off.
@@ -423,7 +422,7 @@ export function InvoicesPage() {
   const openCreateModalFor = (status: IntegrationStatus, request: CreateRequest | null = null) => {
     createRequestRef.current = request;
     // If Paperless and auto-itemize are both configured, open the picker modal
-    if (status.paperless?.configured && status.paperless?.reachable && status.autoItemizeEnabled) {
+    if (status.paperless?.configured && status.paperless.reachable && status.autoItemizeEnabled) {
       setShowPaperlessPickerModal(true);
     } else {
       // Otherwise open the manual create modal
@@ -881,10 +880,13 @@ export function InvoicesPage() {
         <span className={styles.summaryCount}>{summary.pending.count}</span>
         <span className={styles.summaryAmount}>{formatCurrency(summary.pending.totalAmount)}</span>
       </div>
-      <div className={styles.summaryCard}>
+      <div className={styles.summaryCard} data-testid="summary-card-ready-to-submit">
         <span className={styles.summaryLabel}>{t('invoices.summaryClaimable')}</span>
         <span className={styles.summaryCount}>{summary.claimable.count}</span>
-        <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
+        <span
+          className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}
+          data-figure="ready-to-submit"
+        >
           {formatCurrency(summary.claimable.totalAmount)}
         </span>
         <span className={styles.summaryHint}>{t('invoices.summaryClaimableHint')}</span>
@@ -913,7 +915,10 @@ export function InvoicesPage() {
       <div className={styles.summaryCard} data-testid="summary-card-open-payable">
         <span className={styles.summaryLabel}>{t('invoices.openItems.summaryOpenPayable')}</span>
         <span className={styles.summaryCount}>{summary.openPayable.count}</span>
-        <span className={`${styles.summaryAmount} ${styles.summaryAmountOpen}`}>
+        <span
+          className={`${styles.summaryAmount} ${styles.summaryAmountOpen}`}
+          data-figure="still-to-pay"
+        >
           {formatCurrency(summary.openPayable.totalAmount)}
         </span>
       </div>
@@ -1030,7 +1035,7 @@ export function InvoicesPage() {
           onDocumentSelected={handlePaperlessDocumentSelected}
           onManualEntry={handlePaperlessManualEntry}
           onClose={() => setShowPaperlessPickerModal(false)}
-          paperlessUrl={integrationStatus.paperless?.paperlessUrl ?? null}
+          paperlessUrl={integrationStatus.paperless!.paperlessUrl}
         />
       )}
 
@@ -1067,7 +1072,7 @@ export function InvoicesPage() {
             </>
           }
         >
-          <p>{t('invoices.modal.description') || t('invoices.form.vendor')}</p>
+          <p>{t('invoices.modal.description')}</p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -1195,7 +1200,7 @@ export function InvoicesPage() {
                 value={createForm.notes}
                 onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
                 className={styles.textarea}
-                placeholder={t('invoices.form.placeholders.notes') || ''}
+                placeholder={t('invoices.form.placeholders.notes')}
                 rows={3}
                 disabled={isCreating}
               />

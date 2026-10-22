@@ -498,7 +498,12 @@ export function AttentionRowView({
     ) : undefined;
 
   const notes: ReactNode[] = [];
-  if (text.holdsUp) notes.push(<span key="holdsUp">{text.holdsUp}</span>);
+  if (text.holdsUp)
+    notes.push(
+      <span key="holdsUp" data-figure="holds-up">
+        {text.holdsUp}
+      </span>,
+    );
   if (text.severityLine) notes.push(<span key="severity">{text.severityLine}</span>);
   if (row.snoozedUntil) {
     notes.push(
@@ -563,7 +568,11 @@ export function AttentionRowView({
                     {item.area ? <AreaBreadcrumb area={item.area} variant="compact" /> : null}
                     <span>{t('attention.group.daysLate', { count: item.daysLate })}</span>
                   </span>
-                  {holds ? <span className={styles.itemMeta}>{holds}</span> : null}
+                  {holds ? (
+                    <span className={styles.itemMeta} data-figure="holds-up">
+                      {holds}
+                    </span>
+                  ) : null}
                 </li>
               );
             })}

@@ -11,15 +11,16 @@ import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
-import type { BudgetOverview } from '@cornerstone/shared';
+import type { BudgetOverview, BudgetOverviewResponse, LeftToSpend } from '@cornerstone/shared';
 
 // Mock the API modules BEFORE importing the component
-const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+const mockFetchBudgetOverview =
+  jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverviewResponse>();
 const mockFetchBudgetBreakdown = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>();
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 
 jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
-  fetchBudgetOverview: mockFetchBudgetOverview,
+  fetchBudgetOverviewResponse: mockFetchBudgetOverview,
   fetchBudgetBreakdown: mockFetchBudgetBreakdown,
 }));
 
@@ -106,6 +107,17 @@ const emptyBreakdownMoney = (): BreakdownMoney => ({
   orphanLines: zeroCostFigures(),
   notYetSplit: { amount: 0, recordCount: 0 },
 });
+
+/** The full /budget/overview response: the page keeps `money.leftToSpend` (#2232). */
+function respOf(
+  overview: BudgetOverview,
+  leftToSpend: LeftToSpend = { expected: 0, best: 0, worst: 0, verdict: null },
+): BudgetOverviewResponse {
+  return {
+    overview,
+    money: { leftToSpend } as BudgetOverviewResponse['money'],
+  };
+}
 
 describe('BudgetOverviewPage', () => {
   let BudgetOverviewPage: React.ComponentType;
@@ -242,7 +254,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('hides loading indicator after data loads successfully', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       renderPage();
 
       await waitFor(() => {
@@ -303,7 +315,7 @@ describe('BudgetOverviewPage', () => {
 
       mockFetchBudgetOverview
         .mockRejectedValueOnce(new Error('Temporary failure'))
-        .mockResolvedValueOnce(richOverview);
+        .mockResolvedValueOnce(respOf(richOverview));
 
       renderPage();
 
@@ -325,7 +337,7 @@ describe('BudgetOverviewPage', () => {
 
   describe('empty state', () => {
     it('shows empty state message when all data is zero', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       renderPage();
 
       await waitFor(() => {
@@ -334,7 +346,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('shows descriptive guidance in empty state', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       renderPage();
 
       await waitFor(() => {
@@ -347,7 +359,7 @@ describe('BudgetOverviewPage', () => {
 
   describe('page header', () => {
     it('renders "Money" heading when data is loaded', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       renderPage();
 
       await waitFor(() => {
@@ -361,7 +373,7 @@ describe('BudgetOverviewPage', () => {
   describe('budget sources fetch', () => {
     // Scenario 28: fetchBudgetSources called once on page load
     it('calls fetchBudgetSources once on page load', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       renderPage();
 
       await waitFor(() => {
@@ -373,7 +385,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 29: fetchBudgetSources rejection → page still renders
     it('still renders the page when fetchBudgetSources rejects', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       mockFetchBudgetSources.mockRejectedValueOnce(new Error('Sources unavailable'));
       renderPage();
 
@@ -392,7 +404,7 @@ describe('BudgetOverviewPage', () => {
         availableFunds: 130000,
       };
 
-      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithData);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(overviewWithData));
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
       // Provide a non-empty breakdown with budget sources so the expand button appears
@@ -488,6 +500,77 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
+  // ─── Left to spend row from the money summary (#2232) ───────────────────────
+
+  describe('Left to spend row', () => {
+    function breakdownWithItems() {
+      const totals = {
+        projectedMin: 5000,
+        projectedMax: 8000,
+        actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 5000,
+        rawProjectedMax: 8000,
+        minSubsidyPayback: 0,
+      };
+      return {
+        money: emptyBreakdownMoney(),
+        workItems: {
+          areas: [
+            {
+              areaId: null,
+              name: 'Unassigned',
+              parentId: null,
+              color: null,
+              ...totals,
+              items: [],
+              children: [],
+            },
+          ],
+          totals,
+        },
+        householdItems: {
+          areas: [],
+          totals: {
+            ...totals,
+            projectedMin: 0,
+            projectedMax: 0,
+            rawProjectedMin: 0,
+            rawProjectedMax: 0,
+          },
+        },
+        subsidyAdjustments: [],
+        budgetSources: [],
+      };
+    }
+
+    it('passes money.leftToSpend from the single overview response to the table', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(
+        respOf(richOverview, { expected: 42000, best: 45000, worst: 40000, verdict: 'on_budget' }),
+      );
+      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithItems());
+
+      renderPage();
+
+      const row = await screen.findByTestId('cost-breakdown-left-to-spend');
+      expect(row.querySelector('[data-figure="left-to-spend"]')!.textContent).toBe('€42,000.00');
+      expect(row).toHaveTextContent('On budget');
+      expect(mockFetchBudgetOverview).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the no-figure state when the verdict is null', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
+      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithItems());
+
+      renderPage();
+
+      const row = await screen.findByTestId('cost-breakdown-left-to-spend');
+      expect(row.querySelector('[data-figure="left-to-spend"]')).toHaveAttribute('role', 'img');
+    });
+  });
+
   // ─── Story #1039: Add dropdown button ─────────────────────────────────────
 
   describe('Add dropdown button', () => {
@@ -528,7 +611,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('renders the Add trigger button in the success state', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
 
       renderPage();
 
@@ -632,7 +715,7 @@ describe('BudgetOverviewPage', () => {
 
     it('does not apply source filter when URL has no ?deselectedSources param', async () => {
       // Page loads without deselectedSources → no filter active → Available Funds shows overview value
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         ...emptyBreakdown,
         workItems: {
@@ -696,7 +779,7 @@ describe('BudgetOverviewPage', () => {
 
     it('ignores legacy ?sources= URL param and does not apply a filter', async () => {
       // Legacy URL with ?sources=src-1 should be ignored — no filter applied
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         ...emptyBreakdown,
         workItems: {
@@ -777,7 +860,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 24: URL deselectedSources on mount triggers filtered fetch (AC #15)
     it('fetchBudgetBreakdown is called with deselected source IDs from URL on mount (Scenario 24)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(emptyBreakdown);
 
       renderPageWithUrl('/budget/overview?deselectedSources=src-filter-a');
@@ -800,7 +883,7 @@ describe('BudgetOverviewPage', () => {
     it('navigating to URL with deselectedSources triggers fetchBudgetBreakdown with those IDs (Scenario 25)', async () => {
       jest.useFakeTimers();
 
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       // First call (loadOverview): no filter
       mockFetchBudgetBreakdown.mockResolvedValueOnce(emptyBreakdown);
       // Second call (debounce effect after isLoading transitions): allow it
@@ -830,7 +913,7 @@ describe('BudgetOverviewPage', () => {
     // Scenario 26: Stale-while-revalidate — previous breakdown remains visible during refetch (AC #12)
     it('previous breakdown content is still rendered while a refetch is in flight (Scenario 26)', async () => {
       // Initial load resolves immediately with breakdown containing a work item area
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         ...emptyBreakdown,
         budgetSources: [
@@ -891,7 +974,7 @@ describe('BudgetOverviewPage', () => {
     it('only one fetchBudgetBreakdown call is made when two source deselections fire within debounce window (Scenario 27)', async () => {
       jest.useFakeTimers();
 
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(emptyBreakdown);
 
       renderPageWithUrl('/budget/overview');
@@ -924,7 +1007,7 @@ describe('BudgetOverviewPage', () => {
     // Uses real timers to avoid fake timer / waitFor incompatibility.
     it('error banner appears and previous breakdown is preserved when refetch fails (Scenario 29)', async () => {
       // Initial load: success with breakdown containing a source
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         ...emptyBreakdown,
         budgetSources: [
@@ -982,7 +1065,7 @@ describe('BudgetOverviewPage', () => {
   // relevant has changed.
   describe('Regression #1816/#1848: breakdown refetch loop', () => {
     it('the breakdown refetch settles and does not keep re-triggering itself after the initial load', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(emptyBreakdown);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1059,7 +1142,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 20: ?paymentStatus=paid → select value is 'paid'
     it('select#cost-basis-select has value "paid" when URL has ?paymentStatus=paid (Scenario 20)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1076,7 +1159,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 21: ?paymentStatus=outstanding → select value is 'outstanding'
     it('select#cost-basis-select has value "outstanding" when URL has ?paymentStatus=outstanding (Scenario 21)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1093,7 +1176,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 22: no ?paymentStatus param → select defaults to 'all'
     it('select#cost-basis-select defaults to "all" when URL has no paymentStatus param (Scenario 22)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1110,7 +1193,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 23: ?paymentStatus=invalid → select defaults to 'all'
     it('select#cost-basis-select defaults to "all" when ?paymentStatus has invalid value (Scenario 23)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1127,7 +1210,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 24: changing select to 'paid' → URL gets ?paymentStatus=paid
     it('changing select to "paid" adds ?paymentStatus=paid to the URL (Scenario 24)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1149,7 +1232,7 @@ describe('BudgetOverviewPage', () => {
 
     // Scenario 25: changing select back to 'all' → ?paymentStatus is removed from URL
     it('changing select to "all" removes ?paymentStatus from the URL (Scenario 25)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
@@ -1223,7 +1306,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('shows exactly one "Money" h1 once loaded and renders no breadcrumbs', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       renderRouted();
 
       await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
@@ -1251,7 +1334,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('does not navigate on mount', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
       const log = renderRouted();
 
       await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
@@ -1260,7 +1343,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('replaces history when the payment status filter changes', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
       const log = renderRouted();
 
@@ -1277,7 +1360,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('replaces history again when a deselected source is toggled back on', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
       const log = renderRouted();
 
@@ -1298,7 +1381,7 @@ describe('BudgetOverviewPage', () => {
     });
 
     it('replaces history when a source is toggled and when all sources are selected again', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
       mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
       const log = renderRouted();
 
@@ -1320,6 +1403,162 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => expect(log.actions).toHaveLength(2));
       expect(log.actions[1]).toBe('REPLACE /budget/overview');
       expect(log.entries).toHaveLength(1);
+    });
+  });
+
+  // ─── Breakdown refetch edge cases, dropdown keys, unassigned source (#2232 coverage) ───
+
+  describe('breakdown refetch and dropdown edge cases', () => {
+    const sourceRow = (id: string, name: string) => ({
+      id,
+      name,
+      totalAmount: 100000,
+      projectedMin: 0,
+      projectedMax: 0,
+      actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
+    });
+    const breakdownWith = (...sources: ReturnType<typeof sourceRow>[]) => ({
+      ...emptyBreakdown,
+      budgetSources: sources,
+    });
+
+    function renderWithLocation(url = '/budget/overview') {
+      function Where() {
+        const location = useLocation();
+        return <div data-testid="where">{location.pathname + location.search}</div>;
+      }
+      return render(
+        <MemoryRouter initialEntries={[url]}>
+          <BudgetOverviewPage />
+          <Where />
+        </MemoryRouter>,
+      );
+    }
+
+    async function loaded() {
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+    }
+
+    it('toggling the Unassigned source writes the literal key "unassigned" to the URL', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
+      mockFetchBudgetBreakdown.mockResolvedValue(
+        breakdownWith(sourceRow('unassigned', 'Unassigned')),
+      );
+      renderWithLocation();
+
+      await loaded();
+      await userEvent.click(
+        await screen.findByRole('button', { name: /expand available funds sources/i }),
+      );
+      await userEvent.click(await screen.findByRole('button', { name: /Unassigned/ }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('where')).toHaveTextContent(
+          '/budget/overview?deselectedSources=unassigned',
+        ),
+      );
+    });
+
+    it('shows a dismissible banner when a later breakdown refresh fails and keeps the old table', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
+      mockFetchBudgetBreakdown
+        .mockResolvedValueOnce(breakdownWith(sourceRow('src-a', 'Synthetic savings')))
+        .mockRejectedValue(new Error('boom'));
+      renderWithLocation();
+
+      await loaded();
+      const banner = await screen.findByText(/failed to refresh breakdown/i);
+      expect(banner.closest('[role="alert"]')).not.toBeNull();
+      // the previous breakdown stays visible
+      expect(
+        screen.getByRole('button', { name: /expand available funds sources/i }),
+      ).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByText(/failed to refresh breakdown/i)).not.toBeInTheDocument();
+    });
+
+    it('ignores an AbortError from the refresh: no banner', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
+      mockFetchBudgetBreakdown
+        .mockResolvedValueOnce(breakdownWith(sourceRow('src-a', 'Synthetic savings')))
+        .mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+      renderWithLocation();
+
+      await loaded();
+      await waitFor(() => expect(mockFetchBudgetBreakdown).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(screen.queryByText(/failed to refresh breakdown/i)).not.toBeInTheDocument();
+    });
+
+    it('drops the result of a refresh that was superseded by a filter change', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
+      const first = breakdownWith(sourceRow('src-a', 'Synthetic savings'));
+      const stale = breakdownWith(sourceRow('src-stale', 'Stale source'));
+      let resolveStale: (v: typeof stale) => void = () => {};
+      mockFetchBudgetBreakdown
+        .mockResolvedValueOnce(first)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStale = resolve as (v: typeof stale) => void;
+          }),
+        )
+        .mockResolvedValue(first);
+      renderWithLocation();
+
+      await loaded();
+      // the post-load refresh is now in flight; change the filter to supersede it
+      await waitFor(() => expect(mockFetchBudgetBreakdown).toHaveBeenCalledTimes(2));
+      await userEvent.selectOptions(
+        document.querySelector<HTMLSelectElement>('#cost-basis-select')!,
+        'paid',
+      );
+      await waitFor(() => expect(mockFetchBudgetBreakdown).toHaveBeenCalledTimes(3));
+
+      await act(async () => {
+        resolveStale(stale);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      await userEvent.click(
+        await screen.findByRole('button', { name: /expand available funds sources/i }),
+      );
+      expect(screen.queryByText('Stale source')).not.toBeInTheDocument();
+      expect(screen.getByText('Synthetic savings')).toBeInTheDocument();
+    });
+
+    it('renders no cost breakdown when the breakdown never loads', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(richOverview));
+      mockFetchBudgetBreakdown.mockRejectedValue(new Error('down'));
+      renderWithLocation();
+
+      await loaded();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      });
+      expect(screen.queryByTestId('cost-breakdown-left-to-spend')).not.toBeInTheDocument();
+      expect(screen.queryByText(/failed to refresh breakdown/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Money' })).toBeInTheDocument();
+    });
+
+    it('keeps the Add menu open for other keys and closes it on Escape', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(respOf(zeroOverview));
+      renderWithLocation();
+
+      await loaded();
+      await userEvent.click(screen.getByTestId('budget-overview-add-button'));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      await userEvent.keyboard('a');
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
   });
 });

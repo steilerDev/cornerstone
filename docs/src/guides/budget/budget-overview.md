@@ -5,11 +5,11 @@ title: Budget Overview
 
 # Budget Overview
 
-The budget overview at **Budget > Overview** is a single-page report of your project's costs, grouped by **area hierarchy** rather than by category. It rolls everything up from individual budget lines through work items and household items into a clean, printable view of where your money is going -- and which financing source is funding each line.
+The budget overview at **Money > Overview** is a single-page report of your project's costs, grouped by **area hierarchy** rather than by category. It rolls everything up from individual budget lines through work items and household items into a clean, printable view of where your money is going -- and which financing source is funding each line.
 
 ## Page Layout
 
-The page renders the **Cost Breakdown Table** as its primary view, with a per-source filter, a min / avg / max perspective toggle inside the table, and a built-in **Available Funds** row that summarizes each financing source.
+The page renders the **Cost Breakdown Table** as its primary view, with a per-source filter, a min / avg / max perspective toggle inside the table, a built-in **Available Funds** row that summarizes each financing source, and one **Left to spend** row with the whole project's remaining money.
 
 If your project has no budget data yet, you see a short empty state inviting you to add work items, household items, or invoices. Once you have a few budget lines, the breakdown takes over the page.
 
@@ -90,11 +90,17 @@ The cost breakdown includes a dedicated **Available Funds** row at the top of th
 
 This makes it easy to spot which source is most depleted, which one is being subsidized, and which one still has slack -- all in a single glance.
 
+### Left to Spend
+
+The **Left to spend** row shows how much of your money is still free for the whole project: the funding you have, plus expected grants, minus the expected cost. It carries a verdict badge, **On budget** when money is left and **Over budget** when the amount is below zero. It is the same figure and verdict as the **Left to spend** tile on [Home](/guides/home), so the two pages always agree.
+
+The row never changes with your other choices. Changing the Min / Avg / Max perspective, the Cost Basis, or the source filter leaves it as it is. When a source filter is active, the row shows the caption **Whole project** beside its label to make clear that it is not narrowed to the visible sources. The source filter still narrows the cost breakdown and the Available Funds row.
+
 ### Filter by Source
 
-Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the entire breakdown:
+Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the breakdown:
 
-- The projected cost range, every nested area row, and the **Available Funds** and **Remaining Budget** (Cost + Net) totals all recalculate against the visible set in real time as you toggle.
+- The projected cost range, every nested area row, and the **Available Funds** totals all recalculate against the visible set in real time as you toggle. The **Left to spend** row does not change; it always reads for the whole project.
 - A small "X of N selected" caption appears next to **Available Funds** while a filter is active.
 - The selection is **persisted in the URL** as `?deselectedSources=<id>,<id>` so you can bookmark a filtered view, share it with your bank or partner, or refresh without losing state.
 - Press **Escape** while focused on a source row to clear all deselections in one go.

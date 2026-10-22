@@ -122,6 +122,8 @@ export class TimelinePage {
   readonly tooltipArea: Locator;
   readonly tooltipWaitsFor: Locator;
   readonly tooltipHoldsUp: Locator;
+  /** The "Holds up n tasks" label inside the holds-up group (#2232). */
+  readonly tooltipHoldsUpFigure: Locator;
   /** Late / Held up chip in the work-item tooltip (#2199). */
   readonly tooltipScheduleSignal: Locator;
   /** "Planned" dates row, rendered only when the forecast differs from the plan (#2199). */
@@ -186,6 +188,7 @@ export class TimelinePage {
     this.tooltipArea = page.getByTestId('gantt-tooltip-area');
     this.tooltipWaitsFor = page.getByTestId('gantt-tooltip-waits-for');
     this.tooltipHoldsUp = page.getByTestId('gantt-tooltip-holds-up');
+    this.tooltipHoldsUpFigure = this.tooltipHoldsUp.locator('[data-figure="holds-up"]');
     this.tooltipScheduleSignal = page.getByTestId('gantt-tooltip-schedule-signal');
     this.tooltipPlanned = page.getByTestId('gantt-tooltip-planned');
   }

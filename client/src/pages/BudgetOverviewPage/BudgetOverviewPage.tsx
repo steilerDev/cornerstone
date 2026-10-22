@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone/shared';
-import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
+import type {
+  BudgetOverview,
+  BudgetBreakdown,
+  BudgetSource,
+  LeftToSpend,
+} from '@cornerstone/shared';
+import { fetchBudgetOverviewResponse, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -24,6 +29,7 @@ export function BudgetOverviewPage() {
   const navigate = useNavigate();
 
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
+  const [leftToSpend, setLeftToSpend] = useState<LeftToSpend | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -36,7 +42,6 @@ export function BudgetOverviewPage() {
 
   // Breakdown state
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
-  const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
   const [isBreakdownRefetching, setIsBreakdownRefetching] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string>('');
 
@@ -199,19 +204,17 @@ export function BudgetOverviewPage() {
     setError('');
 
     try {
-      const data = await fetchBudgetOverview();
-      setOverview(data);
+      const res = await fetchBudgetOverviewResponse();
+      setOverview(res.overview);
+      setLeftToSpend(res.money.leftToSpend);
 
       // Fetch breakdown data (non-critical, so silent failure)
-      setIsBreakdownLoading(true);
       try {
         const deselectedArray = deselectedSourceIds.size > 0 ? [...deselectedSourceIds] : undefined;
         const bd = await fetchBudgetBreakdown(deselectedArray);
         setBreakdown(bd);
       } catch {
         // breakdown is non-critical; silently fail and show empty state if it fails
-      } finally {
-        setIsBreakdownLoading(false);
       }
 
       // Fetch budget sources (non-critical, so silent failure)
@@ -303,11 +306,12 @@ export function BudgetOverviewPage() {
     );
   }
 
-  if (!overview) {
-    return null;
-  }
-
-  const hasData = overview.minPlanned > 0 || overview.actualCost > 0 || overview.sourceCount > 0;
+  // Loading is over and there is no error, so the overview was set.
+  const loadedOverview = overview!;
+  const hasData =
+    loadedOverview.minPlanned > 0 ||
+    loadedOverview.actualCost > 0 ||
+    loadedOverview.sourceCount > 0;
 
   return (
     <PageLayout title={pageTitle} action={actionDropdown}>
@@ -320,42 +324,34 @@ export function BudgetOverviewPage() {
       )}
 
       {/* Cost Breakdown Table */}
-      {overview &&
-        (isBreakdownLoading ? (
-          <div
-            className={styles.breakdownLoading}
-            role="status"
-            aria-label={t('overview.costBreakdown.loading')}
-          >
-            <p>{t('overview.costBreakdown.loading')}</p>
-          </div>
-        ) : breakdown ? (
-          <>
-            {breakdownError && (
-              <div className={styles.breakdownErrorBanner} role="alert">
-                {breakdownError}
-                <button
-                  type="button"
-                  onClick={() => setBreakdownError('')}
-                  aria-label={t('overview.costBreakdown.dismissError')}
-                >
-                  {t('overview.costBreakdown.dismissError')}
-                </button>
-              </div>
-            )}
-            <div className={isBreakdownRefetching ? styles.breakdownRefetching : undefined}>
-              <CostBreakdownTable
-                breakdown={breakdown}
-                overview={overview}
-                deselectedSourceIds={deselectedSourceIds}
-                onSourceToggle={handleSourceToggle}
-                onSelectAllSources={handleSelectAllSources}
-                paymentStatus={paymentStatus}
-                onPaymentStatusChange={handlePaymentStatusChange}
-              />
+      {breakdown ? (
+        <>
+          {breakdownError && (
+            <div className={styles.breakdownErrorBanner} role="alert">
+              {breakdownError}
+              <button
+                type="button"
+                onClick={() => setBreakdownError('')}
+                aria-label={t('overview.costBreakdown.dismissError')}
+              >
+                {t('overview.costBreakdown.dismissError')}
+              </button>
             </div>
-          </>
-        ) : null)}
+          )}
+          <div className={isBreakdownRefetching ? styles.breakdownRefetching : undefined}>
+            <CostBreakdownTable
+              leftToSpend={leftToSpend}
+              breakdown={breakdown}
+              overview={loadedOverview}
+              deselectedSourceIds={deselectedSourceIds}
+              onSourceToggle={handleSourceToggle}
+              onSelectAllSources={handleSelectAllSources}
+              paymentStatus={paymentStatus}
+              onPaymentStatusChange={handlePaymentStatusChange}
+            />
+          </div>
+        </>
+      ) : null}
     </PageLayout>
   );
 }

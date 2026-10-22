@@ -16,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   TimelineWorkItem,
+  TimelineHoldsUp,
   TimelineMilestone,
   TimelineDependency,
   TimelineHouseholdItem,
@@ -66,6 +67,8 @@ export interface CalendarViewProps {
   onMilestoneClick?: (milestoneId: number) => void;
   /** True when the schedule has no tasks, milestones or purchases at all, before filters. */
   isEmpty?: boolean;
+  /** Holds-up counts from `GET /api/timeline` (computeHoldsUp); counts are 0 when absent. */
+  holdsUp?: TimelineHoldsUp;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +181,7 @@ export function CalendarView({
   dependencies = EMPTY_DEPENDENCIES,
   onMilestoneClick,
   isEmpty = false,
+  holdsUp,
 }: CalendarViewProps) {
   const { t } = useTranslation('schedule');
   const { resolvedLocale } = useLocale();
@@ -294,15 +298,15 @@ export function CalendarView({
 
   // Build reverse map: milestone ID → work item IDs that depend on it (via requiredMilestoneIds)
   const milestoneRequiredBy = useMemo(() => {
-    const map = new Map<number, string[]>();
+    const map = new Map<number, { id: string; title: string }[]>();
     for (const item of workItems) {
       if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
         for (const milestoneId of item.requiredMilestoneIds) {
           const existing = map.get(milestoneId);
           if (existing) {
-            existing.push(item.id);
+            existing.push({ id: item.id, title: item.title });
           } else {
-            map.set(milestoneId, [item.id]);
+            map.set(milestoneId, [{ id: item.id, title: item.title }]);
           }
         }
       }
@@ -318,7 +322,12 @@ export function CalendarView({
         const item = workItemById.get(itemId);
         if (item) {
           setTooltipData(
-            buildWorkItemTooltipData(item, itemTooltipDepsMap.get(itemId), new Date()),
+            buildWorkItemTooltipData(
+              item,
+              itemTooltipDepsMap.get(itemId),
+              new Date(),
+              holdsUp?.workItems[itemId]?.count ?? 0,
+            ),
           );
         } else {
           const hi = householdItemById.get(itemId);
@@ -328,8 +337,8 @@ export function CalendarView({
         }
         // Position tooltip at viewport center as a safe default for touch
         setTooltipPosition({
-          x: typeof window !== 'undefined' ? window.innerWidth / 2 : 300,
-          y: typeof window !== 'undefined' ? window.innerHeight / 3 : 200,
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 3,
         });
       } else {
         // Same item second tap — hide tooltip (navigation will follow)
@@ -346,6 +355,7 @@ export function CalendarView({
       activeTouchId,
       itemTooltipDepsMap,
       hiLinkedItemsMap,
+      holdsUp,
       handleTouchTap,
     ],
   );
@@ -360,7 +370,12 @@ export function CalendarView({
       if (item) {
         tooltipShowTimerRef.current = setTimeout(() => {
           setTooltipData(
-            buildWorkItemTooltipData(item, itemTooltipDepsMap.get(itemId), new Date()),
+            buildWorkItemTooltipData(
+              item,
+              itemTooltipDepsMap.get(itemId),
+              new Date(),
+              holdsUp?.workItems[itemId]?.count ?? 0,
+            ),
           );
           setTooltipPosition({ x: mouseX, y: mouseY });
         }, TOOLTIP_SHOW_DELAY);
@@ -376,7 +391,14 @@ export function CalendarView({
         }, TOOLTIP_SHOW_DELAY);
       }
     },
-    [workItemById, householdItemById, handleItemHoverStart, itemTooltipDepsMap, hiLinkedItemsMap],
+    [
+      workItemById,
+      householdItemById,
+      handleItemHoverStart,
+      itemTooltipDepsMap,
+      hiLinkedItemsMap,
+      holdsUp,
+    ],
   );
 
   const handleWorkItemMouseLeave = useCallback(() => {
@@ -406,13 +428,7 @@ export function CalendarView({
           })
           .filter((x): x is { id: string; title: string } => x !== null);
         // Dependent items — work items that depend on this milestone (via requiredMilestoneIds)
-        const dependentIds = milestoneRequiredBy.get(milestoneId) ?? [];
-        const dependentWorkItems = dependentIds
-          .map((wid) => {
-            const wi = workItemById.get(wid);
-            return wi ? { id: wid, title: wi.title } : null;
-          })
-          .filter((x): x is { id: string; title: string } => x !== null);
+        const dependentWorkItems = milestoneRequiredBy.get(milestoneId) ?? [];
         setTooltipData({
           kind: 'milestone',
           title: milestone.title,
@@ -423,11 +439,12 @@ export function CalendarView({
           completedAt: milestone.completedAt,
           linkedWorkItems,
           dependentWorkItems,
+          holdsUpCount: holdsUp?.milestones[String(milestoneId)]?.count ?? 0,
         });
         setTooltipPosition({ x: mouseX, y: mouseY });
       }, TOOLTIP_SHOW_DELAY);
     },
-    [milestoneById, workItemById, milestoneRequiredBy],
+    [milestoneById, workItemById, milestoneRequiredBy, holdsUp],
   );
 
   const handleMilestoneMouseLeave = useCallback(() => {

@@ -12,7 +12,7 @@ import {
   computeStatusContributionExcludingTagged,
   sumTaggedDepositContributions,
   sumTaggedDepositContributionsByInvoice,
-  aggregateClaimableBreakdown,
+  computeQuotationCoveredByDeposits,
   type DepositAwareRow,
   type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
@@ -1691,15 +1691,48 @@ describe('over-deposited invoices (#2188)', () => {
     expect(result['paid']?.totalAmount).toBe(800);
   });
 
-  it('aggregateClaimableBreakdown: no negative claimable total for an over-deposited invoice', () => {
-    const rows = overDeposits.map((d) => ({
-      ...makeInvoiceRow('inv-1', 1000, 'pending', d),
-      deposit_is_discretionary: false,
-    }));
-    const result = aggregateClaimableBreakdown(rows);
+  it('computeQuotationCoveredByDeposits: a pending-invoice over-deposit covers nothing on quotations', () => {
+    const rows = overDeposits.map((d) => makeInvoiceRow('inv-1', 1000, 'pending', d));
+    expect(computeQuotationCoveredByDeposits(rows)).toBe(0);
+  });
+});
 
-    expect(result.claimable.totalAmount).toBeGreaterThanOrEqual(0);
-    expect(Number.isFinite(result.claimable.totalAmount)).toBe(true);
-    expect(result.quotationCoveredByDeposits).toBe(0);
+describe('computeQuotationCoveredByDeposits', () => {
+  it('returns 0 for no rows', () => {
+    expect(computeQuotationCoveredByDeposits([])).toBe(0);
+  });
+
+  it('sums paid and claimed deposits of quotation invoices only', () => {
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('q1', 1000, 'quotation', { id: 'd1', amount: 200, status: 'paid' }),
+      makeInvoiceRow('q1', 1000, 'quotation', { id: 'd2', amount: 100, status: 'claimed' }),
+      makeInvoiceRow('q1', 1000, 'quotation', { id: 'd3', amount: 50, status: 'pending' }),
+      makeInvoiceRow('p1', 1000, 'pending', { id: 'd4', amount: 400, status: 'paid' }),
+    ];
+    expect(computeQuotationCoveredByDeposits(rows)).toBe(300);
+  });
+
+  it('skips refunds, counts a deposit seen on several rows once, ignores invoices without deposits', () => {
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('q1', 1000, 'quotation'),
+      makeInvoiceRow('q1', 1000, 'quotation', { id: 'd1', amount: 200, status: 'paid' }),
+      makeInvoiceRow('q1', 1000, 'quotation', { id: 'd1', amount: 200, status: 'paid' }),
+      makeInvoiceRow('q1', 1000, 'quotation', {
+        id: 'r1',
+        amount: 80,
+        status: 'paid',
+        entryType: 'refund',
+      }),
+    ];
+    expect(computeQuotationCoveredByDeposits(rows)).toBe(200);
+  });
+
+  it('treats a missing entry type as a deposit', () => {
+    const row = makeInvoiceRow('q1', 1000, 'quotation', { id: 'd1', amount: 70, status: 'paid' });
+    expect(
+      computeQuotationCoveredByDeposits([
+        { ...row, deposit_entry_type: undefined } as unknown as InvoiceDepositRow,
+      ]),
+    ).toBe(70);
   });
 });

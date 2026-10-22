@@ -6,7 +6,7 @@
  * are owned by the qa-integration-tester agent.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ownNavigations } from '../../test/navLandmarks.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
@@ -685,6 +685,27 @@ describe('TimelinePage', () => {
       expect(JSON.stringify(state)).not.toContain('"from"');
     });
 
+    it('passes the response holdsUp counts to the calendar tooltips (#2232)', async () => {
+      mockGetTimeline.mockResolvedValue({
+        ...EMPTY_TIMELINE,
+        workItems: [TASK],
+        holdsUp: {
+          workItems: { 'wi-origin': { count: 7, startingWithin14Days: 2 } },
+          milestones: {},
+        },
+      });
+      renderWithRouter(['/schedule/calendar?calendarMode=week']);
+
+      fireEvent.mouseEnter((await screen.findAllByTestId('calendar-item'))[0]!, {
+        clientX: 300,
+        clientY: 200,
+      });
+
+      expect(await screen.findByTestId('gantt-tooltip-holds-up')).toHaveTextContent(
+        'Holds up 7 tasks',
+      );
+    });
+
     it('opens a calendar purchase with the calendar URL as origin (it had none before)', async () => {
       mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, householdItems: [PURCHASE] });
       renderWithRouter(['/schedule/calendar?calendarMode=week']);
@@ -725,6 +746,284 @@ describe('TimelinePage', () => {
 
       await screen.findByRole('heading', { name: 'Schedule', level: 1 });
       expect(screen.getByTestId('location-type')).toHaveTextContent('POP');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Gantt view with data, toolbar controls, error state (#2232 coverage)
+  // ---------------------------------------------------------------------------
+
+  describe('Gantt view with data', () => {
+    const GANTT_TASK: TimelineResponse['workItems'][number] = {
+      id: 'wi-gantt',
+      title: 'Gantt Test Task',
+      status: 'in_progress',
+      startDate: '2026-03-02',
+      endDate: '2026-03-20',
+      projectedStartDate: '2026-03-02',
+      projectedEndDate: '2026-03-20',
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+      durationDays: 18,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+    };
+    const GANTT_MILESTONE: TimelineResponse['milestones'][number] = {
+      id: 7,
+      title: 'Gantt Test Milestone',
+      targetDate: '2026-03-25',
+      isCompleted: false,
+      completedAt: null,
+      color: null,
+      workItemIds: [],
+      projectedDate: null,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
+      isCritical: false,
+    };
+    const GANTT_PURCHASE: TimelineResponse['householdItems'][number] = {
+      id: 'hi-gantt',
+      name: 'Gantt Test Purchase',
+      category: 'furniture',
+      status: 'planned',
+      targetDeliveryDate: '2026-03-15',
+      earliestDeliveryDate: '2026-03-14',
+      latestDeliveryDate: '2026-03-16',
+      actualDeliveryDate: null,
+      isLate: false,
+      dependencyIds: [],
+    };
+    const FULL: TimelineResponse = {
+      ...EMPTY_TIMELINE,
+      workItems: [GANTT_TASK],
+      milestones: [GANTT_MILESTONE],
+      householdItems: [GANTT_PURCHASE],
+      dateRange: { earliest: '2026-03-01', latest: '2026-03-31' },
+    };
+
+    it('renders the chart for a task and navigates to it from the sidebar with origin state', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+
+      fireEvent.click(await screen.findByTestId('gantt-sidebar-row-wi-gantt'));
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/work-items/wi-gantt',
+      );
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/schedule/gantt' },
+      });
+    });
+
+    it('navigates to a milestone from the Gantt sidebar', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+
+      fireEvent.click(await screen.findByTestId('gantt-sidebar-milestone-7'));
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/7');
+    });
+
+    it('navigates to a purchase from the Gantt sidebar', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+
+      fireEvent.click(await screen.findByTestId('gantt-sidebar-hi-hi-gantt'));
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/household-items/hi-gantt',
+      );
+    });
+
+    it('hides milestones and purchases from the chart when only tasks are shown', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt?filter=work-items']);
+
+      await screen.findByTestId('gantt-sidebar-row-wi-gantt');
+      expect(screen.queryByTestId('gantt-sidebar-milestone-7')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('gantt-sidebar-hi-hi-gantt')).not.toBeInTheDocument();
+    });
+
+    it('toggles the dependency arrows button label and pressed state', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+
+      const hide = screen.getByRole('button', { name: 'Hide dependency arrows' });
+      expect(hide).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(hide);
+
+      const show = screen.getByRole('button', { name: 'Show dependency arrows' });
+      expect(show).toHaveAttribute('aria-pressed', 'false');
+      fireEvent.click(show);
+      expect(screen.getByRole('button', { name: 'Hide dependency arrows' })).toBeInTheDocument();
+    });
+
+    it('toggles the critical path highlight button label and pressed state', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+
+      const toggle = screen.getByTestId('critical-path-toggle');
+      expect(toggle).toHaveAttribute('aria-label', 'Hide critical path highlighting');
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute('aria-label', 'Show critical path highlighting');
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(toggle).toHaveAttribute('title', 'Show critical path highlighting');
+    });
+
+    it('switches the zoom level between Day, Week and Month', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+      const toolbar = screen.getByRole('toolbar', { name: /zoom level/i });
+      const buttons = Array.from(toolbar.querySelectorAll('button'));
+      const byText = (name: string) => buttons.find((b) => b.textContent === name)!;
+
+      fireEvent.click(byText('Day'));
+      expect(byText('Day')).toHaveAttribute('aria-pressed', 'true');
+      expect(byText('Month')).toHaveAttribute('aria-pressed', 'false');
+
+      fireEvent.click(byText('Week'));
+      expect(byText('Week')).toHaveAttribute('aria-pressed', 'true');
+      expect(byText('Day')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('zooms the columns in until the maximum disables the + button, and back out to the minimum', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in columns' });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out columns' });
+
+      expect(zoomIn).toBeEnabled();
+      for (let i = 0; i < 20 && !(zoomIn as HTMLButtonElement).disabled; i++) {
+        fireEvent.click(zoomIn);
+      }
+      expect(zoomIn).toBeDisabled();
+      expect(zoomOut).toBeEnabled();
+
+      for (let i = 0; i < 60 && !(zoomOut as HTMLButtonElement).disabled; i++) {
+        fireEvent.click(zoomOut);
+      }
+      expect(zoomOut).toBeDisabled();
+      expect(zoomIn).toBeEnabled();
+    });
+
+    it('zooms the columns with Ctrl+= and Ctrl+- and ignores keys without Ctrl', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in columns' });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out columns' });
+
+      for (let i = 0; i < 25; i++) fireEvent.keyDown(document, { key: '=', ctrlKey: true });
+      expect(zoomIn).toBeDisabled();
+
+      for (let i = 0; i < 60; i++) fireEvent.keyDown(document, { key: '-', ctrlKey: true });
+      expect(zoomOut).toBeDisabled();
+
+      // '+' also zooms in; plain keys and other Ctrl keys do nothing
+      fireEvent.keyDown(document, { key: '+', ctrlKey: true });
+      expect(zoomOut).toBeEnabled();
+      const before = zoomOut.hasAttribute('disabled');
+      fireEvent.keyDown(document, { key: '-' });
+      fireEvent.keyDown(document, { key: 'a', ctrlKey: true });
+      expect(zoomOut.hasAttribute('disabled')).toBe(before);
+    });
+
+    it('zooms the columns with Ctrl+wheel over the chart', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      const svg = await screen.findByTestId('gantt-svg');
+      const zoomIn = screen.getByRole('button', { name: 'Zoom in columns' });
+      const zoomOut = screen.getByRole('button', { name: 'Zoom out columns' });
+      const scroller = svg.parentElement!;
+
+      for (let i = 0; i < 60; i++) fireEvent.wheel(scroller, { deltaY: 100, ctrlKey: true });
+      expect(zoomOut).toBeDisabled();
+      fireEvent.wheel(scroller, { deltaY: -100, ctrlKey: true });
+      expect(zoomOut).toBeEnabled();
+      expect(zoomIn).toBeEnabled();
+    });
+
+    it('shows the empty state with a link to Work Items when there are no tasks', async () => {
+      renderWithRouter(['/schedule/gantt']);
+
+      expect(await screen.findByTestId('timeline-empty')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Go to Work Items' })).toHaveAttribute(
+        'href',
+        '/project/work-items',
+      );
+      expect(screen.queryByTestId('gantt-chart')).not.toBeInTheDocument();
+    });
+
+    it('shows the load error and retries when Try again is pressed', async () => {
+      // Persistent rejection: the hook refetches when the translation function changes
+      mockGetTimeline.mockRejectedValue(new Error('boom'));
+      renderWithRouter(['/schedule/gantt']);
+
+      expect(await screen.findByTestId('timeline-error')).toBeInTheDocument();
+      mockGetTimeline.mockResolvedValue(FULL);
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+      expect(await screen.findByTestId('gantt-chart')).toBeInTheDocument();
+      expect(screen.queryByTestId('timeline-error')).not.toBeInTheDocument();
+    });
+
+    it('shows a calendar milestone tooltip without task names when the Work items filter is off', async () => {
+      const thisMonth = new Date();
+      const day = `${thisMonth.getFullYear()}-${String(thisMonth.getMonth() + 1).padStart(2, '0')}-10`;
+      mockGetTimeline.mockResolvedValue({
+        ...FULL,
+        workItems: [
+          {
+            ...GANTT_TASK,
+            startDate: day,
+            endDate: day,
+            projectedStartDate: day,
+            projectedEndDate: day,
+            requiredMilestoneIds: [7],
+          },
+        ],
+        milestones: [{ ...GANTT_MILESTONE, targetDate: day, workItemIds: ['wi-gantt'] }],
+      });
+      renderWithRouter(['/schedule/calendar?filter=milestones']);
+
+      fireEvent.mouseEnter(await screen.findByTestId('calendar-milestone'), {
+        clientX: 200,
+        clientY: 150,
+      });
+      const tip = await screen.findByTestId('gantt-tooltip');
+
+      expect(tip).toHaveTextContent('Gantt Test Milestone');
+      expect(tip).not.toHaveTextContent('Gantt Test Task');
+    });
+
+    it('reloads the timeline silently when a task is created elsewhere', async () => {
+      mockGetTimeline.mockResolvedValue(FULL);
+      renderWithRouter(['/schedule/gantt']);
+      await screen.findByTestId('gantt-chart');
+      const calls = mockGetTimeline.mock.calls.length;
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent('cornerstone:object-created', { detail: { kind: 'task' } }),
+        );
+      });
+
+      await waitFor(() => expect(mockGetTimeline.mock.calls.length).toBe(calls + 1));
+      expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
     });
   });
 });

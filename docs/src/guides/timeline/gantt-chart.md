@@ -98,11 +98,13 @@ Hover over any work item bar or milestone diamond to see a tooltip with detailed
 - Planned and actual duration
 - Assigned user
 - Dependency relationships (predecessors and successors)
+- **Holds up n tasks**: how many unfinished tasks move if this one slips, counting the full chain of waiting tasks and milestone gates. This is the same count Home shows for the task
 
 **Milestone tooltips show:**
 - Title and target date
 - Projected completion date
 - Contributing and dependent work items
+- **Holds up n tasks**: the unfinished tasks that wait on this milestone, counted the same way as for work items
 - Completion status
 
 ### Touch Devices

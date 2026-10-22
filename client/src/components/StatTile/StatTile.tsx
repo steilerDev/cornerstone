@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { FigureKind } from '../../types/figureKind.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import styles from './StatTile.module.css';
 
@@ -17,6 +18,8 @@ export interface StatTileProps {
   headingLevel?: 2 | 3 | 4;
   /** `li` inside a list, `div` elsewhere. Default `div`. */
   as?: 'li' | 'div';
+  /** Marks the figure element with `data-figure` (consistency registry, #2232). */
+  figureKind?: FigureKind;
   testId: string;
 }
 
@@ -34,6 +37,7 @@ export function StatTile({
   state,
   headingLevel = 3,
   as: Root = 'div',
+  figureKind,
   testId,
 }: StatTileProps) {
   const Heading = headingLevel === 2 ? 'h2' : headingLevel === 4 ? 'h4' : 'h3';
@@ -49,6 +53,7 @@ export function StatTile({
             figureSize === 'medium' ? `${styles.figure} ${styles.figureMedium}` : styles.figure
           }
           {...(figureLabel ? { role: 'img', 'aria-label': figureLabel } : {})}
+          data-figure={figureKind}
           data-testid={`${testId}-figure`}
         >
           {figure}

@@ -172,7 +172,7 @@ A note in the **extracted lines** section of the Auto-itemize page reminds you, 
 
 When you know which source should fund a line, change it from the line's edit view:
 
-1. Open the work item or household item the line is assigned to (or **Budget > Overview**).
+1. Open the work item or household item the line is assigned to (or **Money > Overview**).
 2. Edit the line and pick the correct financing source from the source selector, then save.
 
 If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the [Financing Sources](financing-sources) page lets you multi-select lines and move them in a single operation. The depletion totals on both the old and new source update immediately.

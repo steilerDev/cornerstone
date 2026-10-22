@@ -2,12 +2,7 @@ import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  VendorDetail,
-  UpdateVendorRequest,
-  Invoice,
-  InvoiceStatus,
-} from '@cornerstone/shared';
+import type { VendorDetail, Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -50,6 +45,25 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
   notes: '',
 };
 
+/** The company edit form; `startEdit` always fills every field. */
+interface VendorEditForm {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  tradeId: string | null;
+}
+
+const EMPTY_EDIT_FORM: VendorEditForm = {
+  name: '',
+  phone: '',
+  email: '',
+  address: '',
+  notes: '',
+  tradeId: null,
+};
+
 export function VendorDetailPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
@@ -57,7 +71,8 @@ export function VendorDetailPage() {
   const { t: tc } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
   const { formatCurrency, formatDate } = useFormatters();
-  const { id } = useParams<{ id: string }>();
+  // The route always supplies :id
+  const id = useParams<{ id: string }>().id!;
   const navigate = useNavigate();
   const { trades } = useTrades();
 
@@ -71,7 +86,7 @@ export function VendorDetailPage() {
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<UpdateVendorRequest>({});
+  const [editForm, setEditForm] = useState<VendorEditForm>(EMPTY_EDIT_FORM);
   const [isUpdating, setIsUpdating] = useState(false);
   const [editError, setEditError] = useState<string>('');
 
@@ -80,7 +95,7 @@ export function VendorDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const vendorImpact = useDeleteImpact('vendor', showDeleteConfirm && id ? id : null);
+  const vendorImpact = useDeleteImpact('vendor', showDeleteConfirm ? id : null);
   const invoicesHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Invoice list state
@@ -102,14 +117,12 @@ export function VendorDetailPage() {
   const invoiceImpact = useDeleteImpact('invoice', deletingInvoice?.id ?? null);
 
   useEffect(() => {
-    if (!id) return;
     void loadVendor();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadVendor is defined in the component body; the effect re-runs only when id changes, which is the intended trigger
   }, [id]);
 
   /** `silent` keeps the page mounted (no skeleton), so focus is not lost on a background refresh. */
   const loadVendor = async (silent = false) => {
-    if (!id) return;
     if (!silent) setIsLoading(true);
     setError(null);
 
@@ -132,14 +145,15 @@ export function VendorDetailPage() {
   };
 
   const startEdit = () => {
-    if (!vendor) return;
+    // Reachable only from the loaded page's menu
+    const current = vendor!;
     setEditForm({
-      name: vendor.name,
-      phone: vendor.phone ?? '',
-      email: vendor.email ?? '',
-      address: vendor.address ?? '',
-      notes: vendor.notes ?? '',
-      tradeId: vendor.trade?.id ?? null,
+      name: current.name,
+      phone: current.phone ?? '',
+      email: current.email ?? '',
+      address: current.address ?? '',
+      notes: current.notes ?? '',
+      tradeId: current.trade?.id ?? null,
     });
     setEditError('');
     setIsEditing(true);
@@ -152,9 +166,7 @@ export function VendorDetailPage() {
 
   const handleUpdate = async (event: FormEvent) => {
     event.preventDefault();
-    if (!vendor || !id) return;
-
-    const trimmedName = (editForm.name ?? '').trim();
+    const trimmedName = editForm.name.trim();
     if (!trimmedName) {
       setEditError(t('vendors.validation.nameRequired'));
       return;
@@ -170,10 +182,10 @@ export function VendorDetailPage() {
     try {
       const updated = await updateVendor(id, {
         name: trimmedName,
-        phone: (editForm.phone as string)?.trim() || null,
-        email: (editForm.email as string)?.trim() || null,
-        address: (editForm.address as string)?.trim() || null,
-        notes: (editForm.notes as string)?.trim() || null,
+        phone: editForm.phone.trim() || null,
+        email: editForm.email.trim() || null,
+        address: editForm.address.trim() || null,
+        notes: editForm.notes.trim() || null,
         tradeId: editForm.tradeId || null,
       });
       setVendor(updated);
@@ -199,16 +211,13 @@ export function VendorDetailPage() {
   };
 
   const closeDeleteConfirm = () => {
-    if (!isDeleting) {
-      setShowDeleteConfirm(false);
-      setDeleteError('');
-      setDeleteBlocked(false);
-    }
+    // ConfirmDialog ignores cancel while busy
+    setShowDeleteConfirm(false);
+    setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const handleDelete = async () => {
-    if (!id) return;
-
     setIsDeleting(true);
     setDeleteError('');
 
@@ -236,7 +245,6 @@ export function VendorDetailPage() {
   // ─── Invoice handlers ──────────────────────────────────────────────────────
 
   const loadInvoices = useCallback(async () => {
-    if (!id) return;
     setInvoicesLoading(true);
     setInvoicesError(null);
 
@@ -255,7 +263,6 @@ export function VendorDetailPage() {
   }, [id, t, tErrors]);
 
   useEffect(() => {
-    if (!id) return;
     void loadInvoices();
   }, [id, loadInvoices]);
 
@@ -274,7 +281,6 @@ export function VendorDetailPage() {
 
   const handleCreateInvoice = async (event: FormEvent) => {
     event.preventDefault();
-    if (!id) return;
 
     const amount = parseFloat(createForm.amount);
     if (isNaN(amount) || amount < 0) {
@@ -320,15 +326,14 @@ export function VendorDetailPage() {
   };
 
   const closeDeleteInvoiceConfirm = () => {
-    if (!isDeletingInvoice) {
-      setDeletingInvoice(null);
-      setDeleteInvoiceError('');
-      setDeleteInvoiceBlocked(false);
-    }
+    // ConfirmDialog ignores cancel while busy
+    setDeletingInvoice(null);
+    setDeleteInvoiceError('');
+    setDeleteInvoiceBlocked(false);
   };
 
   const handleDeleteInvoice = async () => {
-    if (!id || !deletingInvoice) return;
+    if (!deletingInvoice) return;
 
     setIsDeletingInvoice(true);
     setDeleteInvoiceError('');
@@ -432,7 +437,10 @@ export function VendorDetailPage() {
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>{t('vendorDetail.outstandingBalance')}</span>
-            <span className={`${styles.statValue} ${hasStillToPay ? styles.statValueDanger : ''}`}>
+            <span
+              className={`${styles.statValue} ${hasStillToPay ? styles.statValueDanger : ''}`}
+              data-figure="still-to-pay"
+            >
               {formatCurrency(vendor.outstandingBalance)}
             </span>
           </div>
@@ -460,7 +468,7 @@ export function VendorDetailPage() {
                 <input
                   type="text"
                   id="edit-name"
-                  value={(editForm.name as string) ?? ''}
+                  value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className={styles.input}
                   maxLength={200}
@@ -477,7 +485,7 @@ export function VendorDetailPage() {
                   <input
                     type="tel"
                     id="edit-phone"
-                    value={(editForm.phone as string) ?? ''}
+                    value={editForm.phone}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     className={styles.input}
                     placeholder={t('vendorDetail.form.placeholders.phone')}
@@ -492,7 +500,7 @@ export function VendorDetailPage() {
                   <input
                     type="email"
                     id="edit-email"
-                    value={(editForm.email as string) ?? ''}
+                    value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className={styles.input}
                     placeholder={t('vendorDetail.form.placeholders.email')}
@@ -509,7 +517,7 @@ export function VendorDetailPage() {
                 <input
                   type="text"
                   id="edit-address"
-                  value={(editForm.address as string) ?? ''}
+                  value={editForm.address}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   className={styles.input}
                   placeholder={t('vendorDetail.form.placeholders.address')}
@@ -524,7 +532,7 @@ export function VendorDetailPage() {
                 </label>
                 <textarea
                   id="edit-notes"
-                  value={(editForm.notes as string) ?? ''}
+                  value={editForm.notes}
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                   className={styles.textarea}
                   rows={4}
@@ -559,7 +567,7 @@ export function VendorDetailPage() {
                 <button
                   type="submit"
                   className={styles.saveButton}
-                  disabled={isUpdating || !(editForm.name as string)?.trim()}
+                  disabled={isUpdating || !editForm.name.trim()}
                 >
                   {isUpdating ? t('vendorDetail.buttons.saving') : t('vendorDetail.buttons.save')}
                 </button>
@@ -643,7 +651,10 @@ export function VendorDetailPage() {
               {invoices.length > 0 && (
                 <span className={styles.outstandingBalance}>
                   {t('vendorDetail.outstanding')}{' '}
-                  <strong className={hasStillToPay ? styles.outstandingAmount : undefined}>
+                  <strong
+                    className={hasStillToPay ? styles.outstandingAmount : undefined}
+                    data-figure="still-to-pay"
+                  >
                     {formatCurrency(vendor.outstandingBalance)}
                   </strong>
                 </span>

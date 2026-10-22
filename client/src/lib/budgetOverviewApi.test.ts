@@ -1,6 +1,10 @@
 import type { BreakdownMoney, MoneyCostFigures, MoneySummary } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fetchBudgetOverview, fetchBudgetBreakdown } from './budgetOverviewApi.js';
+import {
+  fetchBudgetOverview,
+  fetchBudgetOverviewResponse,
+  fetchBudgetBreakdown,
+} from './budgetOverviewApi.js';
 import type {
   BudgetOverview,
   BudgetOverviewResponse,
@@ -234,6 +238,39 @@ describe('budgetOverviewApi', () => {
       } as Response);
 
       await expect(fetchBudgetOverview()).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchBudgetOverviewResponse (#2232) ───────────────────────────────────
+
+  describe('fetchBudgetOverviewResponse', () => {
+    it('returns the full response with the money summary next to the overview', async () => {
+      const money = emptyMoneySummary();
+      money.leftToSpend = { expected: 1200, best: 1500, worst: 900, verdict: 'on_budget' };
+      const mockResponse: BudgetOverviewResponse = { money, overview: sampleOverview };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse } as Response);
+
+      const result = await fetchBudgetOverviewResponse();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/budget/overview', expect.any(Object));
+      expect(result.overview).toEqual(sampleOverview);
+      expect(result.money.leftToSpend).toEqual({
+        expected: 1200,
+        best: 1500,
+        worst: 900,
+        verdict: 'on_budget',
+      });
+    });
+
+    it('fetchBudgetOverview still resolves to just the overview via the same request', async () => {
+      const mockResponse: BudgetOverviewResponse = {
+        money: emptyMoneySummary(),
+        overview: sampleOverview,
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse } as Response);
+
+      expect(await fetchBudgetOverview()).toEqual(sampleOverview);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -14,7 +14,6 @@
     "expectedPayback": "Expected Payback",
     "costBreakdown": {
       "tableCaption": "Budget cost breakdown by area and item",
-      "loading": "Loading cost breakdown…",
       "title": "Cost Breakdown",
       "emptyState": "No budget data to display",
       "workItems": "Work Items",
@@ -24,7 +23,9 @@
       "availableFundsFilter": {
         "activeFilterCaption": "({{selected}} of {{total}} selected)"
       },
-      "remainingBudget": "Remaining Budget",
+      "leftToSpend": "Left to spend",
+      "leftToSpendNoFigure": "No figure yet",
+      "leftToSpendWholeProject": "Whole project",
       "quoted": "Quoted",
       "tableHeaders": {
         "name": "Name",
@@ -394,7 +395,7 @@
     "summaryQuotation": "Offers",
     "summaryQuotationCovered": "{{amount}} already deposited",
     "summaryClaimable": "Ready to submit",
-    "summaryClaimableHint": "Excl. discretionary sources",
+    "summaryClaimableHint": "Loans and credit lines only",
     "summaryOverdue": "Overdue",
     "summaryOverdueWarning_one": "{{count}} invoice to pay is past due",
     "summaryOverdueWarning_other": "{{count}} invoices to pay are past due",

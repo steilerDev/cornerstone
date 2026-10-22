@@ -42,6 +42,10 @@ export class BudgetOverviewPage {
 
   // Cost Breakdown table (CostBreakdownTable, area hierarchy)
   readonly costBreakdownCard: Locator;
+  /** The interim Left to spend row (#2232): one figure from the money service. */
+  readonly leftToSpendRow: Locator;
+  /** The Left to spend figure (`data-figure="left-to-spend"`), or the en dash when no figure yet. */
+  readonly leftToSpendFigure: Locator;
 
   // Cost Basis dropdown (payment-status filter)
   readonly costBasisSelect: Locator;
@@ -73,6 +77,8 @@ export class BudgetOverviewPage {
 
     // Cost Breakdown table: <section aria-labelledby="breakdown-heading">
     this.costBreakdownCard = page.locator('section[aria-labelledby="breakdown-heading"]');
+    this.leftToSpendRow = page.getByTestId('cost-breakdown-left-to-spend');
+    this.leftToSpendFigure = this.leftToSpendRow.locator('[data-figure="left-to-spend"]');
 
     // Cost Basis dropdown: <select id="cost-basis-select"> + associated label
     this.costBasisSelect = page.locator('#cost-basis-select');

@@ -67,3 +67,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Home page specs](home-page-specs.md) — defects.json pins deleted tests, action ids rows lack, plurals vs union sets, FeedGroup ul, last interim alias, capmap vs UX
 - [Attention service specs](attention-service-specs.md) — "identical to page X" w/o X, money-layer rule, toEqual-pinned shapes, contract gaps (link/standing), ADR vs plan, one UTC today
 - [Shell popover specs](shell-popover-specs.md) — AnchoredPanel outside-press vs portaled children, nested Escape, popover z over dialogs, provider result literals, live counts vs exact titles
+- [Consistency test specs](consistency-test-specs.md) — "tests only" hides real gaps: former-name figures, same label/different count, 2nd definitions; API-bracketed E2E retry; registry

@@ -149,5 +149,7 @@ export function buildTimeline(parts: Partial<TimelineResponse> = {}): TimelineRe
         : sorted.length > 0
           ? { earliest: sorted[0]!, latest: sorted[sorted.length - 1]! }
           : null,
+    // Holds-up counts (computeHoldsUp, #2232): only sent when a test gives them
+    ...(parts.holdsUp ? { holdsUp: parts.holdsUp } : {}),
   };
 }

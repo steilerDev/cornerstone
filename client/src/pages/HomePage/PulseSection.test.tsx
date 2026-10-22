@@ -109,6 +109,42 @@ describe('PulseSection', () => {
     expect(hrefOf('home-pulse-left-to-spend')).toBe('/budget/sources');
   });
 
+  it('#2232: marks the Left to spend figure data-figure="left-to-spend" with the expected value', async () => {
+    mockGetHomePulse.mockResolvedValue(
+      makePulse({ leftToSpend: { expected: 200, best: 900, worst: 100, verdict: 'on_budget' } }),
+    );
+    renderWithRouter(<PulseSection />);
+
+    await waitFor(() => tile('home-pulse-left-to-spend'));
+    const marked = screen.getByTestId('home-pulse-left-to-spend-figure');
+    expect(marked).toHaveAttribute('data-figure', 'left-to-spend');
+    expect(marked).toHaveTextContent('200.00');
+    expect(document.querySelectorAll('[data-figure="left-to-spend"]')).toHaveLength(1);
+  });
+
+  it('#2232: marks the no-figure en dash as the one left-to-spend figure', async () => {
+    mockGetHomePulse.mockResolvedValue(
+      makePulse({ leftToSpend: { expected: 0, best: 0, worst: 0, verdict: null } }),
+    );
+    renderWithRouter(<PulseSection />);
+
+    await waitFor(() => tile('home-pulse-left-to-spend'));
+    const marked = document.querySelectorAll('[data-figure="left-to-spend"]');
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveTextContent('–');
+  });
+
+  it('#2232: marks the Still to pay figure data-figure="still-to-pay" and nothing else', async () => {
+    mockGetHomePulse.mockResolvedValue(makePulse({ stillToPay: 4200, stillToPayCount: 2 }));
+    renderWithRouter(<PulseSection />);
+
+    await waitFor(() => tile('home-pulse-still-to-pay'));
+    const marked = screen.getByTestId('home-pulse-still-to-pay-figure');
+    expect(marked).toHaveAttribute('data-figure', 'still-to-pay');
+    expect(marked).toHaveTextContent('4,200.00');
+    expect(screen.getByTestId('home-pulse-progress-figure')).not.toHaveAttribute('data-figure');
+  });
+
   it('links the three tiles to Money overview, open invoices and the Tasks list', async () => {
     mockGetHomePulse.mockResolvedValue(makePulse());
     renderWithRouter(<PulseSection />);

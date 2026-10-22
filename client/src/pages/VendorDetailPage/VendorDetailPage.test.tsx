@@ -72,6 +72,16 @@ jest.unstable_mockModule('../../lib/vendorContactsApi.js', () => ({
   deleteVendorContact: jest.fn(),
 }));
 
+// Trades load through useTrades (edit form trade picker).
+const mockFetchTrades = jest.fn<() => Promise<{ trades: never[] }>>();
+jest.unstable_mockModule('../../lib/tradesApi.js', () => ({
+  fetchTrades: mockFetchTrades,
+  createTrade: jest.fn(),
+  updateTrade: jest.fn(),
+  deleteTrade: jest.fn(),
+  mergeTrade: jest.fn(),
+}));
+
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
@@ -217,6 +227,8 @@ describe('VendorDetailPage', () => {
     mockDeleteVendor.mockReset();
     mockFetchDeleteImpact.mockReset();
     mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'vendor-1', effects: [] });
+    mockFetchTrades.mockReset();
+    mockFetchTrades.mockResolvedValue({ trades: [] });
     mockFetchInvoices.mockReset();
     mockCreateInvoice.mockReset();
     mockDeleteInvoice.mockReset();
@@ -1318,6 +1330,42 @@ describe('VendorDetailPage', () => {
       expect(container.querySelector('[class*="statValueDanger"]')).not.toBeNull();
     });
 
+    it('marks the stat card value and the invoices header amount as still-to-pay (#2232)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
+      });
+      const marked = document.querySelectorAll('[data-figure]');
+      expect(marked).toHaveLength(2);
+      for (const el of Array.from(marked)) {
+        expect(el).toHaveAttribute('data-figure', 'still-to-pay');
+        expect(el.textContent).toBe('€2,500.00');
+      }
+      expect(within(screen.getByText(/outstanding:/i)).getByText('€2,500.00')).toHaveAttribute(
+        'data-figure',
+        'still-to-pay',
+      );
+    });
+
+    it('marks the stat card figure even when there are no invoices and the balance is 0 (#2232)', async () => {
+      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, outstandingBalance: 0 });
+      mockFetchInvoices.mockResolvedValueOnce([]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(document.querySelectorAll('[data-figure="still-to-pay"]').length).toBeGreaterThan(0);
+      });
+      // No invoices: only the stat card carries the figure, the header amount is not rendered.
+      const marked = document.querySelectorAll('[data-figure]');
+      expect(marked).toHaveLength(1);
+      expect(marked[0]!.textContent).toBe('€0.00');
+    });
+
     it('renders invoice date in readable format', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]); // date: '2026-02-01'
@@ -1770,6 +1818,20 @@ describe('VendorDetailPage', () => {
   });
 
   describe('delete invoice modal', () => {
+    it('opens the delete dialog from the mobile card button too', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i }).length).toBe(2);
+      });
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[1]!);
+
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent('INV-001');
+    });
+
     it('opens delete invoice modal when Delete button is clicked on an invoice row', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
@@ -2054,6 +2116,241 @@ describe('VendorDetailPage', () => {
       renderWithMenu();
       await waitFor(() => expect(mockFetchVendor).toHaveBeenCalled());
       expect(screen.getByTestId('prefill').textContent).toBe('{}');
+    });
+  });
+
+  // ─── Branch coverage: edit validation, contact fields, trade, invoice form (#2232) ───
+
+  describe('edit form details (#2232 coverage)', () => {
+    async function startEdit(vendor: VendorDetail) {
+      mockFetchVendor.mockResolvedValueOnce(vendor);
+      const user = userEvent.setup();
+      renderPage(vendor.id);
+      await user.click(await screen.findByRole('button', { name: /^edit$/i }));
+      return user;
+    }
+
+    const formOf = () => screen.getByRole('button', { name: /save changes/i }).closest('form')!;
+
+    it('starts empty for a company without contact details and saves them as nulls', async () => {
+      mockUpdateVendor.mockResolvedValueOnce(vendorWithNoStats);
+      const user = await startEdit(vendorWithNoStats);
+
+      expect(document.getElementById('edit-phone')).toHaveValue('');
+      expect(document.getElementById('edit-email')).toHaveValue('');
+      expect(document.getElementById('edit-address')).toHaveValue('');
+      expect(document.getElementById('edit-notes')).toHaveValue('');
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mockUpdateVendor).toHaveBeenCalledWith('vendor-2', {
+          name: 'Jones Electric',
+          phone: null,
+          email: null,
+          address: null,
+          notes: null,
+          tradeId: null,
+        }),
+      );
+    });
+
+    it('saves edited contact fields trimmed', async () => {
+      mockUpdateVendor.mockResolvedValueOnce(sampleVendor);
+      const user = await startEdit(sampleVendor);
+
+      fireEvent.change(document.getElementById('edit-phone')!, { target: { value: ' 555-0000 ' } });
+      fireEvent.change(document.getElementById('edit-email')!, {
+        target: { value: ' new@example.test ' },
+      });
+      fireEvent.change(document.getElementById('edit-address')!, {
+        target: { value: ' 1 Test Road ' },
+      });
+      fireEvent.change(document.getElementById('edit-notes')!, { target: { value: ' A note ' } });
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mockUpdateVendor).toHaveBeenCalledWith('vendor-1', {
+          name: 'Smith Plumbing',
+          phone: '555-0000',
+          email: 'new@example.test',
+          address: '1 Test Road',
+          notes: 'A note',
+          tradeId: 'trade-plumbing',
+        }),
+      );
+    });
+
+    it('asks for a name when the name is cleared', async () => {
+      await startEdit(sampleVendor);
+      fireEvent.change(document.getElementById('edit-name')!, { target: { value: '   ' } });
+      expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+
+      fireEvent.submit(formOf());
+
+      expect(await screen.findByText('Vendor name is required.')).toBeInTheDocument();
+      expect(mockUpdateVendor).not.toHaveBeenCalled();
+    });
+
+    it('rejects a name over 200 characters', async () => {
+      await startEdit(sampleVendor);
+      fireEvent.change(document.getElementById('edit-name')!, {
+        target: { value: 'n'.repeat(201) },
+      });
+
+      fireEvent.submit(formOf());
+
+      expect(
+        await screen.findByText('Vendor name must be 200 characters or less.'),
+      ).toBeInTheDocument();
+      expect(mockUpdateVendor).not.toHaveBeenCalled();
+    });
+
+    it('shows Saving… and disables the form while the update is in flight', async () => {
+      let finish: (v: VendorDetail) => void = () => {};
+      mockUpdateVendor.mockReturnValueOnce(
+        new Promise<VendorDetail>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const user = await startEdit(sampleVendor);
+
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      expect(await screen.findByRole('button', { name: /saving/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+      expect(document.getElementById('edit-name')).toBeDisabled();
+
+      await act(async () => {
+        finish(sampleVendor);
+      });
+      expect(await screen.findByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    });
+
+    it('lets a trade be picked and saved', async () => {
+      mockFetchTrades.mockResolvedValue({
+        trades: [
+          { id: 'trade-plumbing', name: 'Plumbing', color: null, translationKey: null },
+          { id: 'trade-electrics', name: 'Electrics', color: null, translationKey: null },
+        ],
+      } as never);
+      mockUpdateVendor.mockResolvedValueOnce(vendorWithNoStats);
+      const user = await startEdit(vendorWithNoStats);
+
+      await user.type(document.getElementById('edit-tradeId')!, 'Elec');
+      await user.click(await screen.findByRole('option', { name: 'Electrics' }));
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() =>
+        expect(mockUpdateVendor).toHaveBeenCalledWith(
+          'vendor-2',
+          expect.objectContaining({ tradeId: 'trade-electrics' }),
+        ),
+      );
+    });
+  });
+
+  describe('create invoice form details (#2232 coverage)', () => {
+    async function openCreate() {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /add invoice/i }));
+      return { user, dialog: screen.getByRole('dialog') };
+    }
+
+    it('rejects a negative amount', async () => {
+      const { dialog } = await openCreate();
+      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '-5' } });
+      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
+        target: { value: '2026-02-01' },
+      });
+
+      fireEvent.submit(dialog.querySelector('form')!);
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'Amount must be a positive number.',
+      );
+      expect(mockCreateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('asks for the invoice date', async () => {
+      const { dialog } = await openCreate();
+      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '5' } });
+
+      fireEvent.submit(dialog.querySelector('form')!);
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'Invoice date is required.',
+      );
+      expect(mockCreateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('sends every field of the form, trimmed, and wheel does not change the amount', async () => {
+      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice);
+      const { dialog } = await openCreate();
+      const amount = within(dialog).getByLabelText(/amount/i);
+      fireEvent.change(document.getElementById('create-invoice-number')!, {
+        target: { value: ' INV-XYZ ' },
+      });
+      fireEvent.change(amount, { target: { value: '99.5' } });
+      fireEvent.wheel(amount);
+      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
+        target: { value: '2026-02-01' },
+      });
+      fireEvent.change(within(dialog).getByLabelText(/due date/i), {
+        target: { value: '2026-03-01' },
+      });
+      fireEvent.change(within(dialog).getByLabelText(/status/i), {
+        target: { value: 'quotation' },
+      });
+      fireEvent.change(within(dialog).getByLabelText(/notes/i), { target: { value: ' Hello ' } });
+
+      fireEvent.submit(dialog.querySelector('form')!);
+
+      await waitFor(() =>
+        expect(mockCreateInvoice).toHaveBeenCalledWith('vendor-1', {
+          invoiceNumber: 'INV-XYZ',
+          amount: 99.5,
+          date: '2026-02-01',
+          dueDate: '2026-03-01',
+          status: 'quotation',
+          notes: 'Hello',
+        }),
+      );
+    });
+
+    it('closes on a backdrop click, but not while the invoice is being created', async () => {
+      let finish: (v: Invoice) => void = () => {};
+      mockCreateInvoice.mockReturnValueOnce(
+        new Promise<Invoice>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const { dialog } = await openCreate();
+      const backdrop = dialog.querySelector('[class*="modalBackdrop"]')!;
+
+      // idle: the backdrop closes the form
+      fireEvent.click(backdrop);
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      // creating: the backdrop is ignored
+      await userEvent.click(screen.getByRole('button', { name: /add invoice/i }));
+      const again = screen.getByRole('dialog');
+      fireEvent.change(within(again).getByLabelText(/amount/i), { target: { value: '5' } });
+      fireEvent.change(within(again).getByLabelText(/invoice date/i), {
+        target: { value: '2026-02-01' },
+      });
+      fireEvent.submit(again.querySelector('form')!);
+      await waitFor(() => expect(mockCreateInvoice).toHaveBeenCalled());
+
+      fireEvent.click(again.querySelector('[class*="modalBackdrop"]')!);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        finish(sampleInvoice);
+      });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
   });
 });

@@ -26,8 +26,10 @@ import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type {
   BudgetBreakdown,
+  AttentionResponse,
   BudgetOverviewResponse,
   BreakdownArea,
+  HomePulseResponse,
   MoneyCostFigures,
   MoneyRange,
   MoneySummary,
@@ -459,6 +461,53 @@ function describeConsistency(getCtx: () => Ctx): void {
         sum += Math.round(vendor.outstandingBalance * 100);
       }
       expect(sum).toBe(Math.round(money.stillToPay * 100));
+    });
+
+    it('9. GET /api/home/pulse: left to spend, still to pay and its count are the money service figures (#2232)', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      const pulse = await getJson<HomePulseResponse>(ctx, '/api/home/pulse');
+      expect(pulse.leftToSpend).toEqual(money.leftToSpend);
+      expect(pulse.stillToPay).toBe(money.stillToPay);
+      expect(pulse.stillToPayCount).toBe(money.stillToPayCount);
+    });
+
+    it('10. GET /api/invoices summary.claimable is the money service ready to submit (#2232)', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      const body = await getJson<{
+        summary: {
+          claimable: { count: number; totalAmount: number };
+          pending: { count: number; totalAmount: number };
+          paid: { count: number; totalAmount: number };
+        };
+      }>(ctx, '/api/invoices');
+      expect(body.summary.claimable).toEqual({
+        count: money.readyToSubmit.count,
+        totalAmount: money.readyToSubmit.amount,
+      });
+      // pins the discriminating shape: the fixture has pending and paid invoices that are NOT
+      // ready to submit (own funds, unfunded, discretionary rail), so the all-invoices totals
+      // must exceed the ready-to-submit figure; a "pending + paid" definition would equal them
+      const { pending, paid, claimable } = body.summary;
+      expect(pending.totalAmount + paid.totalAmount).toBeGreaterThan(claimable.totalAmount);
+      expect(pending.count + paid.count).toBeGreaterThan(claimable.count);
+      expect(claimable.count).toBeGreaterThan(0);
+    });
+
+    it('11. GET /api/attention: the N8 rows add up to ready to submit, each equal to its source (#2232)', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      const body = await getJson<AttentionResponse>(ctx, '/api/attention');
+      const rows = [...body.rows, ...body.tidyUp].filter((r) => r.rule === 'N8');
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        const source = money.sources.find((x) => x.id === row.subject.id)!;
+        expect(row.amount).toBe(source.readyToSubmit.amount);
+        expect(row.params).toMatchObject({ count: source.readyToSubmit.count });
+      }
+      const cents = rows.reduce((acc, r) => acc + Math.round((r.amount ?? 0) * 100), 0);
+      expect(cents).toBe(Math.round(money.readyToSubmit.amount * 100));
     });
   });
 }

@@ -2106,3 +2106,12 @@ menu layered OVER it does not dismiss it) also ignores presses inside its OWN ho
 a StatusMenu inside the catch-up Modal or the bell panel stops closing on a press elsewhere in the host.
 Ask for the exclusion to apply only when the matched container does not contain the panel anchor
 (`hit && !hit.contains(anchorRef.current)`), and for a test with the popover nested in a host.
+
+## "Fails before the fix" claims: run the old code (PR #2329)
+
+A consistency test whose comment says it "pins the discriminating shape" may assert only a proxy
+(`count > 0`), which stays green if the fixture later loses the discriminating rows. Verify the claim
+by copying the merge-base versions of the fixed files over the head versions (saved via `show` to
+/tmp), running one test file, then restoring the head versions, and ask for an assertion on the
+difference itself. Server Jest from a worktree needs `--selectProjects server --runInBand` and
+`--max-old-space-size=4096`, or the worker OOMs and reports `Tests: 0 total`.

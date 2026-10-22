@@ -56,6 +56,7 @@ function PulseTiles({ data }: { data: HomePulseResponse }) {
         <StatTile
           as="li"
           label={t('pulse.leftToSpend.label')}
+          figureKind="left-to-spend"
           figure={'–'}
           figureLabel={t('pulse.leftToSpend.noFigure')}
           detail={t('pulse.leftToSpend.needsSetup')}
@@ -68,6 +69,7 @@ function PulseTiles({ data }: { data: HomePulseResponse }) {
         <StatTile
           as="li"
           label={t('pulse.leftToSpend.label')}
+          figureKind="left-to-spend"
           figure={formatCurrency(leftToSpend.expected)}
           detail={
             <span className={styles.tileDetail}>
@@ -88,6 +90,7 @@ function PulseTiles({ data }: { data: HomePulseResponse }) {
       <StatTile
         as="li"
         label={t('pulse.stillToPay.label')}
+        figureKind="still-to-pay"
         figure={formatCurrency(stillToPay)}
         detail={t('pulse.stillToPay.count', { count: stillToPayCount })}
         // Interim until the To pay chip of the Invoices page (4.6).

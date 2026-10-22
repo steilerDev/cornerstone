@@ -185,6 +185,19 @@ describe('AttentionRowView: wording and structure', () => {
     expect(row()).toHaveTextContent('Holds up 3 tasks · 1 starts within 2 weeks');
   });
 
+  it('marks the holds-up note data-figure="holds-up" and nothing else on the row (#2232)', () => {
+    renderRow(makeRow('N1', { holdsUp: { count: 3, startingWithin14Days: 1 } }));
+    const marked = row().querySelectorAll('[data-figure]');
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveAttribute('data-figure', 'holds-up');
+    expect(marked[0]!.textContent).toMatch(/^Holds up 3 tasks/);
+  });
+
+  it('has no figure marker on a row without a holds-up note (#2232)', () => {
+    renderRow(makeRow('N12'));
+    expect(row().querySelector('[data-figure]')).toBeNull();
+  });
+
   it('shows the area path and the company after the title', () => {
     renderRow(
       makeRow('N1', {
@@ -299,6 +312,15 @@ describe('AttentionRowView: N2 group', () => {
     );
     fireEvent.click(toggle);
     expect(screen.getByTestId(`${TID}-item-g1`)).not.toBeVisible();
+  });
+
+  it('marks the holds-up meta of each group item that has one (#2232)', () => {
+    renderRow(group());
+    const g1 = screen.getByTestId(`${TID}-item-g1`).querySelector('[data-figure="holds-up"]');
+    expect(g1).not.toBeNull();
+    expect(g1!.textContent).toMatch(/^Holds up 2 tasks/);
+    // g2 holds nothing up: no note, hence no marker.
+    expect(screen.getByTestId(`${TID}-item-g2`).querySelector('[data-figure]')).toBeNull();
   });
 
   it('lists the tasks without a disclosure when groups are not collapsed', () => {

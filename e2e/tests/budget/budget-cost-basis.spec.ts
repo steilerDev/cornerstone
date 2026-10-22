@@ -19,6 +19,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage, BUDGET_OVERVIEW_ROUTE } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
+import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock data helpers
@@ -191,7 +192,7 @@ async function mountOverviewRoutes(page: Page, overviewBody: object, breakdownBo
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ overview: overviewBody }),
+        body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
       });
     } else {
       await route.continue();

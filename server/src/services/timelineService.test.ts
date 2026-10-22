@@ -172,6 +172,237 @@ describe('getTimeline service', () => {
     });
   });
 
+  // ─── Holds up (#2232) ───────────────────────────────────────────────────────
+
+  describe('holdsUp (the one definition, computeHoldsUp)', () => {
+    function datedItem(
+      userId: string,
+      title: string,
+      startDate: string,
+      endDate: string,
+      extra = {},
+    ) {
+      return insertWorkItem(db, userId, { title, startDate, endDate, ...extra });
+    }
+
+    function requireMilestone(workItemId: string, milestoneId: number) {
+      db.insert(schema.workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
+    }
+
+    it('is present and empty for an empty project', () => {
+      expect(getTimeline(db).holdsUp).toEqual({ workItems: {}, milestones: {} });
+    });
+
+    it('counts a chain A to B to C as A 2, B 1, C 0 with an entry for every returned item', () => {
+      const userId = insertUser(db);
+      const a = datedItem(userId, 'A', '2026-03-01', '2026-03-05');
+      const b = datedItem(userId, 'B', '2026-03-06', '2026-03-10');
+      const c = datedItem(userId, 'C', '2026-03-11', '2026-03-15');
+      insertDependency(db, a, b);
+      insertDependency(db, b, c);
+
+      const result = getTimeline(db);
+
+      expect(Object.keys(result.holdsUp!.workItems).sort()).toEqual([a, b, c].sort());
+      expect(result.holdsUp!.workItems[a]!.count).toBe(2);
+      expect(result.holdsUp!.workItems[b]!.count).toBe(1);
+      expect(result.holdsUp!.workItems[c]).toEqual({ count: 0, startingWithin14Days: 0 });
+    });
+
+    it('does not count or pass through a completed successor', () => {
+      const userId = insertUser(db);
+      const a = datedItem(userId, 'A', '2026-03-01', '2026-03-05');
+      const done = datedItem(userId, 'Done', '2026-03-06', '2026-03-10', { status: 'completed' });
+      const behind = datedItem(userId, 'Behind', '2026-03-11', '2026-03-15');
+      insertDependency(db, a, done);
+      insertDependency(db, done, behind);
+
+      const result = getTimeline(db);
+
+      expect(result.holdsUp!.workItems[a]).toEqual({ count: 0, startingWithin14Days: 0 });
+      expect(result.holdsUp!.workItems[done]!.count).toBe(1);
+    });
+
+    it('counts a task that requires a milestone for its contributor and for the milestone', () => {
+      const userId = insertUser(db);
+      const a = datedItem(userId, 'A', '2026-03-01', '2026-03-05');
+      const d = datedItem(userId, 'D', '2026-03-10', '2026-03-12');
+      const msId = insertMilestone(db, userId, { title: 'Gate' });
+      linkMilestoneWorkItem(db, msId, a);
+      requireMilestone(d, msId);
+
+      const result = getTimeline(db);
+
+      expect(result.holdsUp!.workItems[a]!.count).toBe(1);
+      expect(result.holdsUp!.workItems[d]!.count).toBe(0);
+      expect(result.holdsUp!.milestones[String(msId)]!.count).toBe(1);
+    });
+
+    it('gives a milestone without links a zero entry keyed by its id as a string', () => {
+      const userId = insertUser(db);
+      const msId = insertMilestone(db, userId);
+
+      expect(getTimeline(db).holdsUp!.milestones[String(msId)]).toEqual({
+        count: 0,
+        startingWithin14Days: 0,
+      });
+    });
+
+    it('counts not-started successors starting within 14 days of today and no later ones', () => {
+      const userId = insertUser(db);
+      const a = datedItem(userId, 'A', '2026-01-01', '2026-01-02');
+      const soon = datedItem(userId, 'Soon', '2026-01-10', '2026-01-12');
+      const later = datedItem(userId, 'Later', '2026-03-10', '2026-03-12');
+      const started = datedItem(userId, 'Started', '2026-01-05', '2026-01-06', {
+        status: 'in_progress',
+      });
+      insertDependency(db, a, soon);
+      insertDependency(db, a, later);
+      insertDependency(db, a, started);
+
+      const entry = getTimeline(db).holdsUp!.workItems[a]!;
+
+      expect(entry.count).toBe(3);
+      expect(entry.startingWithin14Days).toBe(1);
+    });
+  });
+
+  // ─── Date range and filter edge cases (#2232 coverage) ──────────────────────
+
+  describe('date range across several household items and undated work items', () => {
+    function householdItemWithWindow(
+      earliestDeliveryDate: string,
+      latestDeliveryDate: string,
+    ): void {
+      const now = new Date().toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id: makeId('hi'),
+          name: 'Purchase',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          earliestDeliveryDate,
+          latestDeliveryDate,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function householdItemWithTarget(targetDeliveryDate: string): void {
+      const now = new Date().toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id: makeId('hi'),
+          name: 'Purchase',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          targetDeliveryDate,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    it('spans the earliest to the latest target delivery date of several household items', () => {
+      householdItemWithTarget('2026-05-10');
+      householdItemWithTarget('2026-04-01');
+      householdItemWithTarget('2026-07-20');
+      householdItemWithTarget('2026-06-01');
+
+      expect(getTimeline(db).dateRange).toEqual({ earliest: '2026-04-01', latest: '2026-07-20' });
+    });
+
+    it('keeps the widest delivery window when a later household item has a narrower one', () => {
+      householdItemWithWindow('2026-08-01', '2026-08-30');
+      householdItemWithWindow('2026-08-10', '2026-08-20');
+      householdItemWithWindow('2026-07-15', '2026-09-05');
+
+      expect(getTimeline(db).dateRange).toEqual({ earliest: '2026-07-15', latest: '2026-09-05' });
+    });
+
+    it('leaves a completed work item without any date out of the timeline and out of holdsUp', () => {
+      const userId = insertUser(db);
+      const dated = insertWorkItem(db, userId, {
+        title: 'Dated',
+        startDate: '2026-03-01',
+        endDate: '2026-03-05',
+      });
+      const undated = insertWorkItem(db, userId, { title: 'Undated', status: 'completed' });
+
+      const result = getTimeline(db);
+
+      expect(result.workItems.map((w) => w.id)).toEqual([dated]);
+      expect(result.holdsUp!.workItems[undated]).toBeUndefined();
+    });
+
+    it('keeps a work item that has only an end date', () => {
+      const userId = insertUser(db);
+      const onlyEnd = insertWorkItem(db, userId, { title: 'Only end', endDate: '2026-03-05' });
+
+      expect(getTimeline(db).workItems.map((w) => w.id)).toEqual([onlyEnd]);
+    });
+  });
+
+  // ─── Dangling references (foreign keys off, e.g. a hand-edited database) ────
+
+  describe('dangling references', () => {
+    it('returns null user, area, vendor and trade instead of failing when the referenced rows are gone', () => {
+      sqlite.pragma('foreign_keys = OFF');
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({
+          id: 'vendor-1',
+          name: 'Company One',
+          tradeId: 'trade-gone',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const lost = insertWorkItem(db, 'user-gone', {
+        title: 'Lost references',
+        startDate: '2026-03-01',
+        endDate: '2026-03-05',
+        areaId: 'area-gone',
+        assignedVendorId: 'vendor-gone',
+      });
+      const lostUser = insertWorkItem(db, 'user-gone', {
+        title: 'Lost user',
+        startDate: '2026-03-01',
+        endDate: '2026-03-05',
+        assignedUserId: 'user-gone',
+      });
+      const noTrade = insertWorkItem(db, 'user-gone', {
+        title: 'Vendor without trade',
+        startDate: '2026-03-06',
+        endDate: '2026-03-07',
+        assignedVendorId: 'vendor-1',
+      });
+      db.insert(schema.householdItems)
+        .values({
+          id: 'hi-lost',
+          name: 'Purchase',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          targetDeliveryDate: '2026-04-01',
+          areaId: 'area-gone',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getTimeline(db);
+
+      const first = result.workItems.find((w) => w.id === lost)!;
+      expect(result.workItems.find((w) => w.id === lostUser)!.assignedUser).toBeNull();
+      expect(first.area).toBeNull();
+      expect(first.assignedVendor).toBeNull();
+      const second = result.workItems.find((w) => w.id === noTrade)!;
+      expect(second.assignedVendor).toEqual({ id: 'vendor-1', name: 'Company One', trade: null });
+      expect(result.householdItems.find((h) => h.id === 'hi-lost')!.area).toBeNull();
+    });
+  });
+
   // ─── Work item date filtering ───────────────────────────────────────────────
 
   describe('work item filtering by dates', () => {

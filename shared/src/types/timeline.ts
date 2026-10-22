@@ -12,6 +12,7 @@ import type {
 } from './workItem.js';
 import type { DependencyType } from './dependency.js';
 import type { AreaSummary } from './area.js';
+import type { AttentionHoldsUp } from './attention.js';
 import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
@@ -116,6 +117,14 @@ export interface TimelineDateRange {
   latest: string;
 }
 
+/** Holds-up counts from `computeHoldsUp` (the one definition, contract 1), per timeline subject. */
+export interface TimelineHoldsUp {
+  /** keyed by work item id; one entry for every item in `workItems` (zero counts included) */
+  workItems: Record<string, AttentionHoldsUp>;
+  /** keyed by milestone id as a string; one entry for every item in `milestones` */
+  milestones: Record<string, AttentionHoldsUp>;
+}
+
 /**
  * Top-level response shape for GET /api/timeline.
  */
@@ -128,4 +137,6 @@ export interface TimelineResponse {
   criticalPath: string[];
   /** Date range computed from the returned work items. Null when no work items have dates. */
   dateRange: TimelineDateRange | null;
+  /** Always sent by the server (#2232). Optional only so older mocks stay valid. */
+  holdsUp?: TimelineHoldsUp;
 }

@@ -27,6 +27,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
+import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -156,7 +157,7 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ overview: emptyOverviewResponse() }),
+          body: JSON.stringify({ overview: emptyOverviewResponse(), money: mockMoneySummary() }),
         });
       } else {
         await route.continue();
@@ -413,7 +414,7 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ overview: overviewBody }),
+          body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
         });
       } else {
         await route.continue();
