@@ -136,10 +136,13 @@ export function DocumentsPanel({
     return ref;
   };
 
+  const announceTimerRef = useRef<number | undefined>(undefined);
   const announce = useCallback((message: string) => {
+    window.clearTimeout(announceTimerRef.current);
     setAnnouncement(message);
-    window.setTimeout(() => setAnnouncement(''), 3000);
+    announceTimerRef.current = window.setTimeout(() => setAnnouncement(''), 3000);
   }, []);
+  useEffect(() => () => window.clearTimeout(announceTimerRef.current), []);
 
   // Focus after a list change: a neighbour's menu after an unlink, the new card after a link.
   useEffect(() => {

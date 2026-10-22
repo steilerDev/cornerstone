@@ -1,6 +1,5 @@
 /**
- * The editor's private OverrideField (formerly the shared EditableField, retired in #2233).
- * Every scenario of the deleted EditableField.test.tsx lives here, driven through the editor:
+ * The editor's private OverrideField, driven through ReportContentEditor:
  * edited dot, sr-only edited suffix, reset button name/title/lang, counter at 90 %, over-limit
  * hint, reached announcement, input vs textarea, label vs aria-label modes.
  *

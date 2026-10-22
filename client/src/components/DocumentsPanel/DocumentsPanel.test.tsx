@@ -901,6 +901,89 @@ describe('DocumentsPanel — invoices', () => {
     expect(screen.getByRole('status', { hidden: true })).toHaveTextContent('');
   });
 
+  it('restarts the three-second clear when a second announcement arrives', async () => {
+    jest.useFakeTimers();
+    try {
+      renderHost({ entityType: 'invoice', initialLinks: [invoiceLink()] });
+      openPanel();
+      const select = screen.getByLabelText('Tag document type: Sample offer.pdf');
+      const status = () => screen.getByRole('status', { hidden: true });
+
+      fireEvent.change(select, { target: { value: 'invoice' } });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(status()).toHaveTextContent('tagged as Invoice');
+
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      fireEvent.change(select, { target: { value: 'deposit' } });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(status()).toHaveTextContent('tagged as Deposit');
+
+      // 2 s after the second announcement the first timer would already have fired.
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      expect(status()).toHaveTextContent('tagged as Deposit');
+
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(status()).toHaveTextContent('');
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('cancels the pending announcement timer on unmount (no state update afterwards)', async () => {
+    jest.useFakeTimers();
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Plain wrappers (not jest spies): Testing Library treats a mock-function setTimeout as fake
+    // timers and would stall later waitFor calls.
+    const fakeSetTimeout = window.setTimeout;
+    const fakeClearTimeout = window.clearTimeout;
+    const announceTimers: number[] = [];
+    const cleared: unknown[] = [];
+    window.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
+      const id = fakeSetTimeout(handler, delay, ...args);
+      if (delay === 3000) announceTimers.push(id);
+      return id;
+    }) as typeof window.setTimeout;
+    window.clearTimeout = ((id?: number) => {
+      cleared.push(id);
+      fakeClearTimeout(id);
+    }) as typeof window.clearTimeout;
+    try {
+      const view = renderHost({ entityType: 'invoice', initialLinks: [invoiceLink()] });
+      openPanel();
+      fireEvent.change(screen.getByLabelText('Tag document type: Sample offer.pdf'), {
+        target: { value: 'invoice' },
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(announceTimers).toHaveLength(1);
+
+      view.unmount();
+
+      expect(cleared).toContain(announceTimers[0]);
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      window.setTimeout = fakeSetTimeout;
+      window.clearTimeout = fakeClearTimeout;
+      consoleError.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('shows the translated message for an ApiClientError when the type update fails', async () => {
     const updateAttachmentType = jest
       .fn<() => Promise<void>>()
