@@ -22,8 +22,7 @@ describe('navLabelKeyForRoute', () => {
     ['householdItems', 'navigation.purchases'],
     ['settingsManage', 'navigation.projectSetup'],
     ['settingsProfile', 'navigation.account'],
-    // Interim alias: the served page stands in for the planned NavConfig route.
-    ['dashboard', 'navigation.home'],
+    ['home', 'navigation.home'],
     ['companies', 'navigation.companies'],
   ])('maps the view %s to %s', (id, key) => {
     expect(navLabelKeyForRoute(id)).toBe(key);
@@ -77,7 +76,7 @@ describe('navLabelKeyForRoute and the interim Money views', () => {
 describe('navLabelKeyForPath', () => {
   it('resolves a served view path', () => {
     expect(navLabelKeyForPath('/schedule/calendar')).toBe('navigation.calendar');
-    expect(navLabelKeyForPath('/project/overview')).toBe('navigation.home');
+    expect(navLabelKeyForPath('/')).toBe('navigation.home');
   });
 
   it('returns null for an object page, an unlabelled page and an unmatched path', () => {
@@ -88,15 +87,16 @@ describe('navLabelKeyForPath', () => {
 });
 
 describe('isNavView', () => {
-  it.each([
-    'workItems',
-    'milestones',
-    'scheduleGantt',
-    'scheduleCalendar',
-    'dashboard',
-    'companies',
-  ])('treats %s as a view', (id) => {
-    expect(isNavView(id)).toBe(true);
+  it.each(['workItems', 'milestones', 'scheduleGantt', 'scheduleCalendar', 'home', 'companies'])(
+    'treats %s as a view',
+    (id) => {
+      expect(isNavView(id)).toBe(true);
+    },
+  );
+
+  it('no longer treats dashboard (a redirect to Home since #2230) as a view', () => {
+    expect(isNavView('dashboard')).toBe(false);
+    expect(navLabelKeyForRoute('dashboard')).toBeNull();
   });
 
   it.each([

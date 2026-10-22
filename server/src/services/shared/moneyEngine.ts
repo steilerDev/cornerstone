@@ -622,6 +622,8 @@ function computeByArea(
 export interface PaymentsResult {
   paidCents: number;
   stillToPayCents: number;
+  /** Records with something still to pay (offers + invoices; disjoint sets). */
+  stillToPayCount: number;
   offers: {
     count: number;
     amountCents: number;
@@ -632,13 +634,18 @@ export interface PaymentsResult {
   invoices: { count: number; amountCents: number; paidCents: number; stillToPayCents: number };
 }
 
-function paidAndStillToPay(rows: InvoiceDepositRow[]): { paid: number; stillToPay: number } {
+function paidAndStillToPay(rows: InvoiceDepositRow[]): {
+  paid: number;
+  stillToPay: number;
+  stillToPayCount: number;
+} {
   const summary = aggregateInvoiceStatusBreakdown(rows);
   const paid = toCents(
     (summary['paid']?.totalAmount ?? 0) + (summary['claimed']?.totalAmount ?? 0),
   );
-  const stillToPay = toCents(computeOpenAmounts(rows).openPayable.totalAmount);
-  return { paid, stillToPay };
+  const openPayable = computeOpenAmounts(rows).openPayable;
+  const stillToPay = toCents(openPayable.totalAmount);
+  return { paid, stillToPay, stillToPayCount: openPayable.count };
 }
 
 /**
@@ -694,6 +701,7 @@ export function computePayments(rows: InvoiceDepositRow[]): PaymentsResult {
   return {
     paidCents: offerPay.paid + invoicePay.paid,
     stillToPayCents: offerPay.stillToPay + invoicePay.stillToPay,
+    stillToPayCount: offerPay.stillToPayCount + invoicePay.stillToPayCount,
     offers: {
       ...countAndAmount(offerRows),
       paidCents: offerPay.paid,

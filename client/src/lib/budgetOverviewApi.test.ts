@@ -35,6 +35,7 @@ const emptyMoneySummary = (): MoneySummary => {
     afterGrants: range(),
     paid: 0,
     stillToPay: 0,
+    stillToPayCount: 0,
     notYetPaid: range(),
     notYetSplit: { amount: 0, recordCount: 0 },
     readyToSubmit: { count: 0, amount: 0 },

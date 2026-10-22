@@ -451,9 +451,9 @@ describe('WorkItemDetailPage', () => {
     mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
   });
 
-  function renderPage(id = 'work-1') {
+  function renderPage(id = 'work-1', hash = '') {
     return render(
-      <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
+      <MemoryRouter initialEntries={[`/project/work-items/${id}${hash}`]}>
         <Routes>
           <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
         </Routes>
@@ -2532,6 +2532,31 @@ describe('WorkItemDetailPage', () => {
       };
       expect(probe.path).toBe('/project/work-items');
       expect(probe.type).toBe('REPLACE');
+    });
+  });
+
+  describe('#constraints section anchor (#2230, Reschedule target)', () => {
+    it('renders the Constraints section with its focusable heading', async () => {
+      renderPage();
+      const heading = await screen.findByRole('heading', { name: /constraints/i, level: 2 });
+      expect(heading).toHaveAttribute('id', 'constraints-heading');
+      expect(heading).toHaveAttribute('tabindex', '-1');
+      expect(document.getElementById('constraints')).toContainElement(heading);
+    });
+
+    it('moves focus to the Constraints heading in a frame when the URL has #constraints', async () => {
+      renderPage('work-1', '#constraints');
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+      await waitFor(() => {
+        expect(document.activeElement).toBe(document.getElementById('constraints-heading'));
+      });
+    });
+
+    it('does not steal focus to the Constraints heading without the hash', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      expect(document.activeElement).not.toBe(document.getElementById('constraints-heading'));
     });
   });
 });

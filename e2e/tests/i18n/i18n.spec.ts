@@ -27,7 +27,7 @@
  * 06:35:35.49 and then found an English sidebar ('Main navigation', 'Schedule') at
  * 06:35:36.11 — the window in which the concurrently running "Language can be
  * switched back to English from German" (06:35:34.41–35.88, worker 1) PATCHed
- * locale='en'. `dashboard.spec.ts` was the mirror-image victim: its top-level
+ * locale='en'. `home.spec.ts` (then dashboard.spec.ts) was the mirror-image victim: its top-level
  * `beforeEach` PATCHed locale='en' on the same shared row.
  *
  * The isolation mechanism is now `isolatedUserPerWorker` (see
@@ -205,14 +205,14 @@ test.describe('i18n: Language Switching', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // Then: Dashboard/project overview renders with German heading
+    // Then: Home renders with the German heading
     // Reload after setLanguage to ensure the app re-reads locale from localStorage.
-    // Wait for the network to be idle so the dashboard's data + translations are
+    // Wait for the network to be idle so Home's data + translations are
     // both resolved before asserting on the localized heading.
     await page.goto(ROUTES.home);
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible({
+    await expect(page.getByRole('heading', { level: 1, name: 'Start', exact: true })).toBeVisible({
       timeout: 15000,
     });
 
@@ -406,15 +406,15 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to dashboard with a fresh full page load.
-    // setLanguage navigates to '/' (which redirects to /project/overview) and writes
+    // When: User navigates to Home with a fresh full page load.
+    // setLanguage navigates to '/' (Home) and writes
     // localStorage. A second goto to the same URL reuses the cached SPA state and
     // LocaleContext does not re-read localStorage, so a reload() is required to
     // force i18next to initialise with the new locale.
     await page.goto(ROUTES.home);
     await page.reload();
     // Wait for German page heading to confirm locale switch took effect
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Start', exact: true })).toBeVisible();
 
     // Then: All navigation links are visible and not overflowing
     const sidebar = page.locator('aside');
@@ -500,7 +500,7 @@ test.describe('i18n: Language Persistence via API', () => {
         },
         { timeout: 10000 },
       )
-      .toBe('Projekt');
+      .toBe('Start');
   });
 
   test('DELETE preference resets to system locale', async ({ page }) => {

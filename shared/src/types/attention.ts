@@ -181,6 +181,8 @@ export type AttentionParams =
       recordKind: 'invoice' | 'offer';
       paymentKind: 'final' | 'progress';
       invoiceId: string;
+      /** The company (vendor) the invoice belongs to; needed to change the invoice status. */
+      companyId: string;
       invoiceNumber: string | null;
       companyName: string;
       invoiceDate: string;

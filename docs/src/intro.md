@@ -55,7 +55,7 @@ Track [furniture, appliances, and fixtures](guides/household-items) alongside th
 
 ### See it all at a glance
 
-A customizable [dashboard](guides/dashboard) shows budget health, upcoming milestones, open invoices, and subsidy status the moment you log in.
+[Home](guides/home) opens the moment you log in. It puts what needs you first, then this week's dates, the money left to spend, and the tasks done so far.
 
 **Also built in:** [single sign-on via OIDC](guides/users/oidc-setup), shared access for your household with [admin and member roles](guides/users/admin-panel), [calendar and contact feeds](guides/feeds) for your phone, [scheduled backups](guides/backup), English and German, and [dark mode](guides/appearance/dark-mode).
 
@@ -67,7 +67,7 @@ A customizable [dashboard](guides/dashboard) shows budget health, upcoming miles
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
 - [Diary Guide](guides/diary) -- Construction diary with manual entries and system events
-- [Dashboard Guide](guides/dashboard) -- Project health overview and card customization
+- [Home Guide](guides/home) -- What needs you, this week, and how to customize Home
 - [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
 - [Backups](guides/backup) -- Manual and scheduled backups, restore
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider

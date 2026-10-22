@@ -10,7 +10,7 @@
  * - E1  (AC1)  Site diary: list, New entry, entry (titled and untitled), Edit; exact h1 and
  *              tab title, trail, no Back; Cancel returns to the entry in ONE history step
  * - E1b (phone) the entry page shows one element in the breadcrumb row: "‹ Site diary"
- * - E2         origin: Recent diary card and the Add menu on Home give "Back to Home"; the
+ * - E2         origin: Latest from the site and the New menu on Home give "Back to Home"; the
  *              origin survives a reload, is gone on a fresh visit, and through the draft the new-entry
  *              screen is replaced (Back never returns to it)
  * - E3  (AC1)  Photos: h1/title, the viewer's "Photos" link keeps the query, the viewer title,
@@ -49,7 +49,10 @@ import {
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
+import { HomePage } from '../../pages/HomePage.js';
+import { CreateMenu } from '../../pages/components/CreateMenu.js';
+import { mockHomeDiaryEntry, setupResponse } from '../../fixtures/homeMocks.js';
+import { mockDiaryList } from '../../fixtures/systemEventMocks.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
@@ -67,7 +70,7 @@ const NAMES = {
   orientation: `PI North ${runId}`,
 };
 
-/** Far-future dates keep the seeded entries on top of the Recent diary card (newest first). */
+/** Far-future dates keep the seeded entries on top of Latest from the site (newest first). */
 const TITLED_DATE = '2090-01-02';
 const PHOTO_DATE = '2090-01-01';
 
@@ -106,8 +109,36 @@ async function mockHouseName(page: Page): Promise<void> {
 }
 
 /**
- * Mocks `GET /api/users/me/preferences` with an empty list so no card is hidden: other specs
- * write `dashboard.hiddenCards` on the shared admin and would hide the Recent diary card.
+ * Home's "Latest from the site" with one known (real) entry, and a finished set-up checklist, so
+ * the sections render whatever the shared database holds.
+ */
+async function mockHomeLatest(page: Page, id: string, title: string): Promise<void> {
+  await page.route('**/api/home/setup', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(setupResponse(['house', 'areas', 'funding', 'companies', 'tasks'])),
+    }),
+  );
+  await page.route(
+    (url) => url.pathname === '/api/diary-entries',
+    async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockDiaryList([mockHomeDiaryEntry({ id, title })])),
+      });
+    },
+  );
+}
+
+/**
+ * Mocks `GET /api/users/me/preferences` with an empty list so every Home section shows: other
+ * specs write home preferences on the shared admin.
  */
 async function mockNoPreferences(page: Page): Promise<void> {
   await page.route('**/api/users/me/preferences', async (route) => {
@@ -314,16 +345,20 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
     // E2 — origin: "Back to Home"
     // ─────────────────────────────────────────────────────────────────────────
 
-    test('E2: an entry opened from the Recent diary card on Home offers "Back to Home"', async ({
+    test('E2: an entry opened from "Latest from the site" on Home offers "Back to Home"', async ({
       page,
     }) => {
       const bc = new BreadcrumbsBar(page);
       await mockHouseName(page);
       await mockNoPreferences(page);
+      await mockHomeLatest(page, seed.titledId, NAMES.titled);
       await page.goto(ROUTES.home);
 
-      // The desktop grid and the mobile sections both mount the card: use the visible link
-      const link = page.getByTestId(`recent-diary-${seed.titledId}`).filter({ visible: true });
+      const link = page
+        .getByTestId('home-latest')
+        .getByTestId(`diary-entry-${seed.titledId}`)
+        .getByRole('link', { name: new RegExp(NAMES.titled) })
+        .first();
       await expect(link).toBeVisible();
       await link.click();
 
@@ -352,22 +387,22 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
 
       // Back returns to Home
       await page.goBack();
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
     });
 
-    test('E2: New entry from the Home Add menu keeps "Back to Home" through the draft and never returns to /diary/new', async ({
+    test('E2: New entry from the New menu on Home keeps "Back to Home" through the draft and never returns to /diary/new', async ({
       page,
     }) => {
-      const dashboard = new DashboardPage(page);
+      const home = new HomePage(page);
+      const newMenu = new CreateMenu(page);
       const create = new DiaryCapturePage(page);
       let draftId: string | null = null;
       await mockHouseName(page);
       await mockNoPreferences(page);
 
       try {
-        await dashboard.goto();
-        await dashboard.openAddDropdown();
-        await dashboard.addDiaryEntryButton.click();
+        await home.goto();
+        await newMenu.choose('diaryEntry');
 
         await expect(page).toHaveURL((url) => url.pathname === routeUrl('diaryEntryNew'));
         await create.waitForForm();
@@ -385,7 +420,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
 
         // /diary/new is no longer in history: Back goes straight to Home
         await page.goBack();
-        await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+        await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
       } finally {
         if (draftId) await deleteDiaryEntryViaApi(page, draftId).catch(() => undefined);
       }
@@ -429,7 +464,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expect(notFound.dashboardLink).toHaveAttribute('href', '/');
 
       await notFound.clickDashboardLink();
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
     });
 
     // ─────────────────────────────────────────────────────────────────────────

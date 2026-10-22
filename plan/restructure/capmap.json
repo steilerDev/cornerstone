@@ -226,7 +226,7 @@
     "to": "Tasks > Task page > header 'Late · n d' chip; Tasks > Tasks list > Late group; Home > Needs attention (N1, N2)",
     "change": "promoted",
     "gate": "none",
-    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs. #2229: N1/N2 rows use contract 4's isLate (the Late definition for every surface), with holds-up counts incl. milestone gates; UI in 3.3, Tasks list in 5.1."
+    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs. #2229: N1/N2 rows use contract 4's isLate (the Late definition for every surface), with holds-up counts incl. milestone gates; UI in 3.3, Tasks list in 5.1. #2230: Home UI shipped: N1/N2 rows in Needs attention (Mark done / Start, Reschedule -> the task page's Constraints section until the 5.2 Timing tab; Not now with Undo) and the catch-up dialog when 3 or more tasks are late."
   },
   "WRK-030": {
     "name": "Assign or change a work item's area",
@@ -2586,7 +2586,7 @@
     "to": "Site diary > Site diary list > 'Unfinished' row; Home > Tidy up (draft older than 1 day: Continue · Discard)",
     "change": "promoted",
     "gate": "none",
-    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\". #2221: built. Resuming a draft also resumes its waiting photo uploads. #2229: H1 Tidy up row for drafts untouched for more than 1 day (Continue · Discard); UI in 3.3."
+    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\". #2221: built. Resuming a draft also resumes its waiting photo uploads. #2229: H1 Tidy up row for drafts untouched for more than 1 day (Continue · Discard); UI in 3.3. #2230: Home UI shipped: the Tidy up row for an unfinished log (Continue -> the draft; Discard with confirmation, the same discard as the Site diary via useDiscardDraft)."
   },
   "JRN-018": {
     "name": "Automatically delete abandoned drafts after a retention period",
@@ -3585,7 +3585,7 @@
     "to": "Home (/) — landing page after sign-in",
     "change": "same",
     "gate": "none",
-    "note": "No double redirect; h1 = house name."
+    "note": "No double redirect; h1 = house name. #2230: built. Home is served at / (route `home` done; /project/overview and /project redirect to / in one hop). The h1 is \"Home\" with the subtitle ‹house› · ‹date› (replaces \"h1 = house name\")."
   },
   "PLT-048": {
     "name": "Start creating a work item, household item, milestone, diary entry or invoice from the dashboard",
@@ -3593,7 +3593,7 @@
     "to": "Global > New menu in the top bar (neutral button, key n outside lists; fixed order Diary entry · Task · Purchase · Invoice · Offer · Company · Milestone; context-aware prefill); phone ＋ opens the New sheet: Log now (Photo · Note · Delivery) first, then the same rows as this menu",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "The top-bar New is not primary-styled, so every page keeps exactly one primary action (SIM-02). #2212: built. Global › top bar › 'New ▾' menu (from 1024px); Global › bottom bar › ＋ New sheet (below 1024px); key n outside lists. Entry order and context pre-fill come from navigation/createEntries.ts. The Home 'Add' menu stays until story 3.3. #2222: the New sheet gains the Log now group above its rows; the rows and their order are unchanged."
+    "note": "The top-bar New is not primary-styled, so every page keeps exactly one primary action (SIM-02). #2212: built. Global › top bar › 'New ▾' menu (from 1024px); Global › bottom bar › ＋ New sheet (below 1024px); key n outside lists. Entry order and context pre-fill come from navigation/createEntries.ts. The Home 'Add' menu stays until story 3.3. #2222: the New sheet gains the Log now group above its rows; the rows and their order are unchanged. #2230: the Home 'Add' menu is retired with the dashboard; creating starts from the top-bar New menu (or the phone ＋ sheet) only."
   },
   "PLT-049": {
     "name": "Hide a dashboard card I do not need",
@@ -3602,7 +3602,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Home > page ⋯ > Customize lists every section with a Hide toggle (Needs attention cannot be hidden).",
-    "note": "One entry instead of a menu per section, a footer line and a Settings section (SIM-06)."
+    "note": "One entry instead of a menu per section, a footer line and a Settings section (SIM-06). #2230: built as Home › page ⋯ › Customize… (CustomizeDialog): Tidy up, This week, Pulse and Latest from the site have a Hide toggle; the dialog says \"Needs attention always shows\" (not hideable, so no \"every section hidden\" state). Stored in `home.hiddenSections` (contract 18); old hidden dashboard cards are mapped once by migration 0048. Replaces the earlier \"Settings section\" idea: there is no Settings surface for Home."
   },
   "PLT-050": {
     "name": "Bring back hidden dashboard cards",
@@ -3611,7 +3611,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Home > page ⋯ > Customize lists hidden sections with Show.",
-    "note": "Folded into one shared surface in Settings (one pattern per task, principle 8; rare use)."
+    "note": "Folded into one shared surface in Settings (one pattern per task, principle 8; rare use). #2230: the same Customize dialog shows hidden sections with Show; one surface on Home, not in Settings (supersedes the \"Settings\" wording of this note)."
   },
   "PLT-051": {
     "name": "Retry loading dashboard data after a failure",
@@ -3619,7 +3619,7 @@
     "to": "Home > section error state > Retry",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (rare use). #2230: each Home section loads on its own and shows its own error with Retry (SectionError: FormError + Retry), so one failing section never blanks the page."
   },
   "PLT-052": {
     "name": "Use the dashboard on a phone as collapsible sections",
@@ -3627,8 +3627,8 @@
     "to": "Home (phone and tablet order): 'Where are you?' area chips with the last log, Needs attention, Tidy up, This week, Pulse, Latest from the site",
     "change": "merged",
     "gate": "none",
-    "acceptance": "Home on phones: sections in the stated order; each section collapses.",
-    "note": "No collapsed 'Timeline' details hiding schedule health (GLB-03). #2193: no Home card overflows horizontally from 320 to 1440 px (D-04)."
+    "acceptance": "Home on phones: sections in the stated order; Tidy up collapses; every other section except Needs attention can be hidden (Home › page ⋯ › Customize).",
+    "note": "No collapsed 'Timeline' details hiding schedule health (GLB-03). #2193: no Home card overflows horizontally from 320 to 1440 px (D-04). #2230: phone and tablet order as stated (Where are you? first, below 1024 px). Only Tidy up collapses (`home.collapsedSections`); the other sections except Needs attention can be hidden via Customize. Acceptance amended accordingly (decision D11; PO accepts at review)."
   },
   "PLT-053": {
     "name": "Jump from an empty dashboard card to the page where its data is created",
@@ -3637,7 +3637,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "First-run checklist steps open the form that creates the missing data; EmptyState actions are router links.",
-    "note": "GLB-05; D-25 EmptyState reload fixed. #2193: the Invoice Pipeline empty state (\"No invoices yet\") now appears only when no invoice exists at all. #2196: empty-state action links navigate in-app without a full reload."
+    "note": "GLB-05; D-25 EmptyState reload fixed. #2193: the Invoice Pipeline empty state (\"No invoices yet\") now appears only when no invoice exists at all. #2196: empty-state action links navigate in-app without a full reload. #2230: Home › Set up your build: a checklist (house, areas, funding, companies, tasks; then household and backups for admins, first log) from GET /api/home/setup, shown instead of the sections until steps 1–5 are done or \"Skip setup\" (`home.setupDismissed`). Each step links in-app to the page that creates the data; section EmptyState actions are router links (D-25, covered by LatestSection.test.tsx)."
   },
   "PLT-054": {
     "name": "See the remaining budget at a glance",
@@ -3647,7 +3647,7 @@
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Home > Pulse); every old URL redirects there in one hop.",
     "decision": "Q4",
-    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3."
+    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3. #2230: Home › Pulse › 'Left to spend' tile (StatTile) shows `money.leftToSpend.expected` with the verdict chip and the worst–best range from GET /api/home/pulse (the money service, verbatim); no averaged figure (D-03, covered by PulseSection.test.tsx). The matching Money › Overview headline arrives in 4.5."
   },
   "PLT-055": {
     "name": "See a budget health verdict (On Budget / At Risk / Over Budget)",
@@ -3657,7 +3657,7 @@
     "gate": "none",
     "acceptance": "Pulse verdict chip from the money service (On budget / Over budget).",
     "decision": "Q4",
-    "note": "One health rule shared with Money > Overview (P02). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3."
+    "note": "One health rule shared with Money > Overview (P02). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3. #2230: the Pulse verdict chip shows only the server verdict (On budget / Over budget); with no verdict (no active funding source or no cost) the tile shows an en dash and \"needs setup\". Money › Overview adopts the same headline in 4.5."
   },
   "PLT-056": {
     "name": "See planned cost range, actual spend and expected subsidy savings on the dashboard",
@@ -3666,7 +3666,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not). #2228: Expected cost, Paid, Expected grants served by the money service."
+    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not). #2228: Expected cost, Paid, Expected grants served by the money service. #2230: the Budget Summary card is retired; Expected cost, Paid and Expected grants are read on Money › Overview (today's overview and breakdown) until the 4.5 headline."
   },
   "PLT-057": {
     "name": "Be warned on the dashboard when subsidies are oversubscribed",
@@ -3675,7 +3675,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained. #2228: grants[].capped / uncappedPayout replace the oversubscription computation (the legacy `oversubscribedSubsidies` field is derived from it)."
+    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained. #2228: grants[].capped / uncappedPayout replace the oversubscription computation (the legacy `oversubscribedSubsidies` field is derived from it). #2230: the Budget Summary card and its warning line are retired; the cap note is on Money › Overview and the Grants page (/budget/subsidies) until Financing (4.10)."
   },
   "PLT-058": {
     "name": "Jump from the dashboard to the budget overview",
@@ -3683,7 +3683,7 @@
     "to": "Home > Pulse 'Left to spend' -> Money > Overview",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use). #2230: the Pulse 'Left to spend' tile links to Money › Overview (`budgetOverview`); with no verdict it links to Funding sources (`budgetSources`, interim until `financing`, 4.10)."
   },
   "PLT-059": {
     "name": "See how much of each financing source is used",
@@ -3692,7 +3692,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Overview funding rows and Financing cards show '€x over-allocated' per source.",
-    "note": "On real data one source stays over-allocated because the other sources cannot absorb the excess, so the note stays until funding changes (R-M5). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05)."
+    "note": "On real data one source stays over-allocated because the other sources cannot absorb the excess, so the note stays until funding changes (R-M5). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05). #2230: the Source Utilization card is retired; per-source use and over-allocation are on the Funding sources page (/budget/sources, the D-05 bar, covered by BudgetBar.test.tsx) until Financing (4.10); the S1 standing figure is Money-only, never a Home row."
   },
   "PLT-060": {
     "name": "See the next upcoming milestones and whether they are on track",
@@ -3701,7 +3701,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Tasks > Milestones lists upcoming milestones by target with Early / Late chips; Home N3 rows; This week lists milestones dated in the next 7 days.",
-    "note": "The Pulse no longer has a milestone tile when the next milestone is already an attention row (SIM-06); the full upcoming list lives on Tasks > Milestones (C-01)."
+    "note": "The Pulse no longer has a milestone tile when the next milestone is already an attention row (SIM-06); the full upcoming list lives on Tasks > Milestones (C-01). #2230: Home › Needs attention shows N3 rows (late milestones) and Home › This week lists milestones dated in the next 7 days (GET /api/home/week, kind `milestone`); \"Next 14 days\" shows the rest of the three weeks."
   },
   "PLT-061": {
     "name": "Open a milestone from the dashboard",
@@ -3709,7 +3709,7 @@
     "to": "Home > milestone rows -> Milestone page",
     "change": "same",
     "gate": "none",
-    "note": "404 link fixed (D-01). Interim fix on today's Home (#2193): the card links to /project/milestones/:id."
+    "note": "404 link fixed (D-01). Interim fix on today's Home (#2193): the card links to /project/milestones/:id. #2230: N3 rows and This-week milestone items link to the Milestone page via `routeUrl('milestone')` (D-01, covered by AttentionList.test.tsx and home.spec.ts)."
   },
   "PLT-062": {
     "name": "See work-item progress by status",
@@ -3718,7 +3718,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Progress' tile: n of N tasks done · k in progress, links to Tasks.",
-    "note": "Folded into one shared surface in Home (one pattern per task, principle 8; daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
+    "note": "Folded into one shared surface in Home (one pattern per task, principle 8; daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2230: Home › Pulse › 'Progress' tile: done of total tasks and in-progress count from GET /api/home/pulse, computed with the Tasks list's own query (`listWorkItems` totals), so it equals the Tasks list counts; links to Tasks."
   },
   "PLT-063": {
     "name": "See the critical-path status: items on the path, next deadline, days remaining and a health badge",
@@ -3727,7 +3727,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Home This-week critical line with next deadline, days remaining and health chip; 'Critical' chips; Schedule highlight on by default; items on the path visible in the Schedule.",
-    "note": "Real data (engine replication, matches today's card): 10 tasks on the path; the next deadline is 14 days away, Warning (C-01, R-M7). #2229: the critical line (task, must end by, days left, level on_track/warning/critical/overdue, count) is served by `GET /api/attention` (`criticalLine`); UI in 3.3."
+    "note": "Real data (engine replication, matches today's card): 10 tasks on the path; the next deadline is 14 days away, Warning (C-01, R-M7). #2229: the critical line (task, must end by, days left, level on_track/warning/critical/overdue, count) is served by `GET /api/attention` (`criticalLine`); UI in 3.3. #2230: built. This week starts with the critical line (task, must end by, days left, level chip) from `GET /api/attention` `criticalLine`; This-week task items carry a \"Critical\" chip when on the critical path."
   },
   "PLT-064": {
     "name": "Open the next critical work item from the dashboard",
@@ -3736,7 +3736,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Critical line and every Home row link to the task page.",
-    "note": "Moves to Home, the one home of its object (principle 2); the old URL keeps working (weekly use). #2229: every attention row and the critical line carry a link (route id + params) to the object's page; UI in 3.3."
+    "note": "Moves to Home, the one home of its object (principle 2); the old URL keeps working (weekly use). #2229: every attention row and the critical line carry a link (route id + params) to the object's page; UI in 3.3. #2230: the critical line and every Needs attention / This week task row link to the Task page; a held-up item names its cause (\"Waits for ‹task›\", `heldUpCauseOf`, the N2 folding rule) as a link."
   },
   "PLT-065": {
     "name": "See a 5-day mini Gantt around today and open the full schedule from it",
@@ -3745,7 +3745,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Home > This week agenda by day + 'Next 14 days' + 'Open schedule' link.",
-    "note": "5-day mini Gantt replaced by a readable agenda. Owner 7 Oct: a two-week mini Gantt on Home was drawn and not adopted; This week gets an \"Open schedule\" link."
+    "note": "5-day mini Gantt replaced by a readable agenda. Owner 7 Oct: a two-week mini Gantt on Home was drawn and not adopted; This week gets an \"Open schedule\" link. #2230: built. This week = the next 7 days grouped by day (Today, Tomorrow, then weekday dates) from GET /api/home/week, \"Next 14 days\" on demand, and \"Open schedule\" -> Tasks › Schedule. Items already shown as attention rows are dropped."
   },
   "PLT-066": {
     "name": "See open (pending) invoices, oldest first, with overdue flags and the pending total",
@@ -3754,7 +3754,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Still to pay' (sum, count) -> Invoices To pay sorted oldest first with Overdue chips and footer sum; N4–N6 rows on Home.",
-    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3."
+    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3. #2230: Pulse 'Still to pay' tile (sum and count of open records = the Invoices \"Open payable\" card, `stillToPayCount`) links to `invoices?openOnly=true` (interim until the 4.6 To pay chip); N4–N6 rows on Home with Mark paid (`params.companyId`) and Undo."
   },
   "PLT-067": {
     "name": "See the newest quotations and the quotes total on the dashboard",
@@ -3763,7 +3763,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Offers summary: Offers total, Paid, Remaining on offer.",
-    "note": "Quotes get their own list instead of a 5-row Home sample. Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02)."
+    "note": "Quotes get their own list instead of a 5-row Home sample. Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2230: the Invoice Pipeline card is retired; offers and their totals are on Money › Invoices (summary cards; the Offers chip and summary arrive in 4.6)."
   },
   "PLT-068": {
     "name": "Open an invoice, or the full invoice list, from the dashboard",
@@ -3771,7 +3771,7 @@
     "to": "Home > attention rows -> Invoice page; Pulse -> Money",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use). #2203: an invoice opened from Home shows \"‹ Back to Home\"."
+    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use). #2203: an invoice opened from Home shows \"‹ Back to Home\". #2230: attention rows and This-week payment items link to the Invoice page (a progress payment with `payment=‹id›`); the Pulse tiles link to Money."
   },
   "PLT-069": {
     "name": "See subsidy programs by application status, with fixed-amount totals and upcoming-deadline flags",
@@ -3780,7 +3780,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Financing > Grants cards with status chips; Home N11 for deadlines within 14 days.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants. #2195: grant status words read the canonical grant key set (AC3). #2229: N11 rows for eligible/applied grants with a deadline within 14 days; UI in 3.3."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants. #2195: grant status words read the canonical grant key set (AC3). #2229: N11 rows for eligible/applied grants with a deadline within 14 days; UI in 3.3. #2230: the Subsidy Pipeline card is retired; grants are on the Grants page (/budget/subsidies) until Financing › Grants (4.10); N11 deadline rows show in Needs attention."
   },
   "PLT-070": {
     "name": "See and open the most recent diary entries from the dashboard",
@@ -3788,7 +3788,7 @@
     "to": "Home > Latest from the site (people's entries, photo-first)",
     "change": "same",
     "gate": "none",
-    "note": "System events excluded (D2 DOM-06, GLB-10). #2196: Recent Diary empty state now shows its own message and action."
+    "note": "System events excluded (D2 DOM-06, GLB-10). #2196: Recent Diary empty state now shows its own message and action. #2230: Home › Latest from the site: the 3 newest saved entries by people (system events excluded), photo-first FeedRow entries, with a link to the Site diary; EmptyState links to a new entry in-app."
   },
   "PLT-071": {
     "name": "Use the Quick Actions card as a launcher",

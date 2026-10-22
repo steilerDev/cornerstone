@@ -45,18 +45,32 @@ export function useFocusTrap(
       }
       if (e.key !== 'Tab' || !containerRef.current) return;
 
-      const focusable = getFocusableElements(containerRef.current);
+      // The toast region sits above the dialog: its buttons (Undo, dismiss) join the cycle.
+      const focusable = [
+        ...getFocusableElements(containerRef.current),
+        ...Array.from(document.querySelectorAll<HTMLElement>('[data-toast-container]')).flatMap(
+          getFocusableElements,
+        ),
+      ];
       if (focusable.length === 0) return;
 
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
+      // Step through the list ourselves: the toast portal can sit before or after the dialog in
+      // the DOM, so native Tab order cannot be trusted at the dialog's edges.
+      const active = document.activeElement as HTMLElement | null;
+      const index = active ? focusable.indexOf(active) : -1;
+      // Focus on something we do not list (a popover, a tabindex="-1" element): the browser steps.
+      if (index === -1 && active && active !== document.body) return;
+      const step = e.shiftKey ? -1 : 1;
+      const start = index === -1 ? (e.shiftKey ? 0 : -1) : index;
+      // A listed element can refuse focus (hidden at this width): try the next one, never stall.
+      for (let tries = 1; tries <= focusable.length; tries++) {
+        const candidate =
+          focusable[(start + step * tries + focusable.length * tries) % focusable.length]!;
+        candidate.focus();
+        if (document.activeElement === candidate) {
+          e.preventDefault();
+          return;
+        }
       }
     };
 

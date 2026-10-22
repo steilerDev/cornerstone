@@ -34,7 +34,7 @@ const PAGES = [
   ['Integrations', () => routeUrl('settingsIntegrations')],
   ['Companies', () => routeUrl('companies')],
   ['Areas', () => routeUrl('areas')],
-  ['Home', () => routeUrl('dashboard')],
+  ['Home', () => routeUrl('home')],
 ] as const;
 
 test.describe('No in-page tab rows (#2205)', () => {
@@ -45,8 +45,7 @@ test.describe('No in-page tab rows (#2205)', () => {
   for (const [name, path] of PAGES) {
     test(`${name}: the page area holds no navigation of its own`, async ({ page }) => {
       await page.goto(path());
-      // Settled: the page's own heading (Home's h1 is not asserted by text, only its presence)
-      await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toBeVisible();
+      // Settled: the page's own heading      await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toBeVisible();
 
       // Also not tab rows: the "Area path" trail inside list rows and the report wizard's step
       // indicator (a progress list, not navigation between views)

@@ -739,3 +739,45 @@ export type {
   SearchResponse,
   SearchQuery,
 } from './types/search.js';
+
+// Home (#2230)
+export {
+  HOME_AGENDA_DAYS,
+  HOME_WEEK_DAYS,
+  HOME_AGENDA_KINDS,
+  HOME_SETUP_STEPS,
+  HOME_SETUP_CORE_STEPS,
+  HOME_SETUP_ADMIN_STEPS,
+} from './types/home.js';
+export type {
+  HomeAgendaKind,
+  HomeAgendaSchedule,
+  HomeAgendaItem,
+  HomeWeekResponse,
+  HomeProgress,
+  HomePulseResponse,
+  HomeSetupStep,
+  HomeSetupStepState,
+  HomeSetupResponse,
+} from './types/home.js';
+export {
+  HOME_SECTION_IDS,
+  HOME_HIDEABLE_SECTION_IDS,
+  HOME_COLLAPSIBLE_SECTION_IDS,
+  HOME_HIDDEN_SECTIONS_KEY,
+  HOME_COLLAPSED_SECTIONS_KEY,
+  HOME_MOVED_NOTICE_SEEN_KEY,
+  HOME_SETUP_DISMISSED_KEY,
+  HOME_PREFERENCE_KEYS,
+  HOME_PREFERENCE_MAX_LENGTH,
+  isHomePreferenceKey,
+  validateHomePreferenceValue,
+  parseHomeSectionIds,
+} from './lib/homePreferences.js';
+export type {
+  HomeSectionId,
+  HomeHideableSectionId,
+  HomeCollapsibleSectionId,
+  HomePreferenceKey,
+  HomePreferenceInvalidReason,
+} from './lib/homePreferences.js';

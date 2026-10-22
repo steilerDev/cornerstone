@@ -318,7 +318,7 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(closeButton);
   });
 
-  it('Tab does not throw and does not move focus when the active element is neither first nor last', () => {
+  it('Tab from a middle control steps to the next control itself (the trap owns the cycle)', () => {
     render(
       <Modal {...defaultProps}>
         <input data-testid="first-input" placeholder="First" />
@@ -327,18 +327,23 @@ describe('Modal', () => {
     );
 
     // Focusables in DOM order: close button, first-input, second-input.
-    // Focus the middle element — neither first (close button) nor last (second-input).
     const middleInput = screen.getByTestId('first-input');
     middleInput.focus();
     expect(document.activeElement).toBe(middleInput);
 
-    expect(() => {
-      fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
-    }).not.toThrow();
+    const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(screen.getByTestId('second-input'));
 
-    // The trap only intervenes at the boundaries; focus is left untouched here
-    // (the browser's native Tab order would normally move focus, but jsdom
-    // doesn't simulate that — this test only verifies the trap doesn't hijack it).
+    const backward = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(backward);
+    expect(backward.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(middleInput);
   });
 

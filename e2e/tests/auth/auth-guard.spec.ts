@@ -20,10 +20,12 @@ test.describe('Authentication Guard - Unauthenticated', () => {
     await expect(page).toHaveURL(ROUTES.login);
   });
 
-  test('Unauthenticated access to the Home page keeps it as the deep link', async ({ page }) => {
+  test('Unauthenticated access to Home redirects to a plain /login (the root carries no next)', async ({
+    page,
+  }) => {
     await page.goto(ROUTES.home);
 
-    await expect(page).toHaveURL(loginUrlFor(ROUTES.home));
+    await expect(page).toHaveURL(ROUTES.login);
   });
 
   test('Unauthenticated access to /settings/profile redirects to /login', async ({ page }) => {
@@ -66,7 +68,7 @@ test.describe('Authentication Guard - Authenticated', () => {
     // When: User tries to access login page
     await page.goto(ROUTES.login);
 
-    // Then: Should redirect to dashboard
+    // Then: Should redirect to Home
     await expect(page).toHaveURL(ROUTES.home);
   });
 });

@@ -22,7 +22,7 @@ export const TEST_MEMBER = {
 };
 
 export const ROUTES = {
-  home: routeUrl('dashboard'),
+  home: routeUrl('home'),
   photos: routeUrl('photos'),
   setup: routeUrl('setup'),
   login: routeUrl('login'),

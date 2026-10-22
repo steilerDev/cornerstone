@@ -557,6 +557,7 @@ export interface OpenPaymentRow extends InvoiceDepositRow {
   invoice_date: string;
   invoice_due_date: string | null;
   invoice_number: string | null;
+  vendor_id: string;
   vendor_name: string;
   deposit_due_date: string | null;
 }
@@ -569,6 +570,8 @@ export interface OpenPaymentItem {
   depositId: string | null;
   invoiceStatus: string;
   invoiceNumber: string | null;
+  /** The company (vendor) the invoice belongs to. */
+  vendorId: string;
   vendorName: string;
   invoiceDate: string;
   dueDate: string | null;
@@ -624,6 +627,7 @@ export function computeOpenPaymentItems(rows: OpenPaymentRow[]): OpenPaymentItem
       invoiceId,
       invoiceStatus: row.invoice_status,
       invoiceNumber: row.invoice_number,
+      vendorId: row.vendor_id,
       vendorName: row.vendor_name,
       invoiceDate: row.invoice_date,
     };

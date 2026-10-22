@@ -45,12 +45,12 @@ setup('authenticate as admin', async ({ page }) => {
   }
 
   // The setup endpoint creates a session automatically, so after setup:
-  // /setup -> redirect to /login -> LoginPage detects session -> redirect to / -> /project/overview
-  // Wait for the project overview to load (confirms session is active and redirects completed)
-  await expect(page.getByRole('heading', { name: 'Project', level: 1 })).toBeVisible({
+  // /setup -> redirect to /login -> LoginPage detects session -> redirect to / (Home)
+  // Wait for Home to load (confirms session is active and redirects completed)
+  await expect(page.getByRole('heading', { name: 'Home', level: 1, exact: true })).toBeVisible({
     timeout: 15000,
   });
-  console.log('✅ Admin user created, session established, redirected to project overview');
+  console.log('✅ Admin user created, session established, redirected to Home');
 
   // Ensure the auth directory exists
   await mkdir('test-results/.auth', { recursive: true });

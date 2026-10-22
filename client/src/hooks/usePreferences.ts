@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { UserPreference } from '@cornerstone/shared';
 import { listPreferences, upsertPreference, deletePreference } from '../lib/preferencesApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
@@ -7,32 +7,39 @@ import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UsePreferencesResult {
   preferences: UserPreference[];
+  /** True from the first render until the first fetch settles, and during a `refresh`. */
   isLoading: boolean;
+  /** The first fetch has settled (success or failure): never false again once true. */
+  hasLoaded: boolean;
   error: string | null;
   upsert: (key: string, value: string) => Promise<void>;
   remove: (key: string) => Promise<void>;
   refresh: () => void;
 }
 
+type LoadError = { kind: 'api'; code: string } | { kind: 'network' } | { kind: 'unexpected' };
+
 /**
  * Manages user preferences for the authenticated user.
- * Handles fetching the list, upserting, and removing preferences.
+ * Handles fetching the list, upserting, and removing preferences. Loads once per mount (and on
+ * `refresh`); the load never depends on the translation functions, so a late-loading namespace
+ * cannot trigger a second request.
  */
 export function usePreferences(): UsePreferencesResult {
   const { t } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const [preferences, setPreferences] = useState<UserPreference[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
 
-  // Fetch preferences on mount and when refresh is called
   useEffect(() => {
     let cancelled = false;
 
     async function loadPreferences() {
       setIsLoading(true);
-      setError(null);
+      setLoadError(null);
 
       try {
         const fetchedPreferences = await listPreferences();
@@ -42,16 +49,17 @@ export function usePreferences(): UsePreferencesResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(translateApiError(err.error.code, tErrors));
+            setLoadError({ kind: 'api', code: err.error.code });
           } else if (err instanceof NetworkError) {
-            setError(t('requestErrors.network'));
+            setLoadError({ kind: 'network' });
           } else {
-            setError(t('requestErrors.unexpected'));
+            setLoadError({ kind: 'unexpected' });
           }
         }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
+          setHasLoaded(true);
         }
       }
     }
@@ -60,7 +68,15 @@ export function usePreferences(): UsePreferencesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors]);
+  }, [fetchCount]);
+
+  const error = useMemo(() => {
+    if (loadError === null) return null;
+    if (loadError.kind === 'api') return translateApiError(loadError.code, tErrors);
+    return loadError.kind === 'network'
+      ? t('requestErrors.network')
+      : t('requestErrors.unexpected');
+  }, [loadError, t, tErrors]);
 
   const upsert = useCallback(async (key: string, value: string) => {
     await upsertPreference(key, value);
@@ -89,6 +105,7 @@ export function usePreferences(): UsePreferencesResult {
   return {
     preferences,
     isLoading,
+    hasLoaded,
     error,
     upsert,
     remove,

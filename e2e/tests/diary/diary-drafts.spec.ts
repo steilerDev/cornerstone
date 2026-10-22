@@ -21,7 +21,7 @@
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
  * 13. Drafts leave the feed (saved feed has none; Unfinished row; ?status=draft; ?status=saved like none)
  * 14. Clicking draft in list navigates to /diary/:id/edit
- * 15. Dashboard excludes drafts; shows entry after promote
+ * 15. Home "Latest from the site" excludes drafts; shows entry after promote
  * 16. [responsive] Draft edit page on mobile (menu, Save entry, no scroll)
  * 17. [responsive] Photo controls on tablet (Choose from library visible and tappable)
  * 18. Editing a saved entry (Edit entry, Save changes, no menu)
@@ -32,7 +32,8 @@ import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
+import { setupResponse } from '../../fixtures/homeMocks.js';
+import { HomePage } from '../../pages/HomePage.js';
 import {
   createDraftDiaryEntryViaApi,
   createDiaryEntryViaApi,
@@ -699,43 +700,50 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 15: Dashboard excludes drafts; shows entry after promote
+// Scenario 15: Home "Latest from the site" excludes drafts; shows entry after promote
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dashboard excludes drafts (Scenario 15)', () => {
-  test('Draft entries do not appear in Recent Diary; promoted entry appears after refresh', async ({
+test.describe('Home excludes drafts (Scenario 15)', () => {
+  test('Draft entries do not appear in Latest from the site; promoted entry appears after refresh', async ({
     page,
     testPrefix,
   }) => {
-    const dashboardPage = new DashboardPage(page);
+    const homePage = new HomePage(page);
     const capture = new DiaryCapturePage(page);
     let draftId: string | null = null;
 
     try {
-      // A far-future date keeps the promoted entry among the five newest the Recent Diary card
-      // shows, however many entries other tests create dated today (#2225 specs do).
+      // A far-future date keeps the promoted entry among the three newest that Latest from the
+      // site shows, however many entries other tests create dated today (#2225 specs do).
       draftId = await createDraftDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2099-12-29',
       });
 
-      // Navigate to dashboard — register diary entries API listener BEFORE goto() to avoid
+      // Navigate to Home — register diary entries API listener BEFORE goto() to avoid
       // race where the response arrives before the listener is attached.
-      // DashboardPage fetches GET /api/diary-entries?pageSize=5&status=saved — drafts excluded.
+      // Home fetches GET /api/diary-entries?status=saved&automatic=false&pageSize=3 — drafts excluded.
+      // A fresh shared database may not have the basics yet (Home would show the set-up
+      // checklist instead of the sections), so only the checklist state is fixed.
+      await page.route('**/api/home/setup', (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(setupResponse(['house', 'areas', 'funding', 'companies', 'tasks'])),
+        }),
+      );
       let diaryApiPromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&
           resp.url().includes('status=saved') &&
           resp.status() === 200,
       );
-      await dashboardPage.goto();
+      await homePage.goto();
       await diaryApiPromise;
-      // Wait for all concurrent dashboard API calls to settle before asserting.
+      // Wait for all concurrent Home API calls to settle before asserting.
       await page.waitForLoadState('networkidle');
 
-      // The Recent Diary card should NOT contain our draft entry.
-      // DashboardPage renders two layouts simultaneously (desktop grid + mobile
-      // sections), so the same testId can appear twice when the entry IS present.
-      await expect(page.getByTestId(`recent-diary-${draftId}`).first()).not.toBeVisible();
+      // Latest from the site should NOT contain our draft entry.
+      await expect(homePage.latest.getByTestId(`diary-entry-${draftId}`)).toHaveCount(0);
 
       // Now promote the draft to saved
       await capture.gotoEdit(draftId);
@@ -758,13 +766,12 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
           resp.url().includes('status=saved') &&
           resp.status() === 200,
       );
-      await dashboardPage.goto();
+      await homePage.goto();
       await diaryApiPromise;
-      // Wait for the full allSettled batch before asserting on card content.
       await page.waitForLoadState('networkidle');
 
-      // The promoted entry should now appear in Recent Diary.
-      await expect(page.getByTestId(`recent-diary-${draftId}`).first()).toBeVisible();
+      // The promoted entry should now appear in Latest from the site.
+      await expect(homePage.latest.getByTestId(`diary-entry-${draftId}`)).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }

@@ -10,11 +10,31 @@
   max-width: 1200px;
 }
 
+/* One 880 px reading column, left aligned (Home). */
+.containerColumn {
+  max-width: calc(55rem + 2 * var(--spacing-8));
+  margin-inline: 0;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-6);
+}
+
+.headerWithSubtitle {
+  align-items: flex-start;
+}
+
+.titleColumn {
+  min-width: 0;
+}
+
+.subtitle {
+  margin: var(--spacing-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 .title {
@@ -114,6 +134,21 @@
   .action > * {
     width: 100%;
     min-height: var(--touch-target-min);
+  }
+
+  /* With a subtitle the action is a compact control (the page menu) beside the title. */
+  .headerWithSubtitle {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+  }
+
+  .headerWithSubtitle .action {
+    width: auto;
+  }
+
+  .headerWithSubtitle .action > * {
+    width: auto;
   }
 }
 

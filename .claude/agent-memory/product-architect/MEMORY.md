@@ -85,7 +85,7 @@ ADR-001..034. Notable: 010 auth (sessions + OIDC + scrypt) · 011 E2E (Playwrigh
 
 ## Migrations
 
-Sequential SQL in `server/src/db/migrations/`, currently through **0044** (deposit `budget_source_id`).
+Sequential SQL in `server/src/db/migrations/`, currently through **0048** (data-only Home hidden sections, #2230).
 Read the directory rather than trusting a list here. Known gap: migration 0007 (`work_item_milestone_deps`)
 is still undocumented in Schema.md.
 
@@ -119,6 +119,9 @@ a ToastProvider`. That looks like a PR regression but is not one (PR #2137).
 - **Worktree-isolation guard** refuses Bash commands mixing `git -C <other dir>` with pipes/subshells or a
   runtime variable in an option slot (`sed -n … $F`). Run each git command plainly from its own `cd`, write
   diffs to `/tmp` files, then scan/process them in a separate call.
+- **bash-guard trailer pre-check reads the worktree's index, not the wiki clone's.** A `cd <wiki> && git commit -m …`
+  is rejected for missing qa/frontend/translator trailers whenever the worktree has staged production files.
+  Commit the wiki with a plain `git -C <wiki> commit -F <msgfile>` (separate call; no `cd`, no heredoc) — it passes (#2230).
 - **`.claude/agent-memory/` exists in BOTH the base checkout and every worktree, at diverging lengths.**
   An "absolute" path that omits the `.claude/worktrees/<name>/` segment silently reads/edits the _base_
   copy — no error, just stale content and an edit that never reaches the PR. Hit this on 2026-08-04

@@ -273,12 +273,11 @@ test.describe('One date source for a late task (Scenario 4)', () => {
         new RegExp(start),
       );
 
-      // Home: the timeline response the dashboard loads carries the same forecast dates
-      const timelineResponse = page.waitForResponse(
-        (r) => r.url().endsWith('/api/timeline') && r.request().method() === 'GET',
-      );
-      await page.goto('/');
-      const body = (await (await timelineResponse).json()) as {
+      // The timeline response (the schedule's data; Home no longer loads it, #2230) carries the
+      // same forecast dates
+      const timelineResponse = await page.request.get('/api/timeline');
+      expect(timelineResponse.ok()).toBeTruthy();
+      const body = (await timelineResponse.json()) as {
         workItems: Array<{ id: string; projectedStartDate: string; projectedEndDate: string }>;
       };
       const homeItem = body.workItems.find((w) => w.id === id);

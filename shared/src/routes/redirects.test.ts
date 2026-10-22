@@ -16,10 +16,10 @@ import type { RouteMapEntry } from './types.js';
 
 /** The 26 plain redirects the router serves today, in route-map order (a set; order is incidental). */
 const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
-  ['/', '/project/overview'],
+  ['/project/overview', '/'],
   ['/settings/vendors', '/companies'],
   ['/settings/vendors/:id', '/companies/:id'],
-  ['/project', '/project/overview'],
+  ['/project', '/'],
   ['/budget', '/budget/overview'],
   ['/budget/categories', '/settings/manage#cost-categories'],
   ['/schedule', '/schedule/gantt'],

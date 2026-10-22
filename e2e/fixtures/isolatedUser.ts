@@ -37,16 +37,17 @@
  * AUDIT — every spec that writes /api/users/me/preferences (Issue #1957, AC1)
  * ─────────────────────────────────────────────────────────────────────────────
  * Reproduce the file list with: `grep -rl "users/me/preferences" e2e/tests/`
- * (`e2e/pages/DashboardPage.ts` and `e2e/pages/InvoicesPage.ts` also match that
+ * (`e2e/pages/InvoicesPage.ts` also matches that
  * string, but only inside `waitForResponse()` predicates — they observe the
  * app's own requests, they never issue one, so they are not audit entries.)
  *
- * 1. e2e/tests/navigation/dashboard.spec.ts
- *    Keys: `dashboard.hiddenCards`, `locale` (top-level `beforeEach` reset, ran
- *    for all ~34 tests) + `dashboard.hiddenCards` written by the app itself when
- *    Scenario 6/7 click a card's dismiss/re-enable button.
- *    Admin-gated? No. The dashboard, `/project/work-items`, `/budget/invoices`,
- *    `/diary/new` and the Add/Customize dropdowns have no role checks. The complete
+ * 1. e2e/tests/navigation/home.spec.ts (the former dashboard.spec.ts, #2230)
+ *    Keys: `locale`, `home.hiddenSections`, `home.collapsedSections`,
+ *    `home.movedNoticeSeen`, `home.setupDismissed` and the retired
+ *    `dashboard.hiddenCards` (a top-level `beforeEach` reset) + the same keys written by
+ *    the app itself when Customize, the Tidy up toggle, the notice and Skip setup are used.
+ *    Admin-gated? No. Home, `/project/work-items`, `/budget/invoices`,
+ *    `/diary/new` and the page menu have no role checks. The complete
  *    role-gating inventory in the app: server — `requireRole('admin')` on
  *    `/api/users` mutations and `/api/backups/*`, plus work-item note
  *    update/delete, which pass `request.user.role === 'admin'` into `noteService`
@@ -60,7 +61,7 @@
  *    Keys: `locale` (PATCH in `setLanguage()`/`resetToEnglish()`, plus
  *    `DELETE /api/users/me/preferences/locale` in "DELETE preference resets to
  *    system locale").
- *    Admin-gated? No — profile, dashboard, budget, schedule, diary, work items
+ *    Admin-gated? No — profile, Home, budget, schedule, diary, work items
  *    and the Settings→Vendors tab are all member-visible.
  *    Resolution (AC2, AC4): `isolatedUserPerWorker` at file scope. The file-level
  *    `serial` guard added in PR #1956 is kept only as defence-in-depth against CPU
@@ -73,11 +74,11 @@
  *    here because AC1 requires the audit to cover every file in the grep output.
  *
  * 4. e2e/tests/diary/diary-uat-fixes.spec.ts
- *    Key: `dashboard.hiddenCards` (Scenario 3 "Dashboard shows a Recent Diary
- *    card" and Scenario 7 "Recent Diary View All link", which reset the key so
- *    the card is guaranteed visible). Same key as dashboard.spec.ts's reset —
+ *    Key: `home.hiddenSections` (Scenario 3 "Home shows Latest from the site"
+ *    and Scenario 7 "Site diary link", which reset the key so the section is
+ *    guaranteed visible). Same key as home.spec.ts's reset —
  *    the second confirmed cross-file collision pair.
- *    Admin-gated? No — both tests only read the dashboard with mocked
+ *    Admin-gated? No — both tests only read Home with mocked
  *    `/api/diary-entries`.
  *    Resolution (AC2, AC5): `isolatedUserPerTest` at describe scope for those two
  *    describes; the other six tests in the file touch no preferences and stay on
@@ -129,7 +130,7 @@
  *   be written concurrently by anything else in the suite — while costing one user
  *   per worker instead of one per test. State CAN carry over between the
  *   sequential tests of one worker, so a file using it must still reset any key it
- *   dirties (see dashboard.spec.ts's `beforeEach` / i18n.spec.ts's `afterEach`).
+ *   dirties (see home.spec.ts's `beforeEach` / i18n.spec.ts's `afterEach`).
  * - `isolatedUserPerTest` gives a guaranteed-pristine row per test, at the cost of
  *   one user creation + login per test (~0.5-1s, which counts against the test
  *   timeout). Use it for a handful of tests inside an otherwise shared-admin file,

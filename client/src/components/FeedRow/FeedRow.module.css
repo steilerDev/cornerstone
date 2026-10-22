@@ -89,6 +89,122 @@
 }
 
 /* variant="entry": a manual diary entry (#2225). The title link is stretched over the row. */
+/* variant="object": a record that needs a look (#2230). Severity picks the border colour. */
+.objectRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border-left: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+  overflow-wrap: anywhere;
+  list-style: none;
+}
+
+.objectRow[data-severity='red'] {
+  border-left-color: var(--color-danger);
+}
+
+.objectRow[data-severity='amber'] {
+  border-left-color: var(--color-warning);
+}
+
+.figure {
+  margin-inline-start: auto;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.objectTitleLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--spacing-2);
+}
+
+.kindLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.objectTitle,
+.objectTitleText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.objectTitle:hover {
+  text-decoration: underline;
+}
+
+.objectTitle:focus-visible,
+.objectTitleText:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.objectContext {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.objectSentence {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.objectNotes {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.objectActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-1);
+}
+
+@media (max-width: 479px) {
+  .objectActions > * {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  .objectRow {
+    padding: var(--spacing-4);
+  }
+}
+
+/* A quiet strip for the catch-up and critical-line notices above a list. */
+.noticeStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+}
+
 .entryRow {
   position: relative;
   display: flex;

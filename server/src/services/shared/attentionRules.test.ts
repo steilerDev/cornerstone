@@ -268,6 +268,7 @@ function payment(o: Partial<OpenPaymentItem> = {}): OpenPaymentItem {
     depositId: null,
     invoiceStatus: 'pending',
     invoiceNumber: 'NR-1',
+    vendorId: 'v-a',
     vendorName: 'Company A',
     invoiceDate: '2026-02-20',
     dueDate: '2026-03-01',
@@ -823,6 +824,7 @@ describe('N4 payment overdue, N5 due soon, N6 long unpaid', () => {
         recordKind: 'invoice',
         paymentKind: 'final',
         invoiceId: 'inv-1',
+        companyId: 'v-a',
         invoiceNumber: 'NR-1',
         companyName: 'Company A',
         invoiceDate: '2026-02-20',
@@ -862,6 +864,35 @@ describe('N4 payment overdue, N5 due soon, N6 long unpaid', () => {
       query: { payment: 'dep-1' },
     });
     expect(row.params).toMatchObject({ paymentKind: 'progress', invoiceId: 'inv-4' });
+  });
+
+  it('N4, N5 and N6 params carry the company id of the invoice (the vendor id), not the name (#2230)', () => {
+    const res = run({
+      openPayments: [
+        payment({ invoiceId: 'n4', vendorId: 'v-n4', dueDate: '2026-03-01' }),
+        payment({ invoiceId: 'n5', vendorId: 'v-n5', dueDate: '2026-03-12' }),
+        payment({
+          invoiceId: 'n6',
+          vendorId: 'v-n6',
+          dueDate: null,
+          invoiceDate: '2026-02-08',
+        }),
+        payment({
+          kind: 'progress',
+          invoiceId: 'inv-p',
+          depositId: 'dep-p',
+          vendorId: 'v-prog',
+          dueDate: '2026-03-05',
+        }),
+      ],
+    });
+    expect(rowOf(res, 'N4:invoice:n4').params).toMatchObject({ rule: 'N4', companyId: 'v-n4' });
+    expect(rowOf(res, 'N5:invoice:n5').params).toMatchObject({ rule: 'N5', companyId: 'v-n5' });
+    expect(rowOf(res, 'N6:invoice:n6').params).toMatchObject({ rule: 'N6', companyId: 'v-n6' });
+    expect(rowOf(res, 'N4:progress_payment:dep-p').params).toMatchObject({
+      companyId: 'v-prog',
+      companyName: 'Company A',
+    });
   });
 
   it('a progress item without a deposit id is keyed on the invoice (defensive)', () => {
@@ -923,6 +954,7 @@ describe('N4 payment overdue, N5 due soon, N6 long unpaid', () => {
         recordKind: 'invoice',
         paymentKind: 'final',
         invoiceId: 'inv-5',
+        companyId: 'v-a',
         invoiceNumber: 'NR-1',
         companyName: 'Company A',
         invoiceDate: '2026-02-08',
@@ -1920,6 +1952,7 @@ describe('facts, not blame (AC10)', () => {
       'recordKind',
       'paymentKind',
       'invoiceId',
+      'companyId',
       'invoiceNumber',
       'companyName',
       'invoiceDate',

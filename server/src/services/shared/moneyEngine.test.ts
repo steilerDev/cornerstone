@@ -1285,6 +1285,31 @@ describe('computePayments (formula 8)', () => {
     expect(p.invoices.amountCents).toBe(1190000 + 300050 + 1450000 + 260000);
   });
 
+  it('counts the records with something still to pay, once each (#2230)', () => {
+    const p = computePayments(rows);
+    // Q1 (pending deposit), I1 (residual), I4 (open); I2 paid and I3 claimed never count
+    expect(p.stillToPayCount).toBe(3);
+  });
+
+  it('counts an invoice once when it has several pending deposits', () => {
+    const p = computePayments([
+      row('I1', 1000, 'pending', { id: 'D1', amount: 100, status: 'pending' }),
+      row('I1', 1000, 'pending', { id: 'D2', amount: 100, status: 'pending' }),
+      row('I1', 1000, 'pending', { id: 'D3', amount: 100, status: 'paid' }),
+    ]);
+    expect(p.stillToPayCount).toBe(1);
+  });
+
+  it('does not count a settled offer, a paid invoice, or one with only a refund', () => {
+    const p = computePayments([
+      row('Q1', 1000, 'quotation', { id: 'D1', amount: 300, status: 'paid' }),
+      row('I1', 800, 'paid', { id: 'R1', amount: 100, status: 'pending', entryType: 'refund' }),
+      row('I2', 500, 'claimed'),
+    ]);
+    expect(p.stillToPayCount).toBe(0);
+    expect(p.stillToPayCents).toBe(0);
+  });
+
   it('keeps the by-type split equal to the totals (paid and stillToPay)', () => {
     const p = computePayments(rows);
     expect(p.offers.paidCents + p.invoices.paidCents).toBe(p.paidCents);
@@ -1332,6 +1357,7 @@ describe('computePayments (formula 8)', () => {
     const p = computePayments([]);
     expect(p.paidCents).toBe(0);
     expect(p.stillToPayCents).toBe(0);
+    expect(p.stillToPayCount).toBe(0);
     expect(toOfferTotals(p.offers)).toEqual({
       count: 0,
       amount: 0,

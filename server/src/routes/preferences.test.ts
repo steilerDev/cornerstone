@@ -539,4 +539,117 @@ describe('Preferences Routes', () => {
       expect(list.json<{ preferences: unknown[] }>().preferences).toEqual([]);
     });
   });
+  // ─── home.* keys (contract 18, #2230) ─────────────────────────────────────
+  //
+  // Mutations: validation skipped for a home key, a reason reported wrong or details missing,
+  // needs-attention accepted as hideable, a non-collapsible section accepted as collapsed,
+  // `false` accepted for a flag, a 1025-char value accepted, validation leaking to other keys.
+
+  describe('PATCH home.* keys (strict validation)', () => {
+    async function patch(cookie: string, key: string, value: string) {
+      return app.inject({
+        method: 'PATCH',
+        url: '/api/users/me/preferences',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ key, value }),
+      });
+    }
+
+    it.each([
+      ['home.hiddenSections', '[]'],
+      ['home.hiddenSections', '["this-week","pulse"]'],
+      ['home.hiddenSections', '["tidy-up","this-week","pulse","latest-from-site"]'],
+      ['home.collapsedSections', '[]'],
+      ['home.collapsedSections', '["tidy-up"]'],
+      ['home.movedNoticeSeen', 'true'],
+      ['home.setupDismissed', 'true'],
+    ])('stores %s = %s (200)', async (key, value) => {
+      const { cookie } = await createUserWithSession();
+      const response = await patch(cookie, key, value);
+      expect(response.statusCode).toBe(200);
+      expect(
+        response.json<{ preference: { key: string; value: string } }>().preference,
+      ).toMatchObject({ key, value });
+    });
+
+    it.each([
+      ['home.hiddenSections', '{nope', 'not_json'],
+      ['home.hiddenSections', '', 'not_json'],
+      ['home.hiddenSections', '{"a":1}', 'not_array'],
+      ['home.hiddenSections', '"pulse"', 'not_array'],
+      ['home.hiddenSections', '["needs-attention"]', 'bad_section'],
+      ['home.hiddenSections', '["nope"]', 'bad_section'],
+      ['home.hiddenSections', '[1]', 'bad_section'],
+      ['home.hiddenSections', '["pulse","pulse"]', 'duplicate'],
+      ['home.hiddenSections', `["pulse"${' '.repeat(1017)}]`, 'too_large'],
+      ['home.collapsedSections', '["pulse"]', 'bad_section'],
+      ['home.collapsedSections', '["tidy-up","tidy-up"]', 'duplicate'],
+      ['home.collapsedSections', 'tidy-up', 'not_json'],
+      ['home.collapsedSections', 'true', 'not_array'],
+      ['home.movedNoticeSeen', 'false', 'not_true'],
+      ['home.movedNoticeSeen', '"true"', 'not_true'],
+      ['home.movedNoticeSeen', 'yes', 'not_json'],
+      ['home.setupDismissed', '1', 'not_true'],
+      ['home.setupDismissed', 'null', 'not_true'],
+      ['home.setupDismissed', 'x'.repeat(1025), 'too_large'],
+    ])('rejects %s = %j with 400 VALIDATION_ERROR reason %s', async (key, value, reason) => {
+      const { cookie } = await createUserWithSession();
+      const response = await patch(cookie, key, value);
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('VALIDATION_ERROR');
+      expect(error.details).toEqual({ key, reason });
+    });
+
+    it('accepts a value of exactly 1024 characters', async () => {
+      const { cookie } = await createUserWithSession();
+      const value = `["pulse"${' '.repeat(1015)}]`;
+      expect(value).toHaveLength(1024);
+      expect((await patch(cookie, 'home.hiddenSections', value)).statusCode).toBe(200);
+    });
+
+    it('a rejected value is not stored (the earlier value survives)', async () => {
+      const { cookie } = await createUserWithSession();
+      await patch(cookie, 'home.hiddenSections', '["pulse"]');
+      await patch(cookie, 'home.hiddenSections', '["needs-attention"]');
+      const list = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences',
+        headers: { cookie },
+      });
+      expect(
+        list.json<{ preferences: Array<{ key: string; value: string }> }>().preferences,
+      ).toEqual([expect.objectContaining({ key: 'home.hiddenSections', value: '["pulse"]' })]);
+    });
+
+    it('keeps other keys, including the legacy dashboard one and look-alikes, free-form', async () => {
+      const { cookie } = await createUserWithSession();
+      expect((await patch(cookie, 'dashboard.hiddenCards', 'anything')).statusCode).toBe(200);
+      expect((await patch(cookie, 'home.somethingElse', '{nope')).statusCode).toBe(200);
+      expect((await patch(cookie, 'theme', 'false')).statusCode).toBe(200);
+    });
+
+    it('DELETE of a home key works like any other key (204, then 404)', async () => {
+      const { cookie } = await createUserWithSession();
+      await patch(cookie, 'home.setupDismissed', 'true');
+      const del = () =>
+        app.inject({
+          method: 'DELETE',
+          url: '/api/users/me/preferences/home.setupDismissed',
+          headers: { cookie },
+        });
+      expect((await del()).statusCode).toBe(204);
+      expect((await del()).statusCode).toBe(404);
+    });
+
+    it('requires a session (401)', async () => {
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/users/me/preferences',
+        headers: { 'content-type': 'application/json' },
+        payload: JSON.stringify({ key: 'home.setupDismissed', value: 'true' }),
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
 });

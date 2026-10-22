@@ -1,0 +1,141 @@
+{
+  "page": {
+    "subtitle": "{{house}} · {{date}}",
+    "subtitleNoHouse": "{{date}}",
+    "actions": "Page actions",
+    "customize": "Customize…",
+    "whatMoved": "What moved where",
+    "opensNewTab": "(opens in a new tab)"
+  },
+  "notice": {
+    "title": "Home has changed.",
+    "body": "Needs attention comes first now, and the old cards moved into five sections.",
+    "dismiss": "Dismiss"
+  },
+  "sections": {
+    "needs-attention": "Needs attention",
+    "tidy-up": "Tidy up",
+    "this-week": "This week",
+    "pulse": "Pulse",
+    "latest-from-site": "Latest from the site"
+  },
+  "count": "({{count}})",
+  "attention": {
+    "empty": "Nothing needs you right now.",
+    "hidden_one": "{{count}} hidden for now",
+    "hidden_other": "{{count}} hidden for now",
+    "hiddenShow": "Show",
+    "hiddenHide": "Hide again"
+  },
+  "catchUp": {
+    "title": "Late tasks ({{count}})",
+    "empty": "All caught up.",
+    "left_one": "{{count}} late task left",
+    "left_other": "{{count}} late tasks left",
+    "none": "No late tasks left",
+    "close": "Close"
+  },
+  "week": {
+    "kind": {
+      "starts": "Starts",
+      "ends": "Ends",
+      "payment": "Payment due",
+      "delivery": "Delivery",
+      "milestone": "Milestone"
+    },
+    "critical": {
+      "label": "Critical path:",
+      "mustEnd_one": "must end by {{date}} · {{count}} day left",
+      "mustEnd_other": "must end by {{date}} · {{count}} days left",
+      "overdue_one": "should have ended {{date}} · {{count}} day ago",
+      "overdue_other": "should have ended {{date}} · {{count}} days ago",
+      "count_one": "{{count}} task on the critical path",
+      "count_other": "{{count}} tasks on the critical path"
+    },
+    "waitsFor": "Waits for",
+    "day": {
+      "today": "Today",
+      "tomorrow": "Tomorrow"
+    },
+    "next14": "Next 14 days",
+    "openSchedule": "Open schedule",
+    "empty": "Nothing is planned for the next 7 days."
+  },
+  "pulse": {
+    "leftToSpend": {
+      "label": "Left to spend",
+      "needsSetup": "Add a funding source and a cost to see this.",
+      "noFigure": "No figure yet"
+    },
+    "range": "Range {{from}} to {{to}}",
+    "stillToPay": {
+      "label": "Still to pay",
+      "count_one": "{{count}} open invoice",
+      "count_other": "{{count}} open invoices"
+    },
+    "progress": {
+      "label": "Progress",
+      "figure": "{{done}} of {{total}} tasks done",
+      "inProgress": "{{count}} in progress"
+    }
+  },
+  "latest": {
+    "empty": "No entries yet.",
+    "log": "Log today",
+    "more": "Site diary"
+  },
+  "footer": {
+    "history": "All activity",
+    "historyTo": "History"
+  },
+  "where": {
+    "title": "Where are you?",
+    "other": "Other area",
+    "last": "Last log: {{date}} · {{title}}",
+    "lastPhotos_one": "{{count}} photo",
+    "lastPhotos_other": "{{count}} photos"
+  },
+  "setup": {
+    "title": "Set up your build",
+    "progress": "({{done}} of {{total}} done)",
+    "step": {
+      "house": "Name your house",
+      "areas": "Add your areas",
+      "funding": "Add your first funding source",
+      "companies": "Add your first companies",
+      "tasks": "Plan your first tasks",
+      "household": "Invite your household",
+      "backups": "Check backups",
+      "firstLog": "Log your first day on site"
+    },
+    "hint": {
+      "house": "It appears on Home and in the browser tab.",
+      "areas": "Rooms, floors and outside spaces you work in.",
+      "funding": "Own funds count once they have an amount.",
+      "companies": "The companies that work on your build.",
+      "tasks": "Give a task a date and a planned cost.",
+      "household": "Everyone who plans the build with you.",
+      "backups": "Set a backup schedule or make a first backup.",
+      "firstLog": "A photo or a note from the site."
+    },
+    "done": "Done:",
+    "todo": "To do:",
+    "skip": "Skip setup",
+    "skipHint": "You can still add everything from the New menu.",
+    "cantCheck": "Couldn't check"
+  },
+  "customize": {
+    "title": "Customize Home",
+    "intro": "Choose which sections show. The order stays the same.",
+    "legend": "Show on Home",
+    "attentionAlways": "Needs attention always shows.",
+    "done": "Done",
+    "hidden": "{{section}} hidden",
+    "shown": "{{section}} shown"
+  },
+  "error": {
+    "section": "Couldn't load {{section}}.",
+    "retry": "Try again",
+    "saveFailed": "Couldn't save this change."
+  }
+}

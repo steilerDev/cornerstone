@@ -192,7 +192,7 @@ test.describe('Project setup — old ?tab= links (AC3)', { tag: '@responsive' },
       page,
     }) => {
       // The page before Project setup, so one Back has somewhere to go
-      await page.goto(routeUrl('dashboard'));
+      await page.goto(routeUrl('home'));
       // Let the app finish booting: leaving mid-boot aborts its session check and bounces to /login
       await expect(page.getByRole('main')).toBeVisible();
       await page.goto(routeUrl('settingsManage', undefined, { tab }));

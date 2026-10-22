@@ -185,14 +185,30 @@ jest.unstable_mockModule('./lib/householdItemCategoriesApi.js', () => ({
     jest.fn<typeof HouseholdItemCategoriesApiTypes.reorderHouseholdItemCategories>(),
 }));
 
-// DashboardPage calls fetchBudgetOverview on mount.
+// Home (#2230) loads its aggregates from these two clients on mount.
+const mockGetAttention = jest.fn<() => Promise<unknown>>();
+jest.unstable_mockModule('./lib/attentionApi.js', () => ({
+  getAttention: mockGetAttention,
+  notNow: jest.fn(),
+  undoNotNow: jest.fn(),
+}));
+const mockGetHomeWeek = jest.fn<() => Promise<unknown>>();
+const mockGetHomePulse = jest.fn<() => Promise<unknown>>();
+const mockGetHomeSetup = jest.fn<() => Promise<unknown>>();
+jest.unstable_mockModule('./lib/homeApi.js', () => ({
+  getHomeWeek: mockGetHomeWeek,
+  getHomePulse: mockGetHomePulse,
+  getHomeSetup: mockGetHomeSetup,
+}));
+
+// Money pages call fetchBudgetOverview on mount.
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
 jest.unstable_mockModule('./lib/budgetOverviewApi.js', () => ({
   fetchBudgetOverview: mockFetchBudgetOverview,
   fetchBudgetBreakdown: jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetBreakdown>(),
 }));
 
-// DashboardPage calls fetchBudgetSources on mount.
+// Money pages call fetchBudgetSources on mount.
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 jest.unstable_mockModule('./lib/budgetSourcesApi.js', () => ({
   fetchBudgetSources: mockFetchBudgetSources,
@@ -202,7 +218,7 @@ jest.unstable_mockModule('./lib/budgetSourcesApi.js', () => ({
   deleteBudgetSource: jest.fn<typeof BudgetSourcesApiTypes.deleteBudgetSource>(),
 }));
 
-// DashboardPage calls fetchSubsidyPrograms on mount.
+// Money pages call fetchSubsidyPrograms on mount.
 const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubsidyPrograms>();
 jest.unstable_mockModule('./lib/subsidyProgramsApi.js', () => ({
   fetchSubsidyPrograms: mockFetchSubsidyPrograms,
@@ -212,7 +228,7 @@ jest.unstable_mockModule('./lib/subsidyProgramsApi.js', () => ({
   deleteSubsidyProgram: jest.fn<typeof SubsidyProgramsApiTypes.deleteSubsidyProgram>(),
 }));
 
-// DashboardPage uses usePreferences which calls listPreferences on mount.
+// Home uses usePreferences which calls listPreferences on mount.
 const mockListPreferences = jest.fn<typeof PreferencesApiTypes.listPreferences>();
 jest.unstable_mockModule('./lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferences,
@@ -220,7 +236,7 @@ jest.unstable_mockModule('./lib/preferencesApi.js', () => ({
   deletePreference: jest.fn<typeof PreferencesApiTypes.deletePreference>(),
 }));
 
-// DashboardPage calls listDiaryEntries on mount (RecentDiaryCard).
+// Home calls listDiaryEntries on mount (Latest from the site).
 const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 jest.unstable_mockModule('./lib/diaryApi.js', () => ({
@@ -294,10 +310,9 @@ describe('App', () => {
 
       // Pre-resolve lazy-loaded route components so the redirect test does not race
       // their dynamic import under CPU pressure (#1438).
-      // The root path / redirects to /project which redirects to /project/overview,
-      // which renders DashboardPage (lazy). Pre-importing here warms the module cache
+      // The root path / renders HomePage (lazy). Pre-importing here warms the module cache
       // before any test rendering starts, making the 5s waitFor timeout safe to keep.
-      await import('./pages/DashboardPage/DashboardPage.js');
+      await import('./pages/HomePage/HomePage.js');
     }
 
     // Reset mocks
@@ -325,6 +340,10 @@ describe('App', () => {
     mockFetchHouseholdItemBudgets.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
     mockFetchBudgetOverview.mockReset();
+    mockGetAttention.mockReset();
+    mockGetHomeWeek.mockReset();
+    mockGetHomePulse.mockReset();
+    mockGetHomeSetup.mockReset();
     mockFetchBudgetSources.mockReset();
     mockFetchSubsidyPrograms.mockReset();
     mockListPreferences.mockReset();
@@ -337,7 +356,32 @@ describe('App', () => {
       entriesLanguage: 'en',
     });
 
-    // Default: DashboardPage data sources
+    // Default: Home data sources (an empty build that is not in set-up mode)
+    mockGetAttention.mockResolvedValue({
+      today: '2026-03-10',
+      count: 0,
+      snoozedCount: 0,
+      rows: [],
+      tidyUp: [],
+      standing: [],
+      criticalLine: null,
+      catchUp: null,
+    });
+    mockGetHomeWeek.mockResolvedValue({
+      today: '2026-03-10',
+      from: '2026-03-10',
+      to: '2026-03-30',
+      items: [],
+    });
+    mockGetHomePulse.mockResolvedValue({
+      leftToSpend: { expected: 0, best: 0, worst: 0, verdict: null },
+      stillToPay: 0,
+      stillToPayCount: 0,
+      progress: { total: 0, done: 0, inProgress: 0 },
+    });
+    mockGetHomeSetup.mockResolvedValue({ coreComplete: true, steps: [] });
+
+    // Default: money page data sources
     mockFetchBudgetOverview.mockResolvedValue({
       availableFunds: 0,
       sourceCount: 0,
@@ -482,12 +526,11 @@ describe('App', () => {
   });
 
   // NOTE: bumped to 15000ms; underlying lazy-import flake tracked in #1438.
-  it('shows Project page at root path / (redirects to /project/overview)', async () => {
+  it('shows the Home page at the root path /', async () => {
     render(<App />);
 
-    // Wait for lazy-loaded DashboardPage component to resolve
-    // Root redirects to /project which redirects to /project/overview
-    const heading = await screen.findByRole('heading', { name: /^project$/i }, { timeout: 5000 });
+    // Wait for the lazy-loaded HomePage component to resolve
+    const heading = await screen.findByRole('heading', { name: /^home$/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
   }, 15000);
 

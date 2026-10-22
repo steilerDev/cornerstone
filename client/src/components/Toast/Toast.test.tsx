@@ -370,3 +370,34 @@ describe('ToastList', () => {
     });
   });
 });
+
+describe('ToastList container (#2230)', () => {
+  it('marks the container with data-toast-container so dialogs can include it in the Tab cycle', () => {
+    render(
+      <ToastProvider>
+        <TestApp />
+      </ToastProvider>,
+    );
+    act(() => {
+      fireEvent.click(screen.getByTestId('show-info'));
+    });
+    const container = document.querySelector('[data-toast-container]');
+    expect(container).not.toBeNull();
+    expect(container).toContainElement(screen.getByText('Loading data'));
+  });
+
+  it('stacks above every dialog layer: --z-toast is 1200 and the container uses it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const tokens = readFileSync(join(process.cwd(), 'client/src/styles/tokens.css'), 'utf8');
+    const css = readFileSync(
+      join(process.cwd(), 'client/src/components/Toast/Toast.module.css'),
+      'utf8',
+    );
+    const toast = Number(/--z-toast:\s*(\d+)/.exec(tokens)?.[1]);
+    const modal = Number(/--z-modal:\s*(\d+)/.exec(tokens)?.[1]);
+    expect(toast).toBe(1200);
+    expect(toast).toBeGreaterThan(modal);
+    expect(css).toMatch(/z-index:\s*var\(--z-toast\)/);
+  });
+});

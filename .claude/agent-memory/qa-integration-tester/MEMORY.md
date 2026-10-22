@@ -12,6 +12,9 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2230 Home client tests](story-2230-home-client-tests.md) (2026-10-22) — fixtures/harnesses, jest-from-root, focus-getter recipes, one dead branch
+
+- [Story #2230 Home server tests](story-2230-home-server-tests.md) (2026-10-22) — NODE_OPTIONS keeps vm-modules, dead defensive branches, 2 defect pins
 - [Story #2229 attention service tests](story-2229-attention-service-tests.md) (2026-10-22) — shared fixture, local jest workaround, engine quirks, group-actions defect
 - [Story #2228 money service tests](story-2228-money-service-tests.md) (2026-10-19) — AC8 fixture via buildApp, grant default flip ripple, discretionary rails quirk, client literal patching
 - [Story #2226 photo tag server tests](story-2226-photo-tags-server-tests.md) (2026-10-19) — real-flow tags/undo file, moved-export mock break, local ts-jest target workaround

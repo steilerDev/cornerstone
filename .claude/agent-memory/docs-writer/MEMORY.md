@@ -36,7 +36,7 @@ No roadmap page or README roadmap exists any more (removed once the project matu
 - `guides/documents/` -- index, setup, browsing-documents, linking-documents
 - `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
 - `guides/diary/` -- index, manual-entries, automatic-events, signatures
-- `guides/dashboard/` -- index
+- `guides/home/` -- index (Home page, EPIC-21 #2230; replaces the retired dashboard guide), what-moved-where (permanent help page; `HOME_HELP_URL` in `client/src/lib/externalLinks.ts` points here, so keep the path)
 - `guides/feeds/` -- index, subscribing
 - `guides/backup/` -- index (BACKUP_DIR/CADENCE/RETENTION env vars, manual + scheduled backups, restore flow, off-site guidance) -- EPIC-19
 - `guides/appearance/` -- dark-mode

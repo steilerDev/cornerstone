@@ -162,7 +162,8 @@
       "status",
       "create",
       "kind",
-      "companyId"
+      "companyId",
+      "openOnly"
     ],
     "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog. #2212 (interim until P4.9): ?create=1 opens today's create modal (or the Paperless picker); kind=offer presets status Offer (quotation); ?companyId= pre-fills the company. The page then removes these keys (replace)."
   },
@@ -380,7 +381,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "Was an index redirect to /project -> /project/overview; now renders Home directly (no hop)."
+    "note": "Was an index redirect to /project -> /project/overview; now renders Home directly (no hop). Served (#2230)."
   },
   {
     "from": "/budget/financing",
@@ -536,7 +537,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Home moves to the root; one hop."
+    "note": "Home moves to the root; one hop. Served (#2230): redirects to /."
   },
   {
     "from": "/project/household-items/:id/edit",
@@ -608,7 +609,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Retargeted: one hop to Home."
+    "note": "Retargeted: one hop to Home. Served (#2230)."
   },
   {
     "from": "/budget",

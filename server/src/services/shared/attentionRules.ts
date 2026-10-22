@@ -345,6 +345,7 @@ function paymentCandidates(input: AttentionInput): Candidate[] {
           recordKind: item.invoiceStatus === 'quotation' ? 'offer' : 'invoice',
           paymentKind: item.kind,
           invoiceId: item.invoiceId,
+          companyId: item.vendorId,
           invoiceNumber: item.invoiceNumber,
           companyName: item.vendorName,
           invoiceDate: item.invoiceDate,

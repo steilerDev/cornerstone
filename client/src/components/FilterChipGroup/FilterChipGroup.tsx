@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
 import styles from './FilterChipGroup.module.css';
 
 export interface FilterChipOption {
@@ -20,7 +21,33 @@ export interface FilterChipOption {
   testId?: string;
 }
 
-export interface FilterChipGroupProps {
+/** A chip that navigates (a real anchor, no `aria-pressed`). */
+export interface FilterChipLinkOption {
+  value: string;
+  label: string;
+  /** In-app path from `routeUrl()` / `quickLogHref()`. */
+  to: string;
+  state?: unknown;
+  /** Full text when the label is ellipsised. */
+  title?: string;
+  /** Overrides `${testIdPrefix}-${value}`. */
+  testId?: string;
+}
+
+export interface FilterChipNavigateProps {
+  variant: 'navigate';
+  options: FilterChipLinkOption[];
+  /** One of `ariaLabel` / `labelledBy` should be given. */
+  ariaLabel?: string;
+  labelledBy?: string;
+  testIdPrefix?: string;
+  layout?: 'scroll' | 'wrap';
+  groupRef?: Ref<HTMLDivElement>;
+}
+
+export interface FilterChipToggleProps {
+  /** Default. */
+  variant?: 'toggle';
   options: FilterChipOption[];
   value: string;
   /** Multi-select: pressed = selectedValues.includes(value); a click calls onChange(value) and the host toggles. */
@@ -38,8 +65,53 @@ export interface FilterChipGroupProps {
   groupRef?: Ref<HTMLDivElement>;
 }
 
-/** Pick-one chip group; each chip is a toggle button exposing `aria-pressed`. */
-export function FilterChipGroup({
+export type FilterChipGroupProps = FilterChipToggleProps | FilterChipNavigateProps;
+
+/**
+ * Pick-one chip group; each chip is a toggle button exposing `aria-pressed`. With
+ * `variant="navigate"` each chip is a link instead (no pressed state).
+ */
+export function FilterChipGroup(props: FilterChipGroupProps) {
+  if (props.variant === 'navigate') return <NavigateChipGroup {...props} />;
+  return <ToggleChipGroup {...props} />;
+}
+
+function NavigateChipGroup({
+  options,
+  ariaLabel,
+  labelledBy,
+  testIdPrefix = 'filter-chip',
+  layout = 'scroll',
+  groupRef,
+}: FilterChipNavigateProps) {
+  return (
+    <div
+      ref={groupRef}
+      className={styles.group}
+      role="group"
+      aria-label={labelledBy ? undefined : ariaLabel}
+      aria-labelledby={labelledBy}
+      data-layout={layout}
+      data-tone="default"
+    >
+      {options.map((opt) => (
+        <NavAnchor
+          key={opt.value}
+          to={opt.to}
+          state={opt.state}
+          className={`${styles.chip} ${styles.chipNavigate}`}
+          title={opt.title}
+          data-chip-value={opt.value}
+          data-testid={opt.testId ?? `${testIdPrefix}-${opt.value}`}
+        >
+          {opt.label}
+        </NavAnchor>
+      ))}
+    </div>
+  );
+}
+
+function ToggleChipGroup({
   options,
   value,
   selectedValues,
@@ -51,7 +123,7 @@ export function FilterChipGroup({
   deselectable = false,
   tone = 'default',
   groupRef,
-}: FilterChipGroupProps) {
+}: FilterChipToggleProps) {
   return (
     <div
       ref={groupRef}

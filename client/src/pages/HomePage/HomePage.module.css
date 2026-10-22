@@ -1,0 +1,432 @@
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  min-width: 0;
+}
+
+.column > section {
+  margin-bottom: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Section states ─────────────────────────────────────────────────────── */
+
+.sectionError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.plainList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.textButton {
+  min-height: var(--touch-target-min);
+  padding: 0 var(--spacing-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  color: var(--color-text-primary);
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.inlineLink {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+}
+
+.inlineLink:focus-visible,
+.moreLink:focus-visible,
+.footerLink:focus-visible,
+.lastLogLink:focus-visible,
+.stepLabel:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Needs attention ────────────────────────────────────────────────────── */
+
+.catchUpLine {
+  composes: noticeStrip from '../../components/FeedRow/FeedRow.module.css';
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.catchUpGlyph {
+  color: var(--color-text-secondary);
+}
+
+.hiddenLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.catchUpBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.dialogClose {
+  min-height: var(--touch-target-min);
+}
+
+@media (max-width: 639px) {
+  .dialogClose {
+    width: 100%;
+  }
+
+  .catchUpLine > button {
+    width: 100%;
+  }
+}
+
+/* ── This week ──────────────────────────────────────────────────────────── */
+
+.criticalLine {
+  composes: noticeStrip from '../../components/FeedRow/FeedRow.module.css';
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.criticalText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dayGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.dayGroups[hidden] {
+  display: none;
+}
+
+.dayGroups > section {
+  margin-bottom: 0;
+}
+
+.weekFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.disclosure {
+  min-height: var(--touch-target-min);
+}
+
+.moreRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.moreLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 639px) {
+  .weekFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .moreRow {
+    justify-content: flex-start;
+  }
+}
+
+/* ── Pulse ──────────────────────────────────────────────────────────────── */
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tileDetail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  height: var(--spacing-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-tertiary);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  background-color: currentcolor;
+}
+
+/* ── Where are you? (phone and tablet) ──────────────────────────────────── */
+
+.where {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.whereTitle {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.lastLog {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.lastLogLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ── Set up your build ──────────────────────────────────────────────────── */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+}
+
+@media (min-width: 768px) {
+  .step {
+    padding: var(--spacing-4);
+  }
+}
+
+.stepGlyph {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-6);
+  height: var(--spacing-6);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+}
+
+.stepGlyphDone {
+  border-color: var(--color-success);
+  background-color: var(--color-success);
+  color: var(--color-white);
+}
+
+.stepGlyphUnknown {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.stepLabel {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.stepLabel:hover {
+  text-decoration: underline;
+}
+
+.stepLabelDone {
+  color: var(--color-text-secondary);
+}
+
+.stepButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.stepHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.skipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
+}
+
+/* ── Customize, notice, footer ──────────────────────────────────────────── */
+
+.customizeBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.legend {
+  margin-bottom: var(--spacing-2);
+  padding: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkRow input {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  accent-color: var(--color-primary);
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.noticeText {
+  margin: 0;
+  min-width: 0;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 768px) {
+  .footer {
+    justify-content: flex-end;
+  }
+}
+
+.footerLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .column {
+    gap: var(--spacing-8);
+  }
+}

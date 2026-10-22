@@ -320,10 +320,10 @@ describe('PageBreadcrumbs', () => {
       expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
 
-    it('offers Back to Home for an origin of the project overview when the entry is skipped', () => {
+    it('offers Back to Home for an origin of Home when the entry is skipped', () => {
       renderAt('/diary/d-1/edit', {
         objectNames: { diaryEntry: null },
-        state: originStateFor({ pathname: '/project/overview', search: '', hash: '' }),
+        state: originStateFor({ pathname: '/', search: '', hash: '' }),
       });
 
       expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Home');

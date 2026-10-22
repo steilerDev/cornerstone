@@ -161,7 +161,6 @@ describe('deleted legacy status keys are gone from both locales (#2195)', () => 
     'budget.sourceReports.markClaimed',
     'budget.invoices.form.placeholders.amount',
     'budget.invoiceDetail.deposits.form.amountPlaceholder',
-    'dashboard.cards.subsidyPipeline.statuses',
     'householdItems.status',
     'householdItems.detail.status.planned',
     'householdItems.detail.status.purchased',

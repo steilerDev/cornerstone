@@ -31,7 +31,7 @@ Building a home means juggling contractors, loans, subsidies, invoices, delivery
 
 **🛋️ Furnish the home** -- Track furniture, appliances, and fixtures alongside the build, with delivery dates tied to the schedule and costs tied to the budget.
 
-**📊 See it all at a glance** -- A customizable dashboard shows budget health, upcoming milestones, open invoices, and subsidy status the moment you log in.
+**📊 See what needs you first** -- Home opens the moment you log in with what is late or waiting for a decision, this week's dates, and what is left to spend.
 
 Also built in: single sign-on via OIDC, shared access for your household, calendar and contact feeds for your phone, scheduled backups, English and German, and dark mode.
 

@@ -359,6 +359,7 @@
   --z-overlay: 50;
   --z-sidebar: 100;
   --z-modal: 1000;
+  --z-toast: 1200; /* above every dialog layer and popover, so Undo stays clickable */
 
   /* ============================================================
    * LAYER 2 — BUDGET BAR TOKENS

@@ -14,11 +14,14 @@
  */
 import {
   ATTACHMENT_TYPES,
+  ATTENTION_ACTIONS,
+  ATTENTION_TIERS,
   AUTOMATIC_DIARY_ENTRY_TYPES,
   BUDGET_SOURCE_STATUSES,
   BUDGET_SOURCE_TYPES,
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
+  CRITICAL_LINE_LEVELS,
   DEFECT_STATUS_ACTIONS,
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_SEVERITIES,
@@ -30,6 +33,9 @@ import {
   GRANT_STATUS_ACTIONS,
   HISTORY_EVENT_TYPES,
   HISTORY_OBJECT_TYPES,
+  HOME_AGENDA_KINDS,
+  HOME_SECTION_IDS,
+  HOME_SETUP_STEPS,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
   INVOICE_DEPOSIT_STATUSES,
@@ -49,6 +55,7 @@ import {
   TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
 import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
@@ -57,7 +64,7 @@ import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
-  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common' | 'history';
+  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common' | 'history' | 'home';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -233,4 +240,20 @@ export const I18N_UNION_KEYS = {
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
   /** common — Log now tile label in the New sheet. */
   quickLogMode: unionKeySet('common', 'createSheet.quickLog', QUICK_LOG_MODES),
+  /** common — attention tier chip (Late, Overdue, Due, Ready, Follow up, Tidy up) (#2230). */
+  attentionTier: unionKeySet('common', 'attention.tier', ATTENTION_TIERS),
+  /** common — critical-line level chip (On track, Warning, Critical, Overdue) (#2230). */
+  criticalLineLevel: unionKeySet('common', 'attention.criticalLevel', CRITICAL_LINE_LEVELS),
+  /** common — attention row action label (#2230). */
+  attentionAction: unionKeySet('common', 'attention.action', ATTENTION_ACTIONS),
+  /** common — kind word before an attention row title (client-local tuple) (#2230). */
+  attentionKind: unionKeySet('common', 'attention.kind', ATTENTION_KIND_WORDS),
+  /** home — section heading and Customize row per Home section (#2230). */
+  homeSection: unionKeySet('home', 'sections', HOME_SECTION_IDS),
+  /** home — set-up checklist step title (#2230). */
+  homeSetupStep: unionKeySet('home', 'setup.step', HOME_SETUP_STEPS),
+  /** home — set-up checklist step hint (#2230). */
+  homeSetupHint: unionKeySet('home', 'setup.hint', HOME_SETUP_STEPS),
+  /** home — kind word of a This week item (#2230). */
+  homeAgendaKind: unionKeySet('home', 'week.kind', HOME_AGENDA_KINDS),
 } as const;

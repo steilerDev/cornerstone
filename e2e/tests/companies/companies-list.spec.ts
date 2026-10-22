@@ -289,7 +289,7 @@ test.describe('Companies list - Trade chips (AC3)', { tag: '@responsive' }, () =
       ids.push(await createCompany(page, { name: bare }));
 
       // Another page first, so "Back" has somewhere to go
-      await page.goto(routeUrl('dashboard'));
+      await page.goto(routeUrl('home'));
       await expect(page.getByRole('main')).toBeVisible();
       await list.goto({ q: `${testPrefix} Chip` });
       await expect(list.row(tiled)).toBeVisible();
@@ -325,7 +325,7 @@ test.describe('Companies list - Trade chips (AC3)', { tag: '@responsive' }, () =
       await list.tradeChip('Tiling').click();
       await expect(list.row(bare)).toHaveCount(0);
       await page.goBack();
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
     } finally {
       await deleteCompanies(page, ids);
     }
@@ -346,7 +346,7 @@ test.describe('Companies list - Call (AC4)', { tag: '@responsive' }, () => {
     const name = `${testPrefix} Callable Co 2213`;
     const id = await createCompany(page, { name, phone: '+1 555-0152' });
     try {
-      await page.goto(routeUrl('dashboard'));
+      await page.goto(routeUrl('home'));
       await expect(page.getByRole('main')).toBeVisible();
       // The shell's own navigation: sidebar from 1024px, bottom bar / More sheet below
       await shell.navigateTo('companies');

@@ -60,7 +60,7 @@ function LocaleServerSync() {
 
 const SetupPage = lazy(() => import('./pages/SetupPage/SetupPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage/DashboardPage'));
+const HomePage = lazy(() => import('./pages/HomePage/HomePage'));
 const WorkItemsPage = lazy(() => import('./pages/WorkItemsPage/WorkItemsPage'));
 const WorkItemDetailPage = lazy(() => import('./pages/WorkItemDetailPage/WorkItemDetailPage'));
 const BudgetOverviewPage = lazy(() => import('./pages/BudgetOverviewPage/BudgetOverviewPage'));
@@ -150,7 +150,7 @@ function RoutedApp() {
                   {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
                   <Route element={<AuthGuard />}>
                     <Route element={<AppShell />}>
-                      <Route path={routePattern('dashboard')} element={<DashboardPage />} />
+                      <Route path={routePattern('home')} element={<HomePage />} />
                       <Route path={routePattern('workItems')} element={<WorkItemsPage />} />
                       <Route path={routePattern('workItemNew')} element={<WorkItemsPage />} />
                       <Route path={routePattern('workItem')} element={<WorkItemDetailPage />} />

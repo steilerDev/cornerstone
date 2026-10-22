@@ -272,6 +272,7 @@ export function listOpenPayments(db: Pick<DbType, 'all'>): OpenPaymentItem[] {
       i.date           AS invoice_date,
       i.due_date       AS invoice_due_date,
       i.invoice_number AS invoice_number,
+      i.vendor_id      AS vendor_id,
       v.name           AS vendor_name,
       d.id             AS deposit_id,
       d.amount         AS deposit_amount,
@@ -412,6 +413,9 @@ function buildSummary(db: DbType, result: MoneyResult): MoneySummary {
     afterGrants: toMoneyRange(result.afterGrants),
     paid: toMajor(payments.paidCents),
     stillToPay: toMajor(payments.stillToPayCents),
+    // Equals listInvoices(...).summary.openPayable.count: computeOpenAmounts is per invoice and
+    // offers and invoices are disjoint sets, so the two counts add up exactly.
+    stillToPayCount: payments.stillToPayCount,
     notYetPaid: toMoneyRange(notYetPaid),
     notYetSplit: {
       amount: toMajor(result.notYetSplit.amountCents),

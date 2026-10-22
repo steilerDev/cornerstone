@@ -12,11 +12,9 @@
  * silently fall behind. The two exemptions are Paperless+AI pages that redirect away when the
  * integration is off, which is the case in the E2E environment (covered by their own suites).
  *
- * Documented exemption inside the table (its h1 belongs to another story):
- *  - Home (#2230): the title is checked, the h1 is not.
- *
- * `home` is an interim route that redirects one hop (`/` to the overview); the sweep waits for
- * the final URL before it reads anything. Companies are served on `/companies` since #2213.
+ * Home is served at `/` since #2230 (its legacy URLs `/project/overview` and `/project` redirect
+ * to it and are covered by legacy-url-walk.spec.ts, not by a row here). Companies are served on
+ * `/companies` since #2213.
  *
  * Desktop only (the logic is viewport independent). `GET /api/settings` is mocked with a complete
  * HouseholdSettingsResponse because other specs set the house name concurrently. Data is
@@ -323,20 +321,11 @@ const ROWS: SweepRow[] = [
     crumbs: false,
     active: 'sidebar-view-settingsIntegrations',
   },
-  // Home (h1 owned by #2230): `/` redirects one hop to the overview
+  // Home (#2230): served at `/`
   {
     id: 'home',
     path: () => routeUrl('home'),
-    finalPath: () => routeUrl('dashboard'),
-    h1: null,
-    title: new RegExp(`^Home · ${HOUSE}$`),
-    crumbs: false,
-    active: HOME,
-  },
-  {
-    id: 'dashboard',
-    path: () => routeUrl('dashboard'),
-    h1: null,
+    h1: 'Home',
     title: new RegExp(`^Home · ${HOUSE}$`),
     crumbs: false,
     active: HOME,

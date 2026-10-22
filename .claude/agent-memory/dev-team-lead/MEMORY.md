@@ -64,4 +64,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Photos spots specs](photos-spots-specs.md) — measure closures first, Link in shared panels leaks, restore-kind Undo is generic, unmount shell bars, redefined URLs
 - [Money service specs](money-service-specs.md) — grep raw columns for hidden duplicate computations, scenario≠order, required shared fields vs client literals, script-verify fixtures
 - [Capture screen specs](capture-screen-specs.md) — planned allowedAdditions names, no in-app leave blocker, WebKit no fake camera, existing shell/formatter helpers, insecure context, draft URL remount, plan tap budgets miss the sheet tap, post-unmount navigate
+- [Home page specs](home-page-specs.md) — defects.json pins deleted tests, action ids rows lack, plurals vs union sets, FeedGroup ul, last interim alias, capmap vs UX
 - [Attention service specs](attention-service-specs.md) — "identical to page X" w/o X, money-layer rule, toEqual-pinned shapes, contract gaps (link/standing), ADR vs plan, one UTC today

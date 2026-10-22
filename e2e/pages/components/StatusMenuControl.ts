@@ -75,6 +75,20 @@ export class StatusMenuControl {
     await this.option(to).click();
   }
 
+  /** `action` appearance (Mark done / Start in a row): open the date question, answer Today. */
+  async actionToday(): Promise<void> {
+    await this.open();
+    await this.dateToday.click();
+  }
+
+  /** `action` appearance: open the date question, pick a date and press Set date. */
+  async actionPickedDate(isoDate: string): Promise<void> {
+    await this.open();
+    await this.datePick.click();
+    await this.dateInput.fill(isoDate);
+    await this.dateSet.click();
+  }
+
   /** Open, choose the row, then answer the date step with Today. */
   async chooseToday(to: string): Promise<void> {
     await this.pickRow(to);
