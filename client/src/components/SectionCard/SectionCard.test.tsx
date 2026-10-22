@@ -491,6 +491,91 @@ describe('SectionCard', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Extra saved.'));
   });
 
+  it('leaves edit mode when the host drops `edit` while open, without a discard prompt', async () => {
+    function Host() {
+      const [locked, setLocked] = useState(false);
+      const [draft, setDraft] = useState('a');
+      return (
+        <>
+          <button type="button" onClick={() => setLocked(true)}>
+            lock
+          </button>
+          <SectionCard
+            id="details"
+            title="Details"
+            edit={
+              locked
+                ? undefined
+                : {
+                    dirty: draft !== 'a',
+                    onDiscard: () => setDraft('a'),
+                    onSave: async () => true,
+                    renderFields: () => (
+                      <input
+                        aria-label="Name"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                      />
+                    ),
+                  }
+            }
+          >
+            <p data-testid="read-body">body</p>
+          </SectionCard>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(edit());
+    await user.type(field(), 'x');
+
+    // Open the discard prompt, then lock the record underneath it.
+    await user.click(screen.getByTestId('section-details-cancel'));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'lock' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.queryByTestId('section-details-form')).toBeNull();
+    expect(screen.getByTestId('read-body')).toBeInTheDocument();
+    expect(screen.queryByTestId('section-details-edit')).toBeNull();
+  });
+
+  it('drops edit mode without a prompt when `edit` disappears and no dialog is open', async () => {
+    function Host() {
+      const [locked, setLocked] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setLocked(true)}>
+            lock
+          </button>
+          <SectionCard
+            id="details"
+            title="Details"
+            edit={
+              locked
+                ? undefined
+                : {
+                    dirty: true,
+                    onDiscard: () => {},
+                    onSave: async () => true,
+                    renderFields: () => <input aria-label="Name" />,
+                  }
+            }
+          >
+            <p data-testid="read-body">body</p>
+          </SectionCard>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(edit());
+    await user.click(screen.getByRole('button', { name: 'lock' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByTestId('read-body')).toBeInTheDocument();
+  });
+
   it('does nothing when Edit is activated while already editing (re-entrancy guard)', async () => {
     const onStart = jest.fn();
     const user = userEvent.setup();

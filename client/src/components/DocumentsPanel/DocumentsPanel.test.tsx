@@ -342,6 +342,18 @@ describe('DocumentsPanel — empty state per entity type', () => {
 
     expect(screen.queryByText('No documents linked yet.')).toBeNull();
   });
+
+  it('titles the sheet "Documents" while the links load and "Documents (n)" afterwards', () => {
+    const { unmount } = renderHost({ isLoading: true, initialLinks: [] });
+    openPanel();
+    expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Documents \(/ })).toBeNull();
+    unmount();
+
+    renderHost({ isLoading: false, initialLinks: [makeLink('l1', 'Sample offer.pdf')] });
+    openPanel();
+    expect(screen.getByRole('heading', { name: 'Documents (1)' })).toBeInTheDocument();
+  });
 });
 
 describe('DocumentsPanel — errors', () => {

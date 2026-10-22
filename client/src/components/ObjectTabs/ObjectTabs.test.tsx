@@ -83,6 +83,24 @@ describe('ObjectTabs', () => {
     expect(panel.getAttribute('aria-labelledby')).toBe(timing.id);
   });
 
+  it('sets aria-controls only for panels that are mounted (absent for unvisited lazy panels)', () => {
+    setup('/p', { available: ['overview', 'timing'] });
+    expect(screen.getByTestId('object-tabs-tab-overview')).toHaveAttribute('aria-controls');
+    expect(screen.getByTestId('object-tabs-tab-timing')).not.toHaveAttribute('aria-controls');
+
+    fireEvent.click(screen.getByTestId('object-tabs-tab-timing'));
+    const panel = screen.getByTestId('object-tabs-panel-timing');
+    expect(screen.getByTestId('object-tabs-tab-timing').getAttribute('aria-controls')).toBe(
+      panel.id,
+    );
+  });
+
+  it('sets no aria-controls for a tab without a panel factory', () => {
+    setup('/p', { available: ['overview', 'timing'], panels: { overview: () => <p>o</p> } });
+    fireEvent.click(screen.getByTestId('object-tabs-tab-timing'));
+    expect(screen.getByTestId('object-tabs-tab-timing')).not.toHaveAttribute('aria-controls');
+  });
+
   it('shows counts only on Cost, Payments and Site diary', () => {
     setup('/p', {
       available: ALL,

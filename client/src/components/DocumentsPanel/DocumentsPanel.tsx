@@ -341,7 +341,13 @@ export function DocumentsPanel({
       id={sheetId}
       open={open}
       onClose={handleClose}
-      title={picker ? t('panel.pickerTitle') : t('panel.title', { count })}
+      title={
+        picker
+          ? t('panel.pickerTitle')
+          : isLoading
+            ? t('panel.factLabel')
+            : t('panel.title', { count })
+      }
       variant={wide ? 'side' : 'fullScreen'}
       focusTitleOnOpen
       returnFocusRef={triggerRef}

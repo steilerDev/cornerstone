@@ -65,18 +65,6 @@
   color: var(--color-text-muted);
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border-width: 0;
-}
-
 .attachmentTypeRow {
   display: flex;
   flex-wrap: wrap;
@@ -114,6 +102,7 @@
 }
 
 .detailsToggle {
+  min-height: var(--spacing-6);
   padding: var(--spacing-0-5) 0;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);

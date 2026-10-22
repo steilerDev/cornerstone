@@ -9,6 +9,8 @@ export interface DocumentsPanelButtonProps {
   /** Names the record on pages with several panels (a row of a list): "Documents (2) for Bank loan". */
   readonly contextName?: string;
   readonly testId?: string;
+  /** Class of a wrapper `div` that exists only while the button shows (no empty box when hidden). */
+  readonly wrapperClassName?: string;
 }
 
 /**
@@ -22,6 +24,7 @@ export function DocumentsPanelButton({
   entityId,
   contextName,
   testId = 'documents-panel-button',
+  wrapperClassName,
 }: DocumentsPanelButtonProps) {
   const { t } = useTranslation('documents');
   const host = useDocumentsPanel(entityType, entityId);
@@ -31,7 +34,7 @@ export function DocumentsPanelButton({
   const label =
     host.count === null ? t('panel.factLabel') : t('panel.buttonLabel', { count: host.count });
 
-  return (
+  const content = (
     <>
       <button
         type="button"
@@ -52,4 +55,6 @@ export function DocumentsPanelButton({
       {host.panel}
     </>
   );
+
+  return wrapperClassName ? <div className={wrapperClassName}>{content}</div> : content;
 }

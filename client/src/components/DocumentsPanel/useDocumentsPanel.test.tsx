@@ -7,6 +7,7 @@ import type {
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
 import type * as HookModule from './useDocumentsPanel.js';
+import type * as StatusCacheModule from '../../lib/paperlessStatusCache.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
@@ -46,6 +47,7 @@ jest.unstable_mockModule('../documents/DocumentBrowser.js', () => ({
 }));
 
 let useDocumentsPanel: (typeof HookModule)['useDocumentsPanel'];
+let resetPaperlessStatusCache: (typeof StatusCacheModule)['resetPaperlessStatusCache'];
 let media: MatchMediaControl;
 
 const STATUS_ON: PaperlessStatusResponse = {
@@ -143,6 +145,9 @@ function renderProbe(entityType: DocumentLinkEntityType = 'work_item') {
 
 beforeEach(async () => {
   ({ useDocumentsPanel } = (await import('./useDocumentsPanel.js')) as typeof HookModule);
+  ({ resetPaperlessStatusCache } =
+    (await import('../../lib/paperlessStatusCache.js')) as typeof StatusCacheModule);
+  resetPaperlessStatusCache();
   media = installMatchMedia({ '(min-width: 768px)': true });
   mockGetPaperlessStatus.mockReset().mockResolvedValue(STATUS_ON);
   mockFetchConfig.mockReset().mockResolvedValue({ autoItemizeEnabled: true });
@@ -215,6 +220,33 @@ describe('useDocumentsPanel — mode gating', () => {
 
     await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('full'));
     expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('two hosts on one page share a single status request', async () => {
+    render(
+      <LocaleProvider>
+        <ToastProvider>
+          <MemoryRouter>
+            <Probe />
+            <Probe entityType="invoice" />
+          </MemoryRouter>
+        </ToastProvider>
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => expect(screen.getAllByTestId('mode')[0]).toHaveTextContent('full'));
+    await waitFor(() => expect(screen.getAllByTestId('mode')[1]).toHaveTextContent('full'));
+    expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a fresh status answer when a host mounts again', async () => {
+    const first = renderProbe();
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('full'));
+    first.unmount();
+
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('full'));
+    expect(mockGetPaperlessStatus).toHaveBeenCalledTimes(1);
   });
 
   it('status request failed with no links: hidden', async () => {
@@ -316,6 +348,7 @@ describe('useDocumentsPanel — late responses after unmount', () => {
     mockGetPaperlessStatus.mockImplementationOnce(
       () => new Promise((_resolve, reject) => (rejectStatus = reject)),
     );
+    resetPaperlessStatusCache(); // the first answer is cached for ten seconds
     const second = renderProbe();
     second.unmount();
     await act(async () => {

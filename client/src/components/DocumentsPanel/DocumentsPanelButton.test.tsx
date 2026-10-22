@@ -42,6 +42,33 @@ describe('DocumentsPanelButton', () => {
     expect(mockArgs).toEqual(['budget_source', 'src-1']);
   });
 
+  it('wraps the button and panel in a div with wrapperClassName only while the button shows', () => {
+    const { container } = render(
+      <DocumentsPanelButton entityType="work_item" entityId="wi-1" wrapperClassName="section" />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.tagName).toBe('DIV');
+    expect(wrapper).toHaveClass('section');
+    expect(wrapper).toContainElement(screen.getByTestId('documents-panel-button'));
+    expect(wrapper).toContainElement(screen.getByTestId('the-panel'));
+  });
+
+  it('renders no wrapper element without wrapperClassName', () => {
+    const { container } = render(<DocumentsPanelButton entityType="work_item" entityId="wi-1" />);
+    expect(container.firstElementChild).toBe(screen.getByTestId('documents-panel-button'));
+  });
+
+  it.each(['pending', 'hidden'] as const)(
+    'renders no empty wrapper box while the host is %s',
+    (mode) => {
+      mockHost = makeHost({ mode });
+      const { container } = render(
+        <DocumentsPanelButton entityType="work_item" entityId="wi-1" wrapperClassName="section" />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
   it.each(['pending', 'hidden'] as const)(
     'renders nothing (not even the panel) while %s',
     (mode) => {

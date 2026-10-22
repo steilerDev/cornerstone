@@ -2148,9 +2148,11 @@ export default function WorkItemDetailPage() {
       </div>
 
       {/* Documents — full-width section, loads independently */}
-      <div className={styles.section}>
-        <DocumentsPanelButton entityType="work_item" entityId={id!} />
-      </div>
+      <DocumentsPanelButton
+        entityType="work_item"
+        entityId={id!}
+        wrapperClassName={styles.section}
+      />
 
       {/* Footer */}
       <footer className={styles.footer}>

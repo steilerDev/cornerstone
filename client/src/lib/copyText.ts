@@ -14,6 +14,8 @@ export async function copyText(text: string): Promise<boolean> {
   }
   if (typeof document === 'undefined') return false;
   const textarea = document.createElement('textarea');
+  // select() moves focus into the textarea; removing it would drop focus to the body.
+  const previouslyFocused = document.activeElement;
   try {
     textarea.value = text;
     textarea.readOnly = true;
@@ -29,5 +31,6 @@ export async function copyText(text: string): Promise<boolean> {
     return false;
   } finally {
     textarea.remove();
+    if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
   }
 }

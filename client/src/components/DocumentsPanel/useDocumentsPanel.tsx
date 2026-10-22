@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentLinkEntityType, PaperlessStatusResponse } from '@cornerstone/shared';
-import { getPaperlessStatus } from '../../lib/paperlessApi.js';
+import { getSharedPaperlessStatus } from '../../lib/paperlessStatusCache.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
 import type { SummaryFact } from '../SummaryStrip/SummaryStrip.js';
@@ -53,7 +53,7 @@ export function useDocumentsPanel(
     let cancelled = false;
     void (async () => {
       try {
-        const result = await getPaperlessStatus();
+        const result = await getSharedPaperlessStatus(statusAttempt > 0);
         if (!cancelled) setStatus({ state: 'ready', status: result });
       } catch {
         if (!cancelled) setStatus({ state: 'failed' });

@@ -169,4 +169,55 @@ describe('SectionCardScope', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.getByTestId('section-b-form')).toBeInTheDocument();
   });
+
+  it('frees the scope when the open card loses its edit config (even with the discard prompt open)', async () => {
+    function Host() {
+      const [locked, setLocked] = useState(false);
+      const [draft, setDraft] = useState('v');
+      return (
+        <SectionCardScope>
+          <button type="button" onClick={() => setLocked(true)}>
+            lock a
+          </button>
+          <SectionCard
+            id="a"
+            title="Alpha"
+            edit={
+              locked
+                ? undefined
+                : {
+                    dirty: draft !== 'v',
+                    onDiscard: () => setDraft('v'),
+                    onSave: async () => true,
+                    renderFields: () => (
+                      <input
+                        aria-label="Alpha field"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                      />
+                    ),
+                  }
+            }
+          >
+            <p>Alpha body</p>
+          </SectionCard>
+          <Card id="b" title="Beta" />
+        </SectionCardScope>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(screen.getByTestId('section-a-edit'));
+    await user.type(screen.getByRole('textbox', { name: 'Alpha field' }), 'x');
+    await user.click(screen.getByTestId('section-a-cancel'));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'lock a' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.queryByTestId('section-a-form')).toBeNull();
+
+    await user.click(screen.getByTestId('section-b-edit'));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByTestId('section-b-form')).toBeInTheDocument();
+  });
 });

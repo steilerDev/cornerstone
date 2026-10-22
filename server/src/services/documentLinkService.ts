@@ -55,7 +55,7 @@ function toDocumentLink(
 ): DocumentLink {
   return {
     id: row.id,
-    entityType: row.entityType as DocumentLinkEntityType,
+    entityType: row.entityType,
     entityId: row.entityId,
     paperlessDocumentId: row.paperlessDocumentId,
     attachmentType: (row.attachmentType as AttachmentType | null) ?? null,
@@ -277,7 +277,7 @@ export function restoreDeletedLink(
     throw new ConflictError('The record changed after this action', changed);
   };
 
-  const entityType = row.entityType as DocumentLinkEntityType;
+  const { entityType } = row;
   if (!entityExists(tx, entityType, row.entityId)) refuse();
 
   const relinked = tx

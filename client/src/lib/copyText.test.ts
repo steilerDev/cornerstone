@@ -78,4 +78,61 @@ describe('copyText', () => {
 
     expect(document.querySelector('textarea')).toBeNull();
   });
+
+  it('restores focus to the previously focused element after the fallback copy', async () => {
+    setClipboard(undefined);
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    button.focus();
+    doc.execCommand = jest.fn<ExecCommand>(() => {
+      // select() moved focus into the textarea
+      (document.querySelector('textarea') as HTMLTextAreaElement).focus();
+      return true;
+    });
+
+    await expect(copyText('x')).resolves.toBe(true);
+
+    expect(document.activeElement).toBe(button);
+    button.remove();
+  });
+
+  it('restores focus also when the fallback copy fails', async () => {
+    setClipboard(undefined);
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    button.focus();
+    doc.execCommand = jest.fn<ExecCommand>(() => {
+      (document.querySelector('textarea') as HTMLTextAreaElement).focus();
+      return false;
+    });
+
+    await expect(copyText('x')).resolves.toBe(false);
+
+    expect(document.activeElement).toBe(button);
+    button.remove();
+  });
+
+  it('leaves focus alone when nothing focusable held it (body)', async () => {
+    setClipboard(undefined);
+    doc.execCommand = jest.fn<ExecCommand>().mockReturnValue(true);
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    await expect(copyText('x')).resolves.toBe(true);
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('does not try to focus a non-HTML previously focused element (an SVG)', async () => {
+    setClipboard(undefined);
+    doc.execCommand = jest.fn<ExecCommand>().mockReturnValue(true);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('tabindex', '0');
+    document.body.appendChild(svg);
+    svg.focus();
+
+    await expect(copyText('x')).resolves.toBe(true);
+
+    expect(document.querySelector('textarea')).toBeNull();
+    svg.remove();
+  });
 });

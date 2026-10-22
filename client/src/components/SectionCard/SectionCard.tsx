@@ -62,6 +62,12 @@ export function SectionCard({
   const [busy, setBusy] = useState(false);
   // takeover: set when a neighbouring card asked this one to close; it takes focus itself.
   const [confirm, setConfirm] = useState<{ readonly takeover: (() => void) | null } | null>(null);
+  // The host dropped `edit` while the card was open (e.g. the record got locked): leave edit
+  // mode at once, without a discard prompt. The effect cleanup below then frees the scope.
+  if (editing && !edit) {
+    setEditing(false);
+    setConfirm(null);
+  }
   const [hasTextarea, setHasTextarea] = useState(false);
   const [ownStatus, setOwnStatus] = useState('');
   const firstFieldRef = useRef<HTMLElement | null>(null);

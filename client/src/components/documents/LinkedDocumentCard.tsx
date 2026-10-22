@@ -12,6 +12,7 @@ import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import { formatDate } from '../../lib/formatters.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './LinkedDocumentCard.module.css';
 import badgeStyles from '../Badge/Badge.module.css';
 
@@ -148,7 +149,7 @@ export function LinkedDocumentCard({
                   testId={`attachment-type-badge-${link.id}`}
                 />
               )}
-              <label htmlFor={`attachment-type-${link.id}`} className={styles.srOnly}>
+              <label htmlFor={`attachment-type-${link.id}`} className={sharedStyles.srOnly}>
                 {t('documentCard.attachmentType.selectLabel', { title })}
               </label>
               <select

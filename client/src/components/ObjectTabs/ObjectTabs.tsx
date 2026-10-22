@@ -166,7 +166,7 @@ export function ObjectTabs({
                 role="tab"
                 id={tabDomId(id)}
                 aria-selected={selected}
-                aria-controls={panelDomId(id)}
+                aria-controls={panels[id] && visited.has(id) ? panelDomId(id) : undefined}
                 tabIndex={selected ? 0 : -1}
                 className={selected ? `${styles.tab} ${styles.tabSelected}` : styles.tab}
                 onClick={() => select(id)}
