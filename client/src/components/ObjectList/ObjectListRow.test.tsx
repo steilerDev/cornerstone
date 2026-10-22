@@ -105,6 +105,16 @@ describe('ObjectListRow', () => {
     expect(screen.getByText('secondary t1')).toBeInTheDocument();
   });
 
+  it('UX2: the row checkbox sits in a label and clicking the label toggles it', () => {
+    const onChange = jest.fn();
+    renderRow({ selection: { selected: false, onChange } });
+    const box = screen.getByTestId('tasks-select-t1');
+    expect(box.closest('label')).not.toBeNull();
+    expect(box).toHaveAccessibleName('Select Tile the hallway');
+    fireEvent.click(box.closest('label') as HTMLElement);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
   it('W2: checkbox, status, command and menu are siblings of the link, not inside it', () => {
     const onChange = jest.fn();
     renderRow({

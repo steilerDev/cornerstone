@@ -137,9 +137,14 @@ export function ReferenceList({
   const [reorderPending, setReorderPending] = useState(false);
   const [reorderFailed, setReorderFailed] = useState(false);
   const [rawQuery, setRawQuery] = useState('');
+  // The field stays mounted while it has focus, so emptying the query (or Clear search) on a
+  // list that has dropped below the threshold never removes the focused element.
+  const [searchFocused, setSearchFocused] = useState(false);
+  if (searchFocused && items.length === 0) setSearchFocused(false);
 
   const ready = status === 'ready';
-  const showSearch = ready && (items.length >= REFERENCE_LIST_SEARCH_MIN_ROWS || rawQuery !== '');
+  const showSearch =
+    ready && (items.length >= REFERENCE_LIST_SEARCH_MIN_ROWS || rawQuery !== '' || searchFocused);
   const query = showSearch ? rawQuery : '';
   const searching = query.trim() !== '';
   const visibleItems = filterReferenceItems(items, query);
@@ -326,6 +331,8 @@ export function ReferenceList({
               placeholder={labels.search}
               aria-label={labels.search}
               autoComplete="off"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onChange={(event) => handleQueryChange(event.target.value)}
               data-testid={`${testIdPrefix}-search`}
             />

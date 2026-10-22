@@ -935,6 +935,23 @@ describe('ReferenceList', () => {
       expect(screen.getByTestId('sample-count')).toHaveTextContent('(7)');
     });
 
+    it('keeps the focused search field mounted below 8 rows until it loses focus', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'o');
+      await user.click(menuTrigger('n1'));
+      await user.click(await screen.findByTestId('sample-delete-n1'));
+      await user.click(await screen.findByTestId('sample-delete-dialog-confirm'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await user.clear(searchInput());
+      await user.type(searchInput(), 'zzz');
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      expect(searchInput()).toHaveValue('');
+      expect(searchInput()).toHaveFocus();
+      await user.tab();
+      await waitFor(() => expect(screen.queryByTestId('sample-search')).toBeNull());
+    });
+
     it('drops the toolbar below 8 rows once the query is empty', async () => {
       const user = userEvent.setup();
       render(<Host initial={MANY.slice(0, 8)} />);

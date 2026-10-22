@@ -534,24 +534,51 @@ describe('ObjectList selection', () => {
 });
 
 describe('ObjectList focus after removal', () => {
+  it('L10 keeps focus on a row title when a status change moves the row to another group', async () => {
+    data = [...makeTasks(2, 'todo', 1), ...makeTasks(1, 'late', 3)];
+    renderList({}, '/tasks?group=state');
+    await loaded();
+    screen.getByTestId('tasks-title-t001').focus();
+    act(() => controller?.updateItem('t001', (t) => ({ ...t, state: 'late' })));
+    await waitFor(() => expect(screen.getByTestId('tasks-title-t001')).toHaveFocus());
+  });
+
+  it('L10 skips candidates inside a collapsed group', async () => {
+    data = [...makeTasks(2, 'todo', 1), ...makeTasks(1, 'done', 3)];
+    renderList({}, '/tasks?group=state');
+    await loaded();
+    expect(screen.getByTestId('tasks-group-toggle-done')).toHaveAttribute('aria-expanded', 'false');
+    screen.getByTestId('tasks-title-t002').focus();
+    act(() => controller?.removeItem('t002'));
+    await waitFor(() => expect(screen.getByTestId('tasks-title-t001')).toHaveFocus());
+  });
+
+  it('L10 leaves focus alone after a deliberate blur, such as a click elsewhere', async () => {
+    renderList();
+    await loaded();
+    const link = screen.getByTestId('tasks-title-t002');
+    link.focus();
+    link.blur();
+    act(() => controller?.removeItem('t002'));
+    await waitFor(() => expect(screen.queryByTestId('tasks-title-t002')).toBeNull());
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('L10 moves focus to the next row title, then the previous, then the heading', async () => {
     renderList();
     await loaded();
     screen.getByTestId('tasks-title-t002').focus();
     act(() => {
-      (document.activeElement as HTMLElement).blur();
       controller?.removeItem('t002');
     });
     await waitFor(() => expect(screen.getByTestId('tasks-title-t003')).toHaveFocus());
     act(() => {
       screen.getByTestId('tasks-title-t003').focus();
-      (document.activeElement as HTMLElement).blur();
       controller?.removeItem('t003');
     });
     await waitFor(() => expect(screen.getByTestId('tasks-title-t001')).toHaveFocus());
     act(() => {
       screen.getByTestId('tasks-title-t001').focus();
-      (document.activeElement as HTMLElement).blur();
       controller?.removeItem('t001');
     });
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
@@ -731,7 +758,6 @@ describe('ObjectList sorting and columns', () => {
       await loaded();
       screen.getByTestId('tasks-title-t002').focus();
       act(() => {
-        (document.activeElement as HTMLElement).blur();
         controller?.removeItem('t002');
       });
       await waitFor(() => expect(screen.getByTestId('tasks-title-t003')).toHaveFocus());
@@ -755,7 +781,6 @@ describe('ObjectList sorting and columns', () => {
       await loaded();
       screen.getByTestId('tasks-title-t002').focus();
       act(() => {
-        (document.activeElement as HTMLElement).blur();
         controller?.removeItem('t002');
       });
       await waitFor(() => expect(screen.getByTestId('tasks-title-t003')).toHaveFocus());
@@ -857,7 +882,6 @@ describe('ObjectList surfaces', () => {
     act(() => FakeRO.last?.cb([{ contentRect: { width: 500 } }]));
     screen.getByTestId('tasks-title-mobile-t002').focus();
     act(() => {
-      (document.activeElement as HTMLElement).blur();
       controller?.removeItem('t002');
     });
     await waitFor(() => expect(screen.getByTestId('tasks-title-mobile-t003')).toHaveFocus());

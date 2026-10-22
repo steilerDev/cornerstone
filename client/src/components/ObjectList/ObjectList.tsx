@@ -313,19 +313,29 @@ export function ObjectList<T, M = undefined, C = never>({
     const previous = prevKeysRef.current;
     prevKeysRef.current = keys;
     const lost = lastFocusedKeyRef.current;
-    if (lost === null || keys.includes(lost)) return;
-    lastFocusedKeyRef.current = null;
+    if (lost === null) return;
     const active = document.activeElement;
     if (active && active !== document.body && active.isConnected) return;
+    lastFocusedKeyRef.current = null;
+    // Focus was lost with the row's element. The row itself comes first when it is still in the
+    // list (it moved to another group); otherwise the row now at its index, then the previous one.
     const index = previous.indexOf(lost);
-    const targetKey = keys[index] ?? keys[index - 1] ?? keys[keys.length - 1];
-    const link =
-      targetKey === undefined
-        ? null
-        : (rootRef.current as HTMLDivElement).querySelector<HTMLElement>(
-            `[data-testid="${cssEscape(dataTableTestId(`${p}-title`, targetKey, surfaceRef.current))}"]`,
-          );
-    (link ?? (headingRef.current as HTMLElement)).focus();
+    const candidates = keys.includes(lost)
+      ? [lost]
+      : [keys[index], keys[index - 1], keys[keys.length - 1]];
+    const root = rootRef.current as HTMLDivElement;
+    for (const key of candidates) {
+      if (key === undefined) continue;
+      const link = root.querySelector<HTMLElement>(
+        `[data-testid="${cssEscape(dataTableTestId(`${p}-title`, key, surfaceRef.current))}"]`,
+      );
+      // A row inside a collapsed group cannot take focus.
+      if (link && !link.closest('[hidden]')) {
+        link.focus();
+        return;
+      }
+    }
+    (headingRef.current as HTMLElement).focus();
   }, [items, getKey, p, headingRef]);
 
   const onRowFocus = useCallback((key: string) => {
@@ -467,7 +477,16 @@ export function ObjectList<T, M = undefined, C = never>({
         />
       }
     >
-      <div ref={rootRef} className={styles.root} onKeyDown={onKeyDown} data-testid={`${p}-list`}>
+      <div
+        ref={rootRef}
+        className={styles.root}
+        onKeyDown={onKeyDown}
+        onBlur={(event) => {
+          // A disconnected target lost focus because its row was removed: keep the key for the focus rule.
+          if ((event.target as Node).isConnected) lastFocusedKeyRef.current = null;
+        }}
+        data-testid={`${p}-list`}
+      >
         <ObjectListToolbar
           list={list}
           config={config}
@@ -482,7 +501,6 @@ export function ObjectList<T, M = undefined, C = never>({
               ? {
                   ...allState,
                   onChange: (checked) => setKeysSelected(allKeys, checked),
-                  label: selectAllLabel,
                 }
               : null
           }

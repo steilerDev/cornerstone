@@ -19,7 +19,6 @@ export interface ObjectListToolbarSelectAll {
   readonly checked: boolean;
   readonly indeterminate: boolean;
   readonly onChange: (checked: boolean) => void;
-  readonly label: string;
 }
 
 export interface ObjectListToolbarProps<T, M> {

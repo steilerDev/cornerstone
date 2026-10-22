@@ -216,7 +216,7 @@
 
 .groupToggle:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
 }
 
 .groupCount {
@@ -252,9 +252,20 @@
 
 /* ---------- Row controls ---------- */
 
-.rowCheck {
+/* The label is the 44px hit area; it sits above the stretched title link. */
+.rowCheckBox {
   position: relative;
   z-index: var(--z-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  cursor: pointer;
+}
+
+.rowCheck {
   width: var(--spacing-5);
   height: var(--spacing-5);
   margin: 0;
@@ -265,6 +276,7 @@
 .rowCheck:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
 .titleLink {
@@ -288,15 +300,9 @@
   outline: none;
 }
 
-.row:has(.titleLink:focus-visible),
-.card:has(.titleLink:focus-visible) {
-  box-shadow: var(--shadow-focus);
-}
-
-@supports not selector(:has(*)) {
-  .titleLink:focus-visible::after {
-    box-shadow: var(--shadow-focus);
-  }
+/* Inset ring: the table surface clips overflow, so an outer ring would be cut off. */
+.titleLink:focus-visible::after {
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
 }
 
 .secondary {
@@ -479,7 +485,7 @@
   }
 
   .caret,
-  .rowCheck,
+  .rowCheckBox,
   .headCheck,
   .cellCheck,
   .cellExpand,

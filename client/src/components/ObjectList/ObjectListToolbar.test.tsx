@@ -295,7 +295,7 @@ describe('ObjectListToolbar', () => {
   it('select-all (card surface) shows in the note row and reports changes', () => {
     const onChange = jest.fn();
     setup({
-      selectAll: { checked: false, indeterminate: false, onChange, label: 'Select all tasks' },
+      selectAll: { checked: false, indeterminate: false, onChange },
     });
     const box = screen.getByLabelText('Select all');
     fireEvent.click(box);

@@ -45,6 +45,8 @@ describe('ObjectList pattern baseline', () => {
         const re = new RegExp(`from\\s+['"][^'"]*DataTable/${name}(\\.js)?['"]`);
         expect({ file, name, imported: re.test(text) }).toEqual({ file, name, imported: false });
       }
+      const filters = /from\s+['"][^'"]*DataTable\/filters\//.test(text);
+      expect({ file, filters }).toEqual({ file, filters: false });
     }
   });
 
@@ -56,8 +58,10 @@ describe('ObjectList pattern baseline', () => {
     }
   });
 
-  it('has a single search field (the toolbar input)', () => {
+  it('has exactly one search field, in ObjectListToolbar.tsx', () => {
     const hits = sources.filter((s) => /type="search"|role="searchbox"/.test(s.text));
-    expect(hits.length).toBeLessThanOrEqual(1);
+    expect(hits.map((h) => h.file)).toEqual(['ObjectListToolbar.tsx']);
+    const count = (hits[0]?.text.match(/type="search"|role="searchbox"/g) ?? []).length;
+    expect(count).toBe(1);
   });
 });

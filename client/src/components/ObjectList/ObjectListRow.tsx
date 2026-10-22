@@ -156,14 +156,16 @@ function RowCheckbox({
   const { t } = useTranslation('common');
   if (!selection) return null;
   return (
-    <input
-      type="checkbox"
-      className={styles.rowCheck}
-      checked={selection.selected}
-      onChange={(e) => selection.onChange(e.target.checked)}
-      aria-label={t('objectList.selection.selectRow', { title: title.text })}
-      data-testid={dataTableTestId(`${testIdPrefix}-select`, itemKey, surface)}
-    />
+    <label className={styles.rowCheckBox}>
+      <input
+        type="checkbox"
+        className={styles.rowCheck}
+        checked={selection.selected}
+        onChange={(e) => selection.onChange(e.target.checked)}
+        aria-label={t('objectList.selection.selectRow', { title: title.text })}
+        data-testid={dataTableTestId(`${testIdPrefix}-select`, itemKey, surface)}
+      />
+    </label>
   );
 }
 
