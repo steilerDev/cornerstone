@@ -2080,3 +2080,12 @@ during the gap. Check whether an in-flight counter (`savingCount`) exists and ga
 ## Extract-and-share refactors: does the old caller use the extracted helper? (PR #2325)
 
 When a spec says "extract X and have both callers use it", check that the **original** caller calls the new helper and does not keep an inline copy. In #2325, `combineSourceContributions` was exported for the draw-down set, but `getSourceReport` kept its own rounding/zero-drop and Rail B query, while the wiki claimed they were shared. Consistency tests on one fixture hide this kind of fork. Grep the old caller for the helper's body (e.g. `toCents(rawAmount) / 100`).
+
+## Redefining a stored flag: grep its UI copy and every doc of it (PR #2326)
+
+When a PR changes what a stored column means (here `household_items.is_late`: "floored to today" ->
+`isPurchaseLate`, planned date passed), the server tests pass, but the old meaning lives on in client
+copy that renders the flag ("Floored to today" in `GanttTooltip`), in shared-type JSDoc, and in a
+second wiki note far from the edited one (API-Contract Timeline notes). Grep the field name across
+`client/src` (render sites plus i18n), `shared/src/types` comments and the whole wiki, not only the
+section the PR touched.

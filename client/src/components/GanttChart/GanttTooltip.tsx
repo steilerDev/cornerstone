@@ -651,12 +651,10 @@ function HouseholdItemTooltipContent({
         </div>
       )}
 
-      {/* Floored to today note */}
+      {/* Late: purchase is past its planned date and not yet arrived */}
       {data.isLate && (
         <div className={styles.detailRow}>
-          <span className={styles.detailValueFloored}>
-            {t('gantt.tooltip.householdItem.flooredToToday')}
-          </span>
+          <span className={styles.detailValueLate}>{t('gantt.tooltip.householdItem.late')}</span>
         </div>
       )}
 

@@ -270,11 +270,6 @@
   color: var(--color-red-400);
 }
 
-.detailValueFloored {
-  color: var(--color-hi-status-scheduled-text);
-  font-weight: var(--font-weight-medium);
-}
-
 .viewItemButton {
   width: 100%;
   padding: var(--spacing-2);

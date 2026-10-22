@@ -11,8 +11,13 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { DIARY_ISSUE_SEVERITIES } from '@cornerstone/shared';
-import type { AreaSummary, AttentionResponse, DiaryIssueSeverity } from '@cornerstone/shared';
+import { DIARY_ISSUE_SEVERITIES, MANUAL_DIARY_ENTRY_TYPES } from '@cornerstone/shared';
+import type {
+  AreaSummary,
+  AttentionResponse,
+  DiaryIssueSeverity,
+  ManualDiaryEntryType,
+} from '@cornerstone/shared';
 import { loadAreaMap, resolveAreaAncestors } from './areaService.js';
 import { readSnoozes } from './attentionSnoozeService.js';
 import { computeProjectMoney, listOpenPayments } from './moneyService.js';
@@ -41,6 +46,12 @@ function severityOf(value: unknown): DiaryIssueSeverity | null {
   return typeof value === 'string' && (DIARY_ISSUE_SEVERITIES as readonly string[]).includes(value)
     ? (value as DiaryIssueSeverity)
     : null;
+}
+
+function isManualEntryType(value: unknown): value is ManualDiaryEntryType {
+  return (
+    typeof value === 'string' && (MANUAL_DIARY_ENTRY_TYPES as readonly string[]).includes(value)
+  );
 }
 
 export function getAttention(db: DbType, opts: GetAttentionOptions): AttentionResponse {
@@ -221,7 +232,7 @@ export function getAttention(db: DbType, opts: GetAttentionOptions): AttentionRe
   }));
 
   // Unfinished logs (H1): people's drafts
-  const drafts = db.all<AttentionDraft>(
+  const draftRows = db.all<Omit<AttentionDraft, 'entryType'> & { entryType: string }>(
     sql`SELECT
       id         AS id,
       title      AS title,
@@ -231,6 +242,11 @@ export function getAttention(db: DbType, opts: GetAttentionOptions): AttentionRe
     FROM diary_entries
     WHERE status = 'draft' AND is_automatic = 0`,
   );
+  // A draft with an unexpected entry type is skipped (like an unknown severity is dropped)
+  const drafts: AttentionDraft[] = [];
+  for (const row of draftRows) {
+    if (isManualEntryType(row.entryType)) drafts.push({ ...row, entryType: row.entryType });
+  }
 
   return computeAttention({
     today,

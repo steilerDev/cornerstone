@@ -8,7 +8,7 @@
 
 import type { AreaSummary } from './area.js';
 import type { BudgetSourceType } from './budgetSource.js';
-import type { DiaryIssueResolution, DiaryIssueSeverity } from './diary.js';
+import type { DiaryIssueResolution, DiaryIssueSeverity, ManualDiaryEntryType } from './diary.js';
 import type { HouseholdItemStatus } from './householdItem.js';
 import type { SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { ServedRouteId } from '../routes/index.js';
@@ -226,7 +226,7 @@ export type AttentionParams =
       severity: DiaryIssueSeverity | null;
       entryDate: string;
     }
-  | { rule: 'H1'; entryType: string; entryDate: string; updatedAt: string }
+  | { rule: 'H1'; entryType: ManualDiaryEntryType; entryDate: string; updatedAt: string }
   | {
       rule: 'H2';
       recordKind: 'invoice' | 'offer';

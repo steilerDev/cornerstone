@@ -424,6 +424,28 @@ describe('attentionService on the synthetic fixture', () => {
       expect(row(res, 'H2:invoice:off-1').params).toMatchObject({ recordKind: 'offer' });
     });
 
+    it('H1: every manual entry type of a stale draft is a row; a draft with an unexpected type is skipped', () => {
+      const stale = '2026-03-08T10:00:00.000Z';
+      const insert = (id: string, entryType: string) =>
+        sqlite
+          .prepare(
+            `INSERT INTO diary_entries
+               (id, entry_type, entry_date, body, status, is_automatic, created_at, updated_at)
+             VALUES (?, ?, '2026-03-08', '', 'draft', 0, ?, ?)`,
+          )
+          .run(id, entryType, stale, stale);
+      insert('dr-visit', 'site_visit');
+      insert('dr-note', 'general_note');
+      // a non-manual type on a person's draft (e.g. a system-event type) is not a Tidy-up row
+      insert('dr-odd', 'invoice_status');
+      const res = attention();
+      expect(row(res, 'H1:diary_entry:dr-visit').params).toMatchObject({ entryType: 'site_visit' });
+      expect(row(res, 'H1:diary_entry:dr-note').params).toMatchObject({
+        entryType: 'general_note',
+      });
+      expect(res.tidyUp.some((r) => r.key === 'H1:diary_entry:dr-odd')).toBe(false);
+    });
+
     it('S1: the over-allocated source is a standing row with its figures', () => {
       expect(attention().standing).toEqual([
         {

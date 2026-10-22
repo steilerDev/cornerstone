@@ -26,6 +26,7 @@ import type {
   AttentionTier,
   CriticalLineLevel,
   DiaryIssueSeverity,
+  ManualDiaryEntryType,
   MoneySourceFigures,
 } from '@cornerstone/shared';
 import { ATTENTION_RULES, attentionRowKey } from '@cornerstone/shared';
@@ -98,7 +99,7 @@ export interface AttentionDefect {
 export interface AttentionDraft {
   id: string;
   title: string | null;
-  entryType: string;
+  entryType: ManualDiaryEntryType;
   entryDate: string;
   updatedAt: string;
 }
