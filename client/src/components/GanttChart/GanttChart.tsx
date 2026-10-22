@@ -259,11 +259,10 @@ export function GanttChart({
         setTooltipData(null);
         setTooltipTriggerId(null);
         // Return focus to the element that triggered the tooltip
-        if (tooltipTriggerElementRef.current instanceof HTMLElement) {
-          tooltipTriggerElementRef.current.focus();
-        } else if (tooltipTriggerElementRef.current instanceof SVGElement) {
-          (tooltipTriggerElementRef.current as SVGElement & { focus?: () => void }).focus?.();
-        }
+        // Triggers are always SVG elements (bars, diamonds, markers)
+        (
+          tooltipTriggerElementRef.current as (SVGElement & { focus?: () => void }) | null
+        )?.focus?.();
         tooltipTriggerElementRef.current = null;
       }
     }
@@ -372,7 +371,7 @@ export function GanttChart({
       kind: 'milestone',
       milestone,
     }));
-    const hiRows: UnifiedRow[] = (data.householdItems ?? []).map((item) => ({
+    const hiRows: UnifiedRow[] = data.householdItems.map((item) => ({
       kind: 'householdItem',
       item,
     }));
@@ -449,7 +448,7 @@ export function GanttChart({
   // Build a lookup map from household item ID to TimelineHouseholdItem for tooltip data
   const householdItemMap = useMemo<ReadonlyMap<string, TimelineHouseholdItem>>(() => {
     const map = new Map<string, TimelineHouseholdItem>();
-    for (const hi of data.householdItems ?? []) {
+    for (const hi of data.householdItems) {
       map.set(hi.id, hi);
     }
     return map;
@@ -466,7 +465,7 @@ export function GanttChart({
 
   const barData = useMemo(() => {
     return sortedWorkItems.map((item) => {
-      const rowIdx = workItemRowIndices.get(item.id) ?? 0;
+      const rowIdx = workItemRowIndices.get(item.id)!;
       // Actual dates win, else the forecast (contract 4): the bar shows where work really sits
       const { start: effectiveStartDate, end: effectiveEndDate } = barDates(item);
       const position = computeBarPosition(
@@ -538,7 +537,7 @@ export function GanttChart({
     if (!hasMilestones) return map;
 
     data.milestones.forEach((milestone) => {
-      const rowIndex = milestoneRowIndices.get(milestone.id) ?? 0;
+      const rowIndex = milestoneRowIndices.get(milestone.id)!;
       const y = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
       const status = computeMilestoneStatus(milestone);
@@ -596,16 +595,16 @@ export function GanttChart({
    * Derived from workItem.requiredMilestoneIds (reverse mapping).
    * Used for milestone tooltip to show "Blocked by this milestone" work items.
    */
-  const milestoneRequiredBy = useMemo<ReadonlyMap<number, string[]>>(() => {
-    const map = new Map<number, string[]>();
+  const milestoneRequiredBy = useMemo<ReadonlyMap<number, { id: string; title: string }[]>>(() => {
+    const map = new Map<number, { id: string; title: string }[]>();
     for (const item of sortedWorkItems) {
       if (item.requiredMilestoneIds && item.requiredMilestoneIds.length > 0) {
         for (const milestoneId of item.requiredMilestoneIds) {
           const existing = map.get(milestoneId);
           if (existing) {
-            existing.push(item.id);
+            existing.push({ id: item.id, title: item.title });
           } else {
-            map.set(milestoneId, [item.id]);
+            map.set(milestoneId, [{ id: item.id, title: item.title }]);
           }
         }
       }
@@ -626,7 +625,7 @@ export function GanttChart({
    */
   const hiLinkedItemsMap = useMemo(() => {
     const map = new Map<string, { id: string; title: string; type: 'work_item' | 'milestone' }[]>();
-    for (const hi of data.householdItems ?? []) {
+    for (const hi of data.householdItems) {
       if (hi.dependencyIds.length === 0) continue;
       const linked: { id: string; title: string; type: 'work_item' | 'milestone' }[] = [];
       for (const dep of hi.dependencyIds) {
@@ -651,10 +650,10 @@ export function GanttChart({
    */
   const hiPoints = useMemo<ReadonlyMap<string, { x: number; y: number }>>(() => {
     const map = new Map<string, { x: number; y: number }>();
-    for (const hi of data.householdItems ?? []) {
+    for (const hi of data.householdItems) {
       const dateStr = hi.actualDeliveryDate ?? hi.targetDeliveryDate ?? hi.earliestDeliveryDate;
       if (!dateStr) continue;
-      const rowIdx = hiRowIndices.get(hi.id) ?? 0;
+      const rowIdx = hiRowIndices.get(hi.id)!;
       const y = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
       const x = dateToX(toUtcMidnight(dateStr), chartRange, zoom, columnWidth);
       map.set(hi.id, { x, y });
@@ -776,23 +775,16 @@ export function GanttChart({
     }
 
     // Household item dependency arrows: work item/milestone → HI delivery date
-    for (const hi of data.householdItems ?? []) {
+    for (const hi of data.householdItems) {
       if (!hi.dependencyIds?.length) continue;
       const hiKey = `hi:${hi.id}`;
 
       for (const dep of hi.dependencyIds) {
-        let predId = '';
-        let arrowKey = '';
-
-        if (dep.predecessorType === 'work_item') {
-          predId = dep.predecessorId;
-          arrowKey = `hi-dep-wi-${predId}-${hi.id}`;
-        } else if (dep.predecessorType === 'milestone') {
-          predId = `milestone:${dep.predecessorId}`;
-          arrowKey = `hi-dep-ms-${dep.predecessorId}-${hi.id}`;
-        }
-
-        if (!predId) continue;
+        const isWorkItemPred = dep.predecessorType === 'work_item';
+        const predId = isWorkItemPred ? dep.predecessorId : `milestone:${dep.predecessorId}`;
+        const arrowKey = isWorkItemPred
+          ? `hi-dep-wi-${predId}-${hi.id}`
+          : `hi-dep-ms-${dep.predecessorId}-${hi.id}`;
 
         // For the predecessor (WI or milestone): HI is connected; arrow is connected
         const predEntry = getOrCreate(predId);
@@ -886,7 +878,7 @@ export function GanttChart({
   const hiInteractionStates = useMemo<ReadonlyMap<string, HouseholdItemInteractionState>>(() => {
     if (hoveredArrowConnectedIds !== null) {
       const map = new Map<string, HouseholdItemInteractionState>();
-      for (const hi of data.householdItems ?? []) {
+      for (const hi of data.householdItems) {
         const key = `hi:${hi.id}`;
         map.set(hi.id, hoveredArrowConnectedIds.has(key) ? 'highlighted' : 'dimmed');
       }
@@ -896,7 +888,7 @@ export function GanttChart({
       const connectedIds = itemDependencyLookup.get(hoveredItemId)?.connectedEntityIds;
       if (!connectedIds) return new Map();
       const map = new Map<string, HouseholdItemInteractionState>();
-      for (const hi of data.householdItems ?? []) {
+      for (const hi of data.householdItems) {
         const key = `hi:${hi.id}`;
         map.set(hi.id, connectedIds.has(key) ? 'highlighted' : 'dimmed');
       }
@@ -964,6 +956,7 @@ export function GanttChart({
             tooltipItem,
             itemDependencyLookup.get(itemId)?.tooltipDeps,
             today,
+            data.holdsUp?.workItems[itemId]?.count ?? 0,
           ),
         );
         setTooltipPosition({
@@ -978,6 +971,7 @@ export function GanttChart({
       itemDependencyLookup,
       handleTouchTap,
       onItemClick,
+      data.holdsUp,
       today,
       showTimerRef,
       hideTimerRef,
@@ -1081,8 +1075,7 @@ export function GanttChart({
   const handleChartScroll = useCallback(() => {
     if (isScrollSyncingRef.current) return;
 
-    const chartEl = chartScrollRef.current;
-    if (!chartEl) return;
+    const chartEl = chartScrollRef.current!;
 
     requestAnimationFrame(() => {
       isScrollSyncingRef.current = true;
@@ -1106,8 +1099,7 @@ export function GanttChart({
   const handleSidebarScroll = useCallback(() => {
     if (isScrollSyncingRef.current) return;
 
-    const sidebarEl = sidebarScrollRef.current;
-    if (!sidebarEl) return;
+    const sidebarEl = sidebarScrollRef.current!;
 
     requestAnimationFrame(() => {
       isScrollSyncingRef.current = true;
@@ -1126,9 +1118,7 @@ export function GanttChart({
       const el = chartScrollRef.current;
       const targetScrollLeft = Math.max(0, todayX - el.clientWidth / 2);
       el.scrollLeft = targetScrollLeft;
-      if (headerScrollRef.current) {
-        headerScrollRef.current.scrollLeft = targetScrollLeft;
-      }
+      headerScrollRef.current!.scrollLeft = targetScrollLeft;
     }
   }, [todayX, zoom]);
 
@@ -1250,13 +1240,7 @@ export function GanttChart({
                       })
                       .filter((x): x is { id: string; title: string } => x !== null);
                     // Dependent items — work items that depend on this milestone via requiredMilestoneIds
-                    const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
-                    const dependentWorkItems = dependentIds
-                      .map((wid) => {
-                        const wi = workItemMap.get(wid);
-                        return wi ? { id: wid, title: wi.title } : null;
-                      })
-                      .filter((x): x is { id: string; title: string } => x !== null);
+                    const dependentWorkItems = milestoneRequiredBy.get(milestone.id) ?? [];
                     setTooltipData({
                       kind: 'milestone',
                       title: milestone.title,
@@ -1268,6 +1252,7 @@ export function GanttChart({
                       linkedWorkItems,
                       dependentWorkItems,
                       milestoneId: milestone.id,
+                      holdsUpCount: data.holdsUp?.milestones[String(milestone.id)]?.count ?? 0,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1303,13 +1288,7 @@ export function GanttChart({
                       })
                       .filter((x): x is { id: string; title: string } => x !== null);
                     // Dependent items — work items that depend on this milestone via requiredMilestoneIds
-                    const dependentIds = milestoneRequiredBy.get(milestone.id) ?? [];
-                    const dependentWorkItems = dependentIds
-                      .map((wid) => {
-                        const wi = workItemMap.get(wid);
-                        return wi ? { id: wid, title: wi.title } : null;
-                      })
-                      .filter((x): x is { id: string; title: string } => x !== null);
+                    const dependentWorkItems = milestoneRequiredBy.get(milestone.id) ?? [];
                     setTooltipData({
                       kind: 'milestone',
                       title: milestone.title,
@@ -1321,6 +1300,7 @@ export function GanttChart({
                       linkedWorkItems,
                       dependentWorkItems,
                       milestoneId: milestone.id,
+                      holdsUpCount: data.holdsUp?.milestones[String(milestone.id)]?.count ?? 0,
                     });
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
@@ -1340,9 +1320,9 @@ export function GanttChart({
             )}
 
             {/* Household item circle markers */}
-            {(data.householdItems?.length ?? 0) > 0 && (
+            {data.householdItems.length > 0 && (
               <GanttHouseholdItems
-                householdItems={data.householdItems ?? []}
+                householdItems={data.householdItems}
                 chartRange={chartRange}
                 zoom={zoom}
                 hiRowIndices={hiRowIndices}
@@ -1417,8 +1397,7 @@ export function GanttChart({
                   // Tooltip props (mouse hover)
                   onMouseEnter={(e) => {
                     clearTooltipTimers();
-                    const tooltipItem = workItemMap.get(item.id);
-                    if (!tooltipItem) return;
+                    const tooltipItem = workItemMap.get(item.id)!;
                     // Set item hover state for dependency highlighting
                     setHoveredItemId(item.id);
                     // Capture trigger element for focus-return on Escape
@@ -1431,6 +1410,7 @@ export function GanttChart({
                           tooltipItem,
                           itemDependencyLookup.get(item.id)?.tooltipDeps,
                           today,
+                          data.holdsUp?.workItems[item.id]?.count ?? 0,
                         ),
                       );
                       setTooltipPosition(newPos);
@@ -1450,8 +1430,7 @@ export function GanttChart({
                   // Keyboard focus — same highlight/dim/tooltip behaviour as mouse hover
                   onFocus={(e) => {
                     clearTooltipTimers();
-                    const tooltipItem = workItemMap.get(item.id);
-                    if (!tooltipItem) return;
+                    const tooltipItem = workItemMap.get(item.id)!;
                     setHoveredItemId(item.id);
                     tooltipTriggerElementRef.current = e.currentTarget;
                     // Compute position from element bounding rect center for keyboard focus
@@ -1467,6 +1446,7 @@ export function GanttChart({
                           tooltipItem,
                           itemDependencyLookup.get(item.id)?.tooltipDeps,
                           today,
+                          data.holdsUp?.workItems[item.id]?.count ?? 0,
                         ),
                       );
                       setTooltipPosition(newPos);

@@ -23,6 +23,7 @@ import type {
   TimelineWorkItem,
   TimelineMilestone,
   TimelineHouseholdItem,
+  TimelineHoldsUp,
 } from '@cornerstone/shared';
 import type * as I18nTypes from '../../i18n/index.js';
 import type * as FormattersTypes from '../../lib/formatters.js';
@@ -1155,5 +1156,287 @@ describe('CalendarView create context (#2212)', () => {
       </MemoryRouter>,
     );
     expect(prefill()).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Story #2232 — "Holds up n tasks" comes from the server's holdsUp counts
+// ---------------------------------------------------------------------------
+
+describe('CalendarView — holds-up count from the holdsUp prop (#2232)', () => {
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  function monthDay(day: string) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${day}`;
+  }
+
+  function renderWithHoldsUp(holdsUp: TimelineHoldsUp | undefined) {
+    const item = makeWorkItem('wi-h', monthDay('06'), monthDay('06'));
+    const dependent = makeWorkItem('wi-dep', monthDay('20'), monthDay('20'));
+    dependent.requiredMilestoneIds = [10];
+    const milestone = makeMilestone(10, monthDay('12'));
+    return render(
+      <MemoryRouter>
+        <CalendarView workItems={[item, dependent]} milestones={[milestone]} holdsUp={holdsUp} />
+      </MemoryRouter>,
+    );
+  }
+
+  const COUNTS: TimelineHoldsUp = {
+    workItems: { 'wi-h': { count: 3, startingWithin14Days: 1 } },
+    milestones: { '10': { count: 5, startingWithin14Days: 0 } },
+  };
+
+  it('hovering a task shows the server count', () => {
+    renderWithHoldsUp(COUNTS);
+    fireEvent.mouseEnter(screen.getAllByTestId('calendar-item')[0]!, {
+      clientX: 300,
+      clientY: 200,
+    });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 3 tasks');
+  });
+
+  it('hovering a milestone shows the server count for that milestone', () => {
+    renderWithHoldsUp(COUNTS);
+    fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), { clientX: 200, clientY: 150 });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Holds up 5 tasks');
+  });
+
+  it('falls back to 0 without the holdsUp prop', () => {
+    renderWithHoldsUp(undefined);
+    fireEvent.mouseEnter(screen.getByTestId('calendar-milestone'), { clientX: 200, clientY: 150 });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Holds up 0 tasks');
+  });
+
+  it('falls back to 0 for a task missing from holdsUp', () => {
+    renderWithHoldsUp({ workItems: {}, milestones: {} });
+    fireEvent.mouseEnter(screen.getAllByTestId('calendar-item')[0]!, {
+      clientX: 300,
+      clientY: 200,
+    });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.getByTestId('gantt-tooltip')).not.toHaveTextContent(/Holds up [1-9]/);
+  });
+});
+
+describe('CalendarView — hover timing and tooltip link edge cases (#2232 coverage)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  function monthDay(day: number) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  function purchase(id: string, overrides: Partial<TimelineHouseholdItem> = {}) {
+    return {
+      id,
+      name: `Test ${id}`,
+      category: 'furniture',
+      status: 'scheduled',
+      targetDeliveryDate: monthDay(9),
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+      actualDeliveryDate: null,
+      isLate: false,
+      dependencyIds: [],
+      ...overrides,
+    } as TimelineHouseholdItem;
+  }
+
+  function itemByTitle(title: string): HTMLElement {
+    const el = screen
+      .getAllByTestId('calendar-item')
+      .find((e) => (e.textContent ?? '').includes(title));
+    if (!el) throw new Error(`No calendar item with title ${title}`);
+    return el;
+  }
+
+  function show(el: HTMLElement) {
+    fireEvent.mouseEnter(el, { clientX: 300, clientY: 200 });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+  }
+
+  it('re-entering an item before the leave delay ends keeps its tooltip', () => {
+    const item = makeWorkItem('wi-flicker', monthDay(5), monthDay(5));
+    renderCalendar({ workItems: [item] });
+    const el = screen.getByTestId('calendar-item');
+
+    fireEvent.mouseEnter(el, { clientX: 300, clientY: 200 });
+    fireEvent.mouseLeave(el);
+    fireEvent.mouseEnter(el, { clientX: 300, clientY: 200 });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+
+    expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+  });
+
+  it('moving the pointer over an item and over a milestone keeps its tooltip open', () => {
+    renderCalendar({
+      workItems: [makeWorkItem('wi-move', monthDay(5), monthDay(5))],
+      milestones: [makeMilestone(3, monthDay(12))],
+    });
+    show(screen.getByTestId('calendar-item'));
+    fireEvent.mouseMove(screen.getByTestId('calendar-item'), { clientX: 320, clientY: 210 });
+    expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+
+    const diamond = screen.getByTestId('calendar-milestone');
+    show(diamond);
+    fireEvent.mouseMove(diamond, { clientX: 330, clientY: 220 });
+    fireEvent.mouseLeave(diamond);
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+  });
+
+  it('hovering a milestone again before the hide delay ends keeps it showing', () => {
+    renderCalendar({ milestones: [makeMilestone(4, monthDay(12))] });
+    const diamond = screen.getByTestId('calendar-milestone');
+    show(diamond);
+    fireEvent.mouseLeave(diamond);
+    fireEvent.mouseEnter(diamond, { clientX: 200, clientY: 150 });
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Milestone 4');
+  });
+
+  it('lists predecessors and successors in a task tooltip and ignores edges to unknown tasks', () => {
+    const a = { ...makeWorkItem('wi-a', monthDay(5), monthDay(5)), title: 'Test Alpha' };
+    const b = { ...makeWorkItem('wi-b', monthDay(7), monthDay(7)), title: 'Test Beta' };
+    render(
+      <MemoryRouter>
+        <CalendarView
+          workItems={[a, b]}
+          milestones={[]}
+          dependencies={[
+            {
+              predecessorId: 'wi-a',
+              successorId: 'wi-b',
+              dependencyType: 'finish_to_start',
+              leadLagDays: 0,
+            },
+            {
+              predecessorId: 'wi-a',
+              successorId: 'wi-ghost',
+              dependencyType: 'finish_to_start',
+              leadLagDays: 0,
+            },
+            {
+              predecessorId: 'wi-ghost',
+              successorId: 'wi-b',
+              dependencyType: 'finish_to_start',
+              leadLagDays: 0,
+            },
+            {
+              predecessorId: 'wi-ghost',
+              successorId: 'wi-ghost-2',
+              dependencyType: 'finish_to_start',
+              leadLagDays: 0,
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    show(itemByTitle('Test Alpha'));
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test Beta');
+    expect(screen.getByTestId('gantt-tooltip')).not.toHaveTextContent('wi-ghost');
+
+    show(itemByTitle('Test Beta'));
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test Alpha');
+    expect(screen.getByTestId('gantt-tooltip')).not.toHaveTextContent('wi-ghost');
+  });
+
+  it('lists every task that depends on a milestone and skips linked tasks that are missing', () => {
+    const first = {
+      ...makeWorkItem('wi-r1', monthDay(14), monthDay(14)),
+      title: 'Test Needs One',
+      requiredMilestoneIds: [10],
+    };
+    const second = {
+      ...makeWorkItem('wi-r2', monthDay(16), monthDay(16)),
+      title: 'Test Needs Two',
+      requiredMilestoneIds: [10],
+    };
+    const linked = { ...makeWorkItem('wi-l', monthDay(3), monthDay(3)), title: 'Test Feeds It' };
+    const milestone = { ...makeMilestone(10, monthDay(12)), workItemIds: ['wi-l', 'wi-ghost'] };
+    renderCalendar({ workItems: [first, second, linked], milestones: [milestone] });
+
+    show(screen.getByTestId('calendar-milestone'));
+
+    const tip = screen.getByTestId('gantt-tooltip');
+    expect(tip).toHaveTextContent('Test Needs One');
+    expect(tip).toHaveTextContent('Test Needs Two');
+    expect(tip).toHaveTextContent('Test Feeds It');
+    expect(tip).not.toHaveTextContent('wi-ghost');
+  });
+
+  it('shows a milestone tooltip when the milestone lists no linked tasks field', () => {
+    const milestone = {
+      ...makeMilestone(11, monthDay(12)),
+      workItemIds: undefined,
+    } as unknown as TimelineMilestone;
+    renderCalendar({ milestones: [milestone] });
+    show(screen.getByTestId('calendar-milestone'));
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Milestone 11');
+  });
+
+  it('shows a purchase tooltip without links when its predecessors are unknown or missing', () => {
+    const lone = purchase('hi-lone', {
+      dependencyIds: [
+        { predecessorType: 'work_item', predecessorId: 'wi-ghost' },
+        { predecessorType: 'milestone', predecessorId: '99' },
+      ],
+    });
+    const solo = purchase('hi-solo', { targetDeliveryDate: monthDay(11) });
+    renderCalendar({ householdItems: [lone, solo] });
+
+    const items = screen.getAllByTestId('calendar-hi-item');
+    show(items[0]!);
+
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test hi-lone');
+    expect(screen.getByTestId('gantt-tooltip')).not.toHaveTextContent('wi-ghost');
+  });
+
+  it('links a purchase to a known milestone in its tooltip', () => {
+    const linkedPurchase = purchase('hi-ms', {
+      dependencyIds: [{ predecessorType: 'milestone', predecessorId: '10' }],
+    });
+    renderCalendar({
+      milestones: [makeMilestone(10, monthDay(2))],
+      householdItems: [linkedPurchase],
+    });
+
+    show(screen.getAllByTestId('calendar-hi-item')[0]!);
+
+    expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Milestone 10');
   });
 });

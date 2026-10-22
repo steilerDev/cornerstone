@@ -148,19 +148,6 @@
   max-width: 480px;
 }
 
-/* ---- Breakdown loading state ---- */
-
-.breakdownLoading {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-8);
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
 /* ============================================================
  * RESPONSIVE — Tablet (768px – 1024px)
  * ============================================================ */
@@ -205,10 +192,6 @@
   }
 
   .emptyState {
-    display: none !important;
-  }
-
-  .breakdownLoading {
     display: none !important;
   }
 }

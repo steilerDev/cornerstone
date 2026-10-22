@@ -14,7 +14,6 @@
     "expectedPayback": "Erwartete Rückzahlung",
     "costBreakdown": {
       "tableCaption": "Kostenaufschlüsselung nach Bereich und Element",
-      "loading": "Kostenaufschlüsselung wird geladen…",
       "title": "Kostenaufschlüsselung",
       "emptyState": "Keine Budgetdaten zum Anzeigen",
       "workItems": "Arbeitspakete",
@@ -24,7 +23,9 @@
       "availableFundsFilter": {
         "activeFilterCaption": "({{selected}} von {{total}} ausgewählt)"
       },
-      "remainingBudget": "Verbleibendes Budget",
+      "leftToSpend": "Noch verfügbar",
+      "leftToSpendNoFigure": "Noch keine Angabe",
+      "leftToSpendWholeProject": "Gesamtes Projekt",
       "quoted": "Angebot",
       "tableHeaders": {
         "name": "Name",
@@ -884,7 +885,7 @@
     "summaryQuotation": "Angebote",
     "summaryQuotationCovered": "{{amount}} bereits hinterlegt",
     "summaryClaimable": "Einreichbar",
-    "summaryClaimableHint": "Ohne Eigenanteil",
+    "summaryClaimableHint": "Nur Darlehen und Kreditlinien",
     "summaryOverdue": "Überfällig",
     "summaryOverdueWarning_one": "{{count}} Rechnung zu zahlen ist überfällig",
     "summaryOverdueWarning_other": "{{count}} Rechnungen zu zahlen sind überfällig",

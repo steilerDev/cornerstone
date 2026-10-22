@@ -16,6 +16,7 @@ import {
   getBreakdownMoney,
   getExpectedGrantsByHouseholdItem,
   getItemGrantPayback,
+  getReadyToSubmit,
   listOpenPayments,
   loadMoneyInput,
 } from './moneyService.js';
@@ -515,6 +516,108 @@ describe('moneyService', () => {
         amount: 400,
       });
       expect(s.readyToSubmit).toEqual({ count: 1, amount: 1000 });
+    });
+  });
+
+  describe('getReadyToSubmit (#2232)', () => {
+    function fundedInvoice(sourceId: string, amount: number, status: 'pending' | 'paid'): string {
+      const line = wiLine(workItem(), { planned: amount, source: sourceId });
+      const inv = invoice(amount, status);
+      link(inv, line, 'work_item', amount);
+      return inv;
+    }
+
+    it('is zero with an empty bySource map when there are no sources', () => {
+      expect(getReadyToSubmit(db)).toEqual({ count: 0, amount: 0, bySource: new Map() });
+    });
+
+    it('is zero when only savings and other sources exist, and leaves them out of bySource', () => {
+      source('save', 'savings', 50000);
+      source('misc', 'other', 50000);
+      fundedInvoice('save', 100, 'pending');
+      fundedInvoice('misc', 200, 'paid');
+      const result = getReadyToSubmit(db);
+      expect(result.count).toBe(0);
+      expect(result.amount).toBe(0);
+      expect(result.bySource.size).toBe(0);
+    });
+
+    it('reports loan and credit-line sources separately and adds them up', () => {
+      source('loan', 'bank_loan', 50000);
+      source('credit', 'credit_line', 50000);
+      source('save', 'savings', 50000);
+      fundedInvoice('loan', 5000, 'pending');
+      fundedInvoice('loan', 3000, 'paid');
+      fundedInvoice('credit', 700.5, 'pending');
+      fundedInvoice('save', 999, 'pending');
+      const result = getReadyToSubmit(db);
+      expect(result.bySource.get('loan')).toEqual({ count: 2, amount: 8000 });
+      expect(result.bySource.get('credit')).toEqual({ count: 1, amount: 700.5 });
+      expect(result.bySource.has('save')).toBe(false);
+      expect(result.count).toBe(3);
+      expect(result.amount).toBe(8700.5);
+    });
+
+    it('counts an invoice shared by two loan sources once, while each source keeps its share', () => {
+      source('loan-1', 'bank_loan', 50000);
+      source('loan-2', 'bank_loan', 50000);
+      const inv = invoice(1000, 'pending');
+      link(inv, wiLine(workItem(), { planned: 600, source: 'loan-1' }), 'work_item', 600);
+      link(inv, wiLine(workItem(), { planned: 400, source: 'loan-2' }), 'work_item', 400);
+      const result = getReadyToSubmit(db);
+      expect(result.count).toBe(1);
+      expect(result.amount).toBe(1000);
+      expect(result.bySource.get('loan-1')).toEqual({ count: 1, amount: 600 });
+      expect(result.bySource.get('loan-2')).toEqual({ count: 1, amount: 400 });
+    });
+
+    it('keeps a loan source without invoices in bySource as zero', () => {
+      source('loan', 'bank_loan', 50000);
+      expect(getReadyToSubmit(db).bySource.get('loan')).toEqual({ count: 0, amount: 0 });
+    });
+
+    it('matches computeProjectMoney readyToSubmit for the same data', () => {
+      source('loan', 'bank_loan', 50000);
+      fundedInvoice('loan', 1234.56, 'pending');
+      const s = summary();
+      const result = getReadyToSubmit(db);
+      expect({ count: result.count, amount: result.amount }).toEqual(s.readyToSubmit);
+    });
+  });
+
+  describe('Invoices summary.claimable follows ready to submit (#2232)', () => {
+    function fundedInvoice(sourceId: string | null, amount: number): string {
+      const line = wiLine(workItem(), { planned: amount, source: sourceId });
+      const inv = invoice(amount, 'pending');
+      link(inv, line, 'work_item', amount);
+      return inv;
+    }
+
+    it('does not count a pending invoice funded by own funds or by a savings source', () => {
+      source('save', 'savings', 50000);
+      fundedInvoice(null, 400);
+      fundedInvoice('save', 300);
+      fundedInvoice('discretionary-system', 200);
+      const summaryOut = listAllInvoices(db, {}).summary;
+      expect(summaryOut.claimable).toEqual({ count: 0, totalAmount: 0 });
+    });
+
+    it('counts a loan-funded pending invoice and equals the money service figure', () => {
+      source('loan', 'bank_loan', 50000);
+      fundedInvoice('loan', 900);
+      fundedInvoice(null, 400);
+      const claimable = listAllInvoices(db, {}).summary.claimable;
+      const money = summary().readyToSubmit;
+      expect(claimable).toEqual({ count: 1, totalAmount: 900 });
+      expect(claimable).toEqual({ count: money.count, totalAmount: money.amount });
+    });
+
+    it('stays global when the listing is filtered', () => {
+      source('loan', 'bank_loan', 50000);
+      fundedInvoice('loan', 900);
+      const filtered = listAllInvoices(db, { status: 'paid' });
+      expect(filtered.invoices).toHaveLength(0);
+      expect(filtered.summary.claimable).toEqual({ count: 1, totalAmount: 900 });
     });
   });
 

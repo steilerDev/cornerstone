@@ -694,6 +694,7 @@ export function TimelinePage() {
             householdItems={filteredHouseholdItems}
             dependencies={data.dependencies}
             isEmpty={calendarIsEmpty}
+            holdsUp={data.holdsUp}
             onMilestoneClick={handleMilestoneClick}
           />
         )}

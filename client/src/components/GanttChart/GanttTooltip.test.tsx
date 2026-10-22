@@ -600,11 +600,12 @@ const DEFAULT_DEP_POSITION: GanttTooltipPosition = { x: 100, y: 200 };
 function renderWorkItemWithDeps(
   dependencies: WorkItemDependency[] | undefined,
   position: Partial<GanttTooltipPosition> = {},
+  holdsUpCount?: number,
 ) {
   return render(
     <MemoryRouter>
       <GanttTooltip
-        data={{ ...BASE_WORK_ITEM_DATA, dependencies }}
+        data={{ ...BASE_WORK_ITEM_DATA, dependencies, holdsUpCount }}
         position={{ ...DEFAULT_DEP_POSITION, ...position }}
       />
     </MemoryRouter>,
@@ -637,25 +638,33 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
   // ── AC-4: with dependencies → shows section ──────────────────────────────
 
   it('D-33: the word "Dependencies" never appears; the groups are named Waits for / Holds up (#2198)', () => {
-    renderWorkItemWithDeps([
-      { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
-      { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
-    ]);
+    renderWorkItemWithDeps(
+      [
+        { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
+        { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
+      ],
+      {},
+      1,
+    );
     expect(screen.queryByText(/Dependencies/i)).not.toBeInTheDocument();
     expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Waits for (1)');
-    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up (1)');
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 1 task');
   });
 
-  it('D-33: groups: two predecessors and one successor give Waits for (2) before Holds up (1)', () => {
-    renderWorkItemWithDeps([
-      { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
-      { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
-      { relatedTitle: 'Pred Two', dependencyType: 'finish_to_start', role: 'predecessor' },
-    ]);
+  it('D-33: groups: two predecessors and one successor give Waits for (2) before Holds up 1 task', () => {
+    renderWorkItemWithDeps(
+      [
+        { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
+        { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
+        { relatedTitle: 'Pred Two', dependencyType: 'finish_to_start', role: 'predecessor' },
+      ],
+      {},
+      1,
+    );
     const waits = screen.getByTestId('gantt-tooltip-waits-for');
     const holds = screen.getByTestId('gantt-tooltip-holds-up');
     expect(waits).toHaveTextContent('Waits for (2)');
-    expect(holds).toHaveTextContent('Holds up (1)');
+    expect(holds).toHaveTextContent('Holds up 1 task');
     // Mutation caught: swapping `role` in either filter puts the titles in the wrong group.
     expect(within(waits).getByText(/Pred One/)).toBeInTheDocument();
     expect(within(waits).getByText(/Pred Two/)).toBeInTheDocument();
@@ -912,16 +921,19 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with dependentWorkItems shows "Holds up (N)" label', () => {
+  it('milestone tooltip with dependentWorkItems shows "Holds up n tasks" from holdsUpCount, not the list length', () => {
     const msWithDependents: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
+      holdsUpCount: 4,
       dependentWorkItems: [
         { id: 'wi-1', title: 'Framing' },
         { id: 'wi-2', title: 'Electrical Rough-in' },
       ],
     };
     render(<GanttTooltip data={msWithDependents} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText(/Holds up \(2\)/)).toBeInTheDocument();
+    const label = screen.getByText('Holds up 4 tasks');
+    expect(label).toHaveAttribute('data-figure', 'holds-up');
+    expect(screen.queryByText(/Holds up \(/)).not.toBeInTheDocument();
   });
 
   it('milestone tooltip with linkedWorkItems shows "Contributing (N)" label', () => {
@@ -941,10 +953,11 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
       ...MILESTONE_DATA,
       linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
       dependentWorkItems: [{ id: 'wi-2', title: 'Framing' }],
+      holdsUpCount: 1,
     };
     render(<GanttTooltip data={msWithBoth} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Holds up \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Holds up 1 task')).toBeInTheDocument();
     expect(screen.getByText('Site Prep')).toBeInTheDocument();
     expect(screen.getByText('Framing')).toBeInTheDocument();
   });
@@ -996,11 +1009,12 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     const msWithDependentsOnly: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       dependentWorkItems: [{ id: 'wi-1', title: 'Framing' }],
+      holdsUpCount: 1,
     };
     render(<GanttTooltip data={msWithDependentsOnly} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('Contributing')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
-    expect(screen.getByText(/Holds up \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText('Holds up 1 task')).toBeInTheDocument();
   });
 });
 
@@ -1638,6 +1652,7 @@ describe('GanttTooltip — milestone chip and labels (#2198)', () => {
       <GanttTooltip
         data={{
           ...MS,
+          holdsUpCount: 0,
           dependentWorkItems: Array.from({ length: 7 }, (_, i) => ({
             id: `wi-${i}`,
             title: `Task ${i + 1}`,
@@ -1646,7 +1661,7 @@ describe('GanttTooltip — milestone chip and labels (#2198)', () => {
         position={DEFAULT_POSITION}
       />,
     );
-    expect(screen.getByText(/Holds up \(7\)/)).toBeInTheDocument();
+    expect(screen.getByText('Holds up 0 tasks')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Tasks this milestone holds up' })).toBeInTheDocument();
     expect(screen.getByText('+2 more')).toBeInTheDocument();
   });
@@ -1671,16 +1686,17 @@ describe('GanttTooltip — de-DE group labels (#2198)', () => {
     localStorage.setItem('locale', 'de');
   });
 
-  it('names the task groups "Wartet auf" and "Hält auf" and shows "Firma"', () => {
+  it('names the Waits for group "Wartet auf", the holds-up sentence "Hält n Aufgabe(n) auf" and shows "Firma"', () => {
     renderTooltip({
       assignedVendorName: 'Sample Tiling Ltd',
+      holdsUpCount: 1,
       dependencies: [
         { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
         { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
       ],
     });
     expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Wartet auf (1)');
-    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Hält auf (1)');
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Hält 1 Aufgabe auf');
     expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Firma');
   });
 });
@@ -1806,5 +1822,112 @@ describe('GanttTooltip — origin on the "View item" link (#2202)', () => {
 
     expect(probedPath()).toBe('/project/work-items/wi-origin');
     expect(probedOrigin()).toEqual({ to: '/schedule/gantt?filter=tasks' });
+  });
+});
+
+describe('GanttTooltip — Holds up count from the server (#2232)', () => {
+  const SUCC = (title: string): WorkItemDependency => ({
+    relatedTitle: title,
+    dependencyType: 'finish_to_start',
+    role: 'successor',
+  });
+
+  const MS_BASE: GanttTooltipMilestoneData = {
+    kind: 'milestone',
+    title: 'Roof Complete',
+    targetDate: '2024-07-01',
+    projectedDate: null,
+    isCompleted: false,
+    isLate: false,
+    completedAt: null,
+    linkedWorkItems: [],
+    dependentWorkItems: [],
+  };
+
+  function renderItem(data: Partial<GanttTooltipWorkItemData>) {
+    return render(
+      <MemoryRouter>
+        <GanttTooltip data={{ ...BASE_WORK_ITEM_DATA, ...data }} position={{ x: 100, y: 200 }} />
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows the server count even when it is larger than the direct successor list', () => {
+    renderItem({ dependencies: [SUCC('Framing')], holdsUpCount: 5 });
+    const holds = screen.getByTestId('gantt-tooltip-holds-up');
+    expect(holds).toHaveTextContent('Holds up 5 tasks');
+    expect(within(holds).getByText('Framing')).toBeInTheDocument();
+    expect(holds).not.toHaveTextContent('(1)');
+  });
+
+  it('shows "Holds up 0 tasks" for a finished direct successor the server does not count', () => {
+    renderItem({ dependencies: [SUCC('Finished Task')], holdsUpCount: 0 });
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 0 tasks');
+  });
+
+  it('defaults the count to 0 when holdsUpCount is absent', () => {
+    renderItem({ dependencies: [SUCC('Framing')] });
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 0 tasks');
+  });
+
+  it('shows the count without a list when only a milestone gate holds tasks up', () => {
+    renderItem({ dependencies: undefined, holdsUpCount: 3 });
+    const holds = screen.getByTestId('gantt-tooltip-holds-up');
+    expect(holds).toHaveTextContent('Holds up 3 tasks');
+    expect(holds.querySelector('li')).toBeNull();
+    expect(holds.querySelector('ul')).toHaveAttribute('hidden');
+  });
+
+  it('renders no Holds up group without a successor or a count', () => {
+    renderItem({ dependencies: undefined, holdsUpCount: 0 });
+    expect(screen.queryByTestId('gantt-tooltip-holds-up')).not.toBeInTheDocument();
+  });
+
+  it('uses the singular sentence for a count of 1', () => {
+    renderItem({ dependencies: [SUCC('Framing')], holdsUpCount: 1 });
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up 1 task');
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).not.toHaveTextContent('tasks');
+  });
+
+  it('marks the count with data-figure="holds-up" on the work item tooltip', () => {
+    renderItem({ dependencies: [SUCC('Framing')], holdsUpCount: 2 });
+    const marked = document.querySelectorAll('[data-figure="holds-up"]');
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.textContent).toBe('Holds up 2 tasks');
+  });
+
+  it('does not mark the Waits for label as a figure', () => {
+    renderItem({
+      dependencies: [
+        { relatedTitle: 'Pred', dependencyType: 'finish_to_start', role: 'predecessor' },
+      ],
+    });
+    expect(screen.getByTestId('gantt-tooltip-waits-for')).toBeInTheDocument();
+    expect(document.querySelector('[data-figure]')).toBeNull();
+  });
+
+  it('milestone tooltip defaults the count to 0 when holdsUpCount is absent', () => {
+    render(
+      <GanttTooltip
+        data={{ ...MS_BASE, dependentWorkItems: [{ id: 'wi-1', title: 'Framing' }] }}
+        position={{ x: 100, y: 200 }}
+      />,
+    );
+    expect(screen.getByText('Holds up 0 tasks')).toHaveAttribute('data-figure', 'holds-up');
+  });
+
+  it('milestone empty branch keeps "None" and has no figure marker', () => {
+    render(
+      <GanttTooltip
+        data={{
+          ...MS_BASE,
+          linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
+          holdsUpCount: 0,
+        }}
+        position={{ x: 100, y: 200 }}
+      />,
+    );
+    expect(screen.getByText('None')).toBeInTheDocument();
+    expect(document.querySelector('[data-figure]')).toBeNull();
   });
 });

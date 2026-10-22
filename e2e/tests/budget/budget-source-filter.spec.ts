@@ -32,6 +32,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage, BUDGET_OVERVIEW_ROUTE } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
+import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock data helpers
@@ -797,7 +798,7 @@ async function mountOverviewRoutes(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ overview: overviewBody }),
+        body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
       });
     } else {
       await route.continue();
@@ -1415,7 +1416,10 @@ test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, (
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ overview: makeBudgetOverviewResponse() }),
+          body: JSON.stringify({
+            overview: makeBudgetOverviewResponse(),
+            money: mockMoneySummary(),
+          }),
         });
       } else {
         await route.continue();
@@ -2356,10 +2360,10 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Filter-aware summary rows (Available Funds + Remaining Budget)
+// Filter-aware summary rows (Available Funds + Left to spend)
 // AC refs: #4 (restore on re-select), #5 (zero sources), #8 (print hiding)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', () => {
+test.describe('Filter-aware summary rows (Available Funds + Left to spend)', () => {
   /**
    * Build a breakdown with two real sources (Source A: 150 000, Source B: 100 000)
    * and a deterministic projected cost (rawProjectedMin === rawProjectedMax === 20 000)
@@ -2622,16 +2626,11 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
     }
   });
 
-  test('Scenario 2 — Remaining Budget Cost updates when a source is deselected', async ({
+  test('Scenario 2 — Left to spend stays and reads Whole project when a source is deselected', async ({
     page,
   }) => {
-    // Source A: totalAmount=150 000, Source B: totalAmount=100 000
-    // Initial (both selected): totalRawProjected = (20 000+20 000)/2 = 20 000
-    //   Remaining Budget Cost = 250 000 - 20 000 = 230 000
-    // After deselecting Source B (Equity): server returns filtered breakdown with
-    //   wiTotals.rawProjectedMin/Max = 10 000 → totalRawProjected = 10 000
-    //   filteredAvailableFunds = 150 000 (Bank Loan only)
-    //   Remaining Budget Cost = 150 000 - 10 000 = 140 000
+    // Left to spend is the money service's whole-project figure (#2232): the source filter
+    // narrows the breakdown and Available funds, never this row. Mock money.leftToSpend = 230 000.
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -2644,15 +2643,11 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Locate the "Remaining Budget" row by its label text
-      const remainingRow = overviewPage.costBreakdownCard
-        .getByRole('row')
-        .filter({ hasText: /remaining budget/i });
-
-      // Remaining Budget Cost cell (td index 1 = "Cost" column)
-      const costCell = remainingRow.locator('td').nth(1);
-      // Should reflect 230 000 (250 000 - 20 000)
-      await expect(costCell).toContainText('230');
+      const row = overviewPage.leftToSpendRow;
+      await expect(row).toHaveCount(1);
+      await expect(overviewPage.leftToSpendFigure).toContainText('230');
+      await expect(row).not.toContainText('Whole project');
+      await expect(row).not.toContainText(/remaining budget/i);
 
       // Expand source rows
       await overviewPage.availableFundsButton().click();
@@ -2666,11 +2661,10 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
       await refetchPromise;
 
-      // Remaining Budget Cost = 150 000 - 10 000 = 140 000.
-      // Use toContainText (retrying) to avoid reading a stale value before React
-      // commits the re-render after the refetch.
-      await expect(costCell).toContainText('140');
-      await expect(costCell).not.toContainText('230');
+      // The figure does not move; the caption says it covers the whole project.
+      await expect(row).toContainText('Whole project');
+      await expect(overviewPage.leftToSpendFigure).toContainText('230');
+      await expect(overviewPage.leftToSpendFigure).toHaveCount(1);
     } finally {
       await teardown();
     }

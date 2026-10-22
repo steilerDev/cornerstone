@@ -3,7 +3,7 @@
  */
 import type { BreakdownMoney, MoneyCostFigures } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
@@ -689,7 +689,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
   });
 
-  it('shows Sum and Remaining labels in bottom totals rows', () => {
+  it('shows Sum label in bottom totals rows', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
@@ -704,7 +704,7 @@ describe('CostBreakdownTable', () => {
 
     // The bottom totals section has a 'Sum' row and a 'Remaining Budget' row.
     expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
   });
 
   it('shows Work Items label in summary', () => {
@@ -1218,6 +1218,7 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        leftToSpend={{ expected: 98800, best: 99000, worst: 98000, verdict: 'on_budget' }}
         paymentStatus="all"
         onPaymentStatusChange={() => {}}
       />,
@@ -1225,6 +1226,9 @@ describe('CostBreakdownTable', () => {
 
     const positiveElements = container.querySelectorAll('.valuePositive');
     expect(positiveElements.length).toBeGreaterThan(0);
+    expect(
+      screen.getByTestId('cost-breakdown-left-to-spend').querySelector('[data-figure]'),
+    ).toHaveClass('valuePositive');
   });
 
   // ── 29. Remaining value negative → valueNegative CSS class ───────────────
@@ -1509,7 +1513,7 @@ describe('CostBreakdownTable', () => {
 
   // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
 
-  it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds", "Remaining Budget"', () => {
+  it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds" (and no "Remaining Budget")', () => {
     const breakdown: BudgetBreakdown = {
       money: emptyBreakdownMoney(),
       workItems: {
@@ -1596,7 +1600,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Household Items')).toBeInTheDocument();
     expect(screen.getByText('Sum')).toBeInTheDocument();
     expect(screen.getByText('Available funds')).toBeInTheDocument();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
   });
 
   // ── Category sum row visibility — Bug #585 fix ────────────────────────────
@@ -2098,136 +2102,6 @@ describe('CostBreakdownTable', () => {
     expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
   });
 
-  // ── Remaining Row Calculation (Scenarios 18–21) ──────────────────────────
-  // Note: these values now appear in the Remaining row (not Sum row).
-  // Remaining Cost = availableFunds - totalRawProjected
-  // Remaining Net  = availableFunds - totalRawProjected + totalPayback (from breakdown totals)
-
-  // Scenario 18: Remaining Net for default Avg perspective
-  // Remaining Net uses perspective-resolved payback: resolveProjected(minPayback, maxPayback, perspective)
-  it('Remaining Net = availableFunds - avgRawProjected + resolvedPayback for default Avg perspective', () => {
-    // availableFunds=10000
-    // rawProjectedMin=3000, rawProjectedMax=5000 → avgRaw=4000
-    // minSubsidyPayback=800, subsidyPayback=1200 → avgPayback=resolveProjected(800,1200,'avg')=1000
-    // Remaining Net = 10000 - 4000 + 1000 = 7000
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 3000,
-          projectedMax: 5000,
-          rawProjectedMin: 3000,
-          rawProjectedMax: 5000,
-          subsidyPayback: 1200,
-          minSubsidyPayback: 800,
-          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
-        })}
-        overview={buildOverview(10000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Default perspective is Avg: Remaining Net = 10000 - 4000 + 1000 = 7000
-    expect(screen.getByText('€7,000.00')).toBeInTheDocument();
-  });
-
-  // Scenario 19: Max perspective uses subsidyPayback (max) and rawProjectedMax
-  it('Max perspective uses subsidyPayback and rawProjectedMax for Remaining Net', () => {
-    // availableFunds=20000
-    // rawProjectedMax=8000, subsidyPayback=2000
-    // Remaining Net (Max) = 20000 - 8000 + 2000 = 14000
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 5000,
-          projectedMax: 8000,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 8000,
-          subsidyPayback: 2000,
-          minSubsidyPayback: 1000,
-          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
-        })}
-        overview={buildOverview(20000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Switch to Max perspective
-    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
-
-    // Remaining Net (Max) = 20000 - 8000 + 2000 = 14000
-    expect(screen.getByText('€14,000.00')).toBeInTheDocument();
-  });
-
-  // Scenario 20: Min perspective uses rawProjectedMin and minSubsidyPayback for Remaining Net
-  it('Min perspective: Remaining Net = availableFunds - rawProjectedMin + minSubsidyPayback', () => {
-    // availableFunds=20000
-    // rawProjectedMin=5000; minSubsidyPayback=1000 → resolveProjected(1000, 2000, 'min') = 1000
-    // Remaining Net (Min) = 20000 - 5000 + 1000 = 16000
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 5000,
-          projectedMax: 8000,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 8000,
-          subsidyPayback: 2000,
-          minSubsidyPayback: 1000,
-          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
-        })}
-        overview={buildOverview(20000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-
-    // Remaining Net (Min) = 20000 - 5000 + 1000 = 16000
-    expect(screen.getByText('€16,000.00')).toBeInTheDocument();
-  });
-
-  // Scenario 21: Avg perspective averages both rawProjected and payback for Remaining Net
-  it('Avg perspective averages both rawProjected and payback for Remaining Net', () => {
-    // availableFunds=20000
-    // rawProjectedMin=5000, rawProjectedMax=8000 → avgRaw=resolveProjected(5000,8000,'avg')=6500
-    // minSubsidyPayback=1000, subsidyPayback=2000 → avgPayback=resolveProjected(1000,2000,'avg')=1500
-    // Remaining Net (Avg) = 20000 - 6500 + 1500 = 15000
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 5000,
-          projectedMax: 8000,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 8000,
-          subsidyPayback: 2000,
-          minSubsidyPayback: 1000,
-          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
-        })}
-        overview={buildOverview(20000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Avg is default — no need to click
-    // Remaining Net (Avg) = 20000 - 6500 + 1500 = 15000
-    expect(screen.getByText('€15,000.00')).toBeInTheDocument();
-  });
-
   // ── New Scenarios (Issue #493) ─────────────────────────────────────────────
 
   // Scenario 8: Toggle order — Min first, Avg second, Max third
@@ -2474,7 +2348,7 @@ describe('CostBreakdownTable', () => {
   });
 
   // Scenario 17: "Sum" label appears AND "Remaining Budget" row also appears
-  it('"Sum" label appears in summary section and "Remaining Budget" row is also present', () => {
+  it('"Sum" label appears in summary section and the retired "Remaining Budget" row is gone', () => {
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -2488,7 +2362,7 @@ describe('CostBreakdownTable', () => {
     );
 
     expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
   });
 
   // Scenario 18: Sum row Cost = -totalRawProjected (Avg default)
@@ -2496,7 +2370,6 @@ describe('CostBreakdownTable', () => {
     // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
     // Avg raw = (3000+5000)/2 = 4000
     // Sum Cost = -€4,000.00 (formatCost of totalRawProjected)
-    // Remaining Cost = 10000 - 4000 = 6000 → €6,000.00
     render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({
@@ -2517,8 +2390,6 @@ describe('CostBreakdownTable', () => {
 
     // Sum row Cost column shows "-€4,000.00" (negative raw projected cost)
     expect(screen.getAllByText('-€4,000.00').length).toBeGreaterThanOrEqual(1);
-    // Remaining row Cost column shows "€6,000.00" (availableFunds - totalRawProjected)
-    expect(screen.getAllByText('€6,000.00').length).toBeGreaterThanOrEqual(1);
   });
 
   // Scenario 19: Sum Net and Remaining Net (perspective-aware)
@@ -2551,62 +2422,6 @@ describe('CostBreakdownTable', () => {
     // Sum Net = payback - rawCost = 150 - 4000 = -3850
     // (may appear multiple times across section rows and Sum row)
     expect(screen.getAllByText('-€3,850.00').length).toBeGreaterThanOrEqual(1);
-    // Remaining Net = availableFunds - totalRawProjected + resolvedPayback = 10000 - 4000 + 150 = 6150
-    expect(screen.getByText('€6,150.00')).toBeInTheDocument();
-  });
-
-  // Scenario 20: Remaining row Cost shows availableFunds - totalRawProjected with positive/negative coloring
-  it('Remaining row Cost shows availableFunds - totalRawProjected with green color when positive', () => {
-    // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000 → avgRaw=4000
-    // Remaining Cost = 10000 - 4000 = 6000 → positive → valuePositive CSS class
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 3000,
-          projectedMax: 5000,
-          rawProjectedMin: 3000,
-          rawProjectedMax: 5000,
-          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
-        })}
-        overview={buildOverview(10000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Remaining Budget row Cost column shows "€6,000.00" (positive, so valuePositive class)
-    const positiveSpan = container.querySelector('.valuePositive');
-    expect(positiveSpan).not.toBeNull();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
-    expect(screen.getAllByText('€6,000.00').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('Remaining row Cost shows availableFunds - totalRawProjected with red color when negative', () => {
-    // availableFunds=100, rawProjectedMin=5000, rawProjectedMax=5000 → avgRaw=5000
-    // Remaining Cost = 100 - 5000 = -4900 → negative → valueNegative CSS class
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 5000,
-          projectedMax: 5000,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 5000,
-        })}
-        overview={buildOverview(100)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const negativeSpan = container.querySelector('.valueNegative');
-    expect(negativeSpan).not.toBeNull();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
   });
 
   // ── Invoiced Badge (Issue #575) ────────────────────────────────────────────
@@ -4297,33 +4112,6 @@ describe('Server-driven render path (#1360)', () => {
     expect(costCell!.textContent?.replace(/\s+/g, '')).toBe('-€50,000.00');
   });
 
-  // ── Scenario 23: Remaining Budget row uses filteredAvailableFunds ────────────
-  // filteredAvailableFunds = sum of budgetSources not in deselectedSourceIds.
-  // With deselectedSourceIds=new Set(['src-1360-b']) (hypothetical — src-1360-b is
-  // not present in the breakdown so no source is filtered out), the computation is:
-  //   filteredAvailableFunds = src-1360-a.totalAmount(200000) + unassigned.totalAmount(0) = 200000
-  //   totalRawProjected avg = (40000+60000)/2 = 50000 (WI only, no HI)
-  //   adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess
-  //     totalMinPayback = 500 (wiTotals) + 0 (hiTotals) = 500
-  //     totalMaxPayback = 1000 + 0 = 1000
-  //     resolvedTotalPayback (avg) = (500+1000)/2 = 750
-  //     no subsidyAdjustments → excess = 0
-  //     adjustedTotalPayback = 750
-  //   Remaining Net = 200000 - 50000 + 750 = 150750 → '€150,750.00'
-
-  it('Remaining Budget row uses filteredAvailableFunds (Scenario 23)', () => {
-    const breakdown = buildServerFilteredBreakdown();
-    // filteredAvailableFunds = 200000 (src-1360-a.totalAmount=200000; src-1360-b not in sources)
-    renderWithRouter(breakdown, buildOverview(200000), {
-      deselectedSourceIds: new Set(['src-1360-b']), // hypothetical deselection (src not in breakdown)
-    });
-
-    const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
-    const remainingNetCell = remainingRow.querySelector('td[class*="colRemaining"]');
-    expect(remainingNetCell).not.toBeNull();
-    expect(remainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€150,750.00');
-  });
-
   // ── Scenario 24: All-deselected UX — full table renders when sources configured (#1360) ──
   // Regression guard: when the server prunes all areas because all sources are deselected
   // (wiAreas=[], hiAreas=[]) but budgetSources is non-empty, the early-return empty state
@@ -4377,9 +4165,9 @@ describe('Server-driven render path (#1360)', () => {
     // Available Funds row must be present (full table rendered, not early-return).
     expect(screen.getByText('Available funds')).toBeInTheDocument();
 
-    // Sum and Remaining Budget rows must be present.
+    // Sum row must be present.
     expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
+    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
 
     // Expand the Available Funds section to reveal source detail toggle rows.
     const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
@@ -4533,11 +4321,6 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
     return screen.getByText('Available funds').closest('tr') as HTMLElement;
   }
 
-  // Helper: get the Remaining Budget row <tr>
-  function getRemainingBudgetRow(): HTMLElement {
-    return screen.getByRole('row', { name: /remaining budget/i });
-  }
-
   // ── Scenario 1: All sources selected (deselectedSourceIds = empty set) ───────
   // filteredAvailableFunds = 150000 + 100000 = 250000
 
@@ -4593,191 +4376,6 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
     expect(costCell!.textContent).not.toContain('€250,000.00');
   });
 
-  // ── Scenario 4: Remaining Budget Cost column — all selected ──────────────────
-  // filteredAvailableFunds = 250000, totalRawProjected = 50000 (avg of 50000/50000)
-  // Remaining Budget Cost = 250000 - 50000 = 200000
-
-  it('Remaining Budget Cost column = filteredAvailableFunds - totalRawProjected when all sources selected (Scenario 4)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(),
-    });
-
-    const remainingRow = getRemainingBudgetRow();
-    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // 250000 - 50000 = 200000
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
-  });
-
-  // ── Scenario 5: Remaining Budget Cost column — one source deselected ─────────
-  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000
-  // Remaining Budget Cost = 150000 - 50000 = 100000 (NOT 250000 - 50000 = 200000)
-
-  it('Remaining Budget Cost column uses filteredAvailableFunds (not total) when one source is deselected (Scenario 5)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-b']),
-    });
-
-    const remainingRow = getRemainingBudgetRow();
-    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // filteredAvailableFunds (150000) - totalRawProjected (50000) = 100000
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€100,000.00');
-    // Must NOT use the unfiltered total: 250000 - 50000 = 200000
-    expect(costCell!.textContent).not.toContain('€200,000.00');
-  });
-
-  // ── Scenario 6: Remaining Budget Cost column — all sources deselected ────────
-  // deselectedSourceIds = {'src-a', 'src-b'} → filteredAvailableFunds = 0
-  // Remaining Budget Cost = 0 - 50000 = -50000 → negative, uses valueNegative CSS class
-
-  it('Remaining Budget Cost column is negative when all sources are deselected (Scenario 6)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-a', 'src-b']),
-    });
-
-    const remainingRow = getRemainingBudgetRow();
-    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // 0 - 50000 = -50000: value is negative
-    const costSpan = costCell!.querySelector('span');
-    expect(costSpan).not.toBeNull();
-    // Span text should contain the cost amount and a minus sign
-    expect(costSpan!.textContent).toContain('50,000.00');
-    expect(costSpan!.textContent).toContain('-');
-    // Span should have the valueNegative class (filteredAvailableFunds - totalRawProjected < 0)
-    expect(costSpan).toHaveClass('valueNegative');
-  });
-
-  // ── Scenario 7: Remaining Budget Net column uses filteredAvailableFunds ───────
-  // Build breakdown with adjustedTotalPayback > 0 to verify it's included.
-  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000
-  // totalRawProjected = 50000, adjustedTotalPayback = 5000 (from wi subsidyPayback)
-  // Remaining Budget Net = 150000 - 50000 + 5000 = 105000
-
-  it('Remaining Budget Net column = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback when source is deselected (Scenario 7)', () => {
-    // Use a breakdown with WI subsidy payback to make adjustedTotalPayback > 0
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            projectedMin: 50000,
-            projectedMax: 50000,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 5000,
-            rawProjectedMin: 50000,
-            rawProjectedMax: 50000,
-            minSubsidyPayback: 5000,
-            items: [
-              {
-                workItemId: 'wi-payback-1',
-                title: 'Subsidized Work',
-                projectedMin: 50000,
-                projectedMax: 50000,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 5000,
-                rawProjectedMin: 50000,
-                rawProjectedMax: 50000,
-                minSubsidyPayback: 5000,
-                costDisplay: 'projected',
-                budgetLines: [
-                  {
-                    id: 'line-payback-1',
-                    description: null,
-                    plannedAmount: 50000,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-a',
-                    origin: 'manual' as const,
-                  },
-                ],
-              },
-            ],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 50000,
-          projectedMax: 50000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 5000,
-          rawProjectedMin: 50000,
-          rawProjectedMax: 50000,
-          minSubsidyPayback: 5000,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        buildSourceSummary({
-          id: 'src-a',
-          name: 'Bank Loan',
-          totalAmount: 150000,
-          projectedMin: 40000,
-          projectedMax: 60000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 5000,
-          subsidyPaybackMax: 5000,
-        }),
-        buildSourceSummary({
-          id: 'src-b',
-          name: 'Equity',
-          totalAmount: 100000,
-          projectedMin: 10000,
-          projectedMax: 10000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 0,
-          subsidyPaybackMax: 0,
-        }),
-      ],
-    };
-
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-b']),
-    });
-
-    const remainingRow = getRemainingBudgetRow();
-    const netCell = remainingRow.querySelector('td[class*="colRemaining"]');
-    expect(netCell).not.toBeNull();
-    // filteredAvailableFunds (150000) - totalRawProjected (50000) + adjustedTotalPayback (5000) = 105000
-    expect(netCell!.textContent?.replace(/\s+/g, '')).toContain('€105,000.00');
-  });
-
   // ── Scenario 8: unassigned source deselected — totalAmount=0, no effect ──────
   // The 'unassigned' source has totalAmount=0. Deselecting it changes filteredAvailableFunds
   // by zero (subtracts 0 from the sum), so the totals stay the same as with it selected.
@@ -4824,7 +4422,7 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
   // First render with src-b deselected (filteredAvailableFunds=150000), then
   // re-render with empty deselectedSourceIds (filteredAvailableFunds=250000).
 
-  it('Available Funds and Remaining Budget restore to unfiltered values when deselectedSourceIds becomes empty (Scenario 9)', () => {
+  it('Available Funds restores to unfiltered values when deselectedSourceIds becomes empty (Scenario 9)', () => {
     const breakdown = buildTwoSourceBreakdown();
 
     // Phase 1: src-b deselected → filteredAvailableFunds = 150000
@@ -4854,12 +4452,6 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
     const availFundsRow2 = getAvailFundsRow();
     const costCell2 = availFundsRow2.querySelector('td[class*="colBudget"]');
     expect(costCell2!.textContent?.replace(/\s+/g, '')).toContain('€250,000.00');
-
-    // Remaining Budget Cost should also restore
-    const remainingRow = getRemainingBudgetRow();
-    const remainingCostCell = remainingRow.querySelector('td[class*="colBudget"]');
-    // 250000 - 50000 = 200000
-    expect(remainingCostCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
   });
 });
 
@@ -5149,5 +4741,561 @@ describe('item links carry origin state (#2202)', () => {
 
     expect(probedPath()).toBe('/project/household-items/hi-origin');
     expect(probedOrigin()).toEqual({ to: '/budget/overview?tab=breakdown' });
+  });
+});
+
+// ── Left to spend row (#2232): the money service's one figure ─────────────────
+
+describe('Left to spend row (#2232)', () => {
+  const ON_BUDGET = { expected: 98800, best: 99000, worst: 98000, verdict: 'on_budget' } as const;
+
+  function renderRow(
+    leftToSpend: React.ComponentProps<typeof CostBreakdownTableType>['leftToSpend'],
+    opts: Parameters<typeof renderWithRouter>[2] = {},
+    breakdown: BudgetBreakdown = buildBreakdownWithWI({
+      projectedMin: 800,
+      projectedMax: 1200,
+      rawProjectedMin: 800,
+      rawProjectedMax: 1200,
+      budgetSources: [buildSourceSummary({ id: 'src-1', totalAmount: 100000 })],
+    }),
+  ) {
+    return render(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={breakdown}
+          overview={buildOverview(100000)}
+          deselectedSourceIds={opts.deselectedSourceIds ?? new Set()}
+          onSourceToggle={() => {}}
+          onSelectAllSources={() => {}}
+          paymentStatus={opts.paymentStatus ?? 'all'}
+          onPaymentStatusChange={() => {}}
+          leftToSpend={leftToSpend}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows the formatted expected figure with the figure marker and the verdict chip', () => {
+    renderRow(ON_BUDGET);
+
+    const row = screen.getByTestId('cost-breakdown-left-to-spend');
+    expect(row).toHaveTextContent('Left to spend');
+    const figure = row.querySelector('[data-figure="left-to-spend"]')!;
+    expect(figure.textContent).toBe('€98,800.00');
+    expect(figure).toHaveClass('valuePositive');
+    expect(row).toHaveTextContent('On budget');
+  });
+
+  it('colours a negative figure red and shows the Over budget chip', () => {
+    renderRow({ expected: -250, best: -100, worst: -400, verdict: 'over_budget' });
+
+    const row = screen.getByTestId('cost-breakdown-left-to-spend');
+    const figure = row.querySelector('[data-figure="left-to-spend"]')!;
+    expect(figure.textContent).toBe('-€250.00');
+    expect(figure).toHaveClass('valueNegative');
+    expect(row).toHaveTextContent('Over budget');
+  });
+
+  it('renders an en dash named "No figure yet" and no chip when the verdict is null', () => {
+    renderRow({ expected: 0, best: 0, worst: 0, verdict: null });
+
+    const row = screen.getByTestId('cost-breakdown-left-to-spend');
+    const figure = within(row).getByRole('img', { name: 'No figure yet' });
+    expect(figure).toHaveAttribute('data-figure', 'left-to-spend');
+    expect(figure.textContent).toBe('–');
+    expect(row).not.toHaveTextContent('On budget');
+    expect(row).not.toHaveTextContent('Over budget');
+  });
+
+  it('renders no Left to spend row without the prop or with null', () => {
+    const { unmount } = renderRow(undefined);
+    expect(screen.queryByTestId('cost-breakdown-left-to-spend')).not.toBeInTheDocument();
+    unmount();
+    renderRow(null);
+    expect(screen.queryByTestId('cost-breakdown-left-to-spend')).not.toBeInTheDocument();
+    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
+  });
+
+  it('shows exactly one left-to-spend figure', () => {
+    const { container } = renderRow(ON_BUDGET);
+    expect(container.querySelectorAll('[data-figure="left-to-spend"]')).toHaveLength(1);
+  });
+
+  it('does not show "Whole project" when no filter is active', () => {
+    renderRow(ON_BUDGET);
+    expect(screen.queryByText('Whole project')).not.toBeInTheDocument();
+  });
+
+  it('shows "Whole project" when a source is deselected', () => {
+    renderRow(ON_BUDGET, { deselectedSourceIds: new Set(['src-1']) });
+    expect(screen.getByText('Whole project')).toBeInTheDocument();
+  });
+
+  it.each(['paid', 'outstanding'] as const)(
+    'shows "Whole project" when payment status is %s',
+    (paymentStatus) => {
+      renderRow(ON_BUDGET, { paymentStatus });
+      expect(screen.getByText('Whole project')).toBeInTheDocument();
+    },
+  );
+
+  it('keeps the same figure when the source filter, payment status and perspective change', () => {
+    const { rerender } = renderRow(ON_BUDGET);
+    const read = () =>
+      screen
+        .getByTestId('cost-breakdown-left-to-spend')
+        .querySelector('[data-figure="left-to-spend"]')!.textContent;
+    expect(read()).toBe('€98,800.00');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
+    expect(read()).toBe('€98,800.00');
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+    expect(read()).toBe('€98,800.00');
+
+    rerender(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={buildBreakdownWithWI({
+            projectedMin: 800,
+            projectedMax: 1200,
+            rawProjectedMin: 800,
+            rawProjectedMax: 1200,
+            budgetSources: [buildSourceSummary({ id: 'src-1', totalAmount: 100000 })],
+          })}
+          overview={buildOverview(100000)}
+          deselectedSourceIds={new Set(['src-1'])}
+          onSourceToggle={() => {}}
+          onSelectAllSources={() => {}}
+          paymentStatus="paid"
+          onPaymentStatusChange={() => {}}
+          leftToSpend={ON_BUDGET}
+        />
+      </MemoryRouter>,
+    );
+    expect(read()).toBe('€98,800.00');
+  });
+});
+
+// ── Branch coverage: nested areas, quoted rows, payments, adjustments, keys (#2232) ──
+
+describe('CostBreakdownTable — nested areas, quotations and keyboard (#2232 coverage)', () => {
+  const zeroTotals = {
+    projectedMin: 0,
+    projectedMax: 0,
+    actualCost: 0,
+    actualCostPaid: 0,
+    actualCostPending: 0,
+    subsidyPayback: 0,
+    rawProjectedMin: 0,
+    rawProjectedMax: 0,
+    minSubsidyPayback: 0,
+  };
+
+  type Line = BudgetBreakdown['workItems']['areas'][number]['items'][number]['budgetLines'][number];
+
+  const line = (over: Partial<Line> = {}): Line => ({
+    id: 'l1',
+    description: 'Wall plaster',
+    plannedAmount: 1000,
+    confidence: 'own_estimate',
+    actualCost: 0,
+    actualCostPaid: 0,
+    actualCostPending: 0,
+    hasInvoice: false,
+    isQuotation: false,
+    budgetSourceId: null,
+    origin: 'manual',
+    ...over,
+  });
+
+  const wiItem = (
+    id: string,
+    title: string,
+    costDisplay: 'actual' | 'projected' | 'quoted' | 'mixed',
+    lines: Line[],
+    over: Record<string, number> = {},
+  ) => ({
+    workItemId: id,
+    title,
+    ...zeroTotals,
+    rawProjectedMin: 900,
+    rawProjectedMax: 1100,
+    costDisplay,
+    budgetLines: lines,
+    ...over,
+  });
+
+  const hiItem = (
+    id: string,
+    name: string,
+    costDisplay: 'actual' | 'projected' | 'quoted' | 'mixed',
+    over: Record<string, number> = {},
+  ) => ({
+    householdItemId: id,
+    name,
+    ...zeroTotals,
+    rawProjectedMin: 400,
+    rawProjectedMax: 600,
+    costDisplay,
+    budgetLines: [line({ id: `${id}-l`, description: 'Sofa line' })],
+    ...over,
+  });
+
+  const area = <T,>(
+    areaId: string | null,
+    name: string,
+    items: T[],
+    children: unknown[] = [],
+    over: Record<string, number> = {},
+  ) => ({
+    areaId,
+    name,
+    parentId: null,
+    color: null,
+    ...zeroTotals,
+    rawProjectedMin: 900,
+    rawProjectedMax: 1100,
+    items,
+    children,
+    ...over,
+  });
+
+  function richBreakdown(): BudgetBreakdown {
+    const wiLines = [
+      line({
+        id: 'q1',
+        description: 'Quoted plaster',
+        isQuotation: true,
+        hasInvoice: true,
+        actualCost: 1000,
+        actualCostPaid: 200,
+        actualCostPending: 800,
+        budgetSourceId: 'src-long',
+      }),
+      line({
+        id: 'i1',
+        description: 'Invoiced paint',
+        hasInvoice: true,
+        actualCost: 500,
+        actualCostPaid: 100,
+        actualCostPending: 400,
+        budgetSourceId: 'src-short',
+      }),
+      line({ id: 'p1', description: 'Planned tiles', plannedAmount: 600 }),
+      line({ id: 'u1', description: 'Odd level', confidence: 'mystery_level' as never }),
+    ];
+    return {
+      money: emptyBreakdownMoney(),
+      workItems: {
+        areas: [
+          area(
+            'a-ground',
+            'Ground floor',
+            [
+              wiItem('wi-q', 'Quoted walls', 'quoted', wiLines),
+              wiItem('wi-a', 'Actual floor', 'actual', [line({ id: 'a1' })]),
+            ],
+            [area('a-kitchen', 'Kitchen', [wiItem('wi-k', 'Cabinets', 'projected', [line()])])],
+          ),
+        ],
+        totals: { ...zeroTotals, rawProjectedMin: 1800, rawProjectedMax: 2200 },
+      },
+      householdItems: {
+        areas: [
+          area(
+            'a-living',
+            'Living room',
+            [
+              hiItem('hi-q', 'Quoted sofa', 'quoted', {
+                subsidyPayback: 80,
+                minSubsidyPayback: 40,
+              }),
+              hiItem('hi-a', 'Actual lamp', 'actual'),
+            ],
+            [area('a-nook', 'Reading nook', [hiItem('hi-n', 'Armchair', 'projected')])],
+            { subsidyPayback: 80, minSubsidyPayback: 40 },
+          ),
+        ],
+        totals: {
+          ...zeroTotals,
+          rawProjectedMin: 800,
+          rawProjectedMax: 1200,
+          subsidyPayback: 80,
+          minSubsidyPayback: 40,
+        },
+      },
+      subsidyAdjustments: [
+        {
+          subsidyProgramId: 'sp-1',
+          name: 'Synthetic energy grant',
+          maximumAmount: 5000,
+          maxPayout: 6000,
+          minExcess: 100,
+          maxExcess: 300,
+        },
+      ],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-long', name: 'A very long synthetic source name' }),
+        buildSourceSummary({ id: 'src-short', name: 'Savings' }),
+        buildSourceSummary({ id: 'unassigned', name: 'Unassigned', totalAmount: 0 }),
+      ],
+    } as unknown as BudgetBreakdown;
+  }
+
+  function renderRich(
+    opts: {
+      paymentStatus?: 'all' | 'paid' | 'outstanding';
+      onSourceToggle?: (id: string | null) => void;
+      onSelectAllSources?: () => void;
+      breakdown?: BudgetBreakdown;
+    } = {},
+  ) {
+    return render(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={opts.breakdown ?? richBreakdown()}
+          overview={buildOverview(100000)}
+          deselectedSourceIds={new Set()}
+          onSourceToggle={opts.onSourceToggle ?? (() => {})}
+          onSelectAllSources={opts.onSelectAllSources ?? (() => {})}
+          paymentStatus={opts.paymentStatus ?? 'all'}
+          onPaymentStatusChange={() => {}}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
+
+  function expandWork() {
+    click('Expand work item budget by area');
+    click('Expand Ground floor');
+    click('Expand Kitchen');
+    click('Expand Quoted walls');
+  }
+
+  it('shows quoted and invoiced badges on work items and their child areas', () => {
+    renderRich();
+    expandWork();
+
+    const quotedRow = screen.getByText('Quoted walls').closest('tr')!;
+    expect(within(quotedRow).getByText('Quoted')).toBeInTheDocument();
+    const actualRow = screen.getByText('Actual floor').closest('tr')!;
+    expect(within(actualRow).getByText('invoiced')).toBeInTheDocument();
+    expect(screen.getByText('Cabinets')).toBeInTheDocument();
+  });
+
+  it('shows the Quoted badge on a quotation line, Invoiced on an invoiced line, and a confidence for the rest', () => {
+    renderRich();
+    expandWork();
+
+    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
+    expect(within(quoted).getByText('Quoted')).toBeInTheDocument();
+    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
+    expect(within(invoiced).getByText('invoiced')).toBeInTheDocument();
+    const planned = screen.getByText('Planned tiles').closest('tr')!;
+    expect(within(planned).getByText('own estimate')).toBeInTheDocument();
+  });
+
+  it('truncates a source name over 20 characters and keeps the full name in the title', () => {
+    renderRich();
+    expandWork();
+
+    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
+    const badge = within(quoted).getByTitle('A very long synthetic source name');
+    expect(badge).toHaveTextContent('A very long syntheti…');
+    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
+    expect(within(invoiced).getByText('Savings')).not.toHaveAttribute('title');
+  });
+
+  it('prices a line with an unknown confidence level without a margin', () => {
+    renderRich();
+    expandWork();
+
+    const odd = screen.getByText('Odd level').closest('tr')!;
+    // planned amount 1000, margin 0: the average is exactly the planned amount
+    expect(odd.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€1,000.00');
+  });
+
+  it('prices a quotation line at +-5% of the quote for All, and an invoiced line at its actual', () => {
+    renderRich();
+    expandWork();
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+
+    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
+    expect(quoted.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€950.00');
+    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
+    expect(invoiced.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€500.00');
+  });
+
+  it('prices lines for Outstanding: quote, pending invoice and uninvoiced plan', () => {
+    renderRich({ paymentStatus: 'outstanding' });
+    expandWork();
+    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
+
+    const cell = (title: string) =>
+      screen.getByText(title).closest('tr')!.querySelector('td[class*="colBudget"]');
+    expect(cell('Quoted plaster')).toHaveTextContent('-€950.00');
+    expect(cell('Invoiced paint')).toHaveTextContent('-€400.00');
+    expect(cell('Planned tiles')).toHaveTextContent('-€480.00');
+  });
+
+  it('prices lines for Paid with the paid portion only', () => {
+    renderRich({ paymentStatus: 'paid' });
+    expandWork();
+
+    const cell = (title: string) =>
+      screen.getByText(title).closest('tr')!.querySelector('td[class*="colBudget"]');
+    expect(cell('Quoted plaster')).toHaveTextContent('-€200.00');
+    expect(cell('Invoiced paint')).toHaveTextContent('-€100.00');
+    expect(cell('Planned tiles')).toHaveTextContent('-€0.00');
+  });
+
+  it('shows household areas, a child area, payback and badges when expanded', () => {
+    renderRich();
+    click('Expand household item budget by area');
+    click('Expand Living room');
+    click('Expand Reading nook');
+
+    const quoted = screen.getByText('Quoted sofa').closest('tr')!;
+    expect(within(quoted).getByText('Quoted')).toBeInTheDocument();
+    // payback shown (not an em dash) for the item and its area
+    expect(quoted.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
+    const area = screen.getByText('Living room').closest('tr')!;
+    expect(area.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
+    const actual = screen.getByText('Actual lamp').closest('tr')!;
+    expect(within(actual).getByText('invoiced')).toBeInTheDocument();
+    expect(actual.querySelector('td[class*="colPayback"]')).toHaveTextContent('—');
+    expect(screen.getByText('Armchair')).toBeInTheDocument();
+  });
+
+  it('shows the household section payback in its summary row', () => {
+    renderRich();
+    const row = screen
+      .getByRole('button', { name: 'Expand household item budget by area' })
+      .closest('tr')!;
+    expect(row.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
+  });
+
+  it('expands the subsidy adjustments and lists each program with its excess', () => {
+    renderRich();
+    const toggle = screen.getByRole('button', { name: 'Expand subsidy adjustments' });
+    expect(screen.queryByText('Synthetic energy grant')).not.toBeInTheDocument();
+    expect(toggle.querySelector('svg')).not.toHaveClass('chevronOpen');
+
+    fireEvent.click(toggle);
+
+    const row = screen.getByText('Synthetic energy grant').closest('tr')!;
+    // average of 100 and 300
+    expect(row).toHaveTextContent('-€200.00');
+    expect(toggle.querySelector('svg')).toHaveClass('chevronOpen');
+  });
+
+  it.each([
+    ['ArrowDown', 'Min', 'Avg'],
+    ['ArrowRight', 'Max', 'Min'],
+    ['ArrowUp', 'Avg', 'Min'],
+    ['ArrowLeft', 'Avg', 'Min'],
+  ])('%s on the %s segment selects %s and moves focus', (key, from, to) => {
+    renderRich();
+    fireEvent.keyDown(screen.getByRole('radio', { name: from }), { key });
+    expect(screen.getByRole('radio', { name: to })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: to })).toHaveFocus();
+  });
+
+  it('ignores other keys on a perspective segment', () => {
+    renderRich();
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'Avg' }), { key: 'Home' });
+    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  describe('Available funds rows', () => {
+    function openSources(over: Parameters<typeof renderRich>[0] = {}) {
+      const view = renderRich(over);
+      click('Expand available funds sources');
+      return view;
+    }
+
+    it('passes null for the Unassigned source on click and Enter, the id for others', () => {
+      const onSourceToggle = jest.fn<(id: string | null) => void>();
+      openSources({ onSourceToggle });
+
+      fireEvent.click(screen.getByRole('button', { name: /Unassigned/ }));
+      expect(onSourceToggle).toHaveBeenLastCalledWith(null);
+      fireEvent.keyDown(screen.getByRole('button', { name: /Unassigned/ }), { key: 'Enter' });
+      expect(onSourceToggle).toHaveBeenLastCalledWith(null);
+      fireEvent.keyDown(screen.getByRole('button', { name: /Savings/ }), { key: ' ' });
+      expect(onSourceToggle).toHaveBeenLastCalledWith('src-short');
+      expect(onSourceToggle).toHaveBeenCalledTimes(3);
+    });
+
+    it('selects all sources on Escape and ignores other keys', () => {
+      const onSourceToggle = jest.fn<(id: string | null) => void>();
+      const onSelectAllSources = jest.fn();
+      openSources({ onSourceToggle, onSelectAllSources });
+
+      const row = screen.getByRole('button', { name: /Savings/ });
+      fireEvent.keyDown(row, { key: 'a' });
+      expect(onSelectAllSources).not.toHaveBeenCalled();
+      expect(onSourceToggle).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(row, { key: 'Escape' });
+      expect(onSelectAllSources).toHaveBeenCalledTimes(1);
+      expect(onSourceToggle).not.toHaveBeenCalled();
+    });
+  });
+
+  it('nests child areas under a parent without an area id (the No Area bucket)', () => {
+    const base = richBreakdown();
+    renderRich({
+      breakdown: {
+        ...base,
+        workItems: {
+          ...base.workItems,
+          areas: [
+            area(
+              null,
+              'x',
+              [wiItem('wi-top', 'Top task', 'projected', [line()])],
+              [area('a-sub', 'Sub area', [wiItem('wi-sub', 'Sub task', 'projected', [line()])])],
+            ),
+          ],
+        },
+        householdItems: {
+          ...base.householdItems,
+          areas: [
+            area(
+              null,
+              'x',
+              [hiItem('hi-top', 'Top buy', 'projected')],
+              [area('hi-sub', 'Sub buy area', [hiItem('hi-sub-i', 'Sub buy', 'projected')])],
+            ),
+          ],
+        },
+      } as unknown as BudgetBreakdown,
+    });
+
+    click('Expand work item budget by area');
+    click('Expand No Area');
+    click('Expand Sub area');
+    expect(screen.getByText('Top task')).toBeInTheDocument();
+    expect(screen.getByText('Sub task')).toBeInTheDocument();
+
+    click('Expand household item budget by area');
+    click('Expand No Area');
+    click('Expand Sub buy area');
+    expect(screen.getByText('Top buy')).toBeInTheDocument();
+    expect(screen.getByText('Sub buy')).toBeInTheDocument();
+  });
+
+  it('renders a breakdown without budgetSources and without subsidyAdjustments', () => {
+    const base = richBreakdown();
+    const { budgetSources: _s, subsidyAdjustments: _a, ...rest } = base;
+    renderRich({ breakdown: rest as unknown as BudgetBreakdown });
+
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Expand subsidy adjustments' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Expand available funds sources' })).toBeNull();
   });
 });

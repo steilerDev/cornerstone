@@ -61,6 +61,15 @@ test.describe('Schedule tooltip company and dependency direction (Scenario 1 + 2
           }),
         ],
         dependencies: [mockDependency(A.id, B.id), mockDependency(B.id, C.id)],
+        // computeHoldsUp counts the whole chain: A holds up B and C, B holds up C
+        holdsUp: {
+          workItems: {
+            [A.id]: { count: 2, startingWithin14Days: 1 },
+            [B.id]: { count: 1, startingWithin14Days: 1 },
+            [C.id]: { count: 0, startingWithin14Days: 0 },
+          },
+          milestones: {},
+        },
       }),
     );
   }
@@ -86,7 +95,7 @@ test.describe('Schedule tooltip company and dependency direction (Scenario 1 + 2
 
       await expect(timelinePage.tooltipWaitsFor).toContainText('Waits for');
       await expect(timelinePage.tooltipWaitsFor).toContainText(A.title);
-      await expect(timelinePage.tooltipHoldsUp).toContainText('Holds up');
+      await expect(timelinePage.tooltipHoldsUp).toContainText('Holds up 1 task');
       await expect(timelinePage.tooltipHoldsUp).toContainText(C.title);
       // Each group lists only its own direction
       await expect(timelinePage.tooltipWaitsFor).not.toContainText(C.title);
@@ -118,7 +127,10 @@ test.describe('Schedule tooltip company and dependency direction (Scenario 1 + 2
       // A company-assigned task has no owner row
       await expect(timelinePage.tooltip).not.toContainText('Owner');
 
+      // The label counts the whole chain (B and C); the list shows the direct successor only
+      await expect(timelinePage.tooltipHoldsUp).toContainText('Holds up 2 tasks');
       await expect(timelinePage.tooltipHoldsUp).toContainText(B.title);
+      await expect(timelinePage.tooltipHoldsUp).not.toContainText(C.title);
       await expect(timelinePage.tooltipWaitsFor).toHaveCount(0);
 
       await expect(timelinePage.tooltip).not.toContainText(/Dependencies|Blocks|Downstream/);

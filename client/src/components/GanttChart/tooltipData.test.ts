@@ -147,6 +147,11 @@ describe('buildWorkItemTooltipData', () => {
     expect(buildWorkItemTooltipData(makeWorkItem(), undefined, TODAY).dependencies).toBeUndefined();
   });
 
+  it('carries the server holds-up count and defaults it to 0', () => {
+    expect(buildWorkItemTooltipData(makeWorkItem(), undefined, TODAY, 4).holdsUpCount).toBe(4);
+    expect(buildWorkItemTooltipData(makeWorkItem(), undefined, TODAY).holdsUpCount).toBe(0);
+  });
+
   it('computes actual duration from start/end dates', () => {
     const data = buildWorkItemTooltipData(makeWorkItem(), undefined, TODAY);
     expect(data.actualDurationDays).toBe(10);
@@ -351,6 +356,24 @@ describe('estimateWorkItemTooltipHeight', () => {
     expect(estimateWorkItemTooltipHeight({ ...base(), dependencies: deps }, max)).toBe(
       TOOLTIP_HEIGHT_BASE + ROW_HEIGHT * 7,
     );
+  });
+
+  it('adds the Holds up label row when only the server count is positive', () => {
+    expect(estimateWorkItemTooltipHeight({ ...base(), holdsUpCount: 3 }, max)).toBe(
+      TOOLTIP_HEIGHT_BASE + ROW_HEIGHT,
+    );
+  });
+
+  it('adds no Holds up row when the count is 0 and there are no successors', () => {
+    expect(estimateWorkItemTooltipHeight({ ...base(), holdsUpCount: 0 }, max)).toBe(
+      TOOLTIP_HEIGHT_BASE,
+    );
+  });
+
+  it('does not add a Waits for row for a positive holds-up count', () => {
+    const data = { ...base(), holdsUpCount: 2, dependencies: [dep('successor', 'B')] };
+    // one Holds up group: label + 1 entry
+    expect(estimateWorkItemTooltipHeight(data, max)).toBe(TOOLTIP_HEIGHT_BASE + ROW_HEIGHT * 2);
   });
 
   it('adds no overflow row when a group is exactly at the maximum', () => {

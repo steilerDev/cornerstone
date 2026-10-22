@@ -736,7 +736,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > tooltip (dates, company, area, 'Waits for' / 'Holds up n tasks' with direction)",
     "change": "same",
     "gate": "none",
-    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08). #2198: the tooltip names the company and splits dependencies into Waits for / Holds up (D-33)."
+    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08). #2198: the tooltip names the company and splits dependencies into Waits for / Holds up (D-33). #2232: Tasks › Schedule / Tasks › Calendar › work-item tooltip › 'Holds up n tasks' is now `computeHoldsUp` from GET /api/timeline `holdsUp` (every unfinished task that moves, chains and milestone gates included), the same count as Home's attention rows, not the number of direct successors; the direct list stays below it."
   },
   "WRK-106": {
     "name": "See milestones as diamonds with on-track / late / ahead / completed state",
@@ -752,7 +752,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > milestone tooltip",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the milestone tooltip groups say Holds up and \"+N more\" is translated."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the milestone tooltip groups say Holds up and \"+N more\" is translated. #2232: Tasks › Schedule / Tasks › Calendar › milestone tooltip › 'Holds up n tasks' is `computeHoldsUp` from GET /api/timeline `holdsUp`, as for WRK-105."
   },
   "WRK-108": {
     "name": "See household-item delivery windows on the Gantt and calendar, with a tooltip",
@@ -973,7 +973,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q4",
-    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used. #2228: Left to spend (expected/best/worst, strict verdict), Funding total, Expected cost, Expected grants, Paid, Still to pay served by the money service (`money` on GET /api/budget/overview); UI in 4.5 (Money › Overview) and 3.3 (Home › Pulse)."
+    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used. #2228: Left to spend (expected/best/worst, strict verdict), Funding total, Expected cost, Expected grants, Paid, Still to pay served by the money service (`money` on GET /api/budget/overview); UI in 4.5 (Money › Overview) and 3.3 (Home › Pulse). #2232: interim Money › Overview › Breakdown summary › 'Left to spend' row (until the 4.5 headline) replaces the legacy 'Remaining Budget' pair (before and after payback, computed in the client over all sources): one figure, `money.leftToSpend` with the verdict chip, the same as Home › Pulse; it ignores perspective, cost basis and the source filter and reads 'Whole project' while a filter is active. The before/after-payback pair is merged into this one figure (its target); equality with Home is tested (figure registry)."
   },
   "MNY-010": {
     "name": "Expand Available funds into per-source allocated cost, payback and net headroom",
@@ -1211,7 +1211,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Invoices > Status chip counts per status incl. To pay; 'Refunds due' chip when > 0; Overview headline Still to pay; Financing Ready to submit; Offers count on the Offers chip.",
-    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Money › Invoices › summary tiles: 'Ready to submit' now comes from the money service (`getReadyToSubmit`, the bank report's draw-down set over loans and credit lines, the same figure as Home's ready-to-submit rows); hint 'Loans and credit lines only'. 'Still to pay' and 'Ready to submit' carry `data-figure` and are tested equal to the money service."
   },
   "MNY-048": {
     "name": "Search invoices by invoice number",
@@ -1919,7 +1919,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Companies › Company page › summary ('Outstanding Balance', the legacy label until 4.12): both amounts carry `data-figure=\"still-to-pay\"` and are tested equal to the company's server balance."
   },
   "MNY-140": {
     "name": "View and edit vendor master data",
@@ -3647,7 +3647,7 @@
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Home > Pulse); every old URL redirects there in one hop.",
     "decision": "Q4",
-    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3. #2230: Home › Pulse › 'Left to spend' tile (StatTile) shows `money.leftToSpend.expected` with the verdict chip and the worst–best range from GET /api/home/pulse (the money service, verbatim); no averaged figure (D-03, covered by PulseSection.test.tsx). The matching Money › Overview headline arrives in 4.5."
+    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card. #2228: figure and strict verdict served by the money service; Home › Pulse adopts it in 3.3. #2230: Home › Pulse › 'Left to spend' tile (StatTile) shows `money.leftToSpend.expected` with the verdict chip and the worst–best range from GET /api/home/pulse (the money service, verbatim); no averaged figure (D-03, covered by PulseSection.test.tsx). The matching Money › Overview headline arrives in 4.5. #2232: equality with Money › Overview's Left to spend is tested (E2E figure registry `e2e/fixtures/figureSurfaces.ts`, server consistency block); the tile carries `data-figure=\"left-to-spend\"`."
   },
   "PLT-055": {
     "name": "See a budget health verdict (On Budget / At Risk / Over Budget)",
@@ -3754,7 +3754,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Still to pay' (sum, count) -> Invoices To pay sorted oldest first with Overdue chips and footer sum; N4–N6 rows on Home.",
-    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3. #2230: Pulse 'Still to pay' tile (sum and count of open records = the Invoices \"Open payable\" card, `stillToPayCount`) links to `invoices?openOnly=true` (interim until the 4.6 To pay chip); N4–N6 rows on Home with Mark paid (`params.companyId`) and Undo."
+    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3. #2230: Pulse 'Still to pay' tile (sum and count of open records = the Invoices \"Open payable\" card, `stillToPayCount`) links to `invoices?openOnly=true` (interim until the 4.6 To pay chip); N4–N6 rows on Home with Mark paid (`params.companyId`) and Undo. #2232: equality with the Invoices 'Still to pay' card (sum and count) is tested (figure registry, server consistency block); the tile carries `data-figure=\"still-to-pay\"`."
   },
   "PLT-067": {
     "name": "See the newest quotations and the quotes total on the dashboard",

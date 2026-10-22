@@ -866,6 +866,68 @@ describe('InvoicesPage', () => {
     });
   });
 
+  // ─── Figure markers (#2232) ──────────────────────────────────────────────────
+
+  describe('figure markers (#2232)', () => {
+    const markedResponse: InvoiceListPaginatedResponse = {
+      ...populatedResponse,
+      summary: {
+        pending: { count: 1, totalAmount: 15000 },
+        paid: { count: 2, totalAmount: 5000 },
+        claimed: { count: 3, totalAmount: 900 },
+        quotation: { count: 0, totalAmount: 0 },
+        overdue: { count: 0, totalAmount: 0 },
+        claimable: { count: 2, totalAmount: 12000 },
+        quotationCoveredByDeposits: 0,
+        openPayable: { count: 1, totalAmount: 7777 },
+        refundsDue: { count: 0, totalAmount: 0 },
+      },
+    };
+
+    it('marks only the amount of the Ready to submit card as ready-to-submit', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(markedResponse);
+      renderPage();
+
+      const card = await screen.findByTestId('summary-card-ready-to-submit');
+      expect(card).toHaveTextContent('Ready to submit');
+      const marked = card.querySelectorAll('[data-figure]');
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveAttribute('data-figure', 'ready-to-submit');
+      expect(marked[0]!.textContent).toBe('€12,000.00');
+    });
+
+    it('words the Ready to submit hint as loans and credit lines only', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(markedResponse);
+      renderPage();
+
+      const card = await screen.findByTestId('summary-card-ready-to-submit');
+      expect(card).toHaveTextContent('Loans and credit lines only');
+      expect(card).not.toHaveTextContent(/discretionary/i);
+    });
+
+    it('marks only the amount of the open-payable card as still-to-pay', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(markedResponse);
+      renderPage();
+
+      const card = await screen.findByTestId('summary-card-open-payable');
+      const marked = card.querySelectorAll('[data-figure]');
+      expect(marked).toHaveLength(1);
+      expect(marked[0]).toHaveAttribute('data-figure', 'still-to-pay');
+      expect(marked[0]!.textContent).toBe('€7,777.00');
+    });
+
+    it('marks exactly the two registered figures on the summary strip', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(markedResponse);
+      renderPage();
+
+      await screen.findByTestId('summary-card-ready-to-submit');
+      const kinds = Array.from(document.querySelectorAll('[data-figure]')).map((el) =>
+        el.getAttribute('data-figure'),
+      );
+      expect(kinds.sort()).toEqual(['ready-to-submit', 'still-to-pay']);
+    });
+  });
+
   // ─── Overdue summary card (#1421) ────────────────────────────────────────────
 
   describe('overdue summary card (#1421)', () => {
@@ -2294,6 +2356,412 @@ describe('InvoicesPage', () => {
       });
 
       expect(new URLSearchParams(probe.search()).get('vendorId')).toBe('v-1');
+    });
+  });
+
+  // ─── Branch coverage: menus, search/sort, create flow edge cases, open-items cells (#2232) ───
+
+  describe('menus, search, sorting and row navigation', () => {
+    function renderAt(url: string) {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={[url]}>
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+            </Routes>
+            <LocationDisplay />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('words the allocation of a zero-amount invoice as a line count', async () => {
+      mockFetchAllInvoices.mockResolvedValue({
+        ...populatedResponse,
+        invoices: [{ ...sampleInvoice2, amount: 0, invoiceNumber: 'INV-ZERO' }],
+      });
+      renderPage();
+
+      const row = (await screen.findAllByText('INV-ZERO'))[0]!.closest('tr')!;
+      expect(row).toHaveTextContent('1 lines');
+      expect(row).not.toHaveTextContent('% allocated');
+    });
+
+    it('keeps the filter options the server returns', async () => {
+      mockFetchAllInvoices.mockResolvedValue({
+        ...populatedResponse,
+        filterMeta: { status: [{ value: 'paid', label: 'Paid' }] } as never,
+      });
+      renderPage();
+
+      expect((await screen.findAllByText('INV-2026-001')).length).toBeGreaterThan(0);
+    });
+
+    it('opens the invoice when a row is clicked', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices');
+
+      const row = (await screen.findAllByText('INV-2026-001'))[0]!.closest('tr')!;
+      fireEvent.click(within(row).getByText('Feb 1, 2026'));
+
+      expect(await screen.findByText('Invoice Detail')).toBeInTheDocument();
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices/inv-001');
+    });
+
+    it('opens and closes the row menu with its button, an outside press and Escape', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices');
+      await screen.findAllByText('INV-2026-001');
+
+      const toggle = () => screen.getByTestId('invoice-menu-button-inv-001');
+      fireEvent.click(toggle());
+      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+
+      // the same button closes it
+      fireEvent.click(toggle());
+      expect(screen.queryByTestId('invoice-view-inv-001')).toBeNull();
+
+      // a press outside closes it
+      fireEvent.click(toggle());
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByTestId('invoice-view-inv-001')).toBeNull();
+
+      // a press inside the menu keeps it open
+      fireEvent.click(toggle());
+      fireEvent.mouseDown(screen.getByTestId('invoice-view-inv-001'));
+      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+
+      // other keys keep it open, Escape closes it
+      fireEvent.keyDown(document, { key: 'a' });
+      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByTestId('invoice-view-inv-001')).toBeNull();
+    });
+
+    it('opens the invoice from the row menu', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices');
+      await screen.findAllByText('INV-2026-001');
+
+      fireEvent.click(screen.getByTestId('invoice-menu-button-inv-001'));
+      fireEvent.click(screen.getByTestId('invoice-view-inv-001'));
+
+      expect(await screen.findByText('Invoice Detail')).toBeInTheDocument();
+    });
+
+    it('writes the search text to the URL', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices');
+      await screen.findAllByText('INV-2026-001');
+
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'plaster' } });
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location-full')).toHaveTextContent('q=plaster'),
+      );
+    });
+
+    it('defaults the sort direction to ascending when the URL has a column but no direction', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices?sortBy=date');
+      await screen.findAllByText('INV-2026-001');
+
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'plaster' } });
+
+      await waitFor(() => {
+        const where = screen.getByTestId('location-full').textContent!;
+        expect(where).toContain('sortBy=date');
+        expect(where).toContain('sortOrder=asc');
+      });
+    });
+
+    it('writes the sort column and direction to the URL when a header is clicked', async () => {
+      mockFetchAllInvoices.mockResolvedValue(populatedResponse);
+      renderAt('/budget/invoices');
+      await screen.findAllByText('INV-2026-001');
+
+      const header = screen
+        .getAllByText('Date')
+        .find((el) => el.closest('thead'))!
+        .closest('th')!;
+      fireEvent.click(header);
+
+      await waitFor(() => {
+        const where = screen.getByTestId('location-full').textContent!;
+        expect(where).toContain('sortBy=date');
+        expect(where).toContain('sortOrder=asc');
+      });
+    });
+  });
+
+  describe('Paperless picker and manual entry (#2232 coverage)', () => {
+    const configured = () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.test',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+    };
+
+    it('opens the picker, then the manual form from "Manual Entry"', async () => {
+      configured();
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('new-invoice-button')).toBeEnabled());
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manual Entry' }));
+
+      expect(screen.queryByTestId('paperless-picker-modal')).toBeNull();
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('closes the picker without opening anything', async () => {
+      configured();
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('new-invoice-button')).toBeEnabled());
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Close Modal' }));
+
+      expect(screen.queryByTestId('paperless-picker-modal')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('opens the manual form when Paperless is configured but unreachable', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: false,
+        error: 'down',
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('new-invoice-button')).toBeEnabled());
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.queryByTestId('paperless-picker-modal')).toBeNull();
+    });
+  });
+
+  describe('status load that settles after the page is gone', () => {
+    it('ignores a status that resolves after unmount', async () => {
+      let resolveStatus: (v: Awaited<ReturnType<typeof mockGetPaperlessStatus>>) => void = () => {};
+      mockGetPaperlessStatus.mockReturnValue(
+        new Promise((resolve) => {
+          resolveStatus = resolve;
+        }),
+      );
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      const { unmount } = renderPage();
+      unmount();
+
+      await act(async () => {
+        resolveStatus({
+          configured: false,
+          reachable: false,
+          error: null,
+          paperlessUrl: null,
+          filterTag: null,
+        });
+        await Promise.resolve();
+      });
+      expect(mockFetchConfig).toHaveBeenCalled();
+    });
+
+    it('ignores a status that fails after unmount', async () => {
+      let rejectStatus: (e: Error) => void = () => {};
+      mockGetPaperlessStatus.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectStatus = reject;
+        }),
+      );
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      const { unmount } = renderPage();
+      unmount();
+
+      await act(async () => {
+        rejectStatus(new Error('late'));
+        await Promise.resolve();
+      });
+      expect(mockGetPaperlessStatus).toHaveBeenCalled();
+    });
+  });
+
+  describe('create form edge cases (#2232 coverage)', () => {
+    async function openForm(user: ReturnType<typeof userEvent.setup>) {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(vendorsResponse);
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('new-invoice-button')).toBeEnabled());
+      await user.click(screen.getByTestId('new-invoice-button'));
+      await screen.findByRole('dialog');
+    }
+
+    const submit = () => {
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      fireEvent.submit(form);
+    };
+
+    it('asks for the invoice date when only company and amount are filled', async () => {
+      const user = userEvent.setup();
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '100' } });
+
+      submit();
+
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(mockCreateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('sends every filled field and closes the form on success', async () => {
+      const user = userEvent.setup();
+      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/invoice #/i), {
+        target: { value: ' INV-NEW ' },
+      });
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '250.5' } });
+      fireEvent.wheel(screen.getByLabelText(/^amount/i));
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+      fireEvent.change(document.getElementById('invoice-due-date')!, {
+        target: { value: '2026-03-01' },
+      });
+      fireEvent.change(document.getElementById('invoice-status')!, {
+        target: { value: 'quotation' },
+      });
+      fireEvent.change(document.getElementById('invoice-notes')!, {
+        target: { value: ' Synthetic note ' },
+      });
+
+      submit();
+
+      await waitFor(() =>
+        expect(mockCreateInvoice).toHaveBeenCalledWith('v-1', {
+          invoiceNumber: 'INV-NEW',
+          amount: 250.5,
+          date: '2026-02-01',
+          dueDate: '2026-03-01',
+          status: 'quotation',
+          notes: 'Synthetic note',
+        }),
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('sends nulls for the optional fields that were left empty', async () => {
+      const user = userEvent.setup();
+      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '10' } });
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+
+      submit();
+
+      await waitFor(() =>
+        expect(mockCreateInvoice).toHaveBeenCalledWith('v-1', {
+          invoiceNumber: null,
+          amount: 10,
+          date: '2026-02-01',
+          dueDate: null,
+          status: 'pending',
+          notes: null,
+        }),
+      );
+    });
+
+    it('shows the generic message when the request fails without an API error', async () => {
+      const user = userEvent.setup();
+      mockCreateInvoice.mockRejectedValueOnce(new Error('network down'));
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '10' } });
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+
+      submit();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).not.toHaveTextContent('network down');
+      expect(alert.textContent!.length).toBeGreaterThan(0);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('keeps the form open on Escape while the invoice is being created', async () => {
+      const user = userEvent.setup();
+      let finish: (v: Invoice) => void = () => {};
+      mockCreateInvoice.mockReturnValueOnce(
+        new Promise<Invoice>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '10' } });
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+      submit();
+      await waitFor(() => expect(mockCreateInvoice).toHaveBeenCalled());
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        finish(sampleInvoice1);
+      });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('creates the invoice when the Add Invoice button is pressed', async () => {
+      const user = userEvent.setup();
+      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
+      await openForm(user);
+      await chooseCompany(user, 'ACME Construction');
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '10' } });
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+
+      await user.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Add Invoice' }),
+      );
+
+      await waitFor(() => expect(mockCreateInvoice).toHaveBeenCalledWith('v-1', expect.anything()));
+    });
+
+    it('enables Create only once company, amount and date are all filled', async () => {
+      const user = userEvent.setup();
+      await openForm(user);
+      const create = () =>
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Add Invoice' });
+
+      expect(create()).toBeDisabled();
+      await chooseCompany(user, 'ACME Construction');
+      expect(create()).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(/^amount/i), { target: { value: '10' } });
+      expect(create()).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+      expect(create()).toBeEnabled();
+    });
+  });
+
+  describe('summary hints (#2232 coverage)', () => {
+    it('shows how much of the offers is already covered by deposits', async () => {
+      mockFetchAllInvoices.mockResolvedValue({
+        ...populatedResponse,
+        summary: { ...populatedSummary, quotationCoveredByDeposits: 1200 },
+      });
+      renderPage();
+
+      expect(await screen.findByText('€1,200.00 already deposited')).toBeInTheDocument();
     });
   });
 });

@@ -23,6 +23,8 @@ import {
 } from '../db/schema.js';
 import type {
   TimelineResponse,
+  TimelineHoldsUp,
+  AttentionHoldsUp,
   TimelineWorkItem,
   TimelineDependency,
   TimelineMilestone,
@@ -36,7 +38,14 @@ import type {
   VendorSummary,
   TradeSummary,
 } from '@cornerstone/shared';
-import { computeScheduleProjection, workItemProjectionOf } from './schedulingEngine.js';
+import {
+  loadScheduleGraph,
+  projectSchedule,
+  todayUtc,
+  workItemProjectionOf,
+  MILESTONE_NODE_PREFIX,
+} from './schedulingEngine.js';
+import { buildScheduleIndex, computeHoldsUp } from './shared/holdsUp.js';
 import { resolveAreaAncestors } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 
@@ -59,7 +68,7 @@ function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | nu
  */
 function toAreaSummaryInternal(
   area: AreaMapEntry | null,
-  ancestors: AreaAncestor[] = [],
+  ancestors: AreaAncestor[],
 ): AreaSummary | null {
   if (!area) return null;
   return {
@@ -165,7 +174,14 @@ function computeDateRange(
 export function getTimeline(db: DbType): TimelineResponse {
   // ── 0. Schedule projection (planned vs forecast, contract 4) ────────────────
 
-  const projection = computeScheduleProjection(db);
+  const graph = loadScheduleGraph(db);
+  const today = todayUtc();
+  const projection = projectSchedule(graph, today);
+  const scheduleIndex = buildScheduleIndex(graph);
+  const holdsUpOf = (nodeId: string): AttentionHoldsUp => {
+    const { ids: _ids, ...counts } = computeHoldsUp(scheduleIndex, nodeId, { today, projection });
+    return counts;
+  };
 
   // ── 1. Fetch work items that have a stored or forecast date ─────────────────
   //
@@ -339,13 +355,7 @@ export function getTimeline(db: DbType): TimelineResponse {
     completedAt: m.completedAt,
     color: m.color,
     workItemIds: milestoneLinkMap.get(m.id) ?? [],
-    ...(projection.milestones.get(m.id) ?? {
-      projectedDate: null,
-      isLate: false,
-      lateDays: null,
-      isEarly: false,
-      earlyDays: null,
-    }),
+    ...projection.milestones.get(m.id)!,
     isCritical: projection.criticalMilestoneIds.has(m.id),
   }));
 
@@ -396,6 +406,12 @@ export function getTimeline(db: DbType): TimelineResponse {
 
   const dateRange = computeDateRange(timelineWorkItems, timelineHouseholdItems);
 
+  const holdsUp: TimelineHoldsUp = { workItems: {}, milestones: {} };
+  for (const wi of timelineWorkItems) holdsUp.workItems[wi.id] = holdsUpOf(wi.id);
+  for (const m of timelineMilestones) {
+    holdsUp.milestones[String(m.id)] = holdsUpOf(`${MILESTONE_NODE_PREFIX}${m.id}`);
+  }
+
   return {
     workItems: timelineWorkItems,
     dependencies: timelineDependencies,
@@ -403,5 +419,6 @@ export function getTimeline(db: DbType): TimelineResponse {
     householdItems: timelineHouseholdItems,
     criticalPath,
     dateRange,
+    holdsUp,
   };
 }

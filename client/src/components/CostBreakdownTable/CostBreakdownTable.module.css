@@ -856,3 +856,9 @@
     display: inline-block;
   }
 }
+
+.leftToSpendCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}

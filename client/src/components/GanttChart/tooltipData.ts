@@ -31,6 +31,7 @@ export function buildWorkItemTooltipData(
   item: TimelineWorkItem,
   dependencies: readonly GanttTooltipDependencyEntry[] | undefined,
   today: Date,
+  holdsUpCount = 0,
 ): GanttTooltipWorkItemData {
   const { start, end } = barDates(item);
   return {
@@ -50,6 +51,7 @@ export function buildWorkItemTooltipData(
     areaName: formatAreaPath(item.area),
     dependencies: dependencies && dependencies.length > 0 ? [...dependencies] : undefined,
     workItemId: item.id,
+    holdsUpCount,
   };
 }
 
@@ -84,7 +86,7 @@ export function estimateWorkItemTooltipHeight(
   const deps = data.dependencies ?? [];
   for (const role of ['predecessor', 'successor'] as const) {
     const n = deps.filter((d) => d.role === role).length;
-    if (n === 0) continue;
+    if (n === 0 && !(role === 'successor' && (data.holdsUpCount ?? 0) > 0)) continue;
     height +=
       ROW_HEIGHT + Math.min(n, maxPerGroup) * ROW_HEIGHT + (n > maxPerGroup ? ROW_HEIGHT : 0);
   }

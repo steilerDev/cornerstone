@@ -303,6 +303,29 @@ function toCostFigures(figures: CostGrantCents): MoneyCostFigures {
 
 const LOAN_TYPES: ReadonlySet<string> = new Set(['bank_loan', 'credit_line']);
 
+/** Ready to submit (ADR-039 §5): the bank report's draw-down set over bank_loan / credit_line sources. */
+export function getReadyToSubmit(db: DbType): {
+  count: number;
+  amount: number;
+  bySource: Map<string, { count: number; amount: number }>;
+} {
+  const rows = db.all<{ id: string; sourceType: string }>(
+    sql`SELECT id AS id, source_type AS sourceType FROM budget_sources ORDER BY name ASC, id ASC`,
+  );
+  const bySource = new Map<string, { count: number; amount: number }>();
+  const readyInvoiceIds = new Set<string>();
+  let readyCents = 0;
+  for (const row of rows) {
+    if (!LOAN_TYPES.has(row.sourceType)) continue;
+    const drawDown = getDrawDownSet(db, row.id);
+    const positive = drawDown.invoices.filter((inv) => inv.amount > 0);
+    for (const inv of positive) readyInvoiceIds.add(inv.invoiceId);
+    readyCents += toCents(drawDown.totalAmount);
+    bySource.set(row.id, { count: positive.length, amount: drawDown.totalAmount });
+  }
+  return { count: readyInvoiceIds.size, amount: toMajor(readyCents), bySource };
+}
+
 function buildSources(
   db: DbType,
   result: MoneyResult,
@@ -336,8 +359,7 @@ function buildSources(
     );
   }
 
-  const readyInvoiceIds = new Set<string>();
-  let readyCents = 0;
+  const readyAll = getReadyToSubmit(db);
 
   const sources = rows.map((row): MoneySourceFigures => {
     const amountCents = toCents(row.totalAmount);
@@ -347,14 +369,7 @@ function buildSources(
       isDiscretionary: row.isDiscretionary === 1,
     });
 
-    let ready = { count: 0, amount: 0 };
-    if (LOAN_TYPES.has(row.sourceType)) {
-      const drawDown = getDrawDownSet(db, row.id);
-      const positive = drawDown.invoices.filter((inv) => inv.amount > 0);
-      for (const inv of positive) readyInvoiceIds.add(inv.invoiceId);
-      readyCents += toCents(drawDown.totalAmount);
-      ready = { count: positive.length, amount: drawDown.totalAmount };
-    }
+    const ready = readyAll.bySource.get(row.id) ?? { count: 0, amount: 0 };
 
     return {
       id: row.id,
@@ -372,7 +387,7 @@ function buildSources(
     };
   });
 
-  return { sources, readyToSubmit: { count: readyInvoiceIds.size, amount: toMajor(readyCents) } };
+  return { sources, readyToSubmit: { count: readyAll.count, amount: readyAll.amount } };
 }
 
 function buildGrants(result: MoneyResult): MoneyGrantFigures[] {

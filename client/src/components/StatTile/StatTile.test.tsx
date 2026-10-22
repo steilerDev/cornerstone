@@ -74,6 +74,27 @@ describe('StatTile', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 
+  it.each(['left-to-spend', 'still-to-pay', 'paid', 'ready-to-submit', 'holds-up'] as const)(
+    'marks the figure element with data-figure="%s" (#2232)',
+    (figureKind) => {
+      setup({ figureKind });
+      expect(screen.getByTestId('tile-1-figure')).toHaveAttribute('data-figure', figureKind);
+    },
+  );
+
+  it('has no data-figure attribute without a figureKind (#2232)', () => {
+    setup();
+    expect(screen.getByTestId('tile-1-figure')).not.toHaveAttribute('data-figure');
+    expect(document.querySelector('[data-figure]')).toBeNull();
+  });
+
+  it('puts the marker on the figure span only, next to the img role of a non-text figure (#2232)', () => {
+    setup({ figure: '–', figureLabel: 'No figure yet', figureKind: 'left-to-spend' });
+    const img = screen.getByRole('img', { name: 'No figure yet' });
+    expect(img).toHaveAttribute('data-figure', 'left-to-spend');
+    expect(document.querySelectorAll('[data-figure]')).toHaveLength(1);
+  });
+
   it('omits the detail line without detail', () => {
     setup();
     expect(screen.queryByTestId('tile-1-detail')).toBeNull();

@@ -49,6 +49,7 @@ Hover over a work item bar to see a tooltip with:
 - Duration (planned and actual)
 - Assigned user
 - Dependency information
+- **Holds up n tasks**: how many unfinished tasks move if this one slips, counting the full chain of waiting tasks and milestone gates. This is the same count Home shows for the task
 
 ### Cross-Cell Highlighting
 
@@ -67,6 +68,7 @@ Hover over a milestone diamond to see a tooltip showing:
 - Title and target date
 - Projected completion date
 - Contributing and dependent work items
+- **Holds up n tasks**: the unfinished tasks that wait on this milestone, counted the same way as for work items
 - Completion status
 
 ## View Persistence

@@ -121,6 +121,10 @@ export class InvoicesPage {
    */
   readonly openPayableCard: Locator;
   readonly refundsDueCard: Locator;
+  /** The Ready to submit card (#2232). */
+  readonly readyToSubmitCard: Locator;
+  /** The count line of the Still to pay card (`summaryCount`). */
+  readonly openPayableCount: Locator;
 
   /**
    * Story #2046 — "Show only open items" toggle (native checkbox inside a
@@ -207,6 +211,8 @@ export class InvoicesPage {
     // Story #2046 — open items summary cards (global/filter-independent)
     this.openPayableCard = page.getByTestId('summary-card-open-payable');
     this.refundsDueCard = page.getByTestId('summary-card-refunds-due');
+    this.readyToSubmitCard = page.getByTestId('summary-card-ready-to-submit');
+    this.openPayableCount = this.openPayableCard.locator('[class*="summaryCount"]');
 
     // Story #2046 — "Show only open items" toggle
     this.openItemsToggle = page.getByTestId('open-items-toggle');
@@ -296,6 +302,11 @@ export class InvoicesPage {
   async waitForManualModal(): Promise<Locator> {
     await this.createModal.waitFor({ state: 'visible' });
     return this.createModal;
+  }
+
+  /** A marked figure of the summary cards (`data-figure`, #2232). */
+  figure(kind: 'still-to-pay' | 'ready-to-submit'): Locator {
+    return this.page.locator(`[data-figure="${kind}"]`);
   }
 
   /**

@@ -157,7 +157,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 160,
+      "count": 158,
       "values": [
         "% allocated",
         "(refund)",
@@ -247,7 +247,6 @@
         "loading budget lines...",
         "loading budget overview...",
         "loading budget sources...",
-        "loading cost breakdown",
         "loading deposits...",
         "loading subsidy programs...",
         "mark paid",
@@ -299,7 +298,6 @@
         "refunds due to you",
         "remaining",
         "remaining amount",
-        "remaining budget",
         "remaining to allocate",
         "select a budget source",
         "select budget line for",

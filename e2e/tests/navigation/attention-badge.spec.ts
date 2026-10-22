@@ -22,7 +22,7 @@
  * 10 (all)             99+ cap with exact names, heading and title
  * 11 (all)             zero: no badge, no title prefix
  * 12 (AC2/AC3, compact) Home slot badge, heading and title agree; no bell
- * 13 (desktop)         real data: one synthetic late task shows in bell, heading and title
+ * 13 (AC2, desktop)    real data: one synthetic late task shows in bell name, visible pill, heading and title
  */
 
 import type { Page } from '@playwright/test';
@@ -312,6 +312,8 @@ test.describe('Attention badge: desktop bell and popover', { tag: '@responsive' 
       const name = (await shell.attentionBell.getAttribute('aria-label')) ?? '';
       const n = Number(name.replace('Needs attention, ', ''));
       expect(n).toBeGreaterThanOrEqual(1);
+      // AC2: the visible pill text equals the exact count (99+ above 99)
+      await expect(shell.attentionBadge).toHaveText(n > 99 ? '99+' : String(n));
       await expect(home.needsAttentionHeading).toContainText(`(${n})`);
       await expect(page).toHaveTitle(new RegExp(`^\\(${n}\\) Home · `));
     } finally {

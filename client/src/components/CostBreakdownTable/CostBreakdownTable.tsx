@@ -12,9 +12,11 @@ import type {
   CostDisplay,
   SubsidyAdjustment,
   BudgetSourceSummaryBreakdown,
+  LeftToSpend,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS, routeUrl } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { Badge } from '../Badge/Badge.js';
@@ -27,11 +29,8 @@ import styles from './CostBreakdownTable.module.css';
 const FormatterContext = createContext<((amount: number) => string) | null>(null);
 
 function useFormatterContext() {
-  const formatter = use(FormatterContext);
-  if (!formatter) {
-    throw new Error('useFormatterContext must be used within CostBreakdownTable');
-  }
-  return formatter;
+  // Private to this module and always provided by CostBreakdownTable
+  return use(FormatterContext)!;
 }
 
 // Context for source filter state
@@ -42,11 +41,8 @@ interface BreakdownContextValue {
 const BreakdownContext = createContext<BreakdownContextValue | null>(null);
 
 function useBreakdownContext() {
-  const context = use(BreakdownContext);
-  if (!context) {
-    throw new Error('useBreakdownContext must be used within CostBreakdownTable');
-  }
-  return context;
+  // Private to this module and always provided by CostBreakdownTable
+  return use(BreakdownContext)!;
 }
 
 type CostPerspective = 'min' | 'max' | 'avg';
@@ -59,6 +55,8 @@ interface CostBreakdownTableProps {
   onSelectAllSources: () => void;
   paymentStatus: 'all' | 'paid' | 'outstanding';
   onPaymentStatusChange: (v: 'all' | 'paid' | 'outstanding') => void;
+  /** The money service's Left to spend (whole project, filter-independent). */
+  leftToSpend?: LeftToSpend | null;
 }
 
 /**
@@ -143,28 +141,14 @@ function formatCost(amount: number, fc: (n: number) => string): string {
 
 /**
  * Renders net value (payback - cost).
- * At item/category level, uses neutral text color (still an expense).
- * At sum level, uses green/red coloring (surplus vs deficit).
+ * Uses neutral text color (still an expense).
  *
  * Accepts formatCurrency as a parameter so it can be called from both
  * React components (inside FormatterContext) and from the root
  * CostBreakdownTable render (outside the context).
  */
-function renderNet(
-  rawCost: number,
-  payback: number,
-  cssStyles: typeof styles,
-  fc: (n: number) => string,
-  colored: boolean = false,
-): React.ReactNode {
+function renderNet(rawCost: number, payback: number, fc: (n: number) => string): React.ReactNode {
   const net = payback - rawCost;
-  if (colored) {
-    return (
-      <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
-        {fc(net)}
-      </span>
-    );
-  }
   return <span>{fc(net)}</span>;
 }
 
@@ -193,15 +177,15 @@ function PerspectiveToggle({
       // (idx + 1) % options.length is guaranteed to be in bounds
       const next = options[(idx + 1) % options.length]!;
       onChange(next.value);
-      const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
-      buttons?.[(idx + 1) % options.length]?.focus();
+      const buttons = groupRef.current!.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+      buttons[(idx + 1) % options.length]!.focus();
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
       // (idx - 1 + options.length) % options.length is guaranteed to be in bounds
       const prev = options[(idx - 1 + options.length) % options.length]!;
       onChange(prev.value);
-      const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
-      buttons?.[(idx - 1 + options.length) % options.length]?.focus();
+      const buttons = groupRef.current!.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+      buttons[(idx - 1 + options.length) % options.length]!.focus();
     }
   }
 
@@ -322,7 +306,7 @@ function BudgetLineRow({
           />
           <span className={styles.sourceBadgeLabel}>
             <Badge
-              variants={{ src: { label, className: badgeStyles[styleKey] ?? '' } }}
+              variants={{ src: { label, className: badgeStyles[styleKey]! } }}
               value="src"
               ariaLabel={t('overview.costBreakdown.sourceBadge.ariaLabel', { name: sourceName })}
               title={isTruncated ? sourceName : undefined}
@@ -424,7 +408,7 @@ function WorkItemRow({
           {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
+          {renderNet(resolvedRawCost, resolvedPayback, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -517,7 +501,7 @@ function WorkItemAreaSection({
           {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
+          {renderNet(resolvedRawCost, resolvedPayback, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -540,7 +524,7 @@ function WorkItemAreaSection({
           })}
           {area.children.map((childArea) => (
             <WorkItemAreaSection
-              key={`${sectionKey}-area-${childArea.areaId ?? 'unassigned'}`}
+              key={`${sectionKey}-area-${childArea.areaId!}`}
               area={childArea}
               depth={depth + 1}
               sectionKey={sectionKey}
@@ -640,7 +624,7 @@ function HouseholdItemRow({
           {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
+          {renderNet(resolvedRawCost, resolvedPayback, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -733,7 +717,7 @@ function HouseholdItemAreaSection({
           {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
+          {renderNet(resolvedRawCost, resolvedPayback, formatCurrencyFn)}
         </td>
       </tr>
 
@@ -756,7 +740,7 @@ function HouseholdItemAreaSection({
           })}
           {area.children.map((childArea) => (
             <HouseholdItemAreaSection
-              key={`${sectionKey}-area-${childArea.areaId ?? 'unassigned'}`}
+              key={`${sectionKey}-area-${childArea.areaId!}`}
               area={childArea}
               depth={depth + 1}
               sectionKey={sectionKey}
@@ -807,9 +791,12 @@ export function CostBreakdownTable({
   onSelectAllSources,
   paymentStatus,
   onPaymentStatusChange,
+  leftToSpend,
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
+  const { budgetVerdict } = useStatusBadgeVariants();
+  const isFiltered = deselectedSourceIds.size > 0 || paymentStatus !== 'all';
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
   const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
@@ -1129,7 +1116,6 @@ export function CostBreakdownTable({
                             wiTotals.subsidyPayback,
                             perspective,
                           ),
-                          styles,
                           formatCurrency,
                         )}
                       </td>
@@ -1218,7 +1204,6 @@ export function CostBreakdownTable({
                             hiTotals.subsidyPayback,
                             perspective,
                           ),
-                          styles,
                           formatCurrency,
                         )}
                       </td>
@@ -1323,7 +1308,7 @@ export function CostBreakdownTable({
                     )}
                   </td>
                   <td className={styles.colRemaining}>
-                    {renderNet(totalRawProjected, adjustedTotalPayback, styles, formatCurrency)}
+                    {renderNet(totalRawProjected, adjustedTotalPayback, formatCurrency)}
                   </td>
                 </tr>
 
@@ -1365,39 +1350,51 @@ export function CostBreakdownTable({
                 {/* Source detail rows as toggle buttons */}
                 {availFundsExpanded && sourceDetailRows}
 
-                {/* Remaining Budget row */}
-                <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
-                  <td className={styles.colName}>
-                    <div className={styles.nameContent}>
-                      <span>{t('overview.costBreakdown.remainingBudget')}</span>
-                    </div>
-                  </td>
-                  <td className={styles.colBudget}>
-                    <span
-                      className={
-                        filteredAvailableFunds - totalRawProjected >= 0
-                          ? styles.valuePositive
-                          : styles.valueNegative
-                      }
-                    >
-                      {formatCurrency(filteredAvailableFunds - totalRawProjected)}
-                    </span>
-                  </td>
-                  <td className={styles.colPayback} />
-                  <td className={styles.colRemaining}>
-                    <span
-                      className={
-                        filteredAvailableFunds - totalRawProjected + adjustedTotalPayback >= 0
-                          ? styles.valuePositive
-                          : styles.valueNegative
-                      }
-                    >
-                      {formatCurrency(
-                        filteredAvailableFunds - totalRawProjected + adjustedTotalPayback,
+                {/* Left to spend: the money service's one figure (interim until the 4.5 headline) */}
+                {leftToSpend ? (
+                  <tr
+                    className={`${styles.rowLevel0} ${styles.rowSummary}`}
+                    data-testid="cost-breakdown-left-to-spend"
+                  >
+                    <td className={styles.colName}>
+                      <div className={styles.nameContent}>
+                        <span>{t('overview.costBreakdown.leftToSpend')}</span>
+                        {isFiltered ? (
+                          <span className={styles.availableFundsFilterCaption}>
+                            {t('overview.costBreakdown.leftToSpendWholeProject')}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className={styles.colBudget} />
+                    <td className={styles.colPayback} />
+                    <td className={styles.colRemaining}>
+                      {leftToSpend.verdict === null ? (
+                        <span
+                          data-figure="left-to-spend"
+                          role="img"
+                          aria-label={t('overview.costBreakdown.leftToSpendNoFigure')}
+                        >
+                          –
+                        </span>
+                      ) : (
+                        <span className={styles.leftToSpendCell}>
+                          <span
+                            data-figure="left-to-spend"
+                            className={
+                              leftToSpend.expected >= 0
+                                ? styles.valuePositive
+                                : styles.valueNegative
+                            }
+                          >
+                            {formatCurrency(leftToSpend.expected)}
+                          </span>
+                          <Badge variants={budgetVerdict} value={leftToSpend.verdict} />
+                        </span>
                       )}
-                    </span>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
 
               {/* Empty state when all sources deselected */}

@@ -955,111 +955,35 @@ export function sumTaggedDepositContributions(
 }
 
 /**
- * Extended row type for the claimable breakdown computation.
- * Adds is_discretionary from budget_sources (null when deposit has no budget source).
- */
-export interface InvoiceDepositRowWithDiscretionary extends InvoiceDepositRow {
-  deposit_is_discretionary: boolean | null;
-}
-
-/**
- * Computes:
- *   - claimable: count + total of pending/paid invoice amounts excluding portions
- *     funded by discretionary budget sources (isDiscretionary = true)
- *   - quotationCoveredByDeposits: sum of paid/claimed deposits on quotation invoices
- *     (regardless of source), indicating how much of the quoted total is already committed
+ * quotationCoveredByDeposits: sum of paid/claimed deposits on quotation invoices
+ * (regardless of source), indicating how much of the quoted total is already committed.
  *
- * "Claimable" answers: "what can I still submit to my lender?"
- * "quotationCoveredByDeposits" answers: "how much of my future quotes is already paid?"
+ * ("Ready to submit" is not computed here: it has one definition, the money service's
+ * getReadyToSubmit, ADR-039 §5.)
  */
-export function aggregateClaimableBreakdown(rows: InvoiceDepositRowWithDiscretionary[]): {
-  claimable: { count: number; totalAmount: number };
-  quotationCoveredByDeposits: number;
-} {
-  if (rows.length === 0) {
-    return { claimable: { count: 0, totalAmount: 0 }, quotationCoveredByDeposits: 0 };
-  }
-
-  const invoiceMap = new Map<string, { amount: number; status: string }>();
-  const depositsByInvoice = new Map<
-    string,
-    Array<{
-      depositId: string;
-      depositAmount: number;
-      depositStatus: string;
-      entryType: string;
-      isDiscretionary: boolean;
-    }>
-  >();
+export function computeQuotationCoveredByDeposits(rows: InvoiceDepositRow[]): number {
+  const invoiceStatus = new Map<string, string>();
+  const seenDeposits = new Set<string>();
+  let covered = 0;
 
   for (const row of rows) {
-    if (!invoiceMap.has(row.invoice_id)) {
-      invoiceMap.set(row.invoice_id, { amount: row.invoice_amount, status: row.invoice_status });
+    if (!invoiceStatus.has(row.invoice_id)) invoiceStatus.set(row.invoice_id, row.invoice_status);
+  }
+
+  for (const row of rows) {
+    if (row.deposit_id === null || row.deposit_amount === null || row.deposit_status === null) {
+      continue;
     }
-    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
-      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
-      if (!deps.some((d) => d.depositId === row.deposit_id)) {
-        deps.push({
-          depositId: row.deposit_id,
-          depositAmount: row.deposit_amount,
-          depositStatus: row.deposit_status,
-          entryType: row.deposit_entry_type ?? 'deposit',
-          isDiscretionary: row.deposit_is_discretionary === true,
-        });
-        depositsByInvoice.set(row.invoice_id, deps);
-      }
+    if (seenDeposits.has(row.deposit_id)) continue;
+    seenDeposits.add(row.deposit_id);
+    if (invoiceStatus.get(row.invoice_id) !== 'quotation') continue;
+    if ((row.deposit_entry_type ?? 'deposit') === 'refund') continue;
+    if (row.deposit_status === 'paid' || row.deposit_status === 'claimed') {
+      covered += row.deposit_amount;
     }
   }
 
-  let claimableTotal = 0;
-  const claimableInvoiceIds = new Set<string>();
-  let quotationCoveredByDeposits = 0;
-
-  for (const [invoiceId, inv] of invoiceMap) {
-    const deposits = depositsByInvoice.get(invoiceId) ?? [];
-    const safeAmount = inv.amount > 0 ? inv.amount : 1;
-
-    // Residual fraction: same logic as splitByDeposits
-    const totalDepositTypeAmount = deposits
-      .filter((d) => d.entryType !== 'refund')
-      .reduce((s, d) => s + d.depositAmount, 0);
-    const residualFraction =
-      deposits.length === 0 ? 1 : Math.max(0, safeAmount - totalDepositTypeAmount) / safeAmount;
-
-    if (inv.status === 'pending' || inv.status === 'paid') {
-      // Residual portion is always claimable for pending/paid invoices
-      const residualContrib = inv.amount * residualFraction;
-      claimableTotal += residualContrib;
-      claimableInvoiceIds.add(invoiceId);
-
-      // Non-discretionary pending/paid deposits are claimable
-      for (const dep of deposits) {
-        if (dep.isDiscretionary) continue;
-        if (dep.depositStatus !== 'pending' && dep.depositStatus !== 'paid') continue;
-        const signed =
-          dep.entryType === 'refund'
-            ? -(dep.depositAmount / safeAmount)
-            : dep.depositAmount / safeAmount;
-        claimableTotal += inv.amount * signed;
-        claimableInvoiceIds.add(invoiceId);
-      }
-    }
-
-    // Quotation covered: paid/claimed deposit-type entries on quotation invoices
-    if (inv.status === 'quotation') {
-      for (const dep of deposits) {
-        if (dep.entryType === 'refund') continue;
-        if (dep.depositStatus === 'paid' || dep.depositStatus === 'claimed') {
-          quotationCoveredByDeposits += dep.depositAmount;
-        }
-      }
-    }
-  }
-
-  return {
-    claimable: { count: claimableInvoiceIds.size, totalAmount: claimableTotal },
-    quotationCoveredByDeposits,
-  };
+  return covered;
 }
 
 /**

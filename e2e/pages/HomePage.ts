@@ -195,6 +195,23 @@ export class HomePage {
     return this.page.getByTestId(`home-pulse-${id}`);
   }
 
+  /** The marked figure of a Pulse tile (`data-figure`, #2232). */
+  pulseFigure(id: 'left-to-spend' | 'still-to-pay'): Locator {
+    return this.pulseTile(id).locator('[data-figure]');
+  }
+
+  /** Holds-up markers of one task in Needs attention (its own row or a group item). */
+  holdsUpFigure(workItemId: string): Locator {
+    return this.needsAttention.locator(
+      `[data-testid$=":work_item:${workItemId}"] [data-figure="holds-up"], [data-testid$="-item-${workItemId}"] [data-figure="holds-up"]`,
+    );
+  }
+
+  /** The disclosure button of an N2 group row (key `N2:group:<date>`). */
+  groupToggle(groupKey: string): Locator {
+    return this.page.getByTestId(`needs-attention-row-${groupKey}-group-toggle`);
+  }
+
   pulseTiles(): Locator {
     return this.pulse.locator('li');
   }

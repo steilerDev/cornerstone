@@ -64,3 +64,4 @@
 - [story-2226-photos-spots.md](story-2226-photos-spots.md) — #2226 Photos spots/No area/viewer POMs, phone Details sheet rules, D-31 defects.json, Escape defect, chrome opacity.
 - [story-2227-rapid-camera.md](story-2227-rapid-camera.md) — #2227 camera tap budgets 12/15/20/13, POM camera API, shutter-before-frame trap, fake device works on arm64.
 - [story-2230-home.md](story-2230-home.md) — #2230 Home spec/POM/stateful homeMocks, StatusMenu action has no option step, set-up-mode trap for real-data specs, 2 live defects.
+- [story-2232-consistency-test.md](story-2232-consistency-test.md) — #2232 figureSurfaces registry, FC1-FC5 spec, overview mocks must carry `money` (moneyMocks), holdsUp tooltip mock.

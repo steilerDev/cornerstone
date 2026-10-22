@@ -825,3 +825,148 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
     });
   });
 });
+
+// ─── Branch coverage: notes column, unnumbered parents, missing open amount (#2232) ───
+
+describe('InvoicesPage — open items cells (#2232 coverage)', () => {
+  let InvoicesPageModule: typeof InvoicesPageTypes;
+
+  beforeEach(async () => {
+    mockFetchAllInvoices.mockReset();
+    mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockFetchVendor.mockResolvedValue({ id: 'v-1', name: 'ACME Construction' } as never);
+    mockGetPaperlessStatus.mockReset();
+    mockFetchConfig.mockReset();
+    if (!InvoicesPageModule) {
+      InvoicesPageModule = await import('./InvoicesPage.js');
+    }
+    mockGetPaperlessStatus.mockResolvedValue({
+      configured: false,
+      reachable: false,
+      error: null,
+      paperlessUrl: null,
+      filterTag: null,
+    });
+    mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+    mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+  });
+
+  function renderOpen() {
+    return render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/budget/invoices?openOnly=true']}>
+          <Routes>
+            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+  }
+
+  async function showNotesColumn() {
+    fireEvent.click(await screen.findByRole('button', { name: /column settings/i }));
+    await screen.findByRole('dialog', { name: /visible columns/i });
+    fireEvent.click(document.getElementById('col-notes')!);
+  }
+
+  const unnumbered = makeInvoice({
+    id: 'inv-nonum',
+    vendorId: 'v-1',
+    vendorName: 'ACME Construction',
+    invoiceNumber: null,
+    amount: 3000,
+    status: 'pending',
+    notes: 'x'.repeat(70),
+    dueDate: isoDaysFromToday(60),
+    deposits: [
+      makeDeposit({
+        id: 'dep-n1',
+        invoiceId: 'inv-nonum',
+        amount: 1000,
+        dueDate: isoDaysFromToday(30),
+        status: 'pending',
+        description: 'First instalment',
+      }),
+      makeDeposit({
+        id: 'dep-n2',
+        invoiceId: 'inv-nonum',
+        amount: 500,
+        dueDate: isoDaysFromToday(40),
+        status: 'pending',
+        description: null,
+      }),
+    ],
+    openAmount: undefined,
+  });
+
+  const shortNote = makeInvoice({
+    id: 'inv-short',
+    vendorId: 'v-1',
+    vendorName: 'ACME Construction',
+    invoiceNumber: 'INV-SHORT',
+    amount: 100,
+    status: 'pending',
+    notes: 'Short note',
+    openAmount: 100,
+  });
+
+  const noNote = makeInvoice({
+    id: 'inv-nonote',
+    vendorId: 'v-1',
+    vendorName: 'ACME Construction',
+    invoiceNumber: 'INV-NONOTE',
+    amount: 100,
+    status: 'pending',
+    notes: null,
+    openAmount: 100,
+  });
+
+  it('truncates a long note at 60 characters, keeps a short one and shows a dash for none', async () => {
+    mockFetchAllInvoices.mockResolvedValue(openResponse([unnumbered, shortNote, noNote]));
+    renderOpen();
+    await showNotesColumn();
+
+    const rowOf = (text: string) => screen.getAllByText(text)[0]!.closest('tr')!;
+    expect((await screen.findAllByText(`${'x'.repeat(60)}...`)).length).toBeGreaterThan(0);
+    expect(rowOf('Short note')).toHaveTextContent('INV-SHORT');
+    expect(rowOf('INV-NONOTE')).toHaveTextContent('—');
+  });
+
+  it('shows the deposit description in the notes cell of a child row, or a dash', async () => {
+    mockFetchAllInvoices.mockResolvedValue(openResponse([unnumbered]));
+    renderOpen();
+    await showNotesColumn();
+
+    const described = (await screen.findAllByText('First instalment'))[0]!.closest('tr')!;
+    expect(described).toHaveTextContent('Deposit 1/2');
+    const plain = screen.getAllByText('Deposit 2/2')[0]!.closest('tr')!;
+    expect(plain.querySelector('td:last-of-type')).toBeInTheDocument();
+    expect(plain).not.toHaveTextContent('First instalment');
+  });
+
+  it('names an unnumbered parent "No Number" for screen readers and in the expand label', async () => {
+    mockFetchAllInvoices.mockResolvedValue(openResponse([unnumbered]));
+    renderOpen();
+
+    expect((await screen.findAllByText(/Part of invoice No Number:/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /No Number/ }).length).toBeGreaterThan(0);
+  });
+
+  it('collapses an unnumbered parent and relabels the button', async () => {
+    mockFetchAllInvoices.mockResolvedValue(openResponse([unnumbered]));
+    renderOpen();
+
+    const button = (await screen.findAllByRole('button', { name: /Collapse.*No Number/ }))[0]!;
+    fireEvent.click(button);
+    expect(screen.getAllByRole('button', { name: /Expand.*No Number/ }).length).toBeGreaterThan(0);
+  });
+
+  it('shows 0 as the still-due amount when the server sent no open amount', async () => {
+    mockFetchAllInvoices.mockResolvedValue(openResponse([{ ...shortNote, openAmount: undefined }]));
+    renderOpen();
+
+    const row = (await screen.findAllByText('INV-SHORT'))[0]!.closest('tr')!;
+    expect(row).toHaveTextContent('€0.00');
+  });
+});

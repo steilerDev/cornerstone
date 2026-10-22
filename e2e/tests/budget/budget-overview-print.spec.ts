@@ -18,6 +18,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API, ROUTES } from '../../fixtures/testData.js';
+import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared response factories (mirrored from budget-overview.spec.ts)
@@ -183,7 +184,7 @@ async function mountRoutes(page: Page, overviewBody: object, breakdownBody: obje
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ overview: overviewBody }),
+        body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
       });
     } else {
       await route.continue();
