@@ -476,14 +476,23 @@ function describeConsistency(getCtx: () => Ctx): void {
       const ctx = getCtx();
       const money = computeProjectMoney(ctx.app.db, VAT).summary;
       const body = await getJson<{
-        summary: { claimable: { count: number; totalAmount: number } };
+        summary: {
+          claimable: { count: number; totalAmount: number };
+          pending: { count: number; totalAmount: number };
+          paid: { count: number; totalAmount: number };
+        };
       }>(ctx, '/api/invoices');
       expect(body.summary.claimable).toEqual({
         count: money.readyToSubmit.count,
         totalAmount: money.readyToSubmit.amount,
       });
-      // pins the discriminating shape: invoices funded by the discretionary rail are not ready
-      expect(money.readyToSubmit.count).toBeGreaterThan(0);
+      // pins the discriminating shape: the fixture has pending and paid invoices that are NOT
+      // ready to submit (own funds, unfunded, discretionary rail), so the all-invoices totals
+      // must exceed the ready-to-submit figure; a "pending + paid" definition would equal them
+      const { pending, paid, claimable } = body.summary;
+      expect(pending.totalAmount + paid.totalAmount).toBeGreaterThan(claimable.totalAmount);
+      expect(pending.count + paid.count).toBeGreaterThan(claimable.count);
+      expect(claimable.count).toBeGreaterThan(0);
     });
 
     it('11. GET /api/attention: the N8 rows add up to ready to submit, each equal to its source (#2232)', async () => {
