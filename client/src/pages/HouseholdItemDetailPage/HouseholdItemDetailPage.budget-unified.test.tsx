@@ -224,17 +224,16 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: mockUseAreas,
 }));
 
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  DocumentsPanelButton: function MockDocumentsPanelButton(props: {
     entityType: string;
     entityId: string;
   }) {
     return (
-      <section data-testid="linked-documents-section">
-        <h2>Documents</h2>
+      <div data-testid="documents-panel-button">
         <span data-testid="entity-type">{props.entityType}</span>
         <span data-testid="entity-id">{props.entityId}</span>
-      </section>
+      </div>
     );
   },
 }));

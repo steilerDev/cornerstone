@@ -92,6 +92,10 @@
   color: var(--color-text-primary);
 }
 
+.title:focus-visible {
+  outline: none;
+}
+
 .close {
   composes: btnIcon from '../../styles/shared.module.css';
   width: var(--touch-target-min);
@@ -127,6 +131,27 @@
   .panelFullScreen {
     max-width: none;
   }
+}
+
+/* Right-edge panel: full height, fixed width; the body is the scroll container. */
+.panelSide {
+  inset: 0 0 0 auto;
+  width: var(--side-sheet-width);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  margin-inline: 0;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: 0;
+  border-top: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  transform: translateX(100%);
+}
+
+.panelSide.panelOpen {
+  transform: translateX(0);
 }
 
 .bodyFullScreen {

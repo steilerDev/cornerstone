@@ -3,6 +3,7 @@ import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
   AttachmentType,
+  UndoToken,
 } from '@cornerstone/shared';
 import {
   listDocumentLinks,
@@ -11,6 +12,7 @@ import {
   listAllLinkedDocumentIds,
   updateDocumentLinkAttachmentType,
 } from '../lib/documentLinksApi.js';
+import { undoChange } from '../lib/undoApi.js';
 import { useTranslation } from 'react-i18next';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import { translateApiError } from '../lib/errorTranslation.js';
@@ -20,14 +22,18 @@ export interface UseDocumentLinksResult {
   isLoading: boolean;
   error: string | null;
   addLink: (paperlessDocumentId: number, attachmentType?: AttachmentType | null) => Promise<void>;
-  removeLink: (linkId: string) => Promise<void>;
+  /** Removes the link at once (optimistic) and resolves with the token that restores it. */
+  removeLink: (linkId: string) => Promise<UndoToken>;
+  /** Undo of a removal: restores the link with the server token, then refreshes the list. */
+  restoreLink: (token: string) => Promise<void>;
   updateAttachmentType: (linkId: string, attachmentType: AttachmentType | null) => Promise<void>;
   refresh: () => void;
 }
 
 /**
- * Manages document links for an entity (work item, household item, or invoice).
- * Handles fetching the list, adding new links, and removing existing links.
+ * Manages document links for an entity (work item, purchase, invoice, funding source or grant).
+ * Handles fetching the list, adding new links, removing links (with an Undo token) and restoring
+ * them. Errors of `restoreLink` propagate so the Undo toast can show the 404/409 message.
  */
 export function useDocumentLinks(
   entityType: DocumentLinkEntityType,
@@ -92,9 +98,15 @@ export function useDocumentLinks(
   );
 
   const removeLink = useCallback(async (linkId: string) => {
-    await deleteDocumentLink(linkId);
+    const response = await deleteDocumentLink(linkId);
     // Optimistically remove from local state immediately for better UX
     setLinks((prev) => prev.filter((link) => link.id !== linkId));
+    return response.undo;
+  }, []);
+
+  const restoreLink = useCallback(async (token: string) => {
+    await undoChange(token);
+    setFetchCount((c) => c + 1);
   }, []);
 
   const updateAttachmentType = useCallback(
@@ -120,6 +132,7 @@ export function useDocumentLinks(
     error,
     addLink,
     removeLink,
+    restoreLink,
     updateAttachmentType,
     refresh,
   };

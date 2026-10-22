@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
+import { markEscapeHandled } from '../Modal/useFocusTrap.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './OverflowMenu.module.css';
 
@@ -240,14 +241,17 @@ export function OverflowMenu({
       }
 
       if (e.key === 'Escape') {
+        // Consumed here: a dialog around the menu must not also close (the capture phase runs
+        // before the dialog's focus-trap listener).
+        markEscapeHandled(e);
         e.preventDefault();
         setIsOpen(false);
         focusReturnTarget();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
   }, [open, focusReturnTarget]);
 
   // Move focus into the menu after a keyboard open
@@ -315,6 +319,7 @@ export function OverflowMenu({
       return;
     }
     if (e.key === 'Escape') {
+      markEscapeHandled(e.nativeEvent);
       e.preventDefault();
       setIsOpen(false);
       focusReturnTarget();

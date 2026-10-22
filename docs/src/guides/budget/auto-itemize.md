@@ -21,7 +21,7 @@ Before you can auto-itemize, three things must be in place:
 2. **An LLM provider is configured.** Cornerstone needs an LLM endpoint to send the OCR text to (next section).
 3. **At least one Paperless document is linked to the invoice you want to itemize.** See [Linking Documents](/guides/documents/linking-documents).
 
-When all three are in place, an **Auto-itemize** action appears on each linked-document card in the **Documents** section of the invoice detail page. Clicking it opens the dedicated Auto-itemize page for that document.
+When all three are in place, each linked document in the **Documents** panel of the invoice detail page has an **Itemize** action in its actions menu. Choosing it opens the dedicated Auto-itemize page for that document.
 
 ## Configure your LLM provider
 
@@ -84,7 +84,7 @@ The numbers above are rough estimates for a typical one-page construction invoic
 
 ### Verify the configuration
 
-The easiest way to verify: open any invoice that has at least one linked Paperless document. If you see an **Auto-itemize** action on the linked-document card in the **Documents** section, the LLM provider is configured correctly. If not, double-check the three required variables and that the container was restarted.
+The easiest way to verify: open any invoice that has at least one linked Paperless document. If you see an **Itemize** action in that document's actions menu in the **Documents** panel, the LLM provider is configured correctly. If not, double-check the three required variables and that the container was restarted.
 
 ## Walkthrough
 
@@ -92,9 +92,9 @@ This walkthrough assumes you have an invoice in Cornerstone with at least one Pa
 
 ### 1. Open the invoice and start auto-itemize
 
-Navigate to **Budget > Invoices** and open the invoice you want to itemize. Scroll to the **Documents** section, find the linked invoice PDF, and click its **Auto-itemize** action.
+Navigate to **Budget > Invoices** and open the invoice you want to itemize. Click **Documents (n)**, find the linked invoice PDF in the panel, open its actions menu, and choose **Itemize**.
 
-Cornerstone opens the dedicated **Auto-itemize** page. A spinner with an elapsed-seconds counter shows while it fetches the OCR text from Paperless and sends it to your LLM provider. There is no document-picker step -- you choose which document to itemize when you click its action on the card.
+Cornerstone opens the dedicated **Auto-itemize** page. A spinner with an elapsed-seconds counter shows while it fetches the OCR text from Paperless and sends it to your LLM provider. There is no document-picker step -- you choose which document to itemize when you choose **Itemize** on its card.
 
 ### 2. Review the page layout
 

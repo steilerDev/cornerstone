@@ -233,18 +233,17 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: mockUseAreas,
 }));
 
-// Mock LinkedDocumentsSection to avoid pulling in full documents component tree
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+// Mock the Documents panel host to avoid pulling in the full documents component tree
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  DocumentsPanelButton: function MockDocumentsPanelButton(props: {
     entityType: string;
     entityId: string;
   }) {
     return (
-      <section data-testid="linked-documents-section">
-        <h2>Documents</h2>
+      <div data-testid="documents-panel-button">
         <span data-testid="entity-type">{props.entityType}</span>
         <span data-testid="entity-id">{props.entityId}</span>
-      </section>
+      </div>
     );
   },
 }));
@@ -1301,7 +1300,7 @@ describe('HouseholdItemDetailPage', () => {
   // 'inline status selector' describe block above.
 
   describe('Documents section', () => {
-    it('renders LinkedDocumentsSection with entityType="household_item"', async () => {
+    it('renders the Documents panel button with entityType="household_item"', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1310,7 +1309,7 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
+      expect(screen.getByTestId('documents-panel-button')).toBeInTheDocument();
       expect(screen.getByTestId('entity-type')).toHaveTextContent('household_item');
     });
 
@@ -1326,7 +1325,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByTestId('entity-id')).toHaveTextContent('item-abc');
     });
 
-    it('renders Documents section heading between Subsidies and Metadata sections', async () => {
+    it('renders the Documents panel button after the Budget section', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1335,31 +1334,28 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      // Get all h2 headings on the page
-      const headings = screen.getAllByRole('heading', { level: 2 });
-      const headingTexts = headings.map((h) => h.textContent);
-
-      // Verify "Documents" heading exists
-      expect(headingTexts).toContain('Documents');
-
-      // Verify Documents comes after Budget (Subsidies is now an h3 inside Budget, not a standalone h2)
-      const budgetIndex = headingTexts.findIndex((text) => text === 'Budget');
-      const documentsIndex = headingTexts.findIndex((text) => text === 'Documents');
-      expect(budgetIndex).toBeGreaterThan(-1);
-      expect(documentsIndex).toBeGreaterThan(-1);
-      expect(documentsIndex).toBeGreaterThan(budgetIndex);
+      const budgetHeading = screen
+        .getAllByRole('heading', { level: 2 })
+        .find((heading) => heading.textContent === 'Budget');
+      const button = screen.getByTestId('documents-panel-button');
+      expect(budgetHeading).toBeDefined();
+      // Documents come after Budget in document order (the button replaces the old section).
+      expect(
+        (budgetHeading as HTMLElement).compareDocumentPosition(button) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
-    it('does not render LinkedDocumentsSection in loading state', async () => {
+    it('does not render the Documents panel button in loading state', async () => {
       mockGetHouseholdItem.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       renderPage();
 
       expect(screen.getByText('Loading household item...')).toBeInTheDocument();
-      expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('documents-panel-button')).not.toBeInTheDocument();
     });
 
-    it('does not render LinkedDocumentsSection when item returns 404', async () => {
+    it('does not render the Documents panel button when item returns 404', async () => {
       mockGetHouseholdItem.mockRejectedValue(
         new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
       );
@@ -1368,7 +1364,7 @@ describe('HouseholdItemDetailPage', () => {
 
       await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
 
-      expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('documents-panel-button')).not.toBeInTheDocument();
     });
   });
 

@@ -19,9 +19,174 @@ import {
 } from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-import { EditableField, type EditableFieldLengthLimit } from '../EditableField/EditableField.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportContentEditor.module.css';
+
+/**
+ * Always-visible live input for ambient overrides: an `<input>` or `<textarea>` with an edited
+ * indicator and a reset-to-generated button. Private to this editor (the report wizard is its
+ * only user), so it is not a shared component.
+ */
+interface OverrideLengthLimit {
+  max: number; // enforcement ceiling (native maxLength)
+  hint: string; // pre-translated, e.g. "Maximum 200 characters." — always-on description
+  overHint?: string; // pre-translated; falls back to `hint` while over the limit
+  reachedAnnouncement: string; // pre-translated live-region text, e.g. "Maximum length reached."
+}
+
+interface OverrideFieldProps {
+  as: 'input' | 'textarea';
+  id?: string;
+  label?: string; // visible label mode (letter fields + mobile cards); when present use <label htmlFor>, no aria-label
+  ariaLabel: string; // used directly (composed with editedSuffix when edited) ONLY when label absent (dense desktop cells)
+  editedSuffix: string; // pre-translated, e.g. " (edited)"
+  resetAriaLabel: string; // pre-translated, e.g. "Reset field to generated text"
+  value: string;
+  onChange: (value: string) => void;
+  isEdited: boolean;
+  onReset: () => void;
+  rows?: number; // for textarea
+  className?: string;
+  lang?: string;
+  uiLang?: string;
+  lengthLimit?: OverrideLengthLimit; // omitted = unbounded (AC9)
+}
+
+function OverrideField({
+  as,
+  id: providedId,
+  label,
+  ariaLabel,
+  editedSuffix,
+  resetAriaLabel,
+  value,
+  onChange,
+  isEdited,
+  onReset,
+  rows = 6,
+  className = '',
+  lang,
+  uiLang,
+  lengthLimit,
+}: OverrideFieldProps) {
+  const generatedId = useId();
+  const fieldId = providedId || generatedId;
+  const editedHintId = `${fieldId}-edited-hint`;
+  const limitHintId = `${fieldId}-limit-hint`;
+  const limitLiveId = `${fieldId}-limit-live`;
+
+  const containerClassName = [styles.overrideContainer, className].filter(Boolean).join(' ');
+  const fieldClassName = as === 'textarea' ? styles.fieldTextarea : styles.field;
+
+  const overLimit = lengthLimit !== undefined && value.length > lengthLimit.max;
+  const atLimit = lengthLimit !== undefined && value.length === lengthLimit.max;
+  const showCounter = lengthLimit !== undefined && value.length >= Math.ceil(lengthLimit.max * 0.9);
+
+  const ariaDescribedBy =
+    [
+      isEdited && label ? editedHintId : null,
+      lengthLimit ? limitHintId : null,
+      lengthLimit ? limitLiveId : null,
+    ]
+      .filter((id): id is string => id !== null)
+      .join(' ') || undefined;
+  const effectiveAriaLabel = label
+    ? undefined
+    : isEdited
+      ? `${ariaLabel}${editedSuffix}`
+      : ariaLabel;
+
+  // Extracted so the no-counter case (the common one) can render it as a direct child of
+  // .container — matching #1932's original markup exactly, with no wrapper and no added margin —
+  // while the showCounter case renders the identical button inside .metaRow next to the counter.
+  const resetButton = isEdited && (
+    <button
+      type="button"
+      className={styles.resetButton}
+      onClick={onReset}
+      aria-label={resetAriaLabel}
+      title={resetAriaLabel}
+      lang={uiLang}
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+      </svg>
+    </button>
+  );
+
+  return (
+    <div className={containerClassName}>
+      {label && <label htmlFor={fieldId}>{label}</label>}
+
+      <div className={styles.fieldWrapper}>
+        {as === 'textarea' ? (
+          <textarea
+            id={fieldId}
+            className={fieldClassName}
+            value={value}
+            onChange={(e) => onChange(e.currentTarget.value)}
+            rows={rows}
+            aria-label={effectiveAriaLabel}
+            aria-describedby={ariaDescribedBy}
+            lang={lang}
+            maxLength={lengthLimit?.max}
+          />
+        ) : (
+          <input
+            id={fieldId}
+            type="text"
+            className={fieldClassName}
+            value={value}
+            onChange={(e) => onChange(e.currentTarget.value)}
+            aria-label={effectiveAriaLabel}
+            aria-describedby={ariaDescribedBy}
+            lang={lang}
+            maxLength={lengthLimit?.max}
+          />
+        )}
+
+        {isEdited && (
+          <>
+            <div className={styles.editedDot} aria-hidden="true" />
+            {label && (
+              <span id={editedHintId} className={sharedStyles.srOnly} lang={uiLang}>
+                {editedSuffix}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {showCounter ? (
+        <div className={styles.metaRow}>
+          <span className={overLimit ? styles.counterOverLimit : styles.counter} aria-hidden="true">
+            {value.length}/{lengthLimit?.max}
+          </span>
+          {resetButton}
+        </div>
+      ) : (
+        resetButton
+      )}
+
+      {lengthLimit && (
+        <span id={limitHintId} className={sharedStyles.srOnly} lang={uiLang}>
+          {overLimit ? (lengthLimit.overHint ?? lengthLimit.hint) : lengthLimit.hint}
+        </span>
+      )}
+      {lengthLimit && (
+        <span
+          id={limitLiveId}
+          aria-live="polite"
+          aria-atomic="true"
+          className={sharedStyles.srOnly}
+          lang={uiLang}
+        >
+          {atLimit ? lengthLimit.reachedAnnouncement : ''}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export interface ReportContentEditorProps {
   content: ReportContent; // effective (overrides pre-applied)
@@ -108,7 +273,7 @@ export function ReportContentEditor({
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
 
-  const lengthLimit = (max: number): EditableFieldLengthLimit => ({
+  const lengthLimit = (max: number): OverrideLengthLimit => ({
     max,
     hint: t('sourceReports.editable.maxLengthHint', { max }),
     overHint: t('sourceReports.editable.overMaxLengthHint'),
@@ -152,7 +317,7 @@ export function ReportContentEditor({
           <h3>{t('sourceReports.editable.coverLetterHeading')}</h3>
 
           <div className={styles.letterFields}>
-            <EditableField
+            <OverrideField
               as="textarea"
               label={t('sourceReports.editable.senderLabel')}
               ariaLabel={t('sourceReports.editable.senderLabel')}
@@ -171,7 +336,7 @@ export function ReportContentEditor({
             />
 
             {content.coverLetter.recipient && (
-              <EditableField
+              <OverrideField
                 as="textarea"
                 label={t('sourceReports.editable.recipientLabel')}
                 ariaLabel={t('sourceReports.editable.recipientLabel')}
@@ -200,7 +365,7 @@ export function ReportContentEditor({
             </div>
 
             {content.coverLetter.reference && (
-              <EditableField
+              <OverrideField
                 as="input"
                 label={t('sourceReports.editable.referenceLabel')}
                 ariaLabel={t('sourceReports.editable.referenceLabel')}
@@ -218,7 +383,7 @@ export function ReportContentEditor({
               />
             )}
 
-            <EditableField
+            <OverrideField
               as="input"
               label={t('sourceReports.editable.subjectLabel')}
               ariaLabel={t('sourceReports.editable.subjectLabel')}
@@ -244,7 +409,7 @@ export function ReportContentEditor({
               </span>
             </div>
 
-            <EditableField
+            <OverrideField
               as="textarea"
               label={t('sourceReports.editable.bodyLabel')}
               ariaLabel={t('sourceReports.editable.bodyLabel')}
@@ -271,7 +436,7 @@ export function ReportContentEditor({
               </span>
             </div>
 
-            <EditableField
+            <OverrideField
               as="input"
               label={t('sourceReports.editable.signatureLabel')}
               ariaLabel={t('sourceReports.editable.signatureLabel')}
@@ -418,7 +583,7 @@ export function ReportContentEditor({
                 )}
                 {show('usage') && (
                   <td>
-                    <EditableField
+                    <OverrideField
                       as="input"
                       ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
                         vendor: row.vendor,
@@ -528,7 +693,7 @@ export function ReportContentEditor({
             )}
             {show('usage') && (
               <div className={styles.mobileCardRow}>
-                <EditableField
+                <OverrideField
                   as="input"
                   label={content.labels.usage}
                   ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {

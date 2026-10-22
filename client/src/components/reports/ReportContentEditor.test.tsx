@@ -30,22 +30,22 @@
  * QA re-verification round 2 (labels field + editable-preview follow-up): `content.labels` (a new
  * REQUIRED `ReportContentLabels` field, built with `reportT` — the user-selected REPORT language,
  * distinct from the app's own chrome `t`) now supplies every table header, mobile-card read-only
- * caption, mobile-card EditableField `label=` prop, and source-info-block label. The chrome `t`
+ * caption, mobile-card OverrideField `label=` prop, and source-info-block label. The chrome `t`
  * prop passed to this component (mocked below to ECHO its key, e.g.
  * `t('sourceReports.table.usage') === 'sourceReports.table.usage'`) is used ONLY for: headings
  * (Cover Letter/Report Table), field aria-labels/edited-suffix/reset-aria-label text. A previously
  * documented asymmetry — the two mobile-card editable rows (Usage/Attachments Note) rendering
  * their visible `<label>` from the chrome `t()` echo instead of `content.labels.*` — has since
  * been fixed: `ReportContentEditor.tsx` now passes `label={content.labels.usage}` /
- * `label={content.labels.attachmentsNote}` directly to `EditableField`, which renders a real
+ * `label={content.labels.attachmentsNote}` directly to `OverrideField`, which renders a real
  * `<label htmlFor>` association (resolvable via `getByLabelText`), and the old standalone
- * chrome-t `<label>` element that preceded the Usage `EditableField` has been removed entirely.
+ * chrome-t `<label>` element that preceded the Usage `OverrideField` has been removed entirely.
  *
  * #1959 RE-SHAPE. Three changes to this component invalidate the older assertions this file used to
  * carry, and the tests below now assert the NEW behaviour instead:
  *
  *  a. The dedicated **Attachments Note column is gone** (desktop header/cell and mobile card row
- *     alike). `row.attachmentsNote` is no longer an EditableField at all — it is now READ-ONLY
+ *     alike). `row.attachmentsNote` is no longer an OverrideField at all — it is now READ-ONLY
  *     text, joined with `row.areaText` by ' · ' into a single grey `.usageMetaText` element that
  *     sits inside the Usage cell (a `<div>` on desktop, a `<span>` in the mobile card). So there is
  *     no `row.<id>.attachmentsNote` onFieldChange/onFieldReset wiring left in this component, and
@@ -222,7 +222,7 @@ describe('ReportContentEditor — cover letter card', () => {
     expect(screen.queryByText('sourceReports.editable.coverLetterHeading')).not.toBeInTheDocument();
   });
 
-  it('renders sender/subject/body EditableFields and the read-only dateLine when coverLetter is present', () => {
+  it('renders sender/subject/body OverrideFields and the read-only dateLine when coverLetter is present', () => {
     const content = makeContent({
       coverLetter: {
         sender: 'The Smiths\n123 Main St',
@@ -274,8 +274,8 @@ describe('ReportContentEditor — cover letter card', () => {
     expect(screen.getByText('sourceReports.editable.closingLabel')).toBeInTheDocument();
     expect(screen.getByText('Sincerely yours,')).toBeInTheDocument();
 
-    // Position: a direct child of .letterFields, strictly between the body EditableField and the
-    // signature EditableField. Located by content rather than hardcoded index math, so this fails
+    // Position: a direct child of .letterFields, strictly between the body OverrideField and the
+    // signature OverrideField. Located by content rather than hardcoded index math, so this fails
     // for the right reason (the row is gone, or moved) rather than merely re-asserting a position
     // number nobody chose deliberately.
     const letterFields = container.querySelector('.letterFields');
@@ -400,7 +400,7 @@ describe('ReportContentEditor — cover letter card', () => {
     });
   });
 
-  it('renders the recipient EditableField only when recipient is non-null', () => {
+  it('renders the recipient OverrideField only when recipient is non-null', () => {
     const withRecipient = makeContent({
       coverLetter: {
         sender: '',
@@ -447,7 +447,7 @@ describe('ReportContentEditor — cover letter card', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('renders the reference EditableField only when reference is non-null (distinct from sourceInfo.referenceText)', () => {
+  it('renders the reference OverrideField only when reference is non-null (distinct from sourceInfo.referenceText)', () => {
     const content = makeContent({
       sourceInfo: {
         sourceName: 'Home Loan',
@@ -517,9 +517,9 @@ describe('ReportContentEditor — cover letter card', () => {
     expect(onFieldReset).toHaveBeenCalledWith('coverLetter.sender');
   });
 
-  // ─── #1932 AC 2.1/2.3: signature is a first-class editable EditableField ────────────────────
+  // ─── #1932 AC 2.1/2.3: signature is a first-class editable OverrideField ────────────────────
 
-  it('renders the signature EditableField unconditionally — present even when signature is an empty string, matching sender', () => {
+  it('renders the signature OverrideField unconditionally — present even when signature is an empty string, matching sender', () => {
     const content = makeContent({
       coverLetter: {
         sender: '',
@@ -668,7 +668,7 @@ describe('ReportContentEditor — source info block (read-only, prefixed with co
 });
 
 describe('ReportContentEditor — full field-wiring matrix (onChange + onReset per field)', () => {
-  // Each EditableField's onChange/onReset prop is itself an inline arrow function whose BODY is a
+  // Each OverrideField's onChange/onReset prop is itself an inline arrow function whose BODY is a
   // distinct statement from the JSX attribute assignment that creates it — coverage only counts
   // the body as hit once the callback actually fires. This block exercises every editable field
   // (both cover-letter and per-row) via both onChange and onReset, closing that gap explicitly
@@ -880,7 +880,7 @@ describe('ReportContentEditor — table rows', () => {
     expect(table.querySelectorAll(`td.${styles.refundAmount}`)).toHaveLength(0);
   });
 
-  it('renders a Usage EditableField per row, wired to row.<invoiceId>.usageText', () => {
+  it('renders a Usage OverrideField per row, wired to row.<invoiceId>.usageText', () => {
     const rows = [makeRow({ invoiceId: 'inv-9', usageText: 'Kitchen work' })];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     const table = getDesktopTable(container);
@@ -1472,7 +1472,7 @@ describe('ReportContentEditor — #1973 column visibility toggles (controlled: h
     },
   );
 
-  it('unchecking the Usage toggle (hiddenColumns={usage}) removes the usage EditableField (and its inline meta text) entirely', () => {
+  it('unchecking the Usage toggle (hiddenColumns={usage}) removes the usage OverrideField (and its inline meta text) entirely', () => {
     const rows = [
       makeRow({ invoiceId: 'inv-1', usageText: 'Kitchen work', areaText: 'Ground Floor' }),
     ];
@@ -1676,7 +1676,7 @@ describe(
       expect(card.getByText('€555.00')).toBeInTheDocument();
 
       // Editable field (Usage): no separate caption span — resolves via getByLabelText, a real
-      // <label htmlFor> association (EditableField's labelled mode). Its visible label text comes
+      // <label htmlFor> association (OverrideField's labelled mode). Its visible label text comes
       // from content.labels.usage (report language), matching the read-only captions above — the
       // chrome t() echo must never leak in as the visible label (see header comment).
       const usageField = card.getByLabelText(LABELS.usage);
@@ -1749,7 +1749,7 @@ describe(
       expect(allocated?.lastElementChild).toBe(note);
     });
 
-    it('wires the mobile card usage EditableField to the same onFieldChange key as the desktop table, and #1959 exposes no attachmentsNote control to wire', () => {
+    it('wires the mobile card usage OverrideField to the same onFieldChange key as the desktop table, and #1959 exposes no attachmentsNote control to wire', () => {
       const rows = [
         makeRow({
           invoiceId: 'inv-7',
@@ -1827,7 +1827,7 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     expect(tableWrapper!.getAttribute('lang')).toBe('de');
   });
 
-  it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
+  it('OverrideField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
     // Labels like "Sender", "Subject", "Body" are UI chrome — they must not be tagged with the
     // report language. Only the editable field VALUE sections carry the lang attribute.
     const { container } = renderEditor({ content: fullContent(), lang: 'de' });
@@ -1848,7 +1848,7 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     expect(thead!.getAttribute('lang')).toBeNull();
   });
 
-  it('[integration] a usage EditableField <input> carries lang="de" when lang="de" is passed — wires the EditableField.lang prop', () => {
+  it('[integration] a usage OverrideField <input> carries lang="de" when lang="de" is passed — wires the OverrideField.lang prop', () => {
     const { container } = renderEditor({ lang: 'de' });
     // Scope to the desktop table body to avoid picking up column-toggle checkboxes, which appear
     // before the usage inputs in DOM order and carry no lang attribute.
@@ -1894,8 +1894,8 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     }
   });
 
-  it('[integration] the reset button on an edited field carries uiLang="en" — wires the EditableField.uiLang prop', () => {
-    // When lang !== uiLang, uiLang must flow from ReportContentEditor through to EditableField's
+  it('[integration] the reset button on an edited field carries uiLang="en" — wires the OverrideField.uiLang prop', () => {
+    // When lang !== uiLang, uiLang must flow from ReportContentEditor through to OverrideField's
     // reset button and sr-only edited hint. Deleting all uiLang={uiLang} call-site props from
     // ReportContentEditor.tsx would be type-legal (optional prop) and leave existing suites green.
     // This test closes that coverage gap: render with an edited cover-letter sender field and assert
@@ -1907,7 +1907,7 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
       overrides: { 'coverLetter.sender': 'Edited sender value' },
     });
     // The sender field is edited (key in overrides), so its reset button renders.
-    // The button carries lang={uiLang} per EditableField.tsx — it is always UI chrome.
+    // The button carries lang={uiLang} per ReportContentEditor.tsx — it is always UI chrome.
     const resetButtons = Array.from(
       container.querySelectorAll('button[lang="en"]'),
     ) as HTMLElement[];
@@ -1947,7 +1947,7 @@ describe('ReportContentEditor — #1941 per-field maxLength wiring (usage field,
     ['desktop table', getDesktopTable],
     ['mobile card', getMobileList],
   ] as const)(
-    'sets the native maxLength attribute to 500 on the usage EditableField (%s)',
+    'sets the native maxLength attribute to 500 on the usage OverrideField (%s)',
     (_label, getTree) => {
       const { container } = renderEditor({ content: fullContent() });
       const tree = getTree(container);
@@ -1965,8 +1965,8 @@ describe('ReportContentEditor — #1941 per-field maxLength wiring (usage field,
 // dependency." `USAGE_TEXT_MAX_LENGTH` is module-private in ReportContentEditor.tsx and is NOT
 // exported (a one-line export would be a production change, outside qa-integration-tester's lane
 // — flagged rather than done here). Reaching it via a production export turned out unnecessary:
-// EditableField forwards `maxLength` straight onto the native `<textarea maxLength={...}>` (see
-// EditableField.tsx), so the ACTUAL runtime value is directly observable as the rendered
+// OverrideField forwards `maxLength` straight onto the native `<textarea maxLength={...}>` (see
+// ReportContentEditor.tsx), so the ACTUAL runtime value is directly observable as the rendered
 // `maxlength` DOM attribute — the same technique the #1941 test immediately above already uses to
 // pin it at 500. That is real behaviour, not a re-typed literal: if `USAGE_TEXT_MAX_LENGTH` in
 // production ever changed, this reads the new value straight off the DOM, no export needed.

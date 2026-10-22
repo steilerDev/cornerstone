@@ -1,25 +1,33 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentLinkWithMetadata, AttachmentType } from '@cornerstone/shared';
 import { ATTACHMENT_TYPES } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { Badge } from '../../components/Badge/Badge.js';
+import { OverflowMenu } from '../OverflowMenu/index.js';
+import type { OverflowMenuEntry } from '../OverflowMenu/index.js';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import { formatDate } from '../../lib/formatters.js';
+import { useUserText } from '../../hooks/useUserText.js';
+import { DocumentDetailPanel } from './DocumentDetailPanel.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './LinkedDocumentCard.module.css';
 import badgeStyles from '../Badge/Badge.module.css';
 
 interface LinkedDocumentCardProps {
   link: DocumentLinkWithMetadata;
   paperlessBaseUrl: string | null;
-  onView?: (link: DocumentLinkWithMetadata) => void;
   onUnlink?: (link: DocumentLinkWithMetadata) => void;
-  onItemize?: (link: DocumentLinkWithMetadata) => void;
+  /** Offered only for a link whose Paperless document exists; receives that document's id. */
+  onItemize?: (documentId: number) => void;
   onAttachmentTypeChange?: (link: DocumentLinkWithMetadata, type: AttachmentType | null) => void;
   isUpdatingAttachmentType?: boolean;
-  /** Paperless is off: show the link only, with no View, Unlink, Itemize or type control. */
+  /** Paperless is off: the title and meta only, with no menu, Details or type control. */
   readOnly?: boolean;
+  /** The ⋯ trigger, so the host can move focus to it after an unlink or a link. */
+  menuTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /** Badge class per attachment type; a Record so a new member is a type error, not a missing badge. */
@@ -29,24 +37,33 @@ const ATTACHMENT_TYPE_CLASSNAMES: Record<AttachmentType, string | undefined> = {
   invoice: badgeStyles.attachmentInvoice,
 };
 
+/**
+ * One linked document as a row of the Documents panel: thumbnail, title, meta, the invoice
+ * document type, a Details disclosure (inline metadata and text preview) and a ⋯ menu
+ * (Open in Paperless, Itemize, Unlink). Unlink is immediate; the host shows the Undo toast.
+ */
 export function LinkedDocumentCard({
   link,
   paperlessBaseUrl,
-  onView,
   onUnlink,
   onItemize,
   onAttachmentTypeChange,
   isUpdatingAttachmentType,
   readOnly = false,
+  menuTriggerRef,
 }: LinkedDocumentCardProps) {
   const { t } = useTranslation('documents');
+  const userText = useUserText();
+  const detailsId = useId();
   const [thumbError, setThumbError] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const thumbUrl = getDocumentThumbnailUrl(link.paperlessDocumentId);
   const hasDocument = link.document !== null;
-  const title = link.document?.title ?? `Document #${link.paperlessDocumentId}`;
+  const title =
+    link.document?.title ?? t('documentCard.fallbackTitle', { id: link.paperlessDocumentId });
   const created = link.document?.created ?? null;
-  const tags = link.document?.tags ?? [];
+  const correspondent = link.document?.correspondent ?? null;
 
   const ATTACHMENT_TYPE_VARIANTS: BadgeVariantMap = {};
   for (const type of ATTACHMENT_TYPES) {
@@ -56,121 +73,139 @@ export function LinkedDocumentCard({
     };
   }
 
+  const menuItems: OverflowMenuEntry[] = [];
+  if (hasDocument && paperlessBaseUrl) {
+    menuItems.push({
+      kind: 'link',
+      id: 'open',
+      label: t('panel.openInPaperless'),
+      href: `${paperlessBaseUrl}/documents/${link.paperlessDocumentId}/details`,
+      newTab: true,
+      srSuffix: t('panel.opensInNewTab'),
+      testId: `document-open-${link.id}`,
+    });
+  }
+  if (link.document && onItemize) {
+    const documentId = link.document.id;
+    menuItems.push({
+      id: 'itemize',
+      label: t('panel.itemize'),
+      onClick: () => onItemize(documentId),
+      testId: `document-itemize-${link.id}`,
+    });
+  }
+  if (onUnlink) {
+    if (menuItems.length > 0) menuItems.push({ kind: 'separator', id: 'separator' });
+    menuItems.push({
+      id: 'unlink',
+      label: t('panel.unlink'),
+      variant: 'destructive',
+      onClick: () => onUnlink(link),
+      testId: `document-unlink-${link.id}`,
+    });
+  }
+
   return (
-    <div className={styles.card}>
-      <div className={styles.thumbContainer}>
-        {!thumbError && hasDocument && (
-          <img
-            src={thumbUrl}
-            alt={title}
-            className={styles.thumb}
-            loading="lazy"
-            onError={() => setThumbError(true)}
+    <div className={styles.card} data-testid={`linked-document-${link.id}`}>
+      <div className={styles.row}>
+        <div className={styles.thumbContainer}>
+          {!thumbError && hasDocument && (
+            <img
+              src={thumbUrl}
+              alt=""
+              className={styles.thumb}
+              loading="lazy"
+              onError={() => setThumbError(true)}
+            />
+          )}
+          {(thumbError || !hasDocument) && (
+            <div className={styles.thumbFallback} aria-hidden="true">
+              📄
+            </div>
+          )}
+        </div>
+
+        <div className={styles.body}>
+          {hasDocument ? (
+            <h3 {...userText(styles.title)}>{title}</h3>
+          ) : (
+            <h3 className={styles.title}>{title}</h3>
+          )}
+
+          {(created || correspondent) && (
+            <p className={styles.meta}>
+              {created && formatDate(created)}
+              {created && correspondent && ' · '}
+              {correspondent && <span {...userText()}>{correspondent}</span>}
+            </p>
+          )}
+
+          {onAttachmentTypeChange && !readOnly && (
+            <div className={styles.attachmentTypeRow}>
+              {link.attachmentType && (
+                <Badge
+                  variants={ATTACHMENT_TYPE_VARIANTS}
+                  value={link.attachmentType}
+                  testId={`attachment-type-badge-${link.id}`}
+                />
+              )}
+              <label htmlFor={`attachment-type-${link.id}`} className={sharedStyles.srOnly}>
+                {t('documentCard.attachmentType.selectLabel', { title })}
+              </label>
+              <select
+                id={`attachment-type-${link.id}`}
+                className={styles.attachmentTypeSelect}
+                value={link.attachmentType ?? ''}
+                onChange={(e) =>
+                  onAttachmentTypeChange(link, (e.target.value || null) as AttachmentType | null)
+                }
+                disabled={isUpdatingAttachmentType}
+              >
+                <option value="">{t('documentCard.attachmentType.none')}</option>
+                {ATTACHMENT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {t(I18N_UNION_KEYS.documentAttachmentType.key(type))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {hasDocument && !readOnly && (
+            <button
+              type="button"
+              className={styles.detailsToggle}
+              aria-expanded={detailsOpen}
+              aria-controls={detailsOpen ? detailsId : undefined}
+              onClick={() => setDetailsOpen((open) => !open)}
+              data-testid={`document-details-${link.id}`}
+            >
+              {t('panel.details')}
+            </button>
+          )}
+        </div>
+
+        {!readOnly && menuItems.length > 0 && (
+          <OverflowMenu
+            items={menuItems}
+            triggerAriaLabel={t('panel.cardActions', { title })}
+            triggerRef={menuTriggerRef}
+            usePortal
+            wrapperClassName={styles.menu}
+            data-testid={`document-menu-${link.id}`}
           />
         )}
-        {(thumbError || !hasDocument) && (
-          <div className={styles.thumbFallback} aria-hidden="true">
-            📄
-          </div>
-        )}
-        {/* Overlay unlink button — always rendered (visible on hover/focus/touch) */}
-        {!readOnly && (
-          <button
-            type="button"
-            className={styles.unlinkOverlayButton}
-            onClick={() => onUnlink?.(link)}
-            aria-label={`Unlink document: ${title}`}
-            title={t('documentCard.removeLink')}
-          >
-            ✕
-          </button>
-        )}
       </div>
 
-      <div className={styles.body}>
-        <h3 className={styles.title}>{title}</h3>
-
-        {created && <p className={styles.meta}>{formatDate(created)}</p>}
-
-        {onAttachmentTypeChange && !readOnly && (
-          <div className={styles.attachmentTypeRow}>
-            {link.attachmentType && (
-              <Badge
-                variants={ATTACHMENT_TYPE_VARIANTS}
-                value={link.attachmentType}
-                testId={`attachment-type-badge-${link.id}`}
-              />
-            )}
-            <label htmlFor={`attachment-type-${link.id}`} className={styles.srOnly}>
-              {t('documentCard.attachmentType.selectLabel', { title })}
-            </label>
-            <select
-              id={`attachment-type-${link.id}`}
-              className={styles.attachmentTypeSelect}
-              value={link.attachmentType ?? ''}
-              onChange={(e) =>
-                onAttachmentTypeChange(link, (e.target.value || null) as AttachmentType | null)
-              }
-              disabled={isUpdatingAttachmentType}
-            >
-              <option value="">{t('documentCard.attachmentType.none')}</option>
-              {ATTACHMENT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {t(I18N_UNION_KEYS.documentAttachmentType.key(type))}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {tags.length > 0 && (
-          <div className={styles.tags}>
-            {tags.slice(0, 2).map((tag) => (
-              <span key={tag.id} className={styles.tagChip}>
-                {tag.name}
-              </span>
-            ))}
-            {tags.length > 2 && <span className={styles.tagChip}>+{tags.length - 2}</span>}
-          </div>
-        )}
-      </div>
-
-      <div className={styles.actions}>
-        {hasDocument && !readOnly && (
-          <button
-            type="button"
-            className={styles.viewButton}
-            onClick={() => onView?.(link)}
-            aria-label={t('documentCard.detailsAriaLabel', { title })}
-          >
-            {t('documentCard.details')}
-          </button>
-        )}
-
-        {hasDocument && !readOnly && onItemize && (
-          <button
-            type="button"
-            className={styles.itemizeButton}
-            onClick={() => onItemize(link)}
-            aria-label={`${t('documentCard.itemize')}: ${title}`}
-          >
-            <span aria-hidden="true">⚡</span> {t('documentCard.itemize')}
-          </button>
-        )}
-
-        {hasDocument && paperlessBaseUrl && (
-          <a
-            href={`${paperlessBaseUrl}/documents/${link.paperlessDocumentId}/details`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.openLink}
-            aria-label={`Open document in Paperless: ${title}`}
-            title={t('documentCard.openInPaperless')}
-          >
-            ↗
-          </a>
-        )}
-      </div>
+      {detailsOpen && link.document && !readOnly && (
+        <div id={detailsId}>
+          <DocumentDetailPanel
+            inline
+            document={{ ...link.document, searchHit: null }}
+            paperlessBaseUrl={paperlessBaseUrl ?? undefined}
+          />
+        </div>
+      )}
     </div>
   );
 }

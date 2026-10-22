@@ -224,13 +224,6 @@
         "genericError": "Failed to move lines. Please try again."
       }
     },
-    "docs": {
-      "expand": "Show documents",
-      "collapse": "Hide documents",
-      "expandAriaLabel": "Show documents for {{name}}",
-      "collapseAriaLabel": "Hide documents for {{name}}",
-      "panelAriaLabel": "Documents for {{name}}"
-    },
     "generateReport": "Generate Report",
     "generateReportMenuAriaLabel": "Generate report for {{name}}"
   },
@@ -916,13 +909,6 @@
       "created": "Subsidy program \"{{name}}\" created successfully",
       "updated": "Subsidy program \"{{name}}\" updated successfully",
       "deleted": "Subsidy program \"{{name}}\" deleted successfully"
-    },
-    "docs": {
-      "expand": "Show documents",
-      "collapse": "Hide documents",
-      "expandAriaLabel": "Show documents for {{name}}",
-      "collapseAriaLabel": "Hide documents for {{name}}",
-      "panelAriaLabel": "Documents for {{name}}"
     }
   },
   "budgetLineForm": {

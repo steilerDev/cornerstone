@@ -12,11 +12,14 @@
 import type { FastifyInstance } from 'fastify';
 import { NotFoundError, UnauthorizedError } from '../errors/AppError.js';
 import * as documentLinkService from '../services/documentLinkService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import { DOCUMENT_LINK_ENTITY_TYPES } from '@cornerstone/shared';
 import type {
   CreateDocumentLinkRequest,
   UpdateDocumentLinkRequest,
   DocumentLinkEntityType,
   AllLinkedDocumentIdsResponse,
+  DeleteDocumentLinkResponse,
 } from '@cornerstone/shared';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -28,7 +31,7 @@ const createLinkSchema = {
     properties: {
       entityType: {
         type: 'string',
-        enum: ['work_item', 'household_item', 'invoice', 'budget_source', 'subsidy_program'],
+        enum: [...DOCUMENT_LINK_ENTITY_TYPES],
       },
       entityId: { type: 'string', minLength: 1, maxLength: 36 },
       paperlessDocumentId: { type: 'integer', minimum: 1 },
@@ -64,7 +67,7 @@ const listLinksSchema = {
     properties: {
       entityType: {
         type: 'string',
-        enum: ['work_item', 'household_item', 'invoice', 'budget_source', 'subsidy_program'],
+        enum: [...DOCUMENT_LINK_ENTITY_TYPES],
       },
       entityId: { type: 'string', minLength: 1, maxLength: 36 },
     },
@@ -189,7 +192,8 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
    * DELETE /api/document-links/:id
    *
    * Remove a link between a Cornerstone entity and a Paperless-ngx document.
-   * Returns 204 on success, 404 if the link does not exist.
+   * Returns 200 { undo } on success (the token restores the link, contract 11),
+   * 404 if the link does not exist.
    *
    * Auth required: Yes
    */
@@ -201,11 +205,17 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const found = documentLinkService.deleteLink(fastify.db, request.params.id);
-      if (!found) {
+      const { id } = request.params;
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(fastify.db, id);
+      if (!snapshot) {
         throw new NotFoundError('Document link not found');
       }
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'document_link', id },
+        restore: (tx) => documentLinkService.restoreDeletedLink(tx, snapshot),
+      });
+      return reply.status(200).send({ undo } satisfies DeleteDocumentLinkResponse);
     },
   );
 }

@@ -1,0 +1,146 @@
+.root {
+  margin-bottom: var(--spacing-4);
+}
+
+/* Title takes the free width; status, secondary, primary and the menu follow in DOM order. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: start;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-2);
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.status,
+.secondary,
+.actionSlot,
+.menu {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+}
+
+.status {
+  min-width: 0;
+}
+
+.primary {
+  composes: btnPrimary from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  text-decoration: none;
+}
+
+.primary[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.primary[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
+
+.primary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (min-width: 1024px) {
+  .status,
+  .secondary,
+  .actionSlot,
+  .menu,
+  .primary {
+    min-height: var(--spacing-10);
+  }
+}
+
+/* Phone: title and menu share row 1, then the status, then the actions. */
+@media (max-width: 767px) {
+  .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    grid-auto-flow: row;
+  }
+
+  .title {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .menu {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .status {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .secondary,
+  .actionSlot {
+    grid-column: 1 / -1;
+  }
+
+  .secondary {
+    grid-row: 3;
+  }
+
+  .actionSlot {
+    grid-row: 4;
+  }
+
+  .secondary > *,
+  .actionSlot > * {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+/* From 480 px the secondary and the primary sit side by side. */
+@media (min-width: 480px) and (max-width: 767px) {
+  .hasSecondary .secondary {
+    grid-column: 1 / 2;
+    grid-row: 3;
+  }
+
+  .hasSecondary .actionSlot {
+    grid-column: 2 / 4;
+    grid-row: 3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary {
+    transition: none;
+  }
+}
+
+@media print {
+  .root {
+    color-scheme: light;
+  }
+
+  .title {
+    color: CanvasText;
+  }
+
+  .secondary,
+  .actionSlot,
+  .menu {
+    display: none;
+  }
+}

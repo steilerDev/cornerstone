@@ -42,8 +42,6 @@ const ALLOW_LIST: readonly { file: string; snippet: string }[] = [
     snippet: 't(`sourceReports.table.attachmentsNote_${',
   },
   // Local copy-key tables / title keys, not shared unions
-  { file: 'components/documents/LinkedDocumentsSection.tsx', snippet: 't(`linkedDocuments.${' },
-  { file: 'components/documents/LinkedDocumentsSection.tsx', snippet: 't(`linkedDocuments.${' },
   {
     file: 'components/SourceBudgetLinePanel/SourceBudgetLinePanel.tsx',
     snippet: 't(`sources.lines.${',

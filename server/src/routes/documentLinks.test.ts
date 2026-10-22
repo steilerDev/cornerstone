@@ -23,6 +23,7 @@ import type {
   ApiErrorResponse,
   DocumentLinkResponse,
   DocumentLinkListResponse,
+  DeleteDocumentLinkResponse,
 } from '@cornerstone/shared';
 import { _resetFilterTagCache } from '../services/paperlessService.js';
 
@@ -946,7 +947,7 @@ describe('Document Links Routes', () => {
       expect(body.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('returns 204 and deletes the link successfully', async () => {
+    it('returns 200 with an undo token and deletes the link', async () => {
       const { cookie } = await createUserWithSession();
       const workItemId = await createWorkItem(cookie);
 
@@ -968,7 +969,15 @@ describe('Document Links Routes', () => {
         headers: { cookie },
       });
 
-      expect(deleteResponse.statusCode).toBe(204);
+      expect(deleteResponse.statusCode).toBe(200);
+      const body = deleteResponse.json<DeleteDocumentLinkResponse>();
+      expect(body.undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+      const list = await app.inject({
+        method: 'GET',
+        url: `/api/document-links?entityType=work_item&entityId=${workItemId}`,
+        headers: { cookie },
+      });
+      expect(list.json<DocumentLinkListResponse>().documentLinks).toEqual([]);
     });
 
     it('returns 404 NOT_FOUND when link does not exist', async () => {

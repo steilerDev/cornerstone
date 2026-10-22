@@ -5,59 +5,75 @@ title: Linking Documents
 
 # Linking Documents
 
-You can link Paperless-ngx documents to **work items**, **household items**, and **vendor invoices** so that related documents -- contracts, receipts, permits, plans, warranties -- are always accessible from the entity they belong to.
+You can link Paperless-ngx documents to **tasks**, **purchases**, **invoices**, **funding sources**, and **grants** so that related documents -- contracts, receipts, permits, plans, warranties -- are always accessible from the record they belong to.
 
 ## Where Documents Appear
 
-A **Documents** section appears on:
+Each of these pages has a **Documents (n)** button, where *n* is the number of linked documents:
 
-- **Work item detail pages** -- Link contracts, permits, receipts, and plans to the work item they relate to
-- **Household item detail pages** -- Link product specs, receipts, warranties, and delivery confirmations to household items
-- **Invoice detail pages** -- Link invoice PDFs and supporting documents to vendor invoices
+- **Task detail pages** -- Link contracts, permits, receipts, and plans to the task they relate to
+- **Purchase detail pages** -- Link product specs, receipts, warranties, and delivery confirmations to the purchase
+- **Invoice detail pages** -- Link invoice PDFs and supporting documents to the invoice
+- **Funding source rows** -- Link loan contracts and related paperwork to a funding source
+- **Grant rows** -- Link application forms, approval letters, and related paperwork to a grant
 
-Each section shows the number of linked documents as a badge next to the heading.
+Click the button to open the **Documents** panel. On a desktop the panel slides in from the side. On a phone it fills the whole screen. The panel lists every linked document and is where you link new ones.
 
-:::note
-Screenshots for the documents feature require a connected Paperless-ngx instance and will be added in a future release.
+:::info Screenshot needed
+Add a screenshot of the **Documents (n)** button on a task detail page and of the open Documents panel.
 :::
 
 ## Linking a Document
 
-1. Open a work item or invoice detail page
-2. Scroll down to the **Documents** section
-3. Click **+ Add Document** -- this opens a document picker modal
-4. Search or browse for the document you want to link
-5. Click a document card to link it
+1. Open a task, purchase, invoice, funding source, or grant
+2. Click **Documents (n)** to open the panel
+3. Click **Link document** at the bottom of the panel
+4. Search or browse for the document you want
+5. Click a document to link it
 
-The document is immediately linked and appears in the Documents section. A screen reader announcement confirms the link was created.
+The picker is shown inside the panel. The document is linked straight away and appears in the list. A screen reader announcement confirms the link.
 
-The picker shows **all documents** by default. If your document store is large and you only want to see documents that are not yet linked anywhere in Cornerstone, tick the **Hide already-linked documents** checkbox at the top of the picker. The filter is **system-wide**: it hides any document that is already linked to *any* work item, household item, or invoice in Cornerstone -- not just the entity you are currently working on -- so you can quickly find documents that have not been filed anywhere yet. The toggle stays unchecked unless you turn it on, so you never have to clear it just to find a document you intend to re-link, and the count of hidden documents is shown while the filter is active.
+On an invoice, the picker also has a **Document type (optional)** dropdown. Choose **Quotation**, **Deposit**, or **Invoice** before you click the document to tag it with that type. Leave it empty to link the document without a type.
+
+To leave the picker without linking anything, press **Escape** or click **‹ Documents** at the top of the picker. Escape returns you to the list of linked documents. It does not close the panel.
+
+The picker shows **all documents** by default. If your document store is large and you only want to see documents that are not yet linked anywhere in Cornerstone, tick the **Hide already-linked documents** checkbox at the top of the picker. The filter is **system-wide**: it hides any document that is already linked to *any* task, purchase, invoice, funding source, or grant in Cornerstone -- not just the record you are working on. The checkbox stays unchecked unless you turn it on, and the number of hidden documents is shown while the filter is active.
 
 :::note
-Each document can only be linked once to the same entity. If you try to link a document that is already attached, Cornerstone will show a message that the document is already linked.
+Each document can only be linked once to the same record. If you try to link a document that is already attached, the panel shows a message such as *This document is already linked to this task.*
 :::
 
 ## Viewing a Linked Document
 
-Linked documents are displayed as compact cards showing the thumbnail, title, and date. You can interact with them in two ways:
+Each linked document is a card in the panel. The card shows a thumbnail, the title, the date, and the correspondent. Two things are available on every card:
 
-- **View details** -- Click the document card to expand an inline detail panel with full metadata, content preview, and a link to open the document in Paperless-ngx
-- **Open in Paperless-ngx** -- Click the external link icon on the card to go directly to the document in your Paperless-ngx instance (opens in a new tab)
+- **Details** -- Opens the document's details below the card: created date, correspondent, document type, archive number, pages, tags, and a content preview. A **View in Paperless-ngx ↗** link at the bottom opens the document in Paperless-ngx.
+- **Actions menu** -- The menu button on the card. It holds the actions described below.
+
+From the actions menu you can choose:
+
+- **Open in Paperless** -- Opens the document in your Paperless-ngx instance in a new tab
+- **Itemize** -- Only on invoices, and only when [Auto-itemize](/guides/budget/auto-itemize) is configured. Opens the Auto-itemize page for that document
+- **Unlink** -- Removes the link (see below)
 
 ## Unlinking a Document
 
-1. Find the linked document card in the Documents section
-2. Click the **✕** button in the **top-right corner** of the card (it appears on hover, focus, or touch; its tooltip reads *Remove document link*)
-3. A confirmation dialog appears -- click **Unlink** to confirm or **Cancel** to keep the link
+1. Open the **Documents (n)** panel on the record
+2. Open the actions menu on the document's card
+3. Choose **Unlink**
 
-The unlink control lives as an overlay in the corner of each document card so it is easy to find without crowding the card's other actions.
+Unlinking happens straight away. There is no confirmation dialog. A notice confirms *Unlinked* with the document's title and offers an **Undo** button. Click **Undo** while the notice is still on screen to put the link back.
 
 :::caution
-Unlinking removes the association between the Cornerstone entity and the Paperless-ngx document. The document itself is not deleted from Paperless-ngx -- it remains in your document store.
+Unlinking removes the connection between the record and the Paperless-ngx document. The document itself is not deleted from Paperless-ngx -- it remains in your document store.
 :::
 
 ## Without Paperless-ngx
 
-If Paperless-ngx is not configured, the Documents section on work item and invoice detail pages shows an informational message explaining how to enable the integration. The **+ Add Document** button is disabled.
+What you see depends on whether Paperless-ngx is connected and whether any documents are already linked:
 
-If Paperless-ngx was previously configured and documents were linked, but the connection is later removed or becomes unreachable, the linked document records are preserved. The cards will show the Paperless-ngx document ID but will not be able to display thumbnails or metadata until the connection is restored.
+- **Not connected and nothing linked** -- There is no **Documents** button on the page. Set up the integration first (see [Paperless-ngx Setup](/guides/documents/setup)).
+- **Not connected, but links exist** -- The button still appears, and the panel shows a read-only notice such as *Paperless is not connected. 2 links are kept.* The linked documents are listed, but you cannot link, open, or unlink them until the connection is restored. Nothing is deleted.
+- **Connected but unreachable** -- The panel shows *Paperless is unreachable.* with a **Try again** button. Check that Paperless-ngx is running and reachable from the Cornerstone server.
+
+If a connection is removed or becomes unreachable, the linked document records are preserved. Cards show the Paperless-ngx document ID (for example *Document #42*) until the connection returns and the details can be loaded again.

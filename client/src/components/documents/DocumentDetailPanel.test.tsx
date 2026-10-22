@@ -24,6 +24,12 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: jest.fn(),
 }));
 
+let mockEntriesLanguage: string | null = null;
+
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  useEntriesLanguage: () => mockEntriesLanguage,
+}));
+
 let DocumentDetailPanel: (typeof DocumentDetailPanelModule)['DocumentDetailPanel'];
 
 beforeEach(async () => {
@@ -31,6 +37,7 @@ beforeEach(async () => {
     (await import('./DocumentDetailPanel.js')) as typeof DocumentDetailPanelModule);
   mockGetDocumentThumbnailUrl.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
+  mockEntriesLanguage = null;
   localStorage.clear();
 });
 
@@ -255,6 +262,55 @@ describe('DocumentDetailPanel', () => {
       );
       expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('user text (AC6)', () => {
+    it('tags the title and the text preview with the entries language and the user-text class', () => {
+      mockEntriesLanguage = 'de';
+      render(<DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} />);
+
+      const title = screen.getByRole('heading', { name: 'Annual Report 2025' });
+      expect(title).toHaveAttribute('lang', 'de');
+      expect(title.className).toContain('userText');
+      const preview = screen.getByText(/full content of the annual report/);
+      expect(preview).toHaveAttribute('lang', 'de');
+      expect(preview.className).toContain('userText');
+    });
+
+    it('keeps the class but sets no lang while the entries language is unknown', () => {
+      render(<DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} />);
+
+      const title = screen.getByRole('heading', { name: 'Annual Report 2025' });
+      expect(title).not.toHaveAttribute('lang');
+      expect(title.className).toContain('userText');
+    });
+  });
+
+  describe('inline', () => {
+    it('renders no title row, Close button, thumbnail or fixed element id', () => {
+      render(<DocumentDetailPanel inline document={makeDoc()} onClose={jest.fn()} />);
+
+      const region = screen.getByRole('region', { name: /Details for Annual Report 2025/i });
+      expect(region).not.toHaveAttribute('id');
+      expect(region.className).toContain('inline');
+      expect(screen.queryByRole('heading', { name: 'Annual Report 2025' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+      expect(screen.queryByRole('img')).toBeNull();
+    });
+
+    it('still shows the metadata and the text preview', () => {
+      render(<DocumentDetailPanel inline document={makeDoc()} />);
+
+      expect(screen.getByText('Finance Dept')).toBeInTheDocument();
+      expect(screen.getByText(/full content of the annual report/)).toBeInTheDocument();
+    });
+
+    it('the default (not inline) keeps id="detail-panel", the title row and the thumbnail', () => {
+      render(<DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} />);
+
+      expect(screen.getByRole('region')).toHaveAttribute('id', 'detail-panel');
+      expect(screen.getByRole('img', { name: 'Annual Report 2025' })).toBeInTheDocument();
     });
   });
 });

@@ -1,8 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { createRef, useRef } from 'react';
+import { Modal } from '../Modal/Modal.js';
+import { Sheet } from '../Modal/Sheet.js';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import {
   OverflowMenu,
@@ -1364,5 +1366,131 @@ describe('OverflowMenu controlRef (#2212)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+  });
+});
+
+describe('OverflowMenu Escape inside a dialog (#2233)', () => {
+  const dialogs = [
+    [
+      'Modal',
+      (onClose: () => void, menu: React.ReactNode) => (
+        <Modal title="Fixture dialog" onClose={onClose}>
+          {menu}
+        </Modal>
+      ),
+    ],
+    [
+      'Sheet',
+      (onClose: () => void, menu: React.ReactNode) => (
+        <Sheet id="fixture-sheet" open title="Fixture sheet" onClose={onClose}>
+          {menu}
+        </Sheet>
+      ),
+    ],
+  ] as const;
+
+  it.each(dialogs)(
+    'Escape on the open menu closes only the menu inside a %s, then the next Escape closes the dialog',
+    (_name, wrap) => {
+      const onClose = jest.fn<() => void>();
+      render(wrap(onClose, <OverflowMenu items={buildItems(2)} triggerAriaLabel="Open menu" />));
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(trigger).toHaveFocus();
+
+      fireEvent.keyDown(trigger, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(dialogs)(
+    'Escape reaching the document (focus outside the menu) closes only the menu inside a %s',
+    (_name, wrap) => {
+      const onClose = jest.fn<() => void>();
+      render(wrap(onClose, <OverflowMenu items={buildItems(2)} triggerAriaLabel="Open menu" />));
+      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not swallow Escape while the menu is closed', () => {
+    const onClose = jest.fn<() => void>();
+    render(
+      <Modal title="Fixture dialog" onClose={onClose}>
+        <OverflowMenu items={buildItems(2)} triggerAriaLabel="Open menu" />
+      </Modal>,
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Open menu' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('OverflowMenu portal flip (#2233 coverage)', () => {
+  const originalRect = Element.prototype.getBoundingClientRect;
+  const originalHeight = window.innerHeight;
+
+  function mockRects(triggerTop: number, triggerBottom: number, menuHeight: number) {
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const isMenu = this.getAttribute('data-testid') === 'panel';
+      const top = isMenu ? 0 : triggerTop;
+      const height = isMenu ? menuHeight : triggerBottom - triggerTop;
+      return {
+        top,
+        bottom: top + height,
+        left: 700,
+        right: 740,
+        width: 40,
+        height,
+        x: 700,
+        y: top,
+        toJSON: () => ({}),
+      } as DOMRect;
+    };
+  }
+
+  afterEach(() => {
+    Element.prototype.getBoundingClientRect = originalRect;
+    Object.defineProperty(window, 'innerHeight', { value: originalHeight, configurable: true });
+  });
+
+  it('flips a bottom-end portal menu above the trigger when it does not fit below', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    mockRects(500, 520, 200);
+    renderMenu({ usePortal: true, menuTestId: 'panel' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByTestId('panel').style.top).toBe('496px');
+  });
+
+  it('keeps a bottom-end portal menu below the trigger when it fits', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    mockRects(100, 120, 200);
+    renderMenu({ usePortal: true, menuTestId: 'panel' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByTestId('panel').style.top).toBe('124px');
+  });
+
+  it('flips a top-end portal menu below the trigger when it does not fit above', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    mockRects(50, 70, 200);
+    renderMenu({ usePortal: true, placement: 'top-end', menuTestId: 'panel' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByTestId('panel').style.top).toBe('74px');
+  });
+
+  it('keeps a top-end portal menu above the trigger when it fits', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    mockRects(400, 420, 200);
+    renderMenu({ usePortal: true, placement: 'top-end', menuTestId: 'panel' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    expect(screen.getByTestId('panel').style.top).toBe('396px');
   });
 });

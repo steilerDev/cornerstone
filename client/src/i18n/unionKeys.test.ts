@@ -85,8 +85,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 54 registered sets', () => {
-    expect(SETS).toHaveLength(54);
+  it('iterates all 57 registered sets', () => {
+    expect(SETS).toHaveLength(57);
   });
 });
 
@@ -209,6 +209,9 @@ describe('I18N_UNION_KEYS registry', () => {
       'userAccountStatus',
       'createMenuEntry',
       'quickLogMode',
+      'objectTab',
+      'documentLinkEntity',
+      'documentLinkEmptyBody',
       'attentionTier',
       'criticalLineLevel',
       'attentionAction',

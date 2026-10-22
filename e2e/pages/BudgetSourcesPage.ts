@@ -614,39 +614,14 @@ export class BudgetSourcesPage {
     await this.moveModal.locator('[class*="understoodLabel"]').click();
   }
 
-  // ─── Documents toggle helpers (Story #1744) ───────────────────────────────
+  // ─── Documents button (Story #1744, #2233) ────────────────────────────────
 
   /**
-   * Get the documents toggle button for the named source row.
-   * The button has aria-label "Show documents for <name>" (collapsed) or
-   * "Hide documents for <name>" (expanded).
+   * The row's "Documents (n)" button (test id `source-docs-<id>`). It opens the shared
+   * Documents panel (see DocumentsPanel). Absent when Paperless is off and nothing is linked.
    */
-  getDocsToggle(sourceName: string): Locator {
-    return this.getSourceRowByName(sourceName).getByRole('button', {
-      name: new RegExp(
-        `(Show|Hide) documents for ${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
-        'i',
-      ),
-    });
-  }
-
-  /**
-   * Get the documents panel region for a specific source by its ID.
-   * The panel renders as: <div id="source-docs-{sourceId}" role="region">
-   * Only present in the DOM when expanded (conditional render, not hidden).
-   */
-  getDocsPanelById(sourceId: string): Locator {
-    return this.page.locator(`[id="source-docs-${sourceId}"]`);
-  }
-
-  /**
-   * Click the docs toggle for the named source to reveal the documents panel.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
-  async expandSourceDocs(sourceName: string): Promise<void> {
-    const toggle = this.getDocsToggle(sourceName);
-    await toggle.waitFor({ state: 'visible' });
-    await toggle.click();
+  docsButton(sourceId: string): Locator {
+    return this.page.getByTestId(`source-docs-${sourceId}`);
   }
 
   /**

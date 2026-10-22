@@ -9,6 +9,12 @@ const mockDeleteDocumentLink = jest.fn<() => Promise<unknown>>();
 const mockListAllLinkedDocumentIds = jest.fn<() => Promise<unknown>>();
 const mockUpdateDocumentLinkAttachmentType = jest.fn<() => Promise<unknown>>();
 
+const mockUndoChange = jest.fn<(token: string) => Promise<unknown>>();
+
+jest.unstable_mockModule('../lib/undoApi.js', () => ({
+  undoChange: mockUndoChange,
+}));
+
 jest.unstable_mockModule('../lib/documentLinksApi.js', () => ({
   listDocumentLinks: mockListDocumentLinks,
   createDocumentLink: mockCreateDocumentLink,
@@ -50,6 +56,8 @@ import type * as UseDocumentLinksModule from './useDocumentLinks.js';
 let useDocumentLinks: (typeof UseDocumentLinksModule)['useDocumentLinks'];
 let useAllLinkedDocumentIds: (typeof UseDocumentLinksModule)['useAllLinkedDocumentIds'];
 
+const UNDO_RESPONSE = { undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' } };
+
 const makeLink = (id: string, paperlessDocumentId = 42) => ({
   id,
   entityType: 'work_item' as const,
@@ -81,6 +89,7 @@ beforeEach(async () => {
   mockDeleteDocumentLink.mockReset();
   mockListAllLinkedDocumentIds.mockReset();
   mockUpdateDocumentLinkAttachmentType.mockReset();
+  mockUndoChange.mockReset();
 
   // Default: returns empty list
   mockListDocumentLinks.mockResolvedValue([]);
@@ -97,6 +106,32 @@ describe('useDocumentLinks', () => {
     expect(result.current.isLoading).toBe(true);
     expect(result.current.links).toEqual([]);
     expect(result.current.error).toBeNull();
+  });
+
+  it('ignores a list response that arrives after unmount', async () => {
+    let resolveList: (value: unknown[]) => void = () => {};
+    mockListDocumentLinks.mockImplementationOnce(
+      () => new Promise((resolve) => (resolveList = resolve)),
+    );
+    const { unmount } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+    unmount();
+    await act(async () => {
+      resolveList([makeLink('late')]);
+    });
+    expect(mockListDocumentLinks).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a list failure that arrives after unmount', async () => {
+    let rejectList: (reason: unknown) => void = () => {};
+    mockListDocumentLinks.mockImplementationOnce(
+      () => new Promise((_resolve, reject) => (rejectList = reject)),
+    );
+    const { unmount } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+    unmount();
+    await act(async () => {
+      rejectList(new Error('late failure'));
+    });
+    expect(mockListDocumentLinks).toHaveBeenCalledTimes(1);
   });
 
   it('fetches document links on mount and stores results in links', async () => {
@@ -501,7 +536,7 @@ describe('useDocumentLinks', () => {
     it('calls deleteDocumentLink with the correct linkId', async () => {
       const existingLink = makeLink('link-1', 42);
       mockListDocumentLinks.mockResolvedValue([existingLink]);
-      mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
+      mockDeleteDocumentLink.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(1));
@@ -517,7 +552,7 @@ describe('useDocumentLinks', () => {
       const link1 = makeLink('link-1', 42);
       const link2 = makeLink('link-2', 99);
       mockListDocumentLinks.mockResolvedValue([link1, link2]);
-      mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
+      mockDeleteDocumentLink.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(2));
@@ -535,7 +570,7 @@ describe('useDocumentLinks', () => {
       const link2 = makeLink('link-2', 99);
       const link3 = makeLink('link-3', 7);
       mockListDocumentLinks.mockResolvedValue([link1, link2, link3]);
-      mockDeleteDocumentLink.mockResolvedValueOnce(undefined);
+      mockDeleteDocumentLink.mockResolvedValueOnce(UNDO_RESPONSE);
 
       const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
       await waitFor(() => expect(result.current.links).toHaveLength(3));
@@ -546,6 +581,72 @@ describe('useDocumentLinks', () => {
 
       expect(result.current.links).toHaveLength(2);
       expect(result.current.links.map((l) => l.id)).toEqual(['link-1', 'link-3']);
+    });
+
+    it('resolves with the Undo token of the response', async () => {
+      mockListDocumentLinks.mockResolvedValue([makeLink('link-1', 42)]);
+      mockDeleteDocumentLink.mockResolvedValueOnce(UNDO_RESPONSE);
+
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      let token: unknown;
+      await act(async () => {
+        token = await result.current.removeLink('link-1');
+      });
+
+      expect(token).toEqual(UNDO_RESPONSE.undo);
+    });
+
+    it('keeps the list and rejects when the delete fails', async () => {
+      mockListDocumentLinks.mockResolvedValue([makeLink('link-1', 42)]);
+      mockDeleteDocumentLink.mockRejectedValueOnce(new Error('boom'));
+
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      await act(async () => {
+        await expect(result.current.removeLink('link-1')).rejects.toThrow('boom');
+      });
+
+      expect(result.current.links).toHaveLength(1);
+    });
+  });
+
+  describe('restoreLink()', () => {
+    it('posts the token to undoChange, then refetches the list so the row is back', async () => {
+      const link = makeLink('link-1', 42);
+      mockListDocumentLinks.mockResolvedValueOnce([link]);
+      mockDeleteDocumentLink.mockResolvedValueOnce(UNDO_RESPONSE);
+      mockUndoChange.mockResolvedValueOnce({});
+
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+      await act(async () => {
+        await result.current.removeLink('link-1');
+      });
+      expect(result.current.links).toHaveLength(0);
+
+      mockListDocumentLinks.mockResolvedValue([link]);
+      await act(async () => {
+        await result.current.restoreLink('tok-1');
+      });
+
+      expect(mockUndoChange).toHaveBeenCalledWith('tok-1');
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+    });
+
+    it('propagates the undo error and does not refetch', async () => {
+      mockUndoChange.mockRejectedValueOnce(new Error('expired'));
+      const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      const calls = mockListDocumentLinks.mock.calls.length;
+
+      await act(async () => {
+        await expect(result.current.restoreLink('tok-x')).rejects.toThrow('expired');
+      });
+
+      expect(mockListDocumentLinks).toHaveBeenCalledTimes(calls);
     });
   });
 });

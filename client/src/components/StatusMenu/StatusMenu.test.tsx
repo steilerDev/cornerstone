@@ -639,6 +639,99 @@ describe('StatusMenu', () => {
     });
   });
 
+  describe('edge cases (#2233 coverage)', () => {
+    it('renders a chip for a badge value missing from the variant map, without a variant class', () => {
+      renderMenu({ badge: { variants: VARIANTS, value: 'zzz' }, currentLabel: 'Unknown' });
+      const trigger = screen.getByRole('button', { name: 'Unknown' });
+      expect(trigger).toHaveClass('chip');
+      expect(trigger).not.toHaveClass('variantA', 'variantB');
+    });
+
+    it('ArrowDown on the menu with no row focused moves to the first row', () => {
+      renderMenu();
+      open();
+      (document.activeElement as HTMLElement).blur();
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+      expect(rows()[0]).toHaveFocus();
+    });
+
+    it('does not throw when the row that opened the date step is gone after Back', () => {
+      const { rerender, props } = renderMenu({ transitions: withDate({ question: 'When?' }) });
+      open();
+      fireEvent.click(screen.getByTestId('sm-option-b'));
+      rerender(
+        <MemoryRouter>
+          <StatusMenu<S> {...props} transitions={[plain[1]!, plain[2]!]} />
+        </MemoryRouter>,
+      );
+      expect(() => fireEvent.click(screen.getByTestId('sm-back'))).not.toThrow();
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    it('treats a null minDate like none', () => {
+      renderMenu({ transitions: withDate({ question: 'When?', minDate: null }) });
+      open();
+      fireEvent.click(screen.getByTestId('sm-option-b'));
+      fireEvent.click(screen.getByTestId('sm-date-pick'));
+      expect(screen.getByTestId('sm-date-input')).not.toHaveAttribute('min');
+    });
+
+    it('ignores keys other than Enter in the date input', () => {
+      const { onApply } = renderMenu({ transitions: withDate({ question: 'When?' }) });
+      open();
+      fireEvent.click(screen.getByTestId('sm-option-b'));
+      fireEvent.click(screen.getByTestId('sm-date-pick'));
+      fireEvent.change(screen.getByTestId('sm-date-input'), { target: { value: '2026-08-05' } });
+      fireEvent.keyDown(screen.getByTestId('sm-date-input'), { key: 'a' });
+      expect(onApply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('className prop (#2233)', () => {
+    it('replaces the default plain-button class on an action trigger and keeps the trigger hook', () => {
+      renderMenu({ appearance: 'action', actionTo: 'b', className: 'hostPrimary' });
+      const trigger = screen.getByTestId('sm');
+      expect(trigger).toHaveClass('hostPrimary', 'trigger');
+      expect(trigger).not.toHaveClass('plainButton');
+    });
+
+    it('replaces the default class on a button trigger', () => {
+      renderMenu({ appearance: 'button', className: 'hostPrimary' });
+      const trigger = screen.getByTestId('sm');
+      expect(trigger).toHaveClass('hostPrimary', 'trigger');
+      expect(trigger).not.toHaveClass('plainButton');
+    });
+
+    it('keeps plainButton plus trigger when no className is given', () => {
+      renderMenu({ appearance: 'action', actionTo: 'b' });
+      expect(screen.getByTestId('sm')).toHaveClass('plainButton', 'trigger');
+    });
+
+    it('does not apply className to the chip appearance', () => {
+      renderMenu({ className: 'hostPrimary' });
+      const trigger = screen.getByTestId('sm');
+      expect(trigger).not.toHaveClass('hostPrimary');
+      expect(trigger).toHaveClass('chip', 'variantA');
+    });
+
+    it('marks a busy action trigger aria-disabled and ignores a second click', async () => {
+      let release: () => void = () => {};
+      const onApply = jest
+        .fn<StatusMenuProps<S>['onApply']>()
+        .mockImplementation(() => new Promise<void>((resolve) => (release = resolve)));
+      renderMenu({ appearance: 'action', actionTo: 'b', className: 'hostPrimary', onApply });
+      const trigger = screen.getByTestId('sm');
+      fireEvent.click(trigger);
+      await waitFor(() => expect(trigger).toHaveAttribute('aria-disabled', 'true'));
+      expect(trigger).toHaveAttribute('aria-busy', 'true');
+      expect(trigger).toHaveClass('trigger');
+      fireEvent.click(trigger);
+      expect(onApply).toHaveBeenCalledTimes(1);
+      await act(async () => release());
+      await waitFor(() => expect(trigger).not.toHaveAttribute('aria-disabled'));
+    });
+  });
+
   describe('phone sheet', () => {
     beforeEach(() => {
       desktop = false;

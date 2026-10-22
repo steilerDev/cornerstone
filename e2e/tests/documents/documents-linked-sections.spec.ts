@@ -1,79 +1,73 @@
 /**
- * E2E tests for the LinkedDocumentsSection component — EPIC-08 (Stories 8.4, 8.5, 8.7)
- * and Story #1744 (budget sources + subsidy programs document attachment).
+ * E2E tests for the Documents panel on its five hosts — EPIC-08 (Stories 8.4, 8.5, 8.7),
+ * Story #1744 and #2233 (P4.1 detail template; the panel replaces LinkedDocumentsSection).
  *
- * The LinkedDocumentsSection is embedded on:
- *   - Work Item detail page (/project/work-items/:id) — Story 8.4
- *   - Invoice detail page (/budget/invoices/:id) — Story 8.5
- *   - Budget Sources page (/budget/sources) — Story #1744 (via docs toggle panel)
- *   - Subsidy Programs page (/budget/subsidies) — Story #1744 (via docs toggle panel)
+ * The Documents panel ("Documents (n)" trigger + side sheet / full-screen sheet) is hosted by:
+ *   - Task detail page (/project/work-items/:id)             trigger documents-panel-button
+ *   - Purchase detail page (/project/household-items/:id)    trigger documents-panel-button
+ *   - Invoice detail page (/budget/invoices/:id)             trigger documents-panel-button
+ *   - Funding source row (/budget/sources)                   trigger source-docs-<id>
+ *   - Grant row (/budget/subsidies)                          trigger program-docs-<id>
  *
- * In the E2E environment Paperless is NOT configured (#2217), so tests verify:
- * - With no links the section is absent: no heading, no "+ Add Document", no "not configured"
- *   text and no environment variable names
- * - With kept links: a read-only list, one muted line ("Paperless is not connected. N links are
- *   kept.") and, for admins, a link to Settings > Integrations > Paperless (no Add, Unlink or View)
- * - With a mocked configured Paperless the full section is back (heading, enabled Add button)
- * - Responsive layout: no horizontal scroll
- * - Dark mode: the notice renders correctly
+ * In the E2E environment Paperless is NOT configured (#2217), so tests use route mocks:
+ * - Paperless off + no links: no trigger, no panel, no "not configured" text, no env names
+ * - Paperless off + kept links: trigger "Documents (n)", read-only panel with one notice and
+ *   (admin only) an Integrations link; no Link document, no menus
+ * - Paperless mocked as configured: trigger, panel, Link document
  *
  * Scenarios covered:
- * 1.  Work item detail page: "Documents" section heading is visible
- * 2.  Work item detail page: "+ Add Document" button is disabled (not configured)
- * 3.  Work item detail page: "not configured" banner shows setup guidance
- * 4.  Work item detail page: section has accessible aria-labelledby heading
- * 5.  Work item detail page: section renders without horizontal scroll (responsive)
- * 6.  Work item detail page: section renders in dark mode
- * 7.  Invoice detail page: "Documents" section heading is visible
- * 8.  Invoice detail page: "+ Add Document" button is disabled (not configured)
- * 9.  Invoice detail page: "not configured" banner shows setup guidance
- * 10. Invoice detail page: section renders without horizontal scroll (responsive)
- * 11. Budget source: "Documents" section heading visible after toggle expand
- * 12. Budget source: "+ Add Document" button disabled (not configured)
- * 13. Budget source: section heading is accessible (aria-labelledby)
- * 14. Subsidy program: "Documents" section heading visible after toggle expand
- * 15. Subsidy program: "+ Add Document" button disabled (not configured)
- * 16. Subsidy program: section heading is accessible (aria-labelledby)
+ * 1.  (per host) Paperless off, no links: no Documents trigger
+ * 2.  (per host) Paperless off, kept links: trigger with count, read-only panel with the notice
+ * 3.  (per host) Paperless on: trigger "Documents (0)", panel opens with empty state + Link document
+ * 4.  Kept link singular notice + Integrations link opens the Paperless card
+ * 5.  Layout: side sheet (right aligned, ~480 px) from 768 px, full screen below; focus on the
+ *     title on open; Escape closes; focus returns to the trigger
+ * 6.  Picker: Link document opens the picker view; Escape returns to the list (sheet stays open,
+ *     Link document focused); a second Escape closes the sheet
+ * 7.  Browse all is absent (the Documents page route is not served yet)
+ * 8.  Phone viewport + dark mode: no horizontal overflow
  *
- * Attachment-type tagging (Story #1877, Scenarios 17+) — since Paperless is not
- * configured in the E2E environment (no testcontainer yet, see EPIC-08 notes), these
- * scenarios mock a "configured" Paperless via page.route() (same pattern as
- * e2e/tests/documents/document-linking.spec.ts) to exercise the real tagging UI:
- * 17. Invoice detail: selecting "Quotation" on an untagged link shows the Quotation badge
- * 18. Invoice detail: retagging an already-tagged link updates the badge
- * 19. Invoice detail: untagging ("No tag") removes the badge entirely
- * 20. Invoice detail: "Add Document" picker — choosing a type before selecting a document
- *     tags the new link accordingly
- * 21. Paperless-first invoice creation flow — resulting invoice's auto-linked document
- *     shows the "Invoice" badge; no attachment-type picker appears anywhere in that flow
- *     (regression guard per dev-team-lead ambiguity resolution #1)
- * 22. Work item documents section: no attachment-type selector or badge (non-invoice entity)
- * 23. Responsive: attachment-type select meets the 44px touch target on mobile/tablet
- * 24. Dark mode: all three attachment-type badge variants render with visible labels
+ * Attachment-type tagging (Story #1877, Scenarios 9+) mock a "configured" Paperless via
+ * page.route() to exercise the real tagging UI inside the panel:
+ * 9.  Invoice: selecting "Quotation" on an untagged link shows the Quotation badge
+ * 10. Invoice: retagging an already-tagged link updates the badge
+ * 11. Invoice: untagging ("No tag") removes the badge entirely
+ * 12. Invoice: the type select is disabled while the PATCH is in flight
+ * 13. Invoice: choosing a type in the picker before selecting a document tags the new link
+ * 14. Invoice: the picker type field resets to "No tag" when the picker is reopened
+ * 15. Task: no attachment-type selector or badge (non-invoice entity)
+ * 16. Phone/tablet: the type select meets the 44 px touch target
+ * 17. Dark mode: all three attachment-type badge variants render
+ * 18. Paperless-first invoice creation flow: no type picker; resulting invoice shows the badge
  */
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
+  createHouseholdItemViaApi,
+  deleteHouseholdItemViaApi,
   createBudgetSourceViaApi,
   deleteBudgetSourceViaApi,
   createSubsidyProgramViaApi,
   deleteSubsidyProgramViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API, ROUTES } from '../../fixtures/testData.js';
+import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
 import {
-  expectNoDocumentsSection,
+  expectNoDocumentsButton,
   mockKeptDocumentLinks,
   mockPaperlessConfigured,
-  openAndSettle,
+  settleDocumentsHost,
 } from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,444 +108,355 @@ async function deleteVendorViaApi(page: Page, vendorId: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 1–16 (rewritten for #2217): the Documents section with Paperless off.
-//
-// With Paperless off (the E2E container state) the section shows NOTHING when the record has no
-// links: no heading, no disabled "+ Add Document", no "not configured" text, no env names. With
-// kept links it shows a read-only list plus one muted line, and admins get a link to
-// Settings > Integrations > Paperless. A mocked configured Paperless brings the full section back.
+// The five hosts of the Documents panel
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DOCUMENTS_HEADING = { level: 2, name: 'Documents', exact: true } as const;
-const PAPERLESS_ENV_NAMES = /PAPERLESS_URL|PAPERLESS_API_TOKEN/;
-
-/** The read-only notice for `count` kept links, with the admin Integrations link. */
-async function expectKeptLinksNotice(page: Page, count: number): Promise<void> {
-  const section = page.getByRole('region', { name: /^Documents/ });
-  const notice = page.getByTestId('documents-paperless-off');
-  await expect(section).toBeVisible();
-  await expect(notice).toContainText(
-    count === 1
-      ? 'Paperless is not connected. 1 link is kept.'
-      : `Paperless is not connected. ${count} links are kept.`,
-  );
-  await expect(page.getByTestId('documents-integrations-link')).toHaveAttribute(
-    'href',
-    `${ROUTES.integrations}#paperless`,
-  );
-  // Read-only: no Add, no Unlink, no View
-  await expect(section.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(0);
-  await expect(section.getByRole('button', { name: /Unlink document/ })).toHaveCount(0);
-  await expect(section.getByRole('button', { name: /Details/ })).toHaveCount(0);
-  await expect(section.getByText(PAPERLESS_ENV_NAMES)).toHaveCount(0);
+interface Host {
+  readonly label: string;
+  readonly entityType: string;
+  /** Test id of the "Documents (n)" trigger for the created record. */
+  readonly triggerTestId: (id: string) => string;
+  /** Pattern for "no trigger of this host" assertions. */
+  readonly triggerPattern: RegExp;
+  /** Creates the record; returns its id and a cleanup. */
+  readonly create: (
+    page: Page,
+    prefix: string,
+  ) => Promise<{ id: string; cleanup: () => Promise<void> }>;
+  /** Navigates to the page showing the record. */
+  readonly open: (page: Page, id: string) => Promise<void>;
 }
 
-test.describe(
-  'Documents section with Paperless off — Work Item detail (Scenarios 1–6)',
-  { tag: '@responsive' },
-  () => {
-    test('No links: the Documents section is absent from the work item page', async ({
-      page,
-      testPrefix,
-    }) => {
-      let createdId: string | null = null;
+const HOSTS: readonly Host[] = [
+  {
+    label: 'Task',
+    entityType: 'work_item',
+    triggerTestId: () => 'documents-panel-button',
+    triggerPattern: /^documents-panel-button$/,
+    create: async (page, prefix) => {
+      const id = await createWorkItemViaApi(page, { title: `${prefix} Docs Host Task` });
+      return { id, cleanup: () => deleteWorkItemViaApi(page, id) };
+    },
+    open: async (page, id) => {
+      await new WorkItemDetailPage(page).goto(id);
+    },
+  },
+  {
+    label: 'Purchase',
+    entityType: 'household_item',
+    triggerTestId: () => 'documents-panel-button',
+    triggerPattern: /^documents-panel-button$/,
+    create: async (page, prefix) => {
+      const id = await createHouseholdItemViaApi(page, { name: `${prefix} Docs Host Purchase` });
+      return { id, cleanup: () => deleteHouseholdItemViaApi(page, id) };
+    },
+    open: async (page, id) => {
+      await new HouseholdItemDetailPage(page).goto(id);
+    },
+  },
+  {
+    label: 'Invoice',
+    entityType: 'invoice',
+    triggerTestId: () => 'documents-panel-button',
+    triggerPattern: /^documents-panel-button$/,
+    create: async (page, prefix) => {
+      const ids = await createVendorAndInvoiceViaApi(page, prefix);
+      return { id: ids.invoiceId, cleanup: () => deleteVendorViaApi(page, ids.vendorId) };
+    },
+    open: async (page, id) => {
+      await page.goto(`/budget/invoices/${id}`);
+    },
+  },
+  {
+    label: 'Funding source',
+    entityType: 'budget_source',
+    triggerTestId: (id) => `source-docs-${id}`,
+    triggerPattern: /^source-docs-/,
+    create: async (page, prefix) => {
+      const id = await createBudgetSourceViaApi(page, {
+        name: `${prefix} Docs Host Source`,
+        totalAmount: 10000,
+      });
+      return { id, cleanup: () => deleteBudgetSourceViaApi(page, id) };
+    },
+    open: async (page) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+    },
+  },
+  {
+    label: 'Grant',
+    entityType: 'subsidy_program',
+    triggerTestId: (id) => `program-docs-${id}`,
+    triggerPattern: /^program-docs-/,
+    create: async (page, prefix) => {
+      const id = await createSubsidyProgramViaApi(page, {
+        name: `${prefix} Docs Host Grant`,
+        reductionValue: 10,
+      });
+      return { id, cleanup: () => deleteSubsidyProgramViaApi(page, id) };
+    },
+    open: async (page) => {
+      const subsidyPage = new SubsidyProgramsPage(page);
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+    },
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 1–3 (per host): Paperless off without links, off with kept links, on
+// ─────────────────────────────────────────────────────────────────────────────
+
+for (const host of HOSTS) {
+  test.describe(`Documents panel — ${host.label} (Scenarios 1–3)`, { tag: '@responsive' }, () => {
+    test('Paperless off, no links: there is no Documents trigger', async ({ page, testPrefix }) => {
+      const { id, cleanup } = await host.create(page, testPrefix);
       try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Absent Test`,
-        });
-        const detailPage = new WorkItemDetailPage(page);
+        await settleDocumentsHost(page, id, () => host.open(page, id));
 
-        await openAndSettle(page, () => detailPage.goto(createdId as string));
-
-        await expect(detailPage.heading).toBeVisible();
-        await expectNoDocumentsSection(page);
-      } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
-      }
-    });
-
-    test('Kept links: a read-only list and one muted line, with the admin Integrations link', async ({
-      page,
-      testPrefix,
-    }) => {
-      let createdId: string | null = null;
-      try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Kept Test`,
-        });
-        await mockKeptDocumentLinks(page, 'work_item', createdId, 2);
-        const detailPage = new WorkItemDetailPage(page);
-
-        await detailPage.goto(createdId);
-
-        await expectKeptLinksNotice(page, 2);
-        await expect(page.getByTestId('documents-paperless-off')).toBeVisible();
-      } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
-      }
-    });
-
-    test('Kept link: the singular line, and the Integrations link opens the Paperless card', async ({
-      page,
-      testPrefix,
-    }) => {
-      let createdId: string | null = null;
-      try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Kept One Test`,
-        });
-        await mockKeptDocumentLinks(page, 'work_item', createdId, 1);
-        const detailPage = new WorkItemDetailPage(page);
-        await detailPage.goto(createdId);
-        await expectKeptLinksNotice(page, 1);
-
-        await page.getByTestId('documents-integrations-link').click();
-
-        await expect(page).toHaveURL(`${ROUTES.integrations}#paperless`);
-        await expect(page.locator('#paperless-heading')).toBeFocused();
-      } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
-      }
-    });
-
-    test('Paperless connected: the section has an accessible heading and an enabled Add button', async ({
-      page,
-      testPrefix,
-    }) => {
-      let createdId: string | null = null;
-      try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section A11y Test`,
-        });
-        await mockPaperlessConfigured(page);
-        const detailPage = new WorkItemDetailPage(page);
-
-        await detailPage.goto(createdId);
-
-        await expect(page.getByRole('heading', DOCUMENTS_HEADING)).toBeVisible();
-        await expect(page.getByRole('region', { name: 'Documents', exact: true })).toBeVisible();
-        const sectionTitle = page.locator('#documents-section-title');
-        await expect(sectionTitle).toHaveText(/Documents/);
-        await expect(
-          page.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toBeEnabled();
+        await expect(new DocumentsPanel(page).button(host.triggerTestId(id))).toHaveCount(0);
+        if (host.triggerPattern.source === '^documents-panel-button$') {
+          await expectNoDocumentsButton(page, host.triggerPattern);
+        }
         await expect(page.getByText(/not configured/i)).toHaveCount(0);
       } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
+        await cleanup();
       }
     });
 
-    test('The page renders without horizontal scroll with the kept-links notice (responsive)', async ({
+    test('Paperless off, kept links: trigger with count and a read-only panel with the notice', async ({
       page,
       testPrefix,
     }) => {
-      let createdId: string | null = null;
+      const { id, cleanup } = await host.create(page, testPrefix);
       try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Responsive Test`,
-        });
-        await mockKeptDocumentLinks(page, 'work_item', createdId, 2);
-        const detailPage = new WorkItemDetailPage(page);
-        await detailPage.goto(createdId);
-        const notice = page.getByTestId('documents-paperless-off');
-        await notice.scrollIntoViewIfNeeded();
-        await expect(notice).toBeVisible();
+        await mockKeptDocumentLinks(page, host.entityType, id, 2);
+        await host.open(page, id);
+        const panel = new DocumentsPanel(page);
 
-        const hasHorizontalScroll = await page.evaluate(
-          () => document.documentElement.scrollWidth > window.innerWidth,
+        const trigger = panel.button(host.triggerTestId(id));
+        await expect(trigger).toBeVisible();
+        await expect(trigger).toContainText('Documents (2)');
+        await panel.open(host.triggerTestId(id));
+
+        await expect(panel.title).toHaveText('Documents (2)');
+        await expect(panel.notice).toContainText('Paperless is not connected. 2 links are kept.');
+        await expect(panel.integrationsLink).toHaveAttribute(
+          'href',
+          `${ROUTES.integrations}#paperless`,
         );
-        expect(hasHorizontalScroll).toBe(false);
+        await expect(panel.rows).toHaveCount(2);
+        // Read-only: no Link document, no card menus, no Details toggles
+        await expect(panel.linkDocumentButton).toHaveCount(0);
+        await expect(panel.dialog.getByRole('button', { name: /^Actions for/ })).toHaveCount(0);
+        await expect(panel.dialog.getByRole('button', { name: 'Details' })).toHaveCount(0);
+        await expect(panel.dialog.getByText(/PAPERLESS_URL|PAPERLESS_API_TOKEN/)).toHaveCount(0);
       } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
+        await cleanup();
       }
     });
 
-    test('The kept-links notice renders in dark mode', async ({ page, testPrefix }) => {
-      let createdId: string | null = null;
+    test('Paperless on: trigger "Documents (0)" opens the panel with the empty state and Link document', async ({
+      page,
+      testPrefix,
+    }) => {
+      const { id, cleanup } = await host.create(page, testPrefix);
       try {
-        createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Doc Section Dark Mode Test`,
-        });
-        await mockKeptDocumentLinks(page, 'work_item', createdId, 1);
-        await page.goto(`/project/work-items/${createdId}`);
+        await mockPaperlessConfigured(page);
+        await host.open(page, id);
+        const panel = new DocumentsPanel(page);
+
+        const trigger = panel.button(host.triggerTestId(id));
+        await expect(trigger).toBeVisible();
+        await expect(trigger).toHaveText('Documents (0)');
+        await panel.open(host.triggerTestId(id));
+
+        await expect(panel.title).toHaveText('Documents (0)');
+        await expect(panel.dialog.getByText('No documents linked yet.')).toBeVisible();
+        await expect(panel.linkDocumentButton).toBeEnabled();
+        await expect(panel.notice).toHaveCount(0);
+        await expect(panel.dialog.getByText(/not configured/i)).toHaveCount(0);
+      } finally {
+        await cleanup();
+      }
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 4–8: Task host details (singular notice, layout and focus, picker view, a11y)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Documents panel — behaviour on the Task page (Scenarios 4–8)', () => {
+  test('Kept link: the singular notice, and the Integrations link opens the Paperless card', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Kept One` });
+    try {
+      await mockKeptDocumentLinks(page, 'work_item', id, 1);
+      await new WorkItemDetailPage(page).goto(id);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+
+      await expect(panel.title).toHaveText('Documents (1)');
+      await expect(panel.notice).toContainText('Paperless is not connected. 1 link is kept.');
+
+      await panel.integrationsLink.click();
+
+      await expect(page).toHaveURL(`${ROUTES.integrations}#paperless`);
+      await expect(page.locator('#paperless-heading')).toBeFocused();
+    } finally {
+      await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test(
+    'Layout and focus: side sheet from 768 px, full screen below; title focused; Escape returns focus to the trigger',
+    { tag: '@responsive' },
+    async ({ page, testPrefix }) => {
+      const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Layout` });
+      try {
+        await mockPaperlessConfigured(page);
+        await new WorkItemDetailPage(page).goto(id);
+        const panel = new DocumentsPanel(page);
+        await panel.open();
+
+        await expect(panel.title).toBeFocused();
+
+        const viewportWidth = page.viewportSize()?.width ?? 0;
+        // The sheet slides in: poll its box until the transition has settled
+        if (viewportWidth >= 768) {
+          // Side sheet: right aligned, width = --side-sheet-width (30rem = 480 px)
+          await expect
+            .poll(async () => {
+              const box = await panel.dialog.boundingBox();
+              return box ? Math.abs(box.x + box.width - viewportWidth) <= 2 : false;
+            })
+            .toBe(true);
+          const box = await panel.dialog.boundingBox();
+          expect(box?.width ?? 0).toBeGreaterThanOrEqual(470);
+          expect(box?.width ?? 0).toBeLessThanOrEqual(490);
+        } else {
+          // Phone: full screen
+          await expect
+            .poll(async () => {
+              const box = await panel.dialog.boundingBox();
+              return box ? [Math.round(box.x), Math.round(box.width)] : null;
+            })
+            .toEqual([0, viewportWidth]);
+        }
+
+        await page.keyboard.press('Escape');
+
+        await expect(panel.dialog).toHaveCount(0);
+        await expect(panel.button()).toBeFocused();
+      } finally {
+        await deleteWorkItemViaApi(page, id);
+      }
+    },
+  );
+
+  test(
+    'Picker: Link document shows the picker view; Escape returns to the list; a second Escape closes',
+    { tag: '@responsive' },
+    async ({ page, testPrefix }) => {
+      const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Picker` });
+      try {
+        await mockPaginatedPaperless(page, { total: 3 });
+        await new WorkItemDetailPage(page).goto(id);
+        const panel = new DocumentsPanel(page);
+        await panel.open();
+
+        await panel.openPicker();
+        await expect(panel.title).toHaveText('Link document');
+        await panel.picker.waitForDocumentsLoaded();
+        await expect(panel.picker.documentItems).toHaveCount(3);
+
+        await page.keyboard.press('Escape');
+
+        // Sheet still open, back in the list view, focus on Link document
+        await expect(panel.dialog).toBeVisible();
+        await expect(panel.title).toHaveText('Documents (0)');
+        await expect(panel.linkDocumentButton).toBeFocused();
+
+        await page.keyboard.press('Escape');
+
+        await expect(panel.dialog).toHaveCount(0);
+        await expect(panel.button()).toBeFocused();
+      } finally {
+        await deleteWorkItemViaApi(page, id);
+      }
+    },
+  );
+
+  test('The Back button of the picker view also returns to the list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Back` });
+    try {
+      await mockPaginatedPaperless(page, { total: 2 });
+      await new WorkItemDetailPage(page).goto(id);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+      await panel.openPicker();
+
+      await panel.backToList();
+
+      await expect(panel.title).toHaveText('Documents (0)');
+      await expect(panel.linkDocumentButton).toBeFocused();
+    } finally {
+      await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test('Browse all is absent while the Documents page route is not served', async ({
+    page,
+    testPrefix,
+  }) => {
+    const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Browse All` });
+    try {
+      await mockPaperlessConfigured(page);
+      await new WorkItemDetailPage(page).goto(id);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+
+      await expect(panel.linkDocumentButton).toBeVisible();
+      await expect(panel.browseAll).toHaveCount(0);
+    } finally {
+      await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test(
+    'The open panel does not overflow the page horizontally, in light and dark mode',
+    { tag: '@responsive' },
+    async ({ page, testPrefix }) => {
+      const id = await createWorkItemViaApi(page, { title: `${testPrefix} Doc Panel Overflow` });
+      try {
+        await mockKeptDocumentLinks(page, 'work_item', id, 2);
+        await new WorkItemDetailPage(page).goto(id);
+        const panel = new DocumentsPanel(page);
+        await panel.open();
+        await expect(panel.notice).toBeVisible();
+        expect(await panel.hasHorizontalOverflow()).toBe(false);
+
         await page.evaluate(() => {
           document.documentElement.setAttribute('data-theme', 'dark');
         });
-        const detailPage = new WorkItemDetailPage(page);
-        await detailPage.heading.waitFor({ state: 'visible' });
 
-        await expectKeptLinksNotice(page, 1);
+        await expect(panel.notice).toBeVisible();
+        await expect(panel.rows).toHaveCount(2);
+        expect(await panel.hasHorizontalOverflow()).toBe(false);
       } finally {
-        if (createdId) await deleteWorkItemViaApi(page, createdId);
+        await deleteWorkItemViaApi(page, id);
       }
-    });
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 7–10: Invoice detail page
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Documents section with Paperless off — Invoice detail (Scenarios 7–10)',
-  { tag: '@responsive' },
-  () => {
-    test('No links: the Documents section is absent from the invoice page', async ({
-      page,
-      testPrefix,
-    }) => {
-      let ids: InvoiceIds | null = null;
-      try {
-        ids = await createVendorAndInvoiceViaApi(page, testPrefix);
-        const invoiceId = ids.invoiceId;
-
-        await openAndSettle(page, () =>
-          page.goto(`/budget/invoices/${invoiceId}`).then(() => undefined),
-        );
-
-        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-        await expectNoDocumentsSection(page);
-      } finally {
-        if (ids) await deleteVendorViaApi(page, ids.vendorId);
-      }
-    });
-
-    test('Kept links: the invoice page shows the read-only notice', async ({
-      page,
-      testPrefix,
-    }) => {
-      let ids: InvoiceIds | null = null;
-      try {
-        ids = await createVendorAndInvoiceViaApi(page, testPrefix);
-        await mockKeptDocumentLinks(page, 'invoice', ids.invoiceId, 1);
-
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
-
-        await expectKeptLinksNotice(page, 1);
-      } finally {
-        if (ids) await deleteVendorViaApi(page, ids.vendorId);
-      }
-    });
-
-    test('Paperless connected: the invoice page shows the Documents heading and Add button', async ({
-      page,
-      testPrefix,
-    }) => {
-      let ids: InvoiceIds | null = null;
-      try {
-        ids = await createVendorAndInvoiceViaApi(page, testPrefix);
-        await mockPaperlessConfigured(page);
-
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
-
-        await expect(page.getByRole('heading', DOCUMENTS_HEADING)).toBeVisible();
-        await expect(
-          page.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toBeEnabled();
-      } finally {
-        if (ids) await deleteVendorViaApi(page, ids.vendorId);
-      }
-    });
-
-    test('The invoice page renders without horizontal scroll with the notice (responsive)', async ({
-      page,
-      testPrefix,
-    }) => {
-      let ids: InvoiceIds | null = null;
-      try {
-        ids = await createVendorAndInvoiceViaApi(page, testPrefix);
-        await mockKeptDocumentLinks(page, 'invoice', ids.invoiceId, 2);
-
-        await page.goto(`/budget/invoices/${ids.invoiceId}`);
-        const notice = page.getByTestId('documents-paperless-off');
-        await notice.waitFor({ state: 'visible' });
-        await notice.scrollIntoViewIfNeeded();
-
-        const hasHorizontalScroll = await page.evaluate(
-          () => document.documentElement.scrollWidth > window.innerWidth,
-        );
-        expect(hasHorizontalScroll).toBe(false);
-      } finally {
-        if (ids) await deleteVendorViaApi(page, ids.vendorId);
-      }
-    });
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 11–13: Budget Source (Story #1744)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Documents section with Paperless off — Budget Source (Scenarios 11–13, Story #1744)',
-  { tag: '@responsive' },
-  () => {
-    test('No links: the expanded docs panel shows no Documents section', async ({
-      page,
-      testPrefix,
-    }) => {
-      const sourcesPage = new BudgetSourcesPage(page);
-      const sourceName = `${testPrefix} LinkedDocs Budget Source`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
-        await sourcesPage.goto();
-        await sourcesPage.waitForSourcesLoaded();
-
-        await openAndSettle(page, () => sourcesPage.expandSourceDocs(sourceName));
-
-        const panel = sourcesPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-        await expectNoDocumentsSection(panel);
-      } finally {
-        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
-      }
-    });
-
-    test('Kept links: the docs panel shows the read-only notice', async ({ page, testPrefix }) => {
-      const sourcesPage = new BudgetSourcesPage(page);
-      const sourceName = `${testPrefix} LinkedDocs Kept Source`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 20000 });
-        await mockKeptDocumentLinks(page, 'budget_source', createdId, 1);
-        await sourcesPage.goto();
-        await sourcesPage.waitForSourcesLoaded();
-
-        await sourcesPage.expandSourceDocs(sourceName);
-
-        const panel = sourcesPage.getDocsPanelById(createdId);
-        await expect(panel.getByTestId('documents-paperless-off')).toContainText(
-          'Paperless is not connected. 1 link is kept.',
-        );
-        await expect(
-          panel.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toHaveCount(0);
-      } finally {
-        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
-      }
-    });
-
-    test('Paperless connected: the docs panel heading has id="documents-section-title"', async ({
-      page,
-      testPrefix,
-    }) => {
-      const sourcesPage = new BudgetSourcesPage(page);
-      const sourceName = `${testPrefix} LinkedDocs A11y Source`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createBudgetSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
-        await mockPaperlessConfigured(page);
-        await sourcesPage.goto();
-        await sourcesPage.waitForSourcesLoaded();
-
-        await sourcesPage.expandSourceDocs(sourceName);
-
-        const panel = sourcesPage.getDocsPanelById(createdId);
-        const sectionTitle = panel.locator('#documents-section-title');
-        await expect(sectionTitle).toBeVisible();
-        await expect(sectionTitle).toHaveText(/Documents/);
-        await expect(
-          panel.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toBeEnabled();
-      } finally {
-        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
-      }
-    });
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 14–16: Subsidy Program (Story #1744)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Documents section with Paperless off — Subsidy Program (Scenarios 14–16, Story #1744)',
-  { tag: '@responsive' },
-  () => {
-    test('No links: the expanded docs panel shows no Documents section', async ({
-      page,
-      testPrefix,
-    }) => {
-      const subsidyPage = new SubsidyProgramsPage(page);
-      const programName = `${testPrefix} LinkedDocs Subsidy Program`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createSubsidyProgramViaApi(page, {
-          name: programName,
-          reductionValue: 10,
-        });
-        await subsidyPage.goto();
-        await subsidyPage.waitForProgramsLoaded();
-
-        await openAndSettle(page, () => subsidyPage.expandProgramDocs(programName));
-
-        const panel = subsidyPage.getDocsPanelById(createdId);
-        await expect(panel).toBeVisible();
-        await expectNoDocumentsSection(panel);
-      } finally {
-        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
-      }
-    });
-
-    test('Kept links: the docs panel shows the read-only notice', async ({ page, testPrefix }) => {
-      const subsidyPage = new SubsidyProgramsPage(page);
-      const programName = `${testPrefix} LinkedDocs Kept Program`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createSubsidyProgramViaApi(page, {
-          name: programName,
-          reductionValue: 15,
-        });
-        await mockKeptDocumentLinks(page, 'subsidy_program', createdId, 2);
-        await subsidyPage.goto();
-        await subsidyPage.waitForProgramsLoaded();
-
-        await subsidyPage.expandProgramDocs(programName);
-
-        const panel = subsidyPage.getDocsPanelById(createdId);
-        await expect(panel.getByTestId('documents-paperless-off')).toContainText(
-          'Paperless is not connected. 2 links are kept.',
-        );
-        await expect(
-          panel.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toHaveCount(0);
-      } finally {
-        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
-      }
-    });
-
-    test('Paperless connected: the docs panel heading has id="documents-section-title"', async ({
-      page,
-      testPrefix,
-    }) => {
-      const subsidyPage = new SubsidyProgramsPage(page);
-      const programName = `${testPrefix} LinkedDocs A11y Program`;
-      let createdId: string | null = null;
-      try {
-        createdId = await createSubsidyProgramViaApi(page, {
-          name: programName,
-          reductionValue: 20,
-        });
-        await mockPaperlessConfigured(page);
-        await subsidyPage.goto();
-        await subsidyPage.waitForProgramsLoaded();
-
-        await subsidyPage.expandProgramDocs(programName);
-
-        const panel = subsidyPage.getDocsPanelById(createdId);
-        const sectionTitle = panel.locator('#documents-section-title');
-        await expect(sectionTitle).toBeVisible();
-        await expect(sectionTitle).toHaveText(/Documents/);
-        await expect(
-          panel.getByRole('button', { name: '+ Add Document', exact: true }),
-        ).toBeEnabled();
-      } finally {
-        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
-      }
-    });
-  },
-);
+    },
+  );
+});
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Attachment-type tagging (Story #1877, Scenarios 17–24)
@@ -606,7 +511,7 @@ let attachmentMockNextDocId = 601;
  * Mocks a "configured" Paperless-ngx for the attachment-type tagging scenarios.
  * Optionally pre-seeds document links with the given attachmentTypes (one per entry).
  * A single additional UNLINKED document is always available in the browser/picker —
- * used by the "Add Document" picker scenario. Returns the paperlessDocumentIds
+ * used by the "Link document" picker scenario. Returns the paperlessDocumentIds
  * allocated to each seeded link, in order.
  *
  * All three of GET (list), POST (create), and PATCH (retag/untag) are backed by the
@@ -822,6 +727,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
       const select = invoiceDetailPage.getAttachmentTypeSelect(linkId);
       await expect(select).toBeVisible();
@@ -860,6 +766,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
       const badge = invoiceDetailPage.getAttachmentTypeBadge(linkId);
       await expect(badge).toHaveText('Quotation');
@@ -894,6 +801,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
       const badge = invoiceDetailPage.getAttachmentTypeBadge(linkId);
       await expect(badge).toHaveText('Deposit');
@@ -949,6 +857,7 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
       const select = invoiceDetailPage.getAttachmentTypeSelect(linkId);
       await select.selectOption('invoice');
@@ -967,10 +876,10 @@ test.describe('Attachment-type tagging — invoice detail (Scenarios 17–19)', 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 20: "Add Document" picker — choose type before selecting a document
+// Scenarios 13-14: Link document picker — choose type before selecting a document
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Attachment-type tagging — Add Document picker (Scenario 20)', () => {
+test.describe('Attachment-type tagging — Link document picker (Scenarios 13-14)', () => {
   test('Choosing a type in the picker before selecting a document tags the new link', async ({
     page,
     testPrefix,
@@ -983,12 +892,11 @@ test.describe('Attachment-type tagging — Add Document picker (Scenario 20)', (
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
-
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+      // (the panel was opened above) Link document switches the sheet to the picker view
+      await invoiceDetailPage.documents.openPicker();
+      const pickerModal = invoiceDetailPage.documents.dialog;
       await expect(pickerModal).toBeVisible();
 
       // The picker attachment-type field is present (entityType='invoice') with a
@@ -1017,7 +925,8 @@ test.describe('Attachment-type tagging — Add Document picker (Scenario 20)', (
       };
       expect(createBody.documentLink.attachmentType).toBe('deposit');
 
-      await expect(pickerModal).toBeHidden({ timeout: 10000 });
+      // The sheet goes back to the list view (the panel stays open)
+      await expect(invoiceDetailPage.documents.linkDocumentButton).toBeVisible();
 
       // The new card shows the "Deposit" badge
       const badge = invoiceDetailPage.getAttachmentTypeBadge(createBody.documentLink.id);
@@ -1040,28 +949,19 @@ test.describe('Attachment-type tagging — Add Document picker (Scenario 20)', (
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.goto(ids.invoiceId);
+      await invoiceDetailPage.openDocuments();
 
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
-
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
+      await invoiceDetailPage.documents.openPicker();
 
       const pickerTypeSelect = invoiceDetailPage.getPickerAttachmentTypeSelect();
       await pickerTypeSelect.selectOption('quotation');
       await expect(pickerTypeSelect).toHaveValue('quotation');
 
-      // Close without selecting a document
-      const closeButton = pickerModal.getByRole('button', {
-        name: 'Close document picker',
-      });
-      await closeButton.click();
-      await expect(pickerModal).toBeHidden();
+      // Back to the list without selecting a document
+      await invoiceDetailPage.documents.backToList();
 
-      // Reopen — the field must be back to "No tag"
-      await addDocButton.click();
-      await expect(pickerModal).toBeVisible();
+      // Reopen the picker — the field must be back to "No tag"
+      await invoiceDetailPage.documents.openPicker();
       await expect(invoiceDetailPage.getPickerAttachmentTypeSelect()).toHaveValue('');
     } finally {
       await cleanupAttachmentMocks(page);
@@ -1090,11 +990,12 @@ test.describe('Attachment-type tagging — non-invoice entities (Scenario 22)', 
 
       const detailPage = new WorkItemDetailPage(page);
       await detailPage.goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
 
-      const linkedList = page.getByRole('list', { name: 'Linked documents' });
-      await expect(linkedList).toBeVisible({ timeout: 10000 });
+      await expect(panel.list).toBeVisible();
 
-      const card = linkedList.getByRole('listitem').first();
+      const card = panel.rows.first();
       // No attachment-type <select> (id starts with "attachment-type-") anywhere on the card
       await expect(card.locator('select[id^="attachment-type-"]')).toHaveCount(0);
       // No attachment-type Badge (testid starts with "attachment-type-badge-")
@@ -1136,6 +1037,7 @@ test.describe(
 
         const invoiceDetailPage = new InvoiceDetailPage(page);
         await invoiceDetailPage.goto(ids.invoiceId);
+        await invoiceDetailPage.openDocuments();
 
         const select = invoiceDetailPage.getAttachmentTypeSelect(linkId);
         await expect(select).toBeVisible();
@@ -1178,6 +1080,7 @@ test.describe('Attachment-type tagging — dark mode (Scenario 24)', () => {
 
       const invoiceDetailPage = new InvoiceDetailPage(page);
       await invoiceDetailPage.heading.waitFor({ state: 'visible' });
+      await invoiceDetailPage.openDocuments();
 
       const expectedLabels: Record<number, string> = {
         [docIds[0]!]: 'Quotation',
@@ -1492,6 +1395,7 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       // renders on invoice detail cards generally (entityType='invoice'); only the
       // CREATE-flow picker itself is exempt from the manual tagging UI.
       const invoiceDetailPage = new InvoiceDetailPage(page);
+      await invoiceDetailPage.openDocuments();
       const badge = invoiceDetailPage.getAttachmentTypeBadge(pfLinkId);
       await expect(badge).toBeVisible();
       await expect(badge).toHaveText('Invoice');

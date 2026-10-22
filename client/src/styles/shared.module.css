@@ -741,3 +741,15 @@
     transition: none;
   }
 }
+
+/**
+ * User-entered text that wraps (titles, descriptions, notes, names, document titles). Pair it with
+ * `lang` through `userTextProps()` / `useUserText()`. Never on translated strings, formatted
+ * values or single-line ellipsised text (#2233).
+ */
+.userText {
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
+  word-break: normal;
+}

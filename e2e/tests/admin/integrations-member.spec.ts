@@ -16,6 +16,7 @@ import { API, ROUTES } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { mockKeptDocumentLinks } from '../../fixtures/paperlessMocks.js';
 import { NoAccessPage } from '../../pages/NoAccessPage.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 
 test.use({
@@ -74,14 +75,12 @@ test.describe('Integrations for a member (Story #2217)', { tag: '@responsive' },
       const detailPage = new WorkItemDetailPage(page);
 
       await detailPage.goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
 
-      await expect(page.getByTestId('documents-paperless-off')).toContainText(
-        'Paperless is not connected. 1 link is kept.',
-      );
-      await expect(page.getByTestId('documents-integrations-link')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
-        0,
-      );
+      await expect(panel.notice).toContainText('Paperless is not connected. 1 link is kept.');
+      await expect(panel.integrationsLink).toHaveCount(0);
+      await expect(panel.linkDocumentButton).toHaveCount(0);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }

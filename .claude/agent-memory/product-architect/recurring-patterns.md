@@ -2115,3 +2115,11 @@ by copying the merge-base versions of the fixed files over the head versions (sa
 /tmp), running one test file, then restoring the head versions, and ask for an assertion on the
 difference itself. Server Jest from a worktree needs `--selectProjects server --runInBand` and
 `--max-old-space-size=4096`, or the worker OOMs and reports `Tests: 0 total`.
+
+## A renamed money label is a baseline "rise" (#2233, 2026-10-22)
+
+`compareBaseline` flags every moneyLabels value that is not in the baseline, even a 1:1 rename to
+glossary canon ("this budget source" → "this funding source"). Only an exact English glossary form is
+exempt. Specs that check "no new money word" by scanning one namespace miss renames in other
+namespaces. Run `plan:check` before `plan:build`, because `plan:build` re-records the values and hides
+the rise. Escalate the rename to the dev-team-lead instead of re-recording it silently.

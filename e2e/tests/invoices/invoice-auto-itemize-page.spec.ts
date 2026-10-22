@@ -424,13 +424,14 @@ test.describe(
           await detailPage.goto(invoiceId);
           await expect(detailPage.heading).toBeVisible();
 
-          // ── Itemize button visible on the document card ─────────────────────
-          const itemizeBtn = detailPage.itemizeButton('Invoice Doc Alpha');
-          await expect(itemizeBtn).toBeVisible();
-
-          // ── "Details" button visible (renamed from "View" in story #1564) ───
+          // ── Documents panel: "Details" toggle visible on the card (#2233) ────
+          await detailPage.openDocuments();
           const detailsBtn = detailPage.detailsButton('Invoice Doc Alpha');
           await expect(detailsBtn).toBeVisible();
+
+          // ── Itemize is an item of the card's ⋯ menu ──────────────────────────
+          await detailPage.openCardMenu('Invoice Doc Alpha');
+          await expect(detailPage.itemizeButton()).toBeVisible();
 
           // ── Old "Auto-itemize" button is NOT in the budget lines section ─────
           await expect(detailPage.autoItemizeButton()).not.toBeVisible();
@@ -464,16 +465,16 @@ test.describe(
         await detailPage.goto(invoiceId);
         await expect(detailPage.heading).toBeVisible();
 
-        // Scroll to documents section so cards are in the viewport
-        await detailPage.documentsSection.scrollIntoViewIfNeeded();
+        await detailPage.openDocuments();
 
         // ── "Details" button still visible (unaffected by LLM config) ───────
         const detailsBtn = detailPage.detailsButton('Invoice Doc Beta');
         await expect(detailsBtn).toBeVisible();
 
-        // ── Itemize button must NOT be rendered ──────────────────────────────
-        const itemizeBtn = detailPage.itemizeButton('Invoice Doc Beta');
-        await expect(itemizeBtn).not.toBeVisible();
+        // ── Itemize must NOT be in the card menu (Unlink proves the menu is open) ─
+        await detailPage.openCardMenu('Invoice Doc Beta');
+        await expect(detailPage.documents.menuItem('Unlink')).toBeVisible();
+        await expect(detailPage.itemizeButton('Invoice Doc Beta')).toHaveCount(0);
       } finally {
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -523,13 +524,13 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         await expect(detailPage.heading).toBeVisible();
 
         // ── Verify Itemize button is visible ─────────────────────────────────
-        await detailPage.documentsSection.scrollIntoViewIfNeeded();
-        const itemizeBtn = detailPage.itemizeButton(docTitle);
-        await expect(itemizeBtn).toBeVisible();
+        await detailPage.openDocuments();
+        await detailPage.openCardMenu(docTitle);
+        await expect(detailPage.itemizeButton(docTitle)).toBeVisible();
 
         // ── Click Itemize → navigate to /auto-itemize page ───────────────────
         const navPromise = page.waitForURL(`**/budget/invoices/${invoiceId}/auto-itemize/${docId}`);
-        await itemizeBtn.click();
+        await detailPage.itemizeButton(docTitle).click();
         await navPromise;
 
         // ── AutoItemizePage: page title visible ───────────────────────────────
@@ -848,7 +849,7 @@ test.describe('Scenario 7 — "Details" button label on LinkedDocumentCard (regr
 
         await detailPage.goto(invoiceId);
         await expect(detailPage.heading).toBeVisible();
-        await detailPage.documentsSection.scrollIntoViewIfNeeded();
+        await detailPage.openDocuments();
 
         // ── "Details" button visible on the card ──────────────────────────────
         const detailsBtn = detailPage.detailsButton('Label Test Doc');

@@ -299,6 +299,39 @@
     "description": "Wende dich an einen Administrator, wenn du Zugriff benötigst.",
     "backLink": "Zurück zum Start"
   },
+  "objectHeader": {
+    "pageActions": "Seitenaktionen",
+    "copyLink": "Link kopieren",
+    "print": "Drucken",
+    "log": "Erfassen",
+    "linkCopied": "Link kopiert.",
+    "linkCopyFailed": "Link konnte nicht kopiert werden."
+  },
+  "summaryStrip": {
+    "label": "Zusammenfassung: {{type}}",
+    "notSet": "Nicht festgelegt"
+  },
+  "objectTabs": {
+    "listLabel": "Bereiche: {{type}}",
+    "withCount": "{{label}} ({{count}})",
+    "tab": {
+      "overview": "Übersicht",
+      "timing": "Termine",
+      "work": "Arbeiten",
+      "cost": "Kosten",
+      "payments": "Zahlungen",
+      "diary": "Bautagebuch",
+      "history": "Verlauf"
+    }
+  },
+  "sectionCard": {
+    "editSection": "{{section}} bearbeiten",
+    "saving": "Wird gespeichert…",
+    "saved": "{{section}} gespeichert.",
+    "saveHint": "Strg+Enter zum Speichern",
+    "saveHintMac": "⌘+Enter zum Speichern",
+    "discardLead": "Deine Änderungen an {{section}} sind nicht gespeichert."
+  },
   "tagPicker": {
     "placeholderEmpty": "Tags hinzufügen...",
     "placeholderMore": "Weitere hinzufügen...",

@@ -78,8 +78,9 @@ describe('undo and delete-impact constants', () => {
       'budget_source',
       'area',
       'photo',
+      'document_link',
     ]);
-    expect(UNDO_SUBJECT_TYPES).toHaveLength(10);
+    expect(UNDO_SUBJECT_TYPES).toHaveLength(11);
   });
 
   it('lists the delete-impact entity types (the route whitelist)', () => {

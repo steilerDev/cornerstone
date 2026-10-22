@@ -2151,6 +2151,58 @@
       "doNotUse": [],
       "formerly": []
     },
+    "Copy link": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Copy link"
+      },
+      "de": {
+        "verb": "Link kopieren"
+      },
+      "deSource": "approved",
+      "definition": "Copy the address of the current page to the clipboard.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Link document": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Link document"
+      },
+      "de": {
+        "verb": "Dokument verknüpfen"
+      },
+      "deSource": "approved",
+      "definition": "Connect an existing Paperless document to this record.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Print": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Print"
+      },
+      "de": {
+        "verb": "Drucken"
+      },
+      "deSource": "approved",
+      "definition": "Print the page you are on.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Unlink": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Unlink"
+      },
+      "de": {
+        "verb": "Verknüpfung lösen"
+      },
+      "deSource": "approved",
+      "definition": "Disconnect a linked record without deleting it; the opposite of Link.",
+      "doNotUse": [],
+      "formerly": []
+    },
     "Remove": {
       "groups": ["verb"],
       "en": {

@@ -1,25 +1,24 @@
 .card {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition:
-    box-shadow var(--transition-normal),
-    border-color var(--transition-normal);
 }
 
-.card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--color-border-strong);
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
 }
 
 .thumbContainer {
   position: relative;
-  aspect-ratio: 4 / 3;
+  flex: 0 0 auto;
+  width: var(--spacing-12);
+  aspect-ratio: 3 / 4;
   overflow: hidden;
+  border-radius: var(--radius-sm);
   background: var(--color-bg-tertiary);
 }
 
@@ -36,131 +35,42 @@
   align-items: center;
   justify-content: center;
   color: var(--color-text-muted);
-  font-size: 2rem;
-  opacity: 0.35;
-}
-
-/* ─── Overlay unlink button ─────────────────────────────────────────────── */
-
-.unlinkOverlayButton {
-  position: absolute;
-  top: var(--spacing-1-5);
-  right: var(--spacing-1-5);
-  z-index: var(--z-dropdown);
-  width: var(--spacing-7); /* 28px desktop */
-  height: var(--spacing-7);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: var(--color-overlay-medium);
-  /* Use --color-sidebar-text (near-white in both themes) for legibility over images */
-  /* Intentional exception: --color-text-inverse is near-black in dark mode, unusable here */
-  color: var(--color-sidebar-text);
-  border: none;
-  border-radius: var(--radius-circle);
-  cursor: pointer;
-  font-size: var(--font-size-xs);
-  line-height: 1;
-  /* Hidden on pointer devices; revealed by .card:hover or :focus-visible below */
-  opacity: 0;
-  pointer-events: none;
-  /* text-shadow for legibility over any thumbnail content (image-overlay exception) */
-  text-shadow: var(--shadow-text-overlay);
-}
-
-.unlinkOverlayButton:hover {
-  background: var(--color-overlay-delete);
-  color: var(--color-danger);
-  text-shadow: none;
-}
-
-.unlinkOverlayButton:active {
-  background: var(--color-danger-bg-strong);
-  color: var(--color-danger);
-}
-
-.unlinkOverlayButton:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-/* Reveal on card hover (pointer devices) */
-.card:hover .unlinkOverlayButton {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Opacity transition — only when reduced motion is OK */
-@media (prefers-reduced-motion: no-preference) {
-  .unlinkOverlayButton {
-    transition:
-      opacity var(--transition-fast),
-      background-color var(--transition-fast);
-  }
-}
-
-/* Touch / coarse pointer — always visible */
-@media (hover: none), (pointer: coarse) {
-  .unlinkOverlayButton {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
-/* Touch target size on mobile/tablet */
-@media (max-width: 1023px) {
-  .unlinkOverlayButton {
-    width: 44px;
-    height: 44px;
-  }
+  font-size: var(--font-size-xl);
+  opacity: 0.5;
 }
 
 .body {
-  padding: var(--spacing-3);
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--spacing-1);
-  flex: 1;
+  min-width: 0;
 }
 
 .title {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  margin: 0;
 }
 
 .meta {
+  margin: 0;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin: 0;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border-width: 0;
 }
 
 .attachmentTypeRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-1-5);
-  flex-wrap: wrap;
-  margin-top: var(--spacing-0-5);
+  align-self: stretch;
 }
 
 .attachmentTypeSelect {
@@ -191,126 +101,42 @@
   cursor: not-allowed;
 }
 
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-1);
-  margin-top: var(--spacing-0-5);
-}
-
-.tagChip {
-  padding: var(--spacing-0-5) var(--spacing-1-5);
-  font-size: 0.625rem;
-  background: var(--color-primary-bg);
-  color: var(--color-primary-badge-text);
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  padding: var(--spacing-2) var(--spacing-3);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-}
-
-.viewButton {
-  flex: 1;
-  padding: var(--spacing-1-5) 0;
-  background: transparent;
-  border: none;
+.detailsToggle {
+  min-height: var(--spacing-6);
+  padding: var(--spacing-0-5) 0;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-primary);
-  cursor: pointer;
-  text-align: left;
-  transition: color var(--transition-fast);
-  border-radius: var(--radius-sm);
-}
-
-.viewButton:hover {
-  color: var(--color-primary-hover);
-}
-
-.viewButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.openLink {
-  flex-shrink: 0;
-  padding: var(--spacing-1);
-  background: transparent;
-  border: none;
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color var(--transition-fast);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.openLink:hover {
-  color: var(--color-primary);
-}
-
-.openLink:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.itemizeButton {
-  flex-shrink: 0;
+  text-decoration: underline;
   background: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-1-5) var(--spacing-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: var(--transition-button-border);
 }
 
-.itemizeButton:hover {
-  background: var(--color-primary-bg);
-  border-color: var(--color-primary-hover);
-  color: var(--color-primary-badge-text);
+.detailsToggle:hover {
+  color: var(--color-text-primary);
 }
 
-.itemizeButton:focus-visible {
+.detailsToggle:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus-subtle);
+  box-shadow: var(--shadow-focus);
+}
+
+.menu {
+  flex: 0 0 auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .itemizeButton {
+  .attachmentTypeSelect {
     transition: none;
   }
 }
 
-/* Touch targets on mobile */
+/* Touch targets below desktop */
 @media (max-width: 1023px) {
-  .viewButton,
-  .openLink {
-    min-height: 44px;
-    min-width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .viewButton {
-    text-align: center;
-    flex: 1;
-  }
-
+  .detailsToggle,
   .attachmentTypeSelect {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 }

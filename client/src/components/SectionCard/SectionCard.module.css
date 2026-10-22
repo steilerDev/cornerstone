@@ -1,0 +1,148 @@
+.card {
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--spacing-6);
+  }
+}
+
+/* Edit mode raises the border; the Cancel / Save footer carries the state for non-colour cues. */
+.cardEditing {
+  border-color: var(--color-border-focus);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.edit {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  flex-shrink: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.hint {
+  margin-inline-end: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cancel {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.save {
+  composes: btnPrimaryCompact from '../../styles/shared.module.css';
+}
+
+.cancel[aria-disabled='true'],
+.save[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.save[aria-disabled='true'][aria-busy='true'] {
+  cursor: progress;
+}
+
+/* The composed hover rule still matches an aria-disabled button; keep its resting colour. */
+.save[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
+
+.cancel[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.edit,
+.cancel,
+.save {
+  min-height: var(--spacing-8);
+}
+
+@media (max-width: 1023px) {
+  .edit,
+  .cancel,
+  .save {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 479px) {
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hint {
+    margin-inline-end: 0;
+    order: 3;
+  }
+
+  .cancel,
+  .save {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
+
+@media print {
+  .card {
+    background: transparent;
+    break-inside: avoid;
+    border-color: CanvasText;
+    color-scheme: light;
+  }
+
+  .edit,
+  .footer {
+    display: none;
+  }
+}

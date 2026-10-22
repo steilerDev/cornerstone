@@ -22,7 +22,7 @@
  *   6.  "Open in Paperless" anchor has correct href and target
  *   7.  @smoke Full confirm flow: vendor + lines → confirm → navigate to invoice detail
  *   8.  Responsive picker: on mobile (375px) picker modal is full-screen
- *   9.  Hide-linked default in LinkedDocumentsSection on invoice detail page
+ *   9.  Hide-linked default in Documents panel on invoice detail page
  *   10. PDF iframe present in preview column after extraction complete
  *   11. Silent-failure fix: clicking Create without vendor shows inline vendor error, no navigation
  *   12. Page-level error banner on commit 500 (page stays in ready state)
@@ -57,6 +57,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 import { API } from '../../fixtures/testData.js';
 import {
   createBudgetSourceViaApi,
@@ -805,7 +806,7 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
         });
       });
 
-      // LinkedDocumentsSection fetches document-links on mount.
+      // The Documents panel host fetches document-links on mount.
       await page.route(
         (url) =>
           url.pathname === '/api/document-links' &&
@@ -996,11 +997,11 @@ async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewP
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9 — Hide-linked default in LinkedDocumentsSection on invoice detail
+// Scenario 9 — Hide-linked default in Documents panel on invoice detail
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 9 — Hide-linked default in invoice detail LinkedDocumentsSection', () => {
-  test('On invoice detail page with linked docs, "Add Document" picker toggle is ON by default', async ({
+test.describe('Scenario 9 — Hide-linked default in invoice detail Documents panel', () => {
+  test('On invoice detail page with linked docs, "Link document" picker toggle is ON by default', async ({
     page,
     testPrefix,
   }) => {
@@ -1064,15 +1065,13 @@ test.describe('Scenario 9 — Hide-linked default in invoice detail LinkedDocume
       await page.goto(`/budget/invoices/${invoiceId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-      // Open the "Add Document" picker via the LinkedDocumentsSection
-      const addDocButton = page
-        .getByRole('button', { name: /Add Document|Link Document/i })
-        .first();
-      await addDocButton.waitFor({ state: 'visible' });
-      await addDocButton.click();
+      // Open the Documents panel, then its Link document picker view
+      const docsPanel = new DocumentsPanel(page);
+      await docsPanel.open();
+      await docsPanel.openPicker();
 
-      // The picker modal (DocumentBrowser) should open
-      const docPickerModal = page.getByRole('dialog', { name: /Add Document/i });
+      // The picker (DocumentBrowser in the panel's sheet) is open
+      const docPickerModal = docsPanel.dialog;
       await docPickerModal.waitFor({ state: 'visible' });
 
       // The hide-linked toggle should be checked by default (feature default)

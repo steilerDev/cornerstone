@@ -62,4 +62,10 @@ For percentage-based subsidies, you can set a **maximum amount** to cap the payo
 
 When a budget line is linked to an invoice with an itemized amount, the subsidy calculation uses the **itemized invoice amount** as the cost basis instead of the planned amount. This ensures subsidy reductions reflect the actual cost attribution from invoices, not the original estimate.
 
+## Linked Documents
+
+When Paperless-ngx is connected, each grant row has a **Documents (n)** button showing how many documents are linked to it, such as application forms and approval letters. Click it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for the details.
+
+If Paperless-ngx is not connected and the grant has no linked documents, the button is not shown.
+
 ![Subsidies page](/img/screenshots/budget-subsidies-light.png)

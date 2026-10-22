@@ -9,7 +9,7 @@ import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
@@ -470,7 +470,7 @@ export function InvoiceDetailPage() {
           linkState={originState}
         />
 
-        <LinkedDocumentsSection key={`docs-${sectionsKey}`} entityType="invoice" entityId={id!} />
+        <DocumentsPanelButton key={`docs-${sectionsKey}`} entityType="invoice" entityId={id!} />
       </div>
 
       {/* Quotation conversion flow: one modal at a time, never stacked */}

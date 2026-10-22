@@ -192,13 +192,15 @@ describe('documentLinksApi', () => {
   });
 
   describe('deleteDocumentLink', () => {
-    it('calls DELETE /document-links/:id and returns void', async () => {
-      mockDel.mockResolvedValueOnce(undefined);
+    it('calls DELETE /document-links/:id and returns the { undo } response with the restore token', async () => {
+      const response = { undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' } };
+      mockDel.mockResolvedValueOnce(response);
 
       const result = await documentLinksApi.deleteDocumentLink('link-123');
 
       expect(mockDel).toHaveBeenCalledWith('/document-links/link-123');
-      expect(result).toBeUndefined();
+      expect(result).toEqual(response);
+      expect(result.undo.token).toBe('tok-1');
     });
 
     it('passes the link id in the URL path', async () => {

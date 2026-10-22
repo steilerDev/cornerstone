@@ -27,6 +27,7 @@
 - [Redefined stored flag](recurring-patterns.md) — grep UI copy, type JSDoc and all wiki notes of the field (is_late, PR #2326)
 - [Focus trap owning every Tab](recurring-patterns.md) — per-radio Tab stops, skipped `<summary>`; ask for junction-only stepping (PR #2327)
 - ["Fails before the fix" claims](recurring-patterns.md) — swap base files back in to prove it; proxy asserts like `count > 0` (PR #2329)
+- [Renamed money label = rise](recurring-patterns.md) — plan:check before plan:build; a 1:1 glossary rename still fails moneyLabels (#2233)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped so array-shape gates are proxies; **`splitKind` SHIPPED #1911/PR #2015** incl. the ≠S-per-arm predicate, the residual arithmetic proving `(less deposit)` in both directions, the UNION-dedup/`COUNT(*)` trap, and why `isSplit` must be retained as an independent cross-check; pdfmake `'2*'` width trap; wiki + shared type JSDoc fixed (#1914, #1917/PR #1994); **principle now ADR-036 (scope-matching rule + converse); fields renamed `budgetLinesForSource`/`depositsVisibleToSource` (#2017); `aiError` write-backs = error-display carve-out, not a tier opt-out (Architecture, #2014)**

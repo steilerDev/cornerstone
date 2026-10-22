@@ -1,9 +1,16 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type { ReactElement } from 'react';
 import type * as LinkedDocumentCardModule from './LinkedDocumentCard.js';
 import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+function render(ui: ReactElement) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>);
+}
 
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
+let mockEntriesLanguage: string | null = null;
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: jest.fn(),
@@ -14,6 +21,10 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: jest.fn(),
 }));
 
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  useEntriesLanguage: () => mockEntriesLanguage,
+}));
+
 let LinkedDocumentCard: (typeof LinkedDocumentCardModule)['LinkedDocumentCard'];
 
 beforeEach(async () => {
@@ -21,10 +32,29 @@ beforeEach(async () => {
     (await import('./LinkedDocumentCard.js')) as typeof LinkedDocumentCardModule);
   mockGetDocumentThumbnailUrl.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
+  mockEntriesLanguage = null;
+  localStorage.clear();
 });
 
 afterEach(() => {
   jest.restoreAllMocks();
+  localStorage.clear();
+});
+
+const makeDoc = (overrides = {}) => ({
+  id: 42,
+  title: 'Sample offer.pdf',
+  content: 'Sample preview text of the offer.',
+  tags: [{ id: 1, name: 'Offer', color: null, documentCount: 5 }],
+  created: '2026-01-15',
+  added: null,
+  modified: null,
+  correspondent: 'Fixture Company',
+  documentType: null,
+  archiveSerialNumber: null,
+  originalFileName: null,
+  pageCount: null,
+  ...overrides,
 });
 
 const makeLink = (overrides: Partial<DocumentLinkWithMetadata> = {}): DocumentLinkWithMetadata => ({
@@ -35,735 +65,357 @@ const makeLink = (overrides: Partial<DocumentLinkWithMetadata> = {}): DocumentLi
   attachmentType: null,
   createdBy: null,
   createdAt: '2026-01-01T00:00:00Z',
-  document: {
-    id: 42,
-    title: 'Invoice March',
-    content: null,
-    tags: [{ id: 1, name: 'Invoice', color: null, documentCount: 5 }],
-    created: '2026-01-15',
-    added: null,
-    modified: null,
-    correspondent: 'ACME Corp',
-    documentType: null,
-    archiveSerialNumber: null,
-    originalFileName: null,
-    pageCount: null,
-  },
+  document: makeDoc(),
   ...overrides,
 });
 
+const BASE = 'https://paperless.example.test';
+
+const openMenu = () => fireEvent.click(screen.getByTestId('document-menu-link-1'));
+
 describe('LinkedDocumentCard', () => {
-  it('renders document title from link.document.title', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(screen.getByRole('heading', { name: 'Invoice March' })).toBeInTheDocument();
-  });
+  describe('row content', () => {
+    it('renders the document title as a heading with the meta line (date and correspondent)', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />);
 
-  it('renders formatted date from link.document.created', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    // 2026-01-15 => "Jan 15, 2026"
-    expect(screen.getByText(/Jan 15, 2026/)).toBeInTheDocument();
-  });
-
-  it('renders up to 2 tag chips', () => {
-    const link = makeLink({
-      document: {
-        id: 42,
-        title: 'Invoice March',
-        content: null,
-        tags: [
-          { id: 1, name: 'Invoice', color: null, documentCount: 5 },
-          { id: 2, name: 'Work', color: null, documentCount: 3 },
-        ],
-        created: '2026-01-15',
-        added: null,
-        modified: null,
-        correspondent: null,
-        documentType: null,
-        archiveSerialNumber: null,
-        originalFileName: null,
-        pageCount: null,
-      },
+      expect(screen.getByRole('heading', { name: 'Sample offer.pdf' })).toBeInTheDocument();
+      expect(screen.getByText(/Jan 15, 2026/)).toBeInTheDocument();
+      expect(screen.getByText('Fixture Company')).toBeInTheDocument();
+      expect(screen.getByText(/·/)).toBeInTheDocument();
     });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(screen.getByText('Invoice')).toBeInTheDocument();
-    expect(screen.getByText('Work')).toBeInTheDocument();
-    expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
-  });
 
-  it('shows "+N" overflow indicator when more than 2 tags exist', () => {
-    const link = makeLink({
-      document: {
-        id: 42,
-        title: 'Invoice March',
-        content: null,
-        tags: [
-          { id: 1, name: 'Invoice', color: null, documentCount: 5 },
-          { id: 2, name: 'Work', color: null, documentCount: 3 },
-          { id: 3, name: 'Archive', color: null, documentCount: 2 },
-          { id: 4, name: 'Extra', color: null, documentCount: 1 },
-        ],
-        created: '2026-01-15',
-        added: null,
-        modified: null,
-        correspondent: null,
-        documentType: null,
-        archiveSerialNumber: null,
-        originalFileName: null,
-        pageCount: null,
-      },
-    });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(screen.getByText('Invoice')).toBeInTheDocument();
-    expect(screen.getByText('Work')).toBeInTheDocument();
-    // 3rd and 4th tags are not shown individually
-    expect(screen.queryByText('Archive')).not.toBeInTheDocument();
-    expect(screen.queryByText('Extra')).not.toBeInTheDocument();
-    // Overflow indicator shows +2 (4 tags - 2 shown = 2 extra)
-    expect(screen.getByText('+2')).toBeInTheDocument();
-  });
-
-  it('"Details" button renders with "Details" text label (not "View")', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    // The button label is now "Details", not "View" (Story #1564 rename)
-    expect(
-      screen.getByRole('button', { name: /View details: Invoice March/i }),
-    ).toBeInTheDocument();
-  });
-
-  it('"Details" button calls onView prop with the link', () => {
-    const onView = jest.fn();
-    const link = makeLink();
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={onView}
-        onUnlink={jest.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /View details: Invoice March/i }));
-    expect(onView).toHaveBeenCalledWith(link);
-  });
-
-  it('"Open in Paperless" link is rendered when paperlessBaseUrl is set', () => {
-    const link = makeLink();
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl="https://paperless.example.com"
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    const openLink = screen.getByRole('link', {
-      name: /Open document in Paperless: Invoice March/i,
-    }) as HTMLAnchorElement;
-    expect(openLink).toBeInTheDocument();
-    expect(openLink.href).toBe('https://paperless.example.com/documents/42/details');
-  });
-
-  it('"Open in Paperless" link has correct href with document ID', () => {
-    const link = makeLink({ paperlessDocumentId: 77 });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl="https://my-paperless.local"
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    const openLink = screen.getByRole('link', {
-      name: /Open document in Paperless/i,
-    }) as HTMLAnchorElement;
-    expect(openLink.href).toContain('/documents/77/details');
-  });
-
-  it('"Open in Paperless" link is NOT rendered when paperlessBaseUrl is null', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(
-      screen.queryByRole('link', { name: /Open document in Paperless/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  it('"Unlink" button calls onUnlink prop with the link', () => {
-    const onUnlink = jest.fn();
-    const link = makeLink();
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={onUnlink}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Unlink document: Invoice March/i }));
-    expect(onUnlink).toHaveBeenCalledWith(link);
-  });
-
-  it('when link.document is null: only "Unlink" action visible, no View or Open buttons', () => {
-    const link = makeLink({ document: null });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl="https://paperless.example.com"
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    // View button should not appear
-    expect(screen.queryByRole('button', { name: /View document/i })).not.toBeInTheDocument();
-    // Open in Paperless link should not appear (hasDocument is false)
-    expect(
-      screen.queryByRole('link', { name: /Open document in Paperless/i }),
-    ).not.toBeInTheDocument();
-    // Unlink button should still be present
-    expect(screen.getByRole('button', { name: /Unlink document/i })).toBeInTheDocument();
-  });
-
-  it('shows fallback title Document #<id> when link.document is null', () => {
-    const link = makeLink({ paperlessDocumentId: 99, document: null });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(screen.getByRole('heading', { name: 'Document #99' })).toBeInTheDocument();
-  });
-
-  it('does not render date section when document.created is null', () => {
-    const link = makeLink({
-      document: {
-        id: 42,
-        title: 'Invoice March',
-        content: null,
-        tags: [],
-        created: null,
-        added: null,
-        modified: null,
-        correspondent: null,
-        documentType: null,
-        archiveSerialNumber: null,
-        originalFileName: null,
-        pageCount: null,
-      },
-    });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    // No formatted date text visible
-    expect(screen.queryByText(/^[A-Z][a-z]+ \d+, \d{4}$/)).not.toBeInTheDocument();
-  });
-
-  it('does not render tag section when document has no tags', () => {
-    const link = makeLink({
-      document: {
-        id: 42,
-        title: 'Invoice March',
-        content: null,
-        tags: [],
-        created: '2026-01-15',
-        added: null,
-        modified: null,
-        correspondent: null,
-        documentType: null,
-        archiveSerialNumber: null,
-        originalFileName: null,
-        pageCount: null,
-      },
-    });
-    render(
-      <LinkedDocumentCard
-        link={link}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
-  });
-
-  it('"Open in Paperless" link opens in new tab with noopener noreferrer', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl="https://paperless.example.com"
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    const openLink = screen.getByRole('link', {
-      name: /Open document in Paperless/i,
-    }) as HTMLAnchorElement;
-    expect(openLink).toHaveAttribute('target', '_blank');
-    expect(openLink).toHaveAttribute('rel', 'noopener noreferrer');
-  });
-
-  it('falls back to thumbFallback icon when thumbnail image load fails', () => {
-    render(
-      <LinkedDocumentCard
-        link={makeLink()}
-        paperlessBaseUrl={null}
-        onView={jest.fn()}
-        onUnlink={jest.fn()}
-      />,
-    );
-    const img = document.querySelector('img');
-    expect(img).toBeInTheDocument();
-    // Fire the onError event to trigger setThumbError(true)
-    fireEvent.error(img!);
-    // After error, the fallback div should appear and the img should be gone
-    expect(document.querySelector('img')).not.toBeInTheDocument();
-    expect(document.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
-  });
-
-  // ─── Overlay unlink button (Story #1680) ─────────────────────────────────
-
-  describe('overlay unlink button', () => {
-    it('overlay unlink button is in the thumb container, not the footer actions', () => {
-      render(
+    it('omits the separator and meta line parts that are missing', () => {
+      const { rerender } = render(
         <LinkedDocumentCard
-          link={makeLink()}
+          link={makeLink({ document: makeDoc({ correspondent: null }) })}
           paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
         />,
       );
-      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
-      const viewBtn = screen.getByRole('button', { name: /View details: Invoice March/i });
-      expect(unlinkBtn.parentElement).not.toBe(viewBtn.parentElement);
-    });
+      expect(screen.getByText(/Jan 15, 2026/)).toBeInTheDocument();
+      expect(screen.queryByText(/·/)).toBeNull();
 
-    it('unlink button aria-label includes the document title exactly', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-        />,
+      rerender(
+        <LocaleProvider>
+          <LinkedDocumentCard
+            link={makeLink({ document: makeDoc({ created: null }) })}
+            paperlessBaseUrl={null}
+          />
+        </LocaleProvider>,
       );
-      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
-      expect(unlinkBtn.getAttribute('aria-label')).toBe('Unlink document: Invoice March');
-    });
+      expect(screen.getByText('Fixture Company')).toBeInTheDocument();
+      expect(screen.queryByText(/Jan 15, 2026/)).toBeNull();
+      expect(screen.queryByText(/·/)).toBeNull();
 
-    it('overlay unlink button has type="button"', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-        />,
+      rerender(
+        <LocaleProvider>
+          <LinkedDocumentCard
+            link={makeLink({ document: makeDoc({ created: null, correspondent: null }) })}
+            paperlessBaseUrl={null}
+          />
+        </LocaleProvider>,
       );
-      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
-      expect(unlinkBtn).toHaveAttribute('type', 'button');
+      expect(screen.queryByText('Fixture Company')).toBeNull();
     });
 
-    it('only one unlink button exists (footer unlink button was removed)', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-        />,
+    it('renders the thumbnail and falls back to the placeholder when it fails to load', () => {
+      const { container } = render(
+        <LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />,
       );
-      expect(screen.queryAllByRole('button', { name: /Unlink document/i })).toHaveLength(1);
+      const img = container.querySelector('img');
+      expect(img).toHaveAttribute('src', '/api/paperless/documents/42/thumb');
+
+      fireEvent.error(img as HTMLImageElement);
+
+      expect(container.querySelector('img')).toBeNull();
+      expect(screen.getByText('📄')).toBeInTheDocument();
     });
 
-    it('overlay unlink button renders even when link.document is null', () => {
-      render(
+    it('shows the fallback title and placeholder when the document is unavailable', () => {
+      const { container } = render(
         <LinkedDocumentCard
-          link={makeLink({ document: null })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-        />,
-      );
-      expect(screen.getByRole('button', { name: /Unlink document/i })).toBeInTheDocument();
-    });
-  });
-
-  // ─── Itemize button (Story #1564) ─────────────────────────────────────────
-
-  describe('Itemize button', () => {
-    it('renders Itemize button when onItemize prop is provided', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
+          link={makeLink({ document: null, paperlessDocumentId: 12 })}
+          paperlessBaseUrl={BASE}
           onUnlink={jest.fn()}
           onItemize={jest.fn()}
         />,
       );
-      // The Itemize button should be visible
-      expect(screen.getByRole('button', { name: /Itemize.*Invoice March/i })).toBeInTheDocument();
+
+      expect(screen.getByRole('heading', { name: 'Document #12' })).toBeInTheDocument();
+      expect(container.querySelector('img')).toBeNull();
+      expect(screen.getByText('📄')).toBeInTheDocument();
+      expect(screen.queryByTestId('document-details-link-1')).toBeNull();
+    });
+  });
+
+  describe('user text (AC6)', () => {
+    it('tags the document title and correspondent with the entries language', () => {
+      mockEntriesLanguage = 'de';
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />);
+
+      const title = screen.getByRole('heading', { name: 'Sample offer.pdf' });
+      expect(title).toHaveAttribute('lang', 'de');
+      expect(title.className).toContain('userText');
+      expect(screen.getByText('Fixture Company')).toHaveAttribute('lang', 'de');
     });
 
-    it('does NOT render Itemize button when onItemize prop is omitted', () => {
+    it('does not tag the translated fallback title', () => {
+      mockEntriesLanguage = 'de';
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ document: null, paperlessDocumentId: 12 })}
+          paperlessBaseUrl={null}
+        />,
+      );
+
+      const title = screen.getByRole('heading', { name: 'Document #12' });
+      expect(title).not.toHaveAttribute('lang');
+      expect(title.className).not.toContain('userText');
+    });
+  });
+
+  describe('no overlay controls', () => {
+    it('has no unlink cross, view overlay or Open-in-Paperless button on the thumbnail', () => {
       render(
         <LinkedDocumentCard
           link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
+          paperlessBaseUrl={BASE}
           onUnlink={jest.fn()}
-          // no onItemize
+          onItemize={jest.fn()}
         />,
       );
-      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
+
+      expect(screen.queryByText('✕')).toBeNull();
+      expect(screen.queryByText('↗')).toBeNull();
+      expect(screen.queryByTestId('document-unlink-link-1')).toBeNull();
+    });
+  });
+
+  describe('⋯ menu', () => {
+    it('names the trigger for the document', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={BASE} onUnlink={jest.fn()} />);
+
+      expect(
+        screen.getByRole('button', { name: 'Actions for Sample offer.pdf' }),
+      ).toBeInTheDocument();
     });
 
-    it('calls onItemize with the link when Itemize button is clicked', () => {
+    it('lists Open in Paperless (new tab), Itemize, a separator and a destructive Unlink', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={BASE}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+        />,
+      );
+      openMenu();
+
+      const open = screen.getByTestId('document-open-link-1');
+      expect(open).toHaveAttribute('href', `${BASE}/documents/42/details`);
+      expect(open).toHaveAttribute('target', '_blank');
+      expect(open).toHaveTextContent('(opens in a new tab)');
+      expect(screen.getByTestId('document-itemize-link-1')).toHaveTextContent('Itemize');
+      expect(screen.getByTestId('document-unlink-link-1')).toHaveTextContent('Unlink');
+      expect(screen.getByRole('separator')).toBeInTheDocument();
+    });
+
+    it('calls onUnlink and onItemize with the link; Unlink needs no confirmation', () => {
+      const onUnlink = jest.fn();
       const onItemize = jest.fn();
       const link = makeLink();
       render(
         <LinkedDocumentCard
           link={link}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
+          paperlessBaseUrl={BASE}
+          onUnlink={onUnlink}
           onItemize={onItemize}
         />,
       );
-      fireEvent.click(screen.getByRole('button', { name: /Itemize.*Invoice March/i }));
-      expect(onItemize).toHaveBeenCalledWith(link);
+
+      openMenu();
+      fireEvent.click(screen.getByTestId('document-itemize-link-1'));
+      expect(onItemize).toHaveBeenCalledWith(link.document!.id);
+
+      openMenu();
+      fireEvent.click(screen.getByTestId('document-unlink-link-1'));
+      expect(onUnlink).toHaveBeenCalledWith(link);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 
-    it('Itemize button aria-label includes document title', () => {
+    it('omits Open in Paperless without a base URL and the separator when Unlink is the only item', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} onUnlink={jest.fn()} />);
+      openMenu();
+
+      expect(screen.queryByTestId('document-open-link-1')).toBeNull();
+      expect(screen.queryByRole('separator')).toBeNull();
+      expect(screen.getByTestId('document-unlink-link-1')).toBeInTheDocument();
+    });
+
+    it('has no Itemize item without onItemize and no Unlink without onUnlink', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={BASE} />);
+      openMenu();
+
+      expect(screen.queryByTestId('document-itemize-link-1')).toBeNull();
+      expect(screen.queryByTestId('document-unlink-link-1')).toBeNull();
+      expect(screen.queryByRole('separator')).toBeNull();
+      expect(screen.getByTestId('document-open-link-1')).toBeInTheDocument();
+    });
+
+    it('renders no menu at all when there are no items', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />);
+
+      expect(screen.queryByTestId('document-menu-link-1')).toBeNull();
+    });
+
+    it('exposes the trigger through menuTriggerRef', () => {
+      const ref = { current: null as HTMLButtonElement | null };
       render(
         <LinkedDocumentCard
           link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
+          paperlessBaseUrl={BASE}
           onUnlink={jest.fn()}
-          onItemize={jest.fn()}
+          menuTriggerRef={ref}
         />,
       );
-      const btn = screen.getByRole('button', { name: /Itemize.*Invoice March/i });
-      expect(btn.getAttribute('aria-label')).toContain('Invoice March');
+
+      expect(ref.current).toBe(screen.getByTestId('document-menu-link-1'));
     });
 
-    it('Itemize button has type="button" to prevent accidental form submit', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onItemize={jest.fn()}
-        />,
-      );
-      expect(screen.getByRole('button', { name: /Itemize.*Invoice March/i })).toHaveAttribute(
-        'type',
-        'button',
-      );
-    });
-
-    it('Itemize button is NOT shown when document is null (even with onItemize provided)', () => {
+    it('only Unlink remains for a document that is unavailable (no Open, no Itemize)', () => {
       render(
         <LinkedDocumentCard
           link={makeLink({ document: null })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
+          paperlessBaseUrl={BASE}
           onUnlink={jest.fn()}
           onItemize={jest.fn()}
         />,
       );
-      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
+      openMenu();
+
+      expect(screen.queryByTestId('document-open-link-1')).toBeNull();
+      expect(screen.queryByTestId('document-itemize-link-1')).toBeNull();
+      expect(screen.getByTestId('document-unlink-link-1')).toBeInTheDocument();
     });
   });
 
-  // ─── Attachment type badge and select (Story #1877) ──────────────────────
+  describe('Details', () => {
+    it('toggles the inline details (metadata and text preview, no title row) and aria-expanded', () => {
+      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={BASE} />);
+      const toggle = screen.getByTestId('document-details-link-1');
 
-  describe('readOnly (Paperless off)', () => {
-    const renderReadOnly = () =>
-      render(
-        <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'quotation' })}
-          paperlessBaseUrl={null}
-          readOnly
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onItemize={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(toggle).not.toHaveAttribute('aria-controls');
+      expect(screen.queryByRole('region')).toBeNull();
 
-    it('keeps the title and date but shows no action', () => {
-      renderReadOnly();
-      expect(screen.getByRole('heading', { name: 'Invoice March' })).toBeInTheDocument();
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    });
+      fireEvent.click(toggle);
 
-    it('hides View, Unlink, Itemize and the document type control', () => {
-      renderReadOnly();
-      expect(screen.queryByRole('button', { name: /Unlink document/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/Tag document type/i)).not.toBeInTheDocument();
-      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
-    });
+      const region = screen.getByRole('region', { name: /Details for Sample offer.pdf/ });
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(toggle).toHaveAttribute('aria-controls', region.parentElement?.id);
+      expect(screen.getByText('Sample preview text of the offer.')).toBeInTheDocument();
+      // Only the card title is a heading; the inline panel adds no title row.
+      expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1);
 
-    it('shows no action when no handler is passed either (handlers are optional)', () => {
-      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} readOnly />);
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      fireEvent.click(toggle);
+
+      expect(screen.queryByRole('region')).toBeNull();
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
     });
   });
 
-  describe('optional handlers', () => {
-    it('does not throw when View and Unlink are clicked without handlers', () => {
-      render(<LinkedDocumentCard link={makeLink()} paperlessBaseUrl={null} />);
-      fireEvent.click(screen.getByRole('button', { name: /Unlink document/i }));
-      fireEvent.click(screen.getByRole('button', { name: /View details/i }));
-      expect(screen.getByRole('heading', { name: 'Invoice March' })).toBeInTheDocument();
-    });
-  });
+  describe('document type (invoice links)', () => {
+    const link = (attachmentType: DocumentLinkWithMetadata['attachmentType'] = null) =>
+      makeLink({ entityType: 'invoice', attachmentType });
 
-  describe('attachment type badge and select', () => {
-    it('does not render a badge or select when onAttachmentTypeChange is omitted', () => {
+    it('renders the select with every option and an sr-only label naming the document', () => {
       render(
         <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'quotation' })}
+          link={link()}
           paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-        />,
-      );
-      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/Tag document type/i)).not.toBeInTheDocument();
-    });
-
-    it('renders the select when onAttachmentTypeChange is provided', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
           onAttachmentTypeChange={jest.fn()}
         />,
       );
-      expect(screen.getByLabelText(/Tag document type: Invoice March/i)).toBeInTheDocument();
+
+      const select = screen.getByLabelText('Tag document type: Sample offer.pdf');
+      expect(select).toHaveValue('');
+      expect(
+        Array.from((select as HTMLSelectElement).options).map((option) => option.value),
+      ).toEqual(['', 'quotation', 'deposit', 'invoice']);
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).toBeNull();
     });
 
-    it('does not render a badge when link.attachmentType is null (untagged)', () => {
+    it('shows the badge and the current value for a typed link', () => {
       render(
         <LinkedDocumentCard
-          link={makeLink({ attachmentType: null })}
+          link={link('deposit')}
           paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
           onAttachmentTypeChange={jest.fn()}
         />,
       );
-      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
+
+      expect(screen.getByTestId('attachment-type-badge-link-1')).toHaveTextContent('Deposit');
+      expect(screen.getByLabelText('Tag document type: Sample offer.pdf')).toHaveValue('deposit');
     });
 
-    it('renders a "Quotation" badge with the correct variant class when tagged "quotation"', () => {
+    it('reports the chosen type, and null for "No tag"', () => {
+      const onChange = jest.fn();
+      const typed = link('invoice');
       render(
         <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'quotation' })}
+          link={typed}
           paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
+          onAttachmentTypeChange={onChange}
         />,
       );
-      const badge = screen.getByTestId('attachment-type-badge-link-1');
-      expect(badge).toHaveTextContent('Quotation');
-      expect(badge.className).toContain('attachmentQuotation');
-    });
+      const select = screen.getByLabelText('Tag document type: Sample offer.pdf');
 
-    it('renders a "Deposit" badge with the correct variant class when tagged "deposit"', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'deposit' })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
-      const badge = screen.getByTestId('attachment-type-badge-link-1');
-      expect(badge).toHaveTextContent('Deposit');
-      expect(badge.className).toContain('attachmentDeposit');
-    });
-
-    it('renders an "Invoice" badge with the correct variant class when tagged "invoice"', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'invoice' })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
-      const badge = screen.getByTestId('attachment-type-badge-link-1');
-      expect(badge).toHaveTextContent('Invoice');
-      expect(badge.className).toContain('attachmentInvoice');
-    });
-
-    it('select value reflects link.attachmentType', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink({ attachmentType: 'deposit' })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
-      const select = screen.getByLabelText(
-        /Tag document type: Invoice March/i,
-      ) as HTMLSelectElement;
-      expect(select.value).toBe('deposit');
-    });
-
-    it('select value is empty string when link.attachmentType is null', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink({ attachmentType: null })}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
-      const select = screen.getByLabelText(
-        /Tag document type: Invoice March/i,
-      ) as HTMLSelectElement;
-      expect(select.value).toBe('');
-    });
-
-    it('select offers "No tag", "Quotation", "Deposit", "Invoice" options', () => {
-      render(
-        <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={jest.fn()}
-        />,
-      );
-      const select = screen.getByLabelText(
-        /Tag document type: Invoice March/i,
-      ) as HTMLSelectElement;
-      const optionTexts = Array.from(select.options).map((o) => o.text);
-      expect(optionTexts).toEqual(['No tag', 'Quotation', 'Deposit', 'Invoice']);
-    });
-
-    it('changing the select to "Quotation" calls onAttachmentTypeChange with (link, "quotation")', () => {
-      const onAttachmentTypeChange = jest.fn();
-      const link = makeLink({ attachmentType: null });
-      render(
-        <LinkedDocumentCard
-          link={link}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={onAttachmentTypeChange}
-        />,
-      );
-      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
       fireEvent.change(select, { target: { value: 'quotation' } });
-      expect(onAttachmentTypeChange).toHaveBeenCalledWith(link, 'quotation');
-    });
+      expect(onChange).toHaveBeenLastCalledWith(typed, 'quotation');
 
-    it('changing the select to "No tag" calls onAttachmentTypeChange with (link, null)', () => {
-      const onAttachmentTypeChange = jest.fn();
-      const link = makeLink({ attachmentType: 'quotation' });
-      render(
-        <LinkedDocumentCard
-          link={link}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
-          onAttachmentTypeChange={onAttachmentTypeChange}
-        />,
-      );
-      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
       fireEvent.change(select, { target: { value: '' } });
-      expect(onAttachmentTypeChange).toHaveBeenCalledWith(link, null);
+      expect(onChange).toHaveBeenLastCalledWith(typed, null);
     });
 
-    it('select is disabled when isUpdatingAttachmentType is true', () => {
+    it('disables the select while the update is running', () => {
       render(
         <LinkedDocumentCard
-          link={makeLink()}
+          link={link()}
           paperlessBaseUrl={null}
-          onView={jest.fn()}
-          onUnlink={jest.fn()}
           onAttachmentTypeChange={jest.fn()}
-          isUpdatingAttachmentType={true}
+          isUpdatingAttachmentType
         />,
       );
-      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
-      expect(select).toBeDisabled();
+
+      expect(screen.getByLabelText('Tag document type: Sample offer.pdf')).toBeDisabled();
     });
 
-    it('select is not disabled when isUpdatingAttachmentType is false or omitted', () => {
+    it('is absent without onAttachmentTypeChange', () => {
+      render(<LinkedDocumentCard link={link('deposit')} paperlessBaseUrl={null} />);
+
+      expect(screen.queryByLabelText(/Tag document type/)).toBeNull();
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).toBeNull();
+    });
+  });
+
+  describe('readOnly', () => {
+    it('shows title and meta only: no menu, Details or type control', () => {
       render(
         <LinkedDocumentCard
-          link={makeLink()}
-          paperlessBaseUrl={null}
-          onView={jest.fn()}
+          link={makeLink({ entityType: 'invoice', attachmentType: 'deposit' })}
+          paperlessBaseUrl={BASE}
           onUnlink={jest.fn()}
+          onItemize={jest.fn()}
           onAttachmentTypeChange={jest.fn()}
+          readOnly
         />,
       );
-      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
-      expect(select).not.toBeDisabled();
+
+      expect(screen.getByRole('heading', { name: 'Sample offer.pdf' })).toBeInTheDocument();
+      expect(screen.getByText('Fixture Company')).toBeInTheDocument();
+      expect(screen.queryByTestId('document-menu-link-1')).toBeNull();
+      expect(screen.queryByTestId('document-details-link-1')).toBeNull();
+      expect(screen.queryByLabelText(/Tag document type/)).toBeNull();
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).toBeNull();
     });
   });
 });

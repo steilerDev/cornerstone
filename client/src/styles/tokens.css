@@ -306,6 +306,7 @@
    * ============================================================ */
 
   --touch-target-min: 2.75rem; /* 44px — minimum touch target */
+  --side-sheet-width: 30rem; /* 480px — Sheet variant="side" (Documents panel) */
 
   /* ============================================================
    * LAYER 2 — BORDER RADIUS

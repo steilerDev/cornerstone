@@ -56,6 +56,22 @@ describe('PageTitle without a view menu', () => {
   });
 });
 
+describe('PageTitle lang (#2233)', () => {
+  it('sets lang on the plain h1 when given', () => {
+    render(
+      <RecordingRouter entries={['/x']} log={createRouterLog()}>
+        <PageTitle title="Küchenplanung" lang="de" />
+      </RecordingRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'de');
+  });
+
+  it('sets no lang attribute by default', () => {
+    renderTitle({ model: null });
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('lang');
+  });
+});
+
 describe('PageTitle with a view menu', () => {
   it('wraps a menu button in the single h1 and keeps the heading text clean', () => {
     renderTitle({ model: modelAt('/project/work-items') });

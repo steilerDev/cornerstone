@@ -6,6 +6,7 @@ import type {
   AllLinkedDocumentIdsResponse,
   AttachmentType,
   UpdateDocumentLinkRequest,
+  DeleteDocumentLinkResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -29,10 +30,10 @@ export function createDocumentLink(data: CreateDocumentLinkRequest): Promise<Doc
 }
 
 /**
- * Deletes a document link by its ID.
+ * Deletes a document link by its ID. The response carries the Undo token that restores it.
  */
-export function deleteDocumentLink(id: string): Promise<void> {
-  return del<void>(`/document-links/${id}`);
+export function deleteDocumentLink(id: string): Promise<DeleteDocumentLinkResponse> {
+  return del<DeleteDocumentLinkResponse>(`/document-links/${id}`);
 }
 
 /**

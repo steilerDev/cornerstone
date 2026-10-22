@@ -1,33 +1,44 @@
 /**
- * E2E tests for document linking flow (Paperless-ngx integration) — EPIC-08
+ * E2E tests for document linking in the Documents panel (Paperless-ngx integration) — EPIC-08,
+ * reworked for #2233 (P4.1): the panel replaces the LinkedDocumentsSection.
  *
- * Tests the full "Add Document" → select from browser → linked card appears
- * flow using route-level mocking for Paperless-ngx APIs.
+ * Flow under test: "Documents (n)" button -> panel (side sheet / full screen) -> Link document
+ * -> picker view (Paperless document browser inside the same sheet) -> select -> the sheet is
+ * back in the list view with the new card, focus on its ⋯ menu. Unlink has NO confirmation: the
+ * card leaves at once and an Undo toast restores it.
  *
- * Also tests the unlink confirmation flow and linked document card rendering.
+ * Mocked-Paperless scenarios use route-level mocks (document metadata); the Unlink/Undo round
+ * trip scenarios use REAL document links created through the API (POST /api/document-links
+ * accepts any positive Paperless document id; only the entity must exist) and the real server's
+ * delete + undo endpoints.
  *
  * Scenarios covered:
- * 1.  Link a document to a work item: picker → select → card appears
- * 2.  Link a document to an invoice: same flow on invoice detail page
- * 3.  Linked document card shows title, correspondent, date
- * 4.  Unlink confirmation modal appears and removes the linked card
+ * 1.  Link a document to a work item: picker -> select -> card appears, focus on its ⋯ menu
+ * 2.  Link a document to an invoice (same flow on the invoice detail page)
+ * 3.  Linked card shows title, correspondent, date; Open in Paperless; Details preview
  * 5.  Duplicate link shows error banner
- * 6.  Linked documents count badge updates after linking
+ * 6.  The "Documents (n)" count follows linking
  * 7a. System-wide linked IDs hide filtered document when toggle checked
  * 7b. Toggle checked by default hides already-linked docs; unchecking shows all
  * 8.  Link a document that only exists in the second infinite-scroll batch (#2101)
  *
- * Scenario 4 (overlay button, fix/1680-unlink-document-overlay):
- * 4a. Desktop: hover reveals the overlay unlink button; confirm removes the card
- * 4b. Desktop: cancel in the unlink modal keeps the card visible
- * 4c. Mobile: overlay unlink button is always visible without hover
+ * Unlink with Undo (replaces the confirmation dialog of #1680):
+ * 4a. Mocked: Unlink removes the card at once, no confirmation dialog, Undo restores it
+ * 4b. Real server: Unlink -> Undo toast -> Undo -> the row is back, also after a reload
+ * 4c. Real server: Unlink without Undo -> a reload shows it gone
+ * 4d. Real server, invoice: the document type chosen on a row persists after a reload
  */
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
-import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
+import { mockPaperlessConfigured } from '../../fixtures/paperlessMocks.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
+import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
+import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import { ToastRegion } from '../../pages/components/ToastRegion.js';
+import { API } from '../../fixtures/testData.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -172,7 +183,7 @@ async function cleanupMocks(page: Page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Link a document to a work item
+// Scenarios 1, 3, 6: Link a document to a work item
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@responsive' }, () => {
@@ -190,52 +201,161 @@ test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@res
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/project/work-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+      await new WorkItemDetailPage(page).goto(createdId);
+      const panel = new DocumentsPanel(page);
 
-      // Documents section should be visible with no linked docs
-      const documentsHeading = page.getByRole('heading', {
-        level: 2,
-        name: 'Documents',
-        exact: true,
-      });
-      await expect(documentsHeading).toBeVisible();
+      // Paperless on, nothing linked yet
+      await expect(panel.button()).toHaveText('Documents (0)');
+      await panel.open();
+      await expect(panel.title).toHaveText('Documents (0)');
 
-      // Click "+ Add Document"
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
+      // Link document -> picker view in the same sheet
+      await panel.openPicker();
+      await expect(panel.title).toHaveText('Link document');
+      await panel.picker.waitForDocumentsLoaded();
+      await expect(panel.picker.documentItems).toHaveCount(1);
 
-      // Picker modal opens
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
+      // Select the document: the sheet returns to the list view with the new card
+      await panel.picker.documentItems.first().click();
 
-      // Wait for documents to load in the picker
-      const documentGrid = pickerModal.getByRole('list', { name: 'Documents' });
-      await expect(documentGrid).toBeVisible();
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(1);
+      await expect(panel.title).toHaveText('Documents (1)');
+      await expect(panel.list).toBeVisible();
+      await expect(panel.rows).toHaveCount(1);
+      await expect(panel.row(MOCK_DOCUMENT.title)).toBeVisible();
 
-      // Click the document card to select it
-      await documentGrid.getByRole('listitem').first().click();
+      // Focus lands on the new card's ⋯ menu
+      await expect(panel.rowMenuTrigger(MOCK_DOCUMENT.title)).toBeFocused();
 
-      // Picker modal should close after selection
-      await expect(pickerModal).toBeHidden({ timeout: 10000 });
-
-      // The linked document card should now appear in the Documents section
-      // After linking, the component refetches links — the mock returns our linked doc.
-      // Wait for the linked documents list to appear
-      const linkedList = page.getByRole('list', { name: 'Linked documents' });
-      await expect(linkedList).toBeVisible({ timeout: 10000 });
-
-      // Card should show the document title
-      await expect(linkedList).toContainText(MOCK_DOCUMENT.title);
-
-      // Count badge should show "1"
-      const countBadge = page.locator('[aria-label="1 documents linked"]');
-      await expect(countBadge).toBeVisible();
+      // The trigger behind the sheet shows the new count
+      await expect(panel.button()).toHaveText('Documents (1)');
     } finally {
       await cleanupMocks(page);
       if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('A linked card shows title, correspondent and date, Open in Paperless and a Details preview', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocLink Card Test`,
+      });
+      await mockPaperlessForLinking(page, 'work_item', createdId);
+      linkedDocumentIds = [MOCK_DOCUMENT.id];
+
+      await new WorkItemDetailPage(page).goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+
+      // Title, correspondent
+      const card = panel.row(MOCK_DOCUMENT.title);
+      await expect(card).toBeVisible();
+      await expect(card).toContainText(MOCK_DOCUMENT.correspondent);
+
+      // Open in Paperless: a new-tab link to the Paperless details page
+      await panel.rowMenuTrigger(MOCK_DOCUMENT.title).click();
+      const openLink = page.getByTestId('document-open-mock-link-0');
+      await expect(openLink).toHaveAttribute(
+        'href',
+        `${MOCK_STATUS_CONFIGURED.paperlessUrl}/documents/${MOCK_DOCUMENT.id}/details`,
+      );
+      await expect(openLink).toHaveAttribute('target', '_blank');
+      await page.getByTestId('document-unlink-mock-link-0').waitFor({ state: 'visible' });
+      await panel.title.click();
+      await expect(openLink).toHaveCount(0);
+
+      // Details toggles the inline preview
+      const details = panel.dialog.getByTestId('document-details-mock-link-0');
+      await expect(details).toHaveAttribute('aria-expanded', 'false');
+      await details.click();
+      await expect(details).toHaveAttribute('aria-expanded', 'true');
+      await expect(card.getByText('Content Preview')).toBeVisible();
+    } finally {
+      await cleanupMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  // Escape belongs to the innermost layer: an open ⋯ menu closes first, the sheet stays open.
+  test('Escape in an open ⋯ menu closes only the menu, not the panel', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocLink Menu Escape`,
+      });
+      await mockPaperlessForLinking(page, 'work_item', createdId);
+      linkedDocumentIds = [MOCK_DOCUMENT.id];
+
+      await new WorkItemDetailPage(page).goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+      await panel.rowMenuTrigger(MOCK_DOCUMENT.title).click();
+      await expect(panel.menuItem('Unlink')).toBeVisible();
+
+      await page.keyboard.press('Escape');
+
+      await expect(panel.menuItem('Unlink')).toHaveCount(0);
+      await expect(panel.dialog).toBeVisible();
+      await expect(panel.rowMenuTrigger(MOCK_DOCUMENT.title)).toBeFocused();
+    } finally {
+      await cleanupMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 2: Link a document to an invoice
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function createVendorAndInvoice(
+  page: Page,
+  prefix: string,
+): Promise<{ vendorId: string; invoiceId: string }> {
+  const vendorResp = await page.request.post(API.vendors, {
+    data: { name: `${prefix} DocLink Vendor` },
+  });
+  expect(vendorResp.ok()).toBeTruthy();
+  const vendorId = ((await vendorResp.json()) as { vendor: { id: string } }).vendor.id;
+  const invoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+    data: { invoiceNumber: `${prefix}-DL-INV`, amount: 100, date: '2025-01-15', status: 'pending' },
+  });
+  expect(invoiceResp.ok()).toBeTruthy();
+  const invoiceId = ((await invoiceResp.json()) as { invoice: { id: string } }).invoice.id;
+  return { vendorId, invoiceId };
+}
+
+test.describe('Document Linking — Invoice (Scenario 2)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test('Selecting a document in the picker links it on the invoice page', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId: string | null = null;
+    try {
+      const ids = await createVendorAndInvoice(page, testPrefix);
+      vendorId = ids.vendorId;
+      await mockPaperlessForLinking(page, 'invoice', ids.invoiceId);
+
+      await new InvoiceDetailPage(page).goto(ids.invoiceId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+      await panel.openPicker();
+      await panel.picker.waitForDocumentsLoaded();
+      await panel.picker.documentItems.first().click();
+
+      await expect(panel.title).toHaveText('Documents (1)');
+      await expect(panel.row(MOCK_DOCUMENT.title)).toBeVisible();
+    } finally {
+      await cleanupMocks(page);
+      if (vendorId) await page.request.delete(`${API.vendors}/${vendorId}`);
     }
   });
 });
@@ -259,52 +379,33 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
 
       await mockPaperlessForLinking(page, 'work_item', createdId);
 
-      await page.goto(`/project/work-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+      await new WorkItemDetailPage(page).goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
 
       // First link — should succeed
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
+      await panel.openPicker();
+      await panel.picker.waitForDocumentsLoaded();
+      await expect(panel.picker.documentItems).toHaveCount(1);
+      await panel.picker.documentItems.first().click();
+      await expect(panel.rows).toHaveCount(1);
 
-      let pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
-      const documentGrid = pickerModal.getByRole('list', { name: 'Documents' });
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(1, { timeout: 10000 });
-      await documentGrid.getByRole('listitem').first().click();
-      await expect(pickerModal).toBeHidden({ timeout: 10000 });
-
-      // Wait for linked doc to appear
-      await expect(page.getByRole('list', { name: 'Linked documents' })).toBeVisible({
-        timeout: 10000,
-      });
-
-      // Second link — same document, should show duplicate error
-      await addDocButton.click();
-      pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
-
-      // After fix #1369, "Hide already-linked documents" defaults to unchecked — linked docs visible.
-      // Label changed from the old "Hide linked" wording; uncheck() is a no-op but kept for clarity.
-      const hideLinkedCheckbox = pickerModal.getByRole('checkbox', {
+      // Second link — same document, should show duplicate error. The picker hides
+      // already-linked documents by default; show them again to pick the same one.
+      await panel.openPicker();
+      const hideLinkedCheckbox = panel.dialog.getByRole('checkbox', {
         name: /hide already-linked documents/i,
       });
-      await expect(hideLinkedCheckbox).toBeVisible({ timeout: 5000 });
+      await expect(hideLinkedCheckbox).toBeVisible();
       await hideLinkedCheckbox.uncheck();
 
-      await expect(
-        pickerModal.getByRole('list', { name: 'Documents' }).getByRole('listitem'),
-      ).toHaveCount(1, { timeout: 10000 });
-      await pickerModal
-        .getByRole('list', { name: 'Documents' })
-        .getByRole('listitem')
-        .first()
-        .click();
-      await expect(pickerModal).toBeHidden({ timeout: 10000 });
+      await expect(panel.picker.documentItems).toHaveCount(1);
+      await panel.picker.documentItems.first().click();
 
-      // Error banner should appear with "already linked" message
-      const errorBanner = page.locator('[role="alert"]').filter({ hasText: /already linked/ });
-      await expect(errorBanner).toBeVisible({ timeout: 10000 });
+      // Back in the list view with the "already linked" banner
+      const errorBanner = panel.dialog.getByRole('alert').filter({ hasText: /already linked/ });
+      await expect(errorBanner).toBeVisible();
+      await expect(panel.rows).toHaveCount(1);
     } finally {
       await cleanupMocks(page);
       if (createdId) await deleteWorkItemViaApi(page, createdId);
@@ -355,6 +456,50 @@ async function mockSystemLinkedIds(page: Page, ids: number[]) {
   });
 }
 
+/** Paperless with two documents, an entity without links, and doc #42 linked system-wide. */
+async function mockTwoDocumentsOneLinkedElsewhere(page: Page) {
+  await page.route('**/api/paperless/status', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_STATUS_CONFIGURED),
+    });
+  });
+  await page.route('**/api/paperless/documents**', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_TWO_DOCUMENTS_RESPONSE),
+    });
+  });
+  await page.route('**/api/paperless/tags', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_TAGS),
+    });
+  });
+  await page.route('**/api/paperless/documents/*/thumb', async (route: Route) => {
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    await route.fulfill({ status: 200, contentType: 'image/png', body: pixel });
+  });
+  await page.route('**/api/document-links?*', async (route: Route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ documentLinks: [] }),
+    });
+  });
+  await mockSystemLinkedIds(page, [42]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 7: Document Linking — System-wide Hide
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,13 +507,9 @@ async function mockSystemLinkedIds(page: Page, ids: number[]) {
 test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@responsive' }, () => {
   test.describe.configure({ timeout: 60_000 });
 
-  // ---------------------------------------------------------------------------
-  // Scenario 7a: System-wide IDs are used for filtering
-  //
-  // Opens the picker on workItemA; doc #42 is linked system-wide (to workItemB).
-  // The toggle defaults ON (defaultHideLinked=true in LinkedDocumentsSection), so
-  // doc #42 is hidden on open. Unchecking reveals both; re-checking hides #42 again.
-  // ---------------------------------------------------------------------------
+  // Scenario 7a: system-wide IDs are used for filtering. Doc #42 is linked system-wide (to
+  // another record); the toggle defaults ON, so #42 is hidden on open. Unchecking reveals both;
+  // re-checking hides #42 again.
   test('System-wide linked IDs filter the picker — toggle defaults ON and hides linked doc', async ({
     page,
     testPrefix,
@@ -383,91 +524,40 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
       workItemBId = await createWorkItemViaApi(page, {
         title: `${testPrefix} SysHide Work Item B`,
       });
+      await mockTwoDocumentsOneLinkedElsewhere(page);
 
-      // Paperless: two documents available
-      await page.route('**/api/paperless/status', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_STATUS_CONFIGURED),
-        });
-      });
-      await page.route('**/api/paperless/documents**', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_TWO_DOCUMENTS_RESPONSE),
-        });
-      });
-      await page.route('**/api/paperless/tags', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_TAGS),
-        });
-      });
-      await page.route('**/api/paperless/documents/*/thumb', async (route: Route) => {
-        const pixel = Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          'base64',
-        );
-        await route.fulfill({ status: 200, contentType: 'image/png', body: pixel });
-      });
-
-      // workItemA has no entity-level links
-      await page.route('**/api/document-links?*', async (route: Route) => {
-        if (route.request().method() !== 'GET') {
-          await route.continue();
-          return;
-        }
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ documentLinks: [] }),
-        });
-      });
-
-      // System-wide: doc #42 is already linked (to workItemB)
-      await mockSystemLinkedIds(page, [42]);
-
-      await page.goto(`/project/work-items/${workItemAId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-
-      // Open the picker
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
-
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
+      await new WorkItemDetailPage(page).goto(workItemAId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+      await panel.openPicker();
 
       // Toggle must be visible because systemLinkedIds.ids = [42] (length > 0)
-      const hideToggle = pickerModal.getByRole('checkbox', {
+      const hideToggle = panel.dialog.getByRole('checkbox', {
         name: /hide already-linked documents/i,
       });
-      await expect(hideToggle).toBeVisible({ timeout: 5000 });
+      await expect(hideToggle).toBeVisible();
 
-      // Toggle defaults ON (defaultHideLinked=true in LinkedDocumentsSection)
+      // Toggle defaults ON
       await expect(hideToggle).toBeChecked();
 
       // With toggle checked: only doc #55 visible; doc #42 is hidden (system-wide linked)
-      const documentGrid = pickerModal.getByRole('list', { name: 'Documents' });
-      await expect(documentGrid).toBeVisible({ timeout: 10000 });
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(1, { timeout: 10000 });
+      const documentGrid = panel.dialog.getByRole('list', { name: 'Documents' });
+      await expect(documentGrid).toBeVisible();
+      await expect(documentGrid.getByRole('listitem')).toHaveCount(1);
       await expect(documentGrid).toContainText(MOCK_DOCUMENT_55.title);
       await expect(documentGrid).not.toContainText(MOCK_DOCUMENT.title);
 
       // Uncheck toggle — both docs visible
       await hideToggle.uncheck();
       await expect(hideToggle).not.toBeChecked();
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(2, { timeout: 10000 });
+      await expect(documentGrid.getByRole('listitem')).toHaveCount(2);
       await expect(documentGrid).toContainText(MOCK_DOCUMENT.title);
       await expect(documentGrid).toContainText(MOCK_DOCUMENT_55.title);
 
       // Re-check toggle — doc #42 hidden again
       await hideToggle.check();
       await expect(hideToggle).toBeChecked();
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(1, { timeout: 10000 });
+      await expect(documentGrid.getByRole('listitem')).toHaveCount(1);
       await expect(documentGrid).not.toContainText(MOCK_DOCUMENT.title);
     } finally {
       // Guarantee cleanup gets its own dedicated time budget on top of whatever
@@ -485,13 +575,8 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // Scenario 7b: Toggle checked by default hides already-linked documents
-  //
-  // Verifies that the toggle is visible (system IDs > 0) and CHECKED by default
-  // (defaultHideLinked=true in LinkedDocumentsSection), so doc #42 is hidden on
-  // open. Unchecking the toggle reveals all documents.
-  // ---------------------------------------------------------------------------
+  // Scenario 7b: the toggle is checked by default and hides already-linked documents; unchecking
+  // reveals them all.
   test('Toggle is checked by default and hides already-linked documents', async ({
     page,
     testPrefix,
@@ -501,82 +586,30 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
       createdId = await createWorkItemViaApi(page, {
         title: `${testPrefix} SysHide Toggle Default`,
       });
+      await mockTwoDocumentsOneLinkedElsewhere(page);
 
-      await page.route('**/api/paperless/status', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_STATUS_CONFIGURED),
-        });
-      });
-      await page.route('**/api/paperless/documents**', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_TWO_DOCUMENTS_RESPONSE),
-        });
-      });
-      await page.route('**/api/paperless/tags', async (route: Route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_TAGS),
-        });
-      });
-      await page.route('**/api/paperless/documents/*/thumb', async (route: Route) => {
-        const pixel = Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          'base64',
-        );
-        await route.fulfill({ status: 200, contentType: 'image/png', body: pixel });
-      });
-      await page.route('**/api/document-links?*', async (route: Route) => {
-        if (route.request().method() !== 'GET') {
-          await route.continue();
-          return;
-        }
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ documentLinks: [] }),
-        });
-      });
+      await new WorkItemDetailPage(page).goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+      await panel.openPicker();
 
-      // System-wide: doc #42 is linked to some other entity
-      await mockSystemLinkedIds(page, [42]);
-
-      await page.goto(`/project/work-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-
-      // Open the picker
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
-
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
-      await expect(pickerModal).toBeVisible();
-
-      // Toggle is visible (systemLinkedIds has 1 entry) and CHECKED by default
-      // (LinkedDocumentsSection passes defaultHideLinked={true} to DocumentBrowser)
-      const hideToggle = pickerModal.getByRole('checkbox', {
+      const hideToggle = panel.dialog.getByRole('checkbox', {
         name: /hide already-linked documents/i,
       });
-      await expect(hideToggle).toBeVisible({ timeout: 5000 });
+      await expect(hideToggle).toBeVisible();
       await expect(hideToggle).toBeChecked();
 
       // With toggle checked by default, doc #42 is hidden; only doc #55 is shown
-      const documentGrid = pickerModal.getByRole('list', { name: 'Documents' });
-      await expect(documentGrid).toBeVisible({ timeout: 10000 });
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(1, { timeout: 10000 });
+      const documentGrid = panel.dialog.getByRole('list', { name: 'Documents' });
+      await expect(documentGrid).toBeVisible();
+      await expect(documentGrid.getByRole('listitem')).toHaveCount(1);
       await expect(documentGrid).not.toContainText(MOCK_DOCUMENT.title);
       await expect(documentGrid).toContainText(MOCK_DOCUMENT_55.title);
 
       // Unchecking the toggle reveals both documents
       await hideToggle.uncheck();
       await expect(hideToggle).not.toBeChecked();
-      await expect(documentGrid.getByRole('listitem')).toHaveCount(2, { timeout: 10000 });
-      await expect(documentGrid).toContainText(MOCK_DOCUMENT.title);
-      await expect(documentGrid).toContainText(MOCK_DOCUMENT_55.title);
+      await expect(documentGrid.getByRole('listitem')).toHaveCount(2);
     } finally {
       await cleanupMocks(page);
       await page.unroute('**/api/document-links/linked-ids');
@@ -586,217 +619,223 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Document Linking — Unlink via Overlay Button (fix/1680)
-//
-// The ✕ unlink button moved from the card footer to a top-right thumbnail
-// overlay. On pointer devices it is hidden (opacity:0) until .card:hover;
-// on touch/coarse-pointer devices (mobile/tablet) it is always visible.
-//
-// These tests verify:
-//   4a. Desktop: hover reveals overlay button → confirm removes the card
-//   4b. Desktop: cancel in the unlink modal keeps the card visible
-//   4c. Mobile:  overlay button is always visible without hover (coarse-pointer)
+// Scenario 4a: Unlink removes the card at once; no confirmation; Undo restores it (mocked)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Register a DELETE mock for /api/document-links/:id.
- *
- * When called, removes the link from `linkedDocumentIds` so the subsequent
- * GET refetch returns an empty list. Returns a cleanup fn that unroutes it.
+ * Mocks DELETE /api/document-links/:id (empties the tracked state, returns an Undo token) and
+ * POST /api/undo/:token (restores the tracked state), so the GET mock reflects both.
  */
-async function mockDocumentLinkDelete(page: Page): Promise<() => Promise<void>> {
+async function mockDocumentLinkDeleteAndUndo(page: Page): Promise<void> {
+  let removed: number[] = [];
   await page.route('**/api/document-links/*', async (route: Route) => {
     if (route.request().method() !== 'DELETE') {
       await route.continue();
       return;
     }
-    // Empty the shared state so the GET mock returns no links after unlink
+    removed = linkedDocumentIds;
     linkedDocumentIds = [];
-    await route.fulfill({ status: 204, body: '' });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        undo: { token: 'mock-undo-token', expiresAt: new Date(Date.now() + 60_000).toISOString() },
+      }),
+    });
   });
-
-  return async () => {
-    await page.unroute('**/api/document-links/*');
-  };
+  await page.route('**/api/undo/*', async (route: Route) => {
+    linkedDocumentIds = removed;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ restored: [], retractedEventIds: [] }),
+    });
+  });
 }
 
-test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () => {
-  test.describe.configure({ timeout: 60_000 });
+test.describe(
+  'Document Linking — Unlink with Undo, mocked (Scenario 4a)',
+  { tag: '@responsive' },
+  () => {
+    test.describe.configure({ timeout: 60_000 });
 
-  // ---------------------------------------------------------------------------
-  // Scenario 4a: Desktop — hover reveals overlay button; confirm removes card
-  // ---------------------------------------------------------------------------
-  test('Overlay unlink button appears on hover and confirm removes the linked card', async ({
-    page,
-    testPrefix,
-  }) => {
-    let createdId: string | null = null;
-    let cleanupDelete: (() => Promise<void>) | null = null;
-    try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Overlay Unlink Confirm`,
-      });
-
-      // Pre-seed one linked document via mock state
-      await mockPaperlessForLinking(page, 'work_item', createdId);
-      linkedDocumentIds = [MOCK_DOCUMENT.id];
-
-      // Register DELETE mock (must be before navigation so it is ready)
-      cleanupDelete = await mockDocumentLinkDelete(page);
-
-      await page.goto(`/project/work-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-
-      // The linked document card must be visible
-      const linkedList = page.getByRole('list', { name: 'Linked documents' });
-      await expect(linkedList).toBeVisible({ timeout: 10000 });
-
-      // Locate the card and the overlay unlink button inside it
-      const card = linkedList.getByRole('listitem').first();
-      const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
-
-      // Before hover: button exists in DOM but is not visible (opacity:0 on pointer devices)
-      await expect(unlinkOverlayButton).toBeAttached();
-
-      // Hover the card to reveal the overlay button
-      await card.hover();
-
-      // After hover: button must be visible
-      await expect(unlinkOverlayButton).toBeVisible();
-
-      // Click the overlay unlink button — this opens the confirmation modal.
-      // force:true bypasses Playwright's pointer-events/opacity actionability check;
-      // the button is revealed by CSS :hover but the actionability check can race on CI
-      // Linux runners where the hover state is checked at the moment of mouse movement.
-      // We already confirmed visibility above, so force is safe here.
-      await unlinkOverlayButton.click({ force: true });
-
-      // Unlink confirmation dialog (ConfirmDialog, alertdialog) appears
-      const unlinkModal = page
-        .getByRole('alertdialog')
-        .filter({ has: page.getByTestId('document-unlink-cancel') });
-      await expect(unlinkModal).toBeVisible();
-
-      // Confirm by clicking the "Unlink" button inside the dialog
-      const confirmButton = unlinkModal.getByTestId('document-unlink-confirm');
-      await confirmButton.click();
-
-      // Modal closes after confirmation
-      await expect(unlinkModal).toBeHidden({ timeout: 10000 });
-
-      // The linked documents list and card are removed (no links remain)
-      await expect(linkedList).toBeHidden({ timeout: 10000 });
-    } finally {
-      if (cleanupDelete) await cleanupDelete();
-      await cleanupMocks(page);
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
-
-  // ---------------------------------------------------------------------------
-  // Scenario 4b: Desktop — cancel in the unlink modal keeps the card
-  // ---------------------------------------------------------------------------
-  test('Cancelling the unlink modal keeps the linked card visible', async ({
-    page,
-    testPrefix,
-  }) => {
-    let createdId: string | null = null;
-    let cleanupDelete: (() => Promise<void>) | null = null;
-    try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Overlay Unlink Cancel`,
-      });
-
-      // Pre-seed one linked document
-      await mockPaperlessForLinking(page, 'work_item', createdId);
-      linkedDocumentIds = [MOCK_DOCUMENT.id];
-
-      // DELETE mock registered but should NOT be triggered in this test
-      cleanupDelete = await mockDocumentLinkDelete(page);
-
-      await page.goto(`/project/work-items/${createdId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-
-      const linkedList = page.getByRole('list', { name: 'Linked documents' });
-      await expect(linkedList).toBeVisible({ timeout: 10000 });
-
-      const card = linkedList.getByRole('listitem').first();
-      const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
-
-      // Hover to reveal, then click overlay unlink button.
-      // force:true bypasses Playwright's pointer-events/opacity actionability check;
-      // the button is revealed by CSS :hover but the actionability check can race on CI
-      // Linux runners where the hover state is checked at the moment of mouse movement.
-      // We already confirmed visibility above, so force is safe here.
-      await card.hover();
-      await expect(unlinkOverlayButton).toBeVisible();
-      await unlinkOverlayButton.click({ force: true });
-
-      // Confirmation modal opens
-      const unlinkModal = page
-        .getByRole('alertdialog')
-        .filter({ has: page.getByTestId('document-unlink-cancel') });
-      await expect(unlinkModal).toBeVisible();
-
-      // Dismiss via Cancel button. Use Escape key — the component's keydown handler
-      // calls setUnlinkTarget(null) on Escape when unlinkTarget is set and !isUnlinking.
-      // This is more reliable than a pointer click on the custom modal on CI Linux runners,
-      // where the modalBackdrop (position:absolute;inset:0) can block pointer events.
-      await page.keyboard.press('Escape');
-
-      // Modal closes
-      await expect(unlinkModal).toBeHidden({ timeout: 10000 });
-
-      // The linked document card is still visible — nothing was deleted
-      await expect(linkedList).toBeVisible();
-      await expect(linkedList).toContainText(MOCK_DOCUMENT.title);
-    } finally {
-      if (cleanupDelete) await cleanupDelete();
-      await cleanupMocks(page);
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
-
-  // ---------------------------------------------------------------------------
-  // Scenario 4c: Mobile — overlay button always visible (coarse-pointer/touch)
-  //
-  // On touch/coarse-pointer devices the CSS rule
-  //   @media (hover: none), (pointer: coarse) { .unlinkOverlayButton { opacity:1; } }
-  // makes the button always visible without hover.
-  // ---------------------------------------------------------------------------
-  test(
-    'Overlay unlink button is always visible on mobile without hover',
-    { tag: '@responsive' },
-    async ({ page, testPrefix }) => {
+    test('Unlink removes the card at once without a confirmation dialog, and Undo brings it back', async ({
+      page,
+      testPrefix,
+    }) => {
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} Overlay Mobile Visible`,
+          title: `${testPrefix} Unlink Undo Mocked`,
         });
-
-        // Pre-seed one linked document
         await mockPaperlessForLinking(page, 'work_item', createdId);
         linkedDocumentIds = [MOCK_DOCUMENT.id];
+        await mockDocumentLinkDeleteAndUndo(page);
 
-        await page.goto(`/project/work-items/${createdId}`);
-        await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+        await new WorkItemDetailPage(page).goto(createdId);
+        const panel = new DocumentsPanel(page);
+        const toast = new ToastRegion(page);
+        await panel.open();
+        await expect(panel.rows).toHaveCount(1);
 
-        const linkedList = page.getByRole('list', { name: 'Linked documents' });
-        await expect(linkedList).toBeVisible({ timeout: 10000 });
+        await panel.unlink(MOCK_DOCUMENT.title);
 
-        const card = linkedList.getByRole('listitem').first();
-        const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
+        // No confirmation dialog: the card is gone and an Undo toast is up
+        await expect(page.getByRole('alertdialog')).toHaveCount(0);
+        await expect(panel.rows).toHaveCount(0);
+        await expect(panel.title).toHaveText('Documents (0)');
+        await expect(toast.undoToastWith(`Unlinked ${MOCK_DOCUMENT.title}.`)).toBeVisible();
 
-        // On mobile (coarse-pointer / hover:none) the overlay button must be
-        // visible WITHOUT any hover action — the CSS media query ensures opacity:1.
-        await expect(unlinkOverlayButton).toBeVisible({ timeout: 7000 });
+        // With no neighbours, focus lands on Link document
+        await expect(panel.linkDocumentButton).toBeFocused();
+
+        await toast.undoViaButton();
+
+        await expect(panel.rows).toHaveCount(1);
+        await expect(panel.row(MOCK_DOCUMENT.title)).toBeVisible();
+        await expect(panel.title).toHaveText('Documents (1)');
       } finally {
+        await page.unroute('**/api/undo/*');
         await cleanupMocks(page);
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
-    },
-  );
-});
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 4b-4d: REAL server — unlink + Undo round trip, document type persistence
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A synthetic Paperless document id unlikely to collide between parallel tests. */
+function syntheticDocumentId(): number {
+  return 7_000_000 + Math.floor(Math.random() * 1_000_000);
+}
+
+/** Creates a document link through the real API; returns its id. */
+async function createRealLink(
+  page: Page,
+  entityType: string,
+  entityId: string,
+  paperlessDocumentId: number,
+): Promise<string> {
+  const resp = await page.request.post('/api/document-links', {
+    data: { entityType, entityId, paperlessDocumentId },
+  });
+  expect(resp.ok(), await resp.text()).toBeTruthy();
+  return ((await resp.json()) as { documentLink: { id: string } }).documentLink.id;
+}
+
+test.describe(
+  'Document Linking — real server Unlink and Undo (Scenarios 4b-4d)',
+  { tag: '@responsive' },
+  () => {
+    test.describe.configure({ timeout: 60_000 });
+
+    test('Unlink shows an Undo toast; Undo restores the link, also after a reload', async ({
+      page,
+      testPrefix,
+    }) => {
+      const workItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Real Unlink Undo`,
+      });
+      try {
+        const docId = syntheticDocumentId();
+        const linkId = await createRealLink(page, 'work_item', workItemId, docId);
+        await mockPaperlessConfigured(page);
+
+        await new WorkItemDetailPage(page).goto(workItemId);
+        const panel = new DocumentsPanel(page);
+        const toast = new ToastRegion(page);
+        await panel.open();
+        await expect(panel.rows).toHaveCount(1);
+        const title = `Document #${docId}`;
+
+        await panel.unlink(title);
+
+        await expect(page.getByRole('alertdialog')).toHaveCount(0);
+        await expect(panel.rows).toHaveCount(0);
+        await expect(toast.undoToastWith(`Unlinked ${title}.`)).toBeVisible();
+
+        await toast.undoViaButton();
+
+        await expect(panel.row(title)).toBeVisible();
+        await expect(panel.title).toHaveText('Documents (1)');
+
+        // Server truth: the restored link survives a reload
+        await page.reload();
+        await expect(panel.button()).toHaveText('Documents (1)');
+        await panel.open();
+        await expect(panel.row(title)).toBeVisible();
+        await expect(panel.dialog.getByTestId(`linked-document-${linkId}`)).toBeVisible();
+      } finally {
+        await deleteWorkItemViaApi(page, workItemId);
+      }
+    });
+
+    test('Unlink without Undo: the link stays gone after a reload', async ({
+      page,
+      testPrefix,
+    }) => {
+      const workItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Real Unlink Gone`,
+      });
+      try {
+        const docId = syntheticDocumentId();
+        await createRealLink(page, 'work_item', workItemId, docId);
+        await mockPaperlessConfigured(page);
+
+        await new WorkItemDetailPage(page).goto(workItemId);
+        const panel = new DocumentsPanel(page);
+        await panel.open();
+        await expect(panel.rows).toHaveCount(1);
+
+        await panel.unlink(`Document #${docId}`);
+        await expect(panel.rows).toHaveCount(0);
+        await expect(panel.title).toHaveText('Documents (0)');
+
+        await page.reload();
+
+        await expect(panel.button()).toHaveText('Documents (0)');
+        await panel.open();
+        await expect(panel.rows).toHaveCount(0);
+        await expect(panel.dialog.getByText('No documents linked yet.')).toBeVisible();
+      } finally {
+        await deleteWorkItemViaApi(page, workItemId);
+      }
+    });
+
+    test('Invoice: the document type chosen on a row persists after a reload', async ({
+      page,
+      testPrefix,
+    }) => {
+      const ids = await createVendorAndInvoice(page, testPrefix);
+      try {
+        const docId = syntheticDocumentId();
+        const linkId = await createRealLink(page, 'invoice', ids.invoiceId, docId);
+        await mockPaperlessConfigured(page);
+
+        const invoicePage = new InvoiceDetailPage(page);
+        await invoicePage.goto(ids.invoiceId);
+        await invoicePage.openDocuments();
+        const select = invoicePage.getAttachmentTypeSelect(linkId);
+        await expect(select).toHaveValue('');
+
+        await select.selectOption('quotation');
+
+        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Quotation');
+
+        await page.reload();
+        await invoicePage.openDocuments();
+
+        await expect(invoicePage.getAttachmentTypeSelect(linkId)).toHaveValue('quotation');
+        await expect(invoicePage.getAttachmentTypeBadge(linkId)).toHaveText('Quotation');
+      } finally {
+        await page.request.delete(`${API.vendors}/${ids.vendorId}`);
+      }
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Link a document that only exists in the second scrolled batch
@@ -824,13 +863,12 @@ test.describe(
         await mockPaperlessForLinking(page, 'work_item', createdId);
         const mock = await mockPaginatedPaperless(page, { total: 30 });
 
-        await page.goto(`/project/work-items/${createdId}`);
-        await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled();
-        await addDocButton.click();
+        await new WorkItemDetailPage(page).goto(createdId);
+        const panel = new DocumentsPanel(page);
+        await panel.open();
+        await panel.openPicker();
 
-        const picker = new PaperlessPickerModal(page, 'Add Document');
+        const picker = panel.picker;
         await picker.waitForVisible();
         await picker.waitForDocumentsLoaded();
         await expect(picker.documentItems).toHaveCount(25);
@@ -851,11 +889,9 @@ test.describe(
           entityId: createdId,
         });
 
-        // Picker closes and the linked card appears
-        await expect(picker.modal).toBeHidden();
-        const linkedList = page.getByRole('list', { name: 'Linked documents' });
-        await expect(linkedList).toBeVisible();
-        await expect(linkedList.getByRole('listitem')).toHaveCount(1);
+        // The sheet returns to the list view with the linked card
+        await expect(panel.pickerBack).toHaveCount(0);
+        await expect(panel.rows).toHaveCount(1);
       } finally {
         await cleanupMocks(page);
         if (createdId) await deleteWorkItemViaApi(page, createdId);

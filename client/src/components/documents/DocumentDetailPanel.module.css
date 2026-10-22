@@ -174,3 +174,17 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Under a card in the Documents panel: flat, single column, no thumbnail (the card has it). */
+.inline {
+  padding: var(--spacing-3);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.inline .content {
+  grid-template-columns: 1fr;
+  gap: var(--spacing-3);
+}

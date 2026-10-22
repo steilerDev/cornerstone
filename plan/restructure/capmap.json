@@ -3064,7 +3064,7 @@
     "to": "Task / Purchase / Invoice / Offer / Funding source / Grant page > summary fact 'Documents (n)' -> Documents panel (Paperless only; opened from the summary fact \"Documents\")",
     "change": "same",
     "gate": "paperless",
-    "note": "With Paperless off there is no Documents fact, no disabled button and no environment-variable banner anywhere (C2, P27); see JRN-086 for stored links."
+    "note": "With Paperless off there is no Documents fact, no disabled button and no environment-variable banner anywhere (C2, P27); see JRN-086 for stored links. #2233: Documents panel built; until a page adopts the summary strip, a 'Documents (n)' button in place of the old section opens it."
   },
   "JRN-074": {
     "name": "See and manage documents of a financing source or subsidy program",
@@ -3073,7 +3073,7 @@
     "change": "moved",
     "gate": "paperless",
     "acceptance": "Funding source / Grant page summary fact 'Documents (n)' opens the Documents panel; Financing card 'Documents (n) · Link'.",
-    "note": "57 documents sit on the two loans; the Financing card keeps a one-click entry (R-m6). Gated like every Documents surface (C-05)."
+    "note": "57 documents sit on the two loans; the Financing card keeps a one-click entry (R-m6). Gated like every Documents surface (C-05). #2233: interim — each source/grant row has a 'Documents (n)' button that opens the panel (no expand toggle)."
   },
   "JRN-075": {
     "name": "Link a Paperless document to a record through the document picker",
@@ -3081,7 +3081,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > 'Link document' (picker)",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Any Documents section; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Any Documents section; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-076": {
     "name": "Search Paperless documents by full text in the picker",
@@ -3089,7 +3089,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > Link document picker > full-text search",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-077": {
     "name": "Filter the document picker by Paperless tags",
@@ -3097,7 +3097,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > Link document picker > tag chips",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (monthly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-078": {
     "name": "Hide documents that are already linked anywhere in Cornerstone",
@@ -3105,7 +3105,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > Link document picker > 'Hide already-linked'",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-079": {
     "name": "Scroll through a large Paperless library in batches",
@@ -3113,7 +3113,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > Link document picker > batch loading",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-080": {
     "name": "See that the picker is restricted to a server-side filter tag",
@@ -3121,7 +3121,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > Link document picker > filter-tag note",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Document picker; only the shared page template, the words and the navigation around it change (rare use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-081": {
     "name": "Open a document in Paperless-ngx in a new tab",
@@ -3129,7 +3129,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card / Documents page (Paperless only) > 'Open in Paperless'",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document card / Documents page; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Document card / Documents page; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-082": {
     "name": "View a linked document's metadata and a text preview inline",
@@ -3137,7 +3137,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card > Details",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document card; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Document card; only the shared page template, the words and the navigation around it change (weekly use). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-083": {
     "name": "Unlink a document from a record",
@@ -3145,7 +3145,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card ⋯ > Unlink (Undo toast)",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document card ⋯; only the shared page template, the words and the navigation around it change (monthly use). #2209: Linked Documents section › Unlink (ConfirmDialog; becomes an Undo toast when a snapshot exists)."
+    "note": "Kept as it works today, inside Document card ⋯; only the shared page template, the words and the navigation around it change (monthly use). #2233: Unlink applies at once with an Undo toast (restore snapshot, contract 11 › Document link snapshots)."
   },
   "JRN-084": {
     "name": "Classify an invoice document as quotation, deposit or invoice",
@@ -3153,7 +3153,7 @@
     "to": "Money > Invoice / Offer page > Documents panel (Paperless only; opened from the summary fact \"Documents\") > document type (Offer / Progress payment / Invoice)",
     "change": "same",
     "gate": "paperless",
-    "note": "Paperless only (the document card exists only when Paperless is configured)."
+    "note": "Paperless only (the document card exists only when Paperless is configured). #2233: inside the Documents panel (Sheet, side from 768 px, full screen below)."
   },
   "JRN-086": {
     "name": "Keep document links when Paperless is unreachable or not configured",
@@ -3161,7 +3161,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card fallback 'Document #id' when Paperless is unreachable; when Paperless is not configured but links exist, the summary fact shows 'Documents (n)' and the panel says read-only 'Paperless is not connected — n links kept' (admins: link to Settings > Integrations)",
     "change": "same",
     "gate": "paperless",
-    "note": "The 171 stored links stay visible even if Paperless is switched off (C-01); no configuration text for members. #2217: until the Documents panel ships, the documents section shows the read-only notice; admins get a link to Settings › Integrations › Paperless."
+    "note": "The 171 stored links stay visible even if Paperless is switched off (C-01); no configuration text for members. #2217/#2233: the panel shows the read-only notice; admins get a link to Settings › Integrations › Paperless."
   },
   "JRN-089": {
     "name": "Browse the whole Paperless library on a standalone page (no longer reachable)",
@@ -3169,7 +3169,7 @@
     "to": "Documents page (Paperless only) (/documents; Global > Sidebar secondary group 'Documents'; phone More sheet; 'Browse all' in the Documents panel; Global search)",
     "change": "promoted",
     "gate": "paperless",
-    "note": "Unreachable today; restored only when Paperless is configured. Also reached from the More sheet on phones and from search; the docs already promise this page (D5 §6.3 #3-5)."
+    "note": "Unreachable today; restored only when Paperless is configured. Also reached from the More sheet on phones and from search; the docs already promise this page (D5 §6.3 #3-5). #2233: 'Browse all' is rendered in the panel once route `documents` is served (P5.8)."
   },
   "JRN-090": {
     "name": "Sort Paperless documents or filter them by document type (API only)",
@@ -3336,7 +3336,7 @@
     "to": "Global > print styles",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (rare use). #2233: object pages print header, summary strip and the active tab; ⋯ › Print on every ObjectHeader page."
   },
   "PLT-017": {
     "name": "Create the first administrator account on a fresh instance (initial setup)",

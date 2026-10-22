@@ -16,7 +16,7 @@
  * - Dark mode rendering
  * - Discretionary Funding source — system source presence, no delete, type locked, zero amount edit
  * - Projected and Paid amount fields visible on source rows
- * - Documents toggle (Story #1744) — toggle visible, expand/collapse, not-configured state
+ * - Documents button and panel (Story #1744, #2233) — row button, side sheet, picker, Paperless-off states
  * - Reference & Contact address fields (Story #1877) — create with both fields, edit persists,
  *   reload retains values, fields are independently optional
  */
@@ -27,11 +27,12 @@ import type { Page } from '@playwright/test';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
-  expectNoDocumentsSection,
   mockKeptDocumentLinks,
   mockPaperlessConfigured,
-  openAndSettle,
+  settleDocumentsHost,
 } from '../../fixtures/paperlessMocks.js';
+import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -1195,202 +1196,143 @@ test.describe('Bar chart rework #1319', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Documents toggle (Story #1744)
+// Documents button and panel (Story #1744, #2233)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
-  // NOTE: @smoke tag is intentionally omitted — these tests require the Story #1744
-  // implementation (docs toggle UI) which is not yet merged to beta. Add @smoke
-  // after the implementation PR is merged to beta.
-  test('Documents toggle button is visible in source row header', async ({ page, testPrefix }) => {
+test.describe('Documents button and panel (Story #1744, #2233)', { tag: '@responsive' }, () => {
+  // A row's "Documents (n)" button (test id source-docs-<id>) opens the shared Documents panel
+  // (side sheet from 768 px, full screen below). Paperless off + no links: no button at all.
+  test('With Paperless on the source row has a "Documents (0)" button that opens the panel', async ({
+    page,
+    testPrefix,
+  }) => {
     const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs Toggle Source`;
+    const sourceName = `${testPrefix} Docs Button Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
+      await mockPaperlessConfigured(page);
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const panel = new DocumentsPanel(page);
+      const button = panel.button(`source-docs-${createdId}`);
+      await expect(button).toHaveText('Documents (0)');
+      await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+      // The accessible name carries the record, so rows are told apart
+      await expect(button).toHaveAccessibleName(`Documents (0) for ${sourceName}`);
+
+      await panel.open(`source-docs-${createdId}`);
+
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await expect(panel.title).toHaveText('Documents (0)');
+      await expect(panel.dialog.getByText('No documents linked yet.')).toBeVisible();
+      await expect(panel.linkDocumentButton).toBeEnabled();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test("Escape closes the panel and returns focus to the row's Documents button", async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Escape Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
+      await mockPaperlessConfigured(page);
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      const panel = new DocumentsPanel(page);
+      await panel.open(`source-docs-${createdId}`);
+
+      await page.keyboard.press('Escape');
+
+      await expect(panel.dialog).toHaveCount(0);
+      await expect(panel.button(`source-docs-${createdId}`)).toBeFocused();
+      await expect(panel.button(`source-docs-${createdId}`)).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test("Link document switches the row's panel to the picker view", async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Picker Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
+      await mockPaginatedPaperless(page, { total: 2 });
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      const panel = new DocumentsPanel(page);
+      await panel.open(`source-docs-${createdId}`);
+
+      await panel.openPicker();
+
+      await expect(panel.title).toHaveText('Link document');
+      await panel.picker.waitForDocumentsLoaded();
+      await expect(panel.picker.documentItems).toHaveCount(2);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('With Paperless off and no links the row has no Documents button', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Absent Source`;
     let createdId: string | null = null;
 
     try {
       createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
 
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
+      await settleDocumentsHost(page, createdId, async () => {
+        await sourcesPage.goto();
+        await sourcesPage.waitForSourcesLoaded();
+      });
 
-      // The toggle button should be visible in the source row
-      const toggle = sourcesPage.getDocsToggle(sourceName);
-      await expect(toggle).toBeVisible();
-
-      // Initial state: not expanded (aria-expanded=false)
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(sourcesPage.getSourceRowByName(sourceName)).toBeVisible();
+      await expect(page.getByTestId(`source-docs-${createdId}`)).toHaveCount(0);
+      await expect(page.getByText(/not configured/i)).toHaveCount(0);
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }
   });
 
-  test('Clicking docs toggle reveals documents panel with correct role and aria-label', async ({
+  test('With Paperless off and kept links the panel shows the read-only notice', async ({
     page,
     testPrefix,
   }) => {
     const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs Panel Source`;
+    const sourceName = `${testPrefix} Docs Kept Source`;
     let createdId: string | null = null;
 
     try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 20000 });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-
-      // Panel should NOT be in the DOM before expanding
-      const panel = sourcesPage.getDocsPanelById(createdId);
-      await expect(panel).not.toBeAttached();
-
-      // Click the toggle to expand
-      await sourcesPage.expandSourceDocs(sourceName);
-
-      // Panel is now in the DOM and visible with correct region attributes
-      await expect(panel).toBeVisible();
-      await expect(panel).toHaveAttribute('role', 'region');
-      await expect(panel).toHaveAttribute('aria-label', `Documents for ${sourceName}`);
-
-      // Toggle button now shows aria-expanded=true
-      const toggle = sourcesPage.getDocsToggle(sourceName);
-      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    } finally {
-      if (createdId) await deleteSourceViaApi(page, createdId);
-    }
-  });
-
-  test('Documents panel contains "Documents" heading inside source docs region (Paperless connected)', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs Heading Source`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
-      await mockPaperlessConfigured(page);
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-      await sourcesPage.expandSourceDocs(sourceName);
-
-      const panel = sourcesPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-
-      // LinkedDocumentsSection renders an h2 "Documents" heading inside the panel
-      const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
-      await expect(docsHeading).toBeVisible();
-    } finally {
-      if (createdId) await deleteSourceViaApi(page, createdId);
-    }
-  });
-
-  test('With Paperless off and no links the docs panel shows no Documents section or Add button', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs AddBtn Source`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-      await openAndSettle(page, () => sourcesPage.expandSourceDocs(sourceName));
-
-      const panel = sourcesPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-      await expectNoDocumentsSection(panel);
-    } finally {
-      if (createdId) await deleteSourceViaApi(page, createdId);
-    }
-  });
-
-  test('With Paperless off and kept links the docs panel shows the read-only notice', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs Banner Source`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
       await mockKeptDocumentLinks(page, 'budget_source', createdId, 1);
-
       await sourcesPage.goto();
       await sourcesPage.waitForSourcesLoaded();
-      await sourcesPage.expandSourceDocs(sourceName);
+      const panel = new DocumentsPanel(page);
 
-      const panel = sourcesPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-      await expect(panel.getByTestId('documents-paperless-off')).toContainText(
-        'Paperless is not connected. 1 link is kept.',
-      );
-      await expect(panel.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
-        0,
-      );
-    } finally {
-      if (createdId) await deleteSourceViaApi(page, createdId);
-    }
-  });
+      await expect(panel.button(`source-docs-${createdId}`)).toContainText('Documents (1)');
+      await panel.open(`source-docs-${createdId}`);
 
-  test('Clicking docs toggle again collapses the documents panel', async ({ page, testPrefix }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs Collapse Source`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 60000 });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-
-      // Expand
-      await sourcesPage.expandSourceDocs(sourceName);
-      const panel = sourcesPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-
-      // Collapse by clicking the toggle again (aria-label changes to "Hide documents for <name>")
-      const toggle = sourcesPage.getDocsToggle(sourceName);
-      await toggle.click();
-
-      // Panel is removed from DOM (conditional render)
-      await expect(panel).not.toBeAttached();
-
-      // Toggle aria-expanded is false again
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    } finally {
-      if (createdId) await deleteSourceViaApi(page, createdId);
-    }
-  });
-
-  test('Documents toggle is disabled while source is being edited', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Docs EditDisable Source`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 70000 });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-
-      // Enter edit mode for this source
-      await sourcesPage.startEdit(sourceName);
-
-      // Docs toggle should be disabled while editing
-      // The toggle button scoped to the row is not accessible by name when in edit mode
-      // (the row no longer shows sourceName span) — use the panel button directly
-      const docsToggle = page.locator('[aria-controls^="source-docs-"]').first();
-      await expect(docsToggle).toBeDisabled();
-
-      // Cancel edit to restore state
-      await sourcesPage.cancelEdit(sourceName);
+      await expect(panel.notice).toContainText('Paperless is not connected. 1 link is kept.');
+      await expect(panel.linkDocumentButton).toHaveCount(0);
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }
