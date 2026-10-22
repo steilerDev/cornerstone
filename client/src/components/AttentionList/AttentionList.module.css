@@ -32,37 +32,6 @@
 }
 
 /* "Not now" / "Show again": a text button, no fill. */
-.textButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--touch-target-min);
-  padding: var(--spacing-1) var(--spacing-2);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.textButton:hover {
-  text-decoration: underline;
-}
-
-.textButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.textButton[aria-disabled='true'],
-.textButton[aria-disabled='true']:hover {
-  opacity: 0.5;
-  cursor: not-allowed;
-  text-decoration: none;
-}
-
 .showAll {
   composes: btnSecondary from '../../styles/shared.module.css';
   align-self: flex-start;

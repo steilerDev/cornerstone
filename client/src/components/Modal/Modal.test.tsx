@@ -318,7 +318,7 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(closeButton);
   });
 
-  it('Tab from a middle control steps to the next control itself (the trap owns the cycle)', () => {
+  it('Tab inside the dialog is left to the browser; only the ends wrap', () => {
     render(
       <Modal {...defaultProps}>
         <input data-testid="first-input" placeholder="First" />
@@ -329,13 +329,19 @@ describe('Modal', () => {
     // Focusables in DOM order: close button, first-input, second-input.
     const middleInput = screen.getByTestId('first-input');
     middleInput.focus();
+    const inner = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(inner);
+    expect(inner.defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(middleInput);
 
+    // From the last control Tab wraps to the first (the close button).
+    screen.getByTestId('second-input').focus();
     const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
     document.dispatchEvent(forward);
     expect(forward.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(screen.getByTestId('second-input'));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close dialog' }));
 
+    // And Shift+Tab from the first wraps back to the last.
     const backward = new KeyboardEvent('keydown', {
       key: 'Tab',
       shiftKey: true,
@@ -344,7 +350,7 @@ describe('Modal', () => {
     });
     document.dispatchEvent(backward);
     expect(backward.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(middleInput);
+    expect(document.activeElement).toBe(screen.getByTestId('second-input'));
   });
 
   it('Tab does not throw when contentRef has no element ref yet (defensive null guard)', () => {

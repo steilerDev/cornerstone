@@ -84,7 +84,18 @@ describe('SetupChecklist', () => {
 
     expect(row('house')).toHaveTextContent('Done:');
     expect(row('areas')).toHaveTextContent('To do:');
-    expect(row('funding')).toHaveTextContent('To do:');
+    expect(row('funding')).toHaveTextContent('Not checked:');
+    expect(row('funding')).not.toHaveTextContent('To do:');
+  });
+
+  it('a step that could not be checked is announced as not checked, never as to do', () => {
+    renderChecklist(setupOf({ backups: null, house: true }));
+
+    expect(row('backups')).toHaveTextContent('Not checked:');
+    expect(row('backups')).not.toHaveTextContent('To do:');
+    expect(row('backups')).not.toHaveTextContent('Done:');
+    expect(row('house')).toHaveTextContent('Done:');
+    expect(row('house')).not.toHaveTextContent('Not checked:');
   });
 
   it('shows a check for done steps only', () => {
@@ -98,7 +109,9 @@ describe('SetupChecklist', () => {
 
     expect(row('backups')).toHaveTextContent("Couldn't check");
     expect(row('house')).not.toHaveTextContent("Couldn't check");
-    await userEvent.click(within(row('backups')).getByRole('button', { name: 'Try again' }));
+    const retry = within(row('backups')).getByRole('button', { name: 'Try again' });
+    expect(retry.className).toMatch(/btnText/);
+    await userEvent.click(retry);
     expect(onRefetch).toHaveBeenCalledTimes(1);
   });
 

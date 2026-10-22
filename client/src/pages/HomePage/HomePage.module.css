@@ -32,28 +32,6 @@
   list-style: none;
 }
 
-.textButton {
-  min-height: var(--touch-target-min);
-  padding: 0 var(--spacing-2);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.textButton:hover {
-  color: var(--color-text-primary);
-}
-
-.textButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
 .inlineLink {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
@@ -294,7 +272,7 @@
 .stepGlyphDone {
   border-color: var(--color-success);
   background-color: var(--color-success);
-  color: var(--color-white);
+  color: var(--color-bg-primary);
 }
 
 .stepGlyphUnknown {
@@ -429,4 +407,13 @@
   .column {
     gap: var(--spacing-8);
   }
+}
+
+.noticeClose {
+  composes: btnIcon from '../../styles/shared.module.css';
+  flex-shrink: 0;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
 }

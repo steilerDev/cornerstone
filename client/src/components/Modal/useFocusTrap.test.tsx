@@ -290,8 +290,80 @@ function ToastRegion({ children }: { children: React.ReactNode }) {
   return <div data-toast-container>{children}</div>;
 }
 
-describe('useFocusTrap with a toast on screen (#2230)', () => {
-  it('Tab from the last dialog control reaches the toast buttons, then wraps to the first', async () => {
+function tab(shift = false): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    shiftKey: shift,
+    bubbles: true,
+    cancelable: true,
+  });
+  document.dispatchEvent(event);
+  return event;
+}
+
+function refuseFocus(el: HTMLElement) {
+  el.focus = () => {};
+}
+
+function Dialog({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, { active: true, onEscape: () => {} });
+  return <div ref={ref}>{children}</div>;
+}
+
+describe('useFocusTrap intervenes only at the joins (#2230)', () => {
+  it('leaves Tab and Shift+Tab inside the dialog to the browser', () => {
+    render(<Harness active onEscape={() => {}} />);
+    screen.getByText('first').focus();
+    expect(tab().defaultPrevented).toBe(false);
+    screen.getByText('middle').focus();
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
+  });
+
+  it('leaves a radio group in the middle alone (no preventDefault)', () => {
+    render(
+      <Dialog>
+        <button type="button">top</button>
+        <input type="radio" name="g" aria-label="r1" />
+        <input type="radio" name="g" aria-label="r2" defaultChecked />
+        <input type="radio" name="g" aria-label="r3" />
+        <button type="button">bottom</button>
+      </Dialog>,
+    );
+    for (const name of ['r1', 'r2', 'r3']) {
+      screen.getByLabelText(name).focus();
+      expect(tab().defaultPrevented).toBe(false);
+      expect(tab(true).defaultPrevented).toBe(false);
+    }
+  });
+
+  it('a summary element inside the dialog is a normal stop the browser steps through', () => {
+    render(
+      <Dialog>
+        <button type="button">before</button>
+        <details>
+          <summary tabIndex={0}>more</summary>
+          <button type="button">inside</button>
+        </details>
+        <button type="button">after</button>
+      </Dialog>,
+    );
+    screen.getByText('more').focus();
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
+  });
+
+  it('without a toast: Tab from the last stop wraps to the first, Shift+Tab to the last', () => {
+    render(<Harness active onEscape={() => {}} />);
+    screen.getByText('last').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('first')).toHaveFocus();
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByText('last')).toHaveFocus();
+  });
+
+  it('with a toast: Tab from the last stop goes to the first toast button', () => {
     render(
       <>
         <Harness active onEscape={() => {}} />
@@ -302,16 +374,11 @@ describe('useFocusTrap with a toast on screen (#2230)', () => {
       </>,
     );
     screen.getByText('last').focus();
-
-    await userEvent.tab();
+    expect(tab().defaultPrevented).toBe(true);
     expect(screen.getByText('Undo')).toHaveFocus();
-    await userEvent.tab();
-    expect(screen.getByText('Dismiss')).toHaveFocus();
-    await userEvent.tab();
-    expect(screen.getByText('first')).toHaveFocus();
   });
 
-  it('Shift+Tab from the first dialog control wraps to the last toast button', async () => {
+  it('with a toast: Shift+Tab from the first stop goes to the last toast button', () => {
     render(
       <>
         <Harness active onEscape={() => {}} />
@@ -322,17 +389,56 @@ describe('useFocusTrap with a toast on screen (#2230)', () => {
       </>,
     );
     screen.getByText('first').focus();
-
-    await userEvent.tab({ shift: true });
+    expect(tab(true).defaultPrevented).toBe(true);
     expect(screen.getByText('Dismiss')).toHaveFocus();
   });
 
-  it('ignores disabled toast buttons', async () => {
+  it('inside the toast it steps between buttons and back into the dialog', () => {
     render(
       <>
         <Harness active onEscape={() => {}} />
         <ToastRegion>
           <button type="button">Undo</button>
+          <button type="button">Dismiss</button>
+        </ToastRegion>
+      </>,
+    );
+    screen.getByText('Undo').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('Dismiss')).toHaveFocus();
+    // Forward past the last toast button: the first dialog item.
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('first')).toHaveFocus();
+
+    screen.getByText('Dismiss').focus();
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByText('Undo')).toHaveFocus();
+    // Backward past the first toast button: the last dialog item.
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByText('last')).toHaveFocus();
+  });
+
+  it('a toast portal placed BEFORE the dialog in the DOM is still reached from the last stop', () => {
+    render(
+      <>
+        <ToastRegion>
+          <button type="button">Undo</button>
+        </ToastRegion>
+        <Harness active onEscape={() => {}} />
+      </>,
+    );
+    screen.getByText('last').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('Undo')).toHaveFocus();
+    tab();
+    expect(screen.getByText('first')).toHaveFocus();
+  });
+
+  it('ignores disabled toast buttons and an empty toast region', () => {
+    render(
+      <>
+        <Harness active onEscape={() => {}} />
+        <ToastRegion>
           <button type="button" disabled>
             Busy
           </button>
@@ -340,32 +446,49 @@ describe('useFocusTrap with a toast on screen (#2230)', () => {
       </>,
     );
     screen.getByText('last').focus();
-    await userEvent.tab();
-    expect(screen.getByText('Undo')).toHaveFocus();
-    await userEvent.tab();
+    expect(tab().defaultPrevented).toBe(true);
     expect(screen.getByText('first')).toHaveFocus();
   });
 
-  it('without a toast the cycle is unchanged', async () => {
+  it('focus on the body: Tab goes to the first dialog item, Shift+Tab to the last', () => {
     render(<Harness active onEscape={() => {}} />);
-    screen.getByText('last').focus();
-    await userEvent.tab();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.body).toHaveFocus();
+    expect(tab().defaultPrevented).toBe(true);
     expect(screen.getByText('first')).toHaveFocus();
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByText('last')).toHaveFocus();
   });
 
-  it('an empty toast region changes nothing', async () => {
+  it('focus on another page control (neither dialog, toast nor body): native Tab', () => {
+    render(<Harness active onEscape={() => {}} />);
+    const outside = screen.getByText('outside');
+    outside.focus();
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
+    expect(outside).toHaveFocus();
+  });
+
+  it('focus on a non-listed element inside the dialog (tabindex -1 heading): native Tab', () => {
     render(
-      <>
-        <Harness active onEscape={() => {}} />
-        <ToastRegion>{null}</ToastRegion>
-      </>,
+      <Dialog>
+        <h2 tabIndex={-1}>Heading</h2>
+        <button type="button">one</button>
+      </Dialog>,
     );
-    screen.getByText('last').focus();
-    await userEvent.tab();
-    expect(screen.getByText('first')).toHaveFocus();
+    screen.getByRole('heading', { name: 'Heading' }).focus();
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
   });
 
-  it('a toast button gives a dialog without controls a focus cycle', async () => {
+  it('a dialog without focusable items has nowhere to wrap: Tab is left alone', () => {
+    render(<EmptyHarness />);
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
+  });
+
+  it('a dialog without items steps from the toast back to nothing and leaves Tab alone', () => {
     render(
       <>
         <EmptyHarness />
@@ -375,11 +498,148 @@ describe('useFocusTrap with a toast on screen (#2230)', () => {
       </>,
     );
     screen.getByText('Undo').focus();
-    await userEvent.tab();
+    expect(tab().defaultPrevented).toBe(false);
     expect(screen.getByText('Undo')).toHaveFocus();
   });
+});
 
-  it('Escape still goes to the dialog while a toast has focus', async () => {
+describe('useFocusTrap radio groups at the edges (#2230)', () => {
+  function EdgeRadios({ toast }: { toast: boolean }) {
+    return (
+      <>
+        <Dialog>
+          <input type="radio" name="first" aria-label="a1" />
+          <input type="radio" name="first" aria-label="a2" defaultChecked />
+          <button type="button">middle</button>
+          <input type="radio" name="last" aria-label="z1" />
+          <input type="radio" name="last" aria-label="z2" />
+        </Dialog>
+        {toast ? (
+          <ToastRegion>
+            <button type="button">Undo</button>
+          </ToastRegion>
+        ) : null}
+      </>
+    );
+  }
+
+  it('any radio of the last group counts as the last stop (forward leaves the dialog)', () => {
+    render(<EdgeRadios toast />);
+    for (const name of ['z1', 'z2']) {
+      screen.getByLabelText(name).focus();
+      expect(tab().defaultPrevented).toBe(true);
+      expect(screen.getByText('Undo')).toHaveFocus();
+    }
+  });
+
+  it('any radio of the first group counts as the first stop (backward leaves the dialog)', () => {
+    render(<EdgeRadios toast />);
+    for (const name of ['a1', 'a2']) {
+      screen.getByLabelText(name).focus();
+      expect(tab(true).defaultPrevented).toBe(true);
+      expect(screen.getByText('Undo')).toHaveFocus();
+    }
+  });
+
+  it('wraps from a radio of an edge group without a toast', () => {
+    render(<EdgeRadios toast={false} />);
+    screen.getByLabelText('z2').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    // The first stop is the first group's checked radio.
+    expect(screen.getByLabelText('a2')).toHaveFocus();
+    screen.getByLabelText('a1').focus();
+    expect(tab(true).defaultPrevented).toBe(true);
+    // The last stop is the last group's first radio (none checked).
+    expect(screen.getByLabelText('z1')).toHaveFocus();
+  });
+
+  it('a radio without a name is its own stop', () => {
+    render(
+      <Dialog>
+        <input type="radio" aria-label="n1" />
+        <input type="radio" aria-label="n2" />
+      </Dialog>,
+    );
+    screen.getByLabelText('n1').focus();
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByLabelText('n2')).toHaveFocus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByLabelText('n1')).toHaveFocus();
+  });
+
+  it('radios with the same name in different forms are different groups', () => {
+    render(
+      <Dialog>
+        <form>
+          <input type="radio" name="g" aria-label="f1" />
+        </form>
+        <form>
+          <input type="radio" name="g" aria-label="f2" />
+        </form>
+      </Dialog>,
+    );
+    screen.getByLabelText('f1').focus();
+    // f1 is the first stop of its own group, so Shift+Tab wraps to the last stop (f2).
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByLabelText('f2')).toHaveFocus();
+  });
+});
+
+describe('useFocusTrap skips targets that refuse focus (#2230)', () => {
+  it('wrap without a toast: skips a refusing first item and lands on the next one', () => {
+    render(<Harness active onEscape={() => {}} />);
+    refuseFocus(screen.getByText('first'));
+    screen.getByText('last').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('middle')).toHaveFocus();
+  });
+
+  it('Shift+Tab wrap skips a refusing last item', () => {
+    render(<Harness active onEscape={() => {}} />);
+    screen.getByText('first').focus();
+    refuseFocus(screen.getByText('last'));
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(screen.getByText('middle')).toHaveFocus();
+  });
+
+  it('a refusing first toast button falls back to the next toast button', () => {
+    render(
+      <>
+        <Harness active onEscape={() => {}} />
+        <ToastRegion>
+          <button type="button">Undo</button>
+          <button type="button">Dismiss</button>
+        </ToastRegion>
+      </>,
+    );
+    refuseFocus(screen.getByText('Undo'));
+    screen.getByText('last').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('Dismiss')).toHaveFocus();
+  });
+
+  it('does not preventDefault when every target refuses focus', () => {
+    render(<Harness active onEscape={() => {}} />);
+    for (const name of ['first', 'middle', 'last']) refuseFocus(screen.getByText(name));
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(tab().defaultPrevented).toBe(false);
+    expect(tab(true).defaultPrevented).toBe(false);
+  });
+
+  it('a single control wraps onto itself', () => {
+    render(
+      <Dialog>
+        <button type="button">only</button>
+      </Dialog>,
+    );
+    screen.getByText('only').focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(screen.getByText('only')).toHaveFocus();
+  });
+});
+
+describe('useFocusTrap Escape and the stack (#2230)', () => {
+  it('Escape still goes to the dialog while a toast button has focus', async () => {
     const onEscape = jest.fn();
     render(
       <>
@@ -393,141 +653,17 @@ describe('useFocusTrap with a toast on screen (#2230)', () => {
     await userEvent.keyboard('{Escape}');
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
-});
 
-function tab(shift = false): KeyboardEvent {
-  const event = new KeyboardEvent('keydown', {
-    key: 'Tab',
-    shiftKey: shift,
-    bubbles: true,
-    cancelable: true,
-  });
-  document.dispatchEvent(event);
-  return event;
-}
-
-function DialogWithHeading() {
-  const ref = useRef<HTMLDivElement>(null);
-  useFocusTrap(ref, { active: true, onEscape: () => {} });
-  return (
-    <div ref={ref}>
-      <h2 tabIndex={-1}>Heading</h2>
-      <button type="button">one</button>
-      <button type="button">two</button>
-    </div>
-  );
-}
-
-describe('useFocusTrap steps through the combined list itself (#2230)', () => {
-  it('takes over every Tab and Shift+Tab inside the cycle (always preventDefault)', () => {
-    render(
-      <>
-        <Harness active onEscape={() => {}} />
-        <ToastRegion>
-          <button type="button">Undo</button>
-        </ToastRegion>
-      </>,
-    );
-    screen.getByText('first').focus();
-    expect(tab().defaultPrevented).toBe(true);
-    expect(screen.getByText('middle')).toHaveFocus();
-    expect(tab(true).defaultPrevented).toBe(true);
-    expect(screen.getByText('first')).toHaveFocus();
-  });
-
-  it('walks dialog controls, then toast buttons, and wraps both ways', () => {
-    render(
-      <>
-        <Harness active onEscape={() => {}} />
-        <ToastRegion>
-          <button type="button">Undo</button>
-          <button type="button">Dismiss</button>
-        </ToastRegion>
-      </>,
-    );
-    screen.getByText('first').focus();
-    const forward = ['middle', 'last', 'Undo', 'Dismiss', 'first'];
-    for (const name of forward) {
-      tab();
-      expect(screen.getByText(name)).toHaveFocus();
-    }
-    const backward = ['Dismiss', 'Undo', 'last'];
-    for (const name of backward) {
-      tab(true);
-      expect(screen.getByText(name)).toHaveFocus();
-    }
-  });
-
-  it('focus on another page control (not body, not listed): the browser handles Tab natively', () => {
-    render(
-      <>
-        <Harness active onEscape={() => {}} />
-        <ToastRegion>
-          <button type="button">Undo</button>
-        </ToastRegion>
-      </>,
-    );
-    const outside = screen.getByText('outside');
-    outside.focus();
-    expect(tab().defaultPrevented).toBe(false);
-    expect(tab(true).defaultPrevented).toBe(false);
-    expect(outside).toHaveFocus();
-  });
-
-  it('focus on the body: Tab goes to the first item, Shift+Tab to the last', () => {
-    render(<Harness active onEscape={() => {}} />);
-    (document.activeElement as HTMLElement | null)?.blur();
-    expect(document.body).toHaveFocus();
-    tab();
-    expect(screen.getByText('first')).toHaveFocus();
-    (document.activeElement as HTMLElement | null)?.blur();
-    tab(true);
-    expect(screen.getByText('last')).toHaveFocus();
-  });
-
-  it('focus on a non-listed element inside the dialog: the browser handles Tab natively', () => {
-    render(<DialogWithHeading />);
-    const heading = screen.getByRole('heading', { name: 'Heading' });
-    heading.focus();
-    expect(heading).toHaveFocus();
-    expect(tab().defaultPrevented).toBe(false);
-    expect(tab(true).defaultPrevented).toBe(false);
-    expect(heading).toHaveFocus();
-  });
-
-  it('a toast portal placed BEFORE the dialog in the DOM is still reached from the last control', () => {
-    render(
-      <>
-        <ToastRegion>
-          <button type="button">Undo</button>
-        </ToastRegion>
-        <Harness active onEscape={() => {}} />
-      </>,
-    );
+  it('does not touch Tab while inactive, and leaves other keys alone', () => {
+    render(<Harness active={false} onEscape={() => {}} />);
     screen.getByText('last').focus();
-    tab();
-    expect(screen.getByText('Undo')).toHaveFocus();
-    tab();
-    expect(screen.getByText('first')).toHaveFocus();
-    tab(true);
-    expect(screen.getByText('Undo')).toHaveFocus();
+    expect(tab().defaultPrevented).toBe(false);
+    const other = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    document.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
   });
 
-  it('a toast portal before the dialog: Tab with real user events also reaches Undo', async () => {
-    render(
-      <>
-        <ToastRegion>
-          <button type="button">Undo</button>
-        </ToastRegion>
-        <Harness active onEscape={() => {}} />
-      </>,
-    );
-    screen.getByText('last').focus();
-    await userEvent.tab();
-    expect(screen.getByText('Undo')).toHaveFocus();
-  });
-
-  it('only the topmost trap steps; an inner trap leaves Tab to the top one', () => {
+  it('only the topmost trap handles Tab', () => {
     function Two() {
       const outerRef = useRef<HTMLDivElement>(null);
       const innerRef = useRef<HTMLDivElement>(null);
@@ -547,87 +683,7 @@ describe('useFocusTrap steps through the combined list itself (#2230)', () => {
     }
     render(<Two />);
     screen.getByText('i2').focus();
-    tab();
+    expect(tab().defaultPrevented).toBe(true);
     expect(screen.getByText('i1')).toHaveFocus();
   });
-
-  it('does not touch Tab while inactive', () => {
-    render(<Harness active={false} onEscape={() => {}} />);
-    screen.getByText('last').focus();
-    expect(tab().defaultPrevented).toBe(false);
-  });
-
-  it('leaves non-Tab, non-Escape keys alone', () => {
-    render(<Harness active onEscape={() => {}} />);
-    const event = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
-    document.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
-  });
 });
-
-describe('useFocusTrap skips elements that refuse focus (#2230)', () => {
-  function refuseFocus(el: HTMLElement) {
-    el.focus = () => {};
-  }
-
-  it('Tab skips a listed control that refuses focus and lands on the next one', () => {
-    render(<Harness active onEscape={() => {}} />);
-    refuseFocus(screen.getByText('middle'));
-    screen.getByText('first').focus();
-
-    const event = tab();
-    expect(event.defaultPrevented).toBe(true);
-    expect(screen.getByText('last')).toHaveFocus();
-  });
-
-  it('Shift+Tab skips a refusing control as well, wrapping if needed', () => {
-    render(<Harness active onEscape={() => {}} />);
-    refuseFocus(screen.getByText('middle'));
-    screen.getByText('last').focus();
-
-    expect(tab(true).defaultPrevented).toBe(true);
-    expect(screen.getByText('first')).toHaveFocus();
-  });
-
-  it('skips a refusing toast button when wrapping from the last dialog control', () => {
-    render(
-      <>
-        <Harness active onEscape={() => {}} />
-        <ToastRegion>
-          <button type="button">Undo</button>
-        </ToastRegion>
-      </>,
-    );
-    refuseFocus(screen.getByText('Undo'));
-    screen.getByText('last').focus();
-
-    expect(tab().defaultPrevented).toBe(true);
-    expect(screen.getByText('first')).toHaveFocus();
-  });
-
-  it('does not preventDefault when every listed control refuses focus', () => {
-    render(<Harness active onEscape={() => {}} />);
-    for (const name of ['first', 'middle', 'last']) refuseFocus(screen.getByText(name));
-    (document.activeElement as HTMLElement | null)?.blur();
-
-    expect(tab().defaultPrevented).toBe(false);
-    expect(tab(true).defaultPrevented).toBe(false);
-  });
-
-  it('keeps focus on the only control when it is the single listed element', () => {
-    render(<SingleHarness />);
-    screen.getByText('only').focus();
-    expect(tab().defaultPrevented).toBe(true);
-    expect(screen.getByText('only')).toHaveFocus();
-  });
-});
-
-function SingleHarness() {
-  const ref = useRef<HTMLDivElement>(null);
-  useFocusTrap(ref, { active: true, onEscape: () => {} });
-  return (
-    <div ref={ref}>
-      <button type="button">only</button>
-    </div>
-  );
-}

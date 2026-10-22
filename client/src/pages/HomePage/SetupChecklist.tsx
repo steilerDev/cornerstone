@@ -121,14 +121,18 @@ export function SetupChecklist({ setup, onRefetch, onSkip }: SetupChecklistProps
               </span>
               <div className={styles.stepBody}>
                 <span className={shared.srOnly}>
-                  {step.done === true ? t('setup.done') : t('setup.todo')}{' '}
+                  {step.done === true
+                    ? t('setup.done')
+                    : step.done === null
+                      ? t('setup.notChecked')
+                      : t('setup.todo')}{' '}
                 </span>
                 {control}
                 <span className={styles.stepHint}>{t(hintSet.key(step.id))}</span>
                 {step.done === null ? (
                   <span className={styles.stepHint}>
                     {t('setup.cantCheck')}{' '}
-                    <button type="button" className={styles.textButton} onClick={onRefetch}>
+                    <button type="button" className={shared.btnText} onClick={onRefetch}>
                       {t('error.retry')}
                     </button>
                   </span>

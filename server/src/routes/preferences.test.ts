@@ -562,7 +562,9 @@ describe('Preferences Routes', () => {
       ['home.collapsedSections', '[]'],
       ['home.collapsedSections', '["tidy-up"]'],
       ['home.movedNoticeSeen', 'true'],
+      ['home.movedNoticeSeen', 'false'],
       ['home.setupDismissed', 'true'],
+      ['home.setupDismissed', 'false'],
     ])('stores %s = %s (200)', async (key, value) => {
       const { cookie } = await createUserWithSession();
       const response = await patch(cookie, key, value);
@@ -586,11 +588,13 @@ describe('Preferences Routes', () => {
       ['home.collapsedSections', '["tidy-up","tidy-up"]', 'duplicate'],
       ['home.collapsedSections', 'tidy-up', 'not_json'],
       ['home.collapsedSections', 'true', 'not_array'],
-      ['home.movedNoticeSeen', 'false', 'not_true'],
-      ['home.movedNoticeSeen', '"true"', 'not_true'],
-      ['home.movedNoticeSeen', 'yes', 'not_json'],
-      ['home.setupDismissed', '1', 'not_true'],
-      ['home.setupDismissed', 'null', 'not_true'],
+      ['home.movedNoticeSeen', ' true', 'not_boolean'],
+      ['home.movedNoticeSeen', 'True', 'not_boolean'],
+      ['home.movedNoticeSeen', '"true"', 'not_boolean'],
+      ['home.movedNoticeSeen', 'nope', 'not_boolean'],
+      ['home.setupDismissed', '1', 'not_boolean'],
+      ['home.setupDismissed', 'null', 'not_boolean'],
+      ['home.setupDismissed', '', 'not_boolean'],
       ['home.setupDismissed', 'x'.repeat(1025), 'too_large'],
     ])('rejects %s = %j with 400 VALIDATION_ERROR reason %s', async (key, value, reason) => {
       const { cookie } = await createUserWithSession();

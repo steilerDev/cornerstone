@@ -24,7 +24,7 @@
     "empty": "Im Moment wartet nichts auf dich.",
     "hidden_one": "{{count}} vorerst ausgeblendet",
     "hidden_other": "{{count}} vorerst ausgeblendet",
-    "hiddenShow": "Anzeigen",
+    "hiddenShow": "Ausgeblendete anzeigen",
     "hiddenHide": "Wieder ausblenden"
   },
   "catchUp": {
@@ -67,7 +67,7 @@
       "needsSetup": "Füge eine Finanzierungsquelle und eine Kostenangabe hinzu, um dies zu sehen.",
       "noFigure": "Noch keine Angabe"
     },
-    "range": "Zeitraum {{from}} bis {{to}}",
+    "range": "Spanne {{from}} bis {{to}}",
     "stillToPay": {
       "label": "Noch zu zahlen",
       "count_one": "{{count}} offene Rechnung",
@@ -109,7 +109,7 @@
       "firstLog": "Erfasse deinen ersten Tag auf der Baustelle"
     },
     "hint": {
-      "house": "Er erscheint oben auf „Start“ und im Browser-Tab.",
+      "house": "Der Name erscheint oben auf „Start“ und im Browser-Tab.",
       "areas": "Räume, Etagen und Außenbereiche, in denen du arbeitest.",
       "funding": "Eigene Mittel zählen, sobald ein Betrag eingetragen ist.",
       "companies": "Die Firmen, die an deinem Bau arbeiten.",
@@ -120,6 +120,7 @@
     },
     "done": "Abgeschlossen:",
     "todo": "Offen:",
+    "notChecked": "Nicht geprüft:",
     "skip": "Einrichtung überspringen",
     "skipHint": "Du kannst alles weiterhin über das Neu-Menü hinzufügen.",
     "cantCheck": "Konnte nicht geprüft werden"

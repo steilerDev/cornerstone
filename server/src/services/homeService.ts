@@ -22,7 +22,6 @@ import {
   HOME_SETUP_STEPS,
 } from '@cornerstone/shared';
 import type {
-  AreaSummary,
   HomeAgendaItem,
   HomeAgendaKind,
   HomePulseResponse,
@@ -31,7 +30,6 @@ import type {
   HomeSetupStepState,
   HomeWeekResponse,
 } from '@cornerstone/shared';
-import { loadAreaMap, resolveAreaAncestors } from './areaService.js';
 import { getHouseholdSettings } from './appSettingsService.js';
 import { listBackups } from './backupService.js';
 import { computeProjectMoney, getBreakdownMoney, listOpenPayments } from './moneyService.js';
@@ -42,7 +40,10 @@ import {
   workItemProjectionOf,
 } from './schedulingEngine.js';
 import { listWorkItems } from './workItemService.js';
+import { createAreaResolver } from './shared/areaSummary.js';
 import { attentionLinkOf } from './shared/attentionLinks.js';
+import { listOpenPurchases } from './shared/openPurchases.js';
+import { purchaseDeliveryDate } from './shared/purchaseLate.js';
 import { addDaysUtc, buildScheduleIndex, heldUpCauseOf } from './shared/holdsUp.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -84,23 +85,7 @@ export function getHomeWeek(db: DbType, opts: HomeWeekOptions = {}): HomeWeekRes
   const index = buildScheduleIndex(graph);
   const criticalSet = new Set(projection.criticalPath);
 
-  const areaMap = loadAreaMap(db);
-  const areaCache = new Map<string, AreaSummary>();
-  const areaOf = (areaId: string | null): AreaSummary | null => {
-    if (areaId === null) return null;
-    const cached = areaCache.get(areaId);
-    if (cached) return cached;
-    const area = areaMap.get(areaId);
-    if (!area) return null;
-    const summary: AreaSummary = {
-      id: area.id,
-      name: area.name,
-      color: area.color,
-      ancestors: resolveAreaAncestors(areaId, areaMap),
-    };
-    areaCache.set(areaId, summary);
-    return summary;
-  };
+  const areaOf = createAreaResolver(db);
 
   const items: HomeAgendaItem[] = [];
 
@@ -206,29 +191,9 @@ export function getHomeWeek(db: DbType, opts: HomeWeekOptions = {}): HomeWeekRes
   }
 
   // Deliveries: not yet arrived; date = latest ?? earliest ?? target (the N10 row date)
-  const purchaseRows = db.all<{
-    id: string;
-    name: string;
-    targetDeliveryDate: string | null;
-    earliestDeliveryDate: string | null;
-    latestDeliveryDate: string | null;
-    areaId: string | null;
-    companyName: string | null;
-  }>(
-    sql`SELECT
-      h.id                     AS id,
-      h.name                   AS name,
-      h.target_delivery_date   AS targetDeliveryDate,
-      h.earliest_delivery_date AS earliestDeliveryDate,
-      h.latest_delivery_date   AS latestDeliveryDate,
-      h.area_id                AS areaId,
-      v.name                   AS companyName
-    FROM household_items h
-    LEFT JOIN vendors v ON v.id = h.vendor_id
-    WHERE h.status != 'arrived' AND h.actual_delivery_date IS NULL`,
-  );
+  const purchaseRows = listOpenPurchases(db);
   for (const p of purchaseRows) {
-    const date = p.latestDeliveryDate ?? p.earliestDeliveryDate ?? p.targetDeliveryDate;
+    const date = purchaseDeliveryDate(p);
     if (!inRange(date)) continue;
     items.push({
       key: `delivery:household_item:${p.id}`,

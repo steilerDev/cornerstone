@@ -24,7 +24,7 @@
     "empty": "Nothing needs you right now.",
     "hidden_one": "{{count}} hidden for now",
     "hidden_other": "{{count}} hidden for now",
-    "hiddenShow": "Show",
+    "hiddenShow": "Show hidden",
     "hiddenHide": "Hide again"
   },
   "catchUp": {
@@ -120,6 +120,7 @@
     },
     "done": "Done:",
     "todo": "To do:",
+    "notChecked": "Not checked:",
     "skip": "Skip setup",
     "skipHint": "You can still add everything from the New menu.",
     "cantCheck": "Couldn't check"

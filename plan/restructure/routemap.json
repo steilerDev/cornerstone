@@ -165,7 +165,7 @@
       "companyId",
       "openOnly"
     ],
-    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog. #2212 (interim until P4.9): ?create=1 opens today's create modal (or the Paperless picker); kind=offer presets status Offer (quotation); ?companyId= pre-fills the company. The page then removes these keys (replace)."
+    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog. #2212 (interim until P4.9): ?create=1 opens today's create modal (or the Paperless picker); kind=offer presets status Offer (quotation); ?companyId= pre-fills the company. The page then removes these keys (replace). #2230: openOnly=true (open-items mode, oldest due first) is carried; Home's Still to pay tile links to routeUrl('invoices', undefined, { openOnly: 'true' }) until P4.6 serves the ?openOnly=true -> ?status=pending query map (the To pay chip)."
   },
   {
     "from": "/budget/invoices/new/paperless",

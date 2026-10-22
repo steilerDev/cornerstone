@@ -33,7 +33,7 @@ import { ATTENTION_RULES, attentionRowKey } from '@cornerstone/shared';
 import type { OpenPaymentItem } from './depositAggregateUtils.js';
 import type { ScheduleGraph, ScheduleProjection } from '../schedulingEngine.js';
 import { attentionLinkOf } from './attentionLinks.js';
-import { isPurchaseLate } from './purchaseLate.js';
+import { isPurchaseLate, purchaseDeliveryDate } from './purchaseLate.js';
 import {
   addDaysUtc,
   buildScheduleIndex,
@@ -431,7 +431,7 @@ function purchaseCandidates(input: AttentionInput): Candidate[] {
       continue;
     }
     // One of the three dates is set here (late needs a planned date; the window needs a date)
-    const date = (p.latestDeliveryDate ?? p.earliestDeliveryDate ?? p.targetDeliveryDate)!;
+    const date = purchaseDeliveryDate(p)!;
     out.push({
       row: buildRow({
         rule: 'N10',

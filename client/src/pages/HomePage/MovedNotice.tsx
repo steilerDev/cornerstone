@@ -23,7 +23,7 @@ export function MovedNotice({ onDismiss }: MovedNoticeProps) {
       </p>
       <button
         type="button"
-        className={shared.bannerClose}
+        className={styles.noticeClose}
         aria-label={t('notice.dismiss')}
         onClick={() => {
           onDismiss();

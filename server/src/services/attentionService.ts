@@ -13,15 +13,15 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { DIARY_ISSUE_SEVERITIES, MANUAL_DIARY_ENTRY_TYPES } from '@cornerstone/shared';
 import type {
-  AreaSummary,
   AttentionResponse,
   DiaryIssueSeverity,
   ManualDiaryEntryType,
 } from '@cornerstone/shared';
-import { loadAreaMap, resolveAreaAncestors } from './areaService.js';
 import { readSnoozes } from './attentionSnoozeService.js';
 import { computeProjectMoney, listOpenPayments } from './moneyService.js';
 import { loadScheduleGraph, projectSchedule } from './schedulingEngine.js';
+import { createAreaResolver } from './shared/areaSummary.js';
+import { listOpenPurchases } from './shared/openPurchases.js';
 import {
   computeAttention,
   type AttentionDefect,
@@ -63,23 +63,7 @@ export function getAttention(db: DbType, opts: GetAttentionOptions): AttentionRe
   const projection = projectSchedule(graph, today);
 
   // Areas: one query, resolved in memory
-  const areaMap = loadAreaMap(db);
-  const areaCache = new Map<string, AreaSummary>();
-  const areaOf = (areaId: string | null): AreaSummary | null => {
-    if (areaId === null) return null;
-    const cached = areaCache.get(areaId);
-    if (cached) return cached;
-    const area = areaMap.get(areaId);
-    if (!area) return null;
-    const summary: AreaSummary = {
-      id: area.id,
-      name: area.name,
-      color: area.color,
-      ancestors: resolveAreaAncestors(areaId, areaMap),
-    };
-    areaCache.set(areaId, summary);
-    return summary;
-  };
+  const areaOf = createAreaResolver(db);
 
   // Tasks (title, status, planned dates, assigned company)
   const workItemRows = db.all<{
@@ -156,31 +140,7 @@ export function getAttention(db: DbType, opts: GetAttentionOptions): AttentionRe
   }
 
   // Purchases not yet delivered (N10, date-based: the daily reschedule gives that day's delivery dates)
-  const purchaseRows = db.all<{
-    id: string;
-    name: string;
-    status: string;
-    targetDeliveryDate: string | null;
-    earliestDeliveryDate: string | null;
-    latestDeliveryDate: string | null;
-    actualDeliveryDate: string | null;
-    areaId: string | null;
-    companyName: string | null;
-  }>(
-    sql`SELECT
-      h.id                     AS id,
-      h.name                   AS name,
-      h.status                 AS status,
-      h.target_delivery_date   AS targetDeliveryDate,
-      h.earliest_delivery_date AS earliestDeliveryDate,
-      h.latest_delivery_date   AS latestDeliveryDate,
-      h.actual_delivery_date   AS actualDeliveryDate,
-      h.area_id                AS areaId,
-      v.name                   AS companyName
-    FROM household_items h
-    LEFT JOIN vendors v ON v.id = h.vendor_id
-    WHERE h.status != 'arrived' AND h.actual_delivery_date IS NULL`,
-  );
+  const purchaseRows = listOpenPurchases(db);
   const purchases: AttentionPurchase[] = purchaseRows.map((row) => ({
     id: row.id,
     name: row.name,

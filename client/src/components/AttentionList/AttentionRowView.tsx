@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
+import sharedStyles from '../../styles/shared.module.css';
 import type {
   AttentionAction,
   AttentionLink,
@@ -438,7 +439,7 @@ export function AttentionRowView({
       {snoozed ? (
         <button
           type="button"
-          className={styles.textButton}
+          className={sharedStyles.btnText}
           aria-disabled={busy ? 'true' : undefined}
           onClick={() => void handleShowAgain()}
           data-testid={`${testId}-show-again`}
@@ -449,7 +450,7 @@ export function AttentionRowView({
         <>
           <button
             type="button"
-            className={styles.textButton}
+            className={sharedStyles.btnText}
             title={t('attention.notNowHint')}
             aria-describedby={hintId}
             aria-disabled={busy ? 'true' : undefined}

@@ -88,7 +88,6 @@
   }
 }
 
-/* variant="entry": a manual diary entry (#2225). The title link is stretched over the row. */
 /* variant="object": a record that needs a look (#2230). Severity picks the border colour. */
 .objectRow {
   display: flex;
@@ -205,6 +204,7 @@
   background-color: var(--color-bg-secondary);
 }
 
+/* variant="entry": a manual diary entry (#2225). The title link is stretched over the row. */
 .entryRow {
   position: relative;
   display: flex;

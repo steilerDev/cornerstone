@@ -38,7 +38,7 @@ export type HomePreferenceKey = (typeof HOME_PREFERENCE_KEYS)[number];
 export const HOME_PREFERENCE_MAX_LENGTH = 1024;
 
 export type HomePreferenceInvalidReason =
-  'too_large' | 'not_json' | 'not_array' | 'bad_section' | 'duplicate' | 'not_true';
+  'too_large' | 'not_json' | 'not_array' | 'bad_section' | 'duplicate' | 'not_boolean';
 
 export function isHomePreferenceKey(key: string): key is HomePreferenceKey {
   return (HOME_PREFERENCE_KEYS as readonly string[]).includes(key);
@@ -56,14 +56,15 @@ export function validateHomePreferenceValue(
   value: string,
 ): HomePreferenceInvalidReason | null {
   if (value.length > HOME_PREFERENCE_MAX_LENGTH) return 'too_large';
+  const allowed = allowedFor(key);
+  // Boolean keys: exactly the string "true" or "false" (no parsing, no whitespace)
+  if (allowed === null) return value === 'true' || value === 'false' ? null : 'not_boolean';
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
   } catch {
     return 'not_json';
   }
-  const allowed = allowedFor(key);
-  if (allowed === null) return parsed === true ? null : 'not_true';
   if (!Array.isArray(parsed)) return 'not_array';
   const seen = new Set<string>();
   for (const member of parsed as unknown[]) {

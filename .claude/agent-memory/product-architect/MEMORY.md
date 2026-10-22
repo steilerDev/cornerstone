@@ -24,6 +24,7 @@
 - [Two-phase producers](recurring-patterns.md) — tray at encode vs host at store: gate "remove last" on the in-flight count (PR #2324)
 - [Extract-and-share refactors](recurring-patterns.md) — check the original caller really uses the extracted helper; one-fixture consistency tests hide forks (PR #2325)
 - [Redefined stored flag](recurring-patterns.md) — grep UI copy, type JSDoc and all wiki notes of the field (is_late, PR #2326)
+- [Focus trap owning every Tab](recurring-patterns.md) — per-radio Tab stops, skipped `<summary>`; ask for junction-only stepping (PR #2327)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped so array-shape gates are proxies; **`splitKind` SHIPPED #1911/PR #2015** incl. the ≠S-per-arm predicate, the residual arithmetic proving `(less deposit)` in both directions, the UNION-dedup/`COUNT(*)` trap, and why `isSplit` must be retained as an independent cross-check; pdfmake `'2*'` width trap; wiki + shared type JSDoc fixed (#1914, #1917/PR #1994); **principle now ADR-036 (scope-matching rule + converse); fields renamed `budgetLinesForSource`/`depositsVisibleToSource` (#2017); `aiError` write-backs = error-display carve-out, not a tier opt-out (Architecture, #2014)**

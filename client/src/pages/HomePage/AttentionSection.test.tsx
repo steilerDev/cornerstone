@@ -193,7 +193,9 @@ describe('AttentionSection', () => {
 
     const hidden = await screen.findByTestId('home-attention-hidden');
     expect(hidden).toHaveTextContent('2 hidden for now');
-    await userEvent.click(within(hidden).getByRole('button', { name: 'Show' }));
+    const show = within(hidden).getByRole('button', { name: 'Show hidden' });
+    expect(show.className).toMatch(/btnText/);
+    await userEvent.click(show);
 
     await waitFor(() =>
       expect(mockGetAttention).toHaveBeenLastCalledWith({ includeSnoozed: true }),

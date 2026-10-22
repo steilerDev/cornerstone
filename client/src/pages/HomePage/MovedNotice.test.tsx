@@ -26,6 +26,13 @@ describe('MovedNotice', () => {
     expect(notice).not.toHaveAttribute('role', 'status');
   });
 
+  it('closes with the neutral icon button, not a text button', () => {
+    render(<MovedNotice onDismiss={jest.fn()} />);
+    const close = screen.getByRole('button', { name: 'Dismiss' });
+    expect(close.className).toMatch(/noticeClose/);
+    expect(close.className).not.toMatch(/btnText|btnPrimary/);
+  });
+
   it('dismisses once and moves focus to the page heading', async () => {
     const onDismiss = jest.fn();
     render(

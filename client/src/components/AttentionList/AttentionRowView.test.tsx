@@ -487,6 +487,11 @@ describe('AttentionRowView: status actions', () => {
 });
 
 describe('AttentionRowView: Not now', () => {
+  it('Not now and Show again use the shared text button class', () => {
+    renderRow(makeRow('N1'));
+    expect(screen.getByTestId(`${TID}-not-now`).className).toMatch(/btnText/);
+  });
+
   it('describes the button with the 7-day hint and keeps the visible name "Not now"', () => {
     renderRow(makeRow('N1'));
     const button = screen.getByTestId(`${TID}-not-now`);
@@ -548,6 +553,7 @@ describe('AttentionRowView: snoozed row', () => {
     renderRow(snoozed());
     expect(row()).toHaveTextContent(/Back on/);
     expect(screen.getByTestId(`${TID}-show-again`)).toHaveTextContent('Show again');
+    expect(screen.getByTestId(`${TID}-show-again`).className).toMatch(/btnText/);
     expect(screen.queryByTestId(`${TID}-not-now`)).toBeNull();
     expect(screen.queryByTestId(`${TID}-mark_done`)).toBeNull();
     expect(screen.queryByTestId(`${TID}-reschedule`)).toBeNull();

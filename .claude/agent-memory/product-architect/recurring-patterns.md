@@ -2089,3 +2089,12 @@ copy that renders the flag ("Floored to today" in `GanttTooltip`), in shared-typ
 second wiki note far from the edited one (API-Contract Timeline notes). Grep the field name across
 `client/src` (render sites plus i18n), `shared/src/types` comments and the whole wiki, not only the
 section the PR touched.
+
+## Focus trap that owns every Tab (PR #2327)
+
+A trap that moves from "wrap at the edges" to "step every Tab through `getFocusableElements`"
+(to add toast buttons to the cycle) silently gives each radio of a group its own Tab stop. The browser
+makes a group one stop. It also skips natively focusable elements outside the selector (`<summary>`,
+`[contenteditable]`). Grep the dialogs for `type="radio"` (MoreSheet, ConvertQuotationModal,
+InvoiceDepositFormModal) and ask for junction-only stepping or radio-group collapsing. Watch for a
+rewritten "middle control" test that now locks the new behaviour in.

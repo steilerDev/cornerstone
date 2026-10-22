@@ -18,6 +18,18 @@ export function purchasePlannedDate(
   return p.latestDeliveryDate ?? p.earliestDeliveryDate;
 }
 
+/**
+ * The date a not-yet-delivered purchase is shown on (attention N10 row, Home agenda delivery):
+ * latest ?? earliest ?? target; null when none is set.
+ */
+export function purchaseDeliveryDate(
+  p: Pick<PurchaseLateFields, 'earliestDeliveryDate' | 'latestDeliveryDate'> & {
+    targetDeliveryDate: string | null;
+  },
+): string | null {
+  return purchasePlannedDate(p) ?? p.targetDeliveryDate;
+}
+
 /** Not delivered and its planned delivery date is before `today`. */
 export function isPurchaseLate(p: PurchaseLateFields, today: string): boolean {
   if (p.status === 'arrived' || p.actualDeliveryDate !== null) return false;

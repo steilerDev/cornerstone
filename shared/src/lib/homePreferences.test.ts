@@ -131,23 +131,40 @@ describe('validateHomePreferenceValue: collapsed sections', () => {
 });
 
 describe('validateHomePreferenceValue: boolean keys', () => {
-  it.each([HOME_MOVED_NOTICE_SEEN_KEY, HOME_SETUP_DISMISSED_KEY] as const)(
-    '%s accepts true',
-    (key) => {
-      expect(validateHomePreferenceValue(key, 'true')).toBeNull();
-    },
-  );
+  const keys = [HOME_MOVED_NOTICE_SEEN_KEY, HOME_SETUP_DISMISSED_KEY] as const;
 
-  it.each(['false', '"true"', '1', '0', 'null', '[]', '{}', '[true]'])(
-    'rejects %s as not_true',
-    (value) => {
-      expect(validateHomePreferenceValue(HOME_MOVED_NOTICE_SEEN_KEY, value)).toBe('not_true');
-      expect(validateHomePreferenceValue(HOME_SETUP_DISMISSED_KEY, value)).toBe('not_true');
-    },
-  );
+  it.each(keys)('%s accepts exactly the strings true and false', (key) => {
+    expect(validateHomePreferenceValue(key, 'true')).toBeNull();
+    expect(validateHomePreferenceValue(key, 'false')).toBeNull();
+  });
 
-  it.each(['', 'yes', 'True', 'tru'])('rejects unparsable %j as not_json', (value) => {
-    expect(validateHomePreferenceValue(HOME_SETUP_DISMISSED_KEY, value)).toBe('not_json');
+  it.each([
+    ' true',
+    'true ',
+    'True',
+    'TRUE',
+    'False',
+    '1',
+    '0',
+    'nope',
+    '',
+    'yes',
+    'null',
+    '"true"',
+    '[]',
+    '{}',
+    '[true]',
+    'truefalse',
+  ])('rejects %j as not_boolean (no parsing, no trimming)', (value) => {
+    for (const key of keys) {
+      expect(validateHomePreferenceValue(key, value)).toBe('not_boolean');
+    }
+  });
+
+  it('never reports not_json or not_array for a boolean key', () => {
+    for (const key of keys) {
+      expect(validateHomePreferenceValue(key, '{nope')).toBe('not_boolean');
+    }
   });
 });
 

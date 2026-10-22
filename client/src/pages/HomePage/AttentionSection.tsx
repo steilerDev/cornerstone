@@ -101,7 +101,7 @@ export function AttentionSection({ attention, headingRef }: AttentionSectionProp
               <span>{t('attention.hidden', { count: data.snoozedCount })}</span>
               <button
                 type="button"
-                className={styles.textButton}
+                className={shared.btnText}
                 onClick={() => setIncludeSnoozed(!includeSnoozed)}
                 data-testid="home-attention-hidden-toggle"
               >
