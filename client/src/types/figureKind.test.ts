@@ -30,6 +30,7 @@ const FIGURE_FILES = [
   'client/src/components/CostBreakdownTable/CostBreakdownTable.tsx',
   'client/src/components/GanttChart/GanttTooltip.tsx',
   'client/src/components/StatTile/StatTile.tsx',
+  'client/src/components/SummaryStrip/SummaryStrip.tsx',
   'client/src/pages/HomePage/PulseSection.tsx',
   'client/src/pages/InvoicesPage/InvoicesPage.tsx',
   'client/src/pages/VendorDetailPage/VendorDetailPage.tsx',

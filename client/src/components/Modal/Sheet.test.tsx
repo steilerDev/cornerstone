@@ -234,6 +234,47 @@ describe('Sheet (#2212 extensions)', () => {
     expect(screen.getByText('body one').parentElement?.className).not.toContain('bodyFullScreen');
   });
 
+  it('side adds the side panel class and the full-height body class, not the full-screen panel class', () => {
+    render(<Basic variant="side" />);
+    const panel = screen.getByTestId('sheet');
+    expect(panel.className).toContain('panelSide');
+    expect(panel.className).not.toContain('panelFullScreen');
+    expect(screen.getByText('body one').parentElement?.className).toContain('bodyFullScreen');
+  });
+
+  it('focusTitleOnOpen focuses the title heading (tabIndex -1) instead of the first control', () => {
+    render(<Basic focusTitleOnOpen />);
+    const title = screen.getByRole('heading', { name: 'T' });
+    expect(title).toHaveAttribute('tabindex', '-1');
+    expect(title).toHaveFocus();
+  });
+
+  it('focusTitleOnOpen also works with headerStart', () => {
+    render(<Basic focusTitleOnOpen headerStart={<button type="button">back</button>} />);
+    expect(screen.getByRole('heading', { name: 'T' })).toHaveFocus();
+  });
+
+  it('without focusTitleOnOpen the title has no tabindex and the first control gets focus', () => {
+    render(<Basic />);
+    expect(screen.getByRole('heading', { name: 'T' })).not.toHaveAttribute('tabindex');
+    expect(screen.getByText('body one')).toHaveFocus();
+  });
+
+  it('initialFocusRef wins over focusTitleOnOpen', () => {
+    function Both() {
+      const ref = useRef<HTMLButtonElement>(null);
+      return (
+        <Sheet id="x" open title="T" onClose={() => {}} focusTitleOnOpen initialFocusRef={ref}>
+          <button type="button" ref={ref}>
+            wanted
+          </button>
+        </Sheet>
+      );
+    }
+    render(<Both />);
+    expect(screen.getByText('wanted')).toHaveFocus();
+  });
+
   it('renders the footer slot below the body only when given', () => {
     const { rerender } = render(<Basic />);
     expect(screen.queryByTestId('foot')).toBeNull();

@@ -18,12 +18,22 @@ export interface SheetProps {
   readonly returnFocusRef?: RefObject<HTMLElement | null>;
   readonly testId?: string;
   readonly children: ReactNode;
-  /** `fullScreen` covers the viewport (phone object forms). Default `bottom`. */
-  readonly variant?: 'bottom' | 'fullScreen';
+  /**
+   * `fullScreen` covers the viewport (phone object forms). `side` is a full-height panel on the
+   * right edge (`--side-sheet-width`, at most the viewport; the Documents panel from 768 px).
+   * Default `bottom`.
+   */
+  readonly variant?: 'bottom' | 'fullScreen' | 'side';
   /** Pinned below the scrolling body (e.g. Cancel and Save). */
   readonly footer?: ReactNode;
   /** Element to focus on open instead of the first focusable element in the body. */
   readonly initialFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * Focus the title (made programmatically focusable) on open instead of the first control, for
+   * informational sheets whose first control would have a context-free name. `initialFocusRef`
+   * wins when both are set.
+   */
+  readonly focusTitleOnOpen?: boolean;
   /** false: Escape, the backdrop and Close do nothing (e.g. while busy). Default true. */
   readonly dismissible?: boolean;
   /** Rendered before the title inside the header (e.g. a back link). */
@@ -63,6 +73,7 @@ export function Sheet({
   variant = 'bottom',
   footer,
   initialFocusRef,
+  focusTitleOnOpen = false,
   dismissible = true,
   headerStart,
   restoreFocusOnUnmount = false,
@@ -75,6 +86,7 @@ export function Sheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const restoreRef = useRef(false);
   const wasOpenRef = useRef(false);
 
@@ -98,7 +110,8 @@ export function Sheet({
   useEffect(() => {
     if (open) {
       const [first] = bodyRef.current ? getFocusableElements(bodyRef.current) : [];
-      (initialFocusRef?.current ?? first ?? closeRef.current)?.focus();
+      const titleTarget = focusTitleOnOpen ? titleRef.current : null;
+      (initialFocusRef?.current ?? titleTarget ?? first ?? closeRef.current)?.focus();
     } else if (wasOpenRef.current && restoreRef.current && !restoreFocusOnUnmount) {
       returnFocusRef?.current?.focus();
     }
@@ -131,6 +144,7 @@ export function Sheet({
           styles.panel,
           open && styles.panelOpen,
           variant === 'fullScreen' && styles.panelFullScreen,
+          variant === 'side' && styles.panelSide,
           variant === 'fullScreen' && contentMaxWidth !== undefined && styles.panelContentWidth,
         )}
         style={{
@@ -146,12 +160,22 @@ export function Sheet({
           {headerStart ? (
             <div className={cx(styles.headerStart, hideTitle && styles.headerStartGrow)}>
               {headerStart}
-              <h2 id={titleId} className={hideTitle ? sharedStyles.srOnly : styles.title}>
+              <h2
+                id={titleId}
+                ref={titleRef}
+                tabIndex={focusTitleOnOpen ? -1 : undefined}
+                className={hideTitle ? sharedStyles.srOnly : styles.title}
+              >
                 {title}
               </h2>
             </div>
           ) : (
-            <h2 id={titleId} className={hideTitle ? sharedStyles.srOnly : styles.title}>
+            <h2
+              id={titleId}
+              ref={titleRef}
+              tabIndex={focusTitleOnOpen ? -1 : undefined}
+              className={hideTitle ? sharedStyles.srOnly : styles.title}
+            >
               {title}
             </h2>
           )}
@@ -180,7 +204,11 @@ export function Sheet({
         </div>
         <div
           ref={bodyRef}
-          className={cx(styles.body, variant === 'fullScreen' && styles.bodyFullScreen)}
+          className={cx(
+            styles.body,
+            variant === 'fullScreen' && styles.bodyFullScreen,
+            variant === 'side' && styles.bodyFullScreen,
+          )}
         >
           {children}
         </div>

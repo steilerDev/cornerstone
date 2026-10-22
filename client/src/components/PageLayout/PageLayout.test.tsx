@@ -225,4 +225,48 @@ describe('PageLayout', () => {
     expect(first).toHaveClass('header');
     expect(first).toContainElement(screen.getByRole('heading', { level: 1, name: 'Grants' }));
   });
+
+  // ── header slot (#2233) ───────────────────────────────────────────────────
+
+  it('renders a custom header instead of the built-in title row', () => {
+    const { container } = render(
+      <PageLayout header={<header data-testid="custom-header">Object</header>}>
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    expect(screen.getByTestId('custom-header')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(container.querySelector('.header')).toBeNull();
+    expect(screen.getByText('content').parentElement).toHaveClass('content');
+  });
+
+  it('puts breadcrumbs, then the custom header, then the content, with width and test id', () => {
+    const { container } = render(
+      <PageLayout
+        maxWidth="narrow"
+        testId="object-page"
+        breadcrumbs={<nav data-testid="trail">Trail</nav>}
+        header={<header data-testid="custom-header">Object</header>}
+      >
+        <p data-testid="body">content</p>
+      </PageLayout>,
+    );
+
+    const root = screen.getByTestId('object-page');
+    expect(root).toBe(container.firstElementChild);
+    expect(root).toHaveClass('container', 'containerNarrow');
+    expect(
+      Array.from(root.children).map((el) => el.getAttribute('data-testid') ?? el.className),
+    ).toEqual(['trail', 'custom-header', 'content']);
+  });
+
+  it('omits the test id attribute when none is given for a custom header', () => {
+    const { container } = render(
+      <PageLayout header={<header>Object</header>}>
+        <p>content</p>
+      </PageLayout>,
+    );
+    expect(container.firstElementChild).not.toHaveAttribute('data-testid');
+  });
 });

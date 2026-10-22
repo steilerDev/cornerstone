@@ -23,7 +23,7 @@ import {
   budgetSources,
   subsidyPrograms,
 } from '../db/schema.js';
-import { AppError, NotFoundError } from '../errors/AppError.js';
+import { AppError, ConflictError, NotFoundError } from '../errors/AppError.js';
 import type {
   DocumentLink,
   DocumentLinkWithMetadata,
@@ -32,6 +32,7 @@ import type {
   AttachmentType,
 } from '@cornerstone/shared';
 import * as paperlessService from './paperlessService.js';
+import type { UndoTransaction } from './undoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -71,6 +72,52 @@ function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$i
   return db.select().from(users).where(eq(users.id, createdBy)).get() ?? null;
 }
 
+const ENTITY_NOT_FOUND_MESSAGES: Record<DocumentLinkEntityType, string> = {
+  work_item: 'Work item not found',
+  invoice: 'Invoice not found',
+  household_item: 'Household item not found',
+  budget_source: 'Budget source not found',
+  subsidy_program: 'Subsidy program not found',
+};
+
+/**
+ * True when the linked record exists (application-layer FK for the polymorphic entity_id).
+ */
+export function entityExists(
+  db: Pick<DbType, 'select'>,
+  entityType: DocumentLinkEntityType,
+  entityId: string,
+): boolean {
+  switch (entityType) {
+    case 'work_item':
+      return !!db
+        .select({ id: workItems.id })
+        .from(workItems)
+        .where(eq(workItems.id, entityId))
+        .get();
+    case 'invoice':
+      return !!db.select({ id: invoices.id }).from(invoices).where(eq(invoices.id, entityId)).get();
+    case 'household_item':
+      return !!db
+        .select({ id: householdItems.id })
+        .from(householdItems)
+        .where(eq(householdItems.id, entityId))
+        .get();
+    case 'budget_source':
+      return !!db
+        .select({ id: budgetSources.id })
+        .from(budgetSources)
+        .where(eq(budgetSources.id, entityId))
+        .get();
+    case 'subsidy_program':
+      return !!db
+        .select({ id: subsidyPrograms.id })
+        .from(subsidyPrograms)
+        .where(eq(subsidyPrograms.id, entityId))
+        .get();
+  }
+}
+
 /**
  * Create a link between a Cornerstone entity and a Paperless-ngx document.
  *
@@ -94,31 +141,8 @@ export function createLink(
   attachmentType: AttachmentType | null = null,
 ): DocumentLink {
   // Validate entity exists (application-layer FK enforcement)
-  if (entityType === 'work_item') {
-    const item = db.select().from(workItems).where(eq(workItems.id, entityId)).get();
-    if (!item) {
-      throw new NotFoundError('Work item not found');
-    }
-  } else if (entityType === 'invoice') {
-    const invoice = db.select().from(invoices).where(eq(invoices.id, entityId)).get();
-    if (!invoice) {
-      throw new NotFoundError('Invoice not found');
-    }
-  } else if (entityType === 'household_item') {
-    const item = db.select().from(householdItems).where(eq(householdItems.id, entityId)).get();
-    if (!item) {
-      throw new NotFoundError('Household item not found');
-    }
-  } else if (entityType === 'budget_source') {
-    const source = db.select().from(budgetSources).where(eq(budgetSources.id, entityId)).get();
-    if (!source) {
-      throw new NotFoundError('Budget source not found');
-    }
-  } else if (entityType === 'subsidy_program') {
-    const program = db.select().from(subsidyPrograms).where(eq(subsidyPrograms.id, entityId)).get();
-    if (!program) {
-      throw new NotFoundError('Subsidy program not found');
-    }
+  if (!entityExists(db, entityType, entityId)) {
+    throw new NotFoundError(ENTITY_NOT_FOUND_MESSAGES[entityType]);
   }
 
   const id = randomUUID();
@@ -144,8 +168,7 @@ export function createLink(
       })
       .run();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('UNIQUE constraint failed')) {
+    if (String(err).includes('UNIQUE constraint failed')) {
       throw new AppError(
         'DUPLICATE_DOCUMENT_LINK',
         409,
@@ -185,10 +208,11 @@ export async function getLinksForEntity(
   const userCache = new Map<string, typeof users.$inferSelect | null>();
   const resolveUser = (createdBy: string | null) => {
     if (!createdBy) return null;
-    if (!userCache.has(createdBy)) {
-      userCache.set(createdBy, resolveCreatedBy(db, createdBy));
-    }
-    return userCache.get(createdBy) ?? null;
+    const cached = userCache.get(createdBy);
+    if (cached !== undefined) return cached;
+    const user = resolveCreatedBy(db, createdBy);
+    userCache.set(createdBy, user);
+    return user;
   };
 
   // Bulk-fetch all Paperless-ngx document metadata in a single API call
@@ -218,16 +242,71 @@ export async function getLinksForEntity(
   return enriched;
 }
 
+/** Snapshot of a deleted document link, used to restore it (contract 11). */
+export interface DeletedDocumentLinkSnapshot {
+  readonly row: typeof documentLinks.$inferSelect;
+}
+
 /**
- * Delete a document link by ID.
+ * Read a document link and delete it in one transaction.
  *
- * @returns true if the link was found and deleted, false if not found
+ * @returns the snapshot, or null when the link does not exist
  */
-export function deleteLink(db: DbType, id: string): boolean {
-  const existing = db.select().from(documentLinks).where(eq(documentLinks.id, id)).get();
-  if (!existing) return false;
-  db.delete(documentLinks).where(eq(documentLinks.id, id)).run();
-  return true;
+export function deleteLinkWithSnapshot(db: DbType, id: string): DeletedDocumentLinkSnapshot | null {
+  return db.transaction((tx) => {
+    const row = tx.select().from(documentLinks).where(eq(documentLinks.id, id)).get();
+    if (!row) return null;
+    tx.delete(documentLinks).where(eq(documentLinks.id, id)).run();
+    return { row };
+  });
+}
+
+/**
+ * Re-insert a deleted document link with its original id.
+ *
+ * @throws ConflictError (details.changed) when the linked record is gone, the same document
+ *   was linked again to the same record in the meantime, or the id is taken
+ */
+export function restoreDeletedLink(
+  tx: UndoTransaction,
+  snapshot: DeletedDocumentLinkSnapshot,
+): void {
+  const { row } = snapshot;
+  const changed = { changed: [{ type: 'document_link', id: row.id }] };
+  const refuse = (): never => {
+    throw new ConflictError('The record changed after this action', changed);
+  };
+
+  const entityType = row.entityType as DocumentLinkEntityType;
+  if (!entityExists(tx, entityType, row.entityId)) refuse();
+
+  const relinked = tx
+    .select({ id: documentLinks.id })
+    .from(documentLinks)
+    .where(
+      and(
+        eq(documentLinks.entityType, row.entityType),
+        eq(documentLinks.entityId, row.entityId),
+        eq(documentLinks.paperlessDocumentId, row.paperlessDocumentId),
+      ),
+    )
+    .get();
+  if (relinked) refuse();
+
+  const idTaken = tx
+    .select({ id: documentLinks.id })
+    .from(documentLinks)
+    .where(eq(documentLinks.id, row.id))
+    .get();
+  if (idTaken) refuse();
+
+  const creator = row.createdBy
+    ? tx.select({ id: users.id }).from(users).where(eq(users.id, row.createdBy)).get()
+    : undefined;
+
+  tx.insert(documentLinks)
+    .values({ ...row, createdBy: creator ? row.createdBy : null })
+    .run();
 }
 
 /**

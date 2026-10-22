@@ -75,24 +75,25 @@ jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
   fetchBudgetBreakdown: jest.fn(),
 }));
 
-// ─── Mock: LinkedDocumentsSection — avoids deep dependency chain (Paperless hooks, etc.) ───
+// ─── Mock: Documents panel host — avoids the Paperless hooks and the sheet tree ───
 
-// Capture the last props passed to LinkedDocumentsSection so tests can assert them
-// (prefixed with _ because assertions use DOM data-attributes, not this variable directly)
-let _capturedLinkedDocsSectionProps: { entityType: string; entityId: string } | null = null;
-
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  DocumentsPanelButton: function MockDocumentsPanelButton(props: {
     entityType: string;
     entityId: string;
+    contextName?: string;
+    testId?: string;
   }) {
-    _capturedLinkedDocsSectionProps = { entityType: props.entityType, entityId: props.entityId };
     return (
-      <div
-        data-testid="linked-documents-section"
+      <button
+        type="button"
+        data-testid={props.testId ?? 'documents-panel-button'}
         data-entity-type={props.entityType}
         data-entity-id={props.entityId}
-      />
+        data-context-name={props.contextName}
+      >
+        Documents
+      </button>
     );
   },
 }));
@@ -295,8 +296,6 @@ describe('SubsidyProgramsPage', () => {
 
     // Default: categories return empty list unless overridden
     mockFetchBudgetCategories.mockResolvedValue(emptyCategoriesResponse);
-
-    _capturedLinkedDocsSectionProps = null;
 
     // Default: budget overview with empty oversubscribed subsidies
     mockFetchBudgetOverview.mockResolvedValue({
@@ -2090,10 +2089,10 @@ describe('SubsidyProgramsPage', () => {
     });
   });
 
-  // ─── Docs toggle (story #1744) ──────────────────────────────────────────────
+  // ─── Documents panel button (story #1744, #2233) ───────────────────────────
 
-  describe('docs toggle (paperclip button)', () => {
-    it('renders a docs toggle button for each program row', async () => {
+  describe('Documents panel button per row', () => {
+    it('renders one Documents button per program with the entity type, id and the program name as context', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
 
       renderPage();
@@ -2102,159 +2101,32 @@ describe('SubsidyProgramsPage', () => {
         expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
       });
 
-      // The docs toggle button has aria-controls matching program-docs-{id}
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}`);
-      expect(docsBtn).toBeDefined();
+      const first = screen.getByTestId(`program-docs-${sampleProgram1.id}`);
+      expect(first).toHaveAttribute('data-entity-type', 'subsidy_program');
+      expect(first).toHaveAttribute('data-entity-id', sampleProgram1.id);
+      expect(first).toHaveAttribute('data-context-name', 'Energy Rebate');
+      const second = screen.getByTestId(`program-docs-${sampleProgram2.id}`);
+      expect(second).toHaveAttribute('data-entity-id', sampleProgram2.id);
+      expect(second).toHaveAttribute('data-context-name', 'Fixed Grant');
     });
 
-    it('clicking the docs toggle button renders LinkedDocumentsSection with entityType=subsidy_program and correct entityId', async () => {
+    it('no longer renders the old docs toggle or an inline documents section', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
 
-      renderPage();
+      const { container } = renderPage();
 
       await waitFor(() => {
         expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
       });
 
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find(
-          (btn) =>
-            btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}` &&
-            btn.getAttribute('aria-expanded') === 'false',
-        );
-      expect(docsBtn).toBeDefined();
-
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
-      });
-
-      const section = screen.getByTestId('linked-documents-section');
-      expect(section.getAttribute('data-entity-type')).toBe('subsidy_program');
-      expect(section.getAttribute('data-entity-id')).toBe(sampleProgram1.id);
-    });
-
-    it('clicking the docs toggle button a second time hides LinkedDocumentsSection', async () => {
-      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}`);
-      expect(docsBtn).toBeDefined();
-
-      // First click — opens
-      fireEvent.click(docsBtn!);
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
-      );
-
-      // Second click — closes
-      fireEvent.click(docsBtn!);
-      await waitFor(() =>
-        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
-      );
-    });
-
-    it('docs toggle button has aria-expanded=false initially', async () => {
-      mockFetchSubsidyPrograms.mockResolvedValueOnce({ subsidyPrograms: [sampleProgram1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}`);
-      expect(docsBtn).toBeDefined();
-      expect(docsBtn!.getAttribute('aria-expanded')).toBe('false');
-    });
-
-    it('docs toggle button has aria-expanded=true after clicking', async () => {
-      mockFetchSubsidyPrograms.mockResolvedValueOnce({ subsidyPrograms: [sampleProgram1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}`);
-      expect(docsBtn).toBeDefined();
-
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() => {
-        expect(docsBtn!.getAttribute('aria-expanded')).toBe('true');
-      });
-    });
-
-    it('docs toggle button is disabled when editingProgram is active', async () => {
-      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
-      });
-
-      // Start editing program1
-      const editBtn = screen.getByRole('button', { name: /edit energy rebate/i });
-      fireEvent.click(editBtn);
-
-      await waitFor(() => {
-        // All docs toggles should be disabled when editing
-        const allDocsToggleBtns = screen
-          .getAllByRole('button', { hidden: true })
-          .filter((btn) => btn.getAttribute('aria-controls')?.startsWith('program-docs-'));
-        expect(allDocsToggleBtns.length).toBeGreaterThan(0);
-        for (const btn of allDocsToggleBtns) {
-          expect(btn).toBeDisabled();
-        }
-      });
-    });
-
-    it('LinkedDocumentsSection is hidden when editing the same program', async () => {
-      mockFetchSubsidyPrograms.mockResolvedValueOnce({ subsidyPrograms: [sampleProgram1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Energy Rebate')).toBeInTheDocument();
-      });
-
-      // Open docs panel
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `program-docs-${sampleProgram1.id}`);
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
-      );
-
-      // Now start editing the same program — docs panel should disappear
-      const editBtn = screen.getByRole('button', { name: /edit energy rebate/i });
-      fireEvent.click(editBtn);
-
-      await waitFor(() =>
-        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
-      );
+      expect(screen.queryByRole('button', { name: /show documents for/i })).toBeNull();
+      expect(
+        container.querySelector(`[aria-controls="program-docs-${sampleProgram1.id}"]`),
+      ).toBeNull();
+      expect(screen.queryByTestId('linked-documents-section')).toBeNull();
     });
   });
+
   // ─── Page identity (#2203) ─────────────────────────────────────────────────
 
   describe('page identity (#2203)', () => {

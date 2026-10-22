@@ -841,7 +841,8 @@ test.describe('Page identity: Money (#2203)', () => {
       await expect(page).toHaveURL((url) => url.pathname === invoiceUrl);
       await expect(detail.heading).toHaveText(INVOICE_H1);
 
-      await detail.itemizeButton(DOC_TITLE).click();
+      await detail.openDocuments();
+      await detail.clickItemize(DOC_TITLE);
       await expect(page).toHaveURL(
         (url) =>
           url.pathname ===

@@ -43,24 +43,25 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   moveBudgetLinesBetweenSources: jest.fn(),
 }));
 
-// ─── Mock: LinkedDocumentsSection — avoids deep dependency chain (Paperless hooks, etc.) ───
+// ─── Mock: Documents panel host — avoids the Paperless hooks and the sheet tree ───
 
-// Capture the last props passed to LinkedDocumentsSection so tests can assert them
-// (prefixed with _ because assertions use DOM data-attributes, not this variable directly)
-let _capturedLinkedDocsSectionProps: { entityType: string; entityId: string } | null = null;
-
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  DocumentsPanelButton: function MockDocumentsPanelButton(props: {
     entityType: string;
     entityId: string;
+    contextName?: string;
+    testId?: string;
   }) {
-    _capturedLinkedDocsSectionProps = { entityType: props.entityType, entityId: props.entityId };
     return (
-      <div
-        data-testid="linked-documents-section"
+      <button
+        type="button"
+        data-testid={props.testId ?? 'documents-panel-button'}
         data-entity-type={props.entityType}
         data-entity-id={props.entityId}
-      />
+        data-context-name={props.contextName}
+      >
+        Documents
+      </button>
     );
   },
 }));
@@ -268,7 +269,6 @@ describe('BudgetSourcesPage', () => {
       effects: [],
     });
     mockFetchBudgetLinesForSource.mockReset();
-    _capturedLinkedDocsSectionProps = null;
   });
 
   function renderPage() {
@@ -2709,14 +2709,14 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Order: Show lines → docs toggle (paperclip) → Edit → Delete → Generate report (#1879)
+      // Order: Show lines → Documents button → Edit → Delete → Generate report (#1879)
       expect(buttons.length).toBe(5);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for home loan/i),
       );
-      // The docs toggle sits between Show lines and Edit
-      expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
+      // The Documents button sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute('data-testid', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
       expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
       expect(buttons[4]).toHaveAccessibleName('Generate report for Home Loan');
@@ -2737,15 +2737,15 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit →
+      // Discretionary sources have no Delete: Show lines → Documents button → Edit →
       // Generate report (#1879)
       expect(buttons.length).toBe(4);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for contingency reserve/i),
       );
-      // The docs toggle sits between Show lines and Edit
-      expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
+      // The Documents button sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute('data-testid', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
       expect(buttons[3]).toHaveAccessibleName('Generate report for Contingency Reserve');
       expect(
@@ -2808,8 +2808,8 @@ describe('BudgetSourcesPage', () => {
 
   // ─── Docs toggle (story #1744) ──────────────────────────────────────────────
 
-  describe('docs toggle (paperclip button)', () => {
-    it('renders a paperclip/docs toggle button for each source row', async () => {
+  describe('Documents panel button per row', () => {
+    it('renders one Documents button per source with the entity type, id and the source name as context', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
 
       renderPage();
@@ -2818,164 +2818,29 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Home Loan')).toBeInTheDocument();
       });
 
-      // The docs toggle button has aria-label "Show documents for <name>" — narrow to this
-      // specific label to avoid colliding with "Expand budget lines for Home Loan", "Edit Home Loan",
-      // or "Delete Home Loan", all of which also contain the source name.
+      const first = screen.getByTestId(`source-docs-${sampleSource1.id}`);
+      expect(first).toHaveAttribute('data-entity-type', 'budget_source');
+      expect(first).toHaveAttribute('data-entity-id', sampleSource1.id);
+      expect(first).toHaveAttribute('data-context-name', 'Home Loan');
+      const second = screen.getByTestId(`source-docs-${sampleSource2.id}`);
+      expect(second).toHaveAttribute('data-entity-id', sampleSource2.id);
+      expect(second).toHaveAttribute('data-context-name', 'Savings Account');
+    });
+
+    it('no longer renders the old docs toggle or an inline documents section', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /show documents for/i })).toBeNull();
       expect(
-        screen.getByRole('button', { name: /show documents for home loan/i, hidden: true }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: /show documents for savings account/i, hidden: true }),
-      ).toBeInTheDocument();
-    });
-
-    it('clicking the docs toggle button renders LinkedDocumentsSection with entityType=budget_source and correct entityId', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      // The aria-label includes 'Home Loan' — find the docs-expand toggle (aria-expanded=false)
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find(
-          (btn) =>
-            btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}` &&
-            btn.getAttribute('aria-expanded') === 'false',
-        );
-      expect(docsBtn).toBeDefined();
-
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
-      });
-
-      const section = screen.getByTestId('linked-documents-section');
-      expect(section.getAttribute('data-entity-type')).toBe('budget_source');
-      expect(section.getAttribute('data-entity-id')).toBe(sampleSource1.id);
-    });
-
-    it('clicking the docs toggle button a second time hides LinkedDocumentsSection', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
-      expect(docsBtn).toBeDefined();
-
-      // First click — opens
-      fireEvent.click(docsBtn!);
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
-      );
-
-      // Second click — closes
-      fireEvent.click(docsBtn!);
-      await waitFor(() =>
-        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
-      );
-    });
-
-    it('docs toggle button has aria-expanded=false initially', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
-      expect(docsBtn).toBeDefined();
-      expect(docsBtn!.getAttribute('aria-expanded')).toBe('false');
-    });
-
-    it('docs toggle button has aria-expanded=true after clicking', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
-      expect(docsBtn).toBeDefined();
-
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() => {
-        expect(docsBtn!.getAttribute('aria-expanded')).toBe('true');
-      });
-    });
-
-    it('docs toggle button is disabled when editingSource is active', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource1, sampleSource2],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      // Start editing source1
-      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
-      fireEvent.click(editBtn);
-
-      await waitFor(() => {
-        // Both docs toggles should be disabled when editing
-        const allDocsToggleBtns = screen
-          .getAllByRole('button', { hidden: true })
-          .filter((btn) => btn.getAttribute('aria-controls')?.startsWith('source-docs-'));
-        expect(allDocsToggleBtns.length).toBeGreaterThan(0);
-        for (const btn of allDocsToggleBtns) {
-          expect(btn).toBeDisabled();
-        }
-      });
-    });
-
-    it('LinkedDocumentsSection is hidden when editing the same source', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      // Open docs panel
-      const docsBtn = screen
-        .getAllByRole('button', { hidden: true })
-        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
-      fireEvent.click(docsBtn!);
-
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
-      );
-
-      // Now start editing the same source — docs panel should disappear
-      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
-      fireEvent.click(editBtn);
-
-      await waitFor(() =>
-        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
-      );
+        container.querySelector(`[aria-controls="source-docs-${sampleSource1.id}"]`),
+      ).toBeNull();
+      expect(screen.queryByTestId('linked-documents-section')).toBeNull();
     });
   });
 

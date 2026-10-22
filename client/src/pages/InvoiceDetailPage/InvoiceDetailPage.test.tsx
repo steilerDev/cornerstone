@@ -83,16 +83,16 @@ jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
   },
 }));
 
-// ─── Mock: LinkedDocumentsSection stub ────────────────────────────────────────
+// ─── Mock: Documents panel host stub ────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: (props: { entityType: string; entityId: string }) => {
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  DocumentsPanelButton: (props: { entityType: string; entityId: string }) => {
     useEffect(() => {
       linkedDocumentsMounts += 1;
     }, []);
     return (
       <div
-        data-testid="linked-documents-section"
+        data-testid="documents-panel-button"
         data-entity-type={props.entityType}
         data-entity-id={props.entityId}
       />
@@ -669,29 +669,27 @@ describe('InvoiceDetailPage', () => {
     });
   });
 
-  describe('LinkedDocumentsSection integration', () => {
-    it('renders the LinkedDocumentsSection component after loading', async () => {
+  describe('Documents panel button integration', () => {
+    it('renders the Documents panel button after loading', async () => {
       renderPage();
 
-      await waitFor(() =>
-        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByTestId('documents-panel-button')).toBeInTheDocument());
     });
 
-    it('passes entityType="invoice" to LinkedDocumentsSection', async () => {
+    it('passes entityType="invoice" to the Documents panel button', async () => {
       renderPage();
 
       await waitFor(() => {
-        const section = screen.getByTestId('linked-documents-section');
+        const section = screen.getByTestId('documents-panel-button');
         expect(section).toHaveAttribute('data-entity-type', 'invoice');
       });
     });
 
-    it('passes the invoice ID as entityId to LinkedDocumentsSection', async () => {
+    it('passes the invoice ID as entityId to the Documents panel button', async () => {
       renderPage(MOCK_INVOICE_ID);
 
       await waitFor(() => {
-        const section = screen.getByTestId('linked-documents-section');
+        const section = screen.getByTestId('documents-panel-button');
         expect(section).toHaveAttribute('data-entity-id', MOCK_INVOICE_ID);
       });
     });

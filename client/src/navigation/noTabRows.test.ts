@@ -7,14 +7,13 @@ import ts from 'typescript';
 /**
  * AC5 (#2205): the sidebar is the only place that lists views. No page renders a tab row, no
  * module keeps a copied tab array, and `ScheduleSubNav` / `budgetTabs` are gone. `SubNav` itself
- * stays as a component without consumers (it becomes ObjectTabs in Phase 4/5); until that story
- * deliberately relaxes rule 2, nothing outside `components/SubNav/` may import it.
+ * was deleted by #2233: `ObjectTabs` (a `?tab=` ARIA tablist driven by the fixed `OBJECT_TAB_IDS`
+ * tuple) is the one tab component, so any import of `SubNav` is flagged.
  * OverflowMenu link entries (`kind: 'link'`, #2206) are menu actions, not views.
  */
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const CLIENT_SRC = path.join(REPO_ROOT, 'client/src');
-const SUBNAV_DIR = 'client/src/components/SubNav/';
 
 const rel = (file: string) => path.relative(REPO_ROOT, file).split(path.sep).join('/');
 
@@ -67,7 +66,6 @@ interface Finding {
 /** Every violation of rules 1-4 in one source text. `file` is the repo-relative path. */
 function findViolations(file: string, source: string): Finding[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const insideSubNav = file.startsWith(SUBNAV_DIR);
   const findings: Finding[] = [];
   const add = (node: ts.Node, rule: string) =>
     findings.push({
@@ -80,11 +78,11 @@ function findViolations(file: string, source: string): Finding[] {
     if (ts.isArrayLiteralExpression(node) && isTabArray(node)) add(node, 'copied tab array');
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const spec = node.moduleSpecifier.text;
-      if (!insideSubNav && /(^|\/)SubNav(\/|$)/.test(spec)) add(node, `imports ${spec}`);
+      if (/(^|\/)SubNav(\/|$)/.test(spec)) add(node, `imports ${spec}`);
       if (/ScheduleSubNav|budgetTabs/.test(spec)) add(node, `imports ${spec}`);
     }
     if (ts.isIdentifier(node)) {
-      if (!insideSubNav && node.text === 'SubNavTab') add(node, 'uses SubNavTab');
+      if (node.text === 'SubNavTab') add(node, 'uses SubNavTab');
       if (node.text === 'ScheduleSubNav') add(node, 'uses ScheduleSubNav');
     }
     if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && node.name.text === 'subNav') {
@@ -117,8 +115,9 @@ describe('no tab rows (AC5)', () => {
     expect(fs.existsSync(path.join(CLIENT_SRC, 'pages/shared/budgetTabs.test.ts'))).toBe(false);
   });
 
-  it('keeps SubNav itself in place for the ObjectTabs story', () => {
-    expect(fs.existsSync(path.join(CLIENT_SRC, 'components/SubNav/SubNav.tsx'))).toBe(true);
+  it('has deleted SubNav (ObjectTabs is the tab component)', () => {
+    expect(fs.existsSync(path.join(CLIENT_SRC, 'components/SubNav'))).toBe(false);
+    expect(fs.existsSync(path.join(CLIENT_SRC, 'components/ObjectTabs/ObjectTabs.tsx'))).toBe(true);
   });
 });
 
@@ -139,6 +138,9 @@ describe('the detector (self-test: each rule can fail)', () => {
 
   it('does not flag a string tuple, a single tab or objects without both properties', () => {
     expect(run(`const MANAGE_TABS = ['areas', 'trades'] as const;`)).toEqual([]);
+    expect(
+      run(`export const OBJECT_TAB_IDS = ['overview', 'timing', 'work', 'cost'] as const;`),
+    ).toEqual([]);
     expect(run(`const one = [{ label: 'a', href: '/x' }];`)).toEqual([]);
     expect(
       run(`const rows = [{ label: 'a' }, { label: 'b' }, { href: '/x' }, { href: '/y' }];`),
@@ -165,7 +167,7 @@ describe('the detector (self-test: each rule can fail)', () => {
     ).toEqual(flagged);
   });
 
-  it('flags an import of SubNav from outside its folder, but not from inside it', () => {
+  it('flags an import of SubNav from anywhere, including a SubNav folder', () => {
     const source = `import { SubNav } from '../../components/SubNav/SubNav.js';`;
     expect(run(source)).toEqual([
       'client/src/pages/XPage/XPage.tsx:1 imports ../../components/SubNav/SubNav.js',
@@ -173,17 +175,17 @@ describe('the detector (self-test: each rule can fail)', () => {
     expect(
       run(`import { SubNav } from '../SubNav/SubNav.js';`, 'client/src/components/Y/Y.tsx'),
     ).toHaveLength(1);
-    expect(run(source, 'client/src/components/SubNav/Other.tsx')).toEqual([]);
+    expect(run(source, 'client/src/components/SubNav/Other.tsx')).toHaveLength(1);
   });
 
   it('does not mistake a module merely named like SubNav for the component', () => {
     expect(run(`import { x } from './MySubNav.js';`)).toEqual([]);
   });
 
-  it('flags the SubNavTab type outside the SubNav folder only', () => {
+  it('flags the SubNavTab type wherever it appears', () => {
     const source = `import type { Foo } from './foo.js';\nlet t: SubNavTab[] = [];`;
     expect(run(source)).toEqual(['client/src/pages/XPage/XPage.tsx:2 uses SubNavTab']);
-    expect(run(source, 'client/src/components/SubNav/SubNav.tsx')).toEqual([]);
+    expect(run(source, 'client/src/components/SubNav/SubNav.tsx')).toHaveLength(1);
   });
 
   it('flags ScheduleSubNav and budgetTabs wherever they appear', () => {

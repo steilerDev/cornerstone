@@ -4,7 +4,7 @@
  * Tests cover:
  * - createLink (success, entity not found, duplicate, household_item not implemented)
  * - getLinksForEntity (empty, with links, Paperless not configured, Paperless error/404)
- * - deleteLink (success, not found)
+ * - entityExists, deleteLinkWithSnapshot, restoreDeletedLink (every conflict branch)
  * - deleteLinksForEntity (cleans up all links for entity)
  *
  * Strategy:
@@ -15,6 +15,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
@@ -815,24 +816,75 @@ describe('documentLinkService', () => {
     });
   });
 
-  // ─── deleteLink() ──────────────────────────────────────────────────────────
+  // ─── entityExists() ────────────────────────────────────────────────────────
 
-  describe('deleteLink()', () => {
-    it('returns true and deletes the link when found', () => {
-      const workItemId = insertTestWorkItem();
-      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+  describe('entityExists()', () => {
+    it('is true for an existing record of every entity type', () => {
+      const vendorId = insertTestVendor();
+      const now = new Date().toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id: 'hi-1',
+          name: 'Fixture sofa',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const ids: Record<DocumentLinkEntityType, string> = {
+        work_item: insertTestWorkItem(),
+        invoice: insertTestInvoice(vendorId),
+        household_item: 'hi-1',
+        budget_source: insertTestBudgetSource(),
+        subsidy_program: insertTestSubsidyProgram(),
+      };
 
-      const result = documentLinkService.deleteLink(db, linkId);
-
-      expect(result).toBe(true);
-      const remaining = db.select().from(schema.documentLinks).all();
-      expect(remaining).toHaveLength(0);
+      for (const type of Object.keys(ids) as DocumentLinkEntityType[]) {
+        expect(documentLinkService.entityExists(db, type, ids[type])).toBe(true);
+      }
     });
 
-    it('returns false when link does not exist', () => {
-      const result = documentLinkService.deleteLink(db, 'non-existent-id');
+    it('is false for an unknown id of every entity type', () => {
+      for (const type of [
+        'work_item',
+        'invoice',
+        'household_item',
+        'budget_source',
+        'subsidy_program',
+      ] as DocumentLinkEntityType[]) {
+        expect(documentLinkService.entityExists(db, type, 'missing')).toBe(false);
+      }
+    });
 
-      expect(result).toBe(false);
+    it('does not match an id that exists under another entity type', () => {
+      const workItemId = insertTestWorkItem();
+      expect(documentLinkService.entityExists(db, 'invoice', workItemId)).toBe(false);
+    });
+  });
+
+  // ─── deleteLinkWithSnapshot() ──────────────────────────────────────────────
+
+  describe('deleteLinkWithSnapshot()', () => {
+    it('deletes the link and returns its full row', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+      const before = db.select().from(schema.documentLinks).all()[0]!;
+
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId);
+
+      expect(snapshot).toEqual({ row: before });
+      expect(db.select().from(schema.documentLinks).all()).toHaveLength(0);
+    });
+
+    it('returns null when the link does not exist and deletes nothing', () => {
+      const workItemId = insertTestWorkItem();
+      insertRawDocumentLink('work_item', workItemId, 42);
+
+      expect(documentLinkService.deleteLinkWithSnapshot(db, 'non-existent-id')).toBeNull();
+      expect(db.select().from(schema.documentLinks).all()).toHaveLength(1);
     });
 
     it('only deletes the specified link, not others', () => {
@@ -840,11 +892,157 @@ describe('documentLinkService', () => {
       const linkId1 = insertRawDocumentLink('work_item', workItemId, 42);
       insertRawDocumentLink('work_item', workItemId, 99);
 
-      documentLinkService.deleteLink(db, linkId1);
+      documentLinkService.deleteLinkWithSnapshot(db, linkId1);
 
       const remaining = db.select().from(schema.documentLinks).all();
       expect(remaining).toHaveLength(1);
       expect(remaining[0]!.paperlessDocumentId).toBe(99);
+    });
+  });
+
+  // ─── restoreDeletedLink() ──────────────────────────────────────────────────
+
+  describe('restoreDeletedLink()', () => {
+    function restore(snapshot: documentLinkService.DeletedDocumentLinkSnapshot): void {
+      db.transaction((tx) => documentLinkService.restoreDeletedLink(tx, snapshot));
+    }
+
+    function expectConflict(snapshot: documentLinkService.DeletedDocumentLinkSnapshot): void {
+      let caught: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        caught = err;
+      }
+      const err = caught as AppError;
+      expect(err).toBeDefined();
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe('CONFLICT');
+      expect(err.details).toEqual({
+        changed: [{ type: 'document_link', id: snapshot.row.id }],
+      });
+    }
+
+    it('restores the row byte-identical (id, attachmentType, createdAt, createdBy)', () => {
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      const link = documentLinkService.createLink(
+        db,
+        'invoice',
+        invoiceId,
+        42,
+        'user-001',
+        'invoice',
+      );
+      const before = db.select().from(schema.documentLinks).all()[0]!;
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, link.id)!;
+
+      restore(snapshot);
+
+      const after = db.select().from(schema.documentLinks).all();
+      expect(after).toEqual([before]);
+      expect(after[0]!.attachmentType).toBe('invoice');
+    });
+
+    it('keeps createdBy while the creating user still exists', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42, 'user-001');
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+
+      restore(snapshot);
+
+      expect(db.select().from(schema.documentLinks).all()[0]!.createdBy).toBe('user-001');
+    });
+
+    it('nulls createdBy when the creating user no longer exists', () => {
+      const workItemId = insertTestWorkItem();
+      insertTestUser('user-002', 'second@example.com', 'Second User');
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42, 'user-002');
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+      sqlite.pragma('foreign_keys = OFF');
+      db.delete(schema.users).where(eq(schema.users.id, 'user-002')).run();
+      sqlite.pragma('foreign_keys = ON');
+
+      restore(snapshot);
+
+      const rows = db.select().from(schema.documentLinks).all();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.id).toBe(linkId);
+      expect(rows[0]!.createdBy).toBeNull();
+    });
+
+    it('restores a link whose createdBy was already null', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = `link-${++idCounter}`;
+      db.insert(schema.documentLinks)
+        .values({
+          id: linkId,
+          entityType: 'work_item',
+          entityId: workItemId,
+          paperlessDocumentId: 7,
+          createdBy: null,
+          createdAt: new Date().toISOString(),
+        })
+        .run();
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+
+      restore(snapshot);
+
+      expect(db.select().from(schema.documentLinks).all()[0]!.createdBy).toBeNull();
+    });
+
+    it('refuses with a 409 when the linked record was deleted meanwhile', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+      db.delete(schema.workItems).where(eq(schema.workItems.id, workItemId)).run();
+
+      expectConflict(snapshot);
+      expect(db.select().from(schema.documentLinks).all()).toHaveLength(0);
+    });
+
+    it('refuses with a 409 when the same document was linked again to the same record', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+      const relinkedId = insertRawDocumentLink('work_item', workItemId, 42);
+
+      expectConflict(snapshot);
+      const rows = db.select().from(schema.documentLinks).all();
+      expect(rows.map((r) => r.id)).toEqual([relinkedId]);
+    });
+
+    it('restores when only a different document or a different record is linked', () => {
+      const workItemId = insertTestWorkItem();
+      const otherWorkItemId = insertTestWorkItem('Other task');
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+      insertRawDocumentLink('work_item', workItemId, 43);
+      insertRawDocumentLink('work_item', otherWorkItemId, 42);
+
+      restore(snapshot);
+
+      expect(db.select().from(schema.documentLinks).all()).toHaveLength(3);
+    });
+
+    it('refuses with a 409 when the id is already taken by another link', () => {
+      const workItemId = insertTestWorkItem();
+      const otherWorkItemId = insertTestWorkItem('Other task');
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+      const snapshot = documentLinkService.deleteLinkWithSnapshot(db, linkId)!;
+      db.insert(schema.documentLinks)
+        .values({
+          id: linkId,
+          entityType: 'work_item',
+          entityId: otherWorkItemId,
+          paperlessDocumentId: 99,
+          createdBy: null,
+          createdAt: new Date().toISOString(),
+        })
+        .run();
+
+      expectConflict(snapshot);
+      expect(db.select().from(schema.documentLinks).all()).toHaveLength(1);
     });
   });
 

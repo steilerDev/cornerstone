@@ -1,0 +1,10 @@
+.trigger {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .trigger {
+    min-height: var(--touch-target-min);
+  }
+}

@@ -40,7 +40,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 type TrackedValues = Record<string, unknown>;
 
 /** Subjects restored by re-applying tracked column values (everything except `restore` kinds). */
-type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area' | 'photo'>;
+type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area' | 'photo' | 'document_link'>;
 
 /** A status-kind subject: the only kind `runUndoable` and the column snapshots handle. */
 interface StatusUndoRow {

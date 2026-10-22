@@ -1,8 +1,8 @@
 /**
- * Small Paperless route mocks shared by the Documents-section specs (#2217).
+ * Small Paperless route mocks shared by the Documents-panel specs (#2217, #2233).
  *
- * The E2E container has Paperless off. Since #2217 a Documents section with Paperless off shows
- * nothing when there are no links, and a read-only list plus one muted line when there are.
+ * The E2E container has Paperless off. With Paperless off a host shows no Documents trigger when
+ * there are no links, and (#2233) the trigger plus a read-only panel with one notice when there are.
  * These helpers move one page into the other state without a Paperless container. All data is
  * synthetic.
  */
@@ -10,7 +10,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
 
-/** A configured, reachable Paperless: the Documents section renders with its Add button. */
+/** A configured, reachable Paperless: the Documents panel offers Link document. */
 export async function mockPaperlessConfigured(page: Page): Promise<void> {
   await page.route('**/api/paperless/status', async (route: Route) => {
     await route.fulfill({
@@ -60,12 +60,11 @@ export async function mockKeptDocumentLinks(
   });
 }
 
-const DOCUMENTS_HEADING = { level: 2, name: 'Documents', exact: true } as const;
 const PAPERLESS_ENV_NAMES = /PAPERLESS_URL|PAPERLESS_API_TOKEN/;
 
 /**
  * Runs `open` and resolves once both the Paperless status and the document links have been
- * answered, so an "absent" assertion cannot pass just because the section had not loaded yet.
+ * answered, so an "absent" assertion cannot pass just because the host had not loaded yet.
  */
 export async function openAndSettle(page: Page, open: () => Promise<void>): Promise<void> {
   const status = page.waitForResponse(
@@ -78,11 +77,47 @@ export async function openAndSettle(page: Page, open: () => Promise<void>): Prom
   await Promise.all([status, links]);
 }
 
-/** Nothing of the Documents section is on the page. */
-export async function expectNoDocumentsSection(scope: Page | Locator): Promise<void> {
-  await expect(scope.getByRole('heading', DOCUMENTS_HEADING)).toHaveCount(0);
-  await expect(scope.locator('#documents-section-title')).toHaveCount(0);
-  await expect(scope.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(0);
+/**
+ * Nothing of the Documents panel is reachable: no "Documents (n)" trigger (the single-panel
+ * default or any per-row id matching `testIdPattern`), no panel, no "not configured" text and no
+ * environment variable names. (#2233: Paperless off + no kept links hides the trigger.)
+ */
+export async function expectNoDocumentsButton(
+  scope: Page | Locator,
+  testIdPattern: RegExp = /^documents-panel-button$/,
+): Promise<void> {
+  await expect(scope.getByTestId(testIdPattern)).toHaveCount(0);
+  await expect(scope.getByRole('button', { name: /^Documents \(\d+\)/ })).toHaveCount(0);
+  await expect(scope.getByRole('dialog', { name: /Documents \(\d+\)/ })).toHaveCount(0);
   await expect(scope.getByText(/not configured/i)).toHaveCount(0);
   await expect(scope.getByText(PAPERLESS_ENV_NAMES)).toHaveCount(0);
+}
+
+/**
+ * Like `openAndSettle`, for pages with several Documents hosts (rows): waits for THIS record's
+ * links (`entityId`), then lets React render twice, so an "absent trigger" assertion cannot pass
+ * before the host has loaded.
+ */
+export async function settleDocumentsHost(
+  page: Page,
+  entityId: string,
+  open: () => Promise<void>,
+): Promise<void> {
+  const status = page.waitForResponse(
+    (r) => r.url().includes('/api/paperless/status') && r.request().method() === 'GET',
+  );
+  const links = page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/document-links?') &&
+      r.url().includes(`entityId=${entityId}`) &&
+      r.request().method() === 'GET',
+  );
+  await open();
+  await Promise.all([status, links]);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
 }

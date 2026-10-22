@@ -36,8 +36,9 @@ button.chip {
     0 0 0 4px var(--color-border-focus);
 }
 
+/* `.trigger` is a stable hook on action / button triggers so the busy cue works for a host class. */
 .chip[aria-disabled='true'],
-.plainButton[aria-disabled='true'] {
+.trigger[aria-disabled='true'] {
   opacity: 0.6;
   cursor: progress;
 }
@@ -174,6 +175,19 @@ button.dateChip:focus-visible {
 
 @media print {
   .content {
+    display: none;
+  }
+}
+
+/* Print: the status reads as a bordered label, not a control. */
+@media print {
+  .chip {
+    border: 1px solid CanvasText;
+    background: transparent;
+    color: CanvasText;
+  }
+
+  .caret {
     display: none;
   }
 }

@@ -54,7 +54,7 @@ The **Area** filter on the work items list supports the full area hierarchy:
 
 ## Detail View
 
-Click any work item to see its full detail page with all fields, notes, subtasks, dependencies, and linked documents.
+Click any work item to see its full detail page with all fields, notes, subtasks, dependencies, and linked documents. Linked documents open from the **Documents (n)** button.
 
 ![Work item detail page](/img/screenshots/work-item-detail-light.png)
 

@@ -12,13 +12,15 @@ export interface PageTitleProps {
   readonly className?: string;
   /** When set the h1 is programmatically focusable (tabIndex -1). */
   readonly headingRef?: Ref<HTMLHeadingElement>;
+  /** Entries language when the title is the user's own text (plain h1 only). */
+  readonly lang?: string;
 }
 
 /**
  * The page's single h1. Below 1024 px, on a section's main view or one of its views, the h1
  * wraps a button that opens the section's view menu ("Tasks ▾"); elsewhere it is plain text.
  */
-export function PageTitle({ title, className, headingRef }: PageTitleProps) {
+export function PageTitle({ title, className, headingRef, lang }: PageTitleProps) {
   const model = use(ViewMenuContext);
   const { t } = useTranslation('common');
   const navigate = useNavigate();
@@ -26,7 +28,7 @@ export function PageTitle({ title, className, headingRef }: PageTitleProps) {
 
   if (!model) {
     return (
-      <h1 className={className} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>
+      <h1 className={className} ref={headingRef} tabIndex={headingRef ? -1 : undefined} lang={lang}>
         {title}
       </h1>
     );

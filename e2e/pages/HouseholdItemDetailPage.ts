@@ -11,7 +11,7 @@
  * - Fields: category, area (EPIC-18, replaces room), vendor, URL, quantity, description, dates
  * - Budget section: budget lines, subsidies, planned/actual totals
  * - Work Item Dependencies section: link HI to work items or milestones for scheduling
- * - Documents section: LinkedDocumentsSection (Paperless-ngx integration)
+ * - Documents: the "Documents (n)" button (documents-panel-button) opening the Documents panel (#2233)
  * - Delete button with confirmation modal
  *
  * Key DOM observations from source code:
@@ -19,7 +19,7 @@
  * - Edit button navigates to /project/household-items/:id/edit
  * - Delete confirmation is the ConfirmDialog (role="alertdialog", testid prefix purchase-delete)
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
- * - Documents section uses LinkedDocumentsSection (same as work items, invoices)
+ * - The Documents panel is shared with tasks, invoices, funding sources and grants
  *
  * fix/1278: areaBreadcrumb and its Tooltip/tabIndex have been removed from the detail header.
  * areaBreadcrumbNav is retained in the POM for negative assertions only (must NOT be visible).
@@ -47,8 +47,7 @@ export class HouseholdItemDetailPage {
 
   // Content sections
   readonly budgetSection: Locator;
-  readonly documentsSection: Locator;
-  readonly documentsHeading: Locator;
+  readonly documentsButton: Locator;
 
   // Delete (#2209: the dialog is the shared ConfirmDialog — role="alertdialog", rendered in a portal)
   readonly deleteButton: Locator;
@@ -86,8 +85,7 @@ export class HouseholdItemDetailPage {
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
 
     // Documents section
-    this.documentsHeading = page.getByRole('heading', { level: 2, name: 'Documents', exact: true });
-    this.documentsSection = page.getByRole('region', { name: 'Documents', exact: true });
+    this.documentsButton = page.getByTestId('documents-panel-button');
 
     // Delete confirmation modal
     // #2209: the shared ConfirmDialog (role="alertdialog", title "Delete <name>?", action "Delete")

@@ -71,7 +71,7 @@ The **Area** filter supports the full area hierarchy: picking a parent area also
 
 ## Detail View
 
-Click any household item to see its full detail page with all fields, budget lines, notes, dependencies, linked work items, linked documents, and applied subsidies. Fields can be edited inline by clicking on them.
+Click any household item to see its full detail page with all fields, budget lines, notes, dependencies, linked work items, linked documents (open them with the **Documents (n)** button), and applied subsidies. Fields can be edited inline by clicking on them.
 
 ![Household item detail page](/img/screenshots/household-item-detail-light.png)
 

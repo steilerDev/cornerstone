@@ -15,7 +15,7 @@ To enable the document integration, configure two environment variables and rest
 | `PAPERLESS_API_TOKEN` | Yes | API authentication token from Paperless-ngx |
 | `PAPERLESS_EXTERNAL_URL` | No | Browser-facing URL for Cornerstone browser links to Paperless-ngx (e.g., `https://paperless.example.com`). If unset, falls back to `PAPERLESS_URL`. |
 
-`PAPERLESS_URL` and `PAPERLESS_API_TOKEN` must be set for the integration to activate. If either is missing, Cornerstone will show a "Not Configured" message on the Documents page and in the document linking sections.
+`PAPERLESS_URL` and `PAPERLESS_API_TOKEN` must be set for the integration to activate. If either is missing, Cornerstone will show a "Paperless is not connected" message on the Documents page. On task, purchase, invoice, funding source, and grant pages the **Documents** button is hidden, unless documents are already linked to that record (then a read-only notice shows).
 
 ### Getting Your API Token
 
@@ -141,7 +141,7 @@ After configuring the environment variables and restarting Cornerstone:
 
 ## Troubleshooting
 
-### "Paperless-ngx Not Configured"
+### "Paperless is not connected"
 
 This message appears when `PAPERLESS_URL` or `PAPERLESS_API_TOKEN` (or both) are not set. Double-check your environment variables and restart the container.
 

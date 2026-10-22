@@ -299,6 +299,39 @@
     "description": "Ask an administrator if you need it",
     "backLink": "Back to Home"
   },
+  "objectHeader": {
+    "pageActions": "Page actions",
+    "copyLink": "Copy link",
+    "print": "Print",
+    "log": "Log",
+    "linkCopied": "Link copied.",
+    "linkCopyFailed": "Couldn't copy the link."
+  },
+  "summaryStrip": {
+    "label": "{{type}} summary",
+    "notSet": "Not set"
+  },
+  "objectTabs": {
+    "listLabel": "{{type}} sections",
+    "withCount": "{{label}} ({{count}})",
+    "tab": {
+      "overview": "Overview",
+      "timing": "Timing",
+      "work": "Work",
+      "cost": "Cost",
+      "payments": "Payments",
+      "diary": "Site diary",
+      "history": "History"
+    }
+  },
+  "sectionCard": {
+    "editSection": "Edit {{section}}",
+    "saving": "Saving…",
+    "saved": "{{section}} saved.",
+    "saveHint": "Ctrl+Enter to save",
+    "saveHintMac": "⌘+Enter to save",
+    "discardLead": "Your changes to {{section}} are not saved."
+  },
   "tagPicker": {
     "placeholderEmpty": "Add tags...",
     "placeholderMore": "Add more...",

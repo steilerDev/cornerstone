@@ -87,7 +87,7 @@ import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
-import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
@@ -2149,7 +2149,7 @@ export default function WorkItemDetailPage() {
 
       {/* Documents — full-width section, loads independently */}
       <div className={styles.section}>
-        <LinkedDocumentsSection entityType="work_item" entityId={id!} />
+        <DocumentsPanelButton entityType="work_item" entityId={id!} />
       </div>
 
       {/* Footer */}

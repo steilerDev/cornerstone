@@ -54,6 +54,12 @@ Every selected line is reassigned to the new source in a single operation, and t
 The mass-move modal is the fastest way to model a "what if" on your budget -- for example, splitting costs that were originally booked against your savings onto a newly approved loan, without editing each budget line individually.
 :::
 
+## Linked Documents
+
+When Paperless-ngx is connected, each source row has a **Documents (n)** button showing how many documents are linked to it, such as loan contracts. Click it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for the details.
+
+If Paperless-ngx is not connected and the source has no linked documents, the button is not shown.
+
 ## Managing Sources
 
 From the sources page you can:

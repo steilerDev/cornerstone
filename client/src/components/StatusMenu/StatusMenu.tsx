@@ -48,6 +48,12 @@ export interface StatusMenuProps<S extends string> {
   readonly buttonLabel?: string;
   /** Receives focus when the control turns into a plain Badge while it had focus. */
   readonly focusFallbackRef?: RefObject<HTMLElement | null>;
+  /**
+   * `action` / `button` appearances: replaces the default secondary trigger class. Hosts pass
+   * their own button class (ObjectHeader passes its primary); StatusMenu never carries a primary
+   * class itself.
+   */
+  readonly className?: string;
   readonly testId: string;
 }
 
@@ -88,6 +94,7 @@ export function StatusMenu<S extends string>({
   actionTo,
   buttonLabel,
   focusFallbackRef,
+  className,
   testId,
 }: StatusMenuProps<S>) {
   const { t } = useTranslation('common');
@@ -97,7 +104,11 @@ export function StatusMenu<S extends string>({
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>('list');
-  const [dateTransition, setDateTransition] = useState<StatusMenuTransition<S> | null>(null);
+  // The transition whose date step is open; `date` is always present (only dated rows open it).
+  const [dateTransition, setDateTransition] = useState<{
+    readonly to: S;
+    readonly date: StatusMenuDateConfig;
+  } | null>(null);
   const [today, setToday] = useState('');
   const [pickOpen, setPickOpen] = useState(false);
   const [pickValue, setPickValue] = useState('');
@@ -144,14 +155,14 @@ export function StatusMenu<S extends string>({
 
   const closeToTrigger = () => {
     resetSurface();
-    triggerRef.current?.focus();
+    triggerRef.current!.focus();
   };
 
   // Focus: the initial row on open, Today on the date step, the opener row on return.
   useEffect(() => {
     if (!open || !contentEl) return;
     if (step === 'date') {
-      todayChipRef.current?.focus();
+      todayChipRef.current!.focus();
       return;
     }
     const rows = contentEl.querySelectorAll<HTMLElement>('[role="menuitem"]');
@@ -168,7 +179,7 @@ export function StatusMenu<S extends string>({
   }, [open, step, testId, contentEl]);
 
   useEffect(() => {
-    if (pickOpen) pickInputRef.current?.focus();
+    if (pickOpen) pickInputRef.current!.focus();
   }, [pickOpen]);
 
   const apply = async (to: S, date: string | null) => {
@@ -201,7 +212,7 @@ export function StatusMenu<S extends string>({
         return;
       }
       setToday(todayLocalIsoDate());
-      setDateTransition(tr);
+      setDateTransition({ to: tr.to, date: tr.date });
       setStep('date');
     } else {
       setStep('list');
@@ -216,7 +227,7 @@ export function StatusMenu<S extends string>({
     }
     openerValueRef.current = tr.to;
     setToday(todayLocalIsoDate());
-    setDateTransition(tr);
+    setDateTransition({ to: tr.to, date: tr.date });
     setPickOpen(false);
     setPickValue('');
     setPickError(null);
@@ -233,20 +244,21 @@ export function StatusMenu<S extends string>({
   };
 
   const submitPick = () => {
-    if (!dateTransition) return;
-    const value = pickInputRef.current?.value ?? pickValue;
+    // Only reachable from the date step's Set button / Enter, where both exist.
+    const value = pickInputRef.current!.value;
     if (!value) return;
     const nowIso = todayLocalIsoDate();
     if (value > nowIso) {
       setPickError(t('statusMenu.dateInFuture'));
       return;
     }
-    const min = dateTransition.date?.minDate;
+    const transition = dateTransition!;
+    const min = transition.date.minDate;
     if (min && value < min) {
       setPickError(t('statusMenu.dateBeforeStart'));
       return;
     }
-    void apply(dateTransition.to, value);
+    void apply(transition.to, value);
   };
 
   const onTriggerKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -265,7 +277,6 @@ export function StatusMenu<S extends string>({
     if (e.key !== 'Escape' && e.key !== 'Tab') e.stopPropagation();
     if (step !== 'list' || !contentEl) return;
     const rows = Array.from(contentEl.querySelectorAll<HTMLElement>('[role="menuitem"]'));
-    if (rows.length === 0) return;
     const index = rows.indexOf(document.activeElement as HTMLElement);
     let next: number | null = null;
     if (e.key === 'ArrowDown') next = index < 0 ? 0 : (index + 1) % rows.length;
@@ -279,7 +290,7 @@ export function StatusMenu<S extends string>({
     }
     if (next !== null) {
       e.preventDefault();
-      rows[next]?.focus();
+      rows[next]!.focus();
     }
   };
 
@@ -302,7 +313,7 @@ export function StatusMenu<S extends string>({
   const triggerClassName =
     appearance === 'chip'
       ? [styles.chip, variantClass].filter(Boolean).join(' ')
-      : styles.plainButton;
+      : [className ?? styles.plainButton, styles.trigger].join(' ');
 
   const dateConfig = dateTransition?.date;
   const planned = dateConfig?.plannedDate ?? null;
@@ -357,7 +368,7 @@ export function StatusMenu<S extends string>({
 
   const dateStep = dateTransition && (
     <div className={styles.dateStep}>
-      <div className={styles.dateQuestion}>{dateConfig?.question}</div>
+      <div className={styles.dateQuestion}>{dateTransition.date.question}</div>
       <div className={styles.chips}>
         <button
           ref={todayChipRef}
@@ -405,7 +416,7 @@ export function StatusMenu<S extends string>({
               className={styles.dateInput}
               value={pickValue}
               max={today}
-              min={dateConfig?.minDate ?? undefined}
+              min={dateTransition.date.minDate ?? undefined}
               aria-invalid={pickError ? true : undefined}
               onChange={(e) => {
                 setPickValue(e.target.value);
@@ -499,7 +510,7 @@ export function StatusMenu<S extends string>({
           anchorRef={triggerRef}
           id={panelId}
           role={step === 'date' ? 'dialog' : undefined}
-          ariaLabel={step === 'date' ? dateConfig?.question : undefined}
+          ariaLabel={step === 'date' ? dateTransition!.date.question : undefined}
           trapFocus={step === 'date'}
           closeSignal={location.key}
           onDismiss={(reason) => {
@@ -516,7 +527,9 @@ export function StatusMenu<S extends string>({
           id={panelId}
           open={open}
           onClose={closeToTrigger}
-          title={step === 'list' ? t('statusMenu.changeStatusTitle') : (dateConfig?.question ?? '')}
+          title={
+            step === 'list' ? t('statusMenu.changeStatusTitle') : dateTransition!.date.question
+          }
           returnFocusRef={triggerRef}
           testId={`${testId}-panel`}
         >

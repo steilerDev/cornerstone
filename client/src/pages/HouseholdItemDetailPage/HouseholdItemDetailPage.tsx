@@ -57,7 +57,7 @@ import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { focusPageHeading } from '../../lib/focusPageHeading.js';
@@ -1305,7 +1305,7 @@ export function HouseholdItemDetailPage() {
         </section>
 
         {/* Documents section */}
-        <LinkedDocumentsSection entityType="household_item" entityId={id!} />
+        <DocumentsPanelButton entityType="household_item" entityId={id!} />
 
         {/* Metadata card */}
         <section className={styles.card}>

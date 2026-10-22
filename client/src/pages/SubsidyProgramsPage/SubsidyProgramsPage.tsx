@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
@@ -22,7 +22,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useCreateQuery } from '../../hooks/useCreateQuery.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
@@ -151,9 +151,6 @@ export function SubsidyProgramsPage() {
     section?.scrollIntoView?.({ block: 'start' });
     section?.querySelector<HTMLElement>('input, select, textarea')?.focus();
   }, [createFocusSignal]);
-
-  // Documents expansion state
-  const [expandedDocsPrograms, setExpandedDocsPrograms] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     void loadData();
@@ -428,18 +425,6 @@ export function SubsidyProgramsPage() {
       setIsDeleting(false);
     }
   };
-
-  const handleToggleProgramDocs = useCallback((programId: string) => {
-    setExpandedDocsPrograms((prev) => {
-      const next = new Set(prev);
-      if (next.has(programId)) {
-        next.delete(programId);
-      } else {
-        next.add(programId);
-      }
-      return next;
-    });
-  }, []);
 
   if (isLoading) {
     return (
@@ -1159,33 +1144,12 @@ export function SubsidyProgramsPage() {
                     </div>
 
                     <div className={styles.programActions}>
-                      <button
-                        type="button"
-                        className={`${styles.docsToggle} ${expandedDocsPrograms.has(program.id) ? styles.docsToggleActive : ''}`}
-                        onClick={() => handleToggleProgramDocs(program.id)}
-                        disabled={!!editingProgram}
-                        aria-expanded={expandedDocsPrograms.has(program.id)}
-                        aria-controls={`program-docs-${program.id}`}
-                        aria-label={
-                          expandedDocsPrograms.has(program.id)
-                            ? t('subsidies.docs.collapseAriaLabel', { name: program.name })
-                            : t('subsidies.docs.expandAriaLabel', { name: program.name })
-                        }
-                      >
-                        <svg
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          aria-hidden="true"
-                          className={styles.docsIcon}
-                        >
-                          <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z" />
-                        </svg>
-                        <span className={styles.srOnly}>
-                          {expandedDocsPrograms.has(program.id)
-                            ? t('subsidies.docs.collapse')
-                            : t('subsidies.docs.expand')}
-                        </span>
-                      </button>
+                      <DocumentsPanelButton
+                        entityType="subsidy_program"
+                        entityId={program.id}
+                        contextName={program.name}
+                        testId={`program-docs-${program.id}`}
+                      />
                       <button
                         type="button"
                         className={styles.editButton}
@@ -1206,16 +1170,6 @@ export function SubsidyProgramsPage() {
                       </button>
                     </div>
                   </>
-                )}
-                {editingProgram?.id !== program.id && expandedDocsPrograms.has(program.id) && (
-                  <div
-                    id={`program-docs-${program.id}`}
-                    className={styles.docsPanel}
-                    role="region"
-                    aria-label={t('subsidies.docs.panelAriaLabel', { name: program.name })}
-                  >
-                    <LinkedDocumentsSection entityType="subsidy_program" entityId={program.id} />
-                  </div>
                 )}
               </div>
             ))}

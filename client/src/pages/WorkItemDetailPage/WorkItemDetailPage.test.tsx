@@ -235,6 +235,23 @@ jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
   updateDocumentLinkAttachmentType: jest.fn(),
 }));
 
+// The Documents panel host reads the Paperless status; configured with no links shows the button.
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: jest.fn(() =>
+    Promise.resolve({
+      configured: true,
+      reachable: true,
+      error: null,
+      paperlessUrl: 'https://paperless.example.test',
+    }),
+  ),
+  listPaperlessDocuments: jest.fn(),
+  listPaperlessTags: jest.fn(),
+  getPaperlessDocument: jest.fn(),
+  getDocumentThumbnailUrl: jest.fn(),
+  getDocumentPreviewUrl: jest.fn(),
+}));
+
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
 }));
@@ -463,6 +480,21 @@ describe('WorkItemDetailPage', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('Documents panel (#2233)', () => {
+    it('shows the Documents button with the link count and opens the panel for the task', async () => {
+      mockGetWorkItem.mockResolvedValue(mockWorkItem);
+
+      renderPage();
+
+      const button = await screen.findByTestId('documents-panel-button');
+      await waitFor(() => expect(button).toHaveTextContent('Documents (0)'));
+      fireEvent.click(button);
+
+      expect(await screen.findByRole('heading', { name: 'Documents (0)' })).toBeInTheDocument();
+      expect(screen.getByTestId('documents-link-document')).toBeInTheDocument();
+    });
   });
 
   describe('schedule signal chip (contract 4, #2199)', () => {

@@ -12,7 +12,7 @@ Cornerstone integrates with [Paperless-ngx](https://docs.paperless-ngx.com/) to 
 The document integration provides:
 
 - **Document Browser** -- A dedicated page to search, filter, and browse all documents in your Paperless-ngx instance
-- **Document Linking** -- Attach Paperless-ngx documents to work items and vendor invoices so related documents are always one click away
+- **Document Linking** -- Attach Paperless-ngx documents to tasks, purchases, invoices, funding sources, and grants from their **Documents** panel, so related documents are always one click away
 - **Thumbnail Previews** -- Document thumbnails are displayed inline so you can identify documents at a glance
 - **Detail Panel** -- View document metadata (title, created date, correspondent, document type, tags, content preview) without leaving Cornerstone
 - **Tag Filtering** -- Filter documents by Paperless-ngx tags in the document browser
@@ -39,4 +39,4 @@ You need a running [Paperless-ngx](https://docs.paperless-ngx.com/) instance wit
 
 - [Setup](setup) -- Configure the Paperless-ngx connection
 - [Browsing Documents](browsing-documents) -- Use the document browser to search and filter
-- [Linking Documents](linking-documents) -- Attach documents to work items and invoices
+- [Linking Documents](linking-documents) -- Attach documents to tasks, purchases, invoices, funding sources, and grants

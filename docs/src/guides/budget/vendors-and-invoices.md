@@ -118,7 +118,7 @@ If the final amount is less than the net deposits (deposits minus refunds), the 
 
 Click an invoice to see its full detail page with the invoice amount, current status, the **Deposits** section (for tracking staged payments), and the **Linked Budget Lines** section.
 
-If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices from the detail page. See [Linking Documents](/guides/documents/linking-documents) for details.
+If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices. Click **Documents (n)** on the invoice detail page to open the Documents panel and use **Link document**. See [Linking Documents](/guides/documents/linking-documents) for details.
 
 ### Staged Payments (Deposits)
 
@@ -146,7 +146,7 @@ The Remaining row helps you ensure the full invoice amount is allocated. If the 
 :::
 
 :::tip Skip the typing with Auto-itemize
-If the invoice has a Paperless document linked and you have configured an LLM provider, an **Auto-itemize** action appears on the linked-document card in the **Documents** section. Cornerstone reads the OCR text from the PDF and proposes one budget line per row on a dedicated review page with the PDF shown alongside -- you only review and assign them. See [Auto-itemize Invoices](auto-itemize) for the full guide.
+If the invoice has a Paperless document linked and you have configured an LLM provider, the card for that document in the **Documents** panel has an **Itemize** action in its actions menu. Cornerstone reads the OCR text from the PDF and proposes one budget line per row on a dedicated review page with the PDF shown alongside -- you only review and assign them. See [Auto-itemize Invoices](auto-itemize) for the full guide.
 :::
 
 ### Unassigned Budget Lines

@@ -316,7 +316,7 @@ export { SCHEDULE_SIGNALS } from './types/schedule.js';
 export { MILESTONE_DISPLAY_STATUSES } from './types/milestone.js';
 export { BUDGET_VERDICTS } from './types/budgetOverview.js';
 export { CONFIDENCE_LEVELS } from './types/budget.js';
-export { ATTACHMENT_TYPES } from './types/document.js';
+export { ATTACHMENT_TYPES, DOCUMENT_LINK_ENTITY_TYPES } from './types/document.js';
 export {
   DIARY_ENTRY_TYPES,
   MANUAL_DIARY_ENTRY_TYPES,
@@ -369,6 +369,7 @@ export type {
 export type {
   AttachmentType,
   DocumentLinkEntityType,
+  DeleteDocumentLinkResponse,
   PaperlessTag,
   PaperlessDocument,
   PaperlessSearchHit,

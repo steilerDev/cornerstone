@@ -68,7 +68,7 @@
  *   4) — REWORKED by Story #1900 from an always-present auto-regenerating PDF iframe into an
  *   editable HTML surface with ON-DEMAND PDF generation:
  *   - `ReportContentEditor.tsx` renders the effective (overrides-applied) report content as
- *     live, always-editable `EditableField` inputs (`client/src/components/EditableField/`) —
+ *     live, always-editable `EditableField` inputs (the module-private `OverrideField` in `ReportContentEditor.tsx` since #2233, formerly `components/EditableField/`; same DOM) —
  *     NOT click-to-edit. A cover letter card (`[class*="coverLetterCard"]`, only when
  *     `content.coverLetter` is non-null) with visibly-labelled fields (`getByLabel('Sender'
  *     |'Recipient'|'Reference'|'Subject'|'Body')` — `Recipient`/`Reference` only when their

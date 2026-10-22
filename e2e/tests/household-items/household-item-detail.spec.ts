@@ -13,20 +13,21 @@
  * 2.  "Purchases" breadcrumb navigates to /project/household-items
  * 3.  Edit button navigates to /project/household-items/:id/edit
  * 4.  Budget section is visible on the detail page
- * 5.  Documents section heading "Documents" is visible (Paperless connected, mocked)
- * 6.  Paperless off, no links: no Documents section, no Add button, no setup text
+ * 5.  Documents button "Documents (0)" is visible (Paperless connected, mocked)
+ * 6.  Paperless off, no links: no Documents button, no setup text
  * 7.  Paperless off, kept links: read-only notice (admin gets the Integrations link)
  * 8.  404 / error state for non-existent item ID
  * 9.  Responsive — no horizontal scroll on current viewport
  * 10. Dark mode rendering
- * 11. Documents section has accessible aria-labelledby heading
+ * 11. Documents panel has an accessible dialog title
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 import { createHouseholdItemViaApi, deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
 import {
-  expectNoDocumentsSection,
+  expectNoDocumentsButton,
   mockKeptDocumentLinks,
   mockPaperlessConfigured,
   openAndSettle,
@@ -188,13 +189,13 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
 
-      await expect(detailPage.documentsHeading).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('documents-panel-button')).toHaveText('Documents (0)');
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 
-  test('With Paperless off and no links the section, the Add button and the setup text are absent', async ({
+  test('With Paperless off and no links the Documents button and the setup text are absent', async ({
     page,
     testPrefix,
   }) => {
@@ -209,13 +210,13 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       await openAndSettle(page, () => detailPage.goto(createdId as string));
 
       await expect(detailPage.heading).toBeVisible();
-      await expectNoDocumentsSection(page);
+      await expectNoDocumentsButton(page);
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 
-  test('With Paperless off and kept links a read-only notice replaces the Add button', async ({
+  test('With Paperless off and kept links the panel is read-only with a notice and no Link document', async ({
     page,
     testPrefix,
   }) => {
@@ -229,23 +230,18 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
 
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
 
-      await expect(page.getByTestId('documents-paperless-off')).toContainText(
-        'Paperless is not connected. 1 link is kept.',
-      );
-      await expect(page.getByTestId('documents-integrations-link')).toBeVisible();
-      await expect(page.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
-        0,
-      );
+      await expect(panel.notice).toContainText('Paperless is not connected. 1 link is kept.');
+      await expect(panel.integrationsLink).toBeVisible();
+      await expect(panel.linkDocumentButton).toHaveCount(0);
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 
-  test('Documents section has accessible #documents-section-title heading', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Documents panel has an accessible dialog title', async ({ page, testPrefix }) => {
     let createdId: string | null = null;
 
     try {
@@ -257,9 +253,11 @@ test.describe('Documents section — Story 8.6 (Scenarios 5–7, 11)', { tag: '@
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.goto(createdId);
 
-      const sectionTitle = page.locator('#documents-section-title');
-      await expect(sectionTitle).toBeVisible({ timeout: 10000 });
-      await expect(sectionTitle).toHaveText(/Documents/);
+      const panel = new DocumentsPanel(page);
+      await panel.open();
+
+      await expect(panel.title).toHaveText('Documents (0)');
+      await expect(panel.dialog).toHaveAttribute('aria-labelledby', /.+/);
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
@@ -362,11 +360,12 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       const detailPage = new HouseholdItemDetailPage(page);
       await detailPage.heading.waitFor({ state: 'visible', timeout: 10000 });
 
-      await expect(detailPage.documentsHeading).toBeVisible({ timeout: 10000 });
+      const panel = new DocumentsPanel(page);
+      await expect(panel.button()).toBeVisible();
+      await panel.open();
 
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeVisible();
-      await expect(addDocButton).toBeEnabled();
+      await expect(panel.linkDocumentButton).toBeVisible();
+      await expect(panel.linkDocumentButton).toBeEnabled();
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }

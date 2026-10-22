@@ -10,7 +10,7 @@
  *   - Invoice #, Vendor (link), Amount, Date, Due Date, Status, Notes, Created by
  * - An InvoiceDepositsSection (deposits between details and budget lines) — Issue #1404
  * - An InvoiceBudgetLinesSection for linking work item / household item budget lines
- * - A LinkedDocumentsSection (Paperless-ngx integration)
+ * - A "Documents (n)" button (`documents-panel-button`) that opens the Documents panel (#2233)
  * - An Edit modal (role="dialog" named "Edit Invoice")
  * - A Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
  *
@@ -92,6 +92,7 @@
  */
 
 import { expect } from '@playwright/test';
+import { DocumentsPanel } from './DocumentsPanel.js';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
@@ -119,7 +120,10 @@ export class InvoiceDetailPage {
   // Budget lines section
   readonly budgetLinesSection: Locator;
 
-  // Documents section
+  // Documents panel (#2233): the "Documents (n)" trigger and the open sheet
+  readonly documentsButton: Locator;
+  readonly documents: DocumentsPanel;
+  /** The open Documents panel (a dialog; only present while open). */
   readonly documentsSection: Locator;
 
   // Edit modal
@@ -381,7 +385,7 @@ export class InvoiceDetailPage {
   //
   // Story #1564 redesigned the auto-itemize flow as a full page instead of a modal.
   // The "Auto-itemize" button in InvoiceBudgetLinesSection was REMOVED.
-  // The "Itemize" button now appears on each LinkedDocumentCard (in LinkedDocumentsSection)
+  // The "Itemize" button now appears on each LinkedDocumentCard (in the Documents panel)
   //   when: entityType='invoice' AND config.autoItemizeEnabled=true.
   // Clicking "Itemize" navigates to /budget/invoices/:id/auto-itemize/:documentId.
   //
@@ -391,7 +395,7 @@ export class InvoiceDetailPage {
   //   - "Auto-itemize" button in InvoiceBudgetLinesSection header
   //
   // ADDED (story #1564):
-  //   - "Itemize" button on LinkedDocumentCard (in LinkedDocumentsSection)
+  //   - "Itemize" button on LinkedDocumentCard (in the Documents panel)
   //     Translation key: documents:documentCard.itemize = "Itemize"
   //     aria-label: `${t('documentCard.itemize')}: ${title}` = "Itemize: {docTitle}"
   //   - "Details" button renamed from "View" (same button, new label)
@@ -402,36 +406,39 @@ export class InvoiceDetailPage {
 
   // ─── LinkedDocumentCard helpers (Issue #1564) ────────────────────────────────
 
-  /**
-   * Returns the "Itemize" button locator for a specific document card.
-   * Only present when entityType=invoice AND autoItemizeEnabled=true.
-   * Scoped to the documentsSection.
-   *
-   * aria-label pattern: "Itemize: {documentTitle}"
-   */
-  itemizeButton(documentTitle: string): Locator {
-    return this.documentsSection.getByRole('button', {
-      name: new RegExp(`Itemize.*${documentTitle}`, 'i'),
-    });
+  /** Opens the Documents panel from the "Documents (n)" button. */
+  async openDocuments(): Promise<void> {
+    await this.documents.open();
+  }
+
+  /** Opens the ⋯ menu of the card with the given document title (panel must be open). */
+  async openCardMenu(documentTitle: string): Promise<void> {
+    await this.documents.rowMenuTrigger(documentTitle).click();
   }
 
   /**
-   * Returns the "Details" button locator for a specific document card.
-   * Renamed from "View" in story #1564.
-   * Scoped to the documentsSection.
-   *
-   * aria-label pattern: "View details: {documentTitle}"
+   * The "Itemize" menu item. Only present in an open card menu, and only when entityType=invoice
+   * AND config.autoItemizeEnabled=true (open the card's menu first with `openCardMenu`).
    */
+  itemizeButton(_documentTitle?: string): Locator {
+    return this.documents.menuItem('Itemize');
+  }
+
+  /** Opens the card menu and chooses Itemize (navigates to the auto-itemize page). */
+  async clickItemize(documentTitle: string): Promise<void> {
+    await this.openCardMenu(documentTitle);
+    await this.itemizeButton().click();
+  }
+
+  /** The "Details" toggle of the card with the given document title (panel must be open). */
   detailsButton(documentTitle: string): Locator {
-    return this.documentsSection.getByRole('button', {
-      name: new RegExp(`View details.*${documentTitle}`, 'i'),
-    });
+    return this.documents.row(documentTitle).getByRole('button', { name: 'Details' });
   }
 
   // ─── Attachment-type tagging (Story #1877) ───────────────────────────────
   //
   // Only rendered on LinkedDocumentCard when entityType='invoice' (onAttachmentTypeChange
-  // prop is passed conditionally by LinkedDocumentsSection). The select has id
+  // prop is passed conditionally by DocumentsPanel). The select has id
   // `attachment-type-{linkId}` with an sr-only label; the Badge (rendered only when
   // link.attachmentType is non-null) has testId `attachment-type-badge-{linkId}`.
 
@@ -453,12 +460,11 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Returns the attachment-type <select> inside the "Add Document" picker modal body.
-   * Only rendered when entityType='invoice'. id="picker-attachment-type", visible label
-   * (not sr-only, unlike the per-card select).
+   * Returns the "Document type (optional)" select of the panel's picker view.
+   * Only rendered when entityType='invoice'; has a visible label (unlike the per-card select).
    */
   getPickerAttachmentTypeSelect(): Locator {
-    return this.documentsSection.locator('#picker-attachment-type');
+    return this.documents.pickerTypeSelect;
   }
 
   /**
@@ -648,8 +654,10 @@ export class InvoiceDetailPage {
     // "section" (not "budgetLinesSection"), so we locate it via the landmark aria attribute.
     this.budgetLinesSection = page.locator('[aria-labelledby="budget-lines-title"]');
 
-    // Documents section (LinkedDocumentsSection)
-    this.documentsSection = page.getByRole('region', { name: 'Documents' });
+    // Documents panel (#2233)
+    this.documentsButton = page.getByTestId('documents-panel-button');
+    this.documents = new DocumentsPanel(page);
+    this.documentsSection = this.documents.dialog;
 
     // Edit modal — role="dialog" named "Edit Invoice"
     // Using the modal title text as the accessible name anchor

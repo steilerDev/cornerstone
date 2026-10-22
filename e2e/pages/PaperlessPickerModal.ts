@@ -87,7 +87,7 @@ export class PaperlessPickerModal {
   /**
    * @param page - Playwright page
    * @param dialogName - Accessible name of the hosting dialog. Defaults to the invoice picker
-   *   ("Select Invoice Document"); pass 'Add Document' for the LinkedDocumentsSection picker.
+   *   ("Select Invoice Document"); pass 'Link document' for the Documents panel's picker view.
    */
   constructor(page: Page, dialogName: RegExp | string = /Select Invoice Document/i) {
     this.page = page;
@@ -135,7 +135,7 @@ export class PaperlessPickerModal {
 
   /**
    * Scroll the grid's nearest scrollable ancestor (the picker's own scroller: `.pickerBody` in
-   * LinkedDocumentsSection, `.modalBody` in InvoicePaperlessPickerModal) to its bottom, which
+   * the Documents panel's picker view, `.modalBody` in InvoicePaperlessPickerModal) to its bottom, which
    * brings the footer sentinel within the observer's lookahead. No-op when nothing scrolls.
    */
   async scrollToBottom(): Promise<void> {

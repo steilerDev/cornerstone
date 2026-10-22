@@ -22,6 +22,7 @@ import {
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
   CRITICAL_LINE_LEVELS,
+  DOCUMENT_LINK_ENTITY_TYPES,
   DEFECT_STATUS_ACTIONS,
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_SEVERITIES,
@@ -55,6 +56,7 @@ import {
   TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { OBJECT_TAB_IDS } from '../components/ObjectTabs/objectTabIds.js';
 import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
 import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
@@ -240,6 +242,12 @@ export const I18N_UNION_KEYS = {
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
   /** common — Log now tile label in the New sheet. */
   quickLogMode: unionKeySet('common', 'createSheet.quickLog', QUICK_LOG_MODES),
+  /** common — object page tab label (Overview … History) (#2233). */
+  objectTab: unionKeySet('common', 'objectTabs.tab', OBJECT_TAB_IDS),
+  /** documents — "this task" etc. in the picker subtitle and the duplicate-link error (#2233). */
+  documentLinkEntity: unionKeySet('documents', 'panel.entity', DOCUMENT_LINK_ENTITY_TYPES),
+  /** documents — Documents panel empty-state body per linked record type (#2233). */
+  documentLinkEmptyBody: unionKeySet('documents', 'panel.emptyBody', DOCUMENT_LINK_ENTITY_TYPES),
   /** common — attention tier chip (Late, Overdue, Due, Ready, Follow up, Tidy up) (#2230). */
   attentionTier: unionKeySet('common', 'attention.tier', ATTENTION_TIERS),
   /** common — critical-line level chip (On track, Warning, Critical, Overdue) (#2230). */

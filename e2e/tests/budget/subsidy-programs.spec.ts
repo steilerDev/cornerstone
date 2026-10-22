@@ -15,7 +15,7 @@
  * - Delete blocked (409) — error shown, confirm button hidden
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
- * - Documents toggle (Story #1744) — toggle visible, expand/collapse, not-configured state
+ * - Documents button and panel (Story #1744, #2233) — row button, side sheet, picker, Paperless-off states
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -24,11 +24,12 @@ import type { Page } from '@playwright/test';
 import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
-  expectNoDocumentsSection,
   mockKeptDocumentLinks,
   mockPaperlessConfigured,
-  openAndSettle,
+  settleDocumentsHost,
 } from '../../fixtures/paperlessMocks.js';
+import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -803,217 +804,145 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Documents toggle (Story #1744)
+// Documents button and panel (Story #1744, #2233)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
-  // NOTE: @smoke tag is intentionally omitted — these tests require the Story #1744
-  // implementation (docs toggle UI) which is not yet merged to beta. Add @smoke
-  // after the implementation PR is merged to beta.
-  test('Documents toggle button is visible in program row header', async ({ page, testPrefix }) => {
+test.describe('Documents button and panel (Story #1744, #2233)', { tag: '@responsive' }, () => {
+  // A row's "Documents (n)" button (test id program-docs-<id>) opens the shared Documents panel
+  // (side sheet from 768 px, full screen below). Paperless off + no links: no button at all.
+  test('With Paperless on the grant row has a "Documents (0)" button that opens the panel', async ({
+    page,
+    testPrefix,
+  }) => {
     const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs Toggle Program`;
+    const programName = `${testPrefix} Docs Button Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
+      await mockPaperlessConfigured(page);
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+
+      const panel = new DocumentsPanel(page);
+      const button = panel.button(`program-docs-${createdId}`);
+      await expect(button).toHaveText('Documents (0)');
+      await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+      // The accessible name carries the record, so rows are told apart
+      await expect(button).toHaveAccessibleName(`Documents (0) for ${programName}`);
+
+      await panel.open(`program-docs-${createdId}`);
+
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await expect(panel.title).toHaveText('Documents (0)');
+      await expect(panel.dialog.getByText('No documents linked yet.')).toBeVisible();
+      await expect(panel.linkDocumentButton).toBeEnabled();
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test("Escape closes the panel and returns focus to the row's Documents button", async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Escape Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
+      await mockPaperlessConfigured(page);
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+      const panel = new DocumentsPanel(page);
+      await panel.open(`program-docs-${createdId}`);
+
+      await page.keyboard.press('Escape');
+
+      await expect(panel.dialog).toHaveCount(0);
+      await expect(panel.button(`program-docs-${createdId}`)).toBeFocused();
+      await expect(panel.button(`program-docs-${createdId}`)).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test("Link document switches the row's panel to the picker view", async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Picker Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
+      await mockPaginatedPaperless(page, { total: 2 });
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+      const panel = new DocumentsPanel(page);
+      await panel.open(`program-docs-${createdId}`);
+
+      await panel.openPicker();
+
+      await expect(panel.title).toHaveText('Link document');
+      await panel.picker.waitForDocumentsLoaded();
+      await expect(panel.picker.documentItems).toHaveCount(2);
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('With Paperless off and no links the row has no Documents button', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Absent Program`;
     let createdId: string | null = null;
 
     try {
       createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
 
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-
-      // The toggle button should be visible in the program row
-      const toggle = subsidyPage.getDocsToggle(programName);
-      await expect(toggle).toBeVisible();
-
-      // Initial state: not expanded (aria-expanded=false)
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('Clicking docs toggle reveals documents panel with correct role and aria-label', async ({
-    page,
-    testPrefix,
-  }) => {
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs Panel Program`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 15 });
-
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-
-      // Panel should NOT be in the DOM before expanding
-      const panel = subsidyPage.getDocsPanelById(createdId);
-      await expect(panel).not.toBeAttached();
-
-      // Click the toggle to expand
-      await subsidyPage.expandProgramDocs(programName);
-
-      // Panel is now in the DOM and visible with correct region attributes
-      await expect(panel).toBeVisible();
-      await expect(panel).toHaveAttribute('role', 'region');
-      await expect(panel).toHaveAttribute('aria-label', `Documents for ${programName}`);
-
-      // Toggle button now shows aria-expanded=true
-      const toggle = subsidyPage.getDocsToggle(programName);
-      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('Documents panel contains "Documents" heading inside program docs region (Paperless connected)', async ({
-    page,
-    testPrefix,
-  }) => {
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs Heading Program`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
-      await mockPaperlessConfigured(page);
-
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-      await subsidyPage.expandProgramDocs(programName);
-
-      const panel = subsidyPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-
-      // LinkedDocumentsSection renders an h2 "Documents" heading inside the panel
-      const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
-      await expect(docsHeading).toBeVisible();
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('With Paperless off and no links the docs panel shows no Documents section or Add button', async ({
-    page,
-    testPrefix,
-  }) => {
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs AddBtn Program`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
-
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-      await openAndSettle(page, () => subsidyPage.expandProgramDocs(programName));
-
-      const panel = subsidyPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-      await expectNoDocumentsSection(panel);
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('With Paperless off and kept links the docs panel shows the read-only notice', async ({
-    page,
-    testPrefix,
-  }) => {
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs Banner Program`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
-      await mockKeptDocumentLinks(page, 'subsidy_program', createdId, 1);
-
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-      await subsidyPage.expandProgramDocs(programName);
-
-      const panel = subsidyPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-      await expect(panel.getByTestId('documents-paperless-off')).toContainText(
-        'Paperless is not connected. 1 link is kept.',
-      );
-      await expect(panel.getByRole('button', { name: '+ Add Document', exact: true })).toHaveCount(
-        0,
-      );
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('Clicking docs toggle again collapses the documents panel', async ({ page, testPrefix }) => {
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs Collapse Program`;
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 35 });
-
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
-
-      // Expand
-      await subsidyPage.expandProgramDocs(programName);
-      const panel = subsidyPage.getDocsPanelById(createdId);
-      await expect(panel).toBeVisible();
-
-      // Collapse by clicking the toggle again (aria-label changes to "Hide documents for <name>")
-      const toggle = subsidyPage.getDocsToggle(programName);
-      await toggle.click();
-
-      // Panel is removed from DOM (conditional render)
-      await expect(panel).not.toBeAttached();
-
-      // Toggle aria-expanded is false again
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
-    }
-  });
-
-  test('Documents toggle is disabled while program is being edited', async ({
-    page,
-    testPrefix,
-  }) => {
-    // Root cause for two-program setup: the docs toggle lives in the DISPLAY branch
-    // of the program row ({editingProgram?.id === program.id ? <form> : <display+toggle>}).
-    // When a program is being edited, its own row shows the edit form (no toggle in DOM).
-    // Only OTHER (non-edited) program rows still render their docs toggle, and those
-    // toggles carry disabled={!!editingProgram}. So we need at least two programs:
-    // one to edit, and one whose disabled toggle we can assert.
-    const subsidyPage = new SubsidyProgramsPage(page);
-    const editTargetName = `${testPrefix} Docs EditDisable Target`;
-    const otherProgramName = `${testPrefix} Docs EditDisable Other`;
-    let editTargetId: string | null = null;
-    let otherProgramId: string | null = null;
-
-    try {
-      editTargetId = await createProgramViaApi(page, { name: editTargetName, reductionValue: 40 });
-      otherProgramId = await createProgramViaApi(page, {
-        name: otherProgramName,
-        reductionValue: 41,
+      await settleDocumentsHost(page, createdId, async () => {
+        await subsidyPage.goto();
+        await subsidyPage.waitForProgramsLoaded();
       });
 
+      await expect(subsidyPage.getProgramRowByName(programName)).toBeVisible();
+      await expect(page.getByTestId(`program-docs-${createdId}`)).toHaveCount(0);
+      await expect(page.getByText(/not configured/i)).toHaveCount(0);
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('With Paperless off and kept links the panel shows the read-only notice', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Kept Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
+      await mockKeptDocumentLinks(page, 'subsidy_program', createdId, 1);
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
+      const panel = new DocumentsPanel(page);
 
-      // Enter edit mode for the first program
-      await subsidyPage.startEdit(editTargetName);
+      await expect(panel.button(`program-docs-${createdId}`)).toContainText('Documents (1)');
+      await panel.open(`program-docs-${createdId}`);
 
-      // The OTHER (non-edited) program still renders its docs toggle, and it should
-      // be disabled because editingProgram is set. Scope to the exact program ID so
-      // we do not accidentally match the edited row.
-      const otherDocsToggle = page.locator(`[aria-controls="program-docs-${otherProgramId}"]`);
-      await expect(otherDocsToggle).toBeDisabled();
-
-      // Cancel edit to restore state
-      await subsidyPage.cancelEdit(editTargetName);
+      await expect(panel.notice).toContainText('Paperless is not connected. 1 link is kept.');
+      await expect(panel.linkDocumentButton).toHaveCount(0);
     } finally {
-      if (editTargetId) await deleteProgramViaApi(page, editTargetId);
-      if (otherProgramId) await deleteProgramViaApi(page, otherProgramId);
+      if (createdId) await deleteProgramViaApi(page, createdId);
     }
   });
 });

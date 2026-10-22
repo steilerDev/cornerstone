@@ -1,8 +1,8 @@
 /**
  * E2E tests for the Document Browser (Paperless-ngx integration) — EPIC-08
  *
- * The Document Browser is embedded in the LinkedDocumentsSection on detail
- * pages (work items, invoices, household items). Since the E2E environment
+ * The Document Browser is embedded in the Documents panel (picker view of the
+ * "Link document" sheet) on the detail pages (tasks, invoices, purchases) and rows. Since the E2E environment
  * does NOT have a Paperless-ngx instance, these tests use Playwright's
  * page.route() to mock all /api/paperless/* responses at the network level.
  *
@@ -34,7 +34,8 @@ import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
-import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
+import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
+import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
@@ -205,7 +206,7 @@ test.describe(
     // These tests create API data and set up route mocks — allow extra time.
     test.describe.configure({ timeout: 60_000 });
 
-    test('Document cards render in the "Add Document" picker modal', async ({
+    test('Document cards render in the "Link document" picker view', async ({
       page,
       testPrefix,
     }) => {
@@ -220,13 +221,13 @@ test.describe(
         await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        // Click "+ Add Document" button (it should be enabled with mocked config)
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-        await addDocButton.click();
+        // Open the panel and its Link document picker (enabled with mocked config)
+        const docsPanel = new DocumentsPanel(page);
+        await docsPanel.open();
+        await docsPanel.openPicker();
 
         // Picker modal should open
-        const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+        const pickerModal = docsPanel.dialog;
         await expect(pickerModal).toBeVisible();
 
         // Document cards should render in the grid
@@ -256,11 +257,11 @@ test.describe(
         await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-        await addDocButton.click();
+        const docsPanel = new DocumentsPanel(page);
+        await docsPanel.open();
+        await docsPanel.openPicker();
 
-        const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+        const pickerModal = docsPanel.dialog;
         await expect(pickerModal).toBeVisible();
 
         // Type a search query
@@ -292,11 +293,11 @@ test.describe(
         await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-        await addDocButton.click();
+        const docsPanel = new DocumentsPanel(page);
+        await docsPanel.open();
+        await docsPanel.openPicker();
 
-        const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+        const pickerModal = docsPanel.dialog;
         await expect(pickerModal).toBeVisible();
 
         // Tag filter group should contain our mock tags
@@ -327,11 +328,11 @@ test.describe(
         await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-        await addDocButton.click();
+        const docsPanel = new DocumentsPanel(page);
+        await docsPanel.open();
+        await docsPanel.openPicker();
 
-        const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+        const pickerModal = docsPanel.dialog;
         await expect(pickerModal).toBeVisible();
 
         // Should show empty state text
@@ -366,16 +367,16 @@ test.describe(
         await page.goto(`/project/work-items/${createdId}`);
         await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        // The "+ Add Document" button should be disabled when status loads as unreachable
+        // Link document stays available when status loads as unreachable
         // because the hook sets configured=true but reachable=false, and the button
         // depends on configured only. Let's check what actually shows.
         // Actually, the button is disabled when !paperlessStatus?.configured || hook.isLoading
         // Since configured=true, the button should be enabled.
-        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-        await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-        await addDocButton.click();
+        const docsPanel = new DocumentsPanel(page);
+        await docsPanel.open();
+        await docsPanel.openPicker();
 
-        const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+        const pickerModal = docsPanel.dialog;
         await expect(pickerModal).toBeVisible();
 
         // DocumentBrowser shows "Paperless-ngx Unreachable" heading
@@ -409,7 +410,7 @@ test.describe('Document Browser — not connected (Scenario 6)', { tag: '@respon
         title: `${testPrefix} DocBrowser Not Connected Test`,
       });
 
-      // The section sees a configured Paperless (so Add Document opens the picker); the browser
+      // The panel sees a configured Paperless (so Link document opens the picker); the browser
       // then asks again and finds it switched off.
       let calls = 0;
       await page.route('**/api/paperless/status', async (route: Route) => {
@@ -432,11 +433,11 @@ test.describe('Document Browser — not connected (Scenario 6)', { tag: '@respon
       });
 
       await page.goto(`/project/work-items/${createdId}`);
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled();
-      await addDocButton.click();
+      const docsPanel = new DocumentsPanel(page);
+      await docsPanel.open();
+      await docsPanel.openPicker();
 
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+      const pickerModal = docsPanel.dialog;
       await expect(pickerModal.getByText('Paperless is not connected')).toBeVisible();
       await expect(
         pickerModal.getByText('Documents come from Paperless, which is not connected right now.'),
@@ -477,11 +478,11 @@ test.describe('Document Browser — responsive (Scenario 8)', { tag: '@responsiv
       await page.goto(`/project/work-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-      const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-      await expect(addDocButton).toBeEnabled({ timeout: 10000 });
-      await addDocButton.click();
+      const docsPanel = new DocumentsPanel(page);
+      await docsPanel.open();
+      await docsPanel.openPicker();
 
-      const pickerModal = page.getByRole('dialog', { name: 'Add Document' });
+      const pickerModal = docsPanel.dialog;
       await expect(pickerModal).toBeVisible();
 
       // Wait for documents to load
@@ -504,16 +505,14 @@ test.describe('Document Browser — responsive (Scenario 8)', { tag: '@responsiv
 // Routes are registered on the per-test `page`, so no unroute cleanup is needed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Navigate to a work item, open the "Add Document" picker, and return its POM. */
+/** Navigate to a work item, open the Documents panel's Link document picker, return its POM. */
 async function openAddDocumentPicker(page: Page, workItemId: string) {
-  await page.goto(`/project/work-items/${workItemId}`);
-  await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-  const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
-  await expect(addDocButton).toBeEnabled();
-  await addDocButton.click();
-  const picker = new PaperlessPickerModal(page, 'Add Document');
-  await picker.waitForVisible();
-  return picker;
+  await new WorkItemDetailPage(page).goto(workItemId);
+  const docsPanel = new DocumentsPanel(page);
+  await docsPanel.open();
+  await docsPanel.openPicker();
+  await docsPanel.picker.waitForVisible();
+  return docsPanel.picker;
 }
 
 test.describe('Document Browser — infinite scroll (Scenarios 9–14)', { tag: '@responsive' }, () => {

@@ -11,14 +11,27 @@
  */
 
 import type { PaginationMeta } from './pagination.js';
+import type { UndoToken } from './undo.js';
 
 // ─── Entity Types ────────────────────────────────────────────────────────────
 
 /**
  * Entity types that can be linked to Paperless-ngx documents.
+ * Runtime source of truth for DocumentLinkEntityType (i18n key sets iterate it, #2029).
  */
-export type DocumentLinkEntityType =
-  'work_item' | 'household_item' | 'invoice' | 'budget_source' | 'subsidy_program';
+export const DOCUMENT_LINK_ENTITY_TYPES = [
+  'work_item',
+  'household_item',
+  'invoice',
+  'budget_source',
+  'subsidy_program',
+] as const;
+export type DocumentLinkEntityType = (typeof DOCUMENT_LINK_ENTITY_TYPES)[number];
+
+/** Response of DELETE /api/document-links/:id; the token restores the link (contract 11). */
+export interface DeleteDocumentLinkResponse {
+  undo: UndoToken;
+}
 
 /**
  * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
