@@ -426,4 +426,117 @@ describe('Preferences Routes', () => {
       expect(body.preferences).toHaveLength(1);
     });
   });
+
+  // ─── attention.snoozed (contract 18, #2229) ───────────────────────────────
+  //
+  // Mutations: validation skipped for the key, 501 keys or a 16385-char value accepted, a bad row
+  // key or date accepted, validation applied to other keys (theme must stay free-form).
+
+  describe('PATCH attention.snoozed (strict validation)', () => {
+    async function patch(cookie: string, value: string, key = 'attention.snoozed') {
+      return app.inject({
+        method: 'PATCH',
+        url: '/api/users/me/preferences',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ key, value }),
+      });
+    }
+
+    it('stores a valid value (200) and returns it', async () => {
+      const { cookie } = await createUserWithSession();
+      const value = JSON.stringify({ 'N4:invoice:inv-1': '2026-03-17' });
+      const response = await patch(cookie, value);
+      expect(response.statusCode).toBe(200);
+      expect(
+        response.json<{ preference: { key: string; value: string } }>().preference,
+      ).toMatchObject({
+        key: 'attention.snoozed',
+        value,
+      });
+    });
+
+    it('accepts an empty object', async () => {
+      const { cookie } = await createUserWithSession();
+      expect((await patch(cookie, '{}')).statusCode).toBe(200);
+    });
+
+    it.each([
+      ['not JSON', '{nope'],
+      ['an array', '["N1:work_item:wi-1"]'],
+      ['null', 'null'],
+      ['a string', '"x"'],
+      ['a bad row key (H3 does not exist)', JSON.stringify({ 'H3:diary_entry:d-1': '2026-03-17' })],
+      ['a bad row key (free text)', JSON.stringify({ hello: '2026-03-17' })],
+      ['an invalid date', JSON.stringify({ 'N4:invoice:inv-1': '2026-02-30' })],
+      ['a non-date string', JSON.stringify({ 'N4:invoice:inv-1': 'tomorrow' })],
+      ['a numeric date', JSON.stringify({ 'N4:invoice:inv-1': 20260317 })],
+    ])('rejects %s with 400 VALIDATION_ERROR', async (_label, value) => {
+      const { cookie } = await createUserWithSession();
+      const response = await patch(cookie, value);
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects 501 entries and accepts 500', async () => {
+      const { cookie } = await createUserWithSession();
+      const make = (n: number) =>
+        JSON.stringify(
+          Object.fromEntries(
+            Array.from({ length: n }, (_, i) => [`N1:work_item:${i}`, '2026-03-17']),
+          ),
+        );
+      expect((await patch(cookie, make(500))).statusCode).toBe(200);
+      const response = await patch(cookie, make(501));
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts a 16384-character value and rejects 16385', async () => {
+      const { cookie } = await createUserWithSession();
+      expect((await patch(cookie, `{}${' '.repeat(16382)}`)).statusCode).toBe(200);
+      const response = await patch(cookie, `{}${' '.repeat(16383)}`);
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('a rejected value is not stored (the earlier value survives)', async () => {
+      const { cookie } = await createUserWithSession();
+      const value = JSON.stringify({ 'N4:invoice:inv-1': '2026-03-17' });
+      await patch(cookie, value);
+      await patch(cookie, '{nope');
+      const list = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences',
+        headers: { cookie },
+      });
+      expect(
+        list.json<{ preferences: Array<{ key: string; value: string }> }>().preferences,
+      ).toEqual([expect.objectContaining({ key: 'attention.snoozed', value })]);
+    });
+
+    it('other keys keep their free-form behaviour', async () => {
+      const { cookie } = await createUserWithSession();
+      expect((await patch(cookie, '{nope', 'theme')).statusCode).toBe(200);
+      expect((await patch(cookie, 'anything at all', 'dashboard.hiddenCards')).statusCode).toBe(
+        200,
+      );
+    });
+
+    it('DELETE /api/users/me/preferences/attention.snoozed clears all snoozes (204)', async () => {
+      const { cookie } = await createUserWithSession();
+      await patch(cookie, JSON.stringify({ 'N4:invoice:inv-1': '2026-03-17' }));
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/users/me/preferences/attention.snoozed',
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(204);
+      const list = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences',
+        headers: { cookie },
+      });
+      expect(list.json<{ preferences: unknown[] }>().preferences).toEqual([]);
+    });
+  });
 });

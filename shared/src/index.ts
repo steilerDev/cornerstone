@@ -420,7 +420,53 @@ export type {
   DashboardCardId,
   UpsertPreferenceRequest,
   PreferencesResponse,
+  AttentionSnoozedPreference,
 } from './types/preference.js';
+
+// Attention service (#2229)
+export {
+  ATTENTION_NEEDS_RULES,
+  ATTENTION_TIDY_RULES,
+  ATTENTION_RULES,
+  ATTENTION_STANDING_RULES,
+  ATTENTION_TIERS,
+  ATTENTION_SEVERITIES,
+  ATTENTION_ACTIONS,
+  ATTENTION_SUBJECT_TYPES,
+  CRITICAL_LINE_LEVELS,
+  ATTENTION_NOT_NOW_DAYS,
+  ATTENTION_SNOOZE_MAX_KEYS,
+  ATTENTION_SNOOZE_MAX_BYTES,
+  ATTENTION_SNOOZED_PREFERENCE_KEY,
+  ATTENTION_ROW_KEY_PATTERN,
+  ATTENTION_LINK_ROUTES,
+  attentionRowKey,
+  isAttentionRowKey,
+} from './types/attention.js';
+export type {
+  AttentionNeedsRule,
+  AttentionTidyRule,
+  AttentionRule,
+  AttentionStandingRule,
+  AttentionTier,
+  AttentionSeverity,
+  AttentionAction,
+  AttentionSubjectType,
+  CriticalLineLevel,
+  AttentionLinkRoute,
+  AttentionLink,
+  AttentionSubject,
+  AttentionHoldsUp,
+  AttentionGroupItem,
+  AttentionParams,
+  AttentionRow,
+  AttentionStandingRow,
+  AttentionCriticalLine,
+  AttentionResponse,
+  AttentionQuery,
+  AttentionNotNowRequest,
+  AttentionNotNowResponse,
+} from './types/attention.js';
 
 // Household Item Budgets
 export type {

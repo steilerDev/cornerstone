@@ -174,6 +174,7 @@ export interface HouseholdItem {
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
   targetDeliveryDate: string | null;
+  /** Late: not arrived, no actual delivery date, and latest ?? earliest delivery date is before today (see isPurchaseLate). */
   isLate: boolean;
   createdBy: string | null;
   createdAt: string;
@@ -197,6 +198,7 @@ export interface HouseholdItemSummary {
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
   targetDeliveryDate: string | null;
+  /** Late: not arrived, no actual delivery date, and latest ?? earliest delivery date is before today (see isPurchaseLate). */
   isLate: boolean;
   url: string | null;
   budgetLineCount: number;

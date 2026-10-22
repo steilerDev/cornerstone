@@ -1548,7 +1548,7 @@ describe('GanttTooltip — purchase header and rows (#2198)', () => {
     expect(screen.queryByTestId('gantt-tooltip-area')).not.toBeInTheDocument();
   });
 
-  it('shows the delivery dates, floored-to-today note and capped linked items', () => {
+  it('shows the delivery dates and capped linked items', () => {
     render(
       <GanttTooltip
         data={{
@@ -1573,6 +1573,21 @@ describe('GanttTooltip — purchase header and rows (#2198)', () => {
     expect(screen.getByText('Linked 5')).toBeInTheDocument();
     expect(screen.queryByText('Linked 6')).not.toBeInTheDocument();
     expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  // Mutations: the old "Floored to today" note coming back, the Late label shown for an on-time
+  // purchase, a missing .detailValueLate class.
+  it('a late purchase shows "Late" in the late value style and no "Floored to today" note', () => {
+    render(<GanttTooltip data={{ ...PURCHASE, isLate: true }} position={DEFAULT_POSITION} />);
+    const late = screen.getByText('Late');
+    expect(late.className).toContain('detailValueLate');
+    expect(late.className).not.toContain('detailValueFloored');
+    expect(screen.queryByText('Floored to today')).not.toBeInTheDocument();
+  });
+
+  it('an on-time purchase shows no Late label', () => {
+    render(<GanttTooltip data={PURCHASE} position={DEFAULT_POSITION} />);
+    expect(screen.queryByText('Late')).not.toBeInTheDocument();
   });
 
   it('shows a View item button on touch devices that navigates through the callback', async () => {

@@ -99,7 +99,7 @@ export interface TimelineHouseholdItem {
   actualDeliveryDate: string | null;
   /** The purchase's area with its ancestor chain, or null when it has none. Always sent by the server (#2198). */
   area?: AreaSummary | null;
-  /** True when the scheduler floored targetDeliveryDate to today. */
+  /** Late: not arrived, no actual delivery date, and latest ?? earliest delivery date is before today (see isPurchaseLate). */
   isLate: boolean;
   /** References to work item/milestone predecessors. */
   dependencyIds: HouseholdItemDepRef[];

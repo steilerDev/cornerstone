@@ -16,6 +16,7 @@ import {
   getBreakdownMoney,
   getExpectedGrantsByHouseholdItem,
   getItemGrantPayback,
+  listOpenPayments,
   loadMoneyInput,
 } from './moneyService.js';
 import { getBudgetSourceById } from './budgetSourceService.js';
@@ -707,6 +708,85 @@ describe('moneyService', () => {
         Math.round((1234.56 + 777.77) * 15) / 100,
         2,
       );
+    });
+  });
+
+  // #2229: per-due-date decomposition of "still to pay" (attention rules N4-N6).
+  // Mutations: a second still-to-pay definition (Σ items != summary.stillToPay), a lost vendor
+  // name or due date, a missing offer progress payment, a refund leaking in.
+  describe('listOpenPayments', () => {
+    it('is empty for an empty database', () => {
+      expect(listOpenPayments(db)).toEqual([]);
+    });
+
+    it('returns final and progress items with vendor name, number and both due dates', () => {
+      const inv = invoice(3000, 'pending');
+      sqlite
+        .prepare('UPDATE invoices SET invoice_number = ?, due_date = ?, date = ? WHERE id = ?')
+        .run('AB-77', '2026-03-01', '2026-02-10', inv);
+      deposit(inv, 400, 'pending');
+      deposit(inv, 500, 'paid');
+      const items = listOpenPayments(db);
+      expect(items).toHaveLength(2);
+      expect(items[0]).toEqual({
+        kind: 'final',
+        invoiceId: inv,
+        depositId: null,
+        invoiceStatus: 'pending',
+        invoiceNumber: 'AB-77',
+        vendorName: 'Company One',
+        invoiceDate: '2026-02-10',
+        dueDate: '2026-03-01',
+        amount: 2100,
+      });
+      expect(items[1]).toMatchObject({
+        kind: 'progress',
+        invoiceId: inv,
+        invoiceNumber: 'AB-77',
+        vendorName: 'Company One',
+        dueDate: '2026-02-01',
+        amount: 400,
+      });
+      expect(items[1]!.depositId).not.toBeNull();
+    });
+
+    it('includes the pending progress payment of an offer and no final item for it', () => {
+      const offer = invoice(2000, 'quotation');
+      deposit(offer, 300, 'pending');
+      deposit(offer, 100, 'paid');
+      const items = listOpenPayments(db);
+      expect(items.map((i) => [i.kind, i.invoiceStatus, i.amount])).toEqual([
+        ['progress', 'quotation', 300],
+      ]);
+    });
+
+    it('ignores pending refunds', () => {
+      const inv = invoice(1000, 'pending');
+      deposit(inv, 300, 'pending', { entryType: 'refund' });
+      expect(listOpenPayments(db).map((i) => [i.kind, i.amount])).toEqual([['final', 1000]]);
+    });
+
+    it('does not list paid or claimed invoices without pending entries', () => {
+      invoice(500, 'paid');
+      invoice(500, 'claimed');
+      expect(listOpenPayments(db)).toEqual([]);
+    });
+
+    it('Σ of all items equals the summary Still to pay (to the cent)', () => {
+      const a = invoice(1000, 'pending');
+      deposit(a, 250, 'pending');
+      deposit(a, 100.5, 'paid');
+      const b = invoice(333.33, 'pending');
+      const offer = invoice(5000, 'quotation');
+      deposit(offer, 1200, 'pending');
+      deposit(offer, 800, 'pending');
+      invoice(700, 'paid');
+      const c = invoice(900, 'pending');
+      deposit(c, 100, 'pending', { entryType: 'refund' });
+      expect(b).toBeDefined();
+      const total = listOpenPayments(db).reduce((sum, i) => sum + Math.round(i.amount * 100), 0);
+      expect(total).toBe(Math.round(summary().stillToPay * 100));
+      expect(total).toBeGreaterThan(0);
     });
   });
 });

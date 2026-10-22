@@ -6,8 +6,8 @@
  * based on their dependencies on work items and milestones.
  *
  * Floor rules:
- * - planned/purchased: floor ES to today (isLate = true when floored)
- * - scheduled: floor LF to today (isLate = true when floored)
+ * - planned/purchased/scheduled: target floored to today
+ * - isLate = isPurchaseLate (planned date latest ?? earliest before today, not delivered; #2229)
  * - arrived (actualDeliveryDate set): use actual date, isLate = false
  * - earliestDeliveryDate acts as a start_after constraint (user-editable)
  *
@@ -170,6 +170,14 @@ function getHIDeliveryDates(
   return row ?? { targetDeliveryDate: null, actualDeliveryDate: null };
 }
 
+function getStoredIsLate(db: BetterSQLite3Database<typeof schema>, hiId: string): boolean {
+  return db
+    .select({ isLate: schema.householdItems.isLate })
+    .from(schema.householdItems)
+    .where(eq(schema.householdItems.id, hiId))
+    .get()!.isLate;
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('autoReschedule — household item delivery date computation', () => {
@@ -185,6 +193,92 @@ describe('autoReschedule — household item delivery date computation', () => {
 
   afterEach(() => {
     sqlite.close();
+  });
+
+  // ─── Stored is_late = the one purchase Late definition (#2229) ─────────────
+  //
+  // Mutations: is_late never written true (old floor-only logic), written from the target date,
+  // earliest winning over latest, arrived/delivered purchases flagged, the unconstrained branch
+  // skipped.
+
+  describe('stored is_late follows isPurchaseLate', () => {
+    const T = '2026-03-10';
+
+    it('unconstrained purchase with a past latest date becomes late after a reschedule', () => {
+      const hiId = insertHouseholdItem(db, {
+        status: 'purchased',
+        latestDeliveryDate: '2026-03-09',
+        isLate: false,
+      });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, hiId)).toBe(true);
+    });
+
+    it('unconstrained purchase with a past earliest date and no latest date becomes late', () => {
+      const hiId = insertHouseholdItem(db, { earliestDeliveryDate: '2026-03-01' });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, hiId)).toBe(true);
+    });
+
+    it('a dependency-constrained purchase with a past planned date becomes late', () => {
+      const userId = insertUser(db);
+      const wiId = insertWorkItem(db, userId, {
+        status: 'not_started',
+        startDate: '2026-04-01',
+        endDate: '2026-04-05',
+        durationDays: 4,
+      });
+      const hiId = insertHouseholdItem(db, { latestDeliveryDate: '2026-03-02' });
+      insertHIDep(db, hiId, 'work_item', wiId);
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, hiId)).toBe(true);
+    });
+
+    it('boundaries: planned date T-1 is late, T and T+1 are not', () => {
+      const a = insertHouseholdItem(db, { latestDeliveryDate: '2026-03-09' });
+      const b = insertHouseholdItem(db, { latestDeliveryDate: '2026-03-10' });
+      const c = insertHouseholdItem(db, { latestDeliveryDate: '2026-03-11' });
+      autoReschedule(db, { today: T });
+      expect([a, b, c].map((id) => getStoredIsLate(db, id))).toEqual([true, false, false]);
+    });
+
+    it('the latest date wins over the earliest date', () => {
+      const a = insertHouseholdItem(db, {
+        earliestDeliveryDate: '2026-03-01',
+        latestDeliveryDate: '2026-03-20',
+      });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, a)).toBe(false);
+    });
+
+    it('a stale true flag is cleared when the planned date is moved to the future', () => {
+      const a = insertHouseholdItem(db, { latestDeliveryDate: '2026-03-20', isLate: true });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, a)).toBe(false);
+    });
+
+    it('arrived and delivered purchases are never late', () => {
+      const arrived = insertHouseholdItem(db, {
+        status: 'arrived',
+        latestDeliveryDate: '2026-01-01',
+        actualDeliveryDate: '2026-01-05',
+        isLate: true,
+      });
+      const delivered = insertHouseholdItem(db, {
+        status: 'purchased',
+        latestDeliveryDate: '2026-01-01',
+        actualDeliveryDate: '2026-03-09',
+      });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, arrived)).toBe(false);
+      expect(getStoredIsLate(db, delivered)).toBe(false);
+    });
+
+    it('a purchase without dates is never late', () => {
+      const a = insertHouseholdItem(db, { isLate: true });
+      autoReschedule(db, { today: T });
+      expect(getStoredIsLate(db, a)).toBe(false);
+    });
   });
 
   // ─── Basic CPM delivery date computation ───────────────────────────────────

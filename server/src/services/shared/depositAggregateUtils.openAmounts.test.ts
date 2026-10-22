@@ -1,5 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
-import { computeOpenAmounts, type InvoiceDepositRow } from './depositAggregateUtils.js';
+import {
+  computeOpenAmounts,
+  computeOpenPaymentItems,
+  type InvoiceDepositRow,
+  type OpenPaymentItem,
+  type OpenPaymentRow,
+} from './depositAggregateUtils.js';
+import { toCents } from './money.js';
 
 /**
  * Story #2046: computeOpenAmounts unit tests.
@@ -215,5 +222,249 @@ describe('computeOpenAmounts over-deposited invoices (#2188)', () => {
     expect(result.byInvoice.get('inv-1')).toBe(0);
     expect(Object.is(result.byInvoice.get('inv-1'), -0)).toBe(false);
     expect(result.openPayable).toEqual({ count: 0, totalAmount: 0 });
+  });
+});
+
+// ─── computeOpenPaymentItems (#2229, attention rules N4-N6) ──────────────────
+//
+// Mutations these tests catch: a final item on a non-pending invoice, a missing progress item on
+// an offer, a refund producing an item, fanned-out join rows counted twice, a residual that
+// ignores paid/claimed entries, Σ items drifting from computeOpenAmounts (= "still to pay").
+
+function openRow(
+  invoiceId: string,
+  amount: number,
+  status: string,
+  o: {
+    date?: string;
+    due?: string | null;
+    number?: string | null;
+    vendor?: string;
+    deposit?: {
+      id: string;
+      amount: number;
+      status: string;
+      entryType?: string;
+      due?: string | null;
+    };
+  } = {},
+): OpenPaymentRow {
+  return {
+    invoice_id: invoiceId,
+    invoice_amount: amount,
+    invoice_status: status,
+    deposit_id: o.deposit?.id ?? null,
+    deposit_amount: o.deposit?.amount ?? null,
+    deposit_status: o.deposit?.status ?? null,
+    deposit_entry_type: o.deposit ? (o.deposit.entryType ?? 'deposit') : null,
+    invoice_date: o.date ?? '2026-02-01',
+    invoice_due_date: o.due === undefined ? null : o.due,
+    invoice_number: o.number === undefined ? `NR-${invoiceId}` : o.number,
+    vendor_name: o.vendor ?? 'Company A',
+    deposit_due_date: o.deposit
+      ? o.deposit.due === undefined
+        ? '2026-03-05'
+        : o.deposit.due
+      : null,
+  };
+}
+
+describe('computeOpenPaymentItems', () => {
+  it('no rows -> no items', () => {
+    expect(computeOpenPaymentItems([])).toEqual([]);
+  });
+
+  it('a pending invoice with no deposits is one final item with the invoice due date and labels', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 1000, 'pending', { due: '2026-03-01', date: '2026-02-20', number: 'AB-1' }),
+    ]);
+    expect(items).toEqual([
+      {
+        kind: 'final',
+        invoiceId: 'inv-1',
+        depositId: null,
+        invoiceStatus: 'pending',
+        invoiceNumber: 'AB-1',
+        vendorName: 'Company A',
+        invoiceDate: '2026-02-20',
+        dueDate: '2026-03-01',
+        amount: 1000,
+      },
+    ]);
+  });
+
+  it('keeps a null invoice number and a null due date', () => {
+    const [item] = computeOpenPaymentItems([openRow('inv-1', 10, 'pending', { number: null })]);
+    expect(item).toMatchObject({ invoiceNumber: null, dueDate: null });
+  });
+
+  it.each(['paid', 'claimed', 'quotation'])('no final item for a %s invoice', (status) => {
+    expect(computeOpenPaymentItems([openRow('inv-1', 1000, status)])).toEqual([]);
+  });
+
+  it('the final residual is amount minus every non-refund entry of any status', () => {
+    // 3000 with deposits 400 pending + 500 paid: final residual 2100, plus the pending 400
+    const items = computeOpenPaymentItems([
+      openRow('inv-4', 3000, 'pending', {
+        deposit: { id: 'dep-1', amount: 400, status: 'pending' },
+      }),
+      openRow('inv-4', 3000, 'pending', { deposit: { id: 'dep-2', amount: 500, status: 'paid' } }),
+    ]);
+    expect(items.map((i) => [i.kind, i.depositId, i.amount])).toEqual([
+      ['final', null, 2100],
+      ['progress', 'dep-1', 400],
+    ]);
+  });
+
+  it('no final item when deposits cover the invoice (residual 0), progress items remain', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-a', 15000, 'pending', {
+        deposit: { id: 'd1', amount: 5000, status: 'pending' },
+      }),
+      openRow('inv-a', 15000, 'pending', {
+        deposit: { id: 'd2', amount: 5000, status: 'pending' },
+      }),
+      openRow('inv-a', 15000, 'pending', { deposit: { id: 'd3', amount: 5000, status: 'paid' } }),
+    ]);
+    expect(items.map((i) => [i.kind, i.depositId, i.amount])).toEqual([
+      ['progress', 'd1', 5000],
+      ['progress', 'd2', 5000],
+    ]);
+  });
+
+  it('an over-deposited invoice has no negative or NaN residual item', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 1000, 'pending', { deposit: { id: 'd1', amount: 800, status: 'paid' } }),
+      openRow('inv-1', 1000, 'pending', { deposit: { id: 'd2', amount: 700, status: 'pending' } }),
+    ]);
+    expect(items.map((i) => [i.kind, i.amount])).toEqual([['progress', 700]]);
+  });
+
+  it('an offer (quotation) yields progress items for pending deposits and never a final item', () => {
+    const items = computeOpenPaymentItems([
+      openRow('off-1', 2000, 'quotation', {
+        deposit: { id: 'dep-2', amount: 300, status: 'pending', due: '2026-03-14' },
+      }),
+      openRow('off-1', 2000, 'quotation', {
+        deposit: { id: 'dep-3', amount: 100, status: 'paid' },
+      }),
+    ]);
+    expect(items).toEqual([
+      expect.objectContaining({
+        kind: 'progress',
+        invoiceStatus: 'quotation',
+        depositId: 'dep-2',
+        dueDate: '2026-03-14',
+        amount: 300,
+      }),
+    ]);
+  });
+
+  it('a progress item carries the deposit due date; paid and claimed entries produce none', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 100, 'paid', { deposit: { id: 'd1', amount: 40, status: 'claimed' } }),
+      openRow('inv-1', 100, 'paid', {
+        deposit: { id: 'd2', amount: 60, status: 'pending', due: '2026-04-01' },
+      }),
+    ]);
+    expect(items).toEqual([expect.objectContaining({ depositId: 'd2', dueDate: '2026-04-01' })]);
+  });
+
+  it('pending refunds produce no item and do not reduce the final residual', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-4', 1000, 'pending', {
+        deposit: { id: 'ref-1', amount: 300, status: 'pending', entryType: 'refund' },
+      }),
+    ]);
+    expect(items.map((i) => [i.kind, i.amount])).toEqual([['final', 1000]]);
+  });
+
+  it('dedupes deposits fanned out by the join (the same deposit on several rows)', () => {
+    const dep = { id: 'dep-1', amount: 400, status: 'pending' };
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 1000, 'pending', { deposit: dep }),
+      openRow('inv-1', 1000, 'pending', { deposit: dep }),
+      openRow('inv-1', 1000, 'pending', { deposit: dep }),
+    ]);
+    expect(items.map((i) => [i.kind, i.amount])).toEqual([
+      ['final', 600],
+      ['progress', 400],
+    ]);
+  });
+
+  it('a deposit with a null entry type counts as a deposit', () => {
+    const row = openRow('inv-1', 1000, 'pending', {
+      deposit: { id: 'd1', amount: 250, status: 'pending' },
+    });
+    row.deposit_entry_type = null;
+    const items = computeOpenPaymentItems([row]);
+    expect(items.map((i) => [i.kind, i.amount])).toEqual([
+      ['final', 750],
+      ['progress', 250],
+    ]);
+  });
+
+  it('works in integer cents (no floating-point drift)', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 100.1, 'pending', { deposit: { id: 'd1', amount: 0.2, status: 'pending' } }),
+    ]);
+    expect(items.map((i) => i.amount)).toEqual([99.9, 0.2]);
+  });
+
+  it('orders by invoice id, then final before progress, then deposit id', () => {
+    const items = computeOpenPaymentItems([
+      openRow('b', 100, 'pending', { deposit: { id: 'z', amount: 10, status: 'pending' } }),
+      openRow('b', 100, 'pending', { deposit: { id: 'a', amount: 10, status: 'pending' } }),
+      openRow('a', 100, 'pending'),
+    ]);
+    expect(items.map((i) => `${i.invoiceId}:${i.kind}:${i.depositId}`)).toEqual([
+      'a:final:null',
+      'b:final:null',
+      'b:progress:a',
+      'b:progress:z',
+    ]);
+  });
+
+  it('per invoice, Σ item cents equals computeOpenAmounts (a seeded random set), so Σ all = still to pay', () => {
+    let seed = 20260310;
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
+    const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]!;
+    const rows: OpenPaymentRow[] = [];
+    for (let i = 0; i < 120; i++) {
+      const id = `inv-${String(i).padStart(3, '0')}`;
+      const status = pick(['pending', 'pending', 'paid', 'claimed', 'quotation']);
+      const amount = Math.round(rnd() * 500000) / 100;
+      const n = Math.floor(rnd() * 4);
+      if (n === 0) rows.push(openRow(id, amount, status));
+      for (let d = 0; d < n; d++) {
+        const row = openRow(id, amount, status, {
+          deposit: {
+            id: `${id}-d${d}`,
+            amount: Math.round(rnd() * 200000) / 100,
+            status: pick(['pending', 'paid', 'claimed']),
+            entryType: pick(['deposit', 'deposit', 'refund']),
+            due: rnd() < 0.2 ? null : '2026-03-20',
+          },
+        });
+        rows.push(row);
+        if (rnd() < 0.3) rows.push(row); // join fan-out
+      }
+    }
+
+    const items = computeOpenPaymentItems(rows);
+    const open = computeOpenAmounts(rows);
+    const byInvoice = new Map<string, number>();
+    for (const item of items as OpenPaymentItem[]) {
+      byInvoice.set(item.invoiceId, (byInvoice.get(item.invoiceId) ?? 0) + toCents(item.amount));
+    }
+    for (const [invoiceId, amount] of open.byInvoice) {
+      expect(byInvoice.get(invoiceId) ?? 0).toBe(toCents(amount));
+    }
+    for (const invoiceId of byInvoice.keys()) expect(open.byInvoice.has(invoiceId)).toBe(true);
+    const total = [...byInvoice.values()].reduce((a, b) => a + b, 0);
+    expect(total).toBe(toCents(open.openPayable.totalAmount));
   });
 });

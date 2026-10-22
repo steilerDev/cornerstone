@@ -207,12 +207,11 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     //   es = maxDate(maxES, earliestDeliveryDate) = maxDate(today, '2020-01-01') = today
     //   targetDate = es = today
     // Then the 'planned' floor rule: maxDate(today, today) = today — no floor needed.
-    // isLate = false because the date was NOT pushed forward by the floor step.
-    //
-    // In other words: a past earliestDeliveryDate acts as a no-op constraint —
-    // the date is already anchored to today by the default maxES.
+    // isLate comes from the one purchase Late definition (isPurchaseLate, #2229): the planned
+    // date (latest ?? earliest = 2020-01-01) is before today, so the purchase is late. The
+    // target date itself is still anchored to today by the default maxES.
     expect(updated.targetDeliveryDate).toBe(TODAY);
-    expect(updated.isLate).toBe(false);
+    expect(updated.isLate).toBe(true);
   });
 
   it('updating status triggers reschedule — targetDeliveryDate changes from null to a value', () => {

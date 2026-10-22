@@ -227,6 +227,58 @@ describe('not yet split (formula 2) and expected cost (formula 3)', () => {
     expect(result.notYetSplit).toEqual({ amountCents: 4000, recordCount: 4 });
   });
 
+  // #2229: per-invoice remainders feeding the H2 "Tidy up" rows.
+  // Mutations: a threshold of 99/101 cents, storing negative remainders, Σ drifting from notYetSplit.
+  describe('notYetSplitByInvoice (#2229)', () => {
+    it('holds the remainder in cents for each record at or above one currency unit', () => {
+      const result = computeMoney(
+        input({
+          invoices: [
+            invoice('i1', { amount: 101, itemizedCents: 10000 }),
+            invoice('i2', { amount: 500, itemizedCents: 0, status: 'quotation' }),
+          ],
+        }),
+      );
+      expect([...result.notYetSplitByInvoice]).toEqual([
+        ['i1', 100],
+        ['i2', 50000],
+      ]);
+    });
+
+    it('leaves out a remainder of 0.99, an exactly split record and an over-itemized record', () => {
+      const result = computeMoney(
+        input({
+          invoices: [
+            invoice('i1', { amount: 100.99, itemizedCents: 10000 }),
+            invoice('i2', { amount: 100, itemizedCents: 10000 }),
+            invoice('i3', { amount: 50, itemizedCents: 6000 }),
+          ],
+        }),
+      );
+      expect(result.notYetSplitByInvoice.size).toBe(0);
+    });
+
+    it('sums to notYetSplit.amountCents and counts notYetSplit.recordCount', () => {
+      const result = computeMoney(
+        input({
+          invoices: [
+            invoice('i1', { amount: 123.45, itemizedCents: 1000 }),
+            invoice('i2', { amount: 10, itemizedCents: 0 }),
+            invoice('i3', { amount: 0.5, itemizedCents: 0 }),
+            invoice('i4', { amount: 80, itemizedCents: 8000 }),
+          ],
+        }),
+      );
+      const values = [...result.notYetSplitByInvoice.values()];
+      expect(values.reduce((a, b) => a + b, 0)).toBe(result.notYetSplit.amountCents);
+      expect(values).toHaveLength(result.notYetSplit.recordCount);
+    });
+
+    it('is empty without records', () => {
+      expect(computeMoney(input()).notYetSplitByInvoice.size).toBe(0);
+    });
+  });
+
   it('adds the same not-yet-split amount to expected cost in every scenario', () => {
     const result = computeMoney(
       input({

@@ -104,7 +104,7 @@
         "targetLabel": "Zielangabe",
         "latestLabel": "Späteste",
         "actualLabel": "Tatsächlich",
-        "flooredToToday": "Heute begrenzt",
+        "late": "Verspätet",
         "linkedItems": "Verknüpfte Elemente"
       },
       "dependency": {

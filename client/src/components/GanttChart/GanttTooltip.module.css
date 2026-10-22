@@ -98,6 +98,7 @@
 /* Late projected date value — shown in red */
 .detailValueLate {
   color: var(--color-red-200);
+  font-weight: var(--font-weight-medium);
 }
 
 /* Delay value — shown in red to indicate the item is behind schedule */
@@ -263,16 +264,11 @@
 }
 
 [data-theme='dark'] .detailValueLate {
-  color: var(--color-red-400);
+  color: var(--color-red-700);
 }
 
 [data-theme='dark'] .detailValueDelay {
-  color: var(--color-red-400);
-}
-
-.detailValueFloored {
-  color: var(--color-hi-status-scheduled-text);
-  font-weight: var(--font-weight-medium);
+  color: var(--color-red-700);
 }
 
 .viewItemButton {

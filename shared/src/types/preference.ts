@@ -17,6 +17,7 @@ export interface UserPreference {
  */
 export type PreferenceKey =
   | 'dashboard.hiddenCards' // JSON array of card IDs to hide
+  | 'attention.snoozed' // JSON object { "<attention row key>": "YYYY-MM-DD" } (snoozed until, exclusive)
   | 'theme' // 'light' | 'dark' | 'system'
   | 'locale'; // ISO 639-1 language code (e.g., 'en', 'de')
 
@@ -46,3 +47,9 @@ export interface UpsertPreferenceRequest {
 export interface PreferencesResponse {
   preferences: UserPreference[];
 }
+
+/**
+ * Value shape of the `attention.snoozed` preference (JSON-encoded): attention row key ->
+ * snoozed-until date (`YYYY-MM-DD`, exclusive: the row shows again on that day).
+ */
+export type AttentionSnoozedPreference = Record<string, string>;

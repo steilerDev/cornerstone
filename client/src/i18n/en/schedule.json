@@ -104,7 +104,7 @@
         "targetLabel": "Target",
         "latestLabel": "Latest",
         "actualLabel": "Actual",
-        "flooredToToday": "Floored to today",
+        "late": "Late",
         "linkedItems": "Linked Items"
       },
       "dependency": {

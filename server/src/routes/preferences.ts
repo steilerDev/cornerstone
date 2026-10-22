@@ -9,6 +9,8 @@
 
 import type { FastifyInstance } from 'fastify';
 import { NotFoundError, UnauthorizedError } from '../errors/AppError.js';
+import { ATTENTION_SNOOZED_PREFERENCE_KEY } from '@cornerstone/shared';
+import { validateSnoozedPreferenceValue } from '../services/attentionSnoozeService.js';
 import * as preferencesService from '../services/preferencesService.js';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -74,6 +76,9 @@ export default async function preferencesRoutes(fastify: FastifyInstance) {
       }
 
       const { key, value } = request.body;
+      if (key === ATTENTION_SNOOZED_PREFERENCE_KEY) {
+        validateSnoozedPreferenceValue(value);
+      }
       const preference = preferencesService.upsertPreference(
         fastify.db,
         request.user.id,
