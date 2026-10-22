@@ -240,6 +240,7 @@ function openRow(
     due?: string | null;
     number?: string | null;
     vendor?: string;
+    vendorId?: string;
     deposit?: {
       id: string;
       amount: number;
@@ -260,6 +261,7 @@ function openRow(
     invoice_date: o.date ?? '2026-02-01',
     invoice_due_date: o.due === undefined ? null : o.due,
     invoice_number: o.number === undefined ? `NR-${invoiceId}` : o.number,
+    vendor_id: o.vendorId ?? 'v-a',
     vendor_name: o.vendor ?? 'Company A',
     deposit_due_date: o.deposit
       ? o.deposit.due === undefined
@@ -274,6 +276,22 @@ describe('computeOpenPaymentItems', () => {
     expect(computeOpenPaymentItems([])).toEqual([]);
   });
 
+  it('fills vendorId from the row vendor_id for final and progress items (#2230)', () => {
+    const items = computeOpenPaymentItems([
+      openRow('inv-1', 1000, 'pending', { vendorId: 'v-x', vendor: 'Company X' }),
+      openRow('inv-2', 2000, 'pending', {
+        vendorId: 'v-y',
+        vendor: 'Company Y',
+        deposit: { id: 'dep-1', amount: 500, status: 'pending' },
+      }),
+    ]);
+    expect(items.map((i) => [i.invoiceId, i.kind, i.vendorId, i.vendorName])).toEqual([
+      ['inv-1', 'final', 'v-x', 'Company X'],
+      ['inv-2', 'final', 'v-y', 'Company Y'],
+      ['inv-2', 'progress', 'v-y', 'Company Y'],
+    ]);
+  });
+
   it('a pending invoice with no deposits is one final item with the invoice due date and labels', () => {
     const items = computeOpenPaymentItems([
       openRow('inv-1', 1000, 'pending', { due: '2026-03-01', date: '2026-02-20', number: 'AB-1' }),
@@ -285,6 +303,7 @@ describe('computeOpenPaymentItems', () => {
         depositId: null,
         invoiceStatus: 'pending',
         invoiceNumber: 'AB-1',
+        vendorId: 'v-a',
         vendorName: 'Company A',
         invoiceDate: '2026-02-20',
         dueDate: '2026-03-01',

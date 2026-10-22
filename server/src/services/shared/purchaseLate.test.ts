@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { isPurchaseLate, purchasePlannedDate, type PurchaseLateFields } from './purchaseLate.js';
+import {
+  isPurchaseLate,
+  purchaseDeliveryDate,
+  purchasePlannedDate,
+  type PurchaseLateFields,
+} from './purchaseLate.js';
 
 const TODAY = '2026-03-10';
 
@@ -77,5 +82,41 @@ describe('isPurchaseLate', () => {
 
   it('a purchase without dates is never late', () => {
     expect(isPurchaseLate(p(), TODAY)).toBe(false);
+  });
+});
+
+describe('purchaseDeliveryDate (the date shown on the attention row and the Home agenda)', () => {
+  const dates = (
+    target: string | null,
+    earliest: string | null,
+    latest: string | null,
+  ): Parameters<typeof purchaseDeliveryDate>[0] => ({
+    targetDeliveryDate: target,
+    earliestDeliveryDate: earliest,
+    latestDeliveryDate: latest,
+  });
+
+  it('prefers the latest date over the earliest and the target', () => {
+    expect(purchaseDeliveryDate(dates('2026-03-01', '2026-03-02', '2026-03-03'))).toBe(
+      '2026-03-03',
+    );
+  });
+
+  it('falls back to the earliest date, then to the target', () => {
+    expect(purchaseDeliveryDate(dates('2026-03-01', '2026-03-02', null))).toBe('2026-03-02');
+    expect(purchaseDeliveryDate(dates('2026-03-01', null, null))).toBe('2026-03-01');
+  });
+
+  it('is null when no date is set', () => {
+    expect(purchaseDeliveryDate(dates(null, null, null))).toBeNull();
+  });
+
+  it('uses the latest even when only the latest is set', () => {
+    expect(purchaseDeliveryDate(dates(null, null, '2026-04-01'))).toBe('2026-04-01');
+  });
+
+  it('agrees with purchasePlannedDate whenever the window is set', () => {
+    const d = dates('2026-03-01', '2026-03-02', null);
+    expect(purchaseDeliveryDate(d)).toBe(purchasePlannedDate(d));
   });
 });

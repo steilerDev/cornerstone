@@ -70,8 +70,9 @@ import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPa
 /** Today's 26 live redirects: legacy/section path -> landing path (query/hash handled apart). */
 const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   // Section roots (PLT-012)
-  ['/', '/project/overview'],
-  ['/project', '/project/overview'],
+  // Home is served at `/` since #2230: the old dashboard URL and the Project root land on it
+  ['/project/overview', '/'],
+  ['/project', '/'],
   ['/budget', '/budget/overview'],
   ['/schedule', '/schedule/gantt'],
   ['/settings', '/settings/manage'],
@@ -125,7 +126,7 @@ const PROJECT_SETUP_TABS: ReadonlyArray<readonly [string, string]> = [
 const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
   {
     name: 'section roots',
-    from: ['/', '/project', '/budget', '/schedule', '/settings'],
+    from: ['/project/overview', '/project', '/budget', '/schedule', '/settings'],
   },
   {
     name: 'legacy paths',

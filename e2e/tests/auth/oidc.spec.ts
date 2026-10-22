@@ -105,7 +105,7 @@ test.describe('OIDC SSO Flow', () => {
     // OIDC identity (oidcSubject is set; authProvider stays 'local')
     await loginPage.clickSSO();
 
-    // Then: User should be redirected to dashboard (session created)
+    // Then: User should be redirected to Home (session created)
     await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
 
     // And: /api/auth/me should return authenticated user

@@ -16,13 +16,18 @@ export interface UserPreference {
  * Keys use dot-notation namespacing.
  */
 export type PreferenceKey =
-  | 'dashboard.hiddenCards' // JSON array of card IDs to hide
+  | 'dashboard.hiddenCards' // legacy (read only by migration 0048): JSON array of card IDs to hide
+  | 'home.hiddenSections' // JSON array of hideable Home section ids
+  | 'home.collapsedSections' // JSON array of collapsed Home section ids (tidy-up only)
+  | 'home.movedNoticeSeen' // 'true' once the "what moved where" notice was dismissed
+  | 'home.setupDismissed' // 'true' once set-up mode was skipped
   | 'attention.snoozed' // JSON object { "<attention row key>": "YYYY-MM-DD" } (snoozed until, exclusive)
   | 'theme' // 'light' | 'dark' | 'system'
   | 'locale'; // ISO 639-1 language code (e.g., 'en', 'de')
 
 /**
  * Known dashboard card IDs for the dashboard.hiddenCards preference.
+ * Legacy: read only by migration 0048 (mapped to `home.hiddenSections`).
  * Used by the client to identify which cards can be shown/hidden.
  */
 export type DashboardCardId =

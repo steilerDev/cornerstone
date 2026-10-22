@@ -109,7 +109,6 @@ const PATHS: Record<string, () => string> = {
   settingsBackups: () => routeUrl('settingsBackups'),
   settingsIntegrations: () => routeUrl('settingsIntegrations'),
   home: () => routeUrl('home'),
-  dashboard: () => routeUrl('dashboard'),
   areas: () => routeUrl('areas'),
   history: () => routeUrl('history'),
   companies: () => routeUrl('companies'),

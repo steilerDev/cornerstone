@@ -43,7 +43,7 @@ const PRIMARY_LABELS = [
 
 /** Section id, the main view it opens, and what the user lands on after any interim redirect. */
 const SECTION_LANDINGS = [
-  { id: 'home', path: () => routeUrl('dashboard') },
+  { id: 'home', path: () => routeUrl('home') },
   { id: 'tasks', path: () => routeUrl('workItems') },
   { id: 'purchases', path: () => routeUrl('householdItems') },
   { id: 'diary', path: () => routeUrl('diary') },
@@ -139,7 +139,7 @@ test.describe('Sidebar Navigation', () => {
     const logo = appShell.sidebar.getByRole('link', { name: 'Go to Home', exact: true });
     await expect(logo).toHaveAttribute('href', '/');
     await logo.click();
-    await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
     await expect(appShell.sectionLink('home')).toHaveAttribute('aria-current', 'page');
   });
 

@@ -2,7 +2,7 @@
  * E2E tests for Story #2194 [P0.3] Money truth (EPIC-21).
  *
  * Scenarios (AC numbers refer to the story):
- *   1. AC1 — over-allocated source: Sources page + Home show "Over-allocated by", the striped
+ *   1. AC1 — over-allocated source: Sources page shows "Over-allocated by" (Home no longer, #2230), the striped
  *      overflow segment has a real width (not clipped), dark mode keeps the note visible, and the
  *      note wraps under the bar.
  *   2. AC2 — company "Still to pay": paid + claimed invoices give 0 without danger colour; a
@@ -34,7 +34,6 @@ import {
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
@@ -163,7 +162,7 @@ function amountRegex(whole: number): RegExp {
 
 test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive' }, () => {
   test(
-    'Sources page and Home state "Over-allocated by 250" with a visible overflow segment',
+    'Sources page states "Over-allocated by 250" with a visible overflow segment',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const sourceName = `${testPrefix} Money Truth Bank ${Date.now()}`;
@@ -209,20 +208,7 @@ test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive
       await expect(note).toBeVisible();
       await expect(sourcesPage.overflowSegment(sourceName)).toBeVisible();
 
-      // Home › Source utilization
-      const dashboard = new DashboardPage(page);
-      await dashboard.goto();
-      await dashboard.waitForCardsLoaded();
-      await dashboard.openBudgetDetailsIfCollapsed();
-
-      await expect(dashboard.sourceRow(sourceName)).toBeVisible();
-      const homeNote = dashboard.sourceOverAllocatedNote(sourceName);
-      await expect(homeNote).toBeVisible();
-      await expect(homeNote).toContainText('Over-allocated by');
-      await expect(homeNote).toContainText(amountRegex(250));
-
-      await setDarkMode(page);
-      await expect(homeNote).toBeVisible();
+      // The Home source card is retired (#2230): the over-allocation note lives on Money only
     },
   );
 
@@ -449,6 +435,7 @@ test.describe('Money truth — Remaining to allocate (AC6)', () => {
 test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive' }, () => {
   interface LinkSetup {
     workItemId: string;
+    vendorId: string;
     fullInvoiceId: string;
     remInvoiceId: string;
     remInvoiceNumber: string;
@@ -456,8 +443,7 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
   }
 
   /**
-   * One company, three invoices dated in 2099 so they sort first (date desc) regardless of other
-   * data: FULL (fully allocated), REM (500 left), OTHER (400 left). The work item under test has
+   * One company, three invoices dated in 2099 so they sort first (date desc): FULL (fully allocated), REM (500 left), OTHER (400 left). The work item under test has
    * one unlinked 100 line.
    */
   async function setupLinkModal(page: Page, testPrefix: string): Promise<LinkSetup> {
@@ -466,18 +452,18 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     const fullInvoiceId = await makeInvoice(page, vendorId, {
       invoiceNumber: `${testPrefix}-LF-${stamp}`,
       amount: 300,
-      date: '2099-12-31',
+      date: `2099-12-31`,
     });
     const remInvoiceNumber = `${testPrefix}-LR-${stamp}`;
     const remInvoiceId = await makeInvoice(page, vendorId, {
       invoiceNumber: remInvoiceNumber,
       amount: 500,
-      date: '2099-12-30',
+      date: `2099-12-30`,
     });
     const otherInvoiceId = await makeInvoice(page, vendorId, {
       invoiceNumber: `${testPrefix}-LO-${stamp}`,
       amount: 400,
-      date: '2099-12-29',
+      date: `2099-12-29`,
     });
 
     const allocWi = await makeWorkItem(page, `${testPrefix} Alloc WI ${stamp}`);
@@ -495,7 +481,7 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       description: 'Line to link',
     });
 
-    return { workItemId, fullInvoiceId, remInvoiceId, remInvoiceNumber, otherInvoiceId };
+    return { workItemId, vendorId, fullInvoiceId, remInvoiceId, remInvoiceNumber, otherInvoiceId };
   }
 
   test(
@@ -503,6 +489,18 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const s = await setupLinkModal(page, testPrefix);
+      // Other workers create invoices in the shared database while this runs, and they could
+      // sort ahead of ours or appear between two reads. The modal's list is therefore narrowed to
+      // this test's own company (the real response, filtered), so the order is ours alone.
+      await page.route(
+        (url) => url.pathname === '/api/invoices',
+        async (route) => {
+          const response = await route.fetch();
+          const body = (await response.json()) as { invoices: Array<{ vendorId: string }> };
+          body.invoices = body.invoices.filter((invoice) => invoice.vendorId === s.vendorId);
+          await route.fulfill({ response, json: body });
+        },
+      );
       const wi = new WorkItemDetailPage(page);
       await wi.goto(s.workItemId);
       await wi.linkToInvoiceButton.click();
@@ -510,13 +508,12 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       await expect(modal).toBeVisible();
 
       // Preselected: the first invoice that still has room, shown as the picker's selected chip
-      // (a SearchPicker with a value has no input to read). Other workers create invoices dated
-      // in 2099 too, so the first row with room may be theirs: the check below compares the
-      // preselection with the list order instead of naming our own invoice.
+      // (a SearchPicker with a value has no input to read). Ours sort first (own year), so it is
+      // our REM invoice.
       const picker = wi.invoiceLinkPicker;
       await expect(wi.invoiceLinkSelected).toBeVisible();
       await expect(wi.invoiceLinkSelected).toContainText('#');
-      const preselected = ((await wi.invoiceLinkSelected.textContent()) ?? '').trim();
+      await expect(wi.invoiceLinkSelected).toContainText(s.remInvoiceNumber);
       await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
 
       // No warning styling on open
@@ -555,10 +552,6 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
         if (firstWithRoom < 0 && !text.includes('Nothing left to link')) firstWithRoom = index;
       }
       expect(firstWithRoom, 'some invoice has room').toBeGreaterThanOrEqual(0);
-      const firstNumber = (
-        (await allRows[firstWithRoom]!.locator('[class*="resultTitle"]').textContent()) ?? ''
-      ).trim();
-      expect(preselected).toContain(firstNumber);
       // Our own invoices keep their order: FULL (skipped) before REM before OTHER
       const ours = [s.fullInvoiceId, s.remInvoiceId, s.otherInvoiceId].map((id) =>
         optionIds.indexOf(`invoice-link-option-${id}`),

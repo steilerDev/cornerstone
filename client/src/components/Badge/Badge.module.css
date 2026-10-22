@@ -283,20 +283,41 @@
   border: 1px solid var(--color-success-border);
 }
 
-/* Budget health indicator variants */
-.budgetHealthOnBudget {
+/* Budget verdict (Left to spend): the words and the sign carry the meaning, not the colour */
+.verdictOnBudget {
   background-color: var(--color-success-badge-bg);
   color: var(--color-success-badge-text);
 }
 
-.budgetHealthAtRisk {
+.verdictOverBudget {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+/* Attention tiers and critical-line levels (Home, bell) */
+.attentionRed {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+.attentionAmber {
+  background-color: var(--color-warning-badge-bg);
+  color: var(--color-warning-badge-text);
+}
+
+.attentionTidy {
   background-color: var(--color-status-not-started-bg);
   color: var(--color-status-not-started-text);
 }
 
-.budgetHealthOverBudget {
-  background-color: var(--color-danger-bg-strong);
-  color: var(--color-danger-text-on-light);
+.criticalOnTrack {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+.scheduleCritical {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
 }
 
 /* Schedule health variants (milestones, critical path) */

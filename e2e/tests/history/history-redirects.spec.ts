@@ -29,7 +29,7 @@ test.describe('Site diary ?filterMode links go to History', { tag: '@responsive'
 
     // A page before the legacy link, so "Back" has somewhere to go (the Home page itself may
     // read the diary, so the request listener starts after it has settled)
-    await page.goto(routeUrl('dashboard'));
+    await page.goto(routeUrl('home'));
     await expect(page.locator('main h1').first()).toBeVisible();
     await page.waitForLoadState('networkidle');
     page.on('request', (request) => {
@@ -67,7 +67,7 @@ test.describe('Site diary ?filterMode links go to History', { tag: '@responsive'
 
     // Back leaves the app's previous page; it does not return to /diary
     await page.goBack();
-    await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
   });
 
   test('R2: filterMode=all lands on /history?include=diary with the toggle on', async ({

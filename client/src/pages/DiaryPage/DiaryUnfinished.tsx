@@ -3,13 +3,12 @@ import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
-import { clearStickyTags } from '../../capture/stickyTags.js';
-import { useCaptureUploads } from '../../capture/captureUploadsContext.js';
+import { useDiscardDraft } from '../../capture/useDiscardDraft.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useDiaryEntryTitle } from '../../hooks/useDiaryEntryTitle.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { deleteDiaryEntry, listDiaryEntries } from '../../lib/diaryApi.js';
+import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
@@ -31,7 +30,7 @@ export function DiaryUnfinished({ onShowAll, headingRef }: DiaryUnfinishedProps)
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
-  const uploads = useCaptureUploads();
+  const { discard, waitingCount } = useDiscardDraft();
   const sectionRef = useRef<HTMLElement>(null);
   const [drafts, setDrafts] = useState<DiaryEntrySummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -63,9 +62,7 @@ export function DiaryUnfinished({ onShowAll, headingRef }: DiaryUnfinishedProps)
     setBusy(true);
     setError(null);
     try {
-      await uploads.discardDraft(entry.id);
-      await deleteDiaryEntry(entry.id);
-      clearStickyTags(entry.id);
+      await discard(entry.id);
 
       // Focus the next row's Continue, else the previous row's, else the page heading.
       const links = Array.from(
@@ -92,9 +89,7 @@ export function DiaryUnfinished({ onShowAll, headingRef }: DiaryUnfinishedProps)
     }
   };
 
-  const waiting = discarding
-    ? uploads.items.filter((item) => item.draftId === discarding.id).length
-    : 0;
+  const waiting = discarding ? waitingCount(discarding.id) : 0;
   const photoTotal = discarding ? discarding.photoCount + waiting : 0;
   const lead =
     photoTotal === 0

@@ -457,7 +457,7 @@ export class InvoicesPage {
    * resolve out of order — the later-resolving one's re-sync wins and can
    * transiently (or, if it's the first toggle's stale single-column payload,
    * durably) overwrite the newer visibility state. Awaiting the PATCH here,
-   * the same way DashboardPage.dismissCard() does for this endpoint, makes
+   * the same way the preference-writing page objects do for this endpoint, makes
    * each toggle's persistence+re-sync cycle fully settle before the next
    * enableColumn() call (or any header read) can start, closing that race at
    * the source instead of retrying the read against it.
@@ -472,7 +472,7 @@ export class InvoicesPage {
       // Register the preferences PATCH listener BEFORE clicking — the debounced
       // save fires ~500ms later, so registering after the click would still be
       // safe here, but doing it first matches the established convention (see
-      // DashboardPage.dismissCard()) and avoids any risk of missing the response.
+      // the other preference-writing page objects) and avoids any risk of missing the response.
       const preferencesSaved = this.page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/users/me/preferences') &&

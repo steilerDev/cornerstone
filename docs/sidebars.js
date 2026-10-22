@@ -103,7 +103,12 @@ const sidebars = {
       link: { type: 'doc', id: 'guides/feeds/index' },
       items: ['guides/feeds/subscribing'],
     },
-    'guides/dashboard/index',
+    {
+      type: 'category',
+      label: 'Home',
+      link: { type: 'doc', id: 'guides/home/index' },
+      items: ['guides/home/what-moved-where'],
+    },
     'guides/backup/index',
     'guides/appearance/dark-mode',
   ],

@@ -84,7 +84,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
 
     // Then: The application should load correctly
     // Authenticated user is redirected to the default page
-    await expect(page).toHaveURL(/\/project\/overview/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Home', exact: true })).toBeVisible();
   });
 
   test('should enforce auth guard through proxy', async ({ browser }) => {
@@ -117,7 +117,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     // When: Logging in with valid credentials through the proxy
     await loginThroughProxy(page, proxyBaseUrl);
 
-    // Then: Should have redirected away from login page (to dashboard or home)
+    // Then: Should have redirected away from login page (to Home)
     expect(page.url()).not.toMatch(/\/login/);
 
     await context.close();

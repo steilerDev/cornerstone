@@ -76,7 +76,38 @@ export interface FeedRowEventProps {
   testId: string;
 }
 
-export type FeedRowProps = FeedRowEventProps | FeedRowEntryProps;
+/**
+ * An object row (#2230): a record that needs a look (attention rows, This week items, the bell).
+ * A severity border, a meta line (badges and a key figure), the object name as the row's one
+ * link, muted context, a sentence, extra note lines, an action row and nested content.
+ */
+export interface FeedRowObjectProps {
+  variant: 'object';
+  /** `li` inside a list, `div` where nested. Default `li`. */
+  as?: 'li' | 'div';
+  /** Left border: red = danger, amber = warning, none = neutral border. */
+  severity: 'red' | 'amber' | 'none';
+  /** Meta line, start: tier badge, kind chip, schedule chips (host-built Badges). */
+  badges: ReactNode;
+  /** Meta line, end: the key figure; `srPrefix` ("Amount:") is read before the text. */
+  figure?: { text: string; srPrefix: string } | null;
+  /** Muted word before the title (Milestone, Invoice, ...). */
+  kindLabel?: string;
+  title: string;
+  /** The row's one primary link; null renders a plain-text title (a grouped row). */
+  titleLink: { to: string; state?: unknown } | null;
+  /** Muted text after the title (area path, company), host-built. */
+  context?: ReactNode;
+  sentence?: string;
+  /** Extra lines (holds up, "Waits for ...", "Back on ..."). */
+  notes?: ReactNode[];
+  actions?: ReactNode;
+  /** Nested content (the tasks of a group). */
+  children?: ReactNode;
+  testId: string;
+}
+
+export type FeedRowProps = FeedRowEventProps | FeedRowEntryProps | FeedRowObjectProps;
 
 const TYPE_VARIANTS_KEY = 'type';
 
@@ -86,6 +117,7 @@ const TYPE_VARIANTS_KEY = 'type';
  */
 export function FeedRow(props: FeedRowProps) {
   if (props.variant === 'entry') return <EntryFeedRow {...props} />;
+  if (props.variant === 'object') return <ObjectFeedRow {...props} />;
   return <EventFeedRow {...props} />;
 }
 
@@ -260,6 +292,69 @@ function EntryFeedRow({
         ) : null}
         {thumbnailsLabel ? <span className={shared.srOnly}>{thumbnailsLabel}</span> : null}
       </div>
+    </Root>
+  );
+}
+
+/** An object row: see `FeedRowObjectProps`. The row is not one click target; only the title is. */
+function ObjectFeedRow({
+  as: Root = 'li',
+  severity,
+  badges,
+  figure,
+  kindLabel,
+  title,
+  titleLink,
+  context,
+  sentence,
+  notes = [],
+  actions,
+  children,
+  testId,
+}: FeedRowObjectProps) {
+  return (
+    <Root className={styles.objectRow} data-severity={severity} data-testid={testId}>
+      <div className={styles.meta}>
+        {badges}
+        {figure ? (
+          <span className={styles.figure} data-testid={`${testId}-figure`}>
+            <span className={shared.srOnly}>{figure.srPrefix} </span>
+            {figure.text}
+          </span>
+        ) : null}
+      </div>
+      <div className={styles.objectTitleLine}>
+        {kindLabel ? <span className={styles.kindLabel}>{kindLabel}</span> : null}
+        {titleLink ? (
+          <NavAnchor
+            to={titleLink.to}
+            state={titleLink.state}
+            className={styles.objectTitle}
+            data-row-focus=""
+            data-testid={`${testId}-link`}
+          >
+            {title}
+          </NavAnchor>
+        ) : (
+          <span
+            className={styles.objectTitleText}
+            tabIndex={-1}
+            data-row-focus=""
+            data-testid={`${testId}-title`}
+          >
+            {title}
+          </span>
+        )}
+        {context ? <span className={styles.objectContext}>{context}</span> : null}
+      </div>
+      {sentence ? <p className={styles.objectSentence}>{sentence}</p> : null}
+      {notes.length > 0 ? <div className={styles.objectNotes}>{notes}</div> : null}
+      {actions ? (
+        <div className={styles.objectActions} data-testid={`${testId}-actions`}>
+          {actions}
+        </div>
+      ) : null}
+      {children}
     </Root>
   );
 }

@@ -111,3 +111,4 @@ Running from the parent project root uses a different config and may not format 
 - [money-service.md](money-service.md) — ADR-039 integer-cent money engine/service (#2228): layout, scenario semantics, consumers
 - [system-events.md](system-events.md) — system event writer/context, R1/R2 display SQL, migration 0047, pitfalls (#2223)
 - [attention-service.md](attention-service.md) — #2229 attention rules/snooze entry points; holds-up single definition in shared/holdsUp.ts
+- [home-service.md](home-service.md) — #2230 /api/home/_, heldUpCauseOf, stillToPayCount, home._ prefs, migration 0048

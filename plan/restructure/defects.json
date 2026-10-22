@@ -8,35 +8,32 @@
       "id": "D-01",
       "story": 2193,
       "tests": [
-        "client/src/components/TimelineStatusCards/UpcomingMilestonesCard.test.tsx",
-        "e2e/tests/navigation/dashboard.spec.ts"
+        "client/src/components/AttentionList/AttentionList.test.tsx",
+        "e2e/tests/navigation/home.spec.ts"
       ]
     },
     {
       "id": "D-02",
       "story": 2193,
       "tests": [
-        "client/src/pages/DashboardPage/DashboardPage.test.tsx",
-        "e2e/tests/navigation/dashboard.spec.ts"
+        "client/src/components/AttentionList/AttentionList.test.tsx",
+        "e2e/tests/navigation/home.spec.ts"
       ]
     },
     {
       "id": "D-03",
       "story": 2193,
-      "tests": ["client/src/components/BudgetSummaryCard/BudgetSummaryCard.test.tsx"]
+      "tests": ["client/src/pages/HomePage/PulseSection.test.tsx"]
     },
     {
       "id": "D-04",
       "story": 2193,
-      "tests": ["e2e/tests/navigation/dashboard.spec.ts"]
+      "tests": ["e2e/tests/navigation/home.spec.ts"]
     },
     {
       "id": "D-05",
       "story": 2194,
-      "tests": [
-        "client/src/components/BudgetBar/BudgetBar.test.tsx",
-        "client/src/components/SourceUtilizationCard/SourceUtilizationCard.test.tsx"
-      ]
+      "tests": ["client/src/components/BudgetBar/BudgetBar.test.tsx"]
     },
     {
       "id": "D-06",
@@ -173,7 +170,7 @@
     {
       "id": "D-25",
       "story": 2196,
-      "tests": ["client/src/pages/DashboardPage/DashboardPage.test.tsx"]
+      "tests": ["client/src/pages/HomePage/LatestSection.test.tsx"]
     },
     {
       "id": "D-26",

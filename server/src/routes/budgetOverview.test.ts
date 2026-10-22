@@ -46,6 +46,7 @@ const EXPECTED_MONEY_KEYS = [
   'records',
   'sources',
   'stillToPay',
+  'stillToPayCount',
 ];
 
 describe('Budget Overview Routes', () => {

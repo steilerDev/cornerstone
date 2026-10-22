@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  buildAttentionTierVariants,
   buildBackupRunVariants,
+  buildBudgetVerdictVariants,
+  buildCriticalLineVariants,
+  buildCriticalSignalVariant,
   buildIntegrationStatusVariants,
   buildDefectStatusVariants,
   buildDiaryOutcomeVariants,
@@ -41,6 +45,10 @@ export function useStatusBadgeVariants() {
       diaryStatus: buildDiaryStatusVariants(t),
       diaryOutcome: buildDiaryOutcomeVariants(t),
       diarySeverity: buildDiarySeverityVariants(t),
+      attentionTier: buildAttentionTierVariants(t),
+      criticalLine: buildCriticalLineVariants(t),
+      budgetVerdict: buildBudgetVerdictVariants(t),
+      criticalSignal: buildCriticalSignalVariant(t),
       scheduleSignal: (lateDays: number) => buildScheduleSignalVariants(t, lateDays),
     }),
     [t],

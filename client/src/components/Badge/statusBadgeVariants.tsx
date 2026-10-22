@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import type {
+  AttentionTier,
   BudgetSourceStatus,
+  BudgetVerdict,
+  CriticalLineLevel,
   DiaryEntryType,
   DiaryInspectionOutcome,
   DiaryIssueResolution,
@@ -13,7 +16,10 @@ import type {
   WorkItemStatus,
 } from '@cornerstone/shared';
 import {
+  ATTENTION_TIERS,
   BUDGET_SOURCE_STATUSES,
+  BUDGET_VERDICTS,
+  CRITICAL_LINE_LEVELS,
   DIARY_ENTRY_TYPES,
   DIARY_INSPECTION_OUTCOMES,
   DIARY_ISSUE_RESOLUTIONS,
@@ -395,4 +401,180 @@ export function buildDiarySeverityVariants(
     };
   }
   return result;
+}
+
+// ── Attention tiers, critical-line levels, budget verdict, critical signal (#2230) ──────────
+
+/** Decorative 14 px glyph (aria-hidden, currentColor); the label is the accessible name. */
+function GlyphIcon({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <svg
+      className={badgeStyles.icon}
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+/** Clock with an exclamation mark. */
+function ClockAlertIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5v4" />
+      <path d="M8 11v.01" />
+    </GlyphIcon>
+  );
+}
+
+/** Exclamation mark in a circle. */
+function AlertCircleIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 4.75v3.75" />
+      <path d="M8 10.9v.01" />
+    </GlyphIcon>
+  );
+}
+
+/** Plain clock. */
+function ClockIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 4.5V8l2.25 1.5" />
+    </GlyphIcon>
+  );
+}
+
+/** Arrow up out of a tray. */
+function TrayUpIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <path d="M2.5 10v2.5h11V10" />
+      <path d="M8 10V3" />
+      <path d="M5.25 5.5 8 2.75l2.75 2.75" />
+    </GlyphIcon>
+  );
+}
+
+/** Flag. */
+function FlagIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <path d="M3.5 14V2.5" />
+      <path d="M3.5 3h8l-1.75 2.75L11.5 8.5h-8" />
+    </GlyphIcon>
+  );
+}
+
+/** Three dots. */
+function DotsIcon(): ReactNode {
+  return (
+    <GlyphIcon>
+      <path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth="2.5" />
+    </GlyphIcon>
+  );
+}
+
+const ATTENTION_TIER_CLASS: Record<AttentionTier, string> = {
+  late: badgeStyles.attentionRed!,
+  overdue: badgeStyles.attentionRed!,
+  due: badgeStyles.attentionAmber!,
+  ready: badgeStyles.attentionAmber!,
+  follow_up: badgeStyles.attentionAmber!,
+  tidy: badgeStyles.attentionTidy!,
+};
+
+const ATTENTION_TIER_ICON: Record<AttentionTier, () => ReactNode> = {
+  late: ClockAlertIcon,
+  overdue: AlertCircleIcon,
+  due: ClockIcon,
+  ready: TrayUpIcon,
+  follow_up: FlagIcon,
+  tidy: DotsIcon,
+};
+
+export function buildAttentionTierVariants(t: StatusLabelT): Record<AttentionTier, BadgeVariant> {
+  const set = I18N_UNION_KEYS.attentionTier;
+  const result = {} as Record<AttentionTier, BadgeVariant>;
+  for (const tier of ATTENTION_TIERS) {
+    const Icon = ATTENTION_TIER_ICON[tier];
+    result[tier] = {
+      label: t(set.key(tier), { ns: set.ns }),
+      className: ATTENTION_TIER_CLASS[tier],
+      icon: <Icon />,
+    };
+  }
+  return result;
+}
+
+const CRITICAL_LINE_CLASS: Record<CriticalLineLevel, string> = {
+  on_track: badgeStyles.criticalOnTrack!,
+  warning: badgeStyles.attentionAmber!,
+  critical: badgeStyles.attentionRed!,
+  overdue: badgeStyles.attentionRed!,
+};
+
+const CRITICAL_LINE_ICON: Record<CriticalLineLevel, () => ReactNode> = {
+  on_track: CheckIcon,
+  warning: ClockIcon,
+  critical: ClockAlertIcon,
+  overdue: AlertCircleIcon,
+};
+
+export function buildCriticalLineVariants(
+  t: StatusLabelT,
+): Record<CriticalLineLevel, BadgeVariant> {
+  const set = I18N_UNION_KEYS.criticalLineLevel;
+  const result = {} as Record<CriticalLineLevel, BadgeVariant>;
+  for (const level of CRITICAL_LINE_LEVELS) {
+    const Icon = CRITICAL_LINE_ICON[level];
+    result[level] = {
+      label: t(set.key(level), { ns: set.ns }),
+      className: CRITICAL_LINE_CLASS[level],
+      icon: <Icon />,
+    };
+  }
+  return result;
+}
+
+const BUDGET_VERDICT_CLASS: Record<BudgetVerdict, string> = {
+  on_budget: badgeStyles.verdictOnBudget!,
+  over_budget: badgeStyles.verdictOverBudget!,
+};
+
+/** Left to spend verdict chips. "Tight" does not exist: only On budget and Over budget. */
+export function buildBudgetVerdictVariants(t: StatusLabelT): Record<BudgetVerdict, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyBudgetVerdict;
+  const result = {} as Record<BudgetVerdict, BadgeVariant>;
+  for (const verdict of BUDGET_VERDICTS) {
+    result[verdict] = {
+      label: t(set.key(verdict), { ns: set.ns }),
+      className: BUDGET_VERDICT_CLASS[verdict],
+    };
+  }
+  return result;
+}
+
+/** The "Critical" schedule-signal chip (the one signal `buildScheduleSignalVariants` leaves out). */
+export function buildCriticalSignalVariant(t: StatusLabelT): { critical: BadgeVariant } {
+  const set = I18N_UNION_KEYS.statusVocabularyScheduleSignal;
+  return {
+    critical: {
+      label: t(set.key('critical'), { ns: set.ns }),
+      className: badgeStyles.scheduleCritical!,
+    },
+  };
 }

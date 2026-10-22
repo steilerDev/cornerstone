@@ -261,6 +261,22 @@ describe('attentionService on the synthetic fixture', () => {
       });
     });
 
+    it('N4/N5/N6 params carry the company id (the vendor id) next to the name (#2230)', () => {
+      const res = attention();
+      expect(row(res, 'N4:invoice:inv-1').params).toMatchObject({
+        companyId: 'v-a',
+        companyName: 'Company A',
+      });
+      // a different company on the same rule
+      expect(row(res, 'N4:progress_payment:dep-1').params).toMatchObject({
+        companyId: 'v-b',
+        companyName: 'Company B',
+      });
+      expect(row(res, 'N5:invoice:inv-2').params).toMatchObject({ companyId: 'v-a' });
+      expect(row(res, 'N5:progress_payment:dep-2').params).toMatchObject({ companyId: 'v-a' });
+      expect(row(res, 'N6:invoice:inv-5').params).toMatchObject({ companyId: 'v-a' });
+    });
+
     it('N4/N5/N6: final and progress payments, offers included', () => {
       const res = attention();
       expect(row(res, 'N4:invoice:inv-1')).toMatchObject({

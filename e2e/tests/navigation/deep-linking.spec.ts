@@ -12,10 +12,10 @@ test.describe('Deep Linking', () => {
   test('Direct URL for each route loads correct page', async ({ page }) => {
     // Given/When/Then: Navigate to each route and verify correct page heading
 
-    // Project Overview (/ redirects to /project/overview)
+    // Home (served at /)
     await page.goto(ROUTES.home);
-    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
-    expect(page.url()).toContain('/project/overview');
+    await expect(page.getByRole('heading', { level: 1, name: 'Home', exact: true })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe('/');
 
     // Work Items
     await page.goto(ROUTES.workItems);

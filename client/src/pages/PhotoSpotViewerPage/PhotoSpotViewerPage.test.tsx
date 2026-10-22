@@ -2,7 +2,7 @@ import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@j
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
-import { PHOTO_SPOT_ANY } from '@cornerstone/shared';
+import { PHOTO_SPOT_ANY, routeUrl } from '@cornerstone/shared';
 import type {
   AreaResponse,
   PhotoSpotPhotosResponse,
@@ -436,11 +436,11 @@ describe('PhotoSpotViewerPage', () => {
     mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
     renderPage({
       pathname: '/photos/spot/a1/o1',
-      state: { origin: { to: '/project/overview' } },
+      state: { origin: { to: routeUrl('home') } },
     });
     const back = await screen.findByTestId('spot-viewer-back');
     expect(back).toHaveTextContent('Back to Home');
-    expect(back).toHaveAttribute('href', '/project/overview');
+    expect(back).toHaveAttribute('href', routeUrl('home'));
   });
 
   it('falls back to "Photos" for an unlabelled origin without a name', async () => {

@@ -5,6 +5,14 @@ metadata:
   type: project
 ---
 
+## PR #2327 (Home, #2230) round 1 — REQUEST_CHANGES lessons
+
+- White on `--color-success` is 1.92:1 in dark mode (emerald-400); use `--color-bg-primary` for text on success fills.
+- `--color-warning-text-on-light` on `--color-warning-badge-bg` over `--color-bg-secondary` is 4.42:1 (passes only on white); rows on bg-secondary need a darker amber text token.
+- `shared.bannerClose` is danger-red (error banners only); `.textButton` is copied in 4 modules (wants one shared `.btnText`).
+- The repo rule "accessible name starts with its visible text" overrides my own "Log in ‹path›" chip spec; fix the spec, not the code.
+- `gh pr diff` returns 406 above 20000 lines; read the checked-out PR branch instead.
+
 ## PR #2066 — DataTable expandable rows + Invoices "open items" (Issue #2046, my own spec, issue comment `5559158229`) — CHANGES_REQUESTED via `gh pr comment` (self-authored PR, `--request-changes` blocked)
 
 Implementation matched the posted spec almost exactly: 44px non-`ColumnDef` leading pseudo-column, `▼`/`rotate(-180deg)`/`transition var(--transition-normal)` chevron (added to the reduced-motion disable list too), real `<button>` + `aria-expanded`/`aria-controls` → real `tbody`/div id, children always in DOM via `hidden` (never unmounted, confirmed by a same-node-identity test across expand→collapse), child-row indent (`--spacing-8`) + de-emphasized color/weight anti-double-counting signal, mobile children nested inside the same card. Refund line correctly paired `--color-danger-text-on-light` text with a real `Badge` + `formatCurrency(-amount)`'s minus sign rather than color alone (per existing guidance); the computed "still due"/"open payable" totals correctly stayed `--color-text-primary` (not red) since they're a remainder, not an error. A genuine pre-existing bug got fixed along the way: invoice status `Badge` className was `styles[status]` (InvoicesPage.module.css, no such keys) instead of `badgeStyles[status]` (Badge.module.css) — badges were rendering with zero variant styling; caught with a real regression test.

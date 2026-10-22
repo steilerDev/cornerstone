@@ -167,7 +167,7 @@ export function ToastList() {
   const { toasts } = useToast();
 
   return createPortal(
-    <div className={styles.container}>
+    <div className={styles.container} data-toast-container>
       <div role="status" className={styles.region}>
         {toasts
           .filter((toast) => toast.variant !== 'error')

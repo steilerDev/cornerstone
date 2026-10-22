@@ -6,7 +6,7 @@
  * the one helper, `AppShellPage.navigateTo(route)`.
  *
  * Areas (one describe each; one test per entry route or view):
- * - Home        the Home entry lands on the dashboard
+ * - Home        the Home entry lands on Home (/)
  * - Tasks       Tasks, Schedule, Calendar, Milestones
  * - Purchases   Purchases
  * - Site diary  Site diary (plus the New slot below 1024px)
@@ -30,12 +30,10 @@ import { CreateMenu } from '../../pages/components/CreateMenu.js';
 
 interface Reach {
   readonly route: ServedRouteId;
-  /** Final route when the entry redirects (Home). */
-  readonly landing?: ServedRouteId;
 }
 
 const AREAS = [
-  { area: 'Home', rows: [{ route: 'home', landing: 'dashboard' }] },
+  { area: 'Home', rows: [{ route: 'home' }] },
   {
     area: 'Tasks',
     rows: [
@@ -77,7 +75,7 @@ for (const { area, rows } of AREAS) {
   test.describe(`Shell reach: ${area}`, { tag: '@responsive' }, () => {
     for (const row of rows) {
       const { route } = row;
-      const landing: ServedRouteId = 'landing' in row ? row.landing : route;
+      const landing: ServedRouteId = route;
 
       test(`${area}: ${route} is reachable through the shell`, async ({ page }) => {
         const appShell = new AppShellPage(page);

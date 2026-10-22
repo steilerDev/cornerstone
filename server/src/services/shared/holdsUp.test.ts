@@ -20,6 +20,7 @@ import {
   buildScheduleIndex,
   computeHoldsUp,
   diffDaysUtc,
+  heldUpCauseOf,
   isFoldedLateStart,
   summarizeHoldsUp,
 } from './holdsUp.js';
@@ -325,5 +326,158 @@ describe('isFoldedLateStart', () => {
         { c: { isLate: true } },
       ),
     ).toBe(false);
+  });
+});
+
+describe('heldUpCauseOf (#2230: the Home "Waits for" line shares the N2 folding definition)', () => {
+  const cause = (
+    items: SchedulingWorkItem[],
+    deps: SchedulingDependency[],
+    map: Record<string, Partial<WorkItemScheduleFields>>,
+    id = 't',
+  ) =>
+    heldUpCauseOf(
+      buildScheduleIndex({ workItems: items, dependencies: deps }),
+      id,
+      ctxOf(map).projection,
+    );
+
+  it('returns the id of a late real predecessor', () => {
+    expect(cause([wi('p'), wi('t')], [dep('p', 't')], { p: { isLate: true } })).toBe('p');
+  });
+
+  it('returns the id of a held-up real predecessor', () => {
+    expect(cause([wi('p'), wi('t')], [dep('p', 't')], { p: { isHeldUp: true } })).toBe('p');
+  });
+
+  it('returns null for no predecessors, an on-time predecessor, or one without a projection', () => {
+    expect(cause([wi('t')], [], {})).toBeNull();
+    expect(cause([wi('p'), wi('t')], [dep('p', 't')], { p: {} })).toBeNull();
+    expect(cause([wi('p'), wi('t')], [dep('p', 't')], {})).toBeNull();
+  });
+
+  it('ignores a completed predecessor and one that is not in the graph', () => {
+    expect(
+      cause([wi('p', { status: 'completed' }), wi('t')], [dep('p', 't')], { p: { isLate: true } }),
+    ).toBeNull();
+    expect(cause([wi('t')], [dep('ghost', 't')], { ghost: { isLate: true } })).toBeNull();
+  });
+
+  it('returns the contributor of an unreached milestone gate the task waits for', () => {
+    expect(
+      cause([wi('c'), ms(1), wi('t')], [dep('c', 'milestone:1'), dep('milestone:1', 't')], {
+        c: { isLate: true },
+      }),
+    ).toBe('c');
+  });
+
+  it('never returns a milestone node, and a reached milestone does not gate', () => {
+    expect(
+      cause([wi('c'), ms(1, true), wi('t')], [dep('c', 'milestone:1'), dep('milestone:1', 't')], {
+        c: { isLate: true },
+      }),
+    ).toBeNull();
+    expect(cause([ms(1), wi('t')], [dep('milestone:1', 't')], {})).toBeNull();
+  });
+
+  describe('with several candidates', () => {
+    const items = [wi('a'), wi('b'), wi('t')];
+    const deps = [dep('a', 't'), dep('b', 't')];
+
+    it('picks the one with the latest projected end, whichever comes first', () => {
+      expect(
+        cause(items, deps, {
+          a: { isLate: true, projectedEndDate: '2026-03-12' },
+          b: { isLate: true, projectedEndDate: '2026-03-20' },
+        }),
+      ).toBe('b');
+      expect(
+        cause(items, deps, {
+          a: { isLate: true, projectedEndDate: '2026-03-20' },
+          b: { isLate: true, projectedEndDate: '2026-03-12' },
+        }),
+      ).toBe('a');
+    });
+
+    it('ranks a null projected end last, in either order', () => {
+      expect(
+        cause(items, deps, {
+          a: { isLate: true, projectedEndDate: null },
+          b: { isLate: true, projectedEndDate: '2026-03-12' },
+        }),
+      ).toBe('b');
+      expect(
+        cause(items, deps, {
+          a: { isHeldUp: true, projectedEndDate: '2026-03-12' },
+          b: { isLate: true, projectedEndDate: null },
+        }),
+      ).toBe('a');
+    });
+
+    it('breaks a tie on the end date by id ascending, in either input order', () => {
+      const tie = { isLate: true, projectedEndDate: '2026-03-15' };
+      expect(cause(items, deps, { a: tie, b: tie })).toBe('a');
+      expect(
+        cause([wi('b'), wi('a'), wi('t')], [dep('b', 't'), dep('a', 't')], { a: tie, b: tie }),
+      ).toBe('a');
+    });
+
+    it('breaks a tie of two null ends by id ascending', () => {
+      const none = { isLate: true, projectedEndDate: null };
+      expect(
+        cause([wi('b'), wi('a'), wi('t')], [dep('b', 't'), dep('a', 't')], { a: none, b: none }),
+      ).toBe('a');
+    });
+
+    it('skips on-time and completed candidates when choosing', () => {
+      expect(
+        cause(
+          [wi('a'), wi('b', { status: 'completed' }), wi('c'), wi('t')],
+          [dep('a', 't'), dep('b', 't'), dep('c', 't')],
+          {
+            a: { projectedEndDate: '2026-03-30' },
+            b: { isLate: true, projectedEndDate: '2026-04-30' },
+            c: { isLate: true, projectedEndDate: '2026-03-12' },
+          },
+        ),
+      ).toBe('c');
+    });
+
+    it('chooses across a real predecessor and a milestone contributor by the same rule', () => {
+      expect(
+        cause(
+          [wi('c'), wi('p'), ms(1), wi('t')],
+          [dep('c', 'milestone:1'), dep('milestone:1', 't'), dep('p', 't')],
+          {
+            c: { isLate: true, projectedEndDate: '2026-03-25' },
+            p: { isLate: true, projectedEndDate: '2026-03-12' },
+          },
+        ),
+      ).toBe('c');
+    });
+  });
+
+  it('agrees with isFoldedLateStart: folded exactly when a cause exists', () => {
+    const scenarios: [
+      SchedulingWorkItem[],
+      SchedulingDependency[],
+      Record<string, Partial<WorkItemScheduleFields>>,
+    ][] = [
+      [[wi('p'), wi('t')], [dep('p', 't')], { p: { isLate: true } }],
+      [[wi('p'), wi('t')], [dep('p', 't')], { p: {} }],
+      [[wi('t')], [], {}],
+      [
+        [wi('c'), ms(1), wi('t')],
+        [dep('c', 'milestone:1'), dep('milestone:1', 't')],
+        { c: { isHeldUp: true } },
+      ],
+    ];
+    for (const [items, deps, map] of scenarios) {
+      const index = buildScheduleIndex({ workItems: items, dependencies: deps });
+      const projection = ctxOf(map).projection;
+      expect(isFoldedLateStart(index, 't', projection)).toBe(
+        heldUpCauseOf(index, 't', projection) !== null,
+      );
+    }
   });
 });

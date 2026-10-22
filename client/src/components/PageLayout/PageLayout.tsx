@@ -4,7 +4,10 @@ import styles from './PageLayout.module.css';
 
 export interface PageLayoutProps {
   title: string;
-  maxWidth?: 'narrow' | 'wide';
+  /** `column` = one 880 px reading column, left aligned (Home). */
+  maxWidth?: 'narrow' | 'wide' | 'column';
+  /** A muted line under the title (Home: house name and date). */
+  subtitle?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   /** Location trail and origin Back (`PageBreadcrumbs`), rendered above the header row. */
@@ -23,20 +26,35 @@ export interface PageLayoutProps {
 export function PageLayout({
   title,
   maxWidth = 'wide',
+  subtitle,
   action,
   children,
   breadcrumbs,
   testId,
   headingRef,
 }: PageLayoutProps) {
+  const widthClass =
+    maxWidth === 'narrow'
+      ? styles.containerNarrow
+      : maxWidth === 'column'
+        ? styles.containerColumn
+        : '';
+  const titleBlock = <PageTitle title={title} headingRef={headingRef} className={styles.title} />;
   return (
     <div
-      className={`${styles.container} ${maxWidth === 'narrow' ? styles.containerNarrow : ''}`}
+      className={`${styles.container} ${widthClass}`}
       {...(testId ? { 'data-testid': testId } : {})}
     >
       {breadcrumbs}
-      <div className={styles.header}>
-        <PageTitle title={title} headingRef={headingRef} className={styles.title} />
+      <div className={subtitle ? `${styles.header} ${styles.headerWithSubtitle}` : styles.header}>
+        {subtitle ? (
+          <div className={styles.titleColumn}>
+            {titleBlock}
+            <p className={styles.subtitle}>{subtitle}</p>
+          </div>
+        ) : (
+          titleBlock
+        )}
         {action && <div className={styles.action}>{action}</div>}
       </div>
       <div className={styles.content}>{children}</div>

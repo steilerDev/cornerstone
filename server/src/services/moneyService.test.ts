@@ -20,6 +20,7 @@ import {
   loadMoneyInput,
 } from './moneyService.js';
 import { getBudgetSourceById } from './budgetSourceService.js';
+import { listAllInvoices } from './invoiceService.js';
 import { getSourceReport } from './sourceReportService.js';
 
 const VAT = 0.19;
@@ -231,6 +232,7 @@ describe('moneyService', () => {
       expect(s.fundingTotal).toBe(0);
       expect(s.paid).toBe(0);
       expect(s.stillToPay).toBe(0);
+      expect(s.stillToPayCount).toBe(0);
       expect(s.notYetSplit).toEqual({ amount: 0, recordCount: 0 });
       expect(s.readyToSubmit).toEqual({ count: 0, amount: 0 });
       expect(s.records.offers).toEqual({
@@ -535,6 +537,67 @@ describe('moneyService', () => {
     });
   });
 
+  // Mutations: counting paid / claimed invoices, counting a refund-only invoice, counting an
+  // invoice once per deposit row, dropping the offers, or a count that drifts from the Invoices
+  // open-payable count (#2230: the Home "n invoices" link must equal the list it opens).
+  describe('stillToPayCount (#2230)', () => {
+    const openPayableCount = () => listAllInvoices(db, {}).summary.openPayable.count;
+
+    it('is 0 with nothing to pay', () => {
+      invoice(300, 'paid');
+      invoice(100, 'claimed');
+      expect(summary().stillToPayCount).toBe(0);
+      expect(openPayableCount()).toBe(0);
+    });
+
+    it('counts each pending invoice once, however many deposits it has', () => {
+      const a = invoice(1000, 'pending');
+      deposit(a, 100, 'paid');
+      deposit(a, 100, 'pending');
+      deposit(a, 100, 'pending');
+      invoice(200, 'pending');
+      invoice(50, 'paid');
+      const s = summary();
+      expect(s.stillToPayCount).toBe(2);
+      expect(s.stillToPay).toBe(s.records.invoices.stillToPay);
+      expect(openPayableCount()).toBe(2);
+    });
+
+    it('counts an offer that has a pending progress payment, not one with none', () => {
+      const withPending = invoice(2000, 'quotation');
+      deposit(withPending, 300, 'pending');
+      const settled = invoice(1000, 'quotation');
+      deposit(settled, 300, 'paid');
+      invoice(500, 'quotation');
+      const s = summary();
+      expect(s.stillToPayCount).toBe(1);
+      expect(s.records.offers.stillToPay).toBe(300);
+      expect(openPayableCount()).toBe(1);
+    });
+
+    it('does not count a paid invoice that only has a refund', () => {
+      const refunded = invoice(800, 'paid');
+      deposit(refunded, 100, 'pending', { entryType: 'refund' });
+      const s = summary();
+      expect(s.stillToPayCount).toBe(0);
+      expect(s.stillToPay).toBe(0);
+      expect(openPayableCount()).toBe(0);
+    });
+
+    it('adds offers and invoices (disjoint records) and equals the Invoices open-payable count', () => {
+      invoice(400, 'pending');
+      invoice(100, 'pending');
+      const offer = invoice(2000, 'quotation');
+      deposit(offer, 300, 'pending');
+      deposit(offer, 50, 'pending');
+      const s = summary();
+      expect(s.stillToPayCount).toBe(3);
+      expect(s.stillToPayCount).toBe(openPayableCount());
+      const open = listAllInvoices(db, {}).summary.openPayable.totalAmount;
+      expect(s.stillToPay).toBe(open);
+    });
+  });
+
   describe('own-funds paid and submitted add up to the project figures', () => {
     it('a linked own-funds line + a no-source line + a remainder: sources sum to Paid and the claimed share', () => {
       // Rule: the own-funds rail counts lines assigned to discretionary-system as well as NULL.
@@ -734,6 +797,7 @@ describe('moneyService', () => {
         depositId: null,
         invoiceStatus: 'pending',
         invoiceNumber: 'AB-77',
+        vendorId: 'vendor',
         vendorName: 'Company One',
         invoiceDate: '2026-02-10',
         dueDate: '2026-03-01',

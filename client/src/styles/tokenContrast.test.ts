@@ -172,6 +172,9 @@ const rows: Row[] = [
   ['dark', '--color-primary', '--color-bg-primary', 4.5], // active slot label on the bar
   ['both', '--color-text-primary', '--color-bg-hover', 4.5], // slot / row hover wash
   ['both', '--color-danger-text', '--color-danger', 4.5], // Home attention badge
+  // .attentionAmber (#2230): the badge fill is a translucent wash, so measure on the row surfaces
+  ['both', '--color-warning-badge-text', '--color-bg-secondary', 4.5],
+  ['both', '--color-warning-badge-text', '--color-bg-primary', 4.5],
   ['both', '--color-text-secondary', '--color-bg-tertiary', 4.5], // inactive slot label while pressed
 ];
 

@@ -85,7 +85,6 @@ const LEGACY_ROUTER_PATHS = [
 
 /** The pathname each legacy URL finally reached before this story (pages land on themselves). */
 const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
-  '/': '/project/overview',
   '/admin/users': '/settings/users',
   '/budget': '/budget/overview',
   '/budget/categories': '/settings/manage',
@@ -99,7 +98,8 @@ const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
   '/invoices/:id': '/budget/invoices/:id',
   '/manage': '/settings/manage',
   '/profile': '/settings/profile',
-  '/project': '/project/overview',
+  '/project': '/',
+  '/project/overview': '/',
   '/schedule': '/schedule/gantt',
   '/settings': '/settings/manage',
   '/settings/vendors': '/companies',

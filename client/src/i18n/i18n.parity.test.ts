@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import enCommon from './en/common.json';
 import enErrors from './en/errors.json';
 import enAuth from './en/auth.json';
-import enDashboard from './en/dashboard.json';
+import enHome from './en/home.json';
 import enWorkItems from './en/workItems.json';
 import enHouseholdItems from './en/householdItems.json';
 import enBudget from './en/budget.json';
@@ -25,7 +25,7 @@ import enPhotos from './en/photos.json';
 import deCommon from './de/common.json';
 import deErrors from './de/errors.json';
 import deAuth from './de/auth.json';
-import deDashboard from './de/dashboard.json';
+import deHome from './de/home.json';
 import deWorkItems from './de/workItems.json';
 import deHouseholdItems from './de/householdItems.json';
 import deBudget from './de/budget.json';
@@ -50,7 +50,7 @@ const NAMESPACES: { name: string; en: Record<string, unknown>; de: Record<string
   { name: 'common', en: enCommon, de: deCommon },
   { name: 'errors', en: enErrors, de: deErrors },
   { name: 'auth', en: enAuth, de: deAuth },
-  { name: 'dashboard', en: enDashboard, de: deDashboard },
+  { name: 'home', en: enHome, de: deHome },
   { name: 'workItems', en: enWorkItems, de: deWorkItems },
   { name: 'householdItems', en: enHouseholdItems, de: deHouseholdItems },
   { name: 'budget', en: enBudget, de: deBudget },
@@ -363,15 +363,15 @@ describe('#2188 deposits-exceed-invoice copy', () => {
 
 describe('#2196 visual-defects keys', () => {
   const bundles = {
-    en: { diary: enDiary, budget: enBudget, workItems: enWorkItems, dashboard: enDashboard },
-    de: { diary: deDiary, budget: deBudget, workItems: deWorkItems, dashboard: deDashboard },
+    en: { diary: enDiary, budget: enBudget, workItems: enWorkItems, home: enHome },
+    de: { diary: deDiary, budget: deBudget, workItems: deWorkItems, home: deHome },
   } as unknown as Record<
     string,
     {
       diary: { metadata: Record<string, string> };
       budget: { invoiceGroup: Record<string, string> };
       workItems: { detail: { householdItems: Record<string, unknown> } };
-      dashboard: { cards: { common: Record<string, string> } };
+      home: { attention: Record<string, string> };
     }
   >;
 
@@ -390,9 +390,9 @@ describe('#2196 visual-defects keys', () => {
       expect(b.diary.metadata).not.toHaveProperty('workers');
     });
 
-    it(`${locale}: budget invoiceGroup.planned and dashboard cards.common.emptyDefault exist`, () => {
+    it(`${locale}: budget invoiceGroup.planned and home attention.empty exist`, () => {
       expect(b.budget.invoiceGroup.planned).toMatch(/\S/);
-      expect(b.dashboard.cards.common.emptyDefault).toMatch(/\S/);
+      expect(b.home.attention.empty).toMatch(/\S/);
     });
 
     it(`${locale}: the retired workItems detail.householdItems.categories map is gone`, () => {

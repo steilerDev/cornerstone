@@ -111,6 +111,40 @@ export function formatDayMonth(
 }
 
 /**
+ * Format a `YYYY-MM-DD` date with the long weekday and month ("Tuesday, October 6, 2026").
+ * Timezone-safe: the parts build a local Date.
+ */
+export function formatLongDate(
+  dateStr: string | null | undefined,
+  locale = 'en-US',
+  fallback = '—',
+): string {
+  if (!dateStr) return fallback;
+  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Format a currency amount with an explicit sign for non-zero values (a minus before a negative
+ * amount, a plus before a positive one). Same fraction rules as `formatCurrency`.
+ */
+export function formatSignedCurrency(amount: number, locale = 'en-US', currency = 'EUR'): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    signDisplay: 'exceptZero',
+  }).format(amount);
+}
+
+/**
  * Format an ISO timestamp as a localized time string (HH:MM).
  *
  * @param timestamp - An ISO timestamp string or null/undefined.
@@ -374,6 +408,10 @@ export interface AppFormatters extends Formatters {
   formatDayMonth: (dateStr: string | null | undefined, fallback?: string) => string;
   /** Range of two `YYYY-MM-DD` dates: "October 12 – 18, 2026". */
   formatDayRange: (start: string, end: string) => string;
+  /** Long weekday + full date: "Tuesday, October 6, 2026". */
+  formatLongDate: (dateStr: string | null | undefined, fallback?: string) => string;
+  /** Currency with an explicit sign for non-zero amounts. */
+  formatSignedCurrency: (amount: number) => string;
 }
 
 import type { ResolvedLocale } from '../contexts/LocaleContext.js';
@@ -428,6 +466,11 @@ export function createFormatters(locale: string, currency: string): AppFormatter
 
     formatDayRange: (start: string, end: string) =>
       formatDayRange(new Date(`${start}T00:00:00Z`), new Date(`${end}T00:00:00Z`), locale),
+
+    formatLongDate: (dateStr: string | null | undefined, fallback?: string) =>
+      formatLongDate(dateStr, locale, fallback),
+
+    formatSignedCurrency: (amount: number) => formatSignedCurrency(amount, locale, currency),
 
     /**
      * Format a time string using the bound locale.

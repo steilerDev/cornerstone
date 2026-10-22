@@ -125,14 +125,14 @@ test.describe('New company dialog (AC5)', { tag: '@responsive' }, () => {
       await expect(list.newCompanyButton).toBeFocused();
 
       // New menu, from another page: the dialog opens over that page
-      await page.goto(routeUrl('dashboard'));
+      await page.goto(routeUrl('home'));
       await expect(page.getByRole('main')).toBeVisible();
       await menu.choose('company');
       await list.createDialog.waitForOpen();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('companyNew'));
       await page.goBack();
       await list.createDialog.waitForClosed();
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('home'));
       expect(await focusIsOnBody(page)).toBe(false);
 
       // The "n" shortcut on the list
@@ -158,7 +158,7 @@ test.describe('New company dialog (AC5)', { tag: '@responsive' }, () => {
       const name = `${testPrefix} Dialog Saved Co 2213`;
       const seedId = await createCompany(page, `${testPrefix} Save Seed Co 2213`);
       try {
-        await page.goto(routeUrl('dashboard'));
+        await page.goto(routeUrl('home'));
         await expect(page.getByRole('main')).toBeVisible();
         await page.goto(routeUrl('companies'));
         await list.openCreateModal();
@@ -210,7 +210,7 @@ test.describe('New company dialog (AC5)', { tag: '@responsive' }, () => {
 
   test('C2: /companies?create=1 is replaced by /companies/new', async ({ page }) => {
     const list = new VendorsPage(page);
-    await page.goto(routeUrl('dashboard'));
+    await page.goto(routeUrl('home'));
     await expect(page.getByRole('main')).toBeVisible();
     await page.goto(routeUrl('companies', undefined, { create: 1 }));
 

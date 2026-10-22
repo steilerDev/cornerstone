@@ -109,6 +109,8 @@ import sharedStyles from '../../styles/shared.module.css';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useSectionHashFocus } from '../../hooks/useSectionHashFocus.js';
+import { TASK_SECTION_ANCHORS } from './taskAnchors.js';
 import styles from './WorkItemDetailPage.module.css';
 
 const CONSTRAINT_ERROR_KEYS = {
@@ -1252,6 +1254,7 @@ export default function WorkItemDetailPage() {
         ? tCommon('navigation.task')
         : displayTitle;
   useDocumentTitle(h1Text);
+  useSectionHashFocus(TASK_SECTION_ANCHORS, !isLoading);
   const originState = useOriginState(workItem && !isLoading ? displayTitle : undefined);
 
   if (isLoading) {
@@ -1795,8 +1798,14 @@ export default function WorkItemDetailPage() {
           </section>
 
           {/* Constraints */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{t('detail.sections.constraints')}</h2>
+          <section
+            className={styles.section}
+            id="constraints"
+            aria-labelledby="constraints-heading"
+          >
+            <h2 id="constraints-heading" tabIndex={-1} className={styles.sectionTitle}>
+              {t('detail.sections.constraints')}
+            </h2>
 
             {/* Duration subsection — first, no top border */}
             <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>

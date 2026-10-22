@@ -265,4 +265,39 @@ describe('History page rollout (#2224)', () => {
       expect(entry?.interim).toBe('page');
     },
   );
+  describe('Home (#2230)', () => {
+    it('serves home as a done page at / with no interim form', () => {
+      const home = ROUTE_MAP.find((e) => 'id' in e && e.id === 'home');
+      expect(home).toMatchObject({ from: '/', to: '/', kind: 'page', stage: 'done' });
+      expect(home).not.toHaveProperty('interim');
+    });
+
+    it.each([
+      ['dashboard', '/project/overview'],
+      ['project', '/project'],
+    ])('serves %s (%s) as a done redirect straight to / with no interim form', (id, from) => {
+      const entry = ROUTE_MAP.find((e) => 'id' in e && e.id === id);
+      expect(entry).toMatchObject({ from, to: '/', kind: 'redirect', stage: 'done' });
+      expect(entry).not.toHaveProperty('interim');
+      const live = LIVE_REDIRECT_ROUTES.find((r) => r.from === from);
+      expect(live?.target).toBe('/');
+    });
+
+    it('no longer lists / among the live redirects', () => {
+      expect(LIVE_REDIRECT_ROUTES.some((r) => r.from === '/')).toBe(false);
+    });
+
+    it('lets the invoices page carry openOnly', () => {
+      const invoices = ROUTE_MAP.find((e) => 'id' in e && e.id === 'invoices');
+      expect(invoices?.carries).toContain('openOnly');
+    });
+
+    it('resolves / as the home page and the retired overview URLs to /', () => {
+      expect(resolveLocation('/', ADMIN_CTX)).toMatchObject({ kind: 'page' });
+      expect(resolveLocation('/project/overview', ADMIN_CTX)).toMatchObject({
+        kind: 'redirect',
+        to: '/',
+      });
+    });
+  });
 });

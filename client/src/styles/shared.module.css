@@ -164,6 +164,40 @@
 }
 
 /**
+ * Text button — no fill or border, underlined on hover; for quiet inline actions
+ * ("Not now", "Show hidden", "Try again").
+ */
+.btnText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-1) var(--spacing-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.btnText:hover:not([aria-disabled='true']) {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.btnText:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btnText[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/**
  * Compact secondary button — same as btnSecondary but with smaller padding,
  * used for inline cancel / edit buttons inside list rows.
  */

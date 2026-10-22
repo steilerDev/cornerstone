@@ -161,14 +161,22 @@ describe('resolveLocation', () => {
     }
   });
 
-  it('redirects the root to the project overview', () => {
-    const res = resolveLocation('/', ADMIN);
-    expect(res.kind).toBe('redirect');
-    if (res.kind === 'redirect') expect(res.to).toBe('/project/overview');
+  it('serves the root as the Home page (#2230)', () => {
+    expect(pageId(resolveLocation('/', ADMIN))).toBe('home');
   });
 
-  it('keeps interim pages as pages', () => {
-    expect(pageId(resolveLocation('/project/overview', ADMIN))).toBe('dashboard');
+  it.each([
+    ['/project/overview', '/'],
+    ['/project', '/'],
+  ])('redirects the retired %s to Home in one hop (#2230)', (from, to) => {
+    expect(resolveLocation(from, ADMIN)).toMatchObject({ kind: 'redirect', to });
+  });
+
+  it('keeps the query and hash when redirecting the old overview to Home (#2230)', () => {
+    expect(resolveLocation('/project/overview?x=1#h', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/?x=1#h',
+    });
   });
 
   it.each([

@@ -55,7 +55,8 @@ import {
 import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
+import { HomePage } from '../../pages/HomePage.js';
+import { installHomeMocks, newHomeMockState } from '../../fixtures/homeMocks.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
@@ -578,60 +579,24 @@ test.describe('Visual defects — empty-state links (AC5)', { tag: '@responsive'
   test('Clicking an empty-state action changes the route without a full page reload', async ({
     page,
   }) => {
-    // Force two reliably empty cards (the E2E database is shared)
-    await page.route('**/api/subsidy-programs*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ subsidyPrograms: [] }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-    await page.route('**/api/diary-entries*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [],
-            pagination: { total: 0, page: 1, pageSize: 5, totalPages: 0, totalItems: 0 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    const dashboard = new DashboardPage(page);
-    await dashboard.goto();
-    await dashboard.waitForCardsLoaded();
-    await dashboard.openMobileSections();
-
-    // Recent Diary now has its own empty message and a create action (no generic fallback text)
-    const diaryLink = page
-      .getByRole('link', { name: 'Create first entry' })
-      .locator('visible=true')
-      .first();
-    await expect(diaryLink).toBeVisible();
-    await expect(diaryLink).toHaveAttribute('href', /\/diary\/new$/);
-    await expect(page.getByText('No data available')).toHaveCount(0);
+    // Force a reliably empty section (the E2E database is shared): Home's Latest from the site
+    const home = new HomePage(page);
+    await installHomeMocks(page, newHomeMockState());
+    await home.goto();
+    await expect(home.latest).toBeVisible();
 
     const startUrl = page.url();
-    const link = page
-      .getByRole('link', { name: 'Add a subsidy program' })
-      .locator('visible=true')
-      .first();
+    const link = home.latest.getByRole('link', { name: 'Log today' });
     await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', /\/diary\/new$/);
+    await expect(page.getByText('No data available')).toHaveCount(0);
 
     await page.evaluate(() => {
       (window as unknown as { __e2eNoReload: number }).__e2eNoReload = 1;
     });
     await link.click();
 
-    await page.waitForURL(/\/budget\/subsidies/);
+    await page.waitForURL(/\/diary\/new/);
     expect(page.url()).not.toBe(startUrl);
     const marker = await page.evaluate(
       () => (window as unknown as { __e2eNoReload?: number }).__e2eNoReload,

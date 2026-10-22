@@ -5,7 +5,7 @@ import { initReactI18next } from 'react-i18next';
 import enCommon from './en/common.json';
 import enErrors from './en/errors.json';
 import enAuth from './en/auth.json';
-import enDashboard from './en/dashboard.json';
+import enHome from './en/home.json';
 import enWorkItems from './en/workItems.json';
 import enHouseholdItems from './en/householdItems.json';
 import enBudget from './en/budget.json';
@@ -22,7 +22,7 @@ import enPhotos from './en/photos.json';
 import deCommon from './de/common.json';
 import deErrors from './de/errors.json';
 import deAuth from './de/auth.json';
-import deDashboard from './de/dashboard.json';
+import deHome from './de/home.json';
 import deWorkItems from './de/workItems.json';
 import deHouseholdItems from './de/householdItems.json';
 import deBudget from './de/budget.json';
@@ -41,7 +41,7 @@ const resources = {
     common: enCommon,
     errors: enErrors,
     auth: enAuth,
-    dashboard: enDashboard,
+    home: enHome,
     workItems: enWorkItems,
     householdItems: enHouseholdItems,
     budget: enBudget,
@@ -59,7 +59,7 @@ const resources = {
     common: deCommon,
     errors: deErrors,
     auth: deAuth,
-    dashboard: deDashboard,
+    home: deHome,
     workItems: deWorkItems,
     householdItems: deHouseholdItems,
     budget: deBudget,
@@ -103,7 +103,7 @@ void i18n.use(initReactI18next).init({
     'common',
     'errors',
     'auth',
-    'dashboard',
+    'home',
     'workItems',
     'householdItems',
     'budget',

@@ -58,7 +58,7 @@ test.describe('Session check resilience', () => {
         [ROUTES.home, ROUTES.workItems, 'Tasks'],
         [ROUTES.budget, ROUTES.householdItems, 'Purchases'],
         [ROUTES.timeline, ROUTES.profile, 'Account'],
-        [ROUTES.workItems, ROUTES.home, 'Project'],
+        [ROUTES.workItems, ROUTES.home, 'Home'],
         [ROUTES.householdItems, ROUTES.budget, 'Money'],
       ];
 

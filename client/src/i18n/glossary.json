@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-19",
+    "lastUpdated": "2026-10-22",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -1842,6 +1842,86 @@
       },
       "deSource": "approved",
       "definition": "Records on Home with missing or inconsistent details to complete.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Due": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Due"
+      },
+      "de": {
+        "singular": "Fällig"
+      },
+      "deSource": "approved",
+      "definition": "A date that has arrived or is coming up, with the item not yet done or overdue.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Follow up": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Follow up"
+      },
+      "de": {
+        "singular": "Nachfassen"
+      },
+      "deSource": "approved",
+      "definition": "A waiting item that needs a reminder or a call to the company.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "On track": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "On track"
+      },
+      "de": {
+        "singular": "Im Plan"
+      },
+      "deSource": "approved",
+      "definition": "A task or milestone that is still within its planned dates.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Warning": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Warning"
+      },
+      "de": {
+        "singular": "Warnung"
+      },
+      "deSource": "approved",
+      "definition": "A critical-path item close to its limit, before it is late.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Pulse": {
+      "groups": ["homeWord"],
+      "en": {
+        "singular": "Pulse"
+      },
+      "de": {
+        "singular": "Stand",
+        "note": "Home section name only (the money and progress figures). Not a figure word; the figures keep their own canon terms."
+      },
+      "deSource": "approved",
+      "definition": "The Home section that shows the build money and progress figures at a glance.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Unfinished log": {
+      "groups": ["diaryType"],
+      "en": {
+        "singular": "Unfinished log"
+      },
+      "de": {
+        "singular": "Unvollständiger Tagebucheintrag",
+        "note": "Kind word of the Needs attention row for an unfinished diary entry only. Draft (Entwurf) stays the canon for draft surfaces."
+      },
+      "deSource": "approved",
+      "definition": "A diary entry that was started on site but not yet finished or saved.",
       "doNotUse": [],
       "formerly": []
     },

@@ -191,6 +191,7 @@ export const ROUTE_MAP = [
       'create',
       'kind',
       'companyId',
+      'openOnly',
     ],
     stage: 'done',
     parent: 'budgetOverview',
@@ -440,8 +441,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: [],
-    stage: 'interim',
-    interim: '/project/overview',
+    stage: 'done',
   },
   {
     id: 'financing',
@@ -618,8 +618,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: 'page',
+    stage: 'done',
   },
   {
     id: 'householdItemEdit',
@@ -704,8 +703,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: '/project/overview',
+    stage: 'done',
   },
   {
     id: 'budget',

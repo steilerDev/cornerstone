@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import i18n from '../i18n/index.js';
 import enErrors from '../i18n/en/errors.json';
 import enCommon from '../i18n/en/common.json';
 
@@ -332,5 +333,123 @@ describe('usePreferences', () => {
 
       expect(thrownError).toBeInstanceOf(Error);
     });
+  });
+});
+
+describe('usePreferences loading contract (#2230)', () => {
+  it('hasLoaded is false while the first fetch is pending and true once it succeeds', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockListPreferences.mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    const { result } = renderHook(() => usePreferences());
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.hasLoaded).toBe(false);
+
+    await act(async () => resolve([makePref('theme', 'dark')]));
+
+    expect(result.current.hasLoaded).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('hasLoaded is also true after a failed first fetch', async () => {
+    mockListPreferences.mockRejectedValueOnce(new MockNetworkError('offline'));
+    const { result } = renderHook(() => usePreferences());
+
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+    expect(result.current.error).toBe(enCommon.requestErrors.network);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('hasLoaded never goes back to false during a refresh', async () => {
+    const { result } = renderHook(() => usePreferences());
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+
+    let resolve: (v: unknown) => void = () => {};
+    mockListPreferences.mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    act(() => result.current.refresh());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(true));
+    expect(result.current.hasLoaded).toBe(true);
+    await act(async () => resolve([]));
+    expect(result.current.hasLoaded).toBe(true);
+  });
+
+  it('fetches exactly once per mount', async () => {
+    const { result } = renderHook(() => usePreferences());
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+    expect(mockListPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refetch when the translation functions change', async () => {
+    const { result } = renderHook(() => usePreferences());
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    expect(mockListPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-translates a stored load error when the language changes, without refetching', async () => {
+    mockListPreferences.mockRejectedValueOnce(new MockNetworkError('offline'));
+    const { result } = renderHook(() => usePreferences());
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    expect(result.current.error).not.toBe(enCommon.requestErrors.network);
+    expect(result.current.error).toMatch(/\S/);
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    expect(result.current.error).toBe(enCommon.requestErrors.network);
+    expect(mockListPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the previous error when a refresh succeeds', async () => {
+    mockListPreferences.mockRejectedValueOnce(new MockNetworkError('offline'));
+    const { result } = renderHook(() => usePreferences());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    mockListPreferences.mockResolvedValueOnce([makePref('theme', 'dark')]);
+    act(() => result.current.refresh());
+
+    await waitFor(() => expect(result.current.preferences).toHaveLength(1));
+    expect(result.current.error).toBeNull();
+  });
+
+  it('ignores a fetch that settles after unmount (success)', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    mockListPreferences.mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+    const { unmount } = renderHook(() => usePreferences());
+    unmount();
+    await act(async () => resolve([makePref('theme', 'dark')]));
+    expect(mockListPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a fetch that fails after unmount', async () => {
+    let reject: (e: unknown) => void = () => {};
+    mockListPreferences.mockImplementationOnce(() => new Promise((_r, j) => (reject = j)));
+    const { unmount } = renderHook(() => usePreferences());
+    unmount();
+    await act(async () => reject(new MockNetworkError('offline')));
+    expect(mockListPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a superseded fetch: only the latest refresh result is kept', async () => {
+    let resolveFirst: (v: unknown) => void = () => {};
+    mockListPreferences.mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)));
+    const { result } = renderHook(() => usePreferences());
+    mockListPreferences.mockResolvedValueOnce([makePref('b', '2')]);
+    act(() => result.current.refresh());
+    await waitFor(() => expect(result.current.preferences).toEqual([makePref('b', '2')]));
+
+    await act(async () => resolveFirst([makePref('a', '1')]));
+    expect(result.current.preferences).toEqual([makePref('b', '2')]);
   });
 });

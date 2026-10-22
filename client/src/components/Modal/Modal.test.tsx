@@ -318,7 +318,7 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(closeButton);
   });
 
-  it('Tab does not throw and does not move focus when the active element is neither first nor last', () => {
+  it('Tab inside the dialog is left to the browser; only the ends wrap', () => {
     render(
       <Modal {...defaultProps}>
         <input data-testid="first-input" placeholder="First" />
@@ -327,19 +327,30 @@ describe('Modal', () => {
     );
 
     // Focusables in DOM order: close button, first-input, second-input.
-    // Focus the middle element — neither first (close button) nor last (second-input).
     const middleInput = screen.getByTestId('first-input');
     middleInput.focus();
+    const inner = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(inner);
+    expect(inner.defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(middleInput);
 
-    expect(() => {
-      fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
-    }).not.toThrow();
+    // From the last control Tab wraps to the first (the close button).
+    screen.getByTestId('second-input').focus();
+    const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close dialog' }));
 
-    // The trap only intervenes at the boundaries; focus is left untouched here
-    // (the browser's native Tab order would normally move focus, but jsdom
-    // doesn't simulate that — this test only verifies the trap doesn't hijack it).
-    expect(document.activeElement).toBe(middleInput);
+    // And Shift+Tab from the first wraps back to the last.
+    const backward = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(backward);
+    expect(backward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(screen.getByTestId('second-input'));
   });
 
   it('Tab does not throw when contentRef has no element ref yet (defensive null guard)', () => {

@@ -12,7 +12,11 @@ describe('useStatusBadgeVariants', () => {
   it('returns one variant map per status vocabulary', () => {
     const { result } = renderHook(() => useStatusBadgeVariants());
     expect(Object.keys(result.current).sort()).toEqual([
+      'attentionTier',
       'backupRun',
+      'budgetVerdict',
+      'criticalLine',
+      'criticalSignal',
       'defect',
       'diaryOutcome',
       'diarySeverity',
@@ -50,6 +54,22 @@ describe('useStatusBadgeVariants', () => {
       'upcoming',
     ]);
     expect(Object.keys(result.current.refund)).toEqual(['refund']);
+    expect(Object.keys(result.current.attentionTier).sort()).toEqual([
+      'due',
+      'follow_up',
+      'late',
+      'overdue',
+      'ready',
+      'tidy',
+    ]);
+    expect(Object.keys(result.current.criticalLine).sort()).toEqual([
+      'critical',
+      'on_track',
+      'overdue',
+      'warning',
+    ]);
+    expect(Object.keys(result.current.budgetVerdict).sort()).toEqual(['on_budget', 'over_budget']);
+    expect(Object.keys(result.current.criticalSignal)).toEqual(['critical']);
     expect(Object.keys(result.current.grant).sort()).toEqual([
       'applied',
       'approved',

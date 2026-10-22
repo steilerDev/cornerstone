@@ -127,16 +127,15 @@ export function summarizeHoldsUp(
 }
 
 /**
- * True when an unfinished direct predecessor of the task is itself late or held up, so the
- * task's lateness is already inside that predecessor's chain (N2 folding). Direct predecessors
- * are the real work-item predecessors plus, for each milestone the task waits for, that
- * milestone's contributors.
+ * The unfinished direct predecessor (real, or a contributor of an unreached milestone gate) that
+ * is late or held up; the one with the latest projectedEndDate (null last), ties by id ascending.
+ * null when none. N2 folding and the Home "Waits for" line share this definition.
  */
-export function isFoldedLateStart(
+export function heldUpCauseOf(
   index: ScheduleIndex,
   workItemId: string,
   projection: Pick<ScheduleProjection, 'workItems'>,
-): boolean {
+): string | null {
   const direct: string[] = [];
   for (const pred of index.predecessors.get(workItemId) ?? []) {
     if (pred.startsWith(MILESTONE_NODE_PREFIX)) {
@@ -147,12 +146,35 @@ export function isFoldedLateStart(
       direct.push(pred);
     }
   }
+  let best: string | null = null;
+  let bestEnd: string | null = null;
   for (const id of direct) {
     if (id.startsWith(MILESTONE_NODE_PREFIX)) continue;
     const node = index.nodes.get(id);
     if (!node || node.status === 'completed') continue;
     const fields = projection.workItems.get(id);
-    if (fields && (fields.isLate || fields.isHeldUp)) return true;
+    if (!fields || !(fields.isLate || fields.isHeldUp)) continue;
+    const end = fields.projectedEndDate;
+    let better: boolean;
+    if (best === null) better = true;
+    else if (end !== bestEnd) better = end !== null && (bestEnd === null || end > bestEnd);
+    else better = id < best;
+    if (better) {
+      best = id;
+      bestEnd = end;
+    }
   }
-  return false;
+  return best;
+}
+
+/**
+ * True when an unfinished direct predecessor of the task is itself late or held up, so the
+ * task's lateness is already inside that predecessor's chain (N2 folding).
+ */
+export function isFoldedLateStart(
+  index: ScheduleIndex,
+  workItemId: string,
+  projection: Pick<ScheduleProjection, 'workItems'>,
+): boolean {
+  return heldUpCauseOf(index, workItemId, projection) !== null;
 }

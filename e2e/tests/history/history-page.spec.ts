@@ -206,7 +206,7 @@ test.describe('History: reach and order (H1)', { tag: '@responsive' }, () => {
         const appShell = new AppShellPage(page);
 
         // Sidebar (desktop) / More sheet (phone, tablet)
-        await page.goto(routeUrl('dashboard'));
+        await page.goto(routeUrl('home'));
         await expect(page.locator('main h1').first()).toBeVisible();
         await appShell.navigateTo('history');
         await expect(page).toHaveURL((url) => url.pathname === routeUrl('history'));

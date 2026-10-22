@@ -35,6 +35,7 @@ import enHouseholdItems from './en/householdItems.json';
 import enAuth from './en/auth.json';
 import enCommon from './en/common.json';
 import enHistory from './en/history.json';
+import enHome from './en/home.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
@@ -42,6 +43,7 @@ import deHouseholdItems from './de/householdItems.json';
 import deAuth from './de/auth.json';
 import deCommon from './de/common.json';
 import deHistory from './de/history.json';
+import deHome from './de/home.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -54,6 +56,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   auth: { en: enAuth, de: deAuth },
   common: { en: enCommon, de: deCommon },
   history: { en: enHistory, de: deHistory },
+  home: { en: enHome, de: deHome },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -82,8 +85,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 46 registered sets', () => {
-    expect(SETS).toHaveLength(46);
+  it('iterates all 54 registered sets', () => {
+    expect(SETS).toHaveLength(54);
   });
 });
 
@@ -206,7 +209,40 @@ describe('I18N_UNION_KEYS registry', () => {
       'userAccountStatus',
       'createMenuEntry',
       'quickLogMode',
+      'attentionTier',
+      'criticalLineLevel',
+      'attentionAction',
+      'attentionKind',
+      'homeSection',
+      'homeSetupStep',
+      'homeSetupHint',
+      'homeAgendaKind',
     ]);
+  });
+
+  it('builds the #2230 Home and attention keys from their tuples', () => {
+    expect(I18N_UNION_KEYS.attentionTier.key('follow_up')).toBe('attention.tier.follow_up');
+    expect(I18N_UNION_KEYS.criticalLineLevel.key('on_track')).toBe(
+      'attention.criticalLevel.on_track',
+    );
+    expect(I18N_UNION_KEYS.attentionAction.key('mark_paid')).toBe('attention.action.mark_paid');
+    expect(I18N_UNION_KEYS.attentionKind.key('progressPayment')).toBe(
+      'attention.kind.progressPayment',
+    );
+    expect(I18N_UNION_KEYS.attentionKind.ns).toBe('common');
+    expect(I18N_UNION_KEYS.homeSection.ns).toBe('home');
+    expect(I18N_UNION_KEYS.homeSection.members).toEqual([
+      'needs-attention',
+      'tidy-up',
+      'this-week',
+      'pulse',
+      'latest-from-site',
+    ]);
+    expect(I18N_UNION_KEYS.homeSection.key('tidy-up')).toBe('sections.tidy-up');
+    expect(I18N_UNION_KEYS.homeSetupStep.key('firstLog')).toBe('setup.step.firstLog');
+    expect(I18N_UNION_KEYS.homeSetupHint.key('house')).toBe('setup.hint.house');
+    expect(I18N_UNION_KEYS.homeAgendaKind.key('payment')).toBe('week.kind.payment');
+    expect(I18N_UNION_KEYS.homeAgendaKind.ns).toBe('home');
   });
 
   it('builds the #2209 action and delete-impact keys from the shared tuples', () => {

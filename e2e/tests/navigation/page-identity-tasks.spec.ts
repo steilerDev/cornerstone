@@ -52,6 +52,13 @@ import { TimelinePage } from '../../pages/TimelinePage.js';
 import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
+import {
+  agendaItem,
+  dayOffset,
+  installHomeMocks,
+  newHomeMockState,
+  weekResponse,
+} from '../../fixtures/homeMocks.js';
 
 const HOUSE = 'Synthetic House 2202';
 
@@ -619,19 +626,32 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
     test('E7: a milestone opened from Home offers "Back to Home"', async ({ page }) => {
       const bc = new BreadcrumbsBar(page);
 
-      await page.goto(ROUTES.home);
-      const card = page.getByTestId('milestone-row').filter({ hasText: NAMES.milestone });
-      await page
-        .getByTestId('milestone-row')
-        .first()
-        .or(page.getByTestId('milestone-empty'))
-        .waitFor({ state: 'visible' });
-      test.skip(
-        (await card.count()) === 0,
-        'the seeded milestone is not among the dashboard upcoming milestones (shared database)',
+      // Home's This week lists the seeded milestone (the agenda is mocked: the shared database
+      // holds whatever other specs created)
+      const milestoneId = String(seed.milestoneId);
+      await installHomeMocks(
+        page,
+        newHomeMockState({
+          week: weekResponse([
+            {
+              ...agendaItem({ id: milestoneId, kind: 'milestone', date: dayOffset(1) }),
+              subject: {
+                type: 'milestone',
+                id: milestoneId,
+                label: NAMES.milestone,
+                area: null,
+              },
+            },
+          ]),
+        }),
       );
+      await page.goto(ROUTES.home);
+      const link = page
+        .getByTestId('home-this-week')
+        .getByRole('link', { name: NAMES.milestone, exact: true });
+      await expect(link).toBeVisible();
 
-      await card.getByRole('link').first().click();
+      await link.click();
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('milestone', { id: seed.milestoneId }),
       );

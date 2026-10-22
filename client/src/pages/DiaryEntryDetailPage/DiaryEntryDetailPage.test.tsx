@@ -404,20 +404,13 @@ describe('DiaryEntryDetailPage', () => {
   it('shows "Back to Home" from a Home origin and "Back to ‹name›" from a named origin', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     render(
-      <MemoryRouter
-        initialEntries={[
-          { pathname: '/diary/de-1', state: { origin: { to: '/project/overview' } } },
-        ]}
-      >
+      <MemoryRouter initialEntries={[{ pathname: '/diary/de-1', state: { origin: { to: '/' } } }]}>
         <Routes>
           <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
         </Routes>
       </MemoryRouter>,
     );
-    expect(await screen.findByRole('link', { name: /Back to Home/ })).toHaveAttribute(
-      'href',
-      '/project/overview',
-    );
+    expect(await screen.findByRole('link', { name: /Back to Home/ })).toHaveAttribute('href', '/');
     cleanup();
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     render(

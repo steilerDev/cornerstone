@@ -102,6 +102,11 @@ export interface MoneySummary {
   afterGrants: MoneyRange;
   paid: number;
   stillToPay: number;
+  /**
+   * Number of records (invoices and offers) with something still to pay. Equals the Invoices page
+   * "Open payable" card count (`computeOpenAmounts(...).openPayable.count`).
+   */
+  stillToPayCount: number;
   notYetPaid: MoneyRange;
   notYetSplit: NotYetSplit;
   readyToSubmit: ReadyToSubmit;

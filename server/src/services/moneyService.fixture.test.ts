@@ -431,13 +431,15 @@ function describeConsistency(getCtx: () => Ctx): void {
       const money = computeProjectMoney(ctx.app.db, VAT).summary;
       const body = await getJson<{
         summary: {
-          openPayable: { totalAmount: number };
+          openPayable: { totalAmount: number; count: number };
           paid: { totalAmount: number };
           claimed: { totalAmount: number };
           quotation: { count: number };
         };
       }>(ctx, '/api/invoices');
       expect(body.summary.openPayable.totalAmount).toBe(money.stillToPay);
+      // #2230: Home's "n invoices" link counts the same set the Invoices open-only list shows
+      expect(body.summary.openPayable.count).toBe(money.stillToPayCount);
       expect(
         Math.round(body.summary.paid.totalAmount * 100) +
           Math.round(body.summary.claimed.totalAmount * 100),

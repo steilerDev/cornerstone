@@ -16,6 +16,19 @@ import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
 import type { Page, APIRequestContext } from '@playwright/test';
 import { ROUTES, API } from '../../fixtures/testData.js';
+import {
+  agendaItem,
+  attentionResponse,
+  criticalLine,
+  dayOffset,
+  installHomeMocks,
+  lateTaskRow,
+  milestoneRow,
+  mockHomeDiaryEntry,
+  newHomeMockState,
+  overdueInvoiceRow,
+  weekResponse,
+} from '../../fixtures/homeMocks.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/static/img/screenshots');
@@ -416,16 +429,37 @@ test.describe('Documentation screenshots', () => {
     });
   });
 
-  test('Dashboard', async ({ page }) => {
+  test('Home', async ({ page }) => {
+    // Home reads aggregates of the whole database: a mocked Home with invented data keeps the
+    // documentation screenshot stable and free of real records.
+    await installHomeMocks(
+      page,
+      newHomeMockState({
+        houseName: 'Maple Street House',
+        attention: attentionResponse({
+          rows: [
+            lateTaskRow({ id: 'shot-1', title: 'Install roof trusses', daysLate: 3 }),
+            overdueInvoiceRow({ id: 'shot-2', title: 'INV-2041', companyName: 'Harbor Plumbing' }),
+            milestoneRow({ id: 'shot-3', title: 'Shell complete' }),
+          ],
+          criticalLine: criticalLine(),
+        }),
+        week: weekResponse([
+          agendaItem({ id: 'shot-w1', kind: 'starts', date: dayOffset(0) }),
+          agendaItem({ id: 'shot-w2', kind: 'delivery', date: dayOffset(2) }),
+        ]),
+        diary: [mockHomeDiaryEntry({ id: 'shot-d1', title: 'Concrete poured' })],
+      }),
+    );
     await page.goto(`${baseUrl}${ROUTES.home}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Home', exact: true })).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(page, theme);
       await page.waitForTimeout(300);
-      await saveScreenshot(page, 'dashboard', theme);
+      await saveScreenshot(page, 'home', theme);
     }
   });
 

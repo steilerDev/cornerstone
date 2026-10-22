@@ -1,0 +1,142 @@
+{
+  "page": {
+    "subtitle": "{{house}} · {{date}}",
+    "subtitleNoHouse": "{{date}}",
+    "actions": "Seitenaktionen",
+    "customize": "Anpassen…",
+    "whatMoved": "Was wohin gewandert ist",
+    "opensNewTab": "(öffnet sich in einem neuen Tab)"
+  },
+  "notice": {
+    "title": "Start hat sich verändert.",
+    "body": "„Braucht dich“ steht jetzt ganz oben, und die alten Karten sind in fünf Abschnitte gewandert.",
+    "dismiss": "Schließen"
+  },
+  "sections": {
+    "needs-attention": "Braucht dich",
+    "tidy-up": "Aufräumen",
+    "this-week": "Diese Woche",
+    "pulse": "Stand",
+    "latest-from-site": "Neues von der Baustelle"
+  },
+  "count": "({{count}})",
+  "attention": {
+    "empty": "Im Moment wartet nichts auf dich.",
+    "hidden_one": "{{count}} vorerst ausgeblendet",
+    "hidden_other": "{{count}} vorerst ausgeblendet",
+    "hiddenShow": "Ausgeblendete anzeigen",
+    "hiddenHide": "Wieder ausblenden"
+  },
+  "catchUp": {
+    "title": "Verspätete Aufgaben ({{count}})",
+    "empty": "Alles aufgeholt.",
+    "left_one": "{{count}} verspätete Aufgabe übrig",
+    "left_other": "{{count}} verspätete Aufgaben übrig",
+    "none": "Keine verspäteten Aufgaben mehr",
+    "close": "Schließen"
+  },
+  "week": {
+    "kind": {
+      "starts": "Beginn",
+      "ends": "Ende",
+      "payment": "Zahlung fällig",
+      "delivery": "Lieferung",
+      "milestone": "Meilenstein"
+    },
+    "critical": {
+      "label": "Kritischer Pfad:",
+      "mustEnd_one": "muss bis {{date}} enden · noch {{count}} Tag",
+      "mustEnd_other": "muss bis {{date}} enden · noch {{count}} Tage",
+      "overdue_one": "hätte bis {{date}} enden sollen · vor {{count}} Tag",
+      "overdue_other": "hätte bis {{date}} enden sollen · vor {{count}} Tagen",
+      "count_one": "{{count}} Aufgabe auf dem kritischen Pfad",
+      "count_other": "{{count}} Aufgaben auf dem kritischen Pfad"
+    },
+    "waitsFor": "Wartet auf",
+    "day": {
+      "today": "Heute",
+      "tomorrow": "Morgen"
+    },
+    "next14": "Nächste 14 Tage",
+    "openSchedule": "Zeitplan öffnen",
+    "empty": "Für die nächsten 7 Tage ist nichts geplant."
+  },
+  "pulse": {
+    "leftToSpend": {
+      "label": "Noch verfügbar",
+      "needsSetup": "Füge eine Finanzierungsquelle und eine Kostenangabe hinzu, um dies zu sehen.",
+      "noFigure": "Noch keine Angabe"
+    },
+    "range": "Spanne {{from}} bis {{to}}",
+    "stillToPay": {
+      "label": "Noch zu zahlen",
+      "count_one": "{{count}} offene Rechnung",
+      "count_other": "{{count}} offene Rechnungen"
+    },
+    "progress": {
+      "label": "Fortschritt",
+      "figure": "{{done}} von {{total}} Aufgaben abgeschlossen",
+      "inProgress": "{{count}} in Arbeit"
+    }
+  },
+  "latest": {
+    "empty": "Noch keine Einträge.",
+    "log": "Heute erfassen",
+    "more": "Bautagebuch"
+  },
+  "footer": {
+    "history": "Alle Aktivitäten",
+    "historyTo": "Verlauf"
+  },
+  "where": {
+    "title": "Wo bist du?",
+    "other": "Anderer Bereich",
+    "last": "Letzter Eintrag: {{date}} · {{title}}",
+    "lastPhotos_one": "{{count}} Foto",
+    "lastPhotos_other": "{{count}} Fotos"
+  },
+  "setup": {
+    "title": "Richte deinen Bau ein",
+    "progress": "({{done}} von {{total}} erledigt)",
+    "step": {
+      "house": "Benenne dein Haus",
+      "areas": "Füge deine Bereiche hinzu",
+      "funding": "Füge deine erste Finanzierungsquelle hinzu",
+      "companies": "Füge deine ersten Firmen hinzu",
+      "tasks": "Plane deine ersten Aufgaben",
+      "household": "Lade deinen Haushalt ein",
+      "backups": "Prüfe die Sicherungen",
+      "firstLog": "Erfasse deinen ersten Tag auf der Baustelle"
+    },
+    "hint": {
+      "house": "Der Name erscheint oben auf „Start“ und im Browser-Tab.",
+      "areas": "Räume, Etagen und Außenbereiche, in denen du arbeitest.",
+      "funding": "Eigene Mittel zählen, sobald ein Betrag eingetragen ist.",
+      "companies": "Die Firmen, die an deinem Bau arbeiten.",
+      "tasks": "Gib einer Aufgabe ein Datum und geplante Kosten.",
+      "household": "Alle, die den Bau mit dir planen.",
+      "backups": "Lege einen Sicherungsplan fest oder erstelle eine erste Sicherung.",
+      "firstLog": "Ein Foto oder eine Notiz von der Baustelle."
+    },
+    "done": "Abgeschlossen:",
+    "todo": "Offen:",
+    "notChecked": "Nicht geprüft:",
+    "skip": "Einrichtung überspringen",
+    "skipHint": "Du kannst alles weiterhin über das Neu-Menü hinzufügen.",
+    "cantCheck": "Konnte nicht geprüft werden"
+  },
+  "customize": {
+    "title": "Start anpassen",
+    "intro": "Wähle, welche Abschnitte angezeigt werden. Die Reihenfolge bleibt gleich.",
+    "legend": "Auf dem Start anzeigen",
+    "attentionAlways": "„Braucht dich“ wird immer angezeigt.",
+    "done": "Fertig",
+    "hidden": "{{section}} ausgeblendet",
+    "shown": "{{section}} angezeigt"
+  },
+  "error": {
+    "section": "{{section}} konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "saveFailed": "Diese Änderung konnte nicht gespeichert werden."
+  }
+}

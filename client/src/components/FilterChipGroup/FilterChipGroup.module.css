@@ -49,6 +49,19 @@
   border-style: dashed;
 }
 
+/* variant="navigate": a link chip, no pressed state. */
+.chipNavigate {
+  display: inline-block;
+  min-height: var(--touch-target-min);
+  max-width: 14rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  line-height: calc(var(--touch-target-min) - 2 * var(--spacing-3) - 2px);
+}
+
 .chipAction[aria-pressed='true'] {
   border-style: solid;
 }

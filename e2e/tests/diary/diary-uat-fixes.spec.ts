@@ -6,17 +6,17 @@
  * - #842: the breadcrumb navigates to /diary; source entity links show entity title
  * - #838: Automatic events shown in section per date group (UAT R2 #868: now flat div, not collapsible)
  * - #843: After creating entry, navigate to /diary/:id/edit instead of detail page
- * - #844: Dashboard "Recent Diary" card showing latest entries
+ * - #844: latest entries on Home (the Recent Diary card became "Latest from the site", #2230)
  *
  * Scenarios covered:
  * 1.  [smoke] Diary list page renders without export button
  * 2.  [smoke] Diary detail "Site diary" breadcrumb navigates to /diary
- * 3.  [smoke] Dashboard "Recent Diary" card is visible
+ * 3.  [smoke] Home "Latest from the site" section is visible
  * 4.  System event row (on History) names its subject and offers "Open task" (#2223)
  * 5.  The Site diary lists manual entries only (#2224; system events live on History)
  * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — capture flow:
  *     first character → POST draft → /diary/:id/edit → Save entry → /diary/:id
- * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
+ * 7.  Home "Latest from the site" "Site diary" link navigates to /diary
  * 8.  Diary detail page has no print button
  */
 
@@ -27,7 +27,12 @@ import { HistoryPage } from '../../pages/HistoryPage.js';
 import { stubUnfinishedEmpty } from '../../fixtures/diaryMocks.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
+import { HomePage } from '../../pages/HomePage.js';
+import {
+  installHomeMocks,
+  mockHomeDiaryEntry,
+  newHomeMockState,
+} from '../../fixtures/homeMocks.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,64 +85,33 @@ test.describe('Breadcrumb navigates to /diary (Scenario 2)', { tag: '@responsive
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Dashboard "Recent Diary" card is visible
+// Scenario 3: Home "Latest from the site" section is visible (replaces the Recent Diary card)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }, () => {
-  // This test resets `dashboard.hiddenCards` so the Recent Diary card is guaranteed
-  // to render. On the shared admin that reset collided with dashboard.spec.ts, which
-  // resets the same key for its own tests and asserts card visibility against it
-  // (Issue #1957). Run it as a dedicated user instead, so the row is unreachable by
-  // any other test. Per-test rather than per-worker because a worker-scoped option
-  // cannot be set inside a describe, and only 2 of this file's 8 tests need it.
-  // Nothing here is admin-gated: the test only reads the dashboard with
-  // `/api/diary-entries` mocked.
-  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-dash', displayName: 'E2E Diary User' } });
+test.describe('Home Latest from the site (Scenario 3)', { tag: '@responsive' }, () => {
+  // The section is Home's (#2230); the diary list is mocked and the home preferences are
+  // per-user, so this test runs as a dedicated user (per test: a worker-scoped option cannot
+  // be set inside a describe).
+  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-home', displayName: 'E2E Diary User' } });
 
-  test('Dashboard page shows a "Recent Diary" card', { tag: '@smoke' }, async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
-
-    // Mock diary entries so the card renders content reliably
-    await page.route('**/api/diary-entries*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [],
-            pagination: { total: 0, page: 1, pageSize: 5, totalPages: 0, totalItems: 0 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      // Reset hidden cards on this test's dedicated user to ensure "Recent Diary" is
-      // visible. A freshly created user has no preference rows at all, so this is
-      // belt-and-braces rather than load-bearing — but it keeps the precondition
-      // explicit and would still hold if a dismiss step were added here later.
+  test(
+    'Home shows a "Latest from the site" section with the saved entries',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const state = newHomeMockState({
+        diary: [mockHomeDiaryEntry({ id: 'mock-latest-001', title: 'Mock site note' })],
+      });
       await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
+        data: { key: 'home.hiddenSections', value: '[]' },
       });
+      await installHomeMocks(page, state);
+      const home = new HomePage(page);
+      await home.goto();
 
-      await dashboardPage.goto();
-      await dashboardPage.waitForCardsLoaded();
-
-      // UAT fix #844: "Recent Diary" card added to dashboard
-      const recentDiaryCard = dashboardPage.recentDiaryCard();
-      await expect(recentDiaryCard.first()).toBeVisible();
-
-      // The card heading must be "Recent Diary"
-      const cardHeading = recentDiaryCard.first().getByRole('heading', {
-        name: 'Recent Diary',
-        level: 2,
-      });
-      await expect(cardHeading).toBeVisible();
-    } finally {
-      await page.unroute('**/api/diary-entries*');
-    }
-  });
+      await expect(home.sectionHeading('Latest from the site')).toBeVisible();
+      await expect(home.latestRows()).toHaveCount(1);
+      await expect(home.latest).toContainText('Mock site note');
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -313,71 +287,26 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Dashboard diary card "View All" navigates to /diary
+// Scenario 7: Home "Site diary" link navigates to /diary
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Recent Diary "View All" link (Scenario 7)', { tag: '@responsive' }, () => {
-  // Same `dashboard.hiddenCards` collision as Scenario 3 — see the comment there.
-  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-dash', displayName: 'E2E Diary User' } });
+test.describe('Latest from the site "Site diary" link (Scenario 7)', { tag: '@responsive' }, () => {
+  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-home', displayName: 'E2E Diary User' } });
 
-  test('Clicking "View All" in the Recent Diary card navigates to /diary', async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
-
-    // Provide mock diary entries so the RecentDiaryCard footer renders (it only renders
-    // the "View All" link when entries.length > 0)
-    await page.route('**/api/diary-entries*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'mock-recent-001',
-                entryType: 'general_note',
-                entryDate: '2026-03-14',
-                title: 'Recent note',
-                body: 'Some body text for the recent note',
-                metadata: null,
-                isAutomatic: false,
-                sourceEntityType: null,
-                sourceEntityId: null,
-                sourceEntityTitle: null,
-                photoCount: 0,
-                createdBy: null,
-                createdAt: '2026-03-14T09:00:00.000Z',
-                updatedAt: '2026-03-14T09:00:00.000Z',
-              },
-            ],
-            pagination: { total: 1, page: 1, pageSize: 5, totalPages: 1, totalItems: 1 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
+  test('Clicking "Site diary" in Latest from the site navigates to /diary', async ({ page }) => {
+    const state = newHomeMockState({
+      diary: [mockHomeDiaryEntry({ id: 'mock-recent-001', title: 'Recent note' })],
     });
+    await page.request.patch('/api/users/me/preferences', {
+      data: { key: 'home.hiddenSections', value: '[]' },
+    });
+    await installHomeMocks(page, state);
+    const home = new HomePage(page);
+    await home.goto();
 
-    try {
-      // Reset hidden cards on this test's dedicated user (see Scenario 3's note)
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
-
-      await dashboardPage.goto();
-      await dashboardPage.waitForCardsLoaded();
-
-      // On mobile the Recent Diary card may be inside the primary section of mobile layout.
-      // The card() helper finds article elements in both grid and mobile sections.
-      const viewAllLink = dashboardPage.recentDiaryViewAllLink();
-      await expect(viewAllLink.first()).toBeVisible();
-
-      await viewAllLink.first().click();
-
-      // Should navigate to /diary
-      await page.waitForURL('**/diary', { timeout: 15_000 });
-      expect(page.url()).toMatch(/\/diary$/);
-    } finally {
-      await page.unroute('**/api/diary-entries*');
-    }
+    await expect(home.latestMoreLink).toBeVisible();
+    await home.latestMoreLink.click();
+    await page.waitForURL('**/diary', { timeout: 15_000 });
+    expect(page.url()).toMatch(/\/diary$/);
   });
 });
 

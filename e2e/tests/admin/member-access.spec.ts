@@ -28,7 +28,7 @@ import { test, expect } from '../../fixtures/isolatedUser.js';
 import { LIVE_REDIRECT_ROUTES, ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
 import { API, ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { DashboardPage } from '../../pages/DashboardPage.js';
+import { HomePage } from '../../pages/HomePage.js';
 import { NoAccessPage } from '../../pages/NoAccessPage.js';
 import { ProfilePage } from '../../pages/ProfilePage.js';
 
@@ -130,19 +130,19 @@ test.describe(
       });
     }
 
-    test('E3: Back to Home leads to the project overview and Back returns without a redirect loop', async ({
+    test('E3: Back to Home leads to Home and Back returns without a redirect loop', async ({
       page,
     }) => {
       const noAccess = new NoAccessPage(page);
-      const dashboard = new DashboardPage(page);
+      const home = new HomePage(page);
 
       await page.goto(ROUTES.userManagement);
       await expect(noAccess.heading).toBeVisible();
 
       await expect(noAccess.backLink).toHaveAttribute('href', '/');
       await noAccess.backLink.click();
-      await expect(page).toHaveURL(/\/project\/overview/);
-      await expect(dashboard.heading).toBeVisible();
+      await expect(page).toHaveURL((url) => url.pathname === '/');
+      await expect(home.heading).toBeVisible();
 
       await page.goBack();
       await expect(page).toHaveURL(/\/settings\/users$/);
