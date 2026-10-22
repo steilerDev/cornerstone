@@ -183,11 +183,6 @@
   .panel {
     transition: none;
   }
-
-  .panelSide,
-  .panelSide.panelOpen {
-    transform: none;
-  }
 }
 
 @media print {
