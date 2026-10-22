@@ -5,7 +5,6 @@ import { matchLocation, routeUrl } from '@cornerstone/shared';
 import { ATTENTION_STALE_MS, NEEDS_ATTENTION_LIMIT } from '../../attention/attentionContext.js';
 import { useShellAttention } from '../../attention/useShellAttention.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
-import shared from '../../styles/shared.module.css';
 import { AttentionList } from '../AttentionList/AttentionList.js';
 import { CountBadge } from '../Badge/CountBadge.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
@@ -57,7 +56,7 @@ export function AttentionBell() {
     refreshStale(ATTENTION_STALE_MS);
   };
 
-  // The bell stays mounted while its panel is open, so the ref is always set here.
+  // Synchronous Escape path only: the bell is mounted while its panel is open.
   const focusBell = () => (bellRef.current as HTMLButtonElement).focus();
 
   const onDismiss = (reason: AnchoredPanelDismissReason) => {
@@ -67,9 +66,8 @@ export function AttentionBell() {
     } else if (reason === 'outside') {
       // Only when focus would otherwise be lost: never steal it from what the user just pressed.
       requestAnimationFrame(() => {
-        if (document.activeElement === document.body) {
-          focusBell();
-        }
+        // The bell can unmount before this frame (narrow viewport, sign-out): optional chain.
+        if (document.activeElement === document.body) bellRef.current?.focus();
       });
     } else if (focusHomeOnCloseRef.current) {
       focusHomeOnCloseRef.current = false;
@@ -138,7 +136,7 @@ export function AttentionBell() {
                 <FormError message={t('topBar.attentionLoadFailed')} />
                 <button
                   type="button"
-                  className={shared.btnSecondaryCompact}
+                  className={styles.retry}
                   onClick={attention.retry}
                   data-testid="top-bar-attention-retry"
                 >

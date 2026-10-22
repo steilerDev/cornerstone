@@ -21,6 +21,7 @@
 .header {
   position: sticky;
   top: 0;
+  z-index: var(--z-raised);
   display: flex;
   align-items: baseline;
   gap: var(--spacing-2);
@@ -53,6 +54,7 @@
 .footer {
   position: sticky;
   bottom: 0;
+  z-index: var(--z-raised);
   display: flex;
   justify-content: flex-end;
   padding: var(--spacing-3) var(--spacing-4);
@@ -62,6 +64,11 @@
 
 .openHome {
   composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.retry {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
   min-height: var(--touch-target-min);
 }
 

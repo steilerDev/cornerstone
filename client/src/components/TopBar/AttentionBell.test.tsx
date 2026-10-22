@@ -3,7 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createRef } from 'react';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { AttentionResponse, AttentionRow } from '@cornerstone/shared';
 import { AttentionContext } from '../../attention/attentionContext.js';
 import type { ShellAttention } from '../../attention/attentionContext.js';
@@ -307,6 +307,19 @@ describe('AttentionBell closing', () => {
     expect(screen.queryByTestId('top-bar-attention-panel')).toBeNull();
     expect(bell()).toHaveFocus();
     expect(refreshStale).toHaveBeenCalledTimes(1);
+  });
+
+  it('an outside press does not throw when the bell unmounts before the frame runs', async () => {
+    const errors: unknown[] = [];
+    const onError = (e: ErrorEvent) => errors.push(e.error);
+    window.addEventListener('error', onError);
+    renderBell({ data: makeAttention(lateTasks(2)) });
+    openBell();
+    fireEvent.mouseDown(document.body);
+    cleanup();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    window.removeEventListener('error', onError);
+    expect(errors).toEqual([]);
   });
 
   it('an outside press closes the panel and returns focus to the bell when it would be lost', async () => {
