@@ -6,6 +6,8 @@ import { useAreas } from '../hooks/useAreas.js';
 import { useRealLocation } from '../navigation/realLocation.js';
 import { useAreaFormSchema } from './areaForm.js';
 import { useOrientationFormSchema } from './orientationForm.js';
+import { usePurchaseCategoryFormSchema } from './purchaseCategoryForm.js';
+import { useTradeFormSchema } from './tradeForm.js';
 import { TagCreateContext } from './tagCreateContext.js';
 import type { CreatedTag, RequestTagCreate, TagKind } from './tagCreateContext.js';
 
@@ -14,16 +16,19 @@ interface PendingRequest {
   /** Where the chip lives; the request is closed once the pathname differs. */
   readonly pathname: string;
   readonly returnFocus: HTMLElement | null;
+  /** Pre-fills the Name field. */
+  readonly name: string | undefined;
   settled: boolean;
   readonly settle: (tag: CreatedTag | null) => void;
 }
 
 interface TagCreateDialogProps {
   readonly returnFocus: HTMLElement | null;
+  readonly name: string | undefined;
   readonly onFinish: (tag: CreatedTag | null) => void;
 }
 
-function AreaCreateDialog({ returnFocus, onFinish }: TagCreateDialogProps) {
+function AreaCreateDialog({ returnFocus, name, onFinish }: TagCreateDialogProps) {
   const { areas, isLoading } = useAreas();
   const schema = useAreaFormSchema({ mode: 'new', areas });
   const returnFocusRef = useRef<HTMLElement | null>(returnFocus);
@@ -32,6 +37,7 @@ function AreaCreateDialog({ returnFocus, onFinish }: TagCreateDialogProps) {
   return (
     <ObjectForm
       schema={schema}
+      prefill={name ? { name } : undefined}
       onCreated={(result) => onFinish({ id: result.id, name: result.label })}
       onCancel={() => onFinish(null)}
       returnFocusRef={returnFocusRef}
@@ -40,12 +46,43 @@ function AreaCreateDialog({ returnFocus, onFinish }: TagCreateDialogProps) {
   );
 }
 
-function OrientationCreateDialog({ returnFocus, onFinish }: TagCreateDialogProps) {
+function OrientationCreateDialog({ returnFocus, name, onFinish }: TagCreateDialogProps) {
   const schema = useOrientationFormSchema();
   const returnFocusRef = useRef<HTMLElement | null>(returnFocus);
   return (
     <ObjectForm
       schema={schema}
+      prefill={name ? { name } : undefined}
+      onCreated={(result) => onFinish({ id: result.id, name: result.label })}
+      onCancel={() => onFinish(null)}
+      returnFocusRef={returnFocusRef}
+      testId="tag-create-form"
+    />
+  );
+}
+
+function TradeCreateDialog({ returnFocus, name, onFinish }: TagCreateDialogProps) {
+  const schema = useTradeFormSchema();
+  const returnFocusRef = useRef<HTMLElement | null>(returnFocus);
+  return (
+    <ObjectForm
+      schema={schema}
+      prefill={name ? { name } : undefined}
+      onCreated={(result) => onFinish({ id: result.id, name: result.label })}
+      onCancel={() => onFinish(null)}
+      returnFocusRef={returnFocusRef}
+      testId="tag-create-form"
+    />
+  );
+}
+
+function CategoryCreateDialog({ returnFocus, name, onFinish }: TagCreateDialogProps) {
+  const schema = usePurchaseCategoryFormSchema();
+  const returnFocusRef = useRef<HTMLElement | null>(returnFocus);
+  return (
+    <ObjectForm
+      schema={schema}
+      prefill={name ? { name } : undefined}
       onCreated={(result) => onFinish({ id: result.id, name: result.label })}
       onCancel={() => onFinish(null)}
       returnFocusRef={returnFocusRef}
@@ -55,8 +92,8 @@ function OrientationCreateDialog({ returnFocus, onFinish }: TagCreateDialogProps
 }
 
 /**
- * Lets the capture screen's Area and Orientation chips open New area / New orientation in place
- * (a dialog over the page) and get the created tag back. Imported only by `App.tsx`, so
+ * Lets the capture screen's chips and the EntityPicker open New area / orientation / trade /
+ * purchase category in place (a dialog over the page) and get the created tag back. Imported only by `App.tsx`, so
  * ObjectForm stays out of page closures; pages use `useTagCreate`. It never navigates.
  */
 export function TagCreateProvider({ children }: { readonly children: ReactNode }) {
@@ -83,13 +120,14 @@ export function TagCreateProvider({ children }: { readonly children: ReactNode }
     current?.settle(null);
   }, [departed]);
 
-  const request = useCallback<RequestTagCreate>((kind, returnFocus) => {
+  const request = useCallback<RequestTagCreate>((kind, returnFocus, name) => {
     if (pendingRef.current !== null) return Promise.resolve(null);
     return new Promise<CreatedTag | null>((resolve) => {
       const next: PendingRequest = {
         kind,
         pathname: pathnameRef.current,
         returnFocus: returnFocus ?? null,
+        name: name?.trim() || undefined,
         settled: false,
         settle: (tag) => {
           next.settled = true;
@@ -107,10 +145,28 @@ export function TagCreateProvider({ children }: { readonly children: ReactNode }
     <TagCreateContext value={request}>
       {children}
       {user && open && pending.kind === 'area' && (
-        <AreaCreateDialog returnFocus={pending.returnFocus} onFinish={finish} />
+        <AreaCreateDialog returnFocus={pending.returnFocus} name={pending.name} onFinish={finish} />
       )}
       {user && open && pending.kind === 'orientation' && (
-        <OrientationCreateDialog returnFocus={pending.returnFocus} onFinish={finish} />
+        <OrientationCreateDialog
+          returnFocus={pending.returnFocus}
+          name={pending.name}
+          onFinish={finish}
+        />
+      )}
+      {user && open && pending.kind === 'trade' && (
+        <TradeCreateDialog
+          returnFocus={pending.returnFocus}
+          name={pending.name}
+          onFinish={finish}
+        />
+      )}
+      {user && open && pending.kind === 'category' && (
+        <CategoryCreateDialog
+          returnFocus={pending.returnFocus}
+          name={pending.name}
+          onFinish={finish}
+        />
       )}
     </TagCreateContext>
   );

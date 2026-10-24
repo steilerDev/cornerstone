@@ -10,6 +10,7 @@ import {
   isEmptyPayload,
   readValues,
   toBatchCreate,
+  toCostLineTarget,
   toCreatePayload,
   toEditPayload,
   validateValues,
@@ -475,5 +476,38 @@ describe('toEditPayload', () => {
 
   it('does not move when the target is cleared or unchanged', () => {
     expect(toEditPayload({ ...initial, target: null }, initial, row, VAT)).toEqual({});
+  });
+});
+
+describe('toCostLineTarget (#2236)', () => {
+  it('turns a task option into a work item target with its label and no area', () => {
+    expect(
+      toCostLineTarget({
+        id: 'work_item:wi-1',
+        label: 'Lay floors',
+        itemType: 'work_item',
+        entityId: 'wi-1',
+        kindWord: 'Task',
+      }),
+    ).toEqual({ type: 'work_item', id: 'wi-1', label: 'Lay floors', area: null });
+  });
+
+  it('uses the raw id, not the encoded option id, and the purchase type', () => {
+    const target = toCostLineTarget({
+      id: 'household_item:hi-1',
+      label: 'Floor lamp',
+      itemType: 'household_item',
+      entityId: 'hi-1',
+    });
+
+    expect(target).toEqual({ type: 'household_item', id: 'hi-1', label: 'Floor lamp', area: null });
+    expect(target.id).not.toContain(':');
+  });
+
+  it('keeps an empty label as an empty label', () => {
+    expect(
+      toCostLineTarget({ id: 'work_item:wi-2', label: '', itemType: 'work_item', entityId: 'wi-2' })
+        .label,
+    ).toBe('');
   });
 });

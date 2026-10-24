@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Modal } from '../Modal/Modal.js';
 import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
@@ -95,6 +95,84 @@ describe('SearchPicker createAction (Story #2148)', () => {
       expect(options).toHaveLength(3);
       expect(options[options.length - 1]).toHaveAccessibleName('Add new');
       expect(mockGetLabel).toHaveBeenCalledWith('');
+    });
+
+    describe('reopening a closed picker', () => {
+      async function typeThenClose() {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.type(input, 'alp');
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        await user.keyboard('{Escape}');
+        await waitFor(() => {
+          expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        });
+        mockSearchFn.mockClear();
+        return input;
+      }
+
+      it('searches the text still in the input when the input is clicked again', async () => {
+        const input = await typeThenClose();
+        mockSearchFn.mockResolvedValue([sampleItems[0]!]);
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        expect(await screen.findByText('Alpha Widget')).toBeInTheDocument();
+        expect(screen.queryByText('Beta Gadget')).not.toBeInTheDocument();
+        expect(mockSearchFn).not.toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+      });
+
+      it('searches the text still in the input when focus returns to it', async () => {
+        const input = await typeThenClose();
+        input.blur();
+        mockSearchFn.mockResolvedValue([sampleItems[0]!]);
+
+        act(() => input.focus());
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        expect(mockSearchFn).not.toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+      });
+
+      it('fetches the initial list when the input is empty', async () => {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.click(input);
+        await screen.findByText('Alpha Widget');
+        await user.keyboard('{Escape}');
+        await waitFor(() => {
+          expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        });
+        mockSearchFn.mockClear();
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+        });
+        expect(await screen.findByText('Beta Gadget')).toBeInTheDocument();
+      });
+
+      it('treats whitespace-only text as empty and fetches the initial list', async () => {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.type(input, '  ');
+        await user.keyboard('{Escape}');
+        mockSearchFn.mockClear();
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+        });
+        expect(mockSearchFn).not.toHaveBeenCalledWith('  ', [], expect.any(AbortSignal));
+      });
     });
 
     it('still shows the create row after the "no results" message', async () => {

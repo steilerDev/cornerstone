@@ -4,9 +4,9 @@
  * Tests the bidirectional milestone relationship logic:
  * - getWorkItemMilestones: returns required and linked milestone arrays
  * - addRequiredMilestone: links a milestone as a dependency of a work item
- * - removeRequiredMilestone: removes a required milestone dependency
+ * - removeRequiredMilestoneWithSnapshot: removes a required milestone dependency
  * - addLinkedMilestone: links a work item as a contributor to a milestone
- * - removeLinkedMilestone: removes a linked milestone association
+ * - removeLinkedMilestoneWithSnapshot: removes a linked milestone association
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -315,9 +315,9 @@ describe('Work Item Milestone Service', () => {
     });
   });
 
-  // ─── removeRequiredMilestone ────────────────────────────────────────────────
+  // ─── removeRequiredMilestoneWithSnapshot ────────────────────────────────────────────────
 
-  describe('removeRequiredMilestone()', () => {
+  describe('removeRequiredMilestoneWithSnapshot()', () => {
     it('removes a required milestone dependency successfully', () => {
       // Given: A work item that requires a milestone
       const userId = insertTestUser('user@example.com', 'Test User');
@@ -327,7 +327,7 @@ describe('Work Item Milestone Service', () => {
       workItemMilestoneService.addRequiredMilestone(db, workItemId, milestoneId);
 
       // When: Removing the dependency
-      workItemMilestoneService.removeRequiredMilestone(db, workItemId, milestoneId);
+      workItemMilestoneService.removeRequiredMilestoneWithSnapshot(db, workItemId, milestoneId);
 
       // Then: The dependency is gone
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
@@ -340,7 +340,11 @@ describe('Work Item Milestone Service', () => {
 
       // When/Then: Throws NotFoundError
       expect(() =>
-        workItemMilestoneService.removeRequiredMilestone(db, 'nonexistent-wi', milestoneId),
+        workItemMilestoneService.removeRequiredMilestoneWithSnapshot(
+          db,
+          'nonexistent-wi',
+          milestoneId,
+        ),
       ).toThrow(NotFoundError);
     });
 
@@ -350,9 +354,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Install cabinets');
 
       // When/Then: Throws NotFoundError
-      expect(() => workItemMilestoneService.removeRequiredMilestone(db, workItemId, 99999)).toThrow(
-        NotFoundError,
-      );
+      expect(() =>
+        workItemMilestoneService.removeRequiredMilestoneWithSnapshot(db, workItemId, 99999),
+      ).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError when the dependency does not exist (work item and milestone exist but not linked)', () => {
@@ -363,7 +367,7 @@ describe('Work Item Milestone Service', () => {
 
       // When/Then: Throws NotFoundError
       expect(() =>
-        workItemMilestoneService.removeRequiredMilestone(db, workItemId, milestoneId),
+        workItemMilestoneService.removeRequiredMilestoneWithSnapshot(db, workItemId, milestoneId),
       ).toThrow(NotFoundError);
     });
 
@@ -378,7 +382,7 @@ describe('Work Item Milestone Service', () => {
       workItemMilestoneService.addRequiredMilestone(db, workItemId, milestone2Id);
 
       // When: Removing only the first milestone
-      workItemMilestoneService.removeRequiredMilestone(db, workItemId, milestone1Id);
+      workItemMilestoneService.removeRequiredMilestoneWithSnapshot(db, workItemId, milestone1Id);
 
       // Then: Only the second milestone remains
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
@@ -473,9 +477,9 @@ describe('Work Item Milestone Service', () => {
     });
   });
 
-  // ─── removeLinkedMilestone ──────────────────────────────────────────────────
+  // ─── removeLinkedMilestoneWithSnapshot ──────────────────────────────────────────────────
 
-  describe('removeLinkedMilestone()', () => {
+  describe('removeLinkedMilestoneWithSnapshot()', () => {
     it('removes a linked milestone association successfully', () => {
       // Given: A work item linked to a milestone
       const userId = insertTestUser('user@example.com', 'Test User');
@@ -485,7 +489,7 @@ describe('Work Item Milestone Service', () => {
       workItemMilestoneService.addLinkedMilestone(db, workItemId, milestoneId);
 
       // When: Removing the link
-      workItemMilestoneService.removeLinkedMilestone(db, workItemId, milestoneId);
+      workItemMilestoneService.removeLinkedMilestoneWithSnapshot(db, workItemId, milestoneId);
 
       // Then: The link is gone
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
@@ -498,7 +502,11 @@ describe('Work Item Milestone Service', () => {
 
       // When/Then: Throws NotFoundError
       expect(() =>
-        workItemMilestoneService.removeLinkedMilestone(db, 'nonexistent-wi', milestoneId),
+        workItemMilestoneService.removeLinkedMilestoneWithSnapshot(
+          db,
+          'nonexistent-wi',
+          milestoneId,
+        ),
       ).toThrow(NotFoundError);
     });
 
@@ -508,9 +516,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Install gutters');
 
       // When/Then: Throws NotFoundError
-      expect(() => workItemMilestoneService.removeLinkedMilestone(db, workItemId, 99999)).toThrow(
-        NotFoundError,
-      );
+      expect(() =>
+        workItemMilestoneService.removeLinkedMilestoneWithSnapshot(db, workItemId, 99999),
+      ).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError when the link does not exist (work item and milestone exist but not linked)', () => {
@@ -521,7 +529,7 @@ describe('Work Item Milestone Service', () => {
 
       // When/Then: Throws NotFoundError
       expect(() =>
-        workItemMilestoneService.removeLinkedMilestone(db, workItemId, milestoneId),
+        workItemMilestoneService.removeLinkedMilestoneWithSnapshot(db, workItemId, milestoneId),
       ).toThrow(NotFoundError);
     });
 
@@ -536,7 +544,7 @@ describe('Work Item Milestone Service', () => {
       workItemMilestoneService.addLinkedMilestone(db, workItemId, milestone2Id);
 
       // When: Removing only the first link
-      workItemMilestoneService.removeLinkedMilestone(db, workItemId, milestone1Id);
+      workItemMilestoneService.removeLinkedMilestoneWithSnapshot(db, workItemId, milestone1Id);
 
       // Then: Only the second link remains
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);

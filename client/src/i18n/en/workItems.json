@@ -116,13 +116,6 @@
     },
     "added": "Task ‘{{title}}’ added."
   },
-  "picker": {
-    "placeholder": "Search work items...",
-    "emptyHint": "Type to search work items",
-    "noResults": "No matching work items found",
-    "loadError": "Failed to load work items",
-    "searchError": "Failed to search work items"
-  },
   "detail": {
     "loading": "Loading work item...",
     "error": {
@@ -216,6 +209,8 @@
       "noLinkedMilestones": "No linked milestones",
       "selectMilestone": "Select milestone...",
       "selectMilestonePlaceholder": "Select milestone...",
+      "removeRequiredMilestoneAria": "Remove required milestone: {{name}}",
+      "removeLinkedMilestoneAria": "Remove linked milestone: {{name}}",
       "selectRequiredMilestoneAriaLabel": "Select required milestone to add",
       "selectLinkedMilestoneAriaLabel": "Select milestone to link",
       "addMilestone": "Add",

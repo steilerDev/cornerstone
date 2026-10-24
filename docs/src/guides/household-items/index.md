@@ -23,18 +23,9 @@ The household items system provides:
 
 ## Categories
 
-Each household item is assigned a category:
+Each household item has a category, such as Furniture or Appliances. Categories come from a list you manage in **Settings > Project setup**, in the **Purchase categories** section.
 
-| Category | Description |
-|----------|-------------|
-| **Furniture** | Tables, chairs, sofas, beds, shelving |
-| **Appliances** | Kitchen appliances, laundry, HVAC units |
-| **Fixtures** | Faucets, light fixtures, door handles |
-| **Decor** | Artwork, curtains, rugs, decorative items |
-| **Electronics** | Smart home devices, speakers, networking |
-| **Outdoor** | Garden furniture, grills, outdoor lighting |
-| **Storage** | Cabinets, closet systems, garage storage |
-| **Other** | Anything that does not fit the above |
+The app starts with eight defaults: Furniture, Appliances, Fixtures, Decor, Electronics, Outdoor, Storage, and Other. You can rename them, add more, or delete the ones you no longer need. You can also create a new category on the spot: type a name in the category field and choose **New category ‹text›**. See [Categories](/guides/budget/categories) for how these lists are managed.
 
 ## Statuses
 

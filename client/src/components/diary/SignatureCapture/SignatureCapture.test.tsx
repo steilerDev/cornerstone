@@ -17,6 +17,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import type * as SignatureCaptureModule from './SignatureCapture.js';
@@ -35,9 +36,11 @@ function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
 // ─── Company search (server) ────────────────────────────────────────────────
 
 const mockSearchCompanies = jest.fn<typeof VendorsApiTypes.searchCompanies>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
+  fetchVendor: mockFetchVendor,
 }));
 
 const COMPANIES = [
@@ -125,6 +128,7 @@ beforeEach(() => {
   localStorage.clear();
   mockSearchCompanies.mockReset();
   mockSearchCompanies.mockResolvedValue(COMPANIES);
+  mockFetchVendor.mockReset();
 });
 
 afterEach(() => {
@@ -426,15 +430,6 @@ describe('SignatureCapture', () => {
       expect(entry.signerName).toBe('');
     });
 
-    it('does not call onSignatureChange when Accept is clicked with no strokes', () => {
-      const onSignatureChange = jest.fn();
-      render(<SignatureCapture {...makeProps({ onSignatureChange })} />);
-      // Accept button is disabled, but exercise handleAccept's own guard too via a direct click attempt
-      const acceptButton = screen.getByRole('button', { name: 'Accept Signature' });
-      fireEvent.click(acceptButton);
-      expect(onSignatureChange).not.toHaveBeenCalled();
-    });
-
     it('burns signer name and formatted date onto the canvas via ctx.fillText', () => {
       render(
         <SignatureCapture
@@ -688,6 +683,206 @@ describe('SignatureCapture', () => {
       render(<SignatureCapture {...makeProps({ currentUserName: 'Dana Owner' })} />);
       expect(screen.queryByRole('textbox', { name: 'Vendor' })).not.toBeInTheDocument();
       expect(mockSearchCompanies).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Canvas robustness (whole-file coverage of the drawing code) ─────────────
+
+  describe('canvas robustness', () => {
+    const setPixelRatio = (value: number) =>
+      Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true });
+
+    it('works with only the required props (all optional props take their defaults)', () => {
+      render(<SignatureCapture signature={null} onSignatureChange={jest.fn()} />);
+
+      expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+    });
+
+    it('does not need onSignerNameChange to pre-fill the signer for a self signature', () => {
+      render(
+        <SignatureCapture
+          signature={null}
+          onSignatureChange={jest.fn()}
+          signerType="self"
+          currentUserName="Alice Builder"
+        />,
+      );
+
+      expect(screen.getByText('Alice Builder')).toBeInTheDocument();
+    });
+
+    it('sizes the canvas with a device pixel ratio of 1 when the browser reports none', () => {
+      const original = window.devicePixelRatio;
+      setPixelRatio(0);
+      try {
+        render(<SignatureCapture {...makeProps()} />);
+
+        expect(mockCtx.scale).toHaveBeenCalledWith(1, 1);
+      } finally {
+        setPixelRatio(original);
+      }
+    });
+
+    it('scales the canvas by the device pixel ratio', () => {
+      const original = window.devicePixelRatio;
+      setPixelRatio(2);
+      try {
+        render(<SignatureCapture {...makeProps()} />);
+
+        expect(mockCtx.scale).toHaveBeenCalledWith(2, 2);
+      } finally {
+        setPixelRatio(original);
+      }
+    });
+
+    it('draws the signature line and the "sign here" label on a fresh canvas', () => {
+      render(<SignatureCapture {...makeProps()} />);
+
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 100);
+      expect(mockCtx.fillText).toHaveBeenCalledWith(expect.any(String), 16, 92);
+    });
+
+    it('keeps drawing after the first stroke segment (more mouse and touch moves)', () => {
+      render(<SignatureCapture {...makeProps()} />);
+      const canvas = screen.getByLabelText('Signature canvas');
+      drawStroke(canvas);
+      const before = mockCtx.lineTo.mock.calls.length;
+
+      fireEvent.mouseMove(canvas, { clientX: 30, clientY: 30 });
+      fireEvent.mouseUp(canvas);
+      fireEvent.touchStart(canvas, { touches: [{ clientX: 5, clientY: 5 }] });
+      fireEvent.touchMove(canvas, { touches: [{ clientX: 6, clientY: 6 }] });
+      fireEvent.touchMove(canvas, { touches: [{ clientX: 7, clientY: 7 }] });
+
+      expect(mockCtx.lineTo.mock.calls.length).toBeGreaterThanOrEqual(before + 4);
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).not.toBeDisabled();
+    });
+
+    it('ignores mouse and touch moves when no stroke was started', () => {
+      render(<SignatureCapture {...makeProps()} />);
+      const canvas = screen.getByLabelText('Signature canvas');
+
+      fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 });
+      fireEvent.touchMove(canvas, { touches: [{ clientX: 20, clientY: 20 }] });
+
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+    });
+
+    it('ignores a touch move without touches while drawing', () => {
+      render(<SignatureCapture {...makeProps()} />);
+      const canvas = screen.getByLabelText('Signature canvas');
+      fireEvent.touchStart(canvas, { touches: [{ clientX: 10, clientY: 10 }] });
+
+      fireEvent.touchMove(canvas, { touches: [] });
+
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+    });
+
+    describe('without a 2D context', () => {
+      const noContext = () =>
+        jest.fn(() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+      it('renders and ignores drawing, clearing and accepting without throwing', () => {
+        HTMLCanvasElement.prototype.getContext = noContext();
+        const onSignatureChange = jest.fn();
+        render(<SignatureCapture {...makeProps({ onSignatureChange })} />);
+        const canvas = screen.getByLabelText('Signature canvas');
+
+        expect(() => {
+          fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+          fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 });
+          fireEvent.touchStart(canvas, { touches: [{ clientX: 10, clientY: 10 }] });
+          fireEvent.touchMove(canvas, { touches: [{ clientX: 20, clientY: 20 }] });
+          fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+        }).not.toThrow();
+
+        expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+        expect(onSignatureChange).not.toHaveBeenCalled();
+      });
+
+      it('still accepts a drawn signature when the context disappears before Accept', () => {
+        const onSignatureChange = jest.fn();
+        render(<SignatureCapture {...makeProps({ onSignatureChange })} />);
+        drawStroke(screen.getByLabelText('Signature canvas'));
+        HTMLCanvasElement.prototype.getContext = noContext();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+
+        expect(onSignatureChange).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps the stroke when Clear runs after the context disappeared', () => {
+        render(<SignatureCapture {...makeProps()} />);
+        drawStroke(screen.getByLabelText('Signature canvas'));
+        HTMLCanvasElement.prototype.getContext = noContext();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+        expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeEnabled();
+      });
+    });
+
+    it('draws with the colours of the page CSS custom properties when they are set', () => {
+      const spy = jest.spyOn(window, 'getComputedStyle').mockReturnValue({
+        getPropertyValue: (name: string) =>
+          ({
+            '--color-bg-primary': ' #fafafa ',
+            '--color-text-primary': ' #101010 ',
+            '--color-border': '#cccccc',
+            '--color-text-muted': '#777777',
+          })[name] ?? '',
+      } as unknown as CSSStyleDeclaration);
+      try {
+        render(<SignatureCapture {...makeProps()} />);
+
+        expect(mockCtx.strokeStyle).toBe('#cccccc');
+        expect(mockCtx.fillStyle).toBe('#777777');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
+  describe('accept then remove (hasStrokes reset)', () => {
+    function Harness() {
+      const [signature, setSignature] = useState<DiarySignatureEntry | null>(null);
+      return (
+        <SignatureCapture
+          signature={signature}
+          onSignatureChange={setSignature}
+          signerType="self"
+          currentUserName="Alice Builder"
+        />
+      );
+    }
+
+    it('brings the canvas back with Accept disabled until a new stroke is drawn', () => {
+      render(<Harness />);
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+      expect(screen.queryByLabelText('Signature canvas')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove Signature' }));
+
+      const canvas = screen.getByLabelText('Signature canvas');
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled();
+      drawStroke(canvas);
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeEnabled();
+    });
+  });
+
+  describe('self signer pre-fill', () => {
+    it('reports the current user name to the host for a new self signature', () => {
+      const onSignerNameChange = jest.fn();
+      render(
+        <SignatureCapture
+          {...makeProps({ currentUserName: 'Alice Builder', onSignerNameChange })}
+        />,
+      );
+
+      expect(onSignerNameChange).toHaveBeenCalledWith('Alice Builder');
     });
   });
 

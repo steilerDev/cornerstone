@@ -4,10 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { AreaResponse, OrientationResponse } from '@cornerstone/shared';
 import { FilterChipGroup } from '../../FilterChipGroup/FilterChipGroup.js';
 import type { FilterChipOption } from '../../FilterChipGroup/FilterChipGroup.js';
-import { AreaPicker } from '../../AreaPicker/AreaPicker.js';
-import { OrientationPicker } from '../../OrientationPicker/OrientationPicker.js';
+import { EntityPickerDialog } from '../../EntityPicker/EntityPickerDialog.js';
 import { useTagCreate } from '../../../objectForms/useTagCreate.js';
-import { TagPickerDialog } from './TagPickerDialog.js';
 import styles from './TagChips.module.css';
 
 export interface TagChipsProps {
@@ -45,6 +43,7 @@ function useRowFocusHandle(
   return useMemo(
     () => ({
       get current(): HTMLElement | null {
+        // Read during render (before the chip group's ref is attached): can be null.
         const group = groupRef.current;
         if (!group) return null;
         return (
@@ -103,7 +102,7 @@ export function TagChips({
     for (const a of shown) nameCount.set(a.name, (nameCount.get(a.name) ?? 0) + 1);
     return shown.map((a) => {
       const parent = a.parentId ? byId.get(a.parentId) : undefined;
-      const ambiguous = (nameCount.get(a.name) ?? 0) > 1 && parent;
+      const ambiguous = nameCount.get(a.name)! > 1 && parent;
       return { value: a.id, label: ambiguous ? `${a.name} · ${parent.name}` : a.name };
     });
   }, [areas, recentAreaIds, areaId]);
@@ -148,7 +147,7 @@ export function TagChips({
       label: t('tags.newArea'),
       action: true,
       onSelect: () => {
-        const chip = areaGroupRef.current?.querySelector<HTMLElement>(
+        const chip = areaGroupRef.current!.querySelector<HTMLElement>(
           `[data-chip-value="${NEW_VALUE}"]`,
         );
         void request('area', chip).then((created) => {
@@ -175,7 +174,7 @@ export function TagChips({
       label: t('tags.newOrientation'),
       action: true,
       onSelect: () => {
-        const chip = orientationGroupRef.current?.querySelector<HTMLElement>(
+        const chip = orientationGroupRef.current!.querySelector<HTMLElement>(
           `[data-chip-value="${NEW_VALUE}"]`,
         );
         void request('orientation', chip).then((created) => {
@@ -220,41 +219,24 @@ export function TagChips({
         />
       </div>
 
-      {picker === 'area' ? (
-        <TagPickerDialog
-          title={t('tags.chooseArea')}
-          onClose={() => setPicker(null)}
-          returnFocusRef={areaFocus}
-          testId={`${idPrefix}-area-picker`}
-        >
-          <AreaPicker
-            areas={areas}
-            value={areaId ?? ''}
-            onChange={(id) => {
-              setPicker(null);
-              onAreaChange(id === '' ? null : id);
-            }}
-          />
-        </TagPickerDialog>
-      ) : null}
-      {picker === 'orientation' ? (
-        <TagPickerDialog
-          title={t('tags.chooseOrientation')}
-          onClose={() => setPicker(null)}
-          returnFocusRef={orientationFocus}
-          testId={`${idPrefix}-orientation-picker`}
-        >
-          <OrientationPicker
-            emptyHint={t('tags.noOrientationsHint')}
-            value={orientationId && orientationId !== NONE_VALUE ? orientationId : ''}
-            initialOrientationName={orientations.find((o) => o.id === orientationId)?.name}
-            onChange={(id) => {
-              setPicker(null);
-              onOrientationChange(id === '' ? null : id);
-            }}
-          />
-        </TagPickerDialog>
-      ) : null}
+      <EntityPickerDialog
+        open={picker === 'area'}
+        title={t('tags.chooseArea')}
+        onClose={() => setPicker(null)}
+        onPick={(option) => onAreaChange(option.id)}
+        returnFocusRef={areaFocus}
+        testId={`${idPrefix}-area-picker`}
+        picker={{ kind: 'area', areas }}
+      />
+      <EntityPickerDialog
+        open={picker === 'orientation'}
+        title={t('tags.chooseOrientation')}
+        onClose={() => setPicker(null)}
+        onPick={(option) => onOrientationChange(option.id)}
+        returnFocusRef={orientationFocus}
+        testId={`${idPrefix}-orientation-picker`}
+        picker={{ kind: 'orientation', emptyHint: t('tags.noOrientationsHint') }}
+      />
     </div>
   );
 }

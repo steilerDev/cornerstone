@@ -58,6 +58,7 @@ import {
 } from '@cornerstone/shared';
 import { COST_LINE_DOCUMENT_KINDS } from '../components/CostLineTable/costLineDocumentKind.js';
 import { COST_LINE_STATES } from '../components/CostLineTable/costLineState.js';
+import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
 import { OBJECT_TAB_IDS } from '../components/ObjectTabs/objectTabIds.js';
 import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
@@ -175,12 +176,6 @@ export const I18N_UNION_KEYS = {
   ),
   /** costLines — aria-label of the Split button per document kind. */
   costLineSplitLabel: unionKeySet('costLines', 'table.splitLabel', COST_LINE_DOCUMENT_KINDS),
-  /** costLines — Remove-from-document lead for a line without a task or purchase. */
-  costLineRemoveLeadNoTarget: unionKeySet(
-    'costLines',
-    'confirm.removeLeadNoTarget',
-    COST_LINE_DOCUMENT_KINDS,
-  ),
   /** common — progress-payment (deposit) status chip. */
   statusVocabularyProgressPayment: unionKeySet(
     'common',
@@ -276,6 +271,12 @@ export const I18N_UNION_KEYS = {
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
   /** common — Log now tile label in the New sheet. */
   quickLogMode: unionKeySet('common', 'createSheet.quickLog', QUICK_LOG_MODES),
+  /** common — Who picker group heading per group. */
+  whoGroup: unionKeySet('common', 'entityPicker.who.group', WHO_KINDS),
+  /** common — Who picker kind suffix after the selected name. */
+  whoKind: unionKeySet('common', 'entityPicker.who.kind', WHO_KINDS),
+  /** common — "New ‹kind› ‹text›" create row per creatable kind. */
+  entityPickerNew: unionKeySet('common', 'entityPicker.new', ENTITY_CREATE_KINDS),
   /** common — object page tab label (Overview … History) (#2233). */
   objectTab: unionKeySet('common', 'objectTabs.tab', OBJECT_TAB_IDS),
   /** documents — "this task" etc. in the picker subtitle and the duplicate-link error (#2233). */

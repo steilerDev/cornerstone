@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   InvoiceBudgetLineCreateResponse,
   InvoiceBudgetLineListDetailResponse,
@@ -45,8 +46,11 @@ export function updateInvoiceBudgetLine(
 /**
  * Deletes an invoice budget line (unlinks the budget line from the invoice).
  */
-export function deleteInvoiceBudgetLine(invoiceId: string, lineId: string): Promise<void> {
-  return del<void>(`/invoices/${invoiceId}/budget-lines/${lineId}`);
+export function deleteInvoiceBudgetLine(
+  invoiceId: string,
+  lineId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/invoices/${invoiceId}/budget-lines/${lineId}`);
 }
 
 /**

@@ -839,7 +839,7 @@ describe('Invoice Budget Lines Routes', () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it('deletes a budget line successfully and returns 204', async () => {
+    it('deletes a budget line successfully and returns 200 with an undo token', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendorId = createTestVendor('Vendor DELETE Success');
       const invoiceId = createTestInvoice(vendorId, 1000);
@@ -860,8 +860,8 @@ describe('Invoice Budget Lines Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ undo: { token: string } }>().undo.token).toMatch(/^u_/);
     });
 
     it('budget line no longer appears in list after deletion', async () => {
@@ -921,7 +921,7 @@ describe('Invoice Budget Lines Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
     });
   });
 });

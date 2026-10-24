@@ -59,6 +59,8 @@ const MILESTONE_DETAIL: MilestoneDetail = {
 // Tests
 // ---------------------------------------------------------------------------
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('milestonesApi', () => {
   beforeEach(() => {
     mockFetch.mockClear();
@@ -457,6 +459,83 @@ describe('milestonesApi', () => {
     });
   });
 
+  // ─── removeDependentWorkItem ─────────────────────────────────────────────
+
+  describe('removeDependentWorkItem', () => {
+    it('sends DELETE to /api/milestones/:milestoneId/dependents/:workItemId and resolves with the Undo token', async () => {
+      const { removeDependentWorkItem } = await import('./milestonesApi.js');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ undo: UNDO }),
+      } as Response);
+
+      const result = await removeDependentWorkItem(7, 'wi-9');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/milestones/7/dependents/wi-9',
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+      expect(result).toEqual({ undo: UNDO });
+    });
+
+    it('throws ApiClientError on 404 when the dependent link does not exist', async () => {
+      const { removeDependentWorkItem } = await import('./milestonesApi.js');
+      const { ApiClientError } = await import('./apiClient.js');
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Dependent link not found' } }),
+      } as Response);
+
+      await expect(removeDependentWorkItem(7, 'wi-missing')).rejects.toThrow(ApiClientError);
+    });
+  });
+
+  // ─── addDependentWorkItem / fetchMilestoneLinkedHouseholdItems ────────────
+
+  describe('addDependentWorkItem', () => {
+    it('sends POST to /api/milestones/:milestoneId/dependents/:workItemId and resolves with the dependents', async () => {
+      const { addDependentWorkItem } = await import('./milestonesApi.js');
+      const body = { dependentWorkItems: [{ id: 'wi-9', title: 'Paint walls' }] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      const result = await addDependentWorkItem(7, 'wi-9');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/milestones/7/dependents/wi-9',
+        expect.objectContaining({ method: 'POST' }),
+      );
+      expect(result).toEqual(body);
+    });
+  });
+
+  describe('fetchMilestoneLinkedHouseholdItems', () => {
+    it('sends GET to the dependent-household-items endpoint and unwraps the list', async () => {
+      const { fetchMilestoneLinkedHouseholdItems } = await import('./milestonesApi.js');
+      const items = [{ id: 'hi-1', name: 'Sofa' }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ householdItems: items }),
+      } as Response);
+
+      const result = await fetchMilestoneLinkedHouseholdItems(7);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/milestones/7/dependent-household-items',
+        expect.any(Object),
+      );
+      expect(result).toEqual(items);
+    });
+  });
+
   // ─── unlinkWorkItem ──────────────────────────────────────────────────────
 
   describe('unlinkWorkItem', () => {
@@ -465,7 +544,8 @@ describe('milestonesApi', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await unlinkWorkItem(1, 'wi-1');
@@ -476,17 +556,18 @@ describe('milestonesApi', () => {
       );
     });
 
-    it('resolves without value on success (204 No Content)', async () => {
+    it('resolves with the Undo token (200)', async () => {
       const { unlinkWorkItem } = await import('./milestonesApi.js');
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await unlinkWorkItem(1, 'wi-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws ApiClientError on 404 when link does not exist', async () => {

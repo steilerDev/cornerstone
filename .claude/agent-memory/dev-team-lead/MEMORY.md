@@ -70,4 +70,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Consistency test specs](consistency-test-specs.md) — "tests only" hides real gaps: former-name figures, same label/different count, 2nd definitions; API-bracketed E2E retry; registry
 - [Object list specs](object-list-specs.md) — analyzer follows `import type` (DataTable closure +5 primaries), searchFields 0→1 rule, PO rulings vs adopter scope, overlapping facets
 - [Cost line specs](cost-line-specs.md) — "Layers C" needing an atomic batch endpoint, ObjectForm cross-field limits, money-label pre-check script, capmap vs UX, retirement order
+- [Related list & picker specs](related-list-picker-specs.md) — stale plan retire lists, adoption vs page stories, 204→200 schema strip, Undo+reschedule, translated ref data, guard-safe greps
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

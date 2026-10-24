@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useFormatters } from '../../lib/formatters.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import type { CostLineTarget } from '../CostLineTable/types.js';
-import { CostLineTargetPicker } from './CostLineTargetPicker.js';
+import { toCostLineTarget } from './costLineValues.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
+import { itemValue } from '../EntityPicker/entityPickerKinds.js';
 import type {
   CostLineGridField,
   CostLineGridOption,
@@ -347,10 +349,14 @@ export function CostLineGridRowView({
             <span {...userText()}>{row.target?.label ?? assignAll?.label}</span>
           ) : (
             <>
-              <CostLineTargetPicker
+              <EntityPicker
+                kind="taskOrPurchase"
                 id={`${rowKey}-target`}
-                value={row.target}
-                onChange={(target) => onChange(row.rowId, { target })}
+                value={row.target ? itemValue(row.target) : ''}
+                selectedLabel={row.target?.label}
+                onChange={(_value, option) =>
+                  onChange(row.rowId, { target: option ? toCostLineTarget(option) : null })
+                }
                 placeholder={assignAll?.label ?? t('form.belongsToPlaceholder')}
                 inputAriaProps={{
                   'aria-label': label(t('table.colBelongsTo')),

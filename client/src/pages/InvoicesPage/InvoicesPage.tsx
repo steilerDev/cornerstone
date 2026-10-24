@@ -30,7 +30,7 @@ import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
@@ -43,7 +43,6 @@ import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { searchCompanies } from '../../lib/vendorsApi.js';
 import { useCompanyName } from '../../hooks/useCompanyName.js';
-import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { fetchConfig } from '../../lib/configApi.js';
@@ -233,14 +232,9 @@ export function InvoicesPage() {
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   // The New company form stacks over the create modal, which stays put meanwhile.
-  const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
-    useCompanyCreateAction();
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const [isResolvingCompany, setIsResolvingCompany] = useState(false);
   const [createError, setCreateError] = useState<string>('');
-  // A pre-selected company is looked up on its own; one that does not exist (404) is dropped,
-  // never submitted. The picker stays disabled meanwhile.
-  const createCompany = useCompanyName(createForm.vendorId, {
-    onUnknown: () => setCreateForm((f) => ({ ...f, vendorId: '' })),
-  });
 
   // Paperless picker modal state
   const [showPaperlessPickerModal, setShowPaperlessPickerModal] = useState(false);
@@ -1061,7 +1055,7 @@ export function InvoicesPage() {
                 onClick={() => formRef.current?.requestSubmit()}
                 disabled={
                   isCreating ||
-                  createCompany.isResolving ||
+                  isResolvingCompany ||
                   !createForm.vendorId ||
                   !createForm.amount ||
                   !createForm.date
@@ -1086,20 +1080,18 @@ export function InvoicesPage() {
                 {t('invoices.form.vendor')}{' '}
                 <span className={styles.required}>{t('invoices.form.required')}</span>
               </label>
-              <SearchPicker<CompanyOption>
+              <EntityPicker
+                kind="company"
                 id="invoice-vendor"
                 value={createForm.vendorId}
                 onChange={(id) => setCreateForm((form) => ({ ...form, vendorId: id }))}
-                excludeIds={[]}
-                onSelectItem={createCompany.remember}
-                disabled={isCreating || createCompany.isResolving}
+                // A pre-selected company that does not exist (404) is dropped, never submitted.
+                onUnknownCompany={() => setCreateForm((form) => ({ ...form, vendorId: '' }))}
+                onCreatingChange={setIsCreatingCompany}
+                onResolvingChange={setIsResolvingCompany}
+                disabled={isCreating}
                 placeholder={t('invoices.form.placeholders.vendor')}
-                searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
-                renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
-                showItemsOnFocus
-                initialTitle={createCompany.name}
                 inputAriaProps={{ 'aria-required': true }}
-                createAction={companyCreateAction}
               />
             </div>
 

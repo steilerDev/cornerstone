@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import type { AreaAncestor, AreaResponse, AreaSummary } from '@cornerstone/shared';
 import { AreaBreadcrumb } from '../components/AreaBreadcrumb/index.js';
-import { AreaPicker } from '../components/AreaPicker/AreaPicker.js';
+import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
 import type { ObjectFormRenderContext } from '../components/ObjectForm/types.js';
 import styles from './objectForms.module.css';
 
@@ -32,16 +33,18 @@ export interface AreaFieldProps {
 
 /** Optional area picker for an ObjectForm field named `area` (value is the area id or ''). */
 export function AreaField({ ctx, areas, preview = false }: AreaFieldProps) {
+  const { t } = useTranslation('common');
   const areaId = typeof ctx.value === 'string' ? ctx.value : '';
   return (
     <>
-      <AreaPicker
+      <EntityPicker
+        kind="area"
         id={ctx.id}
         areas={areas}
         value={areaId}
         onChange={ctx.setValue}
         disabled={ctx.busy}
-        nullable
+        noneLabel={t('aria.noArea')}
       />
       {preview && areaId && (
         <div className={styles.areaPreview}>

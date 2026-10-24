@@ -2,7 +2,15 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
@@ -56,35 +64,57 @@ type AreaRow = {
 const mockUseAreas = jest.fn<() => UseAreasResult>();
 jest.unstable_mockModule('../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
 
-jest.unstable_mockModule('../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
+// The area field is replaced by a plain select (the Ghost option models an id the area list
+// does not know); the EntityPicker kinds themselves are covered in EntityPicker.test.tsx.
+const { AreaBreadcrumb: RealBreadcrumb } = await import('../components/AreaBreadcrumb/index.js');
+type MockArea = { id: string; name: string; parentId: string | null; color: string | null };
+function trailOf(areaId: string, list: MockArea[]) {
+  const found = list.find((a) => a.id === areaId);
+  if (!found) return null;
+  const ancestors: MockArea[] = [];
+  let current = list.find((a) => a.id === found.parentId);
+  while (current) {
+    ancestors.unshift(current);
+    const parentId: string | null = current.parentId;
+    current = list.find((a) => a.id === parentId);
+  }
+  return { id: found.id, name: found.name, color: found.color, ancestors };
+}
+jest.unstable_mockModule('./AreaField.js', () => ({
+  AreaField: ({
+    ctx,
     areas,
-    value,
-    onChange,
-    id,
-    disabled,
+    preview,
   }: {
-    areas: Array<{ id: string; name: string }>;
-    value: string;
-    onChange: (id: string) => void;
-    id?: string;
-    disabled?: boolean;
+    ctx: {
+      id: string;
+      value: unknown;
+      setValue: (value: string) => void;
+      busy: boolean;
+    };
+    areas: MockArea[];
+    preview?: boolean;
   }) => (
-    <select
-      id={id}
-      data-testid="area-picker-mock"
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">— None —</option>
-      {areas.map((a) => (
-        <option key={a.id} value={a.id}>
-          {a.name}
-        </option>
-      ))}
-      <option value="does-not-exist">Ghost</option>
-    </select>
+    <>
+      <select
+        id={ctx.id}
+        data-testid="area-picker-mock"
+        value={typeof ctx.value === 'string' ? ctx.value : ''}
+        disabled={ctx.busy}
+        onChange={(e) => ctx.setValue(e.target.value)}
+      >
+        <option value="">— None —</option>
+        {areas.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+        <option value="does-not-exist">Ghost</option>
+      </select>
+      {preview && typeof ctx.value === 'string' && ctx.value !== '' && (
+        <RealBreadcrumb area={trailOf(ctx.value, areas) as never} variant="default" />
+      )}
+    </>
   ),
 }));
 
@@ -522,7 +552,8 @@ describe('taskForm (ObjectForm schema)', () => {
       });
       await ready();
       await openMore(user);
-      const pickerInputs = screen.getAllByPlaceholderText(/search/i);
+      // The first task picker of the builder (the Who picker above it has its own placeholder).
+      const pickerInputs = screen.getAllByPlaceholderText('Search work items...');
       await user.click(pickerInputs[0]!);
       await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
       await user.click(screen.getByText('Foundation'));
@@ -540,6 +571,30 @@ describe('taskForm (ObjectForm schema)', () => {
       expect(screen.getByRole('combobox', { name: /predecessor verb/i })).toBeInTheDocument();
       expect(screen.getByRole('combobox', { name: /successor verb/i })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /this item depends on/i })).toBeNull();
+    });
+
+    it('adds a dependency where this task comes first and the other item second', async () => {
+      const user = userEvent.setup();
+      mockListWorkItems.mockResolvedValue({
+        items: [FOUNDATION],
+        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
+      });
+      renderForm();
+      await ready();
+      await openMore(user);
+      // Slot 2 starts as "This item": clear it, make slot 1 "This item", then pick the other task.
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
+      await user.click(await screen.findByRole('option', { name: 'This item' }));
+      await user.click(await screen.findByPlaceholderText('Search work items...'));
+      await user.click(await screen.findByRole('option', { name: /Foundation/ }));
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      const list = await screen.findByRole('list', { name: /dependencies to add/i });
+      expect(list).toHaveTextContent('Foundation');
+      expect(
+        screen.getByRole('button', { name: /remove dependency involving foundation/i }),
+      ).toBeInTheDocument();
     });
 
     it('shows a pending dependency in sentence format and lets the user remove it', async () => {
@@ -586,6 +641,186 @@ describe('taskForm (ObjectForm schema)', () => {
       expect(onCreated.mock.calls[0]![0].href).toBe(
         '/project/work-items/work-9?depError=Foundation',
       );
+    });
+  });
+
+  describe('schema (called directly)', () => {
+    let THIS = '';
+    beforeEach(async () => {
+      ({ THIS_ITEM_ID: THIS } =
+        await import('../components/DependencySentenceBuilder/dependencyVerbs.js'));
+    });
+    const schema = async () => {
+      const view = renderHook(() => Form.useTaskFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
+      return view.result;
+    };
+    const field = (result: Awaited<ReturnType<typeof schema>>, name: string) => {
+      const found = result.current.fields.find((f) => f.name === name);
+      if (found?.kind !== 'custom' || !found.render) {
+        throw new Error(`${name} is not a custom field`);
+      }
+      return found as typeof found & { render: NonNullable<typeof found.render> };
+    };
+    const ctx = (value: unknown) => ({
+      id: 'f',
+      value,
+      setValue: jest.fn(),
+      busy: false,
+      invalid: false,
+      describedBy: undefined,
+      createChild: jest.fn(),
+      values: {},
+    });
+
+    it('requires only the title for an empty value set', async () => {
+      const result = await schema();
+
+      expect(result.current.validate({})).toEqual({ title: 'Title is required' });
+    });
+
+    it('submits the minimal value set with every optional field null', async () => {
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-3' } as never);
+      const result = await schema();
+
+      const outcome = await result.current.submit({ title: ' Plaster ', status: 'not_started' });
+
+      expect(mockCreateWorkItem).toHaveBeenCalledWith({
+        title: 'Plaster',
+        description: null,
+        status: 'not_started',
+        durationDays: null,
+        startAfter: null,
+        startBefore: null,
+        areaId: null,
+        assignedUserId: null,
+        assignedVendorId: null,
+      });
+      expect(outcome).toEqual({
+        id: 'work-3',
+        href: '/project/work-items/work-3',
+        label: 'Plaster',
+      });
+      expect(mockCreateDependency).not.toHaveBeenCalled();
+    });
+
+    it('a member assignment sends only assignedUserId, a company only assignedVendorId (never both)', async () => {
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-3' } as never);
+      const result = await schema();
+
+      await result.current.submit({
+        title: 'A',
+        status: 'not_started',
+        assignment: 'member:user-1',
+      });
+      await result.current.submit({ title: 'B', status: 'not_started', assignment: 'company:v-1' });
+
+      const [first, second] = mockCreateWorkItem.mock.calls.map((c) => c[0]);
+      expect(first).toMatchObject({ assignedUserId: 'user-1', assignedVendorId: null });
+      expect(second).toMatchObject({ assignedUserId: null, assignedVendorId: 'v-1' });
+    });
+
+    it('replaces the sentinel on either side of a pending dependency with the new id', async () => {
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-3' } as never);
+      mockCreateDependency.mockResolvedValue({} as never);
+      const result = await schema();
+
+      await result.current.submit({
+        title: 'A',
+        status: 'not_started',
+        dependencies: [
+          {
+            predecessorId: 'wi-1',
+            successorId: THIS,
+            otherItemId: 'wi-1',
+            otherItemTitle: 'Foundation',
+            dependencyType: 'finish_to_start',
+          },
+          {
+            predecessorId: THIS,
+            successorId: 'wi-2',
+            otherItemId: 'wi-2',
+            otherItemTitle: 'Roof',
+            dependencyType: 'finish_to_start',
+          },
+        ],
+      });
+
+      expect(mockCreateDependency.mock.calls).toEqual([
+        ['work-3', { predecessorId: 'wi-1', dependencyType: 'finish_to_start' }],
+        ['wi-2', { predecessorId: 'work-3', dependencyType: 'finish_to_start' }],
+      ]);
+    });
+
+    it('renders the Who picker empty for a non-text value and the dependency list empty for a non-list value', async () => {
+      const result = await schema();
+
+      const who = render(
+        <MemoryRouter>{field(result, 'assignment').render(ctx(undefined))}</MemoryRouter>,
+      );
+      expect(screen.getByRole('textbox')).toHaveValue('');
+      who.unmount();
+
+      render(<MemoryRouter>{field(result, 'dependencies').render(ctx('nope'))}</MemoryRouter>);
+      expect(screen.queryByRole('list', { name: /dependencies to add/i })).toBeNull();
+    });
+
+    it('words a pending dependency by which side is "this item"', async () => {
+      const result = await schema();
+      const pending = (predecessorId: string, successorId: string, title: string) => ({
+        predecessorId,
+        successorId,
+        otherItemId: title,
+        otherItemTitle: title,
+        dependencyType: 'finish_to_start',
+      });
+
+      render(
+        <MemoryRouter>
+          {field(result, 'dependencies').render(
+            ctx([pending(THIS, 'x', 'Roof'), pending('y', THIS, 'Foundation')]),
+          )}
+        </MemoryRouter>,
+      );
+
+      const items = within(screen.getByRole('list', { name: /dependencies to add/i })).getAllByRole(
+        'listitem',
+      );
+      expect(items).toHaveLength(2);
+      expect(items[0]).toHaveTextContent('Roof');
+      expect(items[1]).toHaveTextContent('Foundation');
+      expect(items[0]!.textContent).not.toBe(items[1]!.textContent);
+    });
+
+    it('does not add a dependency on an item that is already pending', async () => {
+      const user = userEvent.setup();
+      mockListWorkItems.mockResolvedValue({
+        items: [FOUNDATION],
+        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
+      });
+      const result = await schema();
+      const first = ctx([]);
+      const view = render(
+        <MemoryRouter>{field(result, 'dependencies').render(first)}</MemoryRouter>,
+      );
+      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
+      await user.click(await screen.findByText('Foundation'));
+
+      // The host already holds a pending dependency on Foundation (e.g. added a moment ago).
+      const second = ctx([
+        {
+          predecessorId: 'wi-1',
+          successorId: THIS,
+          otherItemId: 'wi-1',
+          otherItemTitle: 'Foundation',
+          dependencyType: 'finish_to_start',
+        },
+      ]);
+      view.rerender(<MemoryRouter>{field(result, 'dependencies').render(second)}</MemoryRouter>);
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      expect(second.setValue).not.toHaveBeenCalled();
+      expect(first.setValue).not.toHaveBeenCalled();
     });
   });
 

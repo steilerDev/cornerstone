@@ -56,7 +56,7 @@ import { purchaseTransitions } from '../../components/StatusMenu/statusVocabular
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
 import { changeHouseholdItemStatus, householdItemStatusBody } from '../../lib/statusChangeApi.js';
-import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
@@ -731,11 +731,12 @@ function HouseholdItemDetailView({ id }: { id: string }) {
           </div>
           <div>
             <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
-            <AreaPicker
+            <EntityPicker
+              kind="area"
               areas={areas}
               value={item.area?.id || ''}
-              onChange={handleAreaChange}
-              nullable
+              onChange={(areaId) => void handleAreaChange(areaId)}
+              noneLabel={tCommon('aria.noArea')}
             />
           </div>
         </section>
@@ -769,7 +770,12 @@ function HouseholdItemDetailView({ id }: { id: string }) {
               <dd className={styles.infoValue}>
                 {item.actualDeliveryDate ? (
                   <span
-                    aria-label={`Actual delivery: ${formatDate(item.actualDeliveryDate)}, target was ${item.targetDeliveryDate ? formatDate(item.targetDeliveryDate) : 'not set'}`}
+                    aria-label={t('detail.datesDelivery.actualDeliveryAria', {
+                      actual: formatDate(item.actualDeliveryDate),
+                      target: item.targetDeliveryDate
+                        ? formatDate(item.targetDeliveryDate)
+                        : t('detail.datesDelivery.targetNotSet'),
+                    })}
                   >
                     {formatDate(item.actualDeliveryDate)}{' '}
                     {item.targetDeliveryDate && (

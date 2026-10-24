@@ -561,7 +561,7 @@ describe('Invoice Deposit Routes', () => {
   // ─── DELETE /api/invoices/:invoiceId/deposits/:depositId ─────────────────────
 
   describe('DELETE /api/invoices/:invoiceId/deposits/:depositId', () => {
-    it('scenario 50: 204 success (body is empty)', async () => {
+    it('scenario 50: 200 success (body carries the undo token)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user9@test.com',
         'Test User',
@@ -577,8 +577,8 @@ describe('Invoice Deposit Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ undo: { token: string } }>().undo.token).toMatch(/^u_/);
     });
 
     it('scenario 51: 404 deposit not found', async () => {
@@ -682,7 +682,7 @@ describe('Invoice Deposit Routes', () => {
       expect(body.deposit.status).toBe('paid');
     });
 
-    it('scenario 56: DELETE /api/vendors/:vendorId/invoices/:invoiceId/deposits/:depositId — 204', async () => {
+    it('scenario 56: DELETE /api/vendors/:vendorId/invoices/:invoiceId/deposits/:depositId — 200', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user14@test.com',
         'Test User',
@@ -698,8 +698,8 @@ describe('Invoice Deposit Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ undo: { token: string } }>().undo.token).toMatch(/^u_/);
     });
   });
 
@@ -1196,7 +1196,7 @@ describe('Invoice Deposit Routes', () => {
       expect(response.json<{ deposit: { amount: number } }>().deposit.amount).toBe(299.99);
     });
 
-    it('DELETE of a refund returns 204 even when net deposits exceed the invoice; row is gone', async () => {
+    it('DELETE of a refund returns 200 even when net deposits exceed the invoice; row is gone', async () => {
       const { userId, cookie, invoiceId } = await seedOver();
       createTestDeposit(invoiceId, userId, 1000, 'pending', 'deposit');
       const refundId = createTestDeposit(invoiceId, userId, 300, 'pending', 'refund');
@@ -1208,7 +1208,7 @@ describe('Invoice Deposit Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
       const list = await app.inject({
         method: 'GET',
         url: `/api/invoices/${invoiceId}/deposits`,
@@ -1216,6 +1216,88 @@ describe('Invoice Deposit Routes', () => {
       });
       const body = list.json<{ deposits: Array<{ id: string }> }>();
       expect(body.deposits.map((d) => d.id)).not.toContain(refundId);
+    });
+  });
+
+  // ─── Vendor scope of the vendor-prefixed routes (#2236) ─────────────────────
+
+  describe('vendor-scoped prefix refuses an invoice of another vendor', () => {
+    async function seed() {
+      const { userId, cookie } = await createUserWithSession(
+        'scope@test.com',
+        'Scope User',
+        'password123',
+      );
+      const ownerVendor = createTestVendor('Owner vendor');
+      const otherVendor = createTestVendor('Other vendor');
+      const invoiceId = createTestInvoice(ownerVendor, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 300, 'pending');
+      return { cookie, ownerVendor, otherVendor, invoiceId, depositId };
+    }
+
+    function depositRows(invoiceId: string) {
+      return app.db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .filter((d) => d.invoiceId === invoiceId);
+    }
+
+    it.each([
+      ['GET', '', undefined],
+      ['POST', '', { amount: 50, dueDate: '2026-03-01' }],
+      ['PATCH', '/:id', { amount: 120 }],
+      ['DELETE', '/:id', undefined],
+    ] as const)(
+      '%s with the wrong vendor answers 404 NOT_FOUND and changes nothing',
+      async (method, suffix, payload) => {
+        const { cookie, otherVendor, invoiceId, depositId } = await seed();
+        const before = depositRows(invoiceId);
+
+        const response = await app.inject({
+          method,
+          url: `/api/vendors/${otherVendor}/invoices/${invoiceId}/deposits${suffix.replace(':id', depositId)}`,
+          headers: { cookie },
+          ...(payload ? { payload } : {}),
+        });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+        expect(depositRows(invoiceId)).toEqual(before);
+      },
+    );
+
+    it.each([
+      ['GET', '', undefined, 200],
+      ['POST', '', { amount: 50, dueDate: '2026-03-01' }, 201],
+      ['PATCH', '/:id', { amount: 120 }, 200],
+      ['DELETE', '/:id', undefined, 200],
+    ] as const)(
+      '%s with the owning vendor passes the scope check',
+      async (method, suffix, payload, status) => {
+        const { cookie, ownerVendor, invoiceId, depositId } = await seed();
+
+        const response = await app.inject({
+          method,
+          url: `/api/vendors/${ownerVendor}/invoices/${invoiceId}/deposits${suffix.replace(':id', depositId)}`,
+          headers: { cookie },
+          ...(payload ? { payload } : {}),
+        });
+
+        expect(response.statusCode).toBe(status);
+      },
+    );
+
+    it('an unknown invoice on the vendor prefix still answers the service 404', async () => {
+      const { cookie, ownerVendor } = await seed();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${ownerVendor}/invoices/no-such-invoice/deposits`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
     });
   });
 });

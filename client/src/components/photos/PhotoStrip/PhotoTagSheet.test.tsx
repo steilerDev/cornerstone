@@ -7,48 +7,45 @@ import { installMatchMedia } from '../../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../../test/matchMediaControl.js';
 import type * as SheetModule from './PhotoTagSheet.js';
 
-// Light stand-ins for the search pickers: a button that picks, a button that clears.
-jest.unstable_mockModule('../../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: {
-    id?: string;
-    value: string;
-    nullLabel?: string;
-    onChange: (id: string) => void;
-  }) => (
-    <div data-testid="area-picker" data-id={props.id} data-value={props.value}>
-      <span>{props.nullLabel}</span>
-      <button type="button" onClick={() => props.onChange('area-2')}>
-        pick area
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear area
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: {
-    id?: string;
-    value: string;
-    initialOrientationName?: string;
-    emptyHint?: string;
-    onChange: (id: string) => void;
-  }) => (
-    <div
-      data-testid="orientation-picker"
-      data-empty-hint={props.emptyHint ?? ''}
-      data-id={props.id}
-      data-value={props.value}
-      data-name={props.initialOrientationName ?? ''}
-    >
-      <button type="button" onClick={() => props.onChange('ori-2')}>
-        pick orientation
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear orientation
-      </button>
-    </div>
-  ),
+// Light stand-in for the EntityPicker kinds: a button that picks, a button that clears.
+type MockPickerProps = {
+  kind: 'area' | 'orientation';
+  id?: string;
+  value: string;
+  noneLabel?: string;
+  selectedLabel?: string;
+  emptyHint?: string;
+  onChange: (id: string, option: null) => void;
+};
+jest.unstable_mockModule('../../EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: MockPickerProps) =>
+    props.kind === 'area' ? (
+      <div data-testid="area-picker" data-id={props.id} data-value={props.value}>
+        <span>{props.noneLabel}</span>
+        <button type="button" onClick={() => props.onChange('area-2', null)}>
+          pick area
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear area
+        </button>
+      </div>
+    ) : (
+      <div
+        data-testid="orientation-picker"
+        data-empty-hint={props.emptyHint ?? ''}
+        data-none-label={props.noneLabel ?? ''}
+        data-id={props.id}
+        data-value={props.value}
+        data-name={props.selectedLabel ?? ''}
+      >
+        <button type="button" onClick={() => props.onChange('ori-2', null)}>
+          pick orientation
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear orientation
+        </button>
+      </div>
+    ),
 }));
 
 const WIDE = '(min-width: 768px)';
@@ -411,6 +408,17 @@ describe('PhotoTagSheet', () => {
       expect(screen.getByTestId('orientation-picker')).toHaveAttribute(
         'data-empty-hint',
         'No orientations configured. Add them in Settings › Project setup › Photo orientations.',
+      );
+    });
+  });
+
+  describe('none rows', () => {
+    it('offers "No area" and "No orientation" as the empty choices', () => {
+      setup();
+      expect(screen.getByTestId('area-picker')).toHaveTextContent('No area');
+      expect(screen.getByTestId('orientation-picker')).toHaveAttribute(
+        'data-none-label',
+        'No orientation',
       );
     });
   });

@@ -26,6 +26,12 @@ import {
   DuplicateDependencyError,
   CircularDependencyError,
 } from '../errors/AppError.js';
+import {
+  deleteMilestoneDepRow,
+  deleteMilestoneLinkRow,
+  type DeletedMilestoneDepSnapshot,
+  type DeletedMilestoneLinkSnapshot,
+} from './workItemMilestoneService.js';
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule, computeScheduleProjection } from './schedulingEngine.js';
 import type { ScheduleProjection } from './schedulingEngine.js';
@@ -43,8 +49,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Convert a database user row to UserSummary shape.
  */
-function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | null {
-  if (!user) return null;
+function toUserSummary(user: typeof users.$inferSelect): UserSummary {
   return {
     id: user.id,
     displayName: user.displayName,
@@ -112,8 +117,8 @@ function countLinkedWorkItems(db: DbType, milestoneId: number): number {
     .select({ count: sql<number>`COUNT(*)` })
     .from(milestoneWorkItems)
     .where(eq(milestoneWorkItems.milestoneId, milestoneId))
-    .get();
-  return result?.count ?? 0;
+    .get()!; // an aggregate select always returns one row
+  return result.count;
 }
 
 /**
@@ -124,8 +129,8 @@ function countDependentWorkItems(db: DbType, milestoneId: number): number {
     .select({ count: sql<number>`COUNT(*)` })
     .from(workItemMilestoneDeps)
     .where(eq(workItemMilestoneDeps.milestoneId, milestoneId))
-    .get();
-  return result?.count ?? 0;
+    .get()!; // an aggregate select always returns one row
+  return result.count;
 }
 
 /**
@@ -133,8 +138,9 @@ function countDependentWorkItems(db: DbType, milestoneId: number): number {
  */
 function getCreatedByUser(db: DbType, createdBy: string | null): UserSummary | null {
   if (!createdBy) return null;
-  const user = db.select().from(users).where(eq(users.id, createdBy)).get();
-  return toUserSummary(user ?? null);
+  // created_by is a foreign key (ON DELETE SET NULL), so a non-null id always has a user row
+  const user = db.select().from(users).where(eq(users.id, createdBy)).get()!;
+  return toUserSummary(user);
 }
 
 /**
@@ -453,14 +459,21 @@ export function linkWorkItem(
 
   db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();
 
+  autoReschedule(db);
+
   return { milestoneId, workItemId };
 }
 
 /**
- * Unlink a work item from a milestone.
+ * Unlink a work item from a milestone and return the deleted row.
+ * The route reschedules after issuing the Undo token.
  * @throws NotFoundError if milestone, work item, or the link does not exist
  */
-export function unlinkWorkItem(db: DbType, milestoneId: number, workItemId: string): void {
+export function unlinkWorkItemWithSnapshot(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+): DeletedMilestoneLinkSnapshot {
   // Verify milestone exists
   const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
   if (!milestone) {
@@ -473,30 +486,14 @@ export function unlinkWorkItem(db: DbType, milestoneId: number, workItemId: stri
     throw new NotFoundError('Work item not found');
   }
 
-  // Verify the link exists
-  const link = db
-    .select()
-    .from(milestoneWorkItems)
-    .where(
-      and(
-        eq(milestoneWorkItems.milestoneId, milestoneId),
-        eq(milestoneWorkItems.workItemId, workItemId),
-      ),
-    )
-    .get();
+  const snapshot = deleteMilestoneLinkRow(
+    db,
+    milestoneId,
+    workItemId,
+    'Work item is not linked to this milestone',
+  );
 
-  if (!link) {
-    throw new NotFoundError('Work item is not linked to this milestone');
-  }
-
-  db.delete(milestoneWorkItems)
-    .where(
-      and(
-        eq(milestoneWorkItems.milestoneId, milestoneId),
-        eq(milestoneWorkItems.workItemId, workItemId),
-      ),
-    )
-    .run();
+  return snapshot;
 }
 
 /**
@@ -570,7 +567,11 @@ export function addDependentWorkItem(
  *
  * @throws NotFoundError if milestone, work item, or the dependency does not exist
  */
-export function removeDependentWorkItem(db: DbType, milestoneId: number, workItemId: string): void {
+export function removeDependentWorkItemWithSnapshot(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+): DeletedMilestoneDepSnapshot {
   // Verify milestone exists
   const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
   if (!milestone) {
@@ -583,30 +584,12 @@ export function removeDependentWorkItem(db: DbType, milestoneId: number, workIte
     throw new NotFoundError('Work item not found');
   }
 
-  // Verify the dependency exists
-  const dep = db
-    .select()
-    .from(workItemMilestoneDeps)
-    .where(
-      and(
-        eq(workItemMilestoneDeps.workItemId, workItemId),
-        eq(workItemMilestoneDeps.milestoneId, milestoneId),
-      ),
-    )
-    .get();
+  const snapshot = deleteMilestoneDepRow(
+    db,
+    milestoneId,
+    workItemId,
+    'Work item does not depend on this milestone',
+  );
 
-  if (!dep) {
-    throw new NotFoundError('Work item does not depend on this milestone');
-  }
-
-  db.delete(workItemMilestoneDeps)
-    .where(
-      and(
-        eq(workItemMilestoneDeps.workItemId, workItemId),
-        eq(workItemMilestoneDeps.milestoneId, milestoneId),
-      ),
-    )
-    .run();
-
-  autoReschedule(db);
+  return snapshot;
 }

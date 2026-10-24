@@ -43,7 +43,7 @@ A line linked to an offer or invoice shows Basis **Offer** or **Invoice** and co
 
 - **Cost category** -- Which category this cost belongs to (e.g., "Kitchen", "Fixtures")
 - **Funding source** -- Which funding source will pay for it
-- **Company** -- Optional. The company you expect to pay for this line
+- **Company** -- Optional. The company you expect to pay for this line. Type to search. If no company matches, choose **New company ‹text›** to create it and select it
 
 After you save, the form stays open with **Add another** so you can enter the next line.
 

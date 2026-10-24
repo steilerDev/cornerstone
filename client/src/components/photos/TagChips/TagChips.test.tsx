@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterEach, jest } from '@jest/globals';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AreaResponse, OrientationResponse } from '@cornerstone/shared';
 import { installMatchMedia } from '../../../test/matchMediaControl.js';
@@ -8,39 +8,39 @@ import { TagCreateContext } from '../../../objectForms/tagCreateContext.js';
 import type { RequestTagCreate } from '../../../objectForms/tagCreateContext.js';
 import type * as ChipsModule from './TagChips.js';
 
-jest.unstable_mockModule('../../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: { value: string; onChange: (id: string) => void }) => (
-    <div data-testid="area-picker" data-value={props.value}>
-      <button type="button" onClick={() => props.onChange('a9')}>
-        choose a9
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        choose none
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: {
-    value: string;
-    initialOrientationName?: string;
-    emptyHint?: string;
-    onChange: (id: string) => void;
-  }) => (
-    <div
-      data-testid="orientation-picker"
-      data-empty-hint={props.emptyHint ?? ''}
-      data-value={props.value}
-      data-name={props.initialOrientationName ?? ''}
-    >
-      <button type="button" onClick={() => props.onChange('o9')}>
-        choose o9
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        choose no orientation
-      </button>
-    </div>
-  ),
+// Stand-in for the EntityPicker kinds inside the dialogs. A pick hands the dialog an option,
+// like the real picker; a special option or a clear would hand it null.
+type MockPickerProps = {
+  kind: 'area' | 'orientation';
+  value: string;
+  emptyHint?: string;
+  onChange: (id: string, option: { id: string; label: string } | null) => void;
+};
+jest.unstable_mockModule('../../EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: MockPickerProps) =>
+    props.kind === 'area' ? (
+      <div data-testid="area-picker" data-value={props.value}>
+        <button type="button" onClick={() => props.onChange('a9', { id: 'a9', label: 'Garden' })}>
+          choose a9
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          choose none
+        </button>
+      </div>
+    ) : (
+      <div
+        data-testid="orientation-picker"
+        data-empty-hint={props.emptyHint ?? ''}
+        data-value={props.value}
+      >
+        <button type="button" onClick={() => props.onChange('o9', { id: 'o9', label: 'Roof' })}>
+          choose o9
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          choose no orientation
+        </button>
+      </div>
+    ),
 }));
 
 const WIDE = '(min-width: 768px)';
@@ -200,12 +200,44 @@ describe('TagChips', () => {
     });
   });
 
+  describe('same-named areas', () => {
+    it('adds the parent name to the chips of areas that share a name', () => {
+      setup({
+        areas: [
+          area('h1', 'House'),
+          area('h2', 'Annex'),
+          area('k1', 'Kitchen', 'h1'),
+          area('k2', 'Kitchen', 'h2'),
+          area('b', 'Bath'),
+        ],
+        recentAreaIds: ['k1', 'k2', 'b'],
+      });
+
+      expect(chipLabels(areaRow())).toEqual([
+        'Kitchen · House',
+        'Kitchen · Annex',
+        'Bath',
+        'Other…',
+      ]);
+    });
+
+    it('leaves same-named top-level areas unqualified (no parent to name)', () => {
+      setup({
+        areas: [area('k1', 'Kitchen'), area('k2', 'Kitchen')],
+        recentAreaIds: ['k1', 'k2'],
+      });
+
+      expect(chipLabels(areaRow())).toEqual(['Kitchen', 'Kitchen', 'Other…']);
+    });
+  });
+
   describe('Other… area picker', () => {
     it('names the chip "Other area…" and opens the picker dialog', async () => {
       setup({ recentAreaIds: ['a1'], areaId: 'a1' });
       await userEvent.click(screen.getByRole('button', { name: 'Other area…' }));
       const dialog = screen.getByRole('dialog', { name: 'Choose an area' });
-      expect(within(dialog).getByTestId('area-picker')).toHaveAttribute('data-value', 'a1');
+      // The dialog is a pick dialog: it starts empty whatever is chosen (the chips show the choice).
+      expect(within(dialog).getByTestId('area-picker')).toHaveAttribute('data-value', '');
       expect(screen.getByTestId('tc-area-picker')).toBeInTheDocument();
     });
 
@@ -217,11 +249,12 @@ describe('TagChips', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('clearing in the picker reports null', async () => {
+    it('an empty answer from the picker changes nothing and keeps the dialog open', async () => {
       const { props } = setup({ areaId: 'a1' });
       await userEvent.click(screen.getByTestId('tc-area-__other'));
       await userEvent.click(screen.getByRole('button', { name: 'choose none' }));
-      expect(props.onAreaChange).toHaveBeenCalledWith(null);
+      expect(props.onAreaChange).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Choose an area' })).toBeInTheDocument();
     });
 
     it('Escape closes it without a change and returns focus to the Other… chip that opened it', async () => {
@@ -362,6 +395,17 @@ describe('TagChips', () => {
       expect(within(orientationRow()).queryAllByRole('button', { pressed: true })).toHaveLength(0);
     });
 
+    it('stops filling the chips at six recents when more than six are recent', () => {
+      setup({
+        orientations: MANY_ORIENTATIONS,
+        recentOrientationIds: MANY_ORIENTATIONS.map((o) => o.id),
+      });
+
+      const labels = chipLabels(orientationRow());
+      expect(labels.filter((l) => l?.startsWith('Spot'))).toHaveLength(6);
+      expect(labels).toContain('Other…');
+    });
+
     it('Other… opens the orientation picker; choosing closes it and reports the id', async () => {
       const { props } = setup({ orientations: MANY_ORIENTATIONS });
       await userEvent.click(screen.getByRole('button', { name: 'Other orientation…' }));
@@ -381,19 +425,20 @@ describe('TagChips', () => {
       );
     });
 
-    it('the orientation picker shows the chosen name and never receives "none"', async () => {
-      setup({ orientations: MANY_ORIENTATIONS, orientationId: 'm10' });
-      await userEvent.click(screen.getByTestId('tc-orientation-__other'));
-      expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-value', 'm10');
-      expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-name', 'Spot 10');
-    });
+    it.each(['m10', 'none', null])(
+      'the orientation dialog is always in pick mode (chosen: %s)',
+      async (orientationId) => {
+        setup({ orientations: MANY_ORIENTATIONS, orientationId });
+        await userEvent.click(screen.getByTestId('tc-orientation-__other'));
+        expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-value', '');
+      },
+    );
 
-    it('clearing in the orientation picker reports null; "none" reaches it as empty', async () => {
+    it('an empty answer from the orientation picker changes nothing', async () => {
       const { props } = setup({ orientations: MANY_ORIENTATIONS, orientationId: 'none' });
       await userEvent.click(screen.getByTestId('tc-orientation-__other'));
-      expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-value', '');
       await userEvent.click(screen.getByRole('button', { name: 'choose no orientation' }));
-      expect(props.onOrientationChange).toHaveBeenCalledWith(null);
+      expect(props.onOrientationChange).not.toHaveBeenCalled();
     });
 
     it('Escape closes the orientation picker and returns focus to the Other… chip', async () => {
@@ -401,6 +446,28 @@ describe('TagChips', () => {
       await userEvent.click(screen.getByTestId('tc-orientation-__other'));
       await userEvent.keyboard('{Escape}');
       await waitFor(() => expect(screen.getByTestId('tc-orientation-__other')).toHaveFocus());
+    });
+
+    // fireEvent.click does not focus, so the dialog has no opener to restore and uses the row handle.
+    it('returns focus to the pressed area chip when the dialog had no opener', async () => {
+      setup({ recentAreaIds: ['a1'], areaId: 'a1' });
+      fireEvent.click(screen.getByTestId('tc-area-__other'));
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Kitchen' })).toHaveFocus());
+    });
+
+    it('returns focus to the Other… area chip when nothing is pressed and the dialog had no opener', async () => {
+      setup();
+      fireEvent.click(screen.getByTestId('tc-area-__other'));
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.getByTestId('tc-area-__other')).toHaveFocus());
+    });
+
+    it('returns focus to the pressed orientation chip when the dialog had no opener', async () => {
+      setup({ orientations: MANY_ORIENTATIONS, orientationId: 'm1' });
+      fireEvent.click(screen.getByTestId('tc-orientation-__other'));
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Spot 1' })).toHaveFocus());
     });
   });
 

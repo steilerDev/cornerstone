@@ -26,6 +26,8 @@ const makeContact = (overrides?: Partial<VendorContact>): VendorContact => ({
   ...overrides,
 });
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('vendorContactsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -246,8 +248,8 @@ describe('vendorContactsApi', () => {
     it('sends DELETE request to /api/vendors/:vendorId/contacts/:contactId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteVendorContact('vendor-1', 'contact-1');
@@ -260,16 +262,16 @@ describe('vendorContactsApi', () => {
       );
     });
 
-    it('returns void on successful delete', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await deleteVendorContact('vendor-1', 'contact-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when contact not found (404)', async () => {

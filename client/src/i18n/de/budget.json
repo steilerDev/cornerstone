@@ -274,6 +274,8 @@
     "invoices": "Rechnungen",
     "addInvoice": "Rechnung hinzufügen",
     "invoicesLoading": "Rechnungen werden geladen...",
+    "invoiceEditAria": "Rechnung {{number}} bearbeiten",
+    "invoiceDeleteAria": "Rechnung {{number}} löschen",
     "noInvoicesYet": "Noch keine Rechnungen.",
     "noInvoicesHint": "Klicke auf „Rechnung hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
     "outstanding": "Ausstehend:",
@@ -387,8 +389,7 @@
       "placeholders": {
         "invoiceNumber": "z. B. RE-001",
         "vendor": "Auftragnehmer suchen…"
-      },
-      "noVendorsFound": "Keine Auftragnehmer gefunden"
+      }
     },
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",

@@ -11,6 +11,7 @@ import {
   ValidationError,
   DuplicateDependencyError,
   CircularDependencyError,
+  ConflictError,
 } from '../errors/AppError.js';
 import type { CreateDependencyRequest, UpdateDependencyRequest } from '@cornerstone/shared';
 
@@ -395,7 +396,7 @@ describe('Dependency Service', () => {
       expect(dependenciesBefore.predecessors).toHaveLength(1);
 
       // Delete dependency
-      dependencyService.deleteDependency(db, workItemB, workItemA);
+      dependencyService.deleteDependencyWithSnapshot(db, workItemB, workItemA);
 
       // Verify it no longer exists
       const dependenciesAfter = dependencyService.getDependencies(db, workItemB);
@@ -408,12 +409,12 @@ describe('Dependency Service', () => {
       const workItemB = createTestWorkItem(userId, 'Work Item B');
 
       // Try to delete non-existent dependency
-      expect(() => dependencyService.deleteDependency(db, workItemB, workItemA)).toThrow(
-        NotFoundError,
-      );
-      expect(() => dependencyService.deleteDependency(db, workItemB, workItemA)).toThrow(
-        'Dependency not found',
-      );
+      expect(() =>
+        dependencyService.deleteDependencyWithSnapshot(db, workItemB, workItemA),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        dependencyService.deleteDependencyWithSnapshot(db, workItemB, workItemA),
+      ).toThrow('Dependency not found');
     });
 
     it('should only delete the specified dependency', () => {
@@ -427,7 +428,7 @@ describe('Dependency Service', () => {
       dependencyService.createDependency(db, workItemB, { predecessorId: workItemC });
 
       // Delete A→B dependency
-      dependencyService.deleteDependency(db, workItemB, workItemA);
+      dependencyService.deleteDependencyWithSnapshot(db, workItemB, workItemA);
 
       // Verify C→B still exists
       const dependencies = dependencyService.getDependencies(db, workItemB);
@@ -685,6 +686,143 @@ describe('Dependency Service', () => {
       expect(succ.isHeldUp).toBe(true);
       expect(succ.isLate).toBe(false);
       expect(succ.lateDays).toBeNull();
+    });
+  });
+
+  // ─── restoreDeletedDependency ──────────────────────────────────────────────
+
+  describe('restoreDeletedDependency', () => {
+    function restore(snapshot: dependencyService.DeletedDependencySnapshot) {
+      db.transaction((tx) => dependencyService.restoreDeletedDependency(tx, snapshot));
+    }
+
+    function edges() {
+      return db.select().from(schema.workItemDependencies).all();
+    }
+
+    it('re-inserts the deleted dependency with its type and lead/lag', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      dependencyService.createDependency(db, b, {
+        predecessorId: a,
+        dependencyType: 'start_to_start',
+        leadLagDays: 3,
+      });
+      const original = edges();
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      expect(edges()).toHaveLength(0);
+
+      restore(snapshot);
+
+      expect(edges()).toEqual(original);
+    });
+
+    it('refuses when the successor was deleted', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      db.delete(schema.workItems).where(eq(schema.workItems.id, b)).run();
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it('refuses when the predecessor was deleted', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      db.delete(schema.workItems).where(eq(schema.workItems.id, a)).run();
+
+      let error: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({ changed: [{ type: 'work_item', id: b }] });
+    });
+
+    it('refuses when the same link or the reverse link exists again', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+
+      db.insert(schema.workItemDependencies).values({ predecessorId: a, successorId: b }).run();
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+
+      db.delete(schema.workItemDependencies).run();
+      db.insert(schema.workItemDependencies).values({ predecessorId: b, successorId: a }).run();
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it('refuses when re-adding would close a longer cycle', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      const c = createTestWorkItem(userId, 'C');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      db.insert(schema.workItemDependencies).values({ predecessorId: b, successorId: c }).run();
+      db.insert(schema.workItemDependencies).values({ predecessorId: c, successorId: a }).run();
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it('does not walk a shared ancestor twice (diamond) and restores', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      const x = createTestWorkItem(userId, 'X');
+      const y = createTestWorkItem(userId, 'Y');
+      const z = createTestWorkItem(userId, 'Z');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      // A depends on X and Y, which both depend on Z: Z is reached twice
+      for (const [pred, succ] of [
+        [x, a],
+        [y, a],
+        [z, x],
+        [z, y],
+      ] as const) {
+        db.insert(schema.workItemDependencies)
+          .values({ predecessorId: pred, successorId: succ })
+          .run();
+      }
+
+      restore(snapshot);
+
+      expect(edges().some((e) => e.predecessorId === a && e.successorId === b)).toBe(true);
+    });
+
+    it('stops walking an oversized predecessor graph after the iteration cap and restores', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      dependencyService.createDependency(db, b, { predecessorId: a });
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(db, b, a);
+      const now = new Date().toISOString();
+      db.transaction((tx) => {
+        for (let i = 0; i < 10_100; i++) {
+          const id = `leaf-${i}`;
+          tx.insert(schema.workItems)
+            .values({ id, title: id, status: 'not_started', createdAt: now, updatedAt: now })
+            .run();
+          tx.insert(schema.workItemDependencies)
+            .values({ predecessorId: id, successorId: a })
+            .run();
+        }
+      });
+
+      restore(snapshot);
+
+      expect(edges().some((e) => e.predecessorId === a && e.successorId === b)).toBe(true);
     });
   });
 });

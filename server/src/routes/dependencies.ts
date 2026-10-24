@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as dependencyService from '../services/dependencyService.js';
-import type { CreateDependencyRequest, UpdateDependencyRequest } from '@cornerstone/shared';
+import type {
+  CreateDependencyRequest,
+  UpdateDependencyRequest,
+  UndoableDeleteResponse,
+} from '@cornerstone/shared';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import { autoReschedule, autoRescheduleLogged } from '../services/schedulingEngine.js';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for POST /api/work-items/:workItemId/dependencies (create dependency)
 const createDependencySchema = {
@@ -72,6 +79,7 @@ const deleteDependencySchema = {
       predecessorId: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function dependencyRoutes(fastify: FastifyInstance) {
@@ -150,12 +158,20 @@ export default async function dependencyRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      dependencyService.deleteDependency(
+      const { workItemId, predecessorId } = request.params;
+      const snapshot = dependencyService.deleteDependencyWithSnapshot(
         fastify.db,
-        request.params.workItemId,
-        request.params.predecessorId,
+        workItemId,
+        predecessorId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'work_item', id: workItemId },
+        restore: (tx) => dependencyService.restoreDeletedDependency(tx, snapshot),
+        afterRestore: () => autoReschedule(fastify.db),
+      });
+      autoRescheduleLogged(fastify.db, request.log);
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

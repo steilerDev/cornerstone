@@ -1314,6 +1314,136 @@ describe('undoService', () => {
     });
   });
 
+  describe('edge cases of the snapshot bookkeeping', () => {
+    it('ignores a work item that is created while the call runs (no "before" row)', () => {
+      const wi = workItem('Walls');
+
+      const { undo } = runUndoable(
+        db,
+        store,
+        { userId: userA, subject: { type: 'work_item', id: wi.id }, reschedules: true },
+        () => {
+          workItem('Created during the call');
+          return workItemService.updateWorkItem(
+            db,
+            wi.id,
+            { status: 'in_progress' },
+            { userId: userA, undoable: true },
+          );
+        },
+      );
+
+      expect(undo).not.toBeNull();
+      expect(statusSnapshot(undo!.token).rows.map((r) => r.id)).toEqual([wi.id]);
+    });
+
+    it('treats a subject that appears during the call as a status change', () => {
+      const { undo } = runUndoable(
+        db,
+        store,
+        { userId: userA, subject: { type: 'work_item', id: 'new-wi' }, reschedules: false },
+        () => {
+          const now = new Date().toISOString();
+          db.insert(schema.workItems)
+            .values({
+              id: 'new-wi',
+              title: 'Appears',
+              status: 'not_started',
+              createdBy: userA,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .run();
+        },
+      );
+
+      expect(undo).not.toBeNull();
+      expect(statusSnapshot(undo!.token).rows).toEqual([]);
+    });
+
+    it('stores a snapshot even when the cap is zero (nothing to evict)', () => {
+      store = createUndoStore({ now: () => Date.now(), maxEntries: 0 });
+
+      const token = issueRestoreToken(store, {
+        userId: userA,
+        subject: { type: 'area', id: 'area-1' },
+        restore: () => undefined,
+      });
+
+      expect(store.snapshots.has(token.token)).toBe(true);
+    });
+  });
+
+  describe('restore snapshots: afterRestore hook (#2236)', () => {
+    const subject = { type: 'work_item' as const, id: 'wi-1' };
+
+    function issueWithAfter(
+      afterRestore: () => void,
+      restore: (tx: UndoTransaction) => void = () => undefined,
+      user = userA,
+    ) {
+      return issueRestoreToken(store, { userId: user, subject, restore, afterRestore });
+    }
+
+    it('runs afterRestore exactly once, after the restore callback committed', () => {
+      const order: string[] = [];
+      const { token } = issueWithAfter(
+        () => order.push('after'),
+        () => order.push('restore'),
+      );
+
+      const response = applyUndo(db, store, token, userA);
+
+      expect(order).toEqual(['restore', 'after']);
+      expect(response).toEqual({ restored: [subject], retractedEventIds: [] });
+    });
+
+    it('does not run afterRestore when the restore is refused (409)', () => {
+      const after = jest.fn();
+      const { token } = issueWithAfter(after, () => {
+        throw new ConflictError('The record changed after this action', { changed: [subject] });
+      });
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow(ConflictError);
+
+      expect(after).not.toHaveBeenCalled();
+    });
+
+    it('does not run afterRestore for an expired, foreign or used token (404)', () => {
+      const after = jest.fn();
+      const foreign = issueWithAfter(after, undefined, userA).token;
+      expect(() => applyUndo(db, store, foreign, userB)).toThrow(NotFoundError);
+
+      const used = issueWithAfter(after).token;
+      applyUndo(db, store, used, userA);
+      after.mockClear();
+      expect(() => applyUndo(db, store, used, userA)).toThrow(NotFoundError);
+
+      const expired = issueWithAfter(after).token;
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS));
+      expect(() => applyUndo(db, store, expired, userA)).toThrow(NotFoundError);
+
+      expect(after).not.toHaveBeenCalled();
+    });
+
+    it('propagates an afterRestore failure but keeps the restore committed', () => {
+      const { token } = issueWithAfter(
+        () => {
+          throw new Error('reschedule failed');
+        },
+        (tx) => {
+          tx.update(schema.users).set({ displayName: 'Restored' }).run();
+        },
+      );
+
+      expect(() => applyUndo(db, store, token, userA)).toThrow('reschedule failed');
+
+      const names = db.select({ n: schema.users.displayName }).from(schema.users).all();
+      expect(names.map((r) => r.n)).toEqual(['Restored', 'Restored']);
+      expect(store.snapshots.has(token)).toBe(false);
+    });
+  });
+
   describe('restore snapshots: discard hook (#2221)', () => {
     const subject = { type: 'photo' as const, id: 'photo-1' };
 

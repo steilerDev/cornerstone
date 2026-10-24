@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { AreaResponse, OrientationResponse, Photo } from '@cornerstone/shared';
 import { Modal } from '../../Modal/Modal.js';
 import { Sheet } from '../../Modal/Sheet.js';
-import { AreaPicker } from '../../AreaPicker/AreaPicker.js';
-import { OrientationPicker } from '../../OrientationPicker/OrientationPicker.js';
+import { EntityPicker } from '../../EntityPicker/EntityPicker.js';
 import { useWideDialog } from '../../../hooks/useWideDialog.js';
 import styles from './PhotoTagSheet.module.css';
 
@@ -180,29 +179,30 @@ export function PhotoTagSheet({
         <label htmlFor={`${baseId}-area`} className={styles.label}>
           {t('photos:tags.area')}
         </label>
-        <AreaPicker
+        <EntityPicker
+          kind="area"
           id={`${baseId}-area`}
           areas={areas}
           value={photo.areaId ?? ''}
           onChange={(id) => onAreaChange(id === '' ? null : id)}
-          nullable
-          nullLabel={t('photos:sheet.noArea')}
+          noneLabel={t('photos:sheet.noArea')}
         />
       </div>
       <div className={styles.field}>
         <label htmlFor={`${baseId}-orientation`} className={styles.label}>
           {t('photos:tags.orientation')}
         </label>
-        <OrientationPicker
+        <EntityPicker
+          kind="orientation"
           emptyHint={t('photos:tags.noOrientationsHint')}
           id={`${baseId}-orientation`}
           value={photo.orientationId ?? ''}
-          initialOrientationName={
+          selectedLabel={
             photo.serverPhoto?.orientation?.name ??
             orientations?.find((o) => o.id === photo.orientationId)?.name
           }
           onChange={(id) => onOrientationChange(id === '' ? null : id)}
-          nullable
+          noneLabel={t('common:aria.noOrientation')}
         />
       </div>
       <div className={styles.field}>

@@ -7,6 +7,8 @@ import {
 } from './householdItemSubsidiesApi.js';
 import type { SubsidyProgram, HouseholdItemSubsidyPaybackResponse } from '@cornerstone/shared';
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('householdItemSubsidiesApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -213,8 +215,8 @@ describe('householdItemSubsidiesApi', () => {
     it('sends DELETE request to correct URL', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await unlinkHouseholdItemSubsidy('hi-123', 'subsidy-1');
@@ -227,16 +229,16 @@ describe('householdItemSubsidiesApi', () => {
       );
     });
 
-    it('returns void on successful unlink', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await unlinkHouseholdItemSubsidy('hi-123', 'subsidy-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when subsidy link not found', async () => {

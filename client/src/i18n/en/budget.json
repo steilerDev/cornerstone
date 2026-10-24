@@ -274,6 +274,8 @@
     "invoices": "Invoices",
     "addInvoice": "Add Invoice",
     "invoicesLoading": "Loading invoices...",
+    "invoiceEditAria": "Edit invoice {{number}}",
+    "invoiceDeleteAria": "Delete invoice {{number}}",
     "noInvoicesYet": "No invoices yet.",
     "noInvoicesHint": "Click \"Add Invoice\" to record the first invoice for this vendor.",
     "outstanding": "Outstanding:",
@@ -528,8 +530,7 @@
       "placeholders": {
         "invoiceNumber": "e.g., INV-001",
         "vendor": "Search vendors…"
-      },
-      "noVendorsFound": "No vendors found"
+      }
     },
     "validation": {
       "amountRequired": "Amount must be a positive number.",

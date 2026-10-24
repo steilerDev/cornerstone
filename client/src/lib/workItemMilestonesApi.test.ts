@@ -8,6 +8,8 @@ import {
 } from './workItemMilestonesApi.js';
 import type { WorkItemMilestones } from '@cornerstone/shared';
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('workItemMilestonesApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -158,8 +160,8 @@ describe('workItemMilestonesApi', () => {
     it('sends DELETE request to /api/work-items/:workItemId/milestones/required/:milestoneId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await removeRequiredMilestone('work-item-1', 1);
@@ -170,16 +172,16 @@ describe('workItemMilestonesApi', () => {
       );
     });
 
-    it('returns void on successful removal', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await removeRequiredMilestone('work-item-1', 1);
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when relationship not found (404)', async () => {
@@ -250,8 +252,8 @@ describe('workItemMilestonesApi', () => {
     it('sends DELETE request to /api/work-items/:workItemId/milestones/linked/:milestoneId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await removeLinkedMilestone('work-item-1', 2);
@@ -262,16 +264,16 @@ describe('workItemMilestonesApi', () => {
       );
     });
 
-    it('returns void on successful removal', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await removeLinkedMilestone('work-item-1', 2);
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when relationship not found (404)', async () => {

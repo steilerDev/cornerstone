@@ -4,6 +4,7 @@ import type { BaseBudgetLine } from '@cornerstone/shared';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { undoChange } from '../../lib/undoApi.js';
 import type { OriginState } from '../../navigation/origin.js';
 import { dataTableTestId } from '../DataTable/dataTableTestId.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
@@ -11,6 +12,8 @@ import { CostLineForm } from '../CostLineForm/CostLineForm.js';
 import { CostLineGridDialog } from '../CostLineForm/CostLineGridDialog.js';
 import { LinkInvoiceForm } from '../CostLineForm/LinkInvoiceForm.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
+import { RelatedListHeader, useRelatedListFocus } from '../RelatedList/index.js';
+import { useToast } from '../Toast/ToastContext.js';
 import { FormError } from '../FormError/FormError.js';
 import type { OverflowMenuItem } from '../OverflowMenu/index.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
@@ -25,7 +28,6 @@ import {
 } from './costLineRows.js';
 import { CostLineTable } from './CostLineTable.js';
 import type { CostLineSplitHandle } from './CostLineTable.js';
-import type { CostLineMutation } from './useCostLineMutations.js';
 import { useCostLineMutations } from './useCostLineMutations.js';
 import { useInvoiceCostLines } from './useInvoiceCostLines.js';
 import type { CostLineGroup, CostLineHost, CostLineRow, CostLineTableMode } from './types.js';
@@ -145,7 +147,7 @@ type Dialog =
   | { readonly kind: 'assign'; readonly row: CostLineRow }
   | { readonly kind: 'grid'; readonly mode: 'add' | 'split' }
   | { readonly kind: 'link'; readonly row: CostLineRow }
-  | { readonly kind: 'confirm'; readonly action: CostLineMutation; readonly row: CostLineRow };
+  | { readonly kind: 'delete'; readonly row: CostLineRow };
 
 interface CostLinesViewProps {
   readonly host: CostLineHost;
@@ -191,8 +193,11 @@ function CostLinesView({
   const addRef = useRef<HTMLButtonElement | null>(null);
   const gridRef = useRef<HTMLButtonElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const splitHandleRef = useRef<CostLineSplitHandle | null>(null);
   const mutations = useCostLineMutations(afterChange);
+  const { showUndoToast } = useToast();
+  const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
 
   const remaining = isDocument && remainingAmount !== undefined ? remainingAmount : 0;
   const canSplit = isDocument && remainingState(remaining) === 'notYetSplit';
@@ -213,30 +218,54 @@ function CostLinesView({
     void afterChange();
   };
 
-  /** Focus the ⋯ of the row (visible copy of the two surfaces) or fall back to the heading. */
-  const focusRowMenu = (rowId: string | undefined) => {
-    window.setTimeout(() => {
-      if (rowId !== undefined) {
-        const matches = document.querySelectorAll<HTMLElement>(
-          `[data-testid="${dataTableTestId(`${testId}-actions`, rowId, 'table')}"], [data-testid="${dataTableTestId(`${testId}-actions`, rowId, 'card')}"]`,
-        );
-        const shown = Array.from(matches).find((el) => el.getClientRects().length > 0);
-        if (shown) {
-          shown.focus();
-          return;
-        }
-      }
-      headingRef.current?.focus();
-    }, 0);
+  /** The visible ⋯ of a row (table or card copy). */
+  const getTrigger = useCallback(
+    (rowId: string): HTMLElement | null => {
+      const matches = document.querySelectorAll<HTMLElement>(
+        `[data-testid="${dataTableTestId(`${testId}-actions`, rowId, 'table')}"], [data-testid="${dataTableTestId(`${testId}-actions`, rowId, 'card')}"]`,
+      );
+      return Array.from(matches).find((el) => el.getClientRects().length > 0) ?? null;
+    },
+    [testId],
+  );
+  const focusFallback = useCallback(() => addRef.current ?? headingRef.current, []);
+  const focus = useRelatedListFocus({
+    ids: rowIds,
+    container: sectionRef,
+    getTrigger,
+    fallback: focusFallback,
+  });
+
+  /** Delete keeps its confirmation. */
+  const confirmDelete = async (row: CostLineRow) => {
+    const before = rowIds;
+    const result = await mutations.run('delete', row);
+    if (!result.ok) return;
+    setDialog(null);
+    window.setTimeout(() => focus.afterRemove(before, row.id), 0);
   };
 
-  const confirmAction = async (action: CostLineMutation, row: CostLineRow) => {
-    const index = rows.findIndex((candidate) => candidate.id === row.id);
-    const neighbour = rows[index + 1] ?? rows[index - 1];
-    const worked = await mutations.run(action, row);
-    if (!worked) return;
-    setDialog(null);
-    focusRowMenu(neighbour?.id);
+  /** Unlink and Remove act at once and offer Undo. */
+  const removeWithUndo = async (action: 'unlink' | 'remove', row: CostLineRow) => {
+    const before = rowIds;
+    const result = await mutations.run(action, row);
+    if (!result.ok) return;
+    const token = result.undo.token;
+    // Unlink keeps the line's id: it moves into the Estimates group instead of leaving.
+    focus.afterRemove(before, row.id, { moves: action === 'unlink' });
+    showUndoToast({
+      message: t(action === 'unlink' ? 'undo.unlinked' : 'undo.removed', {
+        name: lineName(row),
+        document: action === 'unlink' ? documentTitle(row) : host.label,
+      }),
+      dedupeKey: `cost-line-${action}-${row.id}`,
+      focusFallback,
+      onUndo: async () => {
+        await undoChange(token);
+        await afterChange();
+        focus.afterUndo(row.id);
+      },
+    });
   };
 
   const documentTitle = (row: CostLineRow): string => {
@@ -260,17 +289,17 @@ function CostLinesView({
       variant,
       onClick: () => open(next, openerRef.current),
     });
+    const immediate = (id: 'remove' | 'unlink', label: string): OverflowMenuItem => ({
+      id,
+      label,
+      onClick: () => void removeWithUndo(id, row),
+    });
     if (row.invoiceId === null) {
       return [
         item('edit', t('action.edit'), { kind: 'edit', row }),
         item('duplicate', t('action.duplicate'), { kind: 'copy', row }),
         item('link', t('action.linkInvoice'), { kind: 'link', row }),
-        item(
-          'delete',
-          t('action.delete'),
-          { kind: 'confirm', action: 'delete', row },
-          'destructive',
-        ),
+        item('delete', t('action.delete'), { kind: 'delete', row }, 'destructive'),
       ];
     }
     const orphan = row.target === null;
@@ -279,22 +308,11 @@ function CostLinesView({
       item('edit', t('action.edit'), { kind: 'edit', row }),
       item('duplicate', t('action.duplicate'), { kind: 'copy', row }),
       isDocument
-        ? item(
-            'remove',
-            t(I18N_UNION_KEYS.costLineRemoveFromDocument.key(documentKind)),
-            { kind: 'confirm', action: 'remove', row },
-            'destructive',
-          )
-        : item(
-            'unlink',
-            t('action.unlink'),
-            { kind: 'confirm', action: 'unlink', row },
-            'destructive',
-          ),
+        ? immediate('remove', t(I18N_UNION_KEYS.costLineRemoveFromDocument.key(documentKind)))
+        : immediate('unlink', t('action.unlink')),
     ];
   };
 
-  const Heading = headingLevel === 3 ? 'h3' : 'h2';
   const objectWord = t('object.one');
 
   const renderDialog = () => {
@@ -347,61 +365,26 @@ function CostLinesView({
             returnFocusRef={openerRef}
           />
         );
-      case 'confirm':
-        return renderConfirm(dialog.action, dialog.row);
+      case 'delete':
+        return renderDeleteConfirm(dialog.row);
     }
   };
 
-  const renderConfirm = (action: CostLineMutation, row: CostLineRow) => {
-    const common = {
-      busy: mutations.busy,
-      error: mutations.error,
-      onConfirm: () => void confirmAction(action, row),
-      onCancel: close,
-      returnFocusRef: openerRef,
-    };
-    if (action === 'delete') {
-      return (
-        <ConfirmDialog
-          {...common}
-          title={tCommon('confirmDialog.deleteTitle', { name: lineName(row) })}
-          irreversible
-          blocked={mutations.blocked}
-          confirmLabel={tCommon('button.delete')}
-          busyLabel={tCommon('confirmDialog.deleting')}
-          testIdPrefix="cost-line-delete"
-        />
-      );
-    }
-    if (action === 'unlink') {
-      return (
-        <ConfirmDialog
-          {...common}
-          title={t('confirm.unlinkTitle', { name: lineName(row), invoice: documentTitle(row) })}
-          lead={t('confirm.unlinkLead')}
-          tone="danger"
-          confirmLabel={t('confirm.unlink')}
-          busyLabel={t('confirm.unlinking')}
-          testIdPrefix="cost-line-unlink"
-        />
-      );
-    }
-    return (
-      <ConfirmDialog
-        {...common}
-        title={t('confirm.removeTitle', { name: lineName(row), invoice: host.label })}
-        lead={
-          row.target
-            ? t('confirm.removeLead', { target: row.target.label })
-            : t(I18N_UNION_KEYS.costLineRemoveLeadNoTarget.key(documentKind))
-        }
-        tone="danger"
-        confirmLabel={t('confirm.remove')}
-        busyLabel={t('confirm.removing')}
-        testIdPrefix="cost-line-remove"
-      />
-    );
-  };
+  const renderDeleteConfirm = (row: CostLineRow) => (
+    <ConfirmDialog
+      busy={mutations.busy}
+      error={mutations.error}
+      onConfirm={() => void confirmDelete(row)}
+      onCancel={close}
+      returnFocusRef={openerRef}
+      title={tCommon('confirmDialog.deleteTitle', { name: lineName(row) })}
+      irreversible
+      blocked={mutations.blocked}
+      confirmLabel={tCommon('button.delete')}
+      busyLabel={tCommon('confirmDialog.deleting')}
+      testIdPrefix="cost-line-delete"
+    />
+  );
 
   let body;
   if (loading) {
@@ -456,14 +439,19 @@ function CostLinesView({
 
   return (
     <section
+      ref={sectionRef}
       className={styles.section}
       aria-labelledby={headingId}
       data-testid={`${testId}-section`}
     >
-      <Heading id={headingId} ref={headingRef} tabIndex={-1} className={styles.heading}>
-        {t('section.title')}
-      </Heading>
-      <div className={styles.actions}>
+      <RelatedListHeader
+        title={t('section.title')}
+        count={loading || error !== null ? undefined : rows.length}
+        headingLevel={headingLevel}
+        headingId={headingId}
+        headingRef={headingRef}
+        flush
+      >
         <button
           type="button"
           ref={addRef}
@@ -482,7 +470,8 @@ function CostLinesView({
         >
           {t('section.addGrid')}
         </button>
-      </div>
+      </RelatedListHeader>
+      {dialog === null && mutations.error !== null ? <FormError message={mutations.error} /> : null}
       {body}
       <p role="status" className={sharedStyles.srOnly} data-testid={`${testId}-status`}>
         {status}

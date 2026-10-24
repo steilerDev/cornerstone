@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DependencyType } from '@cornerstone/shared';
-import { WorkItemPicker } from '../WorkItemPicker/WorkItemPicker.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
+import type { EntityOption } from '../EntityPicker/types.js';
 import { verbsToDependencyType } from './dependencyVerbs.js';
 import type { DependencyVerb } from './dependencyVerbs.js';
 import styles from './DependencySentenceBuilder.module.css';
@@ -75,61 +76,17 @@ export function DependencySentenceBuilder({
 
   const canAdd = slot1Id !== '' && slot2Id !== '' && slot1Id !== slot2Id;
 
-  const handleSlot1Change = (id: string) => {
+  const handleSlot1Change = (id: string, option: EntityOption | null) => {
     setSlot1Id(id);
-    if (id === thisItemId) {
-      setSlot1Title(thisItemLabel);
-      // If slot1 is now "This item", clear slot2 if it was also "This item"
-      if (slot2Id === thisItemId) {
-        setSlot2Id('');
-        setSlot2Title('');
-      }
-    } else if (id === '') {
-      setSlot1Title('');
-    }
+    setSlot1Title(id === thisItemId ? thisItemLabel : (option?.label ?? ''));
   };
 
-  const handleSlot1SelectItem = (item: { id: string; title: string }) => {
-    setSlot1Id(item.id);
-    setSlot1Title(item.title);
-    if (item.id === thisItemId) {
-      // If slot1 is now "This item", clear slot2 if it was also "This item"
-      if (slot2Id === thisItemId) {
-        setSlot2Id('');
-        setSlot2Title('');
-      }
-    }
-  };
-
-  const handleSlot2Change = (id: string) => {
+  const handleSlot2Change = (id: string, option: EntityOption | null) => {
     setSlot2Id(id);
-    if (id === thisItemId) {
-      setSlot2Title(thisItemLabel);
-      // If slot2 is now "This item", clear slot1 if it was also "This item"
-      if (slot1Id === thisItemId) {
-        setSlot1Id('');
-        setSlot1Title('');
-      }
-    } else if (id === '') {
-      setSlot2Title('');
-    }
-  };
-
-  const handleSlot2SelectItem = (item: { id: string; title: string }) => {
-    setSlot2Id(item.id);
-    setSlot2Title(item.title);
-    if (item.id === thisItemId) {
-      // If slot2 is now "This item", clear slot1 if it was also "This item"
-      if (slot1Id === thisItemId) {
-        setSlot1Id('');
-        setSlot1Title('');
-      }
-    }
+    setSlot2Title(id === thisItemId ? thisItemLabel : (option?.label ?? ''));
   };
 
   const handleAdd = () => {
-    if (!canAdd) return;
-
     const dependencyType = verbsToDependencyType(predecessorVerb, successorVerb);
 
     // Determine the "other item" title for display
@@ -156,15 +113,14 @@ export function DependencySentenceBuilder({
       <div className={styles.sentence}>
         {/* Slot 1: predecessor */}
         <div className={styles.pickerSlot}>
-          <WorkItemPicker
+          <EntityPicker
+            kind="task"
             value={slot1Id}
             onChange={handleSlot1Change}
-            onSelectItem={handleSlot1SelectItem}
             excludeIds={slot1ExcludeIds}
             disabled={disabled}
             placeholder={t('detail.constraints.dependencyBuilder.searchPlaceholder')}
             specialOptions={slot1SpecialOptions}
-            showItemsOnFocus
           />
         </div>
 
@@ -188,15 +144,14 @@ export function DependencySentenceBuilder({
 
         {/* Slot 2: successor */}
         <div className={styles.pickerSlot}>
-          <WorkItemPicker
+          <EntityPicker
+            kind="task"
             value={slot2Id}
             onChange={handleSlot2Change}
-            onSelectItem={handleSlot2SelectItem}
             excludeIds={slot2ExcludeIds}
             disabled={disabled}
             placeholder={t('detail.constraints.dependencyBuilder.searchPlaceholder')}
             specialOptions={slot2SpecialOptions}
-            showItemsOnFocus
           />
         </div>
 

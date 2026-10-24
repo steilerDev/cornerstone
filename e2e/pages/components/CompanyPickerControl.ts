@@ -1,11 +1,11 @@
 /**
- * Component POM for a company SearchPicker with the inline "New company ‹text›" row (#2213).
+ * Component POM for a company EntityPicker (kind `company` or `who`) with the inline "New company ‹text›" row (#2213).
  *
  * Used for the Paperless review (`#vendor-picker`), the invoice edit modal (`#edit-vendor`), the
  * diary daily log (`#daily-log-vendor`), the invoice create modal (`#invoice-vendor`) and the
  * purchase form and purchase edit page (`#vendorId`), the cost line form (`#budget-vendor`), the
- * task detail assignment (`#work-item-assignment`) and the New task dialog (`#assignment`, which
- * also lists people). `pick(name)` chooses an existing company by keyboard. The dropdown is
+ * task detail assignment (`#work-item-assignment`) and the New task dialog (`#assignment`, the Who
+ * kind: a "Companies" group, then "Household members"; one pick only). `pick(name)` chooses an existing company by keyboard. The dropdown is
  * portaled to the body (`[data-search-picker-dropdown]`),
  * the create row is the last `role="option"` and appears only when no result's label equals the
  * typed text (folded). The created company opens in the shared ObjectForm (test id
@@ -16,24 +16,18 @@
 import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { ObjectFormDialog } from './ObjectFormDialog.js';
-import { SearchPickerControl } from './SearchPickerControl.js';
+import { EntityPickerControl } from './EntityPickerControl.js';
 
 /** How long one attempt waits for the search to filter the list before the query is retyped. */
 const SEARCH_SETTLE_MS = 3_000;
 
-export class CompanyPickerControl extends SearchPickerControl {
+export class CompanyPickerControl extends EntityPickerControl {
   /** The New company form opened by the create row (not the `/companies/new` route dialog). */
   readonly form: ObjectFormDialog;
 
   constructor(page: Page, inputId: string | Locator, scope?: Locator) {
     super(page, inputId, scope);
     this.form = new ObjectFormDialog(page, 'New company', 'company-create-form');
-  }
-
-  /** The create row. Pass the typed text for an exact label match. */
-  createOption(text?: string): Locator {
-    const name = text === undefined ? /New company/ : new RegExp(`New company ${escape(text)}$`);
-    return this.dropdown.getByRole('option', { name });
   }
 
   /**
@@ -46,7 +40,7 @@ export class CompanyPickerControl extends SearchPickerControl {
    * create row holds focus.
    */
   async arrowToCreateOption(text: string): Promise<void> {
-    const option = this.createOption(text);
+    const option = this.createOption('company', text);
     const options = this.dropdown.getByRole('option');
     await expect(async () => {
       try {
@@ -88,8 +82,4 @@ export class CompanyPickerControl extends SearchPickerControl {
     }, `the New company form did not open for "${text}"`).toPass();
     await this.form.waitForOpen();
   }
-}
-
-function escape(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

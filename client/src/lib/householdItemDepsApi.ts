@@ -1,4 +1,5 @@
 import { get, post, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   HouseholdItemDepDetail,
   HouseholdItemDepsResponse,
@@ -34,8 +35,8 @@ export function deleteHouseholdItemDep(
   householdItemId: string,
   predecessorType: 'work_item' | 'milestone',
   predecessorId: string,
-): Promise<void> {
-  return del<void>(
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(
     `/household-items/${householdItemId}/dependencies/${predecessorType}/${predecessorId}`,
   );
 }

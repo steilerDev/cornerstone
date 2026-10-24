@@ -324,6 +324,90 @@ describe('DependencySentenceBuilder', () => {
     });
   });
 
+  describe('one onChange(id, option) per slot (#2236)', () => {
+    type AddData = {
+      predecessorId: string;
+      successorId: string;
+      dependencyType: string;
+      otherItemTitle: string;
+    };
+
+    it('takes the title of a slot 2 pick from its option when slot 1 is "This item"', async () => {
+      const user = userEvent.setup();
+      const onAdd = jest.fn<(data: AddData) => void>();
+      renderBuilder(onAdd as ReturnType<typeof jest.fn>, { thisItemId: 'me' });
+
+      // Slot 2 starts as "This item": clear it, make slot 1 "This item", then pick slot 2.
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+      const first = screen.getAllByPlaceholderText('Search work items...');
+      await user.click(first[0]!);
+      await user.click(await screen.findByRole('option', { name: 'This item' }));
+      const second = await screen.findByPlaceholderText('Search work items...');
+      await user.click(second);
+      await user.click(await screen.findByRole('option', { name: /Drywall/ }));
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      expect(onAdd).toHaveBeenCalledWith({
+        predecessorId: 'me',
+        successorId: 'wi-2',
+        dependencyType: 'finish_to_start',
+        otherItemTitle: 'Drywall',
+      });
+    });
+
+    it('clearing a picked slot 1 disables Add again and forgets the title', async () => {
+      const user = userEvent.setup();
+      const onAdd = jest.fn<(data: AddData) => void>();
+      renderBuilder(onAdd as ReturnType<typeof jest.fn>, { thisItemId: 'me' });
+      const inputs = screen.getAllByPlaceholderText('Search work items...');
+      await user.click(inputs[0]!);
+      await user.click(await screen.findByRole('option', { name: /Foundation/ }));
+      const add = screen.getByRole('button', { name: /^add$/i });
+      expect(add).toBeEnabled();
+
+      // Two chips (slot 1 task, slot 2 "This item"): the first Clear belongs to slot 1.
+      await user.click(screen.getAllByRole('button', { name: /clear selection/i })[0]!);
+
+      expect(add).toBeDisabled();
+      expect(onAdd).not.toHaveBeenCalled();
+    });
+
+    it('re-picking a different task in slot 1 reports the new task', async () => {
+      const user = userEvent.setup();
+      const onAdd = jest.fn<(data: AddData) => void>();
+      renderBuilder(onAdd as ReturnType<typeof jest.fn>, { thisItemId: 'me' });
+      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
+      await user.click(await screen.findByRole('option', { name: /Foundation/ }));
+      await user.click(screen.getAllByRole('button', { name: /clear selection/i })[0]!);
+      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
+      await user.click(await screen.findByRole('option', { name: /Drywall/ }));
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      expect(onAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ predecessorId: 'wi-2', otherItemTitle: 'Drywall' }),
+      );
+    });
+
+    it('takes "This item" back into slot 2 after it was cleared', async () => {
+      const user = userEvent.setup();
+      const onAdd = jest.fn<(data: AddData) => void>();
+      renderBuilder(onAdd as ReturnType<typeof jest.fn>, { thisItemId: 'me' });
+      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
+      await user.click(await screen.findByRole('option', { name: /Foundation/ }));
+      // Slot 2 starts as "This item": clear it (the last Clear), then choose it again.
+      const clears = screen.getAllByRole('button', { name: /clear selection/i });
+      await user.click(clears[clears.length - 1]!);
+      const inputs = screen.getAllByPlaceholderText('Search work items...');
+      await user.click(inputs[inputs.length - 1]!);
+      await user.click(await screen.findByRole('option', { name: 'This item' }));
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      expect(onAdd).toHaveBeenCalledWith(
+        expect.objectContaining({ predecessorId: 'wi-1', successorId: 'me' }),
+      );
+    });
+  });
+
   describe('"This item" mutual exclusion', () => {
     it('does not show "This item" special option in slot 1 when slot 2 already has thisItemId', async () => {
       // By default, slot 2 is pre-filled with "This item" (thisItemId).
@@ -456,7 +540,7 @@ describe('DependencySentenceBuilder', () => {
       await user.type(inputs[0]!, 'xyz');
 
       await waitFor(() => {
-        expect(screen.getByText('No matching work items found')).toBeInTheDocument();
+        expect(screen.getByText('No matching tasks')).toBeInTheDocument();
       });
     });
   });

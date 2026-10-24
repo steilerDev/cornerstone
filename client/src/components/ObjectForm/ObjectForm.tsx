@@ -214,7 +214,14 @@ export function ObjectForm({
     const name = pendingFocusRef.current;
     if (!name) return;
     pendingFocusRef.current = null;
-    document.getElementById(name)?.focus();
+    // A field whose input is gone (a picker now showing its selection chip) keeps focus on its
+    // first focusable control, e.g. the chip's Clear button.
+    const target =
+      document.getElementById(name) ??
+      document.querySelector<HTMLElement>(
+        `[data-field="${name}"] :is(button, input, select, textarea):not(:disabled)`,
+      );
+    target?.focus();
   });
 
   useEffect(() => {

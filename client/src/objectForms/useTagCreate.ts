@@ -10,7 +10,7 @@ export interface TagCreate {
 }
 
 /**
- * Opens the New area / New orientation form in place through `TagCreateProvider`; this module
+ * Opens the New area / orientation / trade / purchase category form in place through `TagCreateProvider`; this module
  * never imports ObjectForm.
  */
 export function useTagCreate(): TagCreate {
@@ -19,12 +19,12 @@ export function useTagCreate(): TagCreate {
   const providedRef = useRef(provided);
   providedRef.current = provided;
 
-  const request = useCallback<RequestTagCreate>(async (kind, returnFocus) => {
+  const request = useCallback<RequestTagCreate>(async (kind, returnFocus, name) => {
     const open = providedRef.current;
     if (open === null) return null;
     setIsCreating(true);
     try {
-      return await open(kind, returnFocus);
+      return await open(kind, returnFocus, name);
     } finally {
       setIsCreating(false);
     }

@@ -144,6 +144,7 @@ export function ObjectFormField({
         field.width === 'half' && styles.fieldHalf,
       )}
       aria-describedby={asGroup ? describedBy : undefined}
+      data-field={name}
     >
       {asGroup ? (
         <legend className={styles.label}>{labelContent}</legend>

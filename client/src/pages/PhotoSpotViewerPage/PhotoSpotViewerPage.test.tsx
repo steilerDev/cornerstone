@@ -44,31 +44,33 @@ const areasState: { areas: AreaResponse[] } = { areas: [] };
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: () => ({ areas: areasState.areas, isLoading: false }),
 }));
-jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: { id?: string; onChange: (id: string) => void }) => (
-    <div>
-      <input id={props.id} aria-label="area input" readOnly />
-      <button type="button" onClick={() => props.onChange('a-other')}>
-        pick other area
-      </button>
-      <button type="button" onClick={() => props.onChange('a1')}>
-        pick this area
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear area
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../../components/OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: { id?: string; onChange: (id: string) => void }) => (
-    <div>
-      <input id={props.id} aria-label="orientation input" readOnly />
-      <button type="button" onClick={() => props.onChange('o-other')}>
-        pick other orientation
-      </button>
-    </div>
-  ),
+jest.unstable_mockModule('../../components/EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: {
+    kind: 'area' | 'orientation';
+    id?: string;
+    onChange: (id: string, option: null) => void;
+  }) =>
+    props.kind === 'area' ? (
+      <div>
+        <input id={props.id} aria-label="area input" readOnly />
+        <button type="button" onClick={() => props.onChange('a-other', null)}>
+          pick other area
+        </button>
+        <button type="button" onClick={() => props.onChange('a1', null)}>
+          pick this area
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear area
+        </button>
+      </div>
+    ) : (
+      <div>
+        <input id={props.id} aria-label="orientation input" readOnly />
+        <button type="button" onClick={() => props.onChange('o-other', null)}>
+          pick other orientation
+        </button>
+      </div>
+    ),
 }));
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 

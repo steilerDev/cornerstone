@@ -9,6 +9,10 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemMilestoneService from '../services/workItemMilestoneService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import { autoReschedule, autoRescheduleLogged } from '../services/schedulingEngine.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for path params: workItemId (string) + milestoneId (integer)
 const workItemMilestoneParamsSchema = {
@@ -20,6 +24,12 @@ const workItemMilestoneParamsSchema = {
       milestoneId: { type: 'integer' },
     },
   },
+};
+
+// Same params, plus the `200 { undo }` response of the DELETE routes
+const deleteWorkItemMilestoneSchema = {
+  ...workItemMilestoneParamsSchema,
+  response: undoableDeleteResponse,
 };
 
 // JSON schema for path param: workItemId only (GET milestones)
@@ -82,17 +92,25 @@ export default async function workItemMilestoneRoutes(fastify: FastifyInstance) 
    */
   fastify.delete<{ Params: { workItemId: string; milestoneId: number } }>(
     '/required/:milestoneId',
-    { schema: workItemMilestoneParamsSchema },
+    { schema: deleteWorkItemMilestoneSchema },
     async (request, reply) => {
       if (!request.user) {
         throw new UnauthorizedError('Authentication required');
       }
-      workItemMilestoneService.removeRequiredMilestone(
+      const { workItemId, milestoneId } = request.params;
+      const snapshot = workItemMilestoneService.removeRequiredMilestoneWithSnapshot(
         fastify.db,
-        request.params.workItemId,
-        request.params.milestoneId,
+        workItemId,
+        milestoneId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'work_item', id: workItemId },
+        restore: (tx) => workItemMilestoneService.restoreDeletedMilestoneDep(tx, snapshot),
+        afterRestore: () => autoReschedule(fastify.db),
+      });
+      autoRescheduleLogged(fastify.db, request.log);
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 
@@ -124,17 +142,25 @@ export default async function workItemMilestoneRoutes(fastify: FastifyInstance) 
    */
   fastify.delete<{ Params: { workItemId: string; milestoneId: number } }>(
     '/linked/:milestoneId',
-    { schema: workItemMilestoneParamsSchema },
+    { schema: deleteWorkItemMilestoneSchema },
     async (request, reply) => {
       if (!request.user) {
         throw new UnauthorizedError('Authentication required');
       }
-      workItemMilestoneService.removeLinkedMilestone(
+      const { workItemId, milestoneId } = request.params;
+      const snapshot = workItemMilestoneService.removeLinkedMilestoneWithSnapshot(
         fastify.db,
-        request.params.workItemId,
-        request.params.milestoneId,
+        workItemId,
+        milestoneId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'work_item', id: workItemId },
+        restore: (tx) => workItemMilestoneService.restoreDeletedMilestoneLink(tx, snapshot),
+        afterRestore: () => autoReschedule(fastify.db),
+      });
+      autoRescheduleLogged(fastify.db, request.log);
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

@@ -42,7 +42,6 @@ import {
 import { getDependencies, createDependency, deleteDependency } from '../../lib/dependenciesApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
-import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import {
@@ -54,12 +53,8 @@ import {
 } from '../../lib/workItemMilestonesApi.js';
 import { fetchLinkedHouseholdItems } from '../../lib/householdItemWorkItemsApi.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
-import {
-  AssignmentPicker,
-  decodeAssignment,
-  encodeAssignment,
-} from '../../components/AssignmentPicker/AssignmentPicker.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import { decodeWho, encodeWho } from '../../components/EntityPicker/entityPickerKinds.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { BudgetCostOverview } from '../../components/budget/BudgetCostOverview.js';
@@ -128,7 +123,6 @@ function WorkItemDetailView({ id }: { id: string }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
-  const { createAction: companyCreateAction } = useCompanyCreateAction();
   const { t: tBudget } = useTranslation('budget');
   const { t: tCostLines } = useTranslation('costLines');
   const { t: tCommon } = useTranslation('common');
@@ -603,7 +597,7 @@ function WorkItemDetailView({ id }: { id: string }) {
   // Assigned user change
   const handleAssignmentChange = async (assignmentValue: string) => {
     setInlineError(null);
-    const { userId, vendorId } = decodeAssignment(assignmentValue);
+    const { userId, vendorId } = decodeWho(assignmentValue);
     try {
       await updateWorkItem(id, {
         assignedUserId: userId || null,
@@ -1327,11 +1321,12 @@ function WorkItemDetailView({ id }: { id: string }) {
             <h2 className={styles.sectionTitle}>{t('detail.sections.area')}</h2>
             <div className={styles.property}>
               <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
-              <AreaPicker
+              <EntityPicker
+                kind="area"
                 areas={areas}
                 value={workItem.area?.id || ''}
-                onChange={handleAreaChange}
-                nullable
+                onChange={(areaId) => void handleAreaChange(areaId)}
+                noneLabel={tCommon('aria.noArea')}
               />
             </div>
           </section>
@@ -1343,13 +1338,16 @@ function WorkItemDetailView({ id }: { id: string }) {
               <label className={styles.propertyLabel} htmlFor="work-item-assignment">
                 {t('detail.assignment.assignedTo')}
               </label>
-              <AssignmentPicker
+              <EntityPicker
+                kind="who"
                 id="work-item-assignment"
                 users={users}
-                knownVendor={workItem.assignedVendor ?? null}
-                createAction={companyCreateAction}
-                value={encodeAssignment(workItem.assignedUser?.id, workItem.assignedVendor?.id)}
-                onChange={handleAssignmentChange}
+                knownCompany={workItem.assignedVendor ?? null}
+                value={encodeWho({
+                  userId: workItem.assignedUser?.id,
+                  vendorId: workItem.assignedVendor?.id,
+                })}
+                onChange={(next) => void handleAssignmentChange(next)}
               />
             </div>
           </section>
@@ -1847,7 +1845,9 @@ function WorkItemDetailView({ id }: { id: string }) {
                       type="button"
                       className={styles.milestoneChipRemove}
                       onClick={() => handleRemoveRequiredMilestone(ms.id)}
-                      aria-label={`Remove required milestone: ${ms.name}`}
+                      aria-label={t('detail.constraints.removeRequiredMilestoneAria', {
+                        name: ms.name,
+                      })}
                     >
                       &times;
                     </button>
@@ -1884,7 +1884,9 @@ function WorkItemDetailView({ id }: { id: string }) {
                       type="button"
                       className={styles.milestoneChipRemove}
                       onClick={() => handleRemoveLinkedMilestone(ms.id)}
-                      aria-label={`Remove linked milestone: ${ms.name}`}
+                      aria-label={t('detail.constraints.removeLinkedMilestoneAria', {
+                        name: ms.name,
+                      })}
                     >
                       &times;
                     </button>

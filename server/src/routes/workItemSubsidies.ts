@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemSubsidyService from '../services/workItemSubsidyService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for path params with workItemId only
 const workItemParamsSchema = {
@@ -42,6 +45,7 @@ const subsidyLinkParamsSchema = {
       subsidyProgramId: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function workItemSubsidyRoutes(fastify: FastifyInstance) {
@@ -101,12 +105,17 @@ export default async function workItemSubsidyRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      workItemSubsidyService.unlinkSubsidyFromWorkItem(
+      const snapshot = workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(
         fastify.db,
         request.params.workItemId,
         request.params.subsidyProgramId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'work_item', id: request.params.workItemId },
+        restore: (tx) => workItemSubsidyService.restoreDeletedWorkItemSubsidyLink(tx, snapshot),
+      });
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

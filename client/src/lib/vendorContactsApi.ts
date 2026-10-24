@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   VendorContact,
   CreateVendorContactRequest,
@@ -40,6 +41,9 @@ export function updateVendorContact(
 /**
  * Deletes a vendor contact.
  */
-export function deleteVendorContact(vendorId: string, contactId: string): Promise<void> {
-  return del<void>(`/vendors/${vendorId}/contacts/${contactId}`);
+export function deleteVendorContact(
+  vendorId: string,
+  contactId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/vendors/${vendorId}/contacts/${contactId}`);
 }

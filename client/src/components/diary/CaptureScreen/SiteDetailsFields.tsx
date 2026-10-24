@@ -24,7 +24,7 @@ import { TimeChips } from '../../TimeChips/TimeChips.js';
 import { SignatureSection } from '../SignatureSection/index.js';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
-import { CompanyPickerDialog } from './CompanyPickerDialog.js';
+import { EntityPickerDialog } from '../../EntityPicker/EntityPickerDialog.js';
 import { isSignatureComplete } from './captureMetadata.js';
 import type { CaptureFieldId, CaptureFields, CaptureMode } from './captureMetadata.js';
 import type { CompanySuggestion } from './captureSuggestions.js';
@@ -244,11 +244,14 @@ export function SiteDetailsFields({
             deselectable
             testIdPrefix="capture-company-chip"
           />
-          <CompanyPickerDialog
+          <EntityPickerDialog
             open={pickerOpen}
+            title={t('capture.chooseCompany')}
             onClose={() => setPickerOpen(false)}
-            onPick={(company) => pickCompany(company)}
+            onPick={(option) => pickCompany({ id: option.id, name: option.label })}
             returnFocusRef={otherCompanyRef}
+            testId="capture-company-sheet"
+            picker={{ kind: 'company', placeholder: t('capture.companyPlaceholder') }}
           />
         </div>
       )}

@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type { RequestOptions } from './apiClient.js';
 import type {
   WorkItemListResponse,
@@ -112,8 +113,11 @@ export function linkWorkItemSubsidy(workItemId: string, subsidyProgramId: string
 /**
  * Unlinks a subsidy program from a work item.
  */
-export function unlinkWorkItemSubsidy(workItemId: string, subsidyProgramId: string): Promise<void> {
-  return del<void>(`/work-items/${workItemId}/subsidies/${subsidyProgramId}`);
+export function unlinkWorkItemSubsidy(
+  workItemId: string,
+  subsidyProgramId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/work-items/${workItemId}/subsidies/${subsidyProgramId}`);
 }
 
 /**

@@ -23,7 +23,7 @@ Navigate to **Settings > Vendors** in the sidebar to see all vendors. The list s
 
 ### Creating a Vendor
 
-Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
+Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Type in the **Trade** field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
 
 ### Vendor Detail
 
@@ -72,7 +72,7 @@ Picking a document takes you to a multi-step review screen:
 
 **Step 1: Company & Status**
 
-- **Company picker** -- Pick the matching company (the picker pre-suggests one based on the document). If the company doesn't exist, you can create one inline by typing a new name and confirming.
+- **Company picker** -- Pick the matching company (the picker pre-suggests one based on the document). If the company doesn't exist, type its name and choose **New company ‹text›**. The company form opens with the name filled in, and the new company is selected when you save it.
 - **Invoice status** -- Choose the initial status: Offer, To pay, Paid, or Submitted. Defaults to **To pay**.
 - **Default budget source (optional)** -- If set, all extracted lines are assigned to this funding source. You can still override the source for individual lines in step 2. This field is useful when you know the entire invoice comes from a single financing source.
 
@@ -141,7 +141,7 @@ Each line shows:
 - The **gross amount**. Hover over it, or focus it, to see the net amount and VAT.
 - The task or purchase the line **belongs to**. A line with no task or purchase shows **Not assigned**.
 
-Use **Add cost line** to add a single line, or **Add lines (grid)** to enter several at once.
+The heading shows how many lines there are, such as **Cost lines (4)**. Use **Add cost line** to add a single line, or **Add lines (grid)** to enter several at once.
 
 The **Total** of the lines is shown beneath them. For an offer, the **Expected cost** row on this page does not show a +/- 5% range. When grants apply to the lines, the row reads **After grants**.
 
@@ -173,7 +173,9 @@ See [Work Item Budgets](work-item-budgets#linking-to-invoices) for linking from 
 
 ### Removing a Line from the Invoice
 
-**Remove from invoice** detaches a line from this invoice. On an offer page, the action reads **Remove from offer**. The line stays on its task or purchase as an estimate. A confirmation dialog appears first.
+**Remove from invoice** detaches a line from this invoice. On an offer page, the action reads **Remove from offer**. The line stays on its task or purchase as an estimate.
+
+The link is removed at once, with no confirmation dialog. A message appears with an **Undo** button. Select **Undo** to link the line to this invoice again. If the line has changed since, Undo does not restore the link, and the message says so. **Delete** still asks you to confirm before it removes a cost line.
 
 ### Rules and Constraints
 

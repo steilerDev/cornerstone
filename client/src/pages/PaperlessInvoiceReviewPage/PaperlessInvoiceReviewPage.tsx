@@ -24,7 +24,7 @@ import {
 } from '../../lib/autoItemizeDraftUtils.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
-import { fetchVendor, fetchVendors, searchCompanies } from '../../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors } from '../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -36,7 +36,8 @@ import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
-import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
+import type { EntityCreate } from '../../components/EntityPicker/types.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { AutoItemizePdfPreview } from '../../components/autoItemize/index.js';
 import { AutoItemizeLines } from '../../components/CostLineForm/AutoItemizeLines.js';
 import { isBlankRow } from '../../components/CostLineForm/costLineGridModel.js';
@@ -98,6 +99,7 @@ export function PaperlessInvoiceReviewPage() {
   const [suggestedVendorName, setSuggestedVendorName] = useState<string | null>(null);
   const [vendorError, setVendorError] = useState<string | null>(null);
   // Whether a company with the extracted name exists (looked up on the server); null until known.
+  const [createdVendorName, setCreatedVendorName] = useState<string | null>(null);
   const [extractedMatched, setExtractedMatched] = useState<boolean | null>(null);
 
   const [announceMessage, setAnnounceMessage] = useState('');
@@ -214,7 +216,7 @@ export function PaperlessInvoiceReviewPage() {
           ...prev,
           invoiceNumber: previewResult.extractedInvoiceNumber ?? null,
           amount: computedTotal > 0 ? String(computedTotal) : '',
-          date: previewResult.extractedInvoiceDate ?? new Date().toISOString().split('T')[0] ?? '',
+          date: previewResult.extractedInvoiceDate ?? new Date().toISOString().split('T')[0]!,
           dueDate: previewResult.extractedDueDate ?? null,
           notes: previewResult.extractedNotes ?? null,
         }));
@@ -241,28 +243,31 @@ export function PaperlessInvoiceReviewPage() {
   // An extracted company name that matches no company stays offered as a create row, prefilled
   // with that name while the field is empty.
   const extractedUnmatched = extractedVendorName !== null && extractedMatched === false;
-  const vendorCreateAction = companyCreateAction && {
-    ...companyCreateAction,
-    show: 'noExactMatch' as const,
-    showWhenEmpty: extractedUnmatched,
-    getLabel: (query: string) => companyCreateAction.getLabel(query || extractedVendorName || ''),
-    onCreate: async (query: string) => {
-      const company = await companyCreateAction.onCreate(query || extractedVendorName || '');
-      if (company) {
-        if (
-          extractedVendorName !== null &&
-          foldSearchText(company.name) === foldSearchText(extractedVendorName)
-        ) {
-          setExtractedMatched(true);
-        }
-        setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: company.name }));
-      }
-      return company;
-    },
-  };
+  const vendorCreate: EntityCreate = !companyCreateAction
+    ? 'off'
+    : {
+        show: 'noExactMatch',
+        showWhenEmpty: extractedUnmatched,
+        getLabel: (query: string) =>
+          companyCreateAction.getLabel(query || extractedVendorName || ''),
+        onCreate: async (query: string) => {
+          const company = await companyCreateAction.onCreate(query || extractedVendorName!);
+          if (company) {
+            setCreatedVendorName(company.name);
+            if (
+              extractedVendorName !== null &&
+              foldSearchText(company.name) === foldSearchText(extractedVendorName)
+            ) {
+              setExtractedMatched(true);
+            }
+            setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: company.name }));
+          }
+          return company && { id: company.id, label: company.name, entityId: company.id };
+        },
+      };
 
   const handleSave = useCallback(async () => {
-    if (documentId === null || !document) return;
+    if (documentId === null) return;
 
     if (!vendorId) {
       setVendorError(t('autoItemize.vendorRequired'));
@@ -349,17 +354,7 @@ export function PaperlessInvoiceReviewPage() {
       }
       setPageStatus('ready');
     }
-  }, [
-    documentId,
-    document,
-    vendorId,
-    lineState,
-    metadataEdits,
-    navigate,
-    location.state,
-    t,
-    tErrors,
-  ]);
+  }, [documentId, vendorId, lineState, metadataEdits, navigate, location.state, t, tErrors]);
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
@@ -429,11 +424,7 @@ export function PaperlessInvoiceReviewPage() {
         <div className={styles.errorState}>
           <FormError
             variant="banner"
-            message={
-              missingDocument
-                ? t('autoItemize.missingDocument')
-                : pageError || t('autoItemize.loadError')
-            }
+            message={missingDocument ? t('autoItemize.missingDocument') : pageError!}
           />
           <button
             type="button"
@@ -481,25 +472,23 @@ export function PaperlessInvoiceReviewPage() {
                   </span>
                   <span className={sharedStyles.srOnly}>{t('common.required')}</span>
                 </label>
-                <SearchPicker
+                <EntityPicker
+                  kind="company"
                   id="vendor-picker"
                   value={vendorId}
-                  onChange={(id) => {
+                  onChange={(id, option) => {
                     setVendorId(id);
+                    setCreatedVendorName(option?.label ?? null);
                     setVendorError(null);
                   }}
-                  excludeIds={[]}
-                  searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
-                  showItemsOnFocus
-                  renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
+                  selectedLabel={createdVendorName ?? suggestedVendorName ?? undefined}
                   placeholder={t('autoItemize.vendorPlaceholder')}
-                  initialTitle={suggestedVendorName ?? undefined}
                   inputAriaProps={{
                     'aria-required': true,
                     'aria-invalid': vendorError ? true : undefined,
                     'aria-describedby': vendorError ? 'vendor-error' : undefined,
                   }}
-                  createAction={vendorCreateAction}
+                  create={vendorCreate}
                 />
                 {vendorError && (
                   <div id="vendor-error">

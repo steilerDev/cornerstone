@@ -43,6 +43,7 @@ async function enabledConfirm(prefix: string): Promise<HTMLElement> {
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest.fn(),
+  searchCompanies: jest.fn(async () => []),
   fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: mockUpdateVendor,

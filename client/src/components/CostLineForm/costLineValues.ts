@@ -6,6 +6,7 @@ import type {
 } from '@cornerstone/shared';
 import { effectivePlannedAmount } from '@cornerstone/shared';
 import { roundMoney } from '../../lib/money.js';
+import type { EntityOption } from '../EntityPicker/types.js';
 import type { CostLineHost, CostLineRow, CostLineTarget } from '../CostLineTable/types.js';
 import type { ObjectFormErrors, ObjectFormValues } from '../ObjectForm/types.js';
 import type { CostLineExistingRef, CostLineFormMode } from './types.js';
@@ -78,6 +79,12 @@ export function readValues(values: ObjectFormValues): CostLineValues {
     vendorId: text('vendorId'),
     confidence: (text('confidence') || 'own_estimate') as ConfidenceLevel,
   };
+}
+
+/** The target a "task or purchase" picker option stands for. */
+export function toCostLineTarget(option: EntityOption): CostLineTarget {
+  // Options of the taskOrPurchase kind always carry their item type and raw id.
+  return { type: option.itemType!, id: option.entityId!, label: option.label, area: null };
 }
 
 /** The host itself as a target (item hosts only). */

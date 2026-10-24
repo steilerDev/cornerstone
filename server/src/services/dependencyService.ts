@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { workItemDependencies, workItems } from '../db/schema.js';
@@ -14,10 +14,12 @@ import {
   ValidationError,
   DuplicateDependencyError,
   CircularDependencyError,
+  ConflictError,
 } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule, computeScheduleProjection } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
+import type { UndoTransaction } from './undoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -39,7 +41,11 @@ function ensureWorkItemExists(db: DbType, workItemId: string, context: string): 
  *
  * @returns The cycle path if detected, null otherwise
  */
-function detectCycle(db: DbType, successorId: string, predecessorId: string): string[] | null {
+function detectCycle(
+  db: Pick<DbType, 'select'>,
+  successorId: string,
+  predecessorId: string,
+): string[] | null {
   const MAX_ITERATIONS = 10000;
   const visited = new Set<string>();
   const path: string[] = [predecessorId];
@@ -131,12 +137,13 @@ export function createDependency(
   if (cycle) {
     // Fetch work item titles for the cycle path
     const cycleWithTitles = cycle.map((id) => {
+      // cycle ids come from the dependency graph, whose endpoints are work items (FK)
       const wi = db
         .select({ title: workItems.title })
         .from(workItems)
         .where(eq(workItems.id, id))
-        .get();
-      return wi ? `"${wi.title}"` : id;
+        .get()!;
+      return `"${wi.title}"`;
     });
 
     throw new CircularDependencyError(
@@ -288,36 +295,85 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
   return { predecessors, successors };
 }
 
+/** A deleted work-item dependency, as needed to restore it. */
+export interface DeletedDependencySnapshot {
+  row: typeof workItemDependencies.$inferSelect;
+}
+
 /**
- * Delete a specific dependency.
+ * Delete a specific dependency and return the deleted row for an Undo snapshot.
+ * The route reschedules after issuing the Undo token.
  * @throws NotFoundError if dependency does not exist
  */
-export function deleteDependency(db: DbType, workItemId: string, predecessorId: string): void {
-  // Check if dependency exists
-  const dependency = db
-    .select()
+export function deleteDependencyWithSnapshot(
+  db: DbType,
+  workItemId: string,
+  predecessorId: string,
+): DeletedDependencySnapshot {
+  const where = and(
+    eq(workItemDependencies.successorId, workItemId),
+    eq(workItemDependencies.predecessorId, predecessorId),
+  );
+  const row = db.transaction((tx) => {
+    const existing = tx.select().from(workItemDependencies).where(where).get();
+    if (!existing) {
+      throw new NotFoundError('Dependency not found');
+    }
+    tx.delete(workItemDependencies).where(where).run();
+    return existing;
+  });
+
+  return { row };
+}
+
+/**
+ * Re-insert a deleted dependency.
+ * @throws ConflictError (details.changed) when either work item is gone, the two items are
+ *   linked again (in either direction) or re-adding would create a cycle
+ */
+export function restoreDeletedDependency(
+  tx: UndoTransaction,
+  snapshot: DeletedDependencySnapshot,
+): void {
+  const { row } = snapshot;
+  const refuse = (): never => {
+    throw new ConflictError('The record changed after this action', {
+      changed: [{ type: 'work_item', id: row.successorId }],
+    });
+  };
+
+  const bothExist =
+    tx
+      .select({ id: workItems.id })
+      .from(workItems)
+      .where(eq(workItems.id, row.successorId))
+      .get() &&
+    tx
+      .select({ id: workItems.id })
+      .from(workItems)
+      .where(eq(workItems.id, row.predecessorId))
+      .get();
+  if (!bothExist) refuse();
+
+  const linked = tx
+    .select({ predecessorId: workItemDependencies.predecessorId })
     .from(workItemDependencies)
     .where(
-      and(
-        eq(workItemDependencies.successorId, workItemId),
-        eq(workItemDependencies.predecessorId, predecessorId),
+      or(
+        and(
+          eq(workItemDependencies.successorId, row.successorId),
+          eq(workItemDependencies.predecessorId, row.predecessorId),
+        ),
+        and(
+          eq(workItemDependencies.successorId, row.predecessorId),
+          eq(workItemDependencies.predecessorId, row.successorId),
+        ),
       ),
     )
     .get();
+  if (linked) refuse();
 
-  if (!dependency) {
-    throw new NotFoundError('Dependency not found');
-  }
+  if (detectCycle(tx, row.successorId, row.predecessorId)) refuse();
 
-  // Delete the dependency
-  db.delete(workItemDependencies)
-    .where(
-      and(
-        eq(workItemDependencies.successorId, workItemId),
-        eq(workItemDependencies.predecessorId, predecessorId),
-      ),
-    )
-    .run();
-
-  autoReschedule(db);
+  tx.insert(workItemDependencies).values(row).run();
 }

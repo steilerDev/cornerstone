@@ -1162,7 +1162,7 @@ export class InvoiceDetailPage {
       (resp) =>
         resp.url().includes('/deposits/') &&
         resp.request().method() === 'DELETE' &&
-        resp.status() === 204,
+        resp.status() === 200,
     );
     await this.deleteDepositConfirmButton.click();
     await responsePromise;

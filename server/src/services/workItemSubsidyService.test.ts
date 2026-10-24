@@ -317,15 +317,15 @@ describe('workItemSubsidyService', () => {
     });
   });
 
-  // ─── unlinkSubsidyFromWorkItem() ───────────────────────────────────────────
+  // ─── unlinkSubsidyFromWorkItemWithSnapshot() ───────────────────────────────────────────
 
-  describe('unlinkSubsidyFromWorkItem()', () => {
+  describe('unlinkSubsidyFromWorkItemWithSnapshot()', () => {
     it('removes the subsidy link from a work item', () => {
       const workItemId = insertTestWorkItem();
       const subsidyId = insertTestSubsidyProgram('Linked Subsidy');
 
       workItemSubsidyService.linkSubsidyToWorkItem(db, workItemId, subsidyId);
-      workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, subsidyId);
+      workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(db, workItemId, subsidyId);
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
       expect(result).toEqual([]);
@@ -339,7 +339,7 @@ describe('workItemSubsidyService', () => {
       workItemSubsidyService.linkSubsidyToWorkItem(db, workItemId, subsidyId1);
       workItemSubsidyService.linkSubsidyToWorkItem(db, workItemId, subsidyId2);
 
-      workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, subsidyId1);
+      workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(db, workItemId, subsidyId1);
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
       expect(result).toHaveLength(1);
@@ -350,11 +350,19 @@ describe('workItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Some Subsidy');
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, 'non-existent-wi', subsidyId);
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(
+          db,
+          'non-existent-wi',
+          subsidyId,
+        );
       }).toThrow(NotFoundError);
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, 'non-existent-wi', subsidyId);
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(
+          db,
+          'non-existent-wi',
+          subsidyId,
+        );
       }).toThrow('Work item not found');
     });
 
@@ -363,11 +371,11 @@ describe('workItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Unlinked Subsidy');
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, subsidyId);
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(db, workItemId, subsidyId);
       }).toThrow(NotFoundError);
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, subsidyId);
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(db, workItemId, subsidyId);
       }).toThrow('Subsidy program is not linked to this work item');
     });
 
@@ -380,7 +388,7 @@ describe('workItemSubsidyService', () => {
 
       // Try to unlink from workItemId2 (where it's not linked)
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId2, subsidyId);
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(db, workItemId2, subsidyId);
       }).toThrow(NotFoundError);
     });
 
@@ -388,11 +396,19 @@ describe('workItemSubsidyService', () => {
       const workItemId = insertTestWorkItem();
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, 'non-existent-subsidy');
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(
+          db,
+          workItemId,
+          'non-existent-subsidy',
+        );
       }).toThrow(NotFoundError);
 
       expect(() => {
-        workItemSubsidyService.unlinkSubsidyFromWorkItem(db, workItemId, 'non-existent-subsidy');
+        workItemSubsidyService.unlinkSubsidyFromWorkItemWithSnapshot(
+          db,
+          workItemId,
+          'non-existent-subsidy',
+        );
       }).toThrow('Subsidy program is not linked to this work item');
     });
   });

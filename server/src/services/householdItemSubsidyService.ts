@@ -2,6 +2,8 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { householdItems, householdItemSubsidies } from '../db/schema.js';
 import { createSubsidyService } from './shared/subsidyServiceFactory.js';
+import type { DeletedSubsidyLinkSnapshot } from './shared/subsidyServiceFactory.js';
+import type { UndoTransaction } from './undoService.js';
 import type { SubsidyProgram } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -18,6 +20,7 @@ const service = createSubsidyService({
   budgetLinesTable: 'household_item_budgets',
   budgetLinesEntityIdColumn: 'household_item_id',
   entityLabel: 'Household item',
+  subjectType: 'household_item',
   makeInsertValues: (householdItemId, subsidyProgramId) => ({ householdItemId, subsidyProgramId }),
 });
 
@@ -43,13 +46,24 @@ export function linkSubsidyToHouseholdItem(
 }
 
 /**
- * Unlink a subsidy program from a household item.
+ * Unlink a subsidy program from a household item and return the deleted link for an Undo snapshot.
  * @throws NotFoundError if household item does not exist, or if the link does not exist
  */
-export function unlinkSubsidyFromHouseholdItem(
+export function unlinkSubsidyFromHouseholdItemWithSnapshot(
   db: DbType,
   householdItemId: string,
   subsidyProgramId: string,
+): DeletedSubsidyLinkSnapshot {
+  return service.unlinkWithSnapshot(db, householdItemId, subsidyProgramId);
+}
+
+/**
+ * Re-insert a deleted household item subsidy link.
+ * @throws ConflictError (details.changed) when either side is gone or the link exists again
+ */
+export function restoreDeletedHouseholdItemSubsidyLink(
+  tx: UndoTransaction,
+  snapshot: DeletedSubsidyLinkSnapshot,
 ): void {
-  return service.unlink(db, householdItemId, subsidyProgramId);
+  service.restore(tx, snapshot);
 }

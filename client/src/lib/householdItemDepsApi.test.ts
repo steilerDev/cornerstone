@@ -6,6 +6,8 @@ import {
 } from './householdItemDepsApi.js';
 import type { HouseholdItemDepDetail } from '@cornerstone/shared';
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('householdItemDepsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -381,8 +383,8 @@ describe('householdItemDepsApi', () => {
     it('sends DELETE request to /api/household-items/:id/dependencies/:type/:predId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteHouseholdItemDep('hi-123', 'work_item', 'wi-456');
@@ -398,8 +400,8 @@ describe('householdItemDepsApi', () => {
     it('sends DELETE request with correct URL for milestone type', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteHouseholdItemDep('hi-456', 'milestone', '42');
@@ -412,16 +414,16 @@ describe('householdItemDepsApi', () => {
       );
     });
 
-    it('returns void on successful delete (204)', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await deleteHouseholdItemDep('hi-123', 'work_item', 'wi-456');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when dependency not found (404)', async () => {

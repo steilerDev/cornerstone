@@ -24,6 +24,11 @@ const hook = {
 };
 jest.unstable_mockModule('../../hooks/useTrades.js', () => ({ useTrades: () => hook }));
 
+// The merge dialog's "Keep this trade" field is an EntityPicker (kind trade): it lists the trades
+// through the trades API, answered from the same fixtures as the manager's own list.
+const mockFetchTrades = jest.fn<() => Promise<{ trades: TradeListItem[] }>>();
+jest.unstable_mockModule('../../lib/tradesApi.js', () => ({ fetchTrades: mockFetchTrades }));
+
 const mockShowToast = jest.fn<(variant: string, message: string) => void>();
 jest.unstable_mockModule('../Toast/ToastContext.js', () => ({
   useToast: () => ({ showToast: mockShowToast }),
@@ -69,6 +74,8 @@ describe('TradesManager', () => {
     hook.updateTrade.mockReset();
     hook.deleteTrade.mockReset();
     hook.mergeTrade.mockReset();
+    mockFetchTrades.mockReset();
+    mockFetchTrades.mockImplementation(() => Promise.resolve({ trades: hook.trades }));
     onClose.mockReset();
     onChanged.mockReset();
     mockShowToast.mockReset();
@@ -97,6 +104,39 @@ describe('TradesManager', () => {
     await user.click(actions(name));
     await user.click(await screen.findByRole('menuitem', { name: item }));
   }
+
+  describe('without an onChanged listener', () => {
+    it('adds, renames, merges and deletes without one', async () => {
+      const user = userEvent.setup();
+      hook.createTrade.mockResolvedValue(tradeResponse('t-new', 'Tiling'));
+      hook.updateTrade.mockResolvedValue(tradeResponse('t-mason', 'Maurer Meier'));
+      hook.mergeTrade.mockResolvedValue({ trade: ROOFING, movedVendorCount: 3 });
+      hook.deleteTrade.mockResolvedValue(undefined);
+      render(<Manager onClose={onClose} />);
+
+      await user.type(newInput(), 'Tiling{Enter}');
+      await waitFor(() => expect(hook.createTrade).toHaveBeenCalledWith({ name: 'Tiling' }));
+
+      await openAction(user, 'Mauerwerk Meier', 'Rename');
+      const input = (await screen.findByTestId('trades-manager-rename-input')) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, 'Maurer Meier{Enter}');
+      await waitFor(() => expect(hook.updateTrade).toHaveBeenCalled());
+
+      await openAction(user, 'Plumbing', 'Merge duplicates…');
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByLabelText('Keep this trade'),
+      );
+      await user.click(await screen.findByRole('option', { name: 'Roofing' }));
+      await user.click(screen.getByTestId('trades-manager-merge-dialog-confirm'));
+      await waitFor(() => expect(hook.mergeTrade).toHaveBeenCalledWith('t-plumb', 't-roof'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+
+      await openAction(user, 'Mauerwerk Meier', 'Delete');
+      await user.click(await screen.findByTestId('trades-manager-delete-dialog-confirm'));
+      await waitFor(() => expect(hook.deleteTrade).toHaveBeenCalledWith('t-mason'));
+    });
+  });
 
   describe('container', () => {
     it('is a dialog titled "Trades" from 768 px up', () => {
@@ -423,6 +463,42 @@ describe('TradesManager', () => {
         await screen.findByText("Can't reach the server. Check your connection and try again."),
       ).toBeInTheDocument();
     });
+
+    it('ignores a second submit while the first save is still running', async () => {
+      const user = userEvent.setup();
+      let finish: (t: TradeResponse) => void = () => {};
+      hook.updateTrade.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      renderManager();
+      const input = await startRename(user, 'Mauerwerk Meier');
+
+      await user.clear(input);
+      await user.type(input, 'Maurer{Enter}');
+      // Save is only aria-disabled, so Enter submits the form again.
+      await user.type(input, '{Enter}');
+
+      expect(hook.updateTrade).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        finish(tradeResponse('t-mason', 'Maurer'));
+      });
+    });
+
+    it('falls back to the New-trade field when the renamed row disappears from the list', async () => {
+      const user = userEvent.setup();
+      const v = renderManager();
+      hook.updateTrade.mockImplementation(async () => {
+        // The refetched list no longer contains the renamed row.
+        hook.trades = [PLUMBING, ROOFING];
+        queueMicrotask(() => v.rerender(<Manager onClose={onClose} onChanged={onChanged} />));
+        return tradeResponse('t-mason', 'Maurer');
+      });
+      const input = await startRename(user, 'Mauerwerk Meier');
+
+      await user.clear(input);
+      await user.type(input, 'Maurer{Enter}');
+
+      // The row never shows up: after the bounded retries, focus lands on the field, not body.
+      await waitFor(() => expect(newInput()).toHaveFocus(), { timeout: 3000 });
+    });
   });
 
   describe('merge', () => {
@@ -464,6 +540,44 @@ describe('TradesManager', () => {
       expect(await screen.findByRole('option', { name: 'Plumbing' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Mauerwerk Meier' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'Roofing' })).not.toBeInTheDocument();
+    });
+
+    it('lists the trades through the trades API and offers no inline "New trade" row', async () => {
+      const user = userEvent.setup();
+      renderManager();
+      await openMerge(user, 'Roofing');
+
+      await user.type(within(mergeDialog()).getByLabelText('Keep this trade'), 'Brand new trade');
+
+      await waitFor(() => expect(mockFetchTrades).toHaveBeenCalled());
+      await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument());
+      expect(screen.queryByRole('option', { name: /New trade/ })).not.toBeInTheDocument();
+    });
+
+    it('filters the trades to keep by their translated name as the person types', async () => {
+      const user = userEvent.setup();
+      renderManager();
+      await openMerge(user, 'Roofing');
+
+      await user.type(within(mergeDialog()).getByLabelText('Keep this trade'), 'plumb');
+
+      expect(await screen.findByRole('option', { name: 'Plumbing' })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.queryByRole('option', { name: 'Mauerwerk Meier' })).not.toBeInTheDocument(),
+      );
+    });
+
+    it('shows the chosen trade to keep by its display name', async () => {
+      const user = userEvent.setup();
+      renderManager();
+      await openMerge(user, 'Roofing');
+
+      await choose(user, 'Mauerwerk Meier');
+
+      expect(within(mergeDialog()).getAllByText('Mauerwerk Meier').length).toBeGreaterThan(0);
+      expect(
+        within(mergeDialog()).getByRole('button', { name: 'Clear selection' }),
+      ).toBeInTheDocument();
     });
 
     it('shows how many companies move once a target is chosen, and enables the action', async () => {
@@ -778,6 +892,35 @@ describe('TradesManager', () => {
 
       expect(neverBody(seen)).toBe(true);
       expect(seen[seen.length - 1]).toBe(actions('Gamma'));
+    });
+
+    it('delete: keeps retrying while the next row refuses focus on the first frames', async () => {
+      const user = userEvent.setup();
+      hook.deleteTrade.mockResolvedValue(undefined);
+      hook.trades = three();
+      renderManager();
+      await openAction(user, 'Beta', 'Delete');
+      await screen.findByRole('alertdialog');
+      const realFocus = HTMLElement.prototype.focus;
+      let refused = 0;
+      const spy = jest.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+        this: HTMLElement,
+        options?: FocusOptions,
+      ) {
+        if (this === actions('Gamma') && refused < 2) {
+          refused += 1;
+          return;
+        }
+        realFocus.call(this, options);
+      });
+
+      try {
+        await user.click(screen.getByTestId('trades-manager-delete-dialog-confirm'));
+        await waitFor(() => expect(actions('Gamma')).toHaveFocus());
+        expect(refused).toBe(2);
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('delete of the last row: the previous row', async () => {

@@ -8,8 +8,11 @@ import {
   fetchWorkItemSubsidies,
   linkWorkItemSubsidy,
   unlinkWorkItemSubsidy,
+  fetchWorkItemSubsidyPayback,
 } from './workItemsApi.js';
 import type { WorkItemListResponse, WorkItemDetail, SubsidyProgram } from '@cornerstone/shared';
+
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
 
 describe('workItemsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -755,8 +758,8 @@ describe('workItemsApi', () => {
     it('sends DELETE request to /api/work-items/:workItemId/subsidies/:subsidyProgramId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await unlinkWorkItemSubsidy('work-123', 'subsidy-1');
@@ -769,16 +772,16 @@ describe('workItemsApi', () => {
       );
     });
 
-    it('returns void on successful unlink', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await unlinkWorkItemSubsidy('work-123', 'subsidy-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when subsidy not linked (404)', async () => {
@@ -794,6 +797,42 @@ describe('workItemsApi', () => {
       } as Response);
 
       await expect(unlinkWorkItemSubsidy('work-123', 'subsidy-1')).rejects.toThrow();
+    });
+  });
+
+  describe('listWorkItems vendor and budget-line filters', () => {
+    it('sends the vendor and budget-line bounds, including zero', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: [], pagination: {} }),
+      } as Response);
+
+      await listWorkItems({ assignedVendorId: 'vendor-1', budgetLinesMin: 0, budgetLinesMax: 4 });
+
+      const url = new URL(mockFetch.mock.calls[0]![0] as string, 'http://localhost');
+      expect(url.searchParams.get('assignedVendorId')).toBe('vendor-1');
+      expect(url.searchParams.get('budgetLinesMin')).toBe('0');
+      expect(url.searchParams.get('budgetLinesMax')).toBe('4');
+    });
+  });
+
+  describe('fetchWorkItemSubsidyPayback', () => {
+    it('sends GET to /api/work-items/:id/subsidy-payback and resolves with the body', async () => {
+      const body = {
+        workItemId: 'work-123',
+        minTotalPayback: 0,
+        maxTotalPayback: 10,
+        subsidies: [],
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
+
+      const result = await fetchWorkItemSubsidyPayback('work-123');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/work-items/work-123/subsidy-payback',
+        expect.any(Object),
+      );
+      expect(result).toEqual(body);
     });
   });
 
