@@ -29,9 +29,9 @@
  *   13. Two-column layout at desktop viewport (formColumn + previewColumn side by side)
  *   14. @responsive Stacked layout at mobile viewport (previewColumn after formColumn)
  *   15. Hide-linked filter actually hides documents whose IDs are returned by linked-ids API
- *   16. @smoke "Create New Budget Line" closes picker and shows inline BudgetLineForm on card (Story #1764)
- *   17. Fill inline form and save creates budget line + invoice (Story #1764)
- *   18. Inline form validation: invalid amount shows inlineDraftInvalid error (Story #1764)
+ *   16. @smoke Choosing a task for a row marks it as a new cost line; nothing is created yet (Story #1764)
+ *   17. Editing the row and saving creates the cost line + invoice (Story #1764)
+ *   18. Row validation: a missing amount shows a cell error, no navigation (Story #1764)
  *   19. Regression test for bug #1833: retry after a commit failure
  *       (ITEMIZED_SUM_EXCEEDS_INVOICE, mocked response — see Scenario 19 comment
  *       for why the commit endpoint itself must be mocked here) does not create
@@ -796,7 +796,7 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       });
 
       // Mock sub-section endpoints so their background fetches don't race the page render.
-      // InvoiceBudgetLinesSection fetches budget lines on mount; without a mock this request
+      // CostLinesSection fetches cost lines on mount; without a mock this request
       // goes to the real server with a non-existent invoice ID, introducing extra latency.
       await page.route(`**/api/invoices/${mockInvoiceId}/budget-lines`, async (route: Route) => {
         await route.fulfill({
@@ -1393,21 +1393,18 @@ test.describe('Scenario 15 — Hide-linked filter uses linked-ids API (Issue #17
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 16 — @smoke "Create New Budget Line" closes picker + shows inline form
 //
-// Story #1764: PaperlessInvoiceReviewPage now uses the same queued-on-save
-// "Create Budget Line" flow as AutoItemizePage. Clicking "Create Budget Line"
-// in step 2 of the picker modal:
-//   - Immediately CLOSES the picker modal (no in-modal form)
-//   - Shows the amber "Creating New" badge on the extraction line card
-//   - Shows the inline BudgetLineForm (class*="inlineFormWrapper") on the card
-//   - Shows a "Discard" button to abandon the queued draft
-//   - Does NOT call any budget-line API until "Create Invoice & Itemize" is clicked
+// Story #1764 / #2235: PaperlessInvoiceReviewPage uses the same queued-on-save flow as
+// AutoItemizePage. A row that has a task or purchase under "Belongs to" (and a cost category)
+// will CREATE a new cost line on it - but only when "Create Invoice & Itemize" is clicked:
+//   - the row shows the chosen task in its Belongs to cell
+//   - no budget-line API is called until then
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Scenario 16 — "Create New Budget Line" closes picker and shows inline form on card (Story #1764)',
+  'Scenario 16 — Choosing a task for a row marks it as a new cost line; nothing is created yet (Story #1764)',
   { tag: '@smoke' },
   () => {
-    test('"Create Budget Line" in step 2 closes picker immediately and shows amber badge + inline BudgetLineForm on the extraction line card', async ({
+    test('Belongs to + category mark the extraction row as a new cost line without calling any API', async ({
       page,
       testPrefix,
     }) => {
@@ -1433,31 +1430,26 @@ test.describe(
 
         const reviewPage = await navigateToReviewPage(page);
 
-        // ── Initial state: "Assign…" button visible, no badge ────────────────
-        await expect(reviewPage.lineAssignButton(0)).toBeVisible();
-        await expect(reviewPage.getCreatingNewBadge(0)).not.toBeVisible();
+        // ── Initial state: Belongs to is empty ────────────────────────────────
+        await expect(reviewPage.lineTarget(0)).toBeVisible();
+        await expect(reviewPage.lineTarget(0)).toHaveValue('');
 
-        // ── Queue the create-new operation ─────────────────────────────────────
-        // This opens step-1 → selects work item → step-2 → clicks "Create Budget Line"
+        // ── Track budget-line POSTs: none may fire before Save ────────────────
+        let budgetPosts = 0;
+        page.on('request', (req) => {
+          if (req.url().includes('/budgets') && req.method() === 'POST') budgetPosts++;
+        });
+
+        // ── Choose the task and a category for the first row ──────────────────
         await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S16 WI`);
 
-        // ── Assert: picker modal is CLOSED immediately ─────────────────────────
-        await expect(reviewPage.pickerModal).not.toBeVisible();
+        // ── Assert: the row shows the chosen task ─────────────────────────────
+        await expect(reviewPage.lineRow(0)).toContainText(`${testPrefix} PF-S16 WI`);
+        await expect(reviewPage.lineDescription(0)).toBeVisible();
 
-        // ── Assert: amber "Creating New" badge visible on card 0 ──────────────
-        await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
-
-        // ── Assert: inline BudgetLineForm wrapper visible ──────────────────────
-        await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
-
-        // ── Assert: "Discard" button visible (allows abandoning the queued draft)
-        await expect(reviewPage.getInlineDraftDiscardButton(0)).toBeVisible();
-
-        // ── Assert: "Assign…" button is replaced by badge + form ──────────────
-        await expect(reviewPage.lineAssignButton(0)).not.toBeVisible();
-
-        // ── Assert: page is still at the review route (no navigation) ─────────
+        // ── Assert: page is still at the review route and nothing was created ─
         expect(page.url()).toContain('/budget/invoices/new/paperless');
+        expect(budgetPosts).toBe(0);
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       }
@@ -1466,18 +1458,18 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17 — Fill inline form and save creates budget line + invoice
+// Scenario 17 — Editing the row and saving creates the cost line + invoice
 //
-// After queuing a "Create Budget Line" draft, the user fills in the inline
-// BudgetLineForm description, sets a vendor on the page, and clicks
+// After a row is marked as a new cost line, the user edits the cost-line grid
+// row (description), sets a vendor on the page, and clicks
 // "Create Invoice & Itemize". This triggers:
 //   1. POST /api/work-items/:id/budgets — creates the WI budget line
 //   2. POST /api/invoices/auto-itemize/commit — creates the invoice
 //   3. Navigation to the invoice detail page
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 17 — Fill inline form and save creates budget line + invoice (Story #1764)', () => {
-  test('Queued inline draft: editing description and clicking Save creates WI budget line then invoice', async ({
+test.describe('Scenario 17 — Editing the row and saving creates the cost line + invoice (Story #1764)', () => {
+  test('Row with a task: editing the description and clicking Save creates the WI cost line then the invoice', async ({
     page,
     testPrefix,
   }) => {
@@ -1597,10 +1589,10 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
 
       // ── Queue create-new on first extraction line ──────────────────────────
       await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`, { budgetSourceId });
-      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+      await expect(reviewPage.lineRow(0)).toContainText(`${testPrefix} PF-S17 WI`);
 
-      // ── Edit the description in the inline form ─────────────────────────────
-      const descInput = reviewPage.getInlineDraftDescriptionInput(0);
+      // ── Edit the description in the row ─────────────────────────────────────
+      const descInput = reviewPage.lineDescription(0);
       await expect(descInput).toBeVisible();
       await descInput.fill(editedDescription);
 
@@ -1639,17 +1631,17 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18 — Inline form validation: invalid amount shows inlineDraftInvalid error
+// Scenario 18 — Row validation: a missing amount shows a cell error
 //
-// When the inline BudgetLineForm contains an invalid/empty amount and the user
+// When the cost-line grid row has an invalid/empty amount and the user
 // clicks "Create Invoice & Itemize", handleSave should:
 //   - Show the t('autoItemize.inlineDraftInvalid') page-level error banner
 //   - Stay on the review page (no navigation)
 //   - NOT call any API (WI budget or commit)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 18 — Inline form validation: invalid amount shows error, no navigation (Story #1764)', () => {
-  test('Queued draft with invalid amount causes inlineDraftInvalid error on Save; no API calls fired', async ({
+test.describe('Scenario 18 — Row validation: a missing amount shows a cell error, no navigation (Story #1764)', () => {
+  test('A row with a task but no unit price shows the cell error on Save; no API calls fired', async ({
     page,
     testPrefix,
   }) => {
@@ -1696,20 +1688,10 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
 
       const reviewPage = await navigateToReviewPage(page);
 
-      // ── Set up invalid live-line amount BEFORE queuing the draft ────────────
-      // The invalid-amount guard in materializeInlineDrafts checks the LIVE LINE's
-      // financials (not the inline draft form), so we must manipulate the live line:
-      // 1. Clear the live unit price → disables unit-pricing mode (hasUnitPricing = false)
-      // 2. Set totalAmount = -1  → causes netBase = -1 < 0 → inlineDraftInvalid
-      // After queuing, the cardMetricGrid is hidden so these inputs are no longer accessible.
-      const liveLineRow = reviewPage.lineRow(0);
-      await liveLineRow.getByLabel('Edit line item unit price').fill('');
-      await liveLineRow.getByLabel('Edit line item total amount').fill('-1');
-
-      // ── Queue create-new on first line ─────────────────────────────────────
+      // ── Choose the task for the first row, then clear its unit price ────────
       await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S18 WI`);
-      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
-      await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
+      await reviewPage.lineUnitPrice(0).fill('');
+      await expect(reviewPage.lineRow(0)).toContainText(`${testPrefix} PF-S18 WI`);
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
       await reviewPage.setVendor(`${testPrefix} PF-S18 Vendor`);
@@ -1717,13 +1699,9 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
       // ── Click "Create Invoice & Itemize" ────────────────────────────────────
       await reviewPage.confirmButton.click();
 
-      // ── Assert: page-level inlineDraftInvalid error banner visible ──────────
-      // The error text is: t('autoItemize.inlineDraftInvalid') =
-      //   "Invalid amount in queued budget line. Please fix before saving."
-      await expect(reviewPage.pageErrorBanner).toBeVisible();
-      await expect(reviewPage.pageErrorBanner).toContainText(
-        'Invalid amount in queued budget line',
-      );
+      // ── Assert: the row shows the unit price error, nothing is saved ────────
+      await expect(reviewPage.grid.errors().first()).toContainText('Enter a unit price');
+      await expect(reviewPage.lineUnitPrice(0)).toHaveAttribute('aria-invalid', 'true');
 
       // ── Assert: URL unchanged — page did not navigate ───────────────────────
       expect(page.url()).toContain('/budget/invoices/new/paperless');
@@ -1888,7 +1866,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
 
       // ── Queue create-new on the single extracted line ──────────────────────
       await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`, { budgetSourceId });
-      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+      await expect(reviewPage.lineRow(0)).toContainText(`${testPrefix} PF-S19 WI`);
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
       await reviewPage.setVendor(`${testPrefix} PF-S19 Vendor`);

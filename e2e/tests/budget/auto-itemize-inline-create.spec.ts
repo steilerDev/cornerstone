@@ -1,22 +1,19 @@
 /**
- * E2E tests for Bug A (#1737): Auto-Itemize inline "Create Budget Line" queue flow.
+ * E2E tests for Bug A (#1737), rebuilt on the cost line grid in #2235: Split with AI creates a NEW
+ * cost line for a row that has a task or purchase under "Belongs to" - but only when Save is
+ * clicked.
  *
- * Before fix #1737, clicking "Create Budget Line" in the picker step-2 immediately
- * created the WI budget line and invoice-budget-line link. After fix #1737, clicking
- * "Create Budget Line" QUEUES the creation: the picker closes, the line card shows an
- * amber "Creating New" badge (data-testid="creating-new-badge") plus an inline
- * BudgetLineForm and a "Discard" button. No actual API calls are made until the outer
- * Save button is clicked.
+ * Before fix #1737 the line was created the moment it was chosen. Now choosing the task only
+ * marks the row: no API call is made until the outer Save button is clicked (the old picker
+ * modal, the "Creating New" badge and the inline form are gone).
  *
  * Scenarios:
- *   1. [smoke] Happy path: queue create-new → badge + inline form visible → edit description
- *              → Save → POST /api/work-items/:id/budgets called with correct amounts
- *              → POST /api/invoices/:id/auto-itemize (commit) called
- *              → navigate to invoice detail → verify API state.
- *   2. Cancel-after-queue: queue create-new → navigate away / cancel confirm → no budget line
- *              POST ever fires.
- *   3. Discard inline: queue create-new → click Discard → inline form hidden + Assign button
- *              returns → no create API call.
+ *   1. [smoke] Happy path: pick the task under Belongs to + a category -> edit the description
+ *              -> Save -> POST /api/work-items/:id/budgets called with correct amounts
+ *              -> POST /api/invoices/:id/auto-itemize (commit) called
+ *              -> navigate to invoice detail -> verify API state.
+ *   2. Cancel after choosing the task: the discard dialog appears, discarding creates nothing.
+ *   3. Clearing "Belongs to" restores the empty picker and creates nothing.
  *   4. Regression test for bug #1833: retry Save after a REAL commit failure
  *              (ITEMIZED_SUM_EXCEEDS_INVOICE) reuses the already-created WI budget
  *              line instead of creating a duplicate.
@@ -26,17 +23,15 @@
  *   - POST /api/invoices/:id/auto-itemize (dry-run): intercepted to return one deterministic
  *     line (VAT-inclusive, totalAmount=200, description "Test Line").
  *   - GET /paperless/documents/:docId: intercepted to return a stub document.
- *   - POST /api/invoices/:id/auto-itemize (commit) in Scenario 1: continue (real API).
- *   - POST /api/work-items/:id/budgets in Scenario 1: continue (real API — captured for payload
- *     assertion).
+ *   - POST /api/invoices/:id/auto-itemize (commit) and POST /api/work-items/:id/budgets: real API
+ *     (the latter is captured for payload assertions).
  *   - Absence assertions (Scenarios 2 & 3): verify POST /api/work-items/:id/budgets was NEVER
  *     called using page.on('request', ...) counting.
  *
- * Invoice amount is set to 200 (>= effectiveLineAmount for a 200 VAT-inclusive line = 200),
- * ensuring the server's Σ-guard does not reject the commit.
+ * Invoice amount is set to 200 (>= the gross of a 200 VAT-inclusive line), so the server's
+ * sum guard does not reject the commit.
  *
- * All tests skip on mobile viewports (<600px) — AutoItemizePage is a
- * desktop/tablet functional flow.
+ * All tests skip on mobile viewports (<600px) - Split with AI is a desktop/tablet functional flow.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -221,12 +216,9 @@ async function navigateAndWaitForDryRun(
 }
 
 /**
- * Open the assign picker modal on line card 0, select the given work item,
- * navigate to step 2, and click "Create Budget Line".
- * On return, the picker is closed and the line card shows the inline form.
- *
- * Pass `budgetSourceId` for any flow that saves the draft: the inline form's Funding Source
- * otherwise defaults to the first source, which a parallel worker may delete.
+ * Mark row 1 as "create a new cost line on this work item": pick the work item under Belongs to
+ * and a cost category (a row that creates a line needs one). Pass `budgetSourceId` for any flow
+ * that saves: the Funding source otherwise defaults to Discretionary.
  */
 async function queueCreateNew(
   page: Page,
@@ -234,34 +226,12 @@ async function queueCreateNew(
   workItemTitle: string,
   budgetSourceId?: string,
 ): Promise<void> {
-  // Open assign picker (step 1)
-  const assignBtn = autoItemizePage.lineAssignButton(0);
-  await expect(assignBtn).toBeVisible();
-  await assignBtn.click();
-  await expect(autoItemizePage.pickerModal).toBeVisible();
-
-  // Search for and select the work item
-  await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-  await autoItemizePage.pickerWorkItemSearchInput.fill(workItemTitle);
-
-  const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-    name: new RegExp(workItemTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
-  });
-  await wiOption.waitFor({ state: 'visible' });
-  await wiOption.click();
-
-  // Step 2: click "Create Budget Line"
-  const step2Modal = autoItemizePage.pickerStep2Modal();
-  await expect(step2Modal).toBeVisible();
-  await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
-  await autoItemizePage.pickerCreateBudgetLineButton.click();
-
-  // Picker closes immediately (Bug A fix: close on queue, not on create)
-  await expect(autoItemizePage.pickerModal).not.toBeVisible();
+  await autoItemizePage.grid.targetPicker(1).pick(workItemTitle);
+  await expect(autoItemizePage.grid.row(1)).toContainText(workItemTitle);
+  await autoItemizePage.lineCategory(0).selectOption({ index: 1 });
 
   if (budgetSourceId) {
-    const sourceSelect = autoItemizePage.getInlineDraftSourceSelect(0);
-    await expect(sourceSelect).toBeVisible();
+    const sourceSelect = autoItemizePage.lineFundingSource(0);
     await sourceSelect.selectOption(budgetSourceId);
     await expect(sourceSelect).toHaveValue(budgetSourceId);
   }
@@ -272,7 +242,7 @@ async function queueCreateNew(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test(
-  'Scenario 1 [smoke]: queue "Create Budget Line" shows amber badge + inline form; Save creates WI budget and invoice link with correct amounts',
+  'Scenario 1 [smoke]: choosing a task under Belongs to; Save creates the WI cost line and the invoice link with correct amounts',
   { tag: '@smoke' },
   async ({ page, testPrefix }) => {
     const vw = page.viewportSize()?.width ?? 1440;
@@ -312,30 +282,16 @@ test(
 
       await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
-      // ── Verify initial state: Assign button visible (no badge yet) ───────────
-      await expect(autoItemizePage.lineAssignButton(0)).toBeVisible();
-      await expect(autoItemizePage.getCreatingNewBadge(0)).not.toBeVisible();
+      // ── Verify initial state: Belongs to is empty (nothing will be created) ─────
+      await expect(autoItemizePage.lineTarget(0)).toBeVisible();
+      await expect(autoItemizePage.lineTarget(0)).toHaveValue('');
 
-      // ── Queue the create-new operation ────────────────────────────────────────
+      // ── Choose the task (and category / funding source) ──────────────────────
       await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S1 WI`, budgetSourceId);
 
-      // ── Assert: amber "Creating New" badge visible on card 0 (Bug A guard) ───
-      await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
-
-      // ── Assert: inline BudgetLineForm wrapper visible ────────────────────────
-      await expect(autoItemizePage.getInlineFormWrapper(0)).toBeVisible();
-
-      // ── Assert: Discard button visible inside the card ───────────────────────
-      await expect(autoItemizePage.getInlineDraftDiscardButton(0)).toBeVisible();
-
-      // ── Assert: "Assign…" button is gone (replaced by badge + form) ─────────
-      await expect(autoItemizePage.lineAssignButton(0)).not.toBeVisible();
-
-      // ── Edit the description in the inline form ──────────────────────────────
-      const descInput = autoItemizePage.getInlineDraftDescriptionInput(0);
-      await expect(descInput).toBeVisible();
+      // ── Edit the description in the row ──────────────────────────────────────
       const editedDesc = `${testPrefix} AIQ-S1 Edited Desc`;
-      await descInput.fill(editedDesc);
+      await autoItemizePage.lineDescription(0).fill(editedDesc);
 
       // ── Intercept POST /api/work-items/:id/budgets to capture payload ─────────
       // Registered BEFORE saveButton.click() to avoid race with fast server.
@@ -429,7 +385,7 @@ test(
 // Scenario 2: Cancel-after-queue — no API call ever fired
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 2: cancel after queuing create-new navigates away without creating any budget line', async ({
+test('Scenario 2: cancel after choosing a task navigates away without creating any cost line', async ({
   page,
   testPrefix,
 }) => {
@@ -470,13 +426,11 @@ test('Scenario 2: cancel after queuing create-new navigates away without creatin
 
     await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
-    // ── Queue the create-new ──────────────────────────────────────────────────
+    // ── Choose the task for the row ───────────────────────────────────────────
     await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S2 WI`);
-    await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
 
-    // ── Click Cancel (form is dirty — badge queued = dirty state) ────────────
-    // AutoItemizePage treats queued inline drafts as a dirty state, so Cancel
-    // should show the "Discard Changes?" confirmation modal.
+    // ── Click Cancel (the page is dirty after the edit) ───────────────────────
+    // Cancel shows the "Discard changes?" confirmation modal.
     await autoItemizePage.cancelButton.click();
     await expect(autoItemizePage.cancelModal).toBeVisible();
 
@@ -510,7 +464,7 @@ test('Scenario 2: cancel after queuing create-new navigates away without creatin
 // Scenario 3: Discard inline — form hides, Assign button returns
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 3: clicking Discard on the inline form removes the badge and restores the Assign button without creating anything', async ({
+test('Scenario 3: clearing Belongs to restores the empty picker without creating anything', async ({
   page,
   testPrefix,
 }) => {
@@ -551,25 +505,19 @@ test('Scenario 3: clicking Discard on the inline form removes the badge and rest
 
     await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
-    // ── Queue the create-new ──────────────────────────────────────────────────
+    // ── Choose the task for the row ───────────────────────────────────────────
     await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S3 WI`);
+    await expect(autoItemizePage.grid.row(1)).toContainText(`${testPrefix} AIQ-S3 WI`);
 
-    // ── Verify badge + inline form are visible ────────────────────────────────
-    await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
-    await expect(autoItemizePage.getInlineFormWrapper(0)).toBeVisible();
-    await expect(autoItemizePage.getInlineDraftDiscardButton(0)).toBeVisible();
+    // ── Clear the choice ──────────────────────────────────────────────────────
+    await autoItemizePage.grid
+      .row(1)
+      .getByRole('button', { name: 'Clear selection', exact: true })
+      .click();
 
-    // ── Click Discard ─────────────────────────────────────────────────────────
-    await autoItemizePage.getInlineDraftDiscardButton(0).click();
-
-    // ── Assert: badge is gone ─────────────────────────────────────────────────
-    await expect(autoItemizePage.getCreatingNewBadge(0)).not.toBeVisible();
-
-    // ── Assert: inline form wrapper is gone ──────────────────────────────────
-    await expect(autoItemizePage.getInlineFormWrapper(0)).not.toBeVisible();
-
-    // ── Assert: "Assign…" button has returned ─────────────────────────────────
-    await expect(autoItemizePage.lineAssignButton(0)).toBeVisible();
+    // ── Assert: the empty Belongs to picker is back ───────────────────────────
+    await expect(autoItemizePage.lineTarget(0)).toBeVisible();
+    await expect(autoItemizePage.lineTarget(0)).toHaveValue('');
 
     // ── Assert: still on the AutoItemizePage ─────────────────────────────────
     await expect(autoItemizePage.pageTitle).toBeVisible();
@@ -654,9 +602,8 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
 
     await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
-    // ── Queue the create-new operation ────────────────────────────────────────
+    // ── Choose the task for the row ───────────────────────────────────────────
     await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S4 WI`, budgetSourceId);
-    await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
 
     // ── First Save: materialize succeeds (real WI budget POST), commit fails ──
     const firstWiCreatePromise = page.waitForResponse(
@@ -689,7 +636,7 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
     expect(page.url()).toContain('auto-itemize');
 
     // ── Assert (#2149): the materialized row now renders as a linked, read-only row ──
-    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    await expect(autoItemizePage.lineExistingLabel(0)).toBeVisible();
     await expect(autoItemizePage.lineDescription(0)).toHaveCount(0);
 
     // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────

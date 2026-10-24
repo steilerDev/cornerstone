@@ -332,7 +332,7 @@ test.describe('Visual defects — purchase delete dialog (AC1)', { tag: '@respon
 
 test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@responsive' }, () => {
   for (const theme of ['light', 'dark'] as const) {
-    test(`D-22: Task page with long title and expanded invoice group does not scroll sideways (${theme})`, async ({
+    test(`D-22: Task page with long title and a linked cost line does not scroll sideways (${theme})`, async ({
       page,
       testPrefix,
     }) => {
@@ -361,19 +361,15 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
       await detail.goto(workItemId);
       await setTheme(page, theme);
 
-      // Collapsed first, then expanded: both states must fit the viewport
-      expect(await hasSidewaysScroll(page), 'before expanding the invoice group').toBe(false);
+      // The cost lines (state chip, long description, long offer title) must fit the viewport,
+      // and so must the edit form opened from the row (#2235)
+      await detail.costLines.waitForLoaded();
+      await expect(detail.costLines.rows()).toHaveCount(1);
+      expect(await hasSidewaysScroll(page), 'cost lines table').toBe(false);
 
-      const toggle = page
-        .locator('[class*="toggleBtn"][aria-expanded]')
-        .filter({ hasText: invoiceNumber })
-        .first();
-      await toggle.scrollIntoViewIfNeeded();
-      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      await toggle.click();
-      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-      expect(await hasSidewaysScroll(page), 'after expanding the invoice group').toBe(false);
+      await detail.costLines.chooseAction(detail.costLines.rows().first(), 'Edit');
+      await expect(page.getByTestId('cost-line-form-sheet')).toBeVisible();
+      expect(await hasSidewaysScroll(page), 'edit cost line form').toBe(false);
     });
 
     test(`D-22: Project setup has no tab row and no sideways scroll on a phone (${theme})`, async ({

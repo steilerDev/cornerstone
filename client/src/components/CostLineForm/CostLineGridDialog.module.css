@@ -1,0 +1,107 @@
+.dialog.dialog {
+  width: min(60rem, 100vw - 2rem);
+  max-width: none;
+  max-height: calc(100dvh - var(--spacing-16));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+}
+
+.dialogWide.dialogWide {
+  width: min(90rem, 100vw - 2rem);
+  max-width: none;
+  max-height: calc(100dvh - var(--spacing-16));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+}
+
+.oneColumn {
+  min-width: 0;
+}
+
+/* Grid and document side by side from 1024px. */
+.twoColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--spacing-4);
+  align-items: start;
+}
+
+.gridColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+.previewColumn {
+  position: sticky;
+  top: var(--spacing-4);
+  min-width: 0;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  max-height: calc(100dvh - 2 * var(--spacing-4));
+  overflow: hidden;
+}
+
+.previewHeading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  width: 100%;
+}
+
+.status {
+  margin-right: auto;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.attention {
+  min-height: var(--touch-target-min);
+  padding: 0;
+  font: inherit;
+  color: var(--color-danger-active);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.attention:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
+/* The dialog's one primary. */
+.save {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}
+
+.save[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* The visible reason Save is inert while the funding sources load (a failure shows the banner). */
+.saveReason {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

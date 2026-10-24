@@ -38,6 +38,8 @@ import deHistory from './de/history.json';
 import dePhotoViewer from './de/photoViewer.json';
 import dePhotoAnnotator from './de/photoAnnotator.json';
 import dePhotos from './de/photos.json';
+import enCostLines from './en/costLines.json';
+import deCostLines from './de/costLines.json';
 
 // ─── Namespace registry ─────────────────────────────────────────────────────
 //
@@ -63,6 +65,7 @@ const NAMESPACES: { name: string; en: Record<string, unknown>; de: Record<string
   { name: 'photoViewer', en: enPhotoViewer, de: dePhotoViewer },
   { name: 'photoAnnotator', en: enPhotoAnnotator, de: dePhotoAnnotator },
   { name: 'photos', en: enPhotos, de: dePhotos },
+  { name: 'costLines', en: enCostLines, de: deCostLines },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -363,8 +366,20 @@ describe('#2188 deposits-exceed-invoice copy', () => {
 
 describe('#2196 visual-defects keys', () => {
   const bundles = {
-    en: { diary: enDiary, budget: enBudget, workItems: enWorkItems, home: enHome },
-    de: { diary: deDiary, budget: deBudget, workItems: deWorkItems, home: deHome },
+    en: {
+      diary: enDiary,
+      budget: enBudget,
+      workItems: enWorkItems,
+      home: enHome,
+      costLines: enCostLines,
+    },
+    de: {
+      diary: deDiary,
+      budget: deBudget,
+      workItems: deWorkItems,
+      home: deHome,
+      costLines: deCostLines,
+    },
   } as unknown as Record<
     string,
     {
@@ -372,6 +387,7 @@ describe('#2196 visual-defects keys', () => {
       budget: { invoiceGroup: Record<string, string> };
       workItems: { detail: { householdItems: Record<string, unknown> } };
       home: { attention: Record<string, string> };
+      costLines: { table: Record<string, string> };
     }
   >;
 
@@ -390,8 +406,15 @@ describe('#2196 visual-defects keys', () => {
       expect(b.diary.metadata).not.toHaveProperty('workers');
     });
 
-    it(`${locale}: budget invoiceGroup.planned and home attention.empty exist`, () => {
-      expect(b.budget.invoiceGroup.planned).toMatch(/\S/);
+    // The cost-line table's earlier-estimate text had a hard-coded English label (formerly budget
+    // invoiceGroup.planned). CostLineTable shows it as table.estimateWas.
+    it(`${locale}: the cost-line table's earlier-estimate text is translated (costLines table.estimateWas)`, () => {
+      expect(b.costLines.table.estimateWas).toMatch(/\S/);
+      expect(b.costLines.table.estimateWas).toContain('{{amount}}');
+      expect(b.budget).not.toHaveProperty('invoiceGroup');
+    });
+
+    it(`${locale}: home attention.empty exists`, () => {
       expect(b.home.attention.empty).toMatch(/\S/);
     });
 

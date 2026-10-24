@@ -872,3 +872,10 @@
   margin: 0 0 var(--spacing-4);
   overflow-wrap: anywhere;
 }
+
+/* Grants under the cost lines */
+.grantsSubsection {
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-5);
+  border-top: 1px solid var(--color-border);
+}

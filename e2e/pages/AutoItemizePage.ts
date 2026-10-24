@@ -1,56 +1,34 @@
 /**
- * Page Object Model for the Auto-Itemize Page
+ * Page Object Model for the Split with AI page
  * Route: /budget/invoices/:id/auto-itemize/:documentId
  *
- * Updated in story #1576 (auto-itemize UI rework):
- * - Line table replaced with <ul role="list"> of .lineCard elements
- * - Skeleton loader replaced with Spinner (role="img" aria-label="Analyzing invoice")
- * - DocumentDetailPanel replaced with <iframe title="Invoice PDF preview">
- * - Status select added: <select id="invoice-status">
- * - vatRate input removed from line cards
+ * Since #2235 the lines are the shared cost line grid (`CostLineGrid`, test id prefix
+ * `auto-itemize-grid`): one editable row per extracted line (Include checkbox, merge-selection
+ * checkbox, Description, Quantity, Unit, Unit price, Entered as Net|Gross toggle, Gross,
+ * Belongs to picker, Cost category and Funding source selects, Duplicate / Use an existing cost
+ * line… / Remove). The old line cards, the "Assign…" picker modal and the inline "Create Budget
+ * Line" draft are gone: a row creates a NEW cost line on its task or purchase (its own Belongs to,
+ * else "Assign all to"), or links an EXISTING one ("Use an existing cost line…").
  *
- * DOM observations from AutoItemizePage.tsx:
- * - Loading state:
- *   - Spinner: role="img" aria-label="Analyzing invoice" (t('autoItemize.spinnerLabel'))
- *   - analyzingCaption: <p class="analyzingCaption"> with t('autoItemize.analyzing') = "Analyzing… (Ns)"
- * - Ready state:
- *   - pageTitle: h1 "Split with AI" (common:navigation.splitWithAi; same in loading/error/ready, #2203)
- *   - breadcrumbs: shared Breadcrumbs row, trail "Money › Invoices › ‹invoice h1›" (BreadcrumbsBar)
- *   - metadataCard: invoice metadata form with inputs #invoice-number, #amount, #date, #due-date, #notes
- *   - SuggestionBadge fields: invoiceNumber, amount, date, dueDate, notes (all use same badge pattern)
- *   - statusSelect: <select id="invoice-status"> with status options
- *   - lineList: <ul role="list" aria-label="Extracted line items"> containing <li class*="lineCard">
- *   - Each lineCard:
- *     - cardTopRow: <textarea class*="cardDescriptionInput"> for description
- *     - cardMetricGrid: 4 metric cells (qty, unit, unitPrice, totalAmount) each with <input class*="cardMetricInput">
- *     - cardBottomRow: include checkbox (1st), VAT checkbox (2nd), assign zone
- *   - PDF preview column:
- *     - pdfIframe: <iframe title="Invoice PDF preview">
- *     - pdfLoadingOverlay: <div class*="pdfLoadingOverlay"> (while iframe loading)
- *     - pdfFallback: <div role="region" aria-label="PDF preview unavailable"> on error
- *   - SuggestionBadge: <span class="badge"> adjacent to amount/date/dueDate fields
- *   - saveButton: button with t('autoItemize.save') = "Save" / t('autoItemize.saving') = "Saving..."
- *   - cancelButton: button with t('autoItemize.cancel') = "Cancel"
- * - Error state:
- *   - errorBanner: FormError with variant="banner" → role="alert"
- *   - retryButton: button with t('autoItemize.retry') = "Retry"
- * - Cancel confirmation (#2209: the shared ConfirmDialog, role="alertdialog", testid prefix
- *   auto-itemize-discard):
- *   - title: common confirmDialog.discardChangesTitle = "Discard changes?"
- *   - discardButton: "Discard" (auto-itemize-discard-confirm)
- *   - keepEditingButton: "Keep editing" (auto-itemize-discard-cancel)
- * - Budget line picker modal (updated in story #1597 — ParentPicker reuse):
- *   - Step 1: "Assign to Work Item or Household Item"
- *       Uses ParentPicker with role="tablist": "Work Item" tab + "Household Item" tab
- *       Active tab shows its search input (Work Items or Household Items)
- *   - Step 2: "Select Budget Line for {itemTitle}"
- * - Layout columns: .formColumn and .previewColumn
- *   Breakpoint: @media (max-width: 860px) → single column, formColumn order:1, previewColumn order:2
+ * Row indexes in this class are 0-based (`lineX(0)` is "row 1" of the grid); the grid POM itself
+ * is 1-based (`grid.row(1)`).
+ *
+ * Page structure (AutoItemizePage.tsx):
+ * - Loading: Spinner role="img" aria-label="Analyzing invoice" + caption "Analyzing… (Ns)"
+ * - Ready: h1 "Split with AI", breadcrumb trail "Money › Invoices › ‹invoice h1›", metadata card
+ *   (#invoice-number, #amount, #date, #due-date, #notes, #invoice-status with SuggestionBadges),
+ *   mode radios (Append | Replace), the grid card with the total + variance indicator, Save /
+ *   Cancel; PDF preview column (iframe "Invoice PDF preview")
+ * - Error: FormError banner (role="alert") + Retry
+ * - Cancel with edits: the shared ConfirmDialog (prefix `auto-itemize-discard`)
+ * - Merge: select two rows, "Merge" in the SelectionActionBar; a merging row is a notice row
+ *   ("Merging 2 items…"), a failed one an alert row with "Restore original lines" and "Retry"
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { CostLineGrid } from './components/CostLineGrid.js';
 
 export class AutoItemizePage {
   readonly page: Page;
@@ -62,19 +40,8 @@ export class AutoItemizePage {
   readonly saveButton: Locator;
   readonly cancelButton: Locator;
 
-  // Loading state — Spinner replaces old Skeleton (story #1576)
-  /**
-   * The Spinner shown during LLM dry-run.
-   * Rendered as role="img" with aria-label="Analyzing invoice"
-   * (t('autoItemize.spinnerLabel') = "Analyzing invoice").
-   */
+  // Loading state
   readonly spinner: Locator;
-
-  /**
-   * The elapsed-seconds caption below the spinner.
-   * aria-hidden="true" on the <p> element; class*="analyzingCaption".
-   * Text: "Analyzing… (Ns)" — matches regex /\(\d+s\)/
-   */
   readonly analyzingCaption: Locator;
 
   // Error state
@@ -87,35 +54,15 @@ export class AutoItemizePage {
   readonly invoiceDateInput: Locator;
   readonly dueDateInput: Locator;
   readonly notesInput: Locator;
-
-  /**
-   * Status select: <select id="invoice-status">.
-   * Options: pending, paid, claimed, quotation (t('invoices.statusLabels.*')).
-   */
+  /** `<select id="invoice-status">` (To pay, Paid, Submitted, Offer). */
   readonly statusSelect: Locator;
 
-  // PDF preview (story #1576)
-  /**
-   * The PDF iframe: <iframe title="Invoice PDF preview">
-   * (t('autoItemize.pdfPreviewTitle') = "Invoice PDF preview").
-   * src = {baseUrl}/paperless/documents/{documentId}/preview
-   */
+  // PDF preview
   readonly pdfIframe: Locator;
-
-  /**
-   * Loading overlay shown while iframe is loading.
-   * <div class*="pdfLoadingOverlay"> containing a Spinner (aria-hidden="true").
-   */
   readonly pdfLoadingOverlay: Locator;
-
-  /**
-   * Fallback panel shown when iframe fires an error event.
-   * <div role="region" aria-label="PDF preview unavailable">
-   * (t('autoItemize.previewUnavailable') = "PDF preview unavailable")
-   */
   readonly pdfFallback: Locator;
 
-  // Cancel confirmation modal
+  // Cancel confirmation
   readonly cancelModal: Locator;
   readonly discardButton: Locator;
   readonly keepEditingButton: Locator;
@@ -123,227 +70,81 @@ export class AutoItemizePage {
   // Live region for a11y announcements
   readonly liveRegion: Locator;
 
-  // Layout columns (for responsive checks)
+  // Layout columns (responsive checks)
   readonly formColumn: Locator;
   readonly previewColumn: Locator;
 
-  // ─── Per-row assignment picker modal (story #1597 — ParentPicker reuse) ──────
-  //
-  // The budget line picker modal has two steps:
-  //  Step 1: ParentPicker with tab UX (Work Item tab / Household Item tab)
-  //    - pickerModal: role="dialog" filtered by h2 "Assign to Work Item or Household Item"
-  //    - getParentPickerWorkItemTab(): role="tab" name="Work Item" (inside pickerModal)
-  //    - getParentPickerHouseholdItemTab(): role="tab" name="Household Item" (inside pickerModal)
-  //    - pickerWorkItemSearchInput: search input visible when Work Item tab is active
-  //    - pickerHouseholdItemSearchInput: search input visible when Household Item tab is active
-  //  Step 2: Budget line list (modal title changes to step-2 title)
-  //    - pickerBudgetLineRows: buttons class*="pickerBudgetLineRow"
-  //    - pickerBackButton: "← Back" button
-  //    - pickerCreateBudgetLineButton: "Create Budget Line" button
-  //    - pickerCreateBudgetLineFieldset: fieldset class*="createBudgetLineFieldset"
-
-  /** Budget line assignment picker modal (step 1 — "Assign to Work Item or Household Item"). */
-  readonly pickerModal: Locator;
+  /** The lines grid (prefix `auto-itemize-grid`). */
+  readonly grid: CostLineGrid;
 
   /**
-   * Search input for Work Items in step 1 of the picker modal.
-   * Rendered by ParentPicker → WorkItemPicker → SearchPicker as a plain <input type="text">
-   * with placeholder "Work Item" (t('budgetLineForm.parentPickerWorkItemTab')).
-   * Only visible when the Work Item tab is active (default state).
-   */
-  readonly pickerWorkItemSearchInput: Locator;
-
-  /**
-   * Search input for Household Items in step 1 of the picker modal.
-   * Rendered by ParentPicker → HouseholdItemPicker → SearchPicker as a plain <input type="text">
-   * with placeholder "Household Item" (t('budgetLineForm.parentPickerHouseholdItemTab')).
-   * Only visible when the Household Item tab is active (click householdItemTab to activate).
-   */
-  readonly pickerHouseholdItemSearchInput: Locator;
-
-  /**
-   * "← Back" button in step 2 of the picker modal.
-   * Returns to step 1. Text: t('invoiceDetail.budgetLines.picker.backButton') = "← Back"
-   */
-  readonly pickerBackButton: Locator;
-
-  /**
-   * "Create Budget Line" button in step 2 of the picker modal (empty-state or below list).
-   * Text: t('invoiceDetail.budgetLines.picker.createLine') = "Create Budget Line"
-   */
-  readonly pickerCreateBudgetLineButton: Locator;
-
-  /**
-   * Fieldset wrapping the inline BudgetLineForm in step 2.
-   * Only rendered when pickerState.showCreateForm=true.
-   * class*="createBudgetLineFieldset"
-   */
-  readonly pickerCreateBudgetLineFieldset: Locator;
-
-  // ─── Story #1600: portal dropdown + auto-created badge ───────────────────────
-
-  /**
-   * Portalled dropdown rendered by SearchPicker into document.body.
-   * Has attribute [data-search-picker-dropdown] on the portal root element.
-   * Scoped to the full page (not pickerModal) because the portal is at body level.
-   */
-  readonly pickerPortalDropdown: Locator;
-
-  /**
-   * Badge displayed on the assigned zone when the budget line was created from
-   * the extraction prefill flow (createdFromExtraction=true).
-   * i18n key: autoItemize.createdFromAutoItemization = "Auto-created"
-   * Stable via data-testid="auto-created-badge".
-   */
-  readonly autoCreatedBadge: Locator;
-
-  // ─── Story #1551: discretionary funding note ─────────────────────────────────
-
-  /**
-   * Informational note rendered when ≥1 extracted line uses the discretionary
-   * budget source. Rendered as:
-   *   <p role="note" className={styles.discretionaryNote} aria-label={...}>
-   *
-   * Present only when:
-   *   - picker.pickerState.budgetSources contains an isDiscretionary=true source
-   *   - at least one line.budgetSourceId === that discretionary source's id
-   *
-   * Selector: `[role="note"][class*="discretionaryNote"]`
+   * Informational note rendered when at least one row creates a line on the discretionary
+   * funding source: `<p role="note" class*="discretionaryNote">`.
    */
   readonly discretionaryNote: Locator;
+
+  /** The "Merge" button of the SelectionActionBar (accessible name "Merge n selected line items"). */
+  readonly mergeButton: Locator;
+  readonly clearSelectionButton: Locator;
+  /** Grid notice rows (a merging or failed merge). */
+  readonly mergingRow: Locator;
+  readonly mergeErrorRow: Locator;
+  readonly mergeRetryButton: Locator;
+  readonly mergeUndoButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
-    // The h1 title: "Split with AI"
     this.pageTitle = page.getByRole('heading', { level: 1 });
-
-    // Shared breadcrumb row (trail + optional origin Back)
     this.breadcrumbs = new BreadcrumbsBar(page);
-
-    // Save button: "Save" / "Saving..."
     this.saveButton = page.getByRole('button', { name: /^Save$|^Saving\.\.\.$/i });
-
-    // Cancel button in the form actions area
-    // We scope to the actions container to avoid matching "Keep Editing" / "Discard" buttons
     this.cancelButton = page.locator('[class*="actions"]').getByRole('button', {
       name: /^Cancel$/i,
       exact: true,
     });
 
-    // Spinner during LLM dry-run: role="img" aria-label="Analyzing invoice"
-    // The Spinner component renders role="img" with the label prop as aria-label.
-    // t('autoItemize.spinnerLabel') = "Analyzing invoice"
     this.spinner = page.locator('[role="img"][aria-label="Analyzing invoice"]');
-
-    // Elapsed-seconds caption: class*="analyzingCaption", aria-hidden="true"
-    // Text: "Analyzing… (Ns)" — rendered while pageStatus === 'loading'
     this.analyzingCaption = page.locator('[class*="analyzingCaption"]');
 
-    // Error banner (FormError variant="banner" → role="alert")
     this.errorBanner = page.locator('[role="alert"]').first();
-
-    // Retry button: "Retry"
     this.retryButton = page.getByRole('button', { name: /^Retry$/i });
 
-    // Metadata inputs
     this.invoiceNumberInput = page.locator('#invoice-number');
     this.totalAmountInput = page.locator('#amount');
     this.invoiceDateInput = page.locator('#date');
     this.dueDateInput = page.locator('#due-date');
     this.notesInput = page.locator('#notes');
-
-    // Status select: <select id="invoice-status">
     this.statusSelect = page.locator('#invoice-status');
 
-    // PDF iframe: <iframe title="Invoice PDF preview">
-    // t('autoItemize.pdfPreviewTitle') = "Invoice PDF preview"
     this.pdfIframe = page.locator('iframe[title="Invoice PDF preview"]');
-
-    // PDF loading overlay: <div class*="pdfLoadingOverlay"> (shown while iframe is loading)
     this.pdfLoadingOverlay = page.locator('[class*="pdfLoadingOverlay"]');
-
-    // PDF fallback panel: <div role="region" aria-label="PDF preview unavailable">
-    // Rendered when iframe fires onError. t('autoItemize.previewUnavailable') = "PDF preview unavailable"
     this.pdfFallback = page.locator('[role="region"][aria-label="PDF preview unavailable"]');
 
-    // Cancel confirmation: the shared ConfirmDialog (role="alertdialog"), title "Discard changes?"
     this.cancelModal = page
       .getByRole('alertdialog')
       .filter({ has: page.getByTestId('auto-itemize-discard-cancel') });
-
-    // "Discard" action inside the cancel dialog
     this.discardButton = this.cancelModal.getByTestId('auto-itemize-discard-confirm');
-
-    // "Keep editing" button inside the cancel dialog
     this.keepEditingButton = this.cancelModal.getByTestId('auto-itemize-discard-cancel');
 
-    // Live region for a11y announcements (role="status" aria-atomic="true")
     this.liveRegion = page.locator('[role="status"][aria-atomic="true"]');
 
-    // Layout columns
     this.formColumn = page.locator('[class*="formColumn"]');
     this.previewColumn = page.locator('[class*="previewColumn"]');
 
-    // ─── Per-row assignment picker modal (story #1597 — ParentPicker reuse) ─────
-    // The Modal uses useId() for aria-labelledby — NOT accessible name on the dialog itself.
-    // Filter by the h2 text to scope to the correct dialog.
-    this.pickerModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
-    });
-
-    // ─── Story #1600: portal dropdown + auto-created badge ───────────────────
-    // Portal dropdown is rendered into document.body by SearchPicker — scoped to page.
-    this.pickerPortalDropdown = page.locator('[data-search-picker-dropdown]');
-
-    // Auto-created badge: rendered as <Badge testId="auto-created-badge"> inside assignedBadge zone.
-    this.autoCreatedBadge = page.getByTestId('auto-created-badge');
-
-    // ─── Story #1551: discretionary funding note ─────────────────────────────
-    // <p role="note" className={styles.discretionaryNote}> rendered when ≥1 line
-    // uses the discretionary budget source. CSS Modules emit the class as
-    // "discretionaryNote_<hash>", so class*="discretionaryNote" matches reliably.
+    this.grid = new CostLineGrid(page, 'auto-itemize-grid');
     this.discretionaryNote = page.locator('[role="note"][class*="discretionaryNote"]');
 
-    // Step 1 — ParentPicker renders role="tablist" with "Work Item" + "Household Item" tabs.
-    // Each tab renders a SearchPicker whose placeholder = tab label:
-    //   WorkItemPicker → placeholder="Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
-    //   HouseholdItemPicker → placeholder="Household Item" (t('budgetLineForm.parentPickerHouseholdItemTab'))
-    // The active tab's panel is rendered; the inactive tab's panel is unmounted (not hidden).
-    // Work Item search input (visible when Work Item tab is active):
-    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Work Item');
-
-    // Step 1 — Household Item search input (visible when Household Item tab is active):
-    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder('Household Item');
-
-    // Step 2 — Back and Create buttons scoped to either modal step
-    const anyPickerModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', {
-        hasText: /Assign to Work Item or Household Item|Select Budget Line/i,
-      }),
-    });
-    this.pickerBackButton = anyPickerModal.getByRole('button', { name: /← Back/i });
-    this.pickerCreateBudgetLineButton = anyPickerModal.getByRole('button', {
-      name: /Create Budget Line/i,
-    });
-    this.pickerCreateBudgetLineFieldset = anyPickerModal.locator(
-      '[class*="createBudgetLineFieldset"]',
-    );
-
-    // ─── Story #1797: Merge multiple extracted line items ────────────────────
     this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
     this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
-    this.mergingRow = page.locator('li[class*="lineCardMerging"]');
-    this.mergeErrorRow = page.locator('li[class*="lineCardMergeError"]');
-    this.mergeRetryButton = this.mergeErrorRow.getByRole('button', { name: /^Retry$/i });
-    this.mergeUndoButton = this.mergeErrorRow.getByRole('button', {
-      name: /^Restore original lines$/i,
-    });
+    this.mergingRow = this.grid.grid.locator('[role="status"]').filter({ hasText: /^Merging / });
+    this.mergeErrorRow = this.grid.grid.locator('[role="alert"]');
+    this.mergeRetryButton = page.locator('[data-testid^="auto-itemize-grid-notice-retry-"]');
+    this.mergeUndoButton = page.locator('[data-testid^="auto-itemize-grid-notice-undo-"]');
   }
 
   /**
-   * Navigate directly to the AutoItemizePage.
-   * In real usage this page is reached via InvoiceDetailPage → Itemize button.
+   * Navigate directly to the page. In real usage it is reached via the Documents panel's
+   * "Itemize" action on the invoice page.
    */
   async goto(invoiceId: string, documentId: number): Promise<void> {
     await this.page.goto(routeUrl('invoiceAutoItemize', { id: invoiceId, documentId }));
@@ -351,296 +152,132 @@ export class AutoItemizePage {
   }
 
   /**
-   * Returns the picker modal when it is in step 2 (budget line list).
-   * The modal title in step 2 changes to "Select Budget Line for {itemTitle}".
-   */
-  pickerStep2Modal(): Locator {
-    return this.page.locator('[role="dialog"]').filter({
-      has: this.page.locator('h2', { hasText: /Select Budget Line/i }),
-    });
-  }
-
-  /**
-   * Step 2 empty state: t('invoiceDetail.budgetLines.picker.noUnlinkedLines')
-   * = "No unlinked budget lines for this item."
-   */
-  pickerEmptyState(): Locator {
-    return this.pickerStep2Modal().getByText(/No unlinked budget lines for this item/i);
-  }
-
-  /**
-   * Returns a budget line row button in step 2 of the picker modal.
-   * Each unlinked budget line is rendered as <button class*="pickerBudgetLineRow">.
-   * @param nameOrIndex - 0-based row index OR a string/RegExp to match by visible text
-   */
-  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator {
-    const step2 = this.pickerStep2Modal();
-    if (typeof nameOrIndex === 'number') {
-      return step2.locator('[class*="pickerBudgetLineRow"]').nth(nameOrIndex);
-    }
-    return step2.locator('[class*="pickerBudgetLineRow"]').filter({
-      hasText: nameOrIndex,
-    });
-  }
-
-  /**
-   * Returns the SuggestionBadge container for a given field.
-   * The badge is rendered as a sibling element adjacent to the input.
-   * We locate via the SuggestionBadge component's className which uses CSS Modules.
-   *
-   * Supported fields:
-   *   'amount'        → scoped to the #amount field's parent container
-   *   'date'          → scoped to the #date field's parent container
-   *   'dueDate'       → scoped to the #due-date field's parent container
-   *   'invoiceNumber' → scoped to the #invoice-number field's parent container
-   *   'notes'         → scoped to the #notes field's parent container
+   * The SuggestionBadge container of a metadata field (a sibling of the field control inside its
+   * `.fieldRow`).
    */
   suggestionBadge(field: 'amount' | 'date' | 'dueDate' | 'invoiceNumber' | 'notes'): Locator {
-    let inputId: string;
-    if (field === 'dueDate') {
-      inputId = 'due-date';
-    } else if (field === 'invoiceNumber') {
-      inputId = 'invoice-number';
-    } else {
-      inputId = field;
-    }
-    // The badge is a sibling of the fieldControl div, inside the anonymous wrapping <div>
-    // that is the second child of the .fieldRow grid:
-    //   <div class="fieldRow">
-    //     <label>…</label>
-    //     <div>                         ← anonymous grid-col-2 wrapper
-    //       <div class="fieldControl">  ← parent of the input/textarea
-    //         <input|textarea id="…">
-    //       </div>
-    //       <span class="badge …">     ← SuggestionBadge — sibling of fieldControl
-    //     </div>
-    //   </div>
-    //
-    // Walk up to the nearest .fieldRow ancestor to scope correctly, then find the
-    // badge within that row only (avoids picking up badges from adjacent fields).
     return this.page
-      .locator(`#${inputId}`)
+      .locator(`#${AutoItemizePage.inputId(field)}`)
       .locator('xpath=ancestor::div[contains(@class,"fieldRow")]')
       .locator('[class*="badge"]')
       .first();
   }
 
-  /**
-   * Returns the Apply button inside a SuggestionBadge for a given field.
-   * Accepts the same field names as suggestionBadge().
-   */
+  /** The Apply button inside a SuggestionBadge. */
   applyBadgeButton(field: 'amount' | 'date' | 'dueDate' | 'invoiceNumber' | 'notes'): Locator {
-    let inputId: string;
-    if (field === 'dueDate') {
-      inputId = 'due-date';
-    } else if (field === 'invoiceNumber') {
-      inputId = 'invoice-number';
-    } else {
-      inputId = field;
-    }
     return this.page
-      .locator(`#${inputId}`)
+      .locator(`#${AutoItemizePage.inputId(field)}`)
       .locator('xpath=ancestor::div[contains(@class,"fieldRow") or contains(@class,"field")]')
       .first()
       .getByRole('button', { name: /Apply/i });
   }
 
-  // ─── Card-based line item accessors (story #1576) ──────────────────────────
-  //
-  // The <table> is gone. Lines are rendered as:
-  //   <ul role="list" aria-label="Extracted line items" class*="lineList">
-  //     <li class*="lineCard"> … </li>
-  //     …
-  //   </ul>
-  //
-  // Each <li class*="lineCard"> contains:
-  //   - cardTopRow: <textarea class*="cardDescriptionInput"> + confidence dot
-  //   - cardMetricGrid: 4 metric cells, each with <input class*="cardMetricInput">
-  //       0: quantity (type="number")
-  //       1: unit (type="text")
-  //       2: unitPrice (type="number")
-  //       3: totalAmount (type="number")
-  //   - cardBottomRow: 2 checkboxes (include, VAT) + assign zone
+  private static inputId(field: 'amount' | 'date' | 'dueDate' | 'invoiceNumber' | 'notes'): string {
+    if (field === 'dueDate') return 'due-date';
+    if (field === 'invoiceNumber') return 'invoice-number';
+    return field;
+  }
 
-  /**
-   * Returns the <li class*="lineCard"> at the given 0-based index in the line list.
-   * Updated in story #1576: targets card elements instead of table rows.
-   */
+  // ─── Grid rows (0-based indexes) ───────────────────────────────────────────
+
+  /** Row `index` (0-based) of the lines grid. */
   lineRow(index: number): Locator {
-    return this.page.locator('[role="list"] li[class*="lineCard"]').nth(index);
+    return this.grid.row(index + 1);
   }
 
-  /**
-   * Returns the include checkbox for the line at the given 0-based index.
-   * The include checkbox is the FIRST <input type="checkbox"> in the cardBottomRow.
-   * Updated in story #1576: scoped to cardBottomRow, uses .first().
-   */
+  /** The Include checkbox of the row. */
   lineCheckbox(index: number): Locator {
-    return this.lineRow(index)
-      .locator('[class*="cardBottomRow"]')
-      .locator('input[type="checkbox"]')
-      .first();
+    return this.grid.include(index + 1);
   }
 
-  /**
-   * Returns the VAT applies checkbox for the line at the given 0-based index.
-   * The VAT checkbox is the SECOND <input type="checkbox"> in the cardBottomRow.
-   * New in story #1576: vatRate input is gone; replaced by a simple VAT toggle checkbox.
-   */
-  lineVatCheckbox(index: number): Locator {
-    return this.lineRow(index)
-      .locator('[class*="cardBottomRow"]')
-      .locator('input[type="checkbox"]')
-      .nth(1);
-  }
-
-  /**
-   * Returns the description textarea of the line at the given 0-based index.
-   * Updated in story #1576: was <input> inside <td>; now <textarea class*="cardDescriptionInput">.
-   */
   lineDescription(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardDescriptionInput"], textarea').first();
+    return this.grid.description(index + 1);
   }
 
-  /**
-   * Returns the totalAmount input of the line at the given 0-based index.
-   * Updated in story #1576: was <input> in td.nth(5); now the 4th metric input (0-indexed: nth(3))
-   * inside the cardMetricGrid (order: qty=0, unit=1, unitPrice=2, totalAmount=3).
-   */
-  lineTotal(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardMetricInput"]').nth(3);
-  }
-
-  /**
-   * Returns the quantity input of the line at the given 0-based index.
-   * cardMetricGrid metric order: qty=0, unit=1, unitPrice=2, totalAmount=3.
-   */
   lineQuantity(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardMetricInput"]').nth(0);
+    return this.grid.cell('Quantity', index + 1);
   }
 
-  // ─── Per-row assignment helpers (story #1564 Round 2) ──────────────────────
+  /** The Unit price input (the whole amount for a line without a quantity). */
+  lineUnitPrice(index: number): Locator {
+    return this.grid.cell('Unit price', index + 1);
+  }
 
-  /**
-   * Returns the "Assign…" button in the cardAssignZone of the row at the given 0-based index.
-   * Only present when the row has no assignedBudgetLineId.
-   * Button class: class*="assignButtonInTable", text: t('autoItemize.assignButton') = "Assign…"
-   */
-  lineAssignButton(index: number): Locator {
-    return this.lineRow(index).locator('[class*="assignButtonInTable"]');
+  /** The Net | Gross toggle of the row (replaces the old "Price includes VAT" checkbox). */
+  lineEnteredAs(index: number): Locator {
+    return this.grid.enteredAs(index + 1);
+  }
+
+  /** The gross amount cell of the row. */
+  lineGross(index: number): Locator {
+    return this.grid.gross(index + 1);
+  }
+
+  lineCategory(index: number): Locator {
+    return this.grid.cell('Cost category', index + 1);
+  }
+
+  lineFundingSource(index: number): Locator {
+    return this.grid.cell('Funding source', index + 1);
+  }
+
+  /** The row's own "Belongs to" picker input. */
+  lineTarget(index: number): Locator {
+    return this.grid.target(index + 1);
+  }
+
+  /** "Use an existing cost line…" of the row. */
+  lineUseExistingButton(index: number): Locator {
+    return this.grid.useExistingButton(index + 1);
+  }
+
+  /** "Use a new line instead" of a row that links an existing line. */
+  lineClearExistingButton(index: number): Locator {
+    return this.grid.clearExistingButton(index + 1);
+  }
+
+  /** The "Links <description>" label of a row that links an existing line. */
+  lineExistingLabel(index: number): Locator {
+    return this.grid.existingLabel(index + 1);
+  }
+
+  /** The AI certainty text of the row ("AI certainty 95%"). */
+  lineCertainty(index: number): Locator {
+    return this.lineRow(index).locator('[class*="certainty"]');
+  }
+
+  /** The merge-selection checkbox of the row. */
+  lineSelectCheckbox(index: number): Locator {
+    return this.grid.select(index + 1);
+  }
+
+  /** Number of extracted lines in the grid (the trailing blank row is not counted). */
+  async lineCount(): Promise<number> {
+    return this.grid.filledRowCount();
   }
 
   /**
-   * Returns the assigned badge container for the row at the given 0-based index.
-   * Present when line.assignedBudgetLineId is set.
+   * Waits for the LLM dry-run to complete and the grid to render: the analyzing caption goes
+   * away and the grid shows.
    *
-   * The TSX renders:
-   *   <div class*="assignedBadgeWrapper">       ← outer wrapper
-   *     <div class*="assignedBadge">            ← inner badge (this is what we want)
-   *       <span>{description}</span>
-   *       <button aria-label="Clear…">✕</button>
-   *     </div>
-   *     {createdFromExtraction && <Badge .../>}
-   *   </div>
-   *
-   * Both "assignedBadge_<hash>" and "assignedBadgeWrapper_<hash>" contain the
-   * substring "assignedBadge", so class*="assignedBadge" would match both.
-   * Use :not([class*="Wrapper"]) to target only the inner badge div.
-   */
-  lineAssignedBadge(index: number): Locator {
-    return this.lineRow(index).locator('[class*="assignedBadge"]:not([class*="Wrapper"])');
-  }
-
-  /**
-   * Returns the description text inside the assigned badge for the row.
-   * This is the <span> containing the budget line description.
-   */
-  lineAssignedDescription(index: number): Locator {
-    return this.lineAssignedBadge(index).locator('span').first();
-  }
-
-  /**
-   * Returns the "Clear" button inside the assigned badge for the row.
-   * aria-label: "Clear budget line assignment" (t('autoItemize.clearAssignmentAriaLabel'))
-   */
-  lineClearAssignButton(index: number): Locator {
-    return this.lineAssignedBadge(index).locator('[class*="clearAssignButton"]');
-  }
-
-  // ─── Linked (assign-existing) read-only rendering (#2149) ──────────────────
-
-  /** Read-only values section shown for a row linked to an existing budget line. */
-  lineLinkedValues(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-values');
-  }
-
-  /** Read-only description paragraph (replaces the textarea on linked rows). */
-  lineLinkedDescription(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-description');
-  }
-
-  /** Linked line's ORIGINAL category (read-only). */
-  lineLinkedCategory(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-category');
-  }
-
-  /** Linked line's ORIGINAL funding source (read-only). */
-  lineLinkedSource(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-source');
-  }
-
-  /** Linked line's ORIGINAL planned amount (read-only, "(excl. VAT)" suffix when net). */
-  lineLinkedPlanned(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-planned');
-  }
-
-  /** The only editable number input on a linked row: gross invoiced amount. */
-  lineItemizedAmountInput(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-itemized-amount');
-  }
-
-  /** "Change…" button next to the assigned badge on a linked row. */
-  lineChangeAssignButton(index: number): Locator {
-    return this.lineRow(index).getByRole('button', { name: /Change linked budget line/i });
-  }
-
-  /**
-   * Waits for the LLM dry-run to complete and card list to render.
-   * Updated in story #1576:
-   * - Old: waited for table tbody tr
-   * - New: waits for analyzingCaption to hide, then for role="list" to appear
-   *
-   * The caption hides when pageStatus transitions from 'loading' → 'ready'/'error'.
-   * The role="list" appears when pageStatus === 'ready' and lines are set.
-   *
-   * IMPORTANT: callers that use page.goto() to navigate directly (rather than clicking
-   * through the app) must register a page.waitForResponse() for the dry-run POST request
-   * BEFORE calling page.goto(), and await it before calling this method. Otherwise there
-   * is a race: if this is called before the component mounts, analyzingCaption is absent
-   * (treated as "hidden"), the caption check resolves immediately, and the lineList check
-   * may timeout waiting for the full load on a slow CI runner. See auto-itemize-discretionary
-   * tests for the correct waitForResponse pattern.
+   * Callers that navigate with `page.goto()` register `page.waitForResponse()` for the dry-run
+   * POST BEFORE the goto and await it before this method; otherwise the caption may not be
+   * mounted yet and the check passes too early.
    */
   async waitForAnalyzingDone(): Promise<void> {
-    // Wait for analyzing caption to disappear (indicates loading has ended)
     await this.analyzingCaption.waitFor({ state: 'hidden' });
-    // Then wait for at least the card list to appear.
-    // Use CSS class (locale-agnostic) instead of aria-label*="line" which fails in German locale.
-    await this.page.locator('[role="list"][class*="lineList"]').waitFor({ state: 'visible' });
+    await this.grid.grid.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Clicks Save and waits for navigation back to the invoice detail page.
-   */
+  /** Clicks Save and waits for navigation back to the invoice detail page. */
   async save(): Promise<void> {
     await this.saveButton.click();
     await this.page.waitForURL(/\/budget\/invoices\/[^/]+$/);
   }
 
   /**
-   * Clicks Cancel.
-   * If expectModal=true, waits for the discard confirmation modal to appear.
-   * If expectModal=false (default), expects immediate navigation back.
+   * Clicks Cancel. With `expectModal` waits for the discard confirmation; otherwise expects
+   * immediate navigation back.
    */
   async cancel(expectModal = false): Promise<void> {
     await this.cancelButton.click();
@@ -651,44 +288,9 @@ export class AutoItemizePage {
     }
   }
 
-  // ─── New POM helpers for UX fixes (stories #1586–#1591) ──────────────────────
-
   /**
-   * Returns the Category select for the line card at the given 0-based index.
-   * Rendered as <select id="category-{rowId}" aria-label="Select budget category for line item">.
-   * Located inside the cardBottomRow via aria-label since the id uses a dynamic rowId.
-   */
-  getLineCardCategorySelect(cardIndex: number): Locator {
-    return this.lineRow(cardIndex).getByRole('combobox', {
-      name: /Select budget category for line item/i,
-    });
-  }
-
-  /**
-   * Returns the Funding Source select for the line card at the given 0-based index.
-   * Rendered as <select id="source-{rowId}" aria-label="Select funding source for line item">.
-   */
-  getLineCardFundingSourceSelect(cardIndex: number): Locator {
-    return this.lineRow(cardIndex).getByRole('combobox', {
-      name: /Select funding source for line item/i,
-    });
-  }
-
-  /**
-   * Returns the totalAmount metric input for the line card at the given 0-based index.
-   * Alias for lineTotal() — the 4th cardMetricInput (index 3) in the cardMetricGrid.
-   * (qty=0, unit=1, unitPrice=2, totalAmount=3)
-   */
-  getLineCardTotalAmountInput(cardIndex: number): Locator {
-    return this.lineTotal(cardIndex);
-  }
-
-  /**
-   * Returns the variance indicator span in the totals card.
-   * Renders as one of:
-   *   - <span class*="varianceMatch">  (≤1% deviation)
-   *   - <span class*="varianceWarning"> (1–5% deviation)
-   *   - <span class*="varianceDanger">  (>5% deviation)
+   * The variance indicator of the totals card: varianceMatch (<= 1%), varianceWarning (1-5%) or
+   * varianceDanger (> 5%).
    */
   getVarianceIndicator(): Locator {
     return this.page.locator(
@@ -696,248 +298,57 @@ export class AutoItemizePage {
     );
   }
 
-  /**
-   * Returns the PDF preview iframe.
-   * Alias for pdfIframe — provided for naming consistency with the spec.
-   */
+  /** The PDF preview iframe (alias of `pdfIframe`). */
   getPdfPreviewIframe(): Locator {
     return this.pdfIframe;
   }
 
-  // ─── New POM helpers for stories #1595, #1596, #1597 ─────────────────────────
-
-  /**
-   * Returns the metadata Amount input (#amount).
-   * Alias for totalAmountInput — provided for clarity in variance-update tests (#1591).
-   */
+  /** The metadata Amount input (#amount); alias of `totalAmountInput`. */
   getMetadataAmountInput(): Locator {
     return this.totalAmountInput;
   }
 
-  /**
-   * Returns the two checkbox label elements (Include + VAT) in the cardBottomRow of card i.
-   * Both are <label class*="cardIncludeLabel"> elements.
-   * [0] = Include checkbox label, [1] = "Price includes VAT" label.
-   */
-  getLineCardCheckboxLabels(cardIndex: number): { include: Locator; vat: Locator } {
-    const row = this.lineRow(cardIndex).locator('[class*="cardBottomRow"]');
-    return {
-      include: row.locator('[class*="cardIncludeLabel"]').nth(0),
-      vat: row.locator('[class*="cardIncludeLabel"]').nth(1),
-    };
-  }
+  // ─── Merge multiple extracted lines ────────────────────────────────────────
 
-  /**
-   * Returns the cardBottomRowPickerRow wrapper for the selects on card i.
-   * Contains the Category select and Funding Source select.
-   * <div class*="cardBottomRowPickerRow"> inside the lineCard.
-   */
-  getLineCardPickerRow(cardIndex: number): Locator {
-    return this.lineRow(cardIndex).locator('[class*="cardBottomRowPickerRow"]');
-  }
-
-  /**
-   * Returns the assign modal (step 1) — alias for pickerModal.
-   * Locates role="dialog" filtered by h2 "Assign to Work Item or Household Item".
-   */
-  getAssignModal(): Locator {
-    return this.pickerModal;
-  }
-
-  /**
-   * Returns the "Work Item" tab button inside the assign modal.
-   * ParentPicker renders role="tablist" with role="tab" buttons.
-   * i18n key: budgetLineForm.parentPickerWorkItemTab = "Work Item"
-   */
-  getParentPickerWorkItemTab(): Locator {
-    return this.pickerModal.getByRole('tab', { name: /Work Item/i });
-  }
-
-  /**
-   * Returns the "Household Item" tab button inside the assign modal.
-   * i18n key: budgetLineForm.parentPickerHouseholdItemTab = "Household Item"
-   */
-  getParentPickerHouseholdItemTab(): Locator {
-    return this.pickerModal.getByRole('tab', { name: /Household Item/i });
-  }
-
-  // ─── Bug A: inline-create queue helpers (Story #1677) ────────────────────────
-  //
-  // When "Create Budget Line" is clicked in step 2 of the picker, the picker
-  // closes immediately and the line card shows:
-  //   - An amber "Creating New" badge (data-testid="creating-new-badge")
-  //   - A "Discard" button (aria-label t('autoItemize.discardInlineDraft') = "Discard")
-  //   - An inline BudgetLineForm wrapped in <div class*="inlineFormWrapper">
-  //
-  // No budget line is created until the outer Save button is clicked.
-
-  /**
-   * Returns the amber "Creating New" badge for the line card at the given 0-based index.
-   * Rendered as <Badge variants={creatingNewVariants} value="true" testId="creating-new-badge">.
-   * Only present when the line has an inlineCreatedBudgetLineDraft queued.
-   */
-  getCreatingNewBadge(index: number): Locator {
-    return this.lineRow(index).getByTestId('creating-new-badge');
-  }
-
-  /**
-   * Returns the "Discard" button for the inline draft on the line card at the given index.
-   * Rendered as a <button> with aria-label="Discard" (t('autoItemize.discardInlineDraft')).
-   * Clicking it clears the inlineCreatedBudgetLineDraft and restores the "Assign…" button.
-   */
-  getInlineDraftDiscardButton(index: number): Locator {
-    return this.lineRow(index).getByRole('button', { name: /^Discard$/i });
-  }
-
-  /**
-   * Returns the wrapper div containing the inline BudgetLineForm for the line at index.
-   * Rendered as <div class*="inlineFormWrapper"> below the cardBottomRow.
-   * Only present when inlineCreatedBudgetLineDraft is set on the line.
-   */
-  getInlineFormWrapper(index: number): Locator {
-    return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
-  }
-
-  /** Funding Source select inside the inline BudgetLineForm draft of the line at index. */
-  getInlineDraftSourceSelect(index: number): Locator {
-    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
-  }
-
-  /**
-   * Returns the Description textbox inside the inline BudgetLineForm for the line at index.
-   * The inline form uses idPrefix=`inline-${line.rowId}-` so the id is dynamic.
-   * Locate by role textbox + accessible name "Description" (from the adjacent <label>).
-   */
-  getInlineDraftDescriptionInput(index: number): Locator {
-    return this.getInlineFormWrapper(index).getByRole('textbox', { name: /Description/i });
-  }
-
-  // ─── Story #1797: Merge multiple extracted line items ────────────────────────
-  //
-  // AutoItemizeLineCard renders a selection checkbox as the FIRST child of cardTopRow
-  // for every line:
-  //   - Selectable (unassigned, no queued inline draft): enabled checkbox bound to
-  //     onToggleSelect; sr-only label reads 'Select "{description}" for merge'.
-  //   - Ineligible (already assigned OR has a queued inline draft): checkbox is present
-  //     but `disabled`, aria-label/title = "Already assigned — cannot be selected for merge".
-  //
-  // When selectedRowIds.size > 0, AutoItemizeLineList renders a SelectionActionBar
-  // (shared component, sticky at the bottom of .formColumn) containing:
-  //   - count label: "N selected" (t('autoItemize.mergeSelectedCount'))
-  //   - Merge button: visible text is "Merge", but aria-label overrides the accessible
-  //     name to "Merge {{count}} selected line items" — match on that full pattern, not
-  //     the visible text alone. disabled when selectedRowIds.size < 2.
-  //
-  // KNOWN BUG (filed by e2e-test-engineer — see GitHub issue #1798, Story #1797):
-  // AutoItemizeLineList currently renders TWO "Clear selection" buttons — one built
-  // into SelectionActionBar itself, and a duplicate passed as `children`. Both invoke
-  // the same onClearSelection handler, so clicking either is functionally equivalent;
-  // clickClearSelection() below uses .first().
-  //
-  // Merging (loading) row: <li class*="lineCard lineCardMerging" aria-busy="true">
-  //   containing a Skeleton + Spinner + caption "Merging N items…".
-  // Merge-error row: <li class*="lineCard lineCardMergeError" role="alert">
-  //   containing a "Merge failed" Badge (no stable testid — text-only, see issue #1798),
-  //   an error message, and Retry / "Restore original lines" (Undo) buttons.
-  //
-  // ALSO NOTE (issue #1798): as of this writing, `performMerge()` has no `.catch()`, so
-  // a failed merge-lines call never actually reaches the error row — it leaves the row
-  // stuck in the loading state indefinitely. The merge-failure/Retry/Undo E2E scenarios
-  // encode the *intended* behavior per the acceptance criteria and are expected to fail
-  // until that bug is fixed.
-
-  /**
-   * "Merge" button inside the SelectionActionBar. Only present when ≥1 line is
-   * selected. Matched by its full aria-label — the visible text "Merge" alone is
-   * NOT the accessible name, since aria-label overrides it.
-   */
-  readonly mergeButton: Locator;
-
-  /**
-   * "Clear selection" button(s). NOTE: there are currently TWO matching buttons on
-   * the page due to a known duplication bug (issue #1798) — use .first() when
-   * clicking (see clickClearSelection()).
-   */
-  readonly clearSelectionButton: Locator;
-
-  /** The merging (loading) row: <li class*="lineCardMerging" aria-busy="true">. */
-  readonly mergingRow: Locator;
-
-  /** The merge-error row: <li class*="lineCardMergeError" role="alert">. */
-  readonly mergeErrorRow: Locator;
-
-  /** "Retry" button inside the merge-error row. */
-  readonly mergeRetryButton: Locator;
-
-  /** "Restore original lines" (Undo) button inside the merge-error row. */
-  readonly mergeUndoButton: Locator;
-
-  /**
-   * Returns the selection checkbox for the line card at the given 0-based index.
-   * Always the first (and only) <input type="checkbox"> in cardTopRow, whether
-   * selectable (enabled) or ineligible (disabled — already assigned).
-   */
-  lineSelectCheckbox(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardTopRow"] input[type="checkbox"]');
-  }
-
-  /**
-   * Returns the sticky SelectionActionBar container, derived from the Merge button's
-   * ancestor. Only present when ≥1 line is selected.
-   */
+  /** Selects the row for merging (adds it to the merge selection). */
+  /** The sticky SelectionActionBar (present while at least one row is selected). */
   selectionActionBar(): Locator {
     return this.mergeButton.locator('xpath=ancestor::div[contains(@class,"bar")][1]');
   }
 
-  /**
-   * Checks the selection checkbox for the line card at the given 0-based index,
-   * adding it to the merge selection.
-   */
   async selectLineForMerge(index: number): Promise<void> {
     await this.lineSelectCheckbox(index).check();
   }
 
-  /** Clicks the Merge button in the SelectionActionBar. */
   async clickMergeButton(): Promise<void> {
     await this.mergeButton.click();
   }
 
-  /**
-   * Clicks "Clear selection". Uses .first() because AutoItemizeLineList currently
-   * renders two matching buttons (known duplication bug, issue #1798) that both
-   * invoke the same handler.
-   */
   async clickClearSelection(): Promise<void> {
     await this.clearSelectionButton.first().click();
   }
 
   /**
-   * Returns the current state of the Merge button:
-   *   'hidden'   — 0 lines selected (SelectionActionBar is not rendered at all)
-   *   'disabled' — exactly 1 line selected (merge requires ≥2)
-   *   'enabled'  — 2+ lines selected
+   * State of the Merge button: 'hidden' with no selection (no action bar), 'disabled' with one
+   * row selected (merge needs two; the button is `aria-disabled`), 'enabled' with two or more.
    */
   async getMergeButtonState(): Promise<'hidden' | 'disabled' | 'enabled'> {
     if ((await this.mergeButton.count()) === 0) return 'hidden';
     if (!(await this.mergeButton.isVisible())) return 'hidden';
-    return (await this.mergeButton.isDisabled()) ? 'disabled' : 'enabled';
+    return (await this.mergeButton.getAttribute('aria-disabled')) === 'true'
+      ? 'disabled'
+      : 'enabled';
   }
 
-  /**
-   * Waits for the merging (loading) row to resolve — i.e., for mergeStatus to leave
-   * 'pending'. Call after clickMergeButton() (or clickRetryMerge()) once the mocked
-   * merge-lines response is set up to resolve.
-   */
+  /** Waits until no row is merging any more. */
   async waitForMergedRow(): Promise<void> {
     await this.mergingRow.waitFor({ state: 'hidden' });
   }
 
-  /** Clicks "Retry" on the merge-error row. */
   async clickRetryMerge(): Promise<void> {
     await this.mergeRetryButton.click();
   }
 
-  /** Clicks "Restore original lines" (Undo) on the merge-error row. */
   async clickUndoMerge(): Promise<void> {
     await this.mergeUndoButton.click();
   }

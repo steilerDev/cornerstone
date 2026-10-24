@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { foldSearchText, routeUrl } from '@cornerstone/shared';
 import type {
@@ -7,7 +7,6 @@ import type {
   HouseholdItemStatus,
   HouseholdItemBudgetLine,
   SubsidyProgram,
-  BudgetSource,
   HouseholdItemSubsidyPaybackResponse,
   WorkItemSummary,
   HouseholdItemDepDetail,
@@ -24,12 +23,7 @@ import {
   AutosaveIndicator,
   type AutosaveState,
 } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
-import {
-  fetchHouseholdItemBudgets,
-  createHouseholdItemBudget,
-  updateHouseholdItemBudget,
-  deleteHouseholdItemBudget,
-} from '../../lib/householdItemBudgetsApi.js';
+import { fetchHouseholdItemBudgets } from '../../lib/householdItemBudgetsApi.js';
 import {
   fetchHouseholdItemSubsidies,
   linkHouseholdItemSubsidy,
@@ -41,25 +35,20 @@ import {
   createHouseholdItemDep,
   deleteHouseholdItemDep,
 } from '../../lib/householdItemDepsApi.js';
-import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
-import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { roundMoney } from '../../lib/money.js';
-import { useLocale } from '../../contexts/LocaleContext.js';
-import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
-import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { BudgetCostOverview } from '../../components/budget/BudgetCostOverview.js';
+import { SubsidyLinkSection } from '../../components/budget/SubsidyLinkSection.js';
+import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
@@ -67,7 +56,6 @@ import { purchaseTransitions } from '../../components/StatusMenu/statusVocabular
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
 import { changeHouseholdItemStatus, householdItemStatusBody } from '../../lib/statusChangeApi.js';
-import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
@@ -97,8 +85,14 @@ function MilestoneIconSvg() {
   );
 }
 
+/** Reads the route id once; the view below always has a purchase id. */
 export function HouseholdItemDetailPage() {
-  const { vatRate } = useLocale();
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to={routeUrl('householdItems')} replace />;
+  return <HouseholdItemDetailView id={id} />;
+}
+
+function HouseholdItemDetailView({ id }: { id: string }) {
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -108,10 +102,10 @@ export function HouseholdItemDetailPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCostLines } = useTranslation('costLines');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const statusVariants = useStatusBadgeVariants();
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { areas } = useAreas();
@@ -126,24 +120,17 @@ export function HouseholdItemDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact(
-    'household_item',
-    showDeleteModal ? (id ?? null) : null,
-  );
+  const deleteConsequences = useDeleteImpact('household_item', showDeleteModal ? id : null);
 
   // Add Dependency inline search
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
-  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
-  // Invoice linking state
-  const [showInvoiceLinkModal, setShowInvoiceLinkModal] = useState(false);
-  const [invoiceLinkingBudgetId, setInvoiceLinkingBudgetId] = useState<string | null>(null);
-  const [isUnlinkingInvoice, setIsUnlinkingInvoice] = useState<Record<string, boolean>>({});
-
-  // Subsidy linking state (linked subsidies and programs stay as local state)
+  // Subsidy linking state
+  const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
+  const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
   const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
 
@@ -185,7 +172,6 @@ export function HouseholdItemDetailPage() {
 
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
-    if (!id) return;
     try {
       const data = await fetchHouseholdItemBudgets(id);
       setBudgetLines(data);
@@ -195,7 +181,6 @@ export function HouseholdItemDetailPage() {
   };
 
   const reloadLinkedSubsidies = async () => {
-    if (!id) return;
     try {
       const data = await fetchHouseholdItemSubsidies(id);
       setLinkedSubsidies(data);
@@ -205,7 +190,6 @@ export function HouseholdItemDetailPage() {
   };
 
   const reloadSubsidyPayback = async () => {
-    if (!id) return;
     try {
       const data = await fetchHouseholdItemSubsidyPayback(id);
       setSubsidyPayback(data);
@@ -214,51 +198,7 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  // Budget section hook
-  const budgetSection = useBudgetSection<HouseholdItemBudgetLine>({
-    api: {
-      fetchBudgets: fetchHouseholdItemBudgets,
-      createBudget: createHouseholdItemBudget,
-      updateBudget: updateHouseholdItemBudget,
-      deleteBudget: deleteHouseholdItemBudget,
-    },
-    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
-    reloadBudgetLines: async () => {
-      await reloadBudgetLines();
-      setInlineError(null);
-    },
-    reloadSubsidyPayback,
-    reloadLinkedSubsidies,
-    toFormState: (line: HouseholdItemBudgetLine): BudgetLineFormState => ({
-      description: line.description ?? '',
-      plannedAmount: String(line.plannedAmount),
-      confidence: line.confidence,
-      budgetCategoryId: '', // Household items don't use budget categories
-      budgetSourceId: line.budgetSource?.id ?? '',
-      vendorId: line.vendor?.id ?? '',
-      pricingMode: line.quantity !== null ? 'unit' : 'direct',
-      quantity: line.quantity !== null ? String(line.quantity) : '',
-      unit: line.unit ?? '',
-      unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
-      includesVat: line.includesVat ?? true,
-    }),
-    toPayload: (form: BudgetLineFormState) => ({
-      description: form.description.trim() || null,
-      plannedAmount: parseFloat(form.plannedAmount),
-      confidence: form.confidence,
-      budgetSourceId: form.budgetSourceId,
-      vendorId: form.vendorId || null,
-      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
-      unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
-      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-      includesVat: form.includesVat,
-    }),
-    entityId: id ?? '',
-    defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
-  });
-
   useEffect(() => {
-    if (!id) return;
     void loadItem();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadItem is defined in component body; effect re-runs on intended trigger only
   }, [id]);
@@ -280,20 +220,15 @@ export function HouseholdItemDetailPage() {
   useEffect(() => {
     const loadPredecessors = async () => {
       try {
-        if (allMilestones.length === 0) {
-          const ms = await listMilestones();
-          setAllMilestones(ms);
-        }
+        setAllMilestones(await listMilestones());
       } catch (err) {
         console.error('Failed to load predecessors:', err);
       }
     };
     void loadPredecessors();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only milestone load; intentionally does not re-run when allMilestones changes
   }, []);
 
   const loadItem = async () => {
-    if (!id) return;
     setIsLoading(true);
     setError(null);
     setIs404(false);
@@ -322,20 +257,17 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, sources, programs, depsData, categoriesData] =
-        await Promise.all([
-          fetchHouseholdItemBudgets(itemId),
-          fetchHouseholdItemSubsidies(itemId),
-          fetchHouseholdItemSubsidyPayback(itemId),
-          fetchBudgetSources(),
-          fetchSubsidyPrograms(),
-          fetchHouseholdItemDeps(itemId),
-          fetchHouseholdItemCategories(),
-        ]);
+      const [budgets, subsidies, payback, programs, depsData, categoriesData] = await Promise.all([
+        fetchHouseholdItemBudgets(itemId),
+        fetchHouseholdItemSubsidies(itemId),
+        fetchHouseholdItemSubsidyPayback(itemId),
+        fetchSubsidyPrograms(),
+        fetchHouseholdItemDeps(itemId),
+        fetchHouseholdItemCategories(),
+      ]);
       setBudgetLines(budgets);
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
-      setBudgetSources(sources.budgetSources);
       setAllSubsidyPrograms(programs.subsidyPrograms);
       setDependencies(depsData);
       setCategories(categoriesData.categories);
@@ -351,7 +283,6 @@ export function HouseholdItemDetailPage() {
     predecessorType: 'work_item' | 'milestone',
     predecessorId: string,
   ) => {
-    if (!id) return;
     setDepError(null);
     try {
       await createHouseholdItemDep(id, {
@@ -415,11 +346,11 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleRemoveDep = async () => {
-    if (!id || !removingDep) return;
+    const dep = removingDep!;
     setIsRemovingDep(true);
     setRemoveDepError(null);
     try {
-      await deleteHouseholdItemDep(id, removingDep.predecessorType, removingDep.predecessorId);
+      await deleteHouseholdItemDep(id, dep.predecessorType, dep.predecessorId);
       const updated = await fetchHouseholdItemDeps(id);
       setDependencies(updated);
       const newItem = await getHouseholdItem(id);
@@ -441,29 +372,20 @@ export function HouseholdItemDetailPage() {
   };
 
   const closeDeleteModal = () => {
-    if (!isDeleting) {
-      setShowDeleteModal(false);
-      setDeleteError('');
-    }
+    setShowDeleteModal(false);
+    setDeleteError('');
   };
 
-  // ─── Budget line handlers (delegated to useBudgetSection hook) ────────────
-
-  const {
-    confirmDeleteBudgetLine,
-    handleLinkSubsidy: hookHandleLinkSubsidy,
-    handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
-    selectedSubsidyId,
-  } = budgetSection;
-
-  // ─── Subsidy linking handlers (delegates to hook after API calls) ──────────
+  // ─── Subsidy linking handlers ──────────────────────────────────────────────
 
   const handleLinkSubsidy = async () => {
-    if (!id || !selectedSubsidyId) return;
+    if (!selectedSubsidyId) return;
     setInlineError(null);
+    setIsLinkingSubsidy(true);
     try {
       await linkHouseholdItemSubsidy(id, selectedSubsidyId);
-      await hookHandleLinkSubsidy();
+      await reloadLinkedSubsidies();
+      setSelectedSubsidyId('');
       await reloadSubsidyPayback();
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -478,15 +400,16 @@ export function HouseholdItemDetailPage() {
         setInlineError(t('detail.errors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
+    } finally {
+      setIsLinkingSubsidy(false);
     }
   };
 
   const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
-    if (!id) return;
     setInlineError(null);
     try {
       await unlinkHouseholdItemSubsidy(id, subsidyProgramId);
-      await hookHandleUnlinkSubsidy();
+      await reloadLinkedSubsidies();
       await reloadSubsidyPayback();
     } catch (err) {
       setInlineError(t('detail.errors.unlinkSubsidy'));
@@ -494,121 +417,10 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  // ─── Invoice linking handlers ────────────────────────────────────────────
-
-  const handleLinkInvoice = (budgetLineId: string) => {
-    setInvoiceLinkingBudgetId(budgetLineId);
-    setShowInvoiceLinkModal(true);
-  };
-
-  const handleUnlinkInvoice = async (budgetLineId: string, invoiceBudgetLineId: string) => {
-    const invoiceLink = budgetLines.find((line) => line.id === budgetLineId)?.invoiceLink;
-    if (!invoiceLink) return;
-
-    setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
+  // After any cost-line change the page refreshes its lines, grant payback and linked grants.
+  const handleCostLinesChanged = async () => {
+    await Promise.all([reloadBudgetLines(), reloadSubsidyPayback(), reloadLinkedSubsidies()]);
     setInlineError(null);
-
-    try {
-      await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
-      const fresh = await getHouseholdItem(id!);
-      setItem(fresh);
-      await reloadBudgetLines();
-    } catch (err) {
-      setInlineError(t('detail.errors.unlinkInvoice'));
-      console.error('Failed to unlink invoice:', err);
-    } finally {
-      setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
-    }
-  };
-
-  const handleInvoiceLinkSuccess = () => {
-    setShowInvoiceLinkModal(false);
-    setInvoiceLinkingBudgetId(null);
-    reloadBudgetLines();
-  };
-
-  const handleMoveBudgetLine = async (
-    budgetLineId: string,
-    newParentType: 'work_item' | 'household_item',
-    newParentId: string,
-  ) => {
-    const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
-    if (!budgetLine) return;
-
-    setInlineError(null);
-
-    // If the line has an invoice link, use the invoice budget line endpoint
-    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-      const moveData =
-        newParentType === 'work_item'
-          ? { newWorkItemId: newParentId }
-          : { newHouseholdItemId: newParentId };
-
-      await editAndMoveBudgetLine(
-        budgetLine.invoiceLink.invoiceId,
-        budgetLine.invoiceLink.invoiceBudgetLineId,
-        moveData,
-      );
-    } else {
-      // No invoice link — check if it's a same-table or cross-table move
-      if (newParentType === 'work_item') {
-        // Cross-table move without invoice link is not supported
-        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-      }
-
-      // Same-table household item to household item move
-      await updateHouseholdItemBudget(item!.id, budgetLineId, {
-        newHouseholdItemId: newParentId,
-      });
-    }
-
-    // Reload budget lines to reflect the move
-    await reloadBudgetLines();
-  };
-
-  const handleInvoiceLineEdit = async (
-    line: HouseholdItemBudgetLine,
-    form: BudgetLineFormState,
-    itemizedAmountStr: string,
-  ) => {
-    if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
-    setInlineError(null);
-
-    const newAmount = parseFloat(itemizedAmountStr);
-    if (isNaN(newAmount) || newAmount <= 0) {
-      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
-    }
-
-    // Compute plannedAmount from form
-    let plannedAmount: number;
-    if (form.pricingMode === 'direct') {
-      plannedAmount = parseFloat(form.plannedAmount);
-    } else {
-      const qty = parseFloat(form.quantity);
-      const price = parseFloat(form.unitPrice);
-      plannedAmount = roundMoney(qty * price);
-    }
-
-    const payload = {
-      itemizedAmount: newAmount,
-      description: form.description || null,
-      plannedAmount,
-      confidence: form.confidence,
-      budgetCategoryId: form.budgetCategoryId || null,
-      budgetSourceId: form.budgetSourceId || null,
-      vendorId: form.vendorId || null,
-      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
-      unit: form.pricingMode === 'unit' ? form.unit || null : null,
-      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-      includesVat: form.includesVat,
-    };
-
-    await editAndMoveBudgetLine(
-      line.invoiceLink.invoiceId,
-      line.invoiceLink.invoiceBudgetLineId,
-      payload,
-    );
-    await reloadBudgetLines();
   };
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
@@ -617,8 +429,8 @@ export function HouseholdItemDetailPage() {
   }
 
   const handleOrderDateBlur = async () => {
-    if (!id || !item) return;
-    if (localOrderDate === (item.orderDate || '')) return;
+    const current = item!;
+    if (localOrderDate === (current.orderDate || '')) return;
     setDateInlineError(null);
     setAutosaveOrderDate('saving');
     try {
@@ -634,8 +446,8 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleActualDeliveryDateBlur = async () => {
-    if (!id || !item) return;
-    if (localActualDeliveryDate === (item.actualDeliveryDate || '')) return;
+    const current = item!;
+    if (localActualDeliveryDate === (current.actualDeliveryDate || '')) return;
     setDateInlineError(null);
     setAutosaveActualDelivery('saving');
     try {
@@ -656,8 +468,8 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleEarliestDeliveryDateBlur = async () => {
-    if (!id || !item) return;
-    if (localEarliestDeliveryDate === (item.earliestDeliveryDate || '')) return;
+    const current = item!;
+    if (localEarliestDeliveryDate === (current.earliestDeliveryDate || '')) return;
     setDateInlineError(null);
     setAutosaveEarliestDelivery('saving');
     try {
@@ -678,8 +490,8 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleLatestDeliveryDateBlur = async () => {
-    if (!id || !item) return;
-    if (localLatestDeliveryDate === (item.latestDeliveryDate || '')) return;
+    const current = item!;
+    if (localLatestDeliveryDate === (current.latestDeliveryDate || '')) return;
     setDateInlineError(null);
     setAutosaveLatestDelivery('saving');
     try {
@@ -698,11 +510,11 @@ export function HouseholdItemDetailPage() {
 
   const { run: runStatusChange } = useUndoableStatusChange();
   const handleStatusChange = async (newStatus: HouseholdItemStatus, date: string | null) => {
-    if (!id || !item) return;
+    const current = item!;
     setInlineError(null);
     await runStatusChange({
       request: () => changeHouseholdItemStatus(id, householdItemStatusBody(newStatus, date)),
-      recordName: item.name.trim() || tCommon('navigation.untitledPurchase'),
+      recordName: current.name.trim() || tCommon('navigation.untitledPurchase'),
       statusLabel: statusVariants.purchase[newStatus].label,
       dedupeKey: `purchase:${id}`,
       onChanged: (record) => setItem(record),
@@ -711,7 +523,6 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleAreaChange = async (areaId: string) => {
-    if (!id) return;
     setInlineError(null);
     try {
       const updated = await updateHouseholdItem(id, { areaId: areaId || null });
@@ -724,11 +535,11 @@ export function HouseholdItemDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!item) return;
+    const current = item!;
     setIsDeleting(true);
     setDeleteError('');
     try {
-      await deleteHouseholdItem(item.id);
+      await deleteHouseholdItem(current.id);
       showToast('success', t('detail.delete.deleted'));
       navigate(routeUrl('householdItems'), { replace: true });
     } catch (err) {
@@ -799,7 +610,7 @@ export function HouseholdItemDetailPage() {
         <h1 className={styles.pageTitle}>{h1Text}</h1>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('detail.error')}</h2>
-          <p>{error ?? t('detail.notFoundMessage')}</p>
+          <p>{error}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
@@ -998,9 +809,9 @@ export function HouseholdItemDetailPage() {
                       aria-label={t('detail.datesDelivery.clearOrderDate')}
                       onClick={() => {
                         setLocalOrderDate('');
-                        if (item?.orderDate) {
+                        if (item.orderDate) {
                           setAutosaveOrderDate('saving');
-                          void updateHouseholdItem(id!, { orderDate: null })
+                          void updateHouseholdItem(id, { orderDate: null })
                             .then((updated) => {
                               setItem(updated);
                               setAutosaveOrderDate('success');
@@ -1046,11 +857,11 @@ export function HouseholdItemDetailPage() {
                       aria-label={t('detail.datesDelivery.clearActualDelivery')}
                       onClick={() => {
                         setLocalActualDeliveryDate('');
-                        if (item?.actualDeliveryDate) {
+                        if (item.actualDeliveryDate) {
                           setAutosaveActualDelivery('saving');
-                          void updateHouseholdItem(id!, { actualDeliveryDate: null })
+                          void updateHouseholdItem(id, { actualDeliveryDate: null })
                             .then(async () => {
-                              const fresh = await getHouseholdItem(id!);
+                              const fresh = await getHouseholdItem(id);
                               setItem(fresh);
                               setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
                               setLocalOrderDate(fresh.orderDate || '');
@@ -1111,11 +922,11 @@ export function HouseholdItemDetailPage() {
                       aria-label={t('detail.datesDelivery.clearEarliestDelivery')}
                       onClick={() => {
                         setLocalEarliestDeliveryDate('');
-                        if (item?.earliestDeliveryDate) {
+                        if (item.earliestDeliveryDate) {
                           setAutosaveEarliestDelivery('saving');
-                          void updateHouseholdItem(id!, { earliestDeliveryDate: null })
+                          void updateHouseholdItem(id, { earliestDeliveryDate: null })
                             .then(async () => {
-                              const fresh = await getHouseholdItem(id!);
+                              const fresh = await getHouseholdItem(id);
                               setItem(fresh);
                               setLocalActualDeliveryDate(fresh.actualDeliveryDate || '');
                               setLocalOrderDate(fresh.orderDate || '');
@@ -1163,9 +974,9 @@ export function HouseholdItemDetailPage() {
                       aria-label={t('detail.datesDelivery.clearLatestDelivery')}
                       onClick={() => {
                         setLocalLatestDeliveryDate('');
-                        if (item?.latestDeliveryDate) {
+                        if (item.latestDeliveryDate) {
                           setAutosaveLatestDelivery('saving');
-                          void updateHouseholdItem(id!, { latestDeliveryDate: null })
+                          void updateHouseholdItem(id, { latestDeliveryDate: null })
                             .then((updated) => {
                               setItem(updated);
                               setAutosaveLatestDelivery('success');
@@ -1276,36 +1087,52 @@ export function HouseholdItemDetailPage() {
           </div>
         </section>
 
-        {/* Budget Lines */}
-        <section className={styles.section}>
-          <BudgetSection
-            invoiceLinkState={originState}
-            budgetLines={budgetLines}
-            subsidyPayback={subsidyPayback}
-            linkedSubsidies={linkedSubsidies}
-            availableSubsidies={availableSubsidies}
-            budgetSectionHook={budgetSection}
-            budgetSources={budgetSources}
-            staticCategoryLabel="Household Items"
-            onLinkSubsidy={handleLinkSubsidy}
-            onUnlinkSubsidy={handleUnlinkSubsidy}
-            onConfirmDeleteBudgetLine={confirmDeleteBudgetLine}
-            budgetLineType="household_item"
-            onLinkInvoice={handleLinkInvoice}
-            onUnlinkInvoice={handleUnlinkInvoice}
-            isUnlinking={isUnlinkingInvoice}
-            inlineError={inlineError}
-            onDismissInlineError={() => setInlineError(null)}
-            parentEntityId={item?.id}
-            parentEntityLabel={item?.name}
-            onMoveBudgetLine={handleMoveBudgetLine}
-            onInvoiceLineEdit={handleInvoiceLineEdit}
-            onInvoiceLineMove={handleMoveBudgetLine}
+        {/* Cost */}
+        <section className={styles.section} aria-labelledby="purchase-cost-heading">
+          <h2 id="purchase-cost-heading" className={styles.costTitle}>
+            {tCostLines('section.costHeading')}
+          </h2>
+
+          {inlineError && (
+            <div className={styles.costErrorBanner} role="alert">
+              {inlineError}
+              <button
+                type="button"
+                className={styles.costErrorClose}
+                onClick={() => setInlineError(null)}
+                aria-label={tBudget('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <BudgetCostOverview budgetLines={budgetLines} subsidyPayback={subsidyPayback} />
+
+          <CostLinesSection
+            host={{ kind: 'household_item', id: item.id, label: item.name }}
+            lines={budgetLines}
+            onChanged={handleCostLinesChanged}
+            linkState={originState}
+            headingLevel={3}
           />
+
+          <div className={styles.grantsSubsection}>
+            <h3 className={styles.subsectionTitle}>{tBudget('budgetSection.subsidies')}</h3>
+            <SubsidyLinkSection
+              linkedSubsidies={linkedSubsidies}
+              availableSubsidies={availableSubsidies}
+              selectedSubsidyId={selectedSubsidyId}
+              onSelectSubsidy={setSelectedSubsidyId}
+              onLinkSubsidy={handleLinkSubsidy}
+              onUnlinkSubsidy={handleUnlinkSubsidy}
+              isLinking={isLinkingSubsidy}
+            />
+          </div>
         </section>
 
         {/* Documents section */}
-        <DocumentsPanelButton entityType="household_item" entityId={id!} />
+        <DocumentsPanelButton entityType="household_item" entityId={id} />
 
         {/* Metadata card */}
         <section className={styles.card}>
@@ -1353,27 +1180,8 @@ export function HouseholdItemDetailPage() {
           busy={isRemovingDep}
           error={removeDepError}
           onConfirm={() => void handleRemoveDep()}
-          onCancel={() => {
-            if (!isRemovingDep) setRemovingDep(null);
-          }}
+          onCancel={() => setRemovingDep(null)}
           testIdPrefix="purchase-dependency-remove"
-        />
-      )}
-
-      {/* Invoice link modal */}
-      {showInvoiceLinkModal && invoiceLinkingBudgetId && (
-        <InvoiceLinkModal
-          budgetLineId={invoiceLinkingBudgetId}
-          budgetLineType="household_item"
-          defaultAmount={(() => {
-            const linkLine = budgetLines.find((line) => line.id === invoiceLinkingBudgetId);
-            return linkLine ? effectivePlannedAmount(linkLine, vatRate) : 0;
-          })()}
-          onSuccess={handleInvoiceLinkSuccess}
-          onClose={() => {
-            setShowInvoiceLinkModal(false);
-            setInvoiceLinkingBudgetId(null);
-          }}
         />
       )}
     </div>

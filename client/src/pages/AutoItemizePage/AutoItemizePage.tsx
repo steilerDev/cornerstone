@@ -9,7 +9,6 @@ import type {
   InvoicePatchForAutoItemize,
   InvoiceStatus,
 } from '@cornerstone/shared';
-import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { fetchInvoiceById } from '../../lib/invoicesApi.js';
 import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
@@ -18,8 +17,9 @@ import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js'
 import {
   buildCommitLines,
   effectiveRowAmount,
-  materializeInlineDrafts,
-  mergeMaterializedLines,
+  materializeNewRows,
+  mergeMaterializedRows,
+  rowTarget,
 } from '../../lib/autoItemizeDraftUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -29,19 +29,13 @@ import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { pathnameOf, readOrigin } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
-import { Modal } from '../../components/Modal/Modal.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
-import {
-  AutoItemizeLineList,
-  AutoItemizePdfPreview,
-  BudgetLinePickerModal,
-  type LineWithInclude,
-} from '../../components/autoItemize/index.js';
-import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { AutoItemizePdfPreview } from '../../components/autoItemize/index.js';
+import { AutoItemizeLines } from '../../components/CostLineForm/AutoItemizeLines.js';
+import { isBlankRow } from '../../components/CostLineForm/costLineGridModel.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -63,21 +57,11 @@ export function AutoItemizePage() {
   const navigate = useNavigate();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
-  const { t: tSettings } = useTranslation('settings');
   const { t: tc } = useTranslation('common');
   const location = useLocation();
-  const { vatRate } = useLocale();
+  const { vatRate, resolvedLocale } = useLocale();
+  const locale = resolvedLocale === 'de' ? 'de' : 'en';
   const { formatCurrency } = useFormatters();
-
-  const createdFromExtractionVariants = useMemo(
-    (): BadgeVariantMap => ({
-      true: {
-        label: t('autoItemize.createdFromAutoItemization'),
-        className: badgeStyles.info,
-      },
-    }),
-    [t],
-  );
 
   // Page state — ALL hooks must be called unconditionally before any early return
   const [pageStatus, setPageStatus] = useState<PageStatus>('loading');
@@ -115,20 +99,7 @@ export function AutoItemizePage() {
   const [announceMessage, setAnnounceMessage] = useState('');
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
 
-  const {
-    lines,
-    setLines,
-    picker,
-    handlers,
-    selectedRowIds,
-    onToggleSelect,
-    onClearSelection,
-    onMergeSelected,
-    onRetryMerge,
-    onUndoMerge,
-  } = useAutoItemizeLines({
-    invoiceId: invoiceId ?? '',
-    invoiceAmount: invoice?.amount ?? 0,
+  const lineState = useAutoItemizeLines({
     document,
     onFieldsEdited: () => setLineFieldsEdited(true),
     documentSummary: metadataEdits.notes,
@@ -207,15 +178,7 @@ export function AutoItemizePage() {
         });
 
         if ('lines' in _autoItemizeResult && 'warnings' in _autoItemizeResult) {
-          const linesWithInclude: LineWithInclude[] = _autoItemizeResult.lines.map((line, idx) => ({
-            ...line,
-            included: true,
-            rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
-            budgetCategoryId: line.budgetCategoryId ?? null,
-            budgetSourceId:
-              line.budgetSourceId ?? picker.pickerState.budgetSources?.[0]?.id ?? null,
-          }));
-          setLines(linesWithInclude);
+          lineState.load(_autoItemizeResult.lines);
           setWarnings(_autoItemizeResult.warnings);
           setExtractedInvoiceDate(_autoItemizeResult.extractedInvoiceDate ?? undefined);
           setExtractedDueDate(_autoItemizeResult.extractedDueDate ?? undefined);
@@ -237,7 +200,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable so the effect re-runs on the listed deps only
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- lineState.load is stable per locale; the effect re-runs on the listed deps only
   }, [invoiceId, documentId, t, tErrors]);
 
   // Track dirty state
@@ -257,10 +220,10 @@ export function AutoItemizePage() {
     const metadataChanged = Object.entries(metadataEdits).some(
       ([key, value]) => value !== originalMetadata[key as keyof MetadataEdits],
     );
-    const linesChanged = lines.some((line) => !line.included);
+    const linesChanged = lineState.rows.some((row) => !row.included && !isBlankRow(row));
     // eslint-disable-next-line @eslint-react/set-state-in-effect
     setIsDirty(metadataChanged || linesChanged || lineFieldsEdited);
-  }, [metadataEdits, lines, originalMetadata, lineFieldsEdited]);
+  }, [metadataEdits, lineState.rows, originalMetadata, lineFieldsEdited]);
 
   /** Back to the invoice: one step back when the page was opened from it, else replace. */
   const returnToInvoice = useCallback(() => {
@@ -295,23 +258,50 @@ export function AutoItemizePage() {
 
     try {
       const docId = parseInt(documentId, 10);
-      const includedLines = lines.filter((l) => l.included);
+      const includedRows = lineState.rows.filter((row) => row.included && !isBlankRow(row));
 
-      const materialized = await materializeInlineDrafts(
-        includedLines,
-        { workItem: createWorkItemBudget, householdItem: createHouseholdItemBudget },
-        { t, tErrors },
-      );
-
-      if (!materialized.ok) {
-        setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
-        setPageError(materialized.error);
+      // A merge that is running or failed cannot be saved: the row has no description yet.
+      const unmerged = includedRows.find((row) => row.notice !== undefined);
+      if (unmerged?.notice) {
+        setPageError(unmerged.notice.text);
+        setPageStatus('ready');
+        return;
+      }
+      if (!lineState.validate()) {
+        setPageError(null);
         setPageStatus('ready');
         return;
       }
 
-      setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
-      const workingLines = materialized.lines;
+      const context = lineState.commitContext();
+      const missingCategories = includedRows.filter(
+        (row) =>
+          row.existingLine === null &&
+          rowTarget(row, context.assignAll) === null &&
+          !row.budgetCategoryId,
+      );
+      if (missingCategories.length > 0) {
+        setPageError(t('autoItemize.categoryRequiredError'));
+        setPageStatus('ready');
+        return;
+      }
+
+      const materialized = await materializeNewRows(
+        includedRows,
+        context,
+        lineState.data,
+        { workItem: createWorkItemBudget, householdItem: createHouseholdItemBudget },
+        { t, tErrors },
+      );
+
+      // Keep the cost lines created so far: a retry must not create them again.
+      lineState.replaceRows(mergeMaterializedRows(lineState.rows, materialized.rows));
+      if (!materialized.ok) {
+        setPageError(materialized.error);
+        setPageStatus('ready');
+        return;
+      }
+      const workingRows = materialized.rows;
 
       // Build invoicePatch only if metadata changed
       const patch: Partial<InvoicePatchForAutoItemize> = {};
@@ -334,16 +324,7 @@ export function AutoItemizePage() {
         patch.status = metadataEdits.status;
       }
 
-      const missingCategories = workingLines.filter(
-        (l) => !l.assignedBudgetLineId && !l.budgetCategoryId,
-      );
-      if (missingCategories.length > 0) {
-        setPageError(t('autoItemize.categoryRequiredError'));
-        setPageStatus('ready');
-        return;
-      }
-
-      const linesPayload = buildCommitLines(workingLines, vatRate);
+      const linesPayload = buildCommitLines(workingRows, lineState.data, context);
 
       await autoItemize(invoiceId, {
         paperlessDocumentId: docId,
@@ -365,17 +346,15 @@ export function AutoItemizePage() {
   }, [
     invoiceId,
     documentId,
-    lines,
+    lineState,
     metadataEdits,
     originalMetadata,
     mode,
     invoice,
     document,
     returnToInvoice,
-    setLines,
     t,
     tErrors,
-    vatRate,
   ]);
 
   const handleApplySuggestion = useCallback(
@@ -403,15 +382,7 @@ export function AutoItemizePage() {
         });
 
         if ('lines' in result && 'warnings' in result) {
-          const linesWithInclude: LineWithInclude[] = result.lines.map((line, idx) => ({
-            ...line,
-            included: true,
-            rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
-            budgetCategoryId: line.budgetCategoryId ?? null,
-            budgetSourceId:
-              line.budgetSourceId ?? picker.pickerState.budgetSources?.[0]?.id ?? null,
-          }));
-          setLines(linesWithInclude);
+          lineState.load(result.lines);
           setWarnings(result.warnings);
           setPageStatus('ready');
         } else {
@@ -429,7 +400,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- lineState.load is stable per locale
   }, [invoiceId, documentId, t, tErrors]);
 
   const amountSuggestion = useMemo(
@@ -468,9 +439,9 @@ export function AutoItemizePage() {
   );
 
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
-    const total = lines
-      .filter((l) => l.included)
-      .reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0);
+    const total = lineState.rows
+      .filter((row) => row.included && !isBlankRow(row))
+      .reduce((sum, row) => sum + effectiveRowAmount(row, vatRate, locale), 0);
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {
@@ -478,7 +449,7 @@ export function AutoItemizePage() {
       variance: v,
       variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
     };
-  }, [lines, metadataEdits.amount, invoice?.amount, vatRate]);
+  }, [lineState.rows, metadataEdits.amount, invoice?.amount, vatRate, locale]);
 
   if (!invoiceId || !documentId) {
     return (
@@ -764,33 +735,12 @@ export function AutoItemizePage() {
             {/* Lines list */}
             <div className={styles.metadataCard}>
               <h3 className={styles.sectionTitle}>{t('autoItemize.extractedLines')}</h3>
-              <AutoItemizeLineList
-                lines={lines}
-                onToggleInclude={handlers.onToggleInclude}
-                onFieldChange={handlers.onFieldChange}
-                onAssign={handlers.onAssign}
-                onClearAssign={handlers.onClearAssign}
-                categories={picker.pickerState.categories ?? []}
-                budgetSources={picker.pickerState.budgetSources ?? []}
-                discretionarySourceId={
-                  (picker.pickerState.budgetSources ?? []).find((s) => s.isDiscretionary)?.id
-                }
+              <AutoItemizeLines
+                state={lineState}
                 computedTotal={computedLineTotal}
                 variance={variance}
                 variancePercent={variancePercent}
-                createdFromExtractionVariants={createdFromExtractionVariants}
-                formatCurrency={formatCurrency}
-                t={t}
-                tSettings={tSettings}
-                onInlineDraftChange={handlers.onInlineDraftChange}
-                confidenceLabels={CONFIDENCE_LABELS}
-                budgetCategories={picker.pickerState.categories ?? []}
-                selectedRowIds={selectedRowIds}
-                onToggleSelect={onToggleSelect}
-                onClearSelection={onClearSelection}
-                onMergeSelected={onMergeSelected}
-                onRetryMerge={onRetryMerge}
-                onUndoMerge={onUndoMerge}
+                onAnnounce={setAnnounceMessage}
               />
             </div>
 
@@ -825,57 +775,6 @@ export function AutoItemizePage() {
           </div>
         </div>
       </div>
-
-      {/* Budget line picker modal */}
-      {picker.pickerState.isOpen && (
-        <Modal
-          title={
-            picker.pickerState.step === 1
-              ? t('autoItemize.pickerTitle')
-              : t('autoItemize.pickerStep2Title', {
-                  itemTitle: picker.pickerState.itemTitle,
-                })
-          }
-          onClose={picker.closePicker}
-        >
-          <BudgetLinePickerModal
-            pickerState={picker.pickerState}
-            handleSelectItem={picker.handleSelectItem}
-            createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
-            onSelectBudgetLine={handlers.onSelectBudgetLine}
-            onCreateNewBudgetLine={handlers.onQueueNewBudgetLine}
-            onBackToStep1={() =>
-              picker.setPickerState((prev) => ({
-                ...prev,
-                step: 1,
-                budgetLines: [],
-                isLoading: false,
-              }))
-            }
-            onFormChange={(updates) =>
-              picker.setPickerState((prev) => ({
-                ...prev,
-                createForm: prev.createForm ? { ...prev.createForm, ...updates } : prev.createForm,
-              }))
-            }
-            onCancelCreateForm={() => {
-              picker.setPickerState((prev) => ({
-                ...prev,
-                showCreateForm: false,
-                createForm: undefined,
-                createError: null,
-              }));
-              setTimeout(() => {
-                picker.createBudgetLineButtonRef.current?.focus();
-              }, 0);
-            }}
-            onCreateBudgetLine={(e) => picker.handleCreateBudgetLine(e)}
-            t={t}
-            tSettings={tSettings}
-            formatCurrency={formatCurrency}
-          />
-        </Modal>
-      )}
 
       {/* Discard confirmation */}
       {showCancelConfirm && (

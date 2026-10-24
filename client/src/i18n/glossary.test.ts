@@ -231,6 +231,11 @@ describe('glossary.json (real file)', () => {
       ['diaryType.delivery', 'Delivery', 'singular'],
       ['diaryType.issue', 'Defect', 'singular'],
       ['diaryType.general_note', 'Note', 'singular'],
+      ['costLine.estimate', 'Estimate', 'singular'],
+      ['costLine.offered', 'Offered', 'singular'],
+      ['costLine.invoiced', 'Invoiced', 'singular'],
+      ['costLine.paid', 'Paid', 'singular'],
+      ['costLine.submitted', 'Submitted', 'singular'],
     ];
 
     function leaf(json: unknown, path: string): unknown {
@@ -299,6 +304,8 @@ describe('glossary.json (real file)', () => {
       ['Cost line', 'Budgetpositionen'],
       ['Cost line', 'Line item'],
       ['Cost line', 'Allocation'],
+      ['Basis', 'Confidence'],
+      ['Professional estimate', 'Pro estimate'],
       ['Progress payment', 'Deposit'],
       ['Progress payment', 'Deposits'],
       ['Progress payment', 'Instalment'],

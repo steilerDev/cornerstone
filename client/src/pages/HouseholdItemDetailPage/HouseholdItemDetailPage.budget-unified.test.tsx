@@ -66,6 +66,11 @@ const mockFetchHouseholdItemCategories = jest.fn() as jest.MockedFunction<
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
 // useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+// The cost lines section has its own tests; it is not under test here.
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: () => null,
+}));
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
   const localeValue = {
     locale: 'en',
@@ -439,7 +444,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cost', level: 2 })).toBeInTheDocument();
     });
 
     it('does NOT render a separate top-level Subsidies h2 heading', async () => {
@@ -493,8 +498,8 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Expected Cost')).toBeInTheDocument();
-      expect(screen.getByText('Planned Cost')).toBeInTheDocument();
+      expect(screen.getByText('Expected cost')).toBeInTheDocument();
+      expect(screen.getByText('Planned cost')).toBeInTheDocument();
     });
 
     it('does NOT show Expected Payback when no subsidies are linked', async () => {
@@ -573,7 +578,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       // All lines invoiced: payback collapses to 120 (max), expected cost = 400-120 = 280
-      expect(screen.getByText('Expected Cost')).toBeInTheDocument();
+      expect(screen.getByText('After grants')).toBeInTheDocument();
       expect(screen.getByText('€280.00')).toBeInTheDocument();
     });
   });
@@ -651,7 +656,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
 
       // Expected Cost = minPlanned - minPayback to maxPlanned - maxPayback
       // 400-100=300, 600-120=480 → "€300.00 – €480.00"
-      expect(screen.getByText('Expected Cost')).toBeInTheDocument();
+      expect(screen.getByText('After grants')).toBeInTheDocument();
       expect(screen.getByText(/€300.00.*€480.00/)).toBeInTheDocument();
     });
 
@@ -675,7 +680,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       // All lines invoiced: payback collapses to 120 (max), expected cost = 400-120 = 280
-      expect(screen.getByText('Expected Cost')).toBeInTheDocument();
+      expect(screen.getByText('After grants')).toBeInTheDocument();
       expect(screen.getByText('€280.00')).toBeInTheDocument();
     });
 
@@ -711,8 +716,8 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       // The overview is only rendered when budgetLines.length > 0
-      expect(screen.queryByText('Expected Cost')).not.toBeInTheDocument();
-      expect(screen.queryByText('Planned Cost')).not.toBeInTheDocument();
+      expect(screen.queryByText('Expected cost')).not.toBeInTheDocument();
+      expect(screen.queryByText('Planned cost')).not.toBeInTheDocument();
     });
   });
 });

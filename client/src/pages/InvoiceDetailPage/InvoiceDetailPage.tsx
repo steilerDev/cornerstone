@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
@@ -12,7 +12,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
-import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
+import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
 import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -49,7 +49,14 @@ interface InvoiceFormState {
   vendorName: string;
 }
 
+/** Reads the route id once; the view below always has an invoice id. */
 export function InvoiceDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to={routeUrl('invoices')} replace />;
+  return <InvoiceDetailView id={id} />;
+}
+
+function InvoiceDetailView({ id }: { id: string }) {
   const {
     formatCurrency,
     formatDate,
@@ -61,7 +68,6 @@ export function InvoiceDetailPage() {
   const { t: tc } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
   const { run: runStatusChange } = useUndoableStatusChange();
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -71,12 +77,14 @@ export function InvoiceDetailPage() {
   const [notFound, setNotFound] = useState(false);
 
   const invoiceTitle = useInvoiceDisplayTitle(invoice);
+  // The title of the loaded invoice, or the plain noun while it is not (or cannot be) shown.
+  const invoiceName = invoiceTitle ?? tc('navigation.invoice');
   const h1Text =
     isLoading || !invoice
       ? notFound && !isLoading
         ? tc('navigation.invoiceNotFound')
         : tc('navigation.invoice')
-      : (invoiceTitle ?? tc('navigation.invoice'));
+      : invoiceName;
   useDocumentTitle(h1Text);
   const originState = useOriginState(invoice ? invoiceTitle : null);
 
@@ -104,7 +112,7 @@ export function InvoiceDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const deleteConsequences = useDeleteImpact('invoice', showDeleteModal && id ? id : null);
+  const deleteConsequences = useDeleteImpact('invoice', showDeleteModal ? id : null);
 
   // Story #2107: quotation-to-final-invoice conversion
   const [sectionsKey, setSectionsKey] = useState(0);
@@ -113,7 +121,7 @@ export function InvoiceDetailPage() {
 
   /** Silent re-fetch: does not toggle the page loading state. */
   const refreshInvoice = async (): Promise<Invoice> => {
-    const fresh = await fetchInvoiceById(id!);
+    const fresh = await fetchInvoiceById(id);
     setInvoice(fresh);
     return fresh;
   };
@@ -132,18 +140,16 @@ export function InvoiceDetailPage() {
   useEffect(() => {
     if (focusHeadingAfterConvertRef.current) {
       focusHeadingAfterConvertRef.current = false;
-      headingRef.current?.focus();
+      headingRef.current!.focus();
     }
   }, [invoice]);
 
   useEffect(() => {
-    if (!id) return;
     void loadInvoice();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadInvoice is defined in component body; effect re-runs on intended trigger only
   }, [id]);
 
   const loadInvoice = async () => {
-    if (!id) return;
     setIsLoading(true);
     setError(null);
     setNotFound(false);
@@ -166,8 +172,54 @@ export function InvoiceDetailPage() {
     }
   };
 
+  useQueryTargetHighlight({
+    param: 'payment',
+    ready: invoice !== null,
+    selector: (paymentId) => `[data-payment-id="${CSS.escape(paymentId)}"]`,
+    highlightClassName: depositStyles.paymentTarget!,
+    onMissing: () => setPaymentStatus(t('invoiceDetail.deposits.paymentGone')),
+  });
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.pageTitle}>{h1Text}</h1>
+        <Skeleton lines={4} loadingLabel={t('invoiceDetail.loading')} />
+      </div>
+    );
+  }
+
+  if (error || !invoice) {
+    return (
+      <div className={styles.container}>
+        <PageBreadcrumbs />
+        {!notFound && <h1 className={styles.pageTitle}>{h1Text}</h1>}
+        <div className={styles.errorCard} role="alert">
+          {notFound ? (
+            <h1 className={styles.errorTitle}>{h1Text}</h1>
+          ) : (
+            <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
+          )}
+          <p>{error}</p>
+          <div className={styles.errorActions}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => navigate(routeUrl('invoices'))}
+            >
+              {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
+            </button>
+            <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
+              {t('invoiceDetail.retry')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const openEditModal = () => {
-    if (!invoice) return;
     setEditForm({
       invoiceNumber: invoice.invoiceNumber ?? '',
       amount: invoice.amount.toString(),
@@ -176,7 +228,7 @@ export function InvoiceDetailPage() {
       status: invoice.status,
       notes: invoice.notes ?? '',
       vendorId: invoice.vendorId,
-      vendorName: invoice.vendorName ?? '',
+      vendorName: invoice.vendorName,
     });
     setEditError('');
     setVendorError('');
@@ -193,7 +245,6 @@ export function InvoiceDetailPage() {
 
   const handleUpdate = async (event: FormEvent) => {
     event.preventDefault();
-    if (!invoice) return;
     const amount = parseFloat(editForm.amount);
     if (isNaN(amount) || amount <= 0) {
       setEditError(t('invoiceDetail.validation.amountRequired'));
@@ -252,15 +303,12 @@ export function InvoiceDetailPage() {
   };
 
   const closeDeleteModal = () => {
-    if (!isDeleting) {
-      setShowDeleteModal(false);
-      setDeleteError('');
-      setDeleteBlocked(false);
-    }
+    setShowDeleteModal(false);
+    setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const handleDelete = async () => {
-    if (!invoice) return;
     setIsDeleting(true);
     setDeleteError('');
     try {
@@ -277,53 +325,6 @@ export function InvoiceDetailPage() {
       setIsDeleting(false);
     }
   };
-
-  useQueryTargetHighlight({
-    param: 'payment',
-    ready: invoice !== null,
-    selector: (paymentId) => `[data-payment-id="${CSS.escape(paymentId)}"]`,
-    highlightClassName: depositStyles.paymentTarget ?? 'paymentTarget',
-    onMissing: () => setPaymentStatus(t('invoiceDetail.deposits.paymentGone')),
-  });
-
-  if (isLoading) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        <h1 className={styles.pageTitle}>{h1Text}</h1>
-        <Skeleton lines={4} loadingLabel={t('invoiceDetail.loading')} />
-      </div>
-    );
-  }
-
-  if (error || !invoice) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        {!notFound && <h1 className={styles.pageTitle}>{h1Text}</h1>}
-        <div className={styles.errorCard} role="alert">
-          {notFound ? (
-            <h1 className={styles.errorTitle}>{h1Text}</h1>
-          ) : (
-            <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
-          )}
-          <p>{error ?? t('invoiceDetail.invoiceNotFound')}</p>
-          <div className={styles.errorActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => navigate(routeUrl('invoices'))}
-            >
-              {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
-            </button>
-            <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
-              {t('invoiceDetail.retry')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.container}>
@@ -346,7 +347,7 @@ export function InvoiceDetailPage() {
                 runStatusChange({
                   request: () =>
                     changeInvoiceStatus(invoice.vendorId, invoice.id, invoiceStatusBody(to)),
-                  recordName: invoiceTitle ?? tc('navigation.invoice'),
+                  recordName: invoiceName,
                   statusLabel: statusVariants.invoice[to].label,
                   dedupeKey: `invoice:${invoice.id}`,
                   onChanged: () => void refreshInvoice(),
@@ -455,7 +456,7 @@ export function InvoiceDetailPage() {
         </div>
 
         <InvoiceDepositsSection
-          invoiceId={id!}
+          invoiceId={id}
           invoiceStatus={invoice.status}
           invoiceAmount={invoice.amount}
           deposits={invoice.deposits}
@@ -463,14 +464,25 @@ export function InvoiceDetailPage() {
           onDepositMutated={() => void refreshInvoice().catch(() => loadInvoice())}
         />
 
-        <InvoiceBudgetLinesSection
-          key={`lines-${sectionsKey}`}
-          invoiceId={id!}
-          invoiceTotal={invoice.amount}
-          linkState={originState}
-        />
+        <div className={styles.card}>
+          <CostLinesSection
+            key={`lines-${sectionsKey}`}
+            host={{
+              kind: 'invoice',
+              id: invoice.id,
+              label: invoiceName,
+              status: invoice.status,
+              amount: invoice.amount,
+              vendorId: invoice.vendorId,
+            }}
+            onChanged={async () => {
+              await refreshInvoice().catch(() => undefined);
+            }}
+            linkState={originState}
+          />
+        </div>
 
-        <DocumentsPanelButton key={`docs-${sectionsKey}`} entityType="invoice" entityId={id!} />
+        <DocumentsPanelButton key={`docs-${sectionsKey}`} entityType="invoice" entityId={id} />
       </div>
 
       {/* Quotation conversion flow: one modal at a time, never stacked */}
@@ -660,9 +672,7 @@ export function InvoiceDetailPage() {
       {/* Delete confirmation */}
       {showDeleteModal && (
         <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', {
-            name: invoiceTitle ?? tc('navigation.invoice'),
-          })}
+          title={tc('confirmDialog.deleteTitle', { name: invoiceName })}
           consequences={deleteConsequences}
           irreversible
           confirmLabel={tc('button.delete')}

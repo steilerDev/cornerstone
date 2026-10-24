@@ -32,12 +32,6 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
-jest.unstable_mockModule('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'en' } }),
-  initReactI18next: { type: '3rdParty', init: () => {} },
-  Trans: ({ children }: { children: unknown }) => children,
-}));
-
 // ─── Dynamic import after mocks ───────────────────────────────────────────────
 
 let BudgetCostOverview: (typeof BudgetCostOverviewModule)['BudgetCostOverview'];
@@ -105,8 +99,8 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('Planned Cost')).toHaveTextContent('€119.00');
-      expect(valueOf('Expected Cost')).toHaveTextContent('€119.00');
+      expect(valueOf('Planned cost')).toHaveTextContent('€119.00');
+      expect(valueOf('Expected cost')).toHaveTextContent('€119.00');
     });
 
     it('passes the configured rate through: vatRate=0.2 grosses 100 net up to 120.00', () => {
@@ -119,8 +113,8 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('Planned Cost')).toHaveTextContent('€120.00');
-      expect(valueOf('Expected Cost')).toHaveTextContent('€120.00');
+      expect(valueOf('Planned cost')).toHaveTextContent('€120.00');
+      expect(valueOf('Expected cost')).toHaveTextContent('€120.00');
     });
 
     it('does not gross up a gross-stored line at any rate', () => {
@@ -133,7 +127,7 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('Planned Cost')).toHaveTextContent('€100.00');
+      expect(valueOf('Planned cost')).toHaveTextContent('€100.00');
     });
 
     it('applies the confidence margin to the grossed-up amount (range 96.00 - 144.00 at 0.2)', () => {
@@ -146,8 +140,8 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('Planned Cost')).toHaveTextContent('€96.00 – €144.00');
-      expect(valueOf('Expected Cost')).toHaveTextContent('€96.00 – €144.00');
+      expect(valueOf('Planned cost')).toHaveTextContent('€96.00 – €144.00');
+      expect(valueOf('Expected cost')).toHaveTextContent('€96.00 – €144.00');
     });
   });
 
@@ -161,12 +155,12 @@ describe('BudgetCostOverview', () => {
       );
 
       // Planned 80 - 120; expected cost = min(80-10, 120-20) .. max(...) = 70 - 100
-      expect(valueOf('Expected Cost')).toHaveTextContent('€70.00 – €100.00');
-      const paybackValue = valueOf('overview.expectedPayback');
+      expect(valueOf('After grants')).toHaveTextContent('€70.00 – €100.00');
+      const paybackValue = valueOf('Expected Payback');
       expect(paybackValue).toHaveTextContent('€10.00 – €20.00');
       expect(paybackValue).toHaveAttribute(
         'aria-label',
-        'Expected subsidy payback: €10.00 to €20.00',
+        'The expected payback is between €10.00 and €20.00',
       );
       expect(paybackValue).toHaveClass('budgetValuePayback');
     });
@@ -179,10 +173,7 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('overview.expectedPayback')).toHaveAttribute(
-        'aria-label',
-        'Expected subsidy payback: €15.00',
-      );
+      expect(valueOf('Expected Payback')).toHaveAttribute('aria-label', 'Expected payback: €15.00');
     });
 
     it('collapses payback to the max value when all lines are invoiced', () => {
@@ -193,13 +184,13 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('overview.expectedPayback')).toHaveTextContent('€20.00');
-      expect(valueOf('Expected Cost')).toHaveTextContent('€80.00');
+      expect(valueOf('Expected Payback')).toHaveTextContent('€20.00');
+      expect(valueOf('After grants')).toHaveTextContent('€80.00');
       // Planned range is de-emphasised (muted) once costs are fully known
-      expect(valueOf('Planned Cost')).toHaveClass('budgetValueMuted');
+      expect(valueOf('Planned cost')).toHaveClass('budgetValueMuted');
     });
 
-    it('keeps the range when all invoiced lines are quotations', () => {
+    it('counts a quotation-linked line at face value, with no +/-5% range (ADR-039)', () => {
       render(
         <BudgetCostOverview
           budgetLines={[
@@ -222,8 +213,9 @@ describe('BudgetCostOverview', () => {
         />,
       );
 
-      expect(valueOf('Planned Cost')).toHaveTextContent('€95.00 – €105.00');
-      expect(valueOf('Planned Cost')).toHaveClass('budgetValue');
+      expect(valueOf('Planned cost')).toHaveTextContent('€100.00');
+      expect(valueOf('Planned cost')).not.toHaveTextContent('–');
+      expect(valueOf('Expected cost')).toHaveTextContent('€100.00');
     });
 
     it.each([
@@ -233,14 +225,26 @@ describe('BudgetCostOverview', () => {
     ])('hides the payback row for %s', (_label, data) => {
       render(<BudgetCostOverview budgetLines={[buildLine()]} subsidyPayback={data} />);
 
-      expect(screen.queryByText('overview.expectedPayback')).not.toBeInTheDocument();
-      expect(valueOf('Expected Cost')).toHaveClass('budgetValue');
+      expect(screen.queryByText('Expected Payback')).not.toBeInTheDocument();
+      expect(valueOf('Expected cost')).toHaveClass('budgetValue');
     });
 
     it('highlights the expected cost when a payback applies', () => {
       render(<BudgetCostOverview budgetLines={[buildLine()]} subsidyPayback={payback(5, 5)} />);
 
-      expect(valueOf('Expected Cost')).toHaveClass('budgetValueHighlighted');
+      expect(valueOf('After grants')).toHaveClass('budgetValueHighlighted');
+    });
+
+    it('labels the first row After grants only while grants apply', () => {
+      const { rerender } = render(
+        <BudgetCostOverview budgetLines={[buildLine()]} subsidyPayback={payback(5, 5)} />,
+      );
+      expect(screen.getByText('After grants')).toBeInTheDocument();
+      expect(screen.queryByText('Expected cost')).not.toBeInTheDocument();
+
+      rerender(<BudgetCostOverview budgetLines={[buildLine()]} subsidyPayback={null} />);
+      expect(screen.getByText('Expected cost')).toBeInTheDocument();
+      expect(screen.queryByText('After grants')).not.toBeInTheDocument();
     });
   });
 

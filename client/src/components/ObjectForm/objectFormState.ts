@@ -54,6 +54,19 @@ export function resetValues(
   return next;
 }
 
+/** A field without `visibleWhen` is always visible. */
+export function isFieldVisible(field: ObjectFormField, values: ObjectFormValues): boolean {
+  return field.visibleWhen ? field.visibleWhen(values) : true;
+}
+
+/** The fields shown for the given values, in schema order. */
+export function visibleFields(
+  fields: readonly ObjectFormField[],
+  values: ObjectFormValues,
+): readonly ObjectFormField[] {
+  return fields.filter((field) => isFieldVisible(field, values));
+}
+
 /** A non-essential field is hidden behind "More details". */
 export function isMoreField(field: ObjectFormField): boolean {
   return field.essential !== true;
@@ -65,12 +78,16 @@ export function startsExpanded(
   prefill: ObjectFormValues | undefined,
 ): boolean {
   if (!prefill) return false;
-  return schema.fields.some((field) => isMoreField(field) && hasValue(prefill[field.name]));
+  return visibleFields(schema.fields, startValues(schema, prefill)).some(
+    (field) => isMoreField(field) && hasValue(prefill[field.name]),
+  );
 }
 
 /** "More details" holds no value at all. */
 export function moreIsEmpty(schema: ObjectFormSchema, values: ObjectFormValues): boolean {
-  return !schema.fields.some((field) => isMoreField(field) && hasValue(values[field.name]));
+  return !visibleFields(schema.fields, values).some(
+    (field) => isMoreField(field) && hasValue(values[field.name]),
+  );
 }
 
 /** First field in schema order that has an error. */
@@ -87,7 +104,9 @@ export function initialFocusName(
   values: ObjectFormValues,
   moreExpanded: boolean,
 ): string | undefined {
-  const visible = fields.filter((field) => moreExpanded || !isMoreField(field));
+  const visible = visibleFields(fields, values).filter(
+    (field) => moreExpanded || !isMoreField(field),
+  );
   const emptyRequired = visible.find((field) => field.required && !hasValue(values[field.name]));
   return (emptyRequired ?? visible[0])?.name;
 }
@@ -116,8 +135,7 @@ export function adjustForOptions(
   values: ObjectFormValues,
   initial: ObjectFormValues,
 ): { values: ObjectFormValues; initial: ObjectFormValues } {
-  let nextValues: Record<string, unknown> | null = null;
-  let nextInitial: Record<string, unknown> | null = null;
+  let changed: { values: Record<string, unknown>; initial: Record<string, unknown> } | null = null;
   for (const field of fields) {
     if (!field.options || field.optionsLoading) continue;
     const current = values[field.name];
@@ -131,12 +149,11 @@ export function adjustForOptions(
       replacement = field.options.find((option) => option.value !== '')?.value;
     }
     if (replacement === undefined || replacement === current) continue;
-    nextValues ??= { ...values };
-    nextInitial ??= { ...initial };
-    nextValues[field.name] = replacement;
-    nextInitial[field.name] = replacement;
+    changed ??= { values: { ...values }, initial: { ...initial } };
+    changed.values[field.name] = replacement;
+    changed.initial[field.name] = replacement;
   }
-  return { values: nextValues ?? values, initial: nextInitial ?? initial };
+  return changed ?? { values, initial };
 }
 
 export interface ServerFieldErrors {

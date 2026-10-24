@@ -354,6 +354,14 @@ export function formatHours(hours: number, locale = 'en-US'): string {
 }
 
 /**
+ * Format a quantity (cost line quantity, e.g. 12 or 2.5) with up to three decimals and no
+ * trailing zeros, grouped by the locale.
+ */
+export function formatQuantity(quantity: number, locale = 'en-US'): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(quantity);
+}
+
+/**
  * Format a Date as a localized date + time string including the time zone
  * abbreviation (e.g. "Feb 24, 2026, 2:45 PM GMT+1"). Used where the output
  * is burned into a static artifact (e.g. a signature image) and must be
@@ -404,6 +412,7 @@ export interface AppFormatters extends Formatters {
   formatWeekdayMonthDay: (date: Date) => string;
   formatFileSize: (bytes: number) => string;
   formatHours: (hours: number) => string;
+  formatQuantity: (quantity: number) => string;
   formatDateTimeWithZone: (date: Date) => string;
   formatDayMonth: (dateStr: string | null | undefined, fallback?: string) => string;
   /** Range of two `YYYY-MM-DD` dates: "October 12 – 18, 2026". */
@@ -513,6 +522,11 @@ export function createFormatters(locale: string, currency: string): AppFormatter
      * Format a duration in hours as a locale-aware string using the bound locale.
      */
     formatHours: (hours: number) => formatHours(hours, locale),
+
+    /**
+     * Format a quantity with up to three decimals using the bound locale.
+     */
+    formatQuantity: (quantity: number) => formatQuantity(quantity, locale),
 
     /**
      * Format a Date as a localized date + time string including time zone using the bound locale.

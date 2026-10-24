@@ -1,18 +1,21 @@
 /**
- * E2E tests for Unit Pricing Mode on Budget Line forms (Story #741)
+ * E2E tests for unit pricing on the cost line form (Story #741, rebuilt on the cost line form in
+ * #2235).
  *
- * UAT Scenarios covered:
- * 1. WI unit pricing create (with VAT included): qty=10, unit="m²", unitPrice=50 → total 500.00
- * 2. WI unit pricing create (VAT excluded): qty=10, unitPrice=50 → total 595.00 (×1.19)
- * 3. HI unit pricing create (with VAT): same flow on a household item
- * 4. Edit auto-switches to unit pricing mode when the line was saved with unit pricing
- * 5. Switch from unit pricing back to direct amount mode resets to Planned Amount input
- * 6. No "New Budget Line" or "Edit Budget Line" h3 heading exists in the form
+ * The form opens in unit pricing (Quantity, Unit, Unit price) with Entered as Net, and shows the
+ * live result line "Gross €x (net … + VAT …)". Scenarios:
+ * 1. WI unit pricing, entered as Gross: qty=10, unit="m²", unitPrice=50 -> gross 500.00
+ * 2. WI unit pricing, entered as Net: qty=10, unitPrice=50 -> gross 595.00 (x1.19)
+ * 3. HI unit pricing: the same flow on a purchase
+ * 4. Edit re-opens a unit-priced line in unit pricing with its values
+ * 5. Switching Pricing to Direct amount shows Amount and hides the unit fields (and back)
+ * 6. The form heading is "New cost line" / "Edit cost line" (an h2, no inner h3 heading)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
+import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -20,376 +23,241 @@ import {
   deleteHouseholdItemViaApi,
 } from '../../fixtures/apiHelpers.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers: budget line form interactions
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Click the "Unit Pricing" mode toggle button and wait for the quantity input to appear.
- */
-async function switchToUnitPricingMode(detailPage: WorkItemDetailPage | HouseholdItemDetailPage) {
-  const { page } = detailPage;
-  await page.getByRole('button', { name: 'Unit Pricing', exact: true }).click();
-  await page.getByLabel('Quantity *').waitFor({ state: 'visible' });
-}
-
-/**
- * Click the "Direct Amount" mode toggle button and wait for the planned amount input to appear.
- */
-async function switchToDirectAmountMode(detailPage: WorkItemDetailPage | HouseholdItemDetailPage) {
-  const { page } = detailPage;
-  await page.getByRole('button', { name: 'Direct Amount', exact: true }).click();
-  await page.getByLabel('Planned Amount (€) *').waitFor({ state: 'visible' });
-}
-
-/**
- * Fill unit pricing fields: quantity, unit text (optional), unitPrice.
- */
-async function fillUnitPricingFields(
-  detailPage: WorkItemDetailPage | HouseholdItemDetailPage,
-  opts: { quantity: string; unit?: string; unitPrice: string },
-) {
-  const { page } = detailPage;
-  await page.getByLabel('Quantity *').fill(opts.quantity);
-  if (opts.unit !== undefined) {
-    await page.getByLabel('Unit').fill(opts.unit);
-  }
-  await page.getByLabel('Price *').fill(opts.unitPrice);
-}
-
-/**
- * Read the computed total text (the div rendered next to the "Total" label).
- * Returns the raw text content of the computedValue div (e.g. "€500.00").
- */
-async function getComputedTotal(
-  detailPage: WorkItemDetailPage | HouseholdItemDetailPage,
-): Promise<string> {
-  const { page } = detailPage;
-  const computedDiv = page.locator('[class*="computedValue"]');
-  await computedDiv.waitFor({ state: 'visible' });
-  return (await computedDiv.textContent()) ?? '';
-}
-
-/**
- * Open the "Add Line" budget form on the work item detail page.
- * Waits for the mode toggle to be visible (form is open and ready).
- */
-async function openAddBudgetLineForm(detailPage: WorkItemDetailPage) {
-  await detailPage.addBudgetLineButton.click();
-  // Wait for the mode toggle to confirm the form opened
-  await detailPage.page.getByRole('button', { name: 'Direct Amount', exact: true }).waitFor({
-    state: 'visible',
-  });
-}
-
-/**
- * Submit the budget line form and wait for the form to close (Add Line button re-appears).
- */
-async function submitBudgetLineForm(detailPage: WorkItemDetailPage | HouseholdItemDetailPage) {
-  const { page } = detailPage;
-  // Click "Add Line" (new) or "Save Changes" (edit) — both are the submit button
-  const submitBtn = page.locator('[class*="submitButton"]');
-  await submitBtn.click();
-  // Wait for the form to close: "Add budget line" button re-appears
-  await page.getByRole('button', { name: 'Add budget line' }).waitFor({ state: 'visible' });
-}
-
-/**
- * Open the Add budget line form on a household item detail page.
- * The household item detail page uses the same BudgetSection component.
- */
-async function openAddBudgetLineFormHI(page: HouseholdItemDetailPage['page']) {
-  const addBtn = page.getByRole('button', { name: 'Add budget line' });
-  await addBtn.click();
-  // Wait for the mode toggle to confirm the form opened
-  await page.getByRole('button', { name: 'Direct Amount', exact: true }).waitFor({
-    state: 'visible',
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: WI unit pricing create — with VAT included
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('WI unit pricing create (VAT included, Scenario 1)', () => {
-  test('unit pricing with VAT: computed total = qty × price, saved line shows correct amount', async ({
+test.describe('WI unit pricing create (entered as Gross, Scenario 1)', () => {
+  test('unit pricing entered as gross: result = qty × price, saved line shows correct amount', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
+    const form = new CostLineFormDialog(page, 'New cost line');
     let workItemId: string | null = null;
 
     try {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Unit Pricing VAT Test`,
       });
-
       await detailPage.goto(workItemId);
+      await detailPage.costLines.waitForLoaded();
 
-      // Open the Add Line form
-      await openAddBudgetLineForm(detailPage);
+      await detailPage.costLines.addButton.click();
+      await form.waitForOpen();
+      await form.fillUnitPriced({
+        description: `${testPrefix} Floor`,
+        quantity: '10',
+        unit: 'm²',
+        unitPrice: '50',
+      });
+      await form.enteredGross.check();
 
-      // Switch to unit pricing
-      await switchToUnitPricingMode(detailPage);
+      // 10 × 50 = 500.00 gross; the VAT note for net prices is gone
+      await expect(form.result).toContainText('Gross €500.00');
+      await expect(form.dialog.getByText('VAT at 19% is added to net prices.')).toHaveCount(0);
 
-      // Fill quantity=10, unit="m²", unitPrice=50 — VAT checkbox is checked by default
-      await fillUnitPricingFields(detailPage, { quantity: '10', unit: 'm²', unitPrice: '50' });
+      await form.save();
+      await form.waitForClosed();
 
-      // Verify computed total = 10 × 50 × 1 (includes VAT) = 500.00
-      const total = await getComputedTotal(detailPage);
-      expect(total).toContain('500.00');
-
-      // Confirm the VAT note is NOT shown (since includesVat is checked)
-      await expect(page.getByText('+19% VAT will be added to the total')).not.toBeVisible();
-
-      // Submit and verify the line appears in the budget section
-      await submitBudgetLineForm(detailPage);
-
-      // The saved BudgetLineCard shows the planned amount as formatted currency
-      await expect(
-        detailPage.budgetSection.locator('[class*="amount"]').filter({ hasText: '500' }).first(),
-      ).toBeVisible();
+      const row = detailPage.costLines.row(`${testPrefix} Floor`);
+      await expect(detailPage.costLines.gross(row)).toHaveText(/500\.00/);
+      await expect(row).toContainText('10 m² × €50.00');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: WI unit pricing create — VAT excluded (multiplier = 1.19)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('WI unit pricing create (VAT excluded, Scenario 2)', () => {
-  test('unit pricing without VAT: computed total = qty × price × 1.19, saved line shows correct amount', async ({
+test.describe('WI unit pricing create (entered as Net, Scenario 2)', () => {
+  test('unit pricing entered as net: gross = qty × price × 1.19, saved line shows correct amount', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
+    const form = new CostLineFormDialog(page, 'New cost line');
     let workItemId: string | null = null;
 
     try {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Unit Pricing No VAT Test`,
       });
-
       await detailPage.goto(workItemId);
+      await detailPage.costLines.waitForLoaded();
 
-      await openAddBudgetLineForm(detailPage);
-      await switchToUnitPricingMode(detailPage);
+      await detailPage.costLines.addButton.click();
+      await form.waitForOpen();
+      await form.fillUnitPriced({
+        description: `${testPrefix} Tiles`,
+        quantity: '10',
+        unit: 'pcs',
+        unitPrice: '50',
+      });
+      // Net is the default: the VAT note is shown
+      await expect(form.enteredNet).toBeChecked();
+      await expect(form.dialog.getByText('VAT at 19% is added to net prices.')).toBeVisible();
+      // 10 × 50 × 1.19 = 595.00
+      await expect(form.result).toContainText('Gross €595.00');
+      await expect(form.result).toContainText('net €500.00');
 
-      // Fill fields
-      await fillUnitPricingFields(detailPage, { quantity: '10', unit: 'pcs', unitPrice: '50' });
-
-      // Uncheck "Price includes VAT (19%)"
-      const vatCheckbox = page.getByLabel('Price includes VAT (19%)');
-      await vatCheckbox.uncheck();
-
-      // VAT note should now appear
-      await expect(page.getByText('+19% VAT will be added to the total')).toBeVisible();
-
-      // Computed total = 10 × 50 × 1.19 = 595.00
-      const total = await getComputedTotal(detailPage);
-      expect(total).toContain('595.00');
-
-      // Submit and verify
-      await submitBudgetLineForm(detailPage);
+      await form.save();
+      await form.waitForClosed();
 
       await expect(
-        detailPage.budgetSection.locator('[class*="amount"]').filter({ hasText: '595' }).first(),
-      ).toBeVisible();
+        detailPage.costLines.gross(detailPage.costLines.row(`${testPrefix} Tiles`)),
+      ).toHaveText(/595\.00/);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: HI unit pricing create
-// ─────────────────────────────────────────────────────────────────────────────
-
 test.describe('HI unit pricing create (Scenario 3)', () => {
-  test('unit pricing with VAT on household item: computed total and saved amount are correct', async ({
+  test('unit pricing on a purchase: result and saved amount are correct', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new HouseholdItemDetailPage(page);
+    const form = new CostLineFormDialog(page, 'New cost line');
     let hiId: string | null = null;
 
     try {
-      hiId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} HI Unit Pricing Test`,
-      });
-
+      hiId = await createHouseholdItemViaApi(page, { name: `${testPrefix} HI Unit Pricing Test` });
       await detailPage.goto(hiId);
+      await detailPage.costLines.waitForLoaded();
 
-      // Open Add Line form on HI detail page
-      await openAddBudgetLineFormHI(page);
+      await detailPage.costLines.addButton.click();
+      await form.waitForOpen();
+      await form.fillUnitPriced({
+        description: `${testPrefix} Chairs`,
+        quantity: '10',
+        unit: 'm²',
+        unitPrice: '50',
+      });
+      await form.enteredGross.check();
+      await expect(form.result).toContainText('Gross €500.00');
 
-      // Switch to unit pricing
-      await page.getByRole('button', { name: 'Unit Pricing', exact: true }).click();
-      await page.getByLabel('Quantity *').waitFor({ state: 'visible' });
+      await form.save();
+      await form.waitForClosed();
 
-      // Fill fields: qty=10, unit="m²", unitPrice=50, VAT included (default)
-      await page.getByLabel('Quantity *').fill('10');
-      await page.getByLabel('Unit').fill('m²');
-      await page.getByLabel('Price *').fill('50');
-
-      // Verify computed total = 500.00
-      const computedDiv = page.locator('[class*="computedValue"]');
-      await computedDiv.waitFor({ state: 'visible' });
-      const total = (await computedDiv.textContent()) ?? '';
-      expect(total).toContain('500.00');
-
-      // Submit
-      const submitBtn = page.locator('[class*="submitButton"]');
-      await submitBtn.click();
-      await page.getByRole('button', { name: 'Add budget line' }).waitFor({ state: 'visible' });
-
-      // The saved line should show 500
       await expect(
-        page.locator('[class*="amount"]').filter({ hasText: '500' }).first(),
-      ).toBeVisible();
+        detailPage.costLines.gross(detailPage.costLines.row(`${testPrefix} Chairs`)),
+      ).toHaveText(/500\.00/);
     } finally {
       if (hiId) await deleteHouseholdItemViaApi(page, hiId);
     }
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Edit auto-switches to unit pricing mode
-// ─────────────────────────────────────────────────────────────────────────────
-
 test.describe('Edit re-opens in unit pricing mode (Scenario 4)', () => {
-  test('editing a unit-priced line opens the form pre-filled in unit pricing mode', async ({
+  test('editing a unit-priced line opens the form pre-filled in unit pricing', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
+    const newForm = new CostLineFormDialog(page, 'New cost line');
+    const editForm = new CostLineFormDialog(page, 'Edit cost line');
     let workItemId: string | null = null;
 
     try {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Edit Unit Pricing Mode Test`,
       });
-
       await detailPage.goto(workItemId);
+      await detailPage.costLines.waitForLoaded();
 
-      // Create a unit-priced line first
-      await openAddBudgetLineForm(detailPage);
-      await switchToUnitPricingMode(detailPage);
-      await fillUnitPricingFields(detailPage, { quantity: '5', unit: 'hr', unitPrice: '80' });
-      await submitBudgetLineForm(detailPage);
+      await detailPage.costLines.addButton.click();
+      await newForm.waitForOpen();
+      await newForm.fillUnitPriced({
+        description: `${testPrefix} Labour`,
+        quantity: '5',
+        unit: 'hr',
+        unitPrice: '80',
+      });
+      await newForm.save();
+      await newForm.waitForClosed();
 
-      // Click the "Edit" button on the newly created line
-      const editButton = detailPage.budgetSection.locator('[class*="editButton"]').first();
-      await editButton.click();
+      await detailPage.costLines.chooseAction(
+        detailPage.costLines.row(`${testPrefix} Labour`),
+        'Edit',
+      );
+      await editForm.waitForOpen();
 
-      // The mode toggle should show "Unit Pricing" as active
-      const unitPricingBtn = page.getByRole('button', { name: 'Unit Pricing', exact: true });
-      await unitPricingBtn.waitFor({ state: 'visible' });
-
-      // Quantity input should be pre-filled with "5"
-      const quantityInput = page.getByLabel('Quantity *');
-      await quantityInput.waitFor({ state: 'visible' });
-      await expect(quantityInput).toHaveValue('5');
-
-      // Unit input should be pre-filled with "hr"
-      await expect(page.getByLabel('Unit')).toHaveValue('hr');
-
-      // Unit price input should be pre-filled with "80"
-      await expect(page.getByLabel('Price *')).toHaveValue('80');
-
-      // The "Planned Amount" direct input should NOT be visible
-      await expect(page.getByLabel('Planned Amount (€) *')).not.toBeVisible();
+      await expect(editForm.quantity).toHaveValue('5');
+      await expect(editForm.unit).toHaveValue('hr');
+      await expect(editForm.unitPrice).toHaveValue('80');
+      // Unit pricing: no direct Amount field
+      await expect(editForm.amount).toHaveCount(0);
+      await expect(editForm.enteredNet).toBeChecked();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Switch from unit pricing back to direct amount mode
-// ─────────────────────────────────────────────────────────────────────────────
-
 test.describe('Switch back to direct amount mode (Scenario 5)', () => {
-  test('switching from unit pricing to direct amount shows planned amount input and hides unit fields', async ({
+  test('switching Pricing to Direct amount shows Amount and hides the unit fields', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
+    const form = new CostLineFormDialog(page, 'New cost line');
     let workItemId: string | null = null;
 
     try {
-      workItemId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Mode Switch Test`,
-      });
-
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Mode Switch Test` });
       await detailPage.goto(workItemId);
+      await detailPage.costLines.waitForLoaded();
 
-      // Open Add Line form and switch to unit pricing
-      await openAddBudgetLineForm(detailPage);
-      await switchToUnitPricingMode(detailPage);
+      await detailPage.costLines.addButton.click();
+      await form.waitForOpen();
+      await expect(form.quantity).toBeVisible();
+      await expect(form.unitPrice).toBeVisible();
 
-      // Verify unit pricing fields are visible
-      await expect(page.getByLabel('Quantity *')).toBeVisible();
-      await expect(page.getByLabel('Price *')).toBeVisible();
+      await form.expandMoreDetails();
+      await form.pricing.selectOption('direct');
+      await expect(form.amount).toBeVisible();
+      await expect(form.quantity).toHaveCount(0);
+      await expect(form.unitPrice).toHaveCount(0);
 
-      // Switch back to Direct Amount
-      await switchToDirectAmountMode(detailPage);
-
-      // Planned Amount input is visible
-      await expect(page.getByLabel('Planned Amount (€) *')).toBeVisible();
-
-      // Unit pricing fields are gone
-      await expect(page.getByLabel('Quantity *')).not.toBeVisible();
-      await expect(page.getByLabel('Price *')).not.toBeVisible();
-      await expect(page.locator('[class*="computedValue"]')).not.toBeVisible();
+      await form.pricing.selectOption('unit');
+      await expect(form.quantity).toBeVisible();
+      await expect(form.amount).toHaveCount(0);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: No h3 "New Budget Line" / "Edit Budget Line" heading in the form
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('No budget line form heading (Scenario 6)', () => {
-  test('budget line form does not show "New Budget Line" or "Edit Budget Line" heading', async ({
+test.describe('Cost line form heading (Scenario 6)', () => {
+  test('the form is titled "New cost line" / "Edit cost line" with no inner h3 heading', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
+    const newForm = new CostLineFormDialog(page, 'New cost line');
+    const editForm = new CostLineFormDialog(page, 'Edit cost line');
     let workItemId: string | null = null;
 
     try {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} No Form Heading Test`,
       });
-
       await detailPage.goto(workItemId);
+      await detailPage.costLines.waitForLoaded();
 
-      // Open the Add Line form (new mode)
-      await openAddBudgetLineForm(detailPage);
+      await detailPage.costLines.addButton.click();
+      await newForm.waitForOpen();
+      await expect(newForm.heading).toHaveText('New cost line');
+      await expect(newForm.dialog.getByRole('heading', { level: 3 })).toHaveCount(0);
 
-      // No h3 with "New Budget Line" text
-      await expect(
-        page.getByRole('heading', { level: 3, name: /new budget line/i }),
-      ).not.toBeAttached();
+      await newForm.fillDirect(`${testPrefix} Direct`, '100');
+      await newForm.save();
+      await newForm.waitForClosed();
 
-      // Submit a direct amount line then click Edit to test edit mode heading
-      await page.getByLabel('Planned Amount (€) *').fill('100');
-      await submitBudgetLineForm(detailPage);
-
-      // Open Edit form
-      const editButton = detailPage.budgetSection.locator('[class*="editButton"]').first();
-      await editButton.click();
-      await page.getByLabel('Planned Amount (€) *').waitFor({ state: 'visible' });
-
-      // No h3 with "Edit Budget Line" text
-      await expect(
-        page.getByRole('heading', { level: 3, name: /edit budget line/i }),
-      ).not.toBeAttached();
+      await detailPage.costLines.chooseAction(
+        detailPage.costLines.row(`${testPrefix} Direct`),
+        'Edit',
+      );
+      await editForm.waitForOpen();
+      await expect(editForm.heading).toHaveText('Edit cost line');
+      await expect(editForm.dialog.getByRole('heading', { level: 3 })).toHaveCount(0);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }

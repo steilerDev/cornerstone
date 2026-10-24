@@ -11,9 +11,8 @@
  *   - h2 "Schedule" (Start Date, End Date inputs)
  *   - h2 "Assignment" (Assigned To picker: people and companies, server search)
  *   - h2 "Tags" (TagPicker)
- *   - h2 "Budget":
- *     - "+ Add Line" button (aria-label="Add budget line") in section header
- *     - Budget lines list with per-line Edit/Delete buttons
+ *   - h2 "Cost" (#2235): the cost lines section (`costLines`: "Add cost line", "Add lines (grid)",
+ *     the table with State chips and a ⋯ menu per row), the cost overview and the grant links
  *     - Inline form for adding/editing budget lines (planned amount, confidence,
  *       description, category, source, vendor)
  *     - h3 "Subsidies" — linked subsidy list, subsidy picker select
@@ -48,9 +47,9 @@ import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
+import { CostLinesPanel } from './components/CostLinesPanel.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
-import { SearchPickerControl } from './components/SearchPickerControl.js';
 
 export class WorkItemDetailPage {
   readonly page: Page;
@@ -75,13 +74,16 @@ export class WorkItemDetailPage {
   readonly plannedDates: Locator;
   readonly assignmentSection: Locator;
   readonly tagsSection: Locator;
+  /** The "Cost" section (overview, cost lines, grant links). */
   readonly budgetSection: Locator;
 
-  // Budget lines
+  // Cost lines
+  readonly costLines: CostLinesPanel;
+  /** "Add cost line" (same locator as `costLines.addButton`). */
   readonly addBudgetLineButton: Locator;
   /** Assignment picker (#work-item-assignment): people and companies, server search. */
   readonly assignmentPicker: CompanyPickerControl;
-  /** Company picker of the cost line form (#budget-vendor). */
+  /** Company picker of the cost line form (#vendorId, under "More details"). */
   readonly budgetVendorPicker: CompanyPickerControl;
 
   // Subsidy linking
@@ -151,18 +153,24 @@ export class WorkItemDetailPage {
     this.tagsSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Tags', exact: true }) });
+    // The "Cost" section holds the overview, the cost lines and the grant links (#2235)
     this.budgetSection = page
       .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
+      .filter({ has: page.getByRole('heading', { level: 2, name: 'Cost', exact: true }) });
 
-    // Budget lines
-    this.addBudgetLineButton = page.getByRole('button', { name: 'Add budget line' });
+    // Cost lines (CostLinesSection)
+    this.costLines = new CostLinesPanel(page);
+    this.addBudgetLineButton = this.costLines.addButton;
     this.assignmentPicker = new CompanyPickerControl(
       page,
       'work-item-assignment',
       this.assignmentSection,
     );
-    this.budgetVendorPicker = new CompanyPickerControl(page, 'budget-vendor');
+    this.budgetVendorPicker = new CompanyPickerControl(
+      page,
+      'vendorId',
+      page.getByTestId('cost-line-form'),
+    );
 
     // Subsidy picker (only present when unlinked subsidies exist)
     this.subsidyPicker = page.getByLabel('Select subsidy program to link');
@@ -387,32 +395,5 @@ export class WorkItemDetailPage {
     } catch {
       return null;
     }
-  }
-
-  // ─── Money truth (#2194): Link to Invoice modal ───────────────────────────
-
-  /** "Link to Invoice" button on an unlinked budget line (only one exists before the modal opens). */
-  get linkToInvoiceButton(): Locator {
-    return this.budgetSection.getByRole('button', { name: 'Link to Invoice', exact: true }).first();
-  }
-
-  /** The Link to Invoice modal. */
-  get invoiceLinkModal(): Locator {
-    return this.page.getByRole('dialog', { name: 'Link to Invoice' });
-  }
-
-  /** The invoice picker of the Link to Invoice modal (#invoice-search, server search). */
-  get invoiceLinkPicker(): SearchPickerControl {
-    return new SearchPickerControl(this.page, 'invoice-search', this.invoiceLinkModal);
-  }
-
-  /** The selected invoice chip of the modal (a preselection shows here, not in the input). */
-  get invoiceLinkSelected(): Locator {
-    return this.invoiceLinkModal.locator('[class*="selectedDisplay"]');
-  }
-
-  /** Invoice option row in the modal's dropdown (testid invoice-link-option-<id>). */
-  invoiceLinkOption(invoiceId: string): Locator {
-    return this.page.getByTestId(`invoice-link-option-${invoiceId}`);
   }
 }

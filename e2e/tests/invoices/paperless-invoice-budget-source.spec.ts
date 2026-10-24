@@ -202,10 +202,10 @@ test.describe('Paperless invoice review: default budget source (#2158)', () => {
       const reviewPage = await openReviewPage(page, { lineCount: 1 });
 
       await reviewPage.queueCreateNewBudgetLine(`${testPrefix} BS4 WI`);
-      await expect(reviewPage.getInlineDraftSourceSelect(0)).toBeVisible();
+      await expect(reviewPage.lineSourceSelect(0)).toBeVisible();
 
       await reviewPage.budgetSourceSelect.selectOption(a);
-      await expect(reviewPage.getInlineDraftSourceSelect(0)).toHaveValue(a);
+      await expect(reviewPage.lineSourceSelect(0)).toHaveValue(a);
 
       await reviewPage.setVendor(`${testPrefix} BS4 Vendor`);
 

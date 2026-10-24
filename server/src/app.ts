@@ -35,6 +35,7 @@ import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
 import invoiceBudgetLineRoutes from './routes/invoiceBudgetLines.js';
 import invoiceAutoItemizeRoutes from './routes/invoiceAutoItemize.js';
 import budgetLineAssignRoutes from './routes/budgetLineAssign.js';
+import budgetLineBatchRoutes from './routes/budgetLineBatch.js';
 import invoiceDepositRoutes from './routes/invoiceDeposits.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
@@ -194,6 +195,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Budget line assignment routes (cross-resource, for assigning orphan budget lines)
   await app.register(budgetLineAssignRoutes, { prefix: '/api/budget-lines' });
+  await app.register(budgetLineBatchRoutes, { prefix: '/api/budget-lines' });
 
   // Invoice deposit routes (nested under invoices, both vendor-scoped and standalone)
   await app.register(invoiceDepositRoutes, {

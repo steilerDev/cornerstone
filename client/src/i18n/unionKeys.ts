@@ -56,6 +56,8 @@ import {
   TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { COST_LINE_DOCUMENT_KINDS } from '../components/CostLineTable/costLineDocumentKind.js';
+import { COST_LINE_STATES } from '../components/CostLineTable/costLineState.js';
 import { OBJECT_TAB_IDS } from '../components/ObjectTabs/objectTabIds.js';
 import { ATTENTION_KIND_WORDS } from '../lib/attention/kinds.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../lib/integrationStatus.js';
@@ -66,7 +68,15 @@ import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
-  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common' | 'history' | 'home';
+  | 'budget'
+  | 'costLines'
+  | 'documents'
+  | 'householdItems'
+  | 'diary'
+  | 'auth'
+  | 'common'
+  | 'history'
+  | 'home';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -147,6 +157,30 @@ export const I18N_UNION_KEYS = {
   // Every status surface reads these; the legacy per-surface duplicates were removed by #2195.
   /** common — invoice status chip (pending / paid / claimed / quotation). */
   statusVocabularyInvoice: unionKeySet('common', 'statusVocabulary.invoice', INVOICE_STATUSES),
+  /** common — cost line state chip (Estimate, Offered, Invoiced, Paid, Submitted), derived (#2235). */
+  statusVocabularyCostLine: unionKeySet('common', 'statusVocabulary.costLine', COST_LINE_STATES),
+  /** costLines — Basis value of a cost line (Own estimate … Invoice) (#2235). */
+  costLineBasis: unionKeySet('costLines', 'basis', CONFIDENCE_LEVELS),
+  /** costLines — empty-state sentence per document kind (German articles differ) (#2235). */
+  costLineEmptyBodyDocument: unionKeySet(
+    'costLines',
+    'section.emptyBodyDocument',
+    COST_LINE_DOCUMENT_KINDS,
+  ),
+  /** costLines — row action that takes a line off its offer or invoice. */
+  costLineRemoveFromDocument: unionKeySet(
+    'costLines',
+    'action.removeFromDocument',
+    COST_LINE_DOCUMENT_KINDS,
+  ),
+  /** costLines — aria-label of the Split button per document kind. */
+  costLineSplitLabel: unionKeySet('costLines', 'table.splitLabel', COST_LINE_DOCUMENT_KINDS),
+  /** costLines — Remove-from-document lead for a line without a task or purchase. */
+  costLineRemoveLeadNoTarget: unionKeySet(
+    'costLines',
+    'confirm.removeLeadNoTarget',
+    COST_LINE_DOCUMENT_KINDS,
+  ),
   /** common — progress-payment (deposit) status chip. */
   statusVocabularyProgressPayment: unionKeySet(
     'common',

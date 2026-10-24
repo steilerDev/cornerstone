@@ -35,6 +35,8 @@ export interface ObjectFormRenderContext {
   readonly describedBy: string | undefined;
   /** Opens a child form (create from a picker); the parent's values stay in memory. */
   readonly createChild: (child: ObjectFormChild) => void;
+  /** The current values of the whole step, read-only (fields that depend on other fields). */
+  readonly values: ObjectFormValues;
 }
 
 export interface ObjectFormField {
@@ -63,6 +65,10 @@ export interface ObjectFormField {
   readonly min?: number;
   readonly maxLength?: number;
   readonly testId?: string;
+  /** The field is rendered only while this returns true; hidden fields take no part in focus, "More details" or errors. */
+  readonly visibleWhen?: (values: ObjectFormValues) => boolean;
+  /** Custom fields only: render a `fieldset` with a `legend` instead of a `label` (radio groups). */
+  readonly group?: boolean;
   /** For kind 'custom'. */
   readonly render?: (ctx: ObjectFormRenderContext) => ReactNode;
 }

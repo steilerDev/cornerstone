@@ -1,1605 +1,624 @@
 /**
  * @jest-environment jsdom
  *
- * Unit tests for useAutoItemizeLines hook.
- *
- * Tests handler behaviour, confidence derivation, and onFieldsEdited callback.
- * useBudgetLinePicker is mocked so no real API calls are made.
+ * Unit tests for useAutoItemizeLines: the row state of the Split with AI pages' cost line grid
+ * (load, edits, selection, merge with retry/undo, default funding source, validation, commit
+ * context).
  */
-
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import type { ExtractedLine, PaperlessDocumentSearchResult } from '@cornerstone/shared';
+import type { CostLineGridRow } from '../components/CostLineForm/types.js';
 
-// ─── Mocks (before static imports) ──────────────────────────────────────────
+// ─── Mocks (before dynamic imports) ──────────────────────────────────────────
 
-const mockOpenPicker = jest.fn();
-const mockClosePicker = jest.fn();
-const mockInitializeStaticData = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-
-let mockPickerStateOverride: Record<string, unknown> = {};
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type OnLineCreatedFn = (...args: any[]) => void;
-let capturedOnLineCreated: OnLineCreatedFn | null = null;
-
-jest.unstable_mockModule('./useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: ({ onLineCreated }: { onLineCreated: OnLineCreatedFn }) => {
-    capturedOnLineCreated = onLineCreated;
-    return {
-      pickerState: {
-        isOpen: false,
-        step: 1,
-        type: 'work_item',
-        itemId: 'wi-1',
-        itemTitle: 'Kitchen',
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        budgetSources: [{ id: 'src-1', name: 'Main', isDiscretionary: true }],
-        categories: [{ id: 'cat-1', name: 'Cat 1' }],
-        showCreateForm: false,
-        createError: null,
-        createForm: undefined,
-        ...mockPickerStateOverride,
-      },
-      openPicker: mockOpenPicker,
-      closePicker: mockClosePicker,
-      handleSelectItem: jest.fn(),
-      showCreateBudgetLineForm: jest.fn(),
-      handleCreateBudgetLine: jest.fn(),
-      setPickerState: jest.fn(),
-      initializeStaticData: mockInitializeStaticData,
-      createBudgetLineButtonRef: { current: null },
-    };
-  },
-}));
-
-// Mutable so tests can exercise a non-default VAT rate (read via vatRateRef at call time).
-const mockLocaleValue = {
-  locale: 'en',
-  resolvedLocale: 'en',
-  currency: 'EUR',
-  vatRate: 0.19,
-  setLocale: jest.fn(),
-  syncWithServer: jest.fn(),
-};
+const mockLocaleValue = { resolvedLocale: 'en', vatRate: 0.19 };
 
 jest.unstable_mockModule('../contexts/LocaleContext.js', () => ({
-  LocaleProvider: ({ children }: { children: unknown }) => children,
   useLocale: () => mockLocaleValue,
 }));
 
-// ─── Mock: invoiceAutoItemizeApi (mergeLines) — Story #1797 ───────────────────
+const stableT = (key: string, opts?: Record<string, unknown>) =>
+  opts && 'count' in opts ? `${key}:${String(opts.count)}` : key;
+jest.unstable_mockModule('react-i18next', () => ({
+  useTranslation: () => ({ t: stableT }),
+}));
 
-const mockMergeLines =
-  jest.fn<
-    (
-      body: unknown,
-    ) => Promise<{ description: string; category: string | null; budgetCategoryId: string | null }>
-  >();
+const mockOptions = {
+  categories: [{ id: 'cat-1', name: 'Wood' }],
+  sources: [{ id: 'src-1', name: 'Main' }],
+  categoryOptions: [],
+  sourceOptions: [],
+  discretionarySourceId: 'disc-1' as string | null,
+  loading: false,
+  failed: false,
+};
+jest.unstable_mockModule('../components/CostLineForm/useCostLineOptions.js', () => ({
+  useCostLineOptions: () => mockOptions,
+}));
 
+type MergeResult = {
+  description: string;
+  category: string | null;
+  budgetCategoryId: string | null;
+};
+const mockMergeLines = jest.fn<(body: unknown) => Promise<MergeResult>>();
 jest.unstable_mockModule('../lib/invoiceAutoItemizeApi.js', () => ({
   mergeLines: mockMergeLines,
 }));
 
-// ─── Mock: vendorsApi (server company search) ────────────────────────────────
-
-const mockSearchCompanies = jest.fn<(query: string) => Promise<{ id: string; name: string }[]>>();
-
-jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
-  searchCompanies: mockSearchCompanies,
-}));
+const { useAutoItemizeLines, AUTO_ITEMIZE_GRID_PREFIX, AUTO_ITEMIZE_GRID_OPTIONS } =
+  await import('./useAutoItemizeLines.js');
+const { blankGridRow } = await import('../components/CostLineForm/costLineGridModel.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeLine(overrides: Record<string, any> = {}): any {
+function line(overrides: Partial<ExtractedLine> = {}): ExtractedLine {
   return {
-    rowId: 'r1',
-    description: 'Tile work',
-    totalAmount: 300,
-    includesVat: true,
-    confidence: 0.9,
-    quantity: null,
-    unit: null,
-    unitPrice: null,
-    vatRate: null,
-    vendorName: null,
-    included: true,
-    budgetCategoryId: 'cat-1',
-    budgetSourceId: 'src-1',
+    description: 'Oak boards',
+    totalAmount: 100,
+    includesVat: false,
+    confidence: 0.8,
     ...overrides,
-  };
+  } as ExtractedLine;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeOptions(overrides: Record<string, any> = {}) {
-  return {
-    invoiceId: 'inv-1',
-    invoiceAmount: 1000,
-    document: null,
-    ...overrides,
-  };
+type Hook = ReturnType<typeof useAutoItemizeLines>;
+
+function setup(props: Parameters<typeof useAutoItemizeLines>[0] = {}) {
+  return renderHook((p: Parameters<typeof useAutoItemizeLines>[0]) => useAutoItemizeLines(p), {
+    initialProps: props,
+  });
 }
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
+function loaded(lines: ExtractedLine[], props: Parameters<typeof useAutoItemizeLines>[0] = {}) {
+  const view = setup(props);
+  act(() => view.result.current.load(lines));
+  return view;
+}
 
-describe('useAutoItemizeLines', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let useAutoItemizeLines: any;
+function realRows(hook: Hook): CostLineGridRow[] {
+  return hook.rows.filter((r) => r.description !== '' || r.unitPrice !== '');
+}
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    mockPickerStateOverride = {};
-    capturedOnLineCreated = null;
-    mockMergeLines.mockReset();
-    mockSearchCompanies.mockReset();
-    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+function select(view: { result: { current: Hook } }, ids: string[]) {
+  for (const id of ids) act(() => view.result.current.onToggleSelect(id));
+}
+
+beforeEach(() => {
+  jest.resetAllMocks();
+  mockLocaleValue.resolvedLocale = 'en';
+  mockLocaleValue.vatRate = 0.19;
+  mockOptions.discretionarySourceId = 'disc-1';
+  mockOptions.sources = [{ id: 'src-1', name: 'Main' }];
+});
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('initial state', () => {
+  it('starts with one blank row, no data, no selection and no errors shown', () => {
+    const { result } = setup();
+    expect(result.current.rows).toHaveLength(1);
+    expect(result.current.rows[0]!.description).toBe('');
+    expect(result.current.data.size).toBe(0);
+    expect(result.current.selectedRowIds.size).toBe(0);
+    expect(result.current.showAllErrors).toBe(false);
+    expect(result.current.assignAll).toBeNull();
+    expect(result.current.options).toBe(mockOptions);
   });
 
-  it('calls initializeStaticData on mount', () => {
-    renderHook(() => useAutoItemizeLines(makeOptions()));
-    expect(mockInitializeStaticData).toHaveBeenCalledTimes(1);
+  it('exports the grid contract used by the pages', () => {
+    expect(AUTO_ITEMIZE_GRID_PREFIX).toBe('auto-itemize-grid');
+    expect(AUTO_ITEMIZE_GRID_OPTIONS).toMatchObject({ include: true, select: true, targets: true });
+  });
+});
+
+describe('load', () => {
+  it('turns extracted lines into rows plus a trailing blank and keeps the side data', () => {
+    const { result } = loaded([line(), line({ description: 'Nails', totalAmount: 5 })]);
+    expect(result.current.rows).toHaveLength(3);
+    expect(result.current.rows[0]!.description).toBe('Oak boards');
+    expect(result.current.rows[1]!.description).toBe('Nails');
+    const first = result.current.rows[0]!.rowId;
+    expect(result.current.data.get(first)?.extracted.description).toBe('Oak boards');
   });
 
-  it('starts with empty lines', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    expect(result.current.lines).toEqual([]);
+  it('clears the selection and replaces earlier rows on a second load', () => {
+    const view = loaded([line(), line({ description: 'B' })]);
+    select(view, [view.result.current.rows[0]!.rowId]);
+    expect(view.result.current.selectedRowIds.size).toBe(1);
+    act(() => view.result.current.load([line({ description: 'Only' })]));
+    expect(view.result.current.selectedRowIds.size).toBe(0);
+    expect(realRows(view.result.current).map((r) => r.description)).toEqual(['Only']);
   });
 
-  it('onToggleInclude flips the included flag', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+  it('formats numbers with the German decimal comma in the de locale', () => {
+    mockLocaleValue.resolvedLocale = 'de';
+    const { result } = loaded([line({ quantity: 1.5, unit: 'm', unitPrice: 2, totalAmount: 3 })]);
+    expect(result.current.rows[0]!.quantity).toBe('1,5');
+  });
+});
 
-    act(() => {
-      result.current.setLines([makeLine({ included: true })]);
-    });
-    act(() => {
-      result.current.handlers.onToggleInclude('r1');
-    });
-
-    expect(result.current.lines[0].included).toBe(false);
+describe('default funding source', () => {
+  it('fills a new, non-blank row without a source with the discretionary source', () => {
+    const { result } = loaded([line()]);
+    expect(result.current.rows[0]!.budgetSourceId).toBe('disc-1');
+    // The blank row stays untouched.
+    expect(result.current.rows[1]!.budgetSourceId).toBeNull();
   });
 
-  it('onFieldChange updates a string field and calls onFieldsEdited', () => {
+  it('prefers the invoice default, then the first source, and leaves rows alone without any', () => {
+    const withDefault = loaded([line()], { defaultBudgetSourceId: 'def-1' });
+    expect(withDefault.result.current.rows[0]!.budgetSourceId).toBe('def-1');
+
+    mockOptions.discretionarySourceId = null;
+    const first = loaded([line()]);
+    expect(first.result.current.rows[0]!.budgetSourceId).toBe('src-1');
+
+    mockOptions.sources = [];
+    const none = loaded([line()]);
+    expect(none.result.current.rows[0]!.budgetSourceId).toBeNull();
+  });
+
+  it('keeps a source the extraction already chose and does not touch linked rows', () => {
+    const { result } = loaded([line({ budgetSourceId: 'src-9' })]);
+    expect(result.current.rows[0]!.budgetSourceId).toBe('src-9');
+    const linked: CostLineGridRow = {
+      ...result.current.rows[0]!,
+      budgetSourceId: null,
+      existingLine: { id: 'bl', type: 'work_item', description: null, gross: 5 },
+    };
+    act(() => result.current.onRowsChange([linked, result.current.rows[1]!]));
+    expect(result.current.rows[0]!.budgetSourceId).toBeNull();
+  });
+});
+
+describe('onRowsChange / replaceRows', () => {
+  it('reports an edit but not the grid appending its trailing blank row', () => {
     const onFieldsEdited = jest.fn();
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-
-    act(() => {
-      result.current.setLines([makeLine({ description: 'old' })]);
-    });
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'description', 'new');
-    });
-
-    expect(result.current.lines[0].description).toBe('new');
+    const { result } = setup({ onFieldsEdited });
+    const current = result.current.rows;
+    act(() => result.current.onRowsChange([...current, blankGridRow('extra')]));
+    expect(onFieldsEdited).not.toHaveBeenCalled();
+    act(() => result.current.onRowsChange([{ ...current[0]!, description: 'typed' }]));
     expect(onFieldsEdited).toHaveBeenCalledTimes(1);
   });
 
-  it('onFieldChange coerces quantity string → null for empty string', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine({ quantity: 5 })]);
-    });
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'quantity', '');
-    });
-
-    expect(result.current.lines[0].quantity).toBeNull();
+  it('works without an onFieldsEdited callback', () => {
+    const { result } = setup();
+    expect(() =>
+      act(() => result.current.onRowsChange([{ ...result.current.rows[0]!, description: 'x' }])),
+    ).not.toThrow();
   });
 
-  it('onFieldChange coerces quantity string → number', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine()]);
-    });
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'quantity', '3.5');
-    });
-
-    expect(result.current.lines[0].quantity).toBe(3.5);
+  it('drops removed rows from the selection and keeps the same set when nothing was removed', () => {
+    const view = loaded([line(), line({ description: 'B' })]);
+    const [a, b] = view.result.current.rows;
+    select(view, [a!.rowId, b!.rowId]);
+    const before = view.result.current.selectedRowIds;
+    act(() => view.result.current.onRowsChange(view.result.current.rows));
+    expect(view.result.current.selectedRowIds).toBe(before);
+    act(() => view.result.current.onRowsChange([b!]));
+    expect([...view.result.current.selectedRowIds]).toEqual([b!.rowId]);
   });
 
-  it('onAssign opens the picker', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.handlers.onAssign('r1');
-    });
-    expect(mockOpenPicker).toHaveBeenCalledTimes(1);
-  });
-
-  it('onSelectBudgetLine assigns the line and closes the picker', () => {
+  it('replaceRows writes rows back without counting as an edit', () => {
     const onFieldsEdited = jest.fn();
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-
-    act(() => {
-      result.current.setLines([makeLine()]);
-      result.current.handlers.onAssign('r1'); // set activeRowId
-    });
-
-    act(() => {
-      result.current.handlers.onSelectBudgetLine({
-        id: 'wib-1',
-        workItemId: 'wi-1',
-        description: 'My line',
-      });
-    });
-
-    expect(result.current.lines[0]).toMatchObject({
-      assignedBudgetLineId: 'wib-1',
-      assignedBudgetLineType: 'work_item',
-    });
-    expect(mockClosePicker).toHaveBeenCalledTimes(1);
-    expect(onFieldsEdited).toHaveBeenCalled();
-  });
-
-  it('onClearAssign resets assignment and calls onFieldsEdited', () => {
-    const onFieldsEdited = jest.fn();
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-
-    act(() => {
-      result.current.setLines([
-        makeLine({ assignedBudgetLineId: 'old', assignedBudgetLineType: 'work_item' }),
-      ]);
-    });
-    act(() => {
-      result.current.handlers.onClearAssign('r1');
-    });
-
-    expect(result.current.lines[0].assignedBudgetLineId).toBeUndefined();
-    expect(onFieldsEdited).toHaveBeenCalled();
-  });
-
-  it('onInlineDraftChange merges updates and calls onFieldsEdited', () => {
-    const onFieldsEdited = jest.fn();
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-
-    act(() => {
-      result.current.setLines([
-        makeLine({
-          inlineCreatedBudgetLineDraft: {
-            description: 'old',
-            confidence: 'invoice',
-            plannedAmount: '100',
-            budgetCategoryId: '',
-            budgetSourceId: '',
-            vendorId: '',
-            pricingMode: 'direct',
-            quantity: '',
-            unit: '',
-            unitPrice: '',
-            includesVat: true,
-          },
-        }),
-      ]);
-    });
-    act(() => {
-      result.current.handlers.onInlineDraftChange('r1', { description: 'updated' });
-    });
-
-    expect(result.current.lines[0].inlineCreatedBudgetLineDraft?.description).toBe('updated');
-    expect(onFieldsEdited).toHaveBeenCalled();
-  });
-
-  // ─── Confidence derivation ──────────────────────────────────────────────────
-
-  it('derives invoice confidence + hides field when documentType=Invoice', () => {
-    const { result } = renderHook(() =>
-      useAutoItemizeLines(
-        makeOptions({
-          document: {
-            documentType: 'Invoice',
-            id: 1,
-            title: 'Doc',
-            content: null,
-            tags: [],
-            created: null,
-            added: null,
-            modified: null,
-            correspondent: null,
-            archiveSerialNumber: null,
-            originalFileName: null,
-            pageCount: null,
-            searchHit: null,
-          },
-        }),
-      ),
-    );
-
-    act(() => {
-      result.current.setLines([makeLine()]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe('invoice');
-    expect(result.current.lines[0]?.inlineHideConfidence).toBe(true);
-  });
-
-  it('derives quote confidence + hides field when documentType=Quotation', () => {
-    const { result } = renderHook(() =>
-      useAutoItemizeLines(
-        makeOptions({
-          document: {
-            documentType: 'Quotation',
-            id: 1,
-            title: 'Doc',
-            content: null,
-            tags: [],
-            created: null,
-            added: null,
-            modified: null,
-            correspondent: null,
-            archiveSerialNumber: null,
-            originalFileName: null,
-            pageCount: null,
-            searchHit: null,
-          },
-        }),
-      ),
-    );
-
-    act(() => {
-      result.current.setLines([makeLine()]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe('quote');
-    expect(result.current.lines[0]?.inlineHideConfidence).toBe(true);
-  });
-
-  it('falls back to score-based confidence (≥0.85 → invoice) when no doc type', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine({ confidence: 0.95 })]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe('invoice');
-    expect(result.current.lines[0]?.inlineHideConfidence).toBe(false);
-  });
-
-  it('score 0.7 → quote', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine({ confidence: 0.7 })]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe('quote');
-  });
-
-  it('score 0.4 → professional_estimate', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine({ confidence: 0.4 })]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe(
-      'professional_estimate',
-    );
-  });
-
-  it('score 0.1 → own_estimate', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([makeLine({ confidence: 0.1 })]);
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onQueueNewBudgetLine();
-    });
-
-    expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.confidence).toBe('own_estimate');
-  });
-
-  // ─── onLineCreated (picker callback) ────────────────────────────────────────
-
-  it('onLineCreated (from picker) assigns the created line to the active row', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-    act(() => {
-      result.current.setLines([
-        makeLine({
-          assignedItemId: 'wi-1',
-          assignedItemType: 'work_item',
-          inlineCreatedBudgetLineDraft: {},
-        }),
-      ]);
-      result.current.handlers.onAssign('r1'); // sets activeRowId
-    });
-
-    expect(capturedOnLineCreated).not.toBeNull();
-
-    act(() => {
-      capturedOnLineCreated!({ id: 'created-id', workItemId: 'wi-1', description: 'Created' });
-    });
-
-    expect(result.current.lines[0]).toMatchObject({
-      assignedBudgetLineId: 'created-id',
-      assignedBudgetLineType: 'work_item',
-      inlineCreatedBudgetLineDraft: undefined,
-    });
-  });
-
-  // ─── Story #1797: merge selection + merge lifecycle ─────────────────────────
-
-  describe('selection handlers', () => {
-    it('onToggleSelect adds a rowId to selectedRowIds', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-      });
-
-      act(() => {
-        result.current.onToggleSelect('r1');
-      });
-
-      expect(result.current.selectedRowIds.has('r1')).toBe(true);
-    });
-
-    it('onToggleSelect removes a rowId already in selectedRowIds (toggle off)', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' })]);
-      });
-
-      act(() => {
-        result.current.onToggleSelect('r1');
-      });
-      expect(result.current.selectedRowIds.has('r1')).toBe(true);
-
-      act(() => {
-        result.current.onToggleSelect('r1');
-      });
-      expect(result.current.selectedRowIds.has('r1')).toBe(false);
-    });
-
-    it('onToggleSelect does not select a row that already has an assignedBudgetLineId', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1', assignedBudgetLineId: 'wib-1' })]);
-      });
-
-      act(() => {
-        result.current.onToggleSelect('r1');
-      });
-
-      expect(result.current.selectedRowIds.has('r1')).toBe(false);
-    });
-
-    it('onToggleSelect does not select a row with an inlineCreatedBudgetLineDraft', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', inlineCreatedBudgetLineDraft: { description: 'draft' } }),
-        ]);
-      });
-
-      act(() => {
-        result.current.onToggleSelect('r1');
-      });
-
-      expect(result.current.selectedRowIds.has('r1')).toBe(false);
-    });
-
-    it('onClearSelection empties selectedRowIds', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-      expect(result.current.selectedRowIds.size).toBe(2);
-
-      act(() => {
-        result.current.onClearSelection();
-      });
-
-      expect(result.current.selectedRowIds.size).toBe(0);
-    });
-  });
-
-  describe('onMergeSelected', () => {
-    it('does nothing when fewer than 2 rows are selected', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-        result.current.onToggleSelect('r1');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(mockMergeLines).not.toHaveBeenCalled();
-      expect(result.current.lines).toHaveLength(2);
-    });
-
-    it('splices the merged placeholder row at the index of the first selected line', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {})); // never resolves — inspect sync state only
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', description: 'A' }),
-          makeLine({ rowId: 'r2', description: 'B' }),
-          makeLine({ rowId: 'r3', description: 'C' }),
-        ]);
-      });
-      act(() => {
-        // Select the 2nd and 3rd rows (index 1 and 2) — merged row should land at index 1
-        result.current.onToggleSelect('r2');
-        result.current.onToggleSelect('r3');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      // r1 stays at index 0; the merged placeholder replaces r2/r3 starting at index 1
-      expect(result.current.lines).toHaveLength(2);
-      expect(result.current.lines[0]?.rowId).toBe('r1');
-      expect(result.current.lines[1]?.mergeStatus).toBe('pending');
-    });
-
-    it('sets mergeStatus="pending" on the new row synchronously (before the API call resolves)', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(result.current.lines[0]?.mergeStatus).toBe('pending');
-    });
-
-    it('clears the selection synchronously when merge starts', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(result.current.selectedRowIds.size).toBe(0);
-    });
-
-    it('records the original selected lines as mergeSourceLines on the new row', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', description: 'Tile work' }),
-          makeLine({ rowId: 'r2', description: 'Grout' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      const mergedLine = result.current.lines[0];
-      expect(mergedLine?.mergeSourceLines).toHaveLength(2);
-      expect(mergedLine?.mergeSourceLines?.map((l: { rowId: string }) => l.rowId)).toEqual([
-        'r1',
-        'r2',
-      ]);
-    });
-
-    it('calls mergeLines with descriptions and NO numeric fields (totalAmount/quantity/unitPrice/includesVat)', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', description: 'Tile work', totalAmount: 300 }),
-          makeLine({ rowId: 'r2', description: 'Grout', totalAmount: 100 }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(mockMergeLines).toHaveBeenCalledTimes(1);
-      const callArg = mockMergeLines.mock.calls[0]![0] as Record<string, unknown>;
-      expect(callArg.descriptions).toEqual(['Tile work', 'Grout']);
-      expect(callArg).not.toHaveProperty('totalAmount');
-      expect(callArg).not.toHaveProperty('quantity');
-      expect(callArg).not.toHaveProperty('unitPrice');
-      expect(callArg).not.toHaveProperty('includesVat');
-    });
-
-    it('passes documentSummary through to mergeLines', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() =>
-        useAutoItemizeLines(makeOptions({ documentSummary: 'Bathroom renovation' })),
-      );
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      const callArg = mockMergeLines.mock.calls[0]![0] as Record<string, unknown>;
-      expect(callArg.documentSummary).toBe('Bathroom renovation');
-    });
-
-    it('calls onMergeStart with the number of selected lines', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const onMergeStart = jest.fn();
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onMergeStart })));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1' }),
-          makeLine({ rowId: 'r2' }),
-          makeLine({ rowId: 'r3' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-        result.current.onToggleSelect('r3');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(onMergeStart).toHaveBeenCalledWith(3);
-    });
-
-    it('on success: populates the row description and calls onMergeSuccess', async () => {
-      mockMergeLines.mockResolvedValue({
-        description: 'Tile work and grout',
-        category: 'Cat 1',
-        budgetCategoryId: 'cat-1',
-      });
-      const onMergeSuccess = jest.fn();
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onMergeSuccess })));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', description: 'Tile work' }),
-          makeLine({ rowId: 'r2', description: 'Grout' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      await act(async () => {
-        result.current.onMergeSelected();
-      });
-
-      await waitFor(() => {
-        expect(result.current.lines[0]?.description).toBe('Tile work and grout');
-      });
-      expect(result.current.lines[0]?.mergeStatus).toBeUndefined();
-      expect(result.current.lines[0]?.mergeSourceLines).toBeUndefined();
-      expect(onMergeSuccess).toHaveBeenCalledTimes(1);
-    });
-
-    it('on failure: sets mergeStatus="error" and retains mergeSourceLines for retry/undo', async () => {
-      mockMergeLines.mockRejectedValue(new Error('LLM unreachable'));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', description: 'Tile work' }),
-          makeLine({ rowId: 'r2', description: 'Grout' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      await act(async () => {
-        result.current.onMergeSelected();
-        // allow the rejected promise microtask to settle
-        await Promise.resolve().then(() => Promise.resolve());
-      });
-
-      await waitFor(() => {
-        expect(result.current.lines[0]?.mergeStatus).toBe('error');
-      });
-      expect(result.current.lines[0]?.mergeSourceLines).toHaveLength(2);
-    });
-  });
-
-  describe('onRetryMerge', () => {
-    it('re-invokes mergeLines using the same mergeSourceLines snapshot', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({
-            rowId: 'merged-1',
-            mergeStatus: 'error',
-            mergeSourceLines: [
-              makeLine({ rowId: 'src-1', description: 'Tile work' }),
-              makeLine({ rowId: 'src-2', description: 'Grout' }),
-            ],
-          }),
-        ]);
-      });
-
-      act(() => {
-        result.current.onRetryMerge('merged-1');
-      });
-
-      expect(mockMergeLines).toHaveBeenCalledTimes(1);
-      const callArg = mockMergeLines.mock.calls[0]![0] as { descriptions: string[] };
-      expect(callArg.descriptions).toEqual(['Tile work', 'Grout']);
-    });
-
-    it('resets mergeStatus back to "pending" before re-calling mergeLines', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({
-            rowId: 'merged-1',
-            mergeStatus: 'error',
-            mergeSourceLines: [makeLine({ rowId: 'src-1' }), makeLine({ rowId: 'src-2' })],
-          }),
-        ]);
-      });
-
-      act(() => {
-        result.current.onRetryMerge('merged-1');
-      });
-
-      expect(result.current.lines[0]?.mergeStatus).toBe('pending');
-    });
-
-    it('does nothing when the row has no mergeSourceLines', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' })]);
-      });
-
-      act(() => {
-        result.current.onRetryMerge('r1');
-      });
-
-      expect(mockMergeLines).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('onUndoMerge', () => {
-    it('restores the original N source rows at the original index', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r0', description: 'Before' }),
-          makeLine({
-            rowId: 'merged-1',
-            mergeStatus: 'error',
-            mergeSourceLines: [
-              makeLine({ rowId: 'src-1', description: 'Tile work' }),
-              makeLine({ rowId: 'src-2', description: 'Grout' }),
-              makeLine({ rowId: 'src-3', description: 'Adhesive' }),
-            ],
-          }),
-          makeLine({ rowId: 'r-after', description: 'After' }),
-        ]);
-      });
-
-      act(() => {
-        result.current.onUndoMerge('merged-1');
-      });
-
-      expect(result.current.lines).toHaveLength(5);
-      expect(result.current.lines.map((l: { rowId: string }) => l.rowId)).toEqual([
-        'r0',
-        'src-1',
-        'src-2',
-        'src-3',
-        'r-after',
-      ]);
-    });
-
-    it('does nothing when the row has no mergeSourceLines', () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ rowId: 'r1' })]);
-      });
-
-      act(() => {
-        result.current.onUndoMerge('r1');
-      });
-
-      expect(result.current.lines).toHaveLength(1);
-      expect(result.current.lines[0]?.rowId).toBe('r1');
-    });
-
-    it('calls onFieldsEdited after undo', () => {
-      const onFieldsEdited = jest.fn();
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-      act(() => {
-        result.current.setLines([
-          makeLine({
-            rowId: 'merged-1',
-            mergeStatus: 'error',
-            mergeSourceLines: [makeLine({ rowId: 'src-1' }), makeLine({ rowId: 'src-2' })],
-          }),
-        ]);
-      });
-
-      act(() => {
-        result.current.onUndoMerge('merged-1');
-      });
-
-      expect(onFieldsEdited).toHaveBeenCalled();
-    });
-  });
-
-  // ─── Issue #2158: invoice-level default budget source ──────────────────────
-
-  describe('defaultBudgetSourceId (#2158)', () => {
-    const THREE_SOURCES = [
-      { id: 'src-disc', name: 'Discretionary', isDiscretionary: true },
-      { id: 'src-loan', name: 'Bank Loan', isDiscretionary: false },
-      { id: 'src-sav', name: 'Savings', isDiscretionary: false },
-    ];
-
-    function queueDraftFor(
-      result: {
-        current: {
-          setLines: (l: unknown[]) => void;
-          handlers: Record<string, (...args: string[]) => void>;
-        };
-      },
-      line: unknown,
-    ) {
-      act(() => {
-        result.current.setLines([line]);
-        result.current.handlers.onAssign!('r1');
-      });
-      act(() => {
-        result.current.handlers.onQueueNewBudgetLine!();
-      });
-    }
-
-    it('queued draft uses the default when set, ahead of the row source', () => {
-      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
-      const { result } = renderHook(() =>
-        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
-      );
-
-      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
-    });
-
-    it('queued draft falls back to the row source when the default is null', () => {
-      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
-      const { result } = renderHook(() =>
-        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: null })),
-      );
-
-      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
-        'src-loan',
-      );
-    });
-
-    it('queued draft falls back to the discretionary source when default and row source are absent', () => {
-      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-      queueDraftFor(result, makeLine({ budgetSourceId: null }));
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
-        'src-disc',
-      );
-    });
-
-    it('queued draft source is empty when there is no default, row source or discretionary source', () => {
-      mockPickerStateOverride = {
-        budgetSources: [{ id: 'src-loan', name: 'Bank Loan', isDiscretionary: false }],
-      };
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-
-      queueDraftFor(result, makeLine({ budgetSourceId: null }));
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('');
-    });
-
-    it('the stable handler sees a default that changed between renders', () => {
-      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
-      const { result, rerender } = renderHook(
-        (props: { defaultBudgetSourceId: string | null }) =>
-          useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: props.defaultBudgetSourceId })),
-        { initialProps: { defaultBudgetSourceId: null as string | null } },
-      );
-
-      act(() => {
-        result.current.setLines([makeLine({ budgetSourceId: 'src-loan' })]);
-        result.current.handlers.onAssign('r1');
-      });
-      const staleHandler = result.current.handlers.onQueueNewBudgetLine;
-      rerender({ defaultBudgetSourceId: 'src-sav' });
-
-      act(() => {
-        staleHandler();
-      });
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
-    });
-
-    it('merged line takes the default when set', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() =>
-        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
-      );
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
-          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(result.current.lines).toHaveLength(1);
-      expect(result.current.lines[0]?.budgetSourceId).toBe('src-sav');
-    });
-
-    it('merged line keeps the first source line source when no default is set', () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
-          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
-        ]);
-      });
-      act(() => {
-        result.current.onToggleSelect('r1');
-        result.current.onToggleSelect('r2');
-      });
-
-      act(() => {
-        result.current.onMergeSelected();
-      });
-
-      expect(result.current.lines[0]?.budgetSourceId).toBe('src-loan');
-    });
-  });
-
-  describe('linking and clearing an existing budget line (#2158)', () => {
-    // The mocked picker returns a fresh budgetSources array per render unless one is injected;
-    // the hook's "re-default missing source" effect would then re-fire after every render and
-    // mask the values these tests assert. A stable reference mirrors the real picker state.
-    const STABLE_SOURCES = [{ id: 'src-1', name: 'Main', isDiscretionary: true }];
-
-    const LINKED_NO_SOURCE = {
-      id: 'hib-1',
-      householdItemId: 'hi-1',
-      description: 'Linked HI',
-      budgetSource: null,
-      budgetCategory: null,
-    };
-
-    function setup(options: Record<string, unknown> = {}) {
-      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
-      const hook = renderHook(() => useAutoItemizeLines(makeOptions(options)));
-      act(() => {
-        hook.result.current.setLines([
-          makeLine({ budgetSourceId: 'src-extracted', budgetCategoryId: 'cat-extracted' }),
-        ]);
-        hook.result.current.handlers.onAssign('r1');
-      });
-      return hook;
-    }
-
-    it('onSelectBudgetLine leaves the row source and category unchanged, even when the linked line differs', () => {
-      const { result } = setup();
-
-      act(() => {
-        result.current.handlers.onSelectBudgetLine({
-          id: 'wib-1',
-          workItemId: 'wi-1',
-          description: 'Linked',
-          budgetSource: { id: 'src-linked', name: 'Linked source' },
-          budgetCategory: { id: 'cat-linked', name: 'Linked category' },
-        });
-      });
-
-      const line = result.current.lines[0];
-      expect(line?.assignedBudgetLineId).toBe('wib-1');
-      expect(line?.budgetSourceId).toBe('src-extracted');
-      expect(line?.budgetCategoryId).toBe('cat-extracted');
-    });
-
-    it('onSelectBudgetLine leaves the row source and category unchanged when the linked line has none', () => {
-      const { result } = setup();
-
-      act(() => {
-        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
-      });
-
-      const line = result.current.lines[0];
-      expect(line?.assignedBudgetLineType).toBe('household_item');
-      expect(line?.budgetSourceId).toBe('src-extracted');
-      expect(line?.budgetCategoryId).toBe('cat-extracted');
-    });
-
-    it('clearing a linked row takes the invoice default source and keeps the category', () => {
-      const { result } = setup({ defaultBudgetSourceId: 'src-default' });
-      act(() => {
-        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
-      });
-
-      act(() => {
-        result.current.handlers.onClearAssign('r1');
-      });
-
-      const line = result.current.lines[0];
-      expect(line?.assignedBudgetLineId).toBeUndefined();
-      expect(line?.budgetSourceId).toBe('src-default');
-      expect(line?.budgetCategoryId).toBe('cat-extracted');
-    });
-
-    it('clearing a linked row without a default keeps the row pre-link source and category', () => {
-      const { result } = setup();
-      act(() => {
-        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
-      });
-
-      act(() => {
-        result.current.handlers.onClearAssign('r1');
-      });
-
-      const line = result.current.lines[0];
-      expect(line?.assignedBudgetLineId).toBeUndefined();
-      expect(line?.budgetSourceId).toBe('src-extracted');
-      expect(line?.budgetCategoryId).toBe('cat-extracted');
-    });
-
-    it('re-default effect leaves a linked row with a null source alone but fills an unlinked one', () => {
-      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
-      const { result, rerender } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([
-          makeLine({ rowId: 'r1', budgetSourceId: null }),
-          makeLine({ rowId: 'r2', budgetSourceId: null }),
-        ]);
-        result.current.handlers.onAssign('r1');
-      });
-      act(() => {
-        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
-      });
-      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
-      expect(result.current.lines[1]?.budgetSourceId).toBeNull();
-
-      // A new sources array identity re-runs the re-default effect.
-      mockPickerStateOverride = {
-        budgetSources: [{ id: 'src-first', name: 'First', isDiscretionary: false }],
-      };
-      rerender();
-
-      expect(result.current.lines[0]?.assignedBudgetLineId).toBe('hib-1');
-      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
-      expect(result.current.lines[1]?.budgetSourceId).toBe('src-first');
-    });
+    const { result } = setup({ onFieldsEdited });
+    act(() => result.current.replaceRows([{ ...result.current.rows[0]!, description: 'back' }]));
+    expect(result.current.rows[0]!.description).toBe('back');
+    expect(onFieldsEdited).not.toHaveBeenCalled();
   });
 });
 
-// ─── #2149 — linked row snapshot + gross itemized amount ────────────────────
-
-describe('useAutoItemizeLines — link existing keeps the line unchanged (#2149)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let useAutoItemizeLines: any;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    mockPickerStateOverride = {};
-    capturedOnLineCreated = null;
-    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+describe('selection', () => {
+  it('toggles a row on and off and clears the selection', () => {
+    const view = loaded([line()]);
+    const id = view.result.current.rows[0]!.rowId;
+    select(view, [id]);
+    expect(view.result.current.selectedRowIds.has(id)).toBe(true);
+    select(view, [id]);
+    expect(view.result.current.selectedRowIds.has(id)).toBe(false);
+    select(view, [id]);
+    act(() => view.result.current.onClearSelection());
+    expect(view.result.current.selectedRowIds.size).toBe(0);
   });
 
-  function makeBudgetLine(id: string, overrides: Record<string, unknown> = {}) {
-    return {
-      id,
-      workItemId: 'wi-1',
-      description: `Desc ${id}`,
-      plannedAmount: 5000,
-      includesVat: false,
-      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null, color: '#fff' },
-      budgetSource: { id: 'src-9', name: 'Src 9', sourceType: 'savings' },
-      ...overrides,
-    };
+  it('ignores unknown rows, linked rows and rows with a notice', () => {
+    const view = loaded([line(), line({ description: 'B' })]);
+    const [a, b] = view.result.current.rows;
+    act(() =>
+      view.result.current.replaceRows([
+        { ...a!, existingLine: { id: 'x', type: 'work_item', description: null, gross: 1 } },
+        { ...b!, notice: { tone: 'busy', text: 'merging' } },
+      ]),
+    );
+    select(view, ['missing', a!.rowId, b!.rowId]);
+    expect(view.result.current.selectedRowIds.size).toBe(0);
+  });
+});
+
+describe('merge', () => {
+  const merged: MergeResult = {
+    description: 'Wood and nails',
+    category: 'Wood',
+    budgetCategoryId: 'cat-1',
+  };
+
+  function twoRows(props: Parameters<typeof useAutoItemizeLines>[0] = {}) {
+    const view = loaded(
+      [
+        line({ description: 'Boards', totalAmount: 100, vendorName: 'Acme', confidence: 0.9 }),
+        line({ description: 'Nails', totalAmount: 10, vendorName: 'acme', confidence: 0.5 }),
+        line({ description: 'Paint', totalAmount: 7 }),
+      ],
+      props,
+    );
+    const [a, b, c] = view.result.current.rows;
+    return { view, a: a!, b: b!, c: c! };
   }
 
-  function select(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    result: { current: any },
-    line: unknown,
-  ) {
-    act(() => {
-      result.current.handlers.onAssign('r1');
-    });
-    act(() => {
-      result.current.handlers.onSelectBudgetLine(line);
-    });
-  }
-
-  it('select stores the snapshot and a gross linkedItemizedAmount without mutating extracted fields', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    const original = makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' });
-    act(() => {
-      result.current.setLines([original]);
-    });
-
-    select(result, makeBudgetLine('wib-1'));
-
-    const row = result.current.lines[0];
-    expect(row.assignedBudgetLineSnapshot).toEqual({
-      plannedAmount: 5000,
-      includesVat: false,
-      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null },
-      budgetSource: { id: 'src-9', name: 'Src 9' },
-    });
-    expect(row.linkedItemizedAmount).toBe(119); // 100 net -> gross
-    expect(row).toMatchObject({
-      totalAmount: 100,
-      includesVat: false,
-      description: 'Extracted',
-      budgetCategoryId: 'cat-1',
-      budgetSourceId: 'src-1',
-      assignedBudgetLineDescription: 'Desc wib-1',
-    });
+  it('does nothing with fewer than two selected rows', () => {
+    const onMergeStart = jest.fn();
+    const { view, a } = twoRows({ onMergeStart });
+    select(view, [a.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    expect(onMergeStart).not.toHaveBeenCalled();
+    expect(mockMergeLines).not.toHaveBeenCalled();
   });
 
-  it('select for a gross extracted amount uses it unchanged', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine({ totalAmount: 300, includesVat: true })]);
-    });
+  it('replaces the selected rows by one busy row, then fills it from the merge response', async () => {
+    jest.useFakeTimers();
+    try {
+      mockMergeLines.mockResolvedValue(merged);
+      const onMergeStart = jest.fn();
+      const onMergeSuccess = jest.fn();
+      const onFieldsEdited = jest.fn();
+      const { view, a, b, c } = twoRows({
+        onMergeStart,
+        onMergeSuccess,
+        onFieldsEdited,
+        documentSummary: 'Delivery note',
+      });
+      select(view, [a.rowId, b.rowId]);
+      act(() => view.result.current.onMergeSelected());
 
-    select(result, makeBudgetLine('wib-1'));
+      expect(onMergeStart).toHaveBeenCalledWith(2);
+      // Only the numbers stay in code: gross 119 + 11.9 = 130.9.
+      const rowsNow = realRows(view.result.current);
+      expect(rowsNow.map((r) => r.rowId)).toContain(c.rowId);
+      expect(rowsNow).toHaveLength(2);
+      const mergedRow = rowsNow[0]!;
+      expect(mergedRow.unitPrice).toBe('130.9');
+      expect(mergedRow.includesVat).toBe(true);
+      expect(mergedRow.aiCertainty).toBe(0.5);
+      expect(view.result.current.selectedRowIds.size).toBe(0);
+      expect(view.result.current.data.get(mergedRow.rowId)?.mergeSources).toHaveLength(2);
+      expect(view.result.current.data.get(mergedRow.rowId)?.extracted.vendorName).toBe('Acme');
+      expect(mockMergeLines).toHaveBeenCalledWith({
+        descriptions: ['Boards', 'Nails'],
+        documentSummary: 'Delivery note',
+        availableCategories: ['Wood'],
+      });
 
-    expect(result.current.lines[0].linkedItemizedAmount).toBe(300);
+      // The merged row carries a busy notice while the request runs? It resolved already below.
+      const target = document.createElement('input');
+      target.setAttribute(
+        'data-testid',
+        `${AUTO_ITEMIZE_GRID_PREFIX}-description-${mergedRow.rowId}`,
+      );
+      document.body.appendChild(target);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        jest.runAllTimers();
+      });
+
+      const after = view.result.current.rows.find((r) => r.rowId === mergedRow.rowId)!;
+      expect(after.description).toBe('Wood and nails');
+      expect(after.budgetCategoryId).toBe('cat-1');
+      expect(after.notice).toBeUndefined();
+      expect(view.result.current.data.get(mergedRow.rowId)?.extracted).toMatchObject({
+        description: 'Wood and nails',
+        category: 'Wood',
+      });
+      expect(onMergeSuccess).toHaveBeenCalledTimes(1);
+      expect(onFieldsEdited).toHaveBeenCalled();
+      expect(document.activeElement).toBe(target);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
-  it('select treats a missing extracted totalAmount as 0', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine({ totalAmount: undefined })]);
-    });
-
-    select(result, makeBudgetLine('wib-1', { description: null }));
-
-    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
-    expect(result.current.lines[0].assignedBudgetLineDescription).toBeNull();
+  it('shows a busy notice with the row count while the merge request is pending', () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const { view, a, b } = twoRows();
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedRow = realRows(view.result.current)[0]!;
+    expect(mergedRow.notice).toEqual({ tone: 'busy', text: 'autoItemize.mergingCaption:2' });
   });
 
-  it('re-selecting another line keeps the edited itemized amount while the snapshot changes (AC14)', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine({ totalAmount: 100 })]);
-    });
-    select(result, makeBudgetLine('wib-1'));
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '1100');
-    });
+  it('uses the invoice default source for the merged row, else the first row source', () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const withDefault = twoRows({ defaultBudgetSourceId: 'def-1' });
+    select(withDefault.view, [withDefault.a.rowId, withDefault.b.rowId]);
+    act(() => withDefault.view.result.current.onMergeSelected());
+    expect(realRows(withDefault.view.result.current)[0]!.budgetSourceId).toBe('def-1');
 
-    select(
-      result,
-      makeBudgetLine('wib-2', {
-        plannedAmount: 42,
-        includesVat: true,
-        budgetCategory: null,
-        budgetSource: null,
+    const without = twoRows();
+    select(without.view, [without.a.rowId, without.b.rowId]);
+    act(() => without.view.result.current.onMergeSelected());
+    expect(realRows(without.view.result.current)[0]!.budgetSourceId).toBe('disc-1');
+  });
+
+  it('falls back to the project categories and tolerates rows without side data', () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const view = loaded([line({ category: undefined }), line({ category: undefined })]);
+    const [a, b] = view.result.current.rows;
+    // Rows typed by hand have no extraction data; their certainty counts as 1.
+    act(() =>
+      view.result.current.replaceRows([
+        { ...a!, aiCertainty: undefined },
+        { ...b!, aiCertainty: undefined },
+      ]),
+    );
+    act(() => view.result.current.load([]));
+    act(() =>
+      view.result.current.replaceRows([
+        { ...blankGridRow('h1'), description: 'Hand A', unitPrice: '10' },
+        { ...blankGridRow('h2'), description: 'Hand B', unitPrice: '5' },
+      ]),
+    );
+    select(view, ['h1', 'h2']);
+    act(() => view.result.current.onMergeSelected());
+    expect(mockMergeLines).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableCategories: ['Wood'],
+        descriptions: ['Hand A', 'Hand B'],
       }),
     );
-
-    const row = result.current.lines[0];
-    expect(row.assignedBudgetLineId).toBe('wib-2');
-    expect(row.linkedItemizedAmount).toBe(1100);
-    expect(row.assignedBudgetLineSnapshot).toEqual({
-      plannedAmount: 42,
-      includesVat: true,
-      budgetCategory: null,
-      budgetSource: null,
-    });
+    expect(realRows(view.result.current)[0]!.aiCertainty).toBe(1);
   });
 
-  it('clear resets snapshot and itemized amount; extracted values are intact (AC13)', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([
-        makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' }),
-      ]);
-    });
-    select(result, makeBudgetLine('wib-1'));
-
-    act(() => {
-      result.current.handlers.onClearAssign('r1');
-    });
-
-    expect(result.current.lines[0]).toMatchObject({
-      assignedBudgetLineId: undefined,
-      assignedBudgetLineSnapshot: undefined,
-      linkedItemizedAmount: undefined,
-      totalAmount: 100,
-      includesVat: false,
-      description: 'Extracted',
-      budgetCategoryId: 'cat-1',
-    });
+  it('merges at the position of the first selected row', () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const { view, a, b, c } = twoRows();
+    select(view, [b.rowId, c.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const ids = view.result.current.rows.map((r) => r.rowId);
+    expect(ids[0]).toBe(a.rowId);
+    expect(ids).not.toContain(b.rowId);
+    expect(ids).not.toContain(c.rowId);
   });
 
-  it('onLineCreated stores the snapshot and itemized amount for the created line', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine({ totalAmount: 200, includesVat: true })]);
-      result.current.handlers.onAssign('r1');
-    });
+  it('shows an error notice with Undo and Retry when the merge fails, and focuses Retry', async () => {
+    jest.useFakeTimers();
+    try {
+      mockMergeLines.mockRejectedValue(new Error('LLM down'));
+      const { view, a, b } = twoRows();
+      select(view, [a.rowId, b.rowId]);
+      act(() => view.result.current.onMergeSelected());
+      const mergedId = realRows(view.result.current)[0]!.rowId;
+      const retry = document.createElement('button');
+      retry.setAttribute('data-testid', `${AUTO_ITEMIZE_GRID_PREFIX}-notice-retry-${mergedId}`);
+      document.body.appendChild(retry);
 
-    act(() => {
-      capturedOnLineCreated!(makeBudgetLine('created-id', { plannedAmount: 200 }));
-    });
-
-    const row = result.current.lines[0];
-    expect(row.assignedBudgetLineSnapshot).toMatchObject({ plannedAmount: 200 });
-    expect(row.linkedItemizedAmount).toBe(200);
-  });
-
-  it('onLineCreated falls back to household_item type and preserves an existing itemized amount', () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine({ linkedItemizedAmount: 55 })]);
-      result.current.handlers.onAssign('r1');
-    });
-
-    act(() => {
-      capturedOnLineCreated!({
-        id: 'hib-1',
-        householdItemId: 'hi-1',
-        description: 'x',
-        plannedAmount: 1,
-        includesVat: true,
-        budgetCategory: null,
-        budgetSource: null,
+      await act(async () => {
+        await Promise.resolve();
       });
-    });
+      await act(async () => {
+        jest.runAllTimers();
+      });
 
-    expect(result.current.lines[0]).toMatchObject({
-      assignedBudgetLineType: 'household_item',
-      linkedItemizedAmount: 55,
-    });
+      const notice = view.result.current.rows.find((r) => r.rowId === mergedId)!.notice!;
+      expect(notice.tone).toBe('error');
+      expect(notice.text).toBe('autoItemize.mergeErrorMessage');
+      expect(notice.actions?.map((x) => x.id)).toEqual(['undo', 'retry']);
+      expect(document.activeElement).toBe(retry);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
-  it("onFieldChange('linkedItemizedAmount', string) parses numbers and falls back to 0 for junk", () => {
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([makeLine()]);
-    });
+  it('Retry sends the merge again and clears the error on success', async () => {
+    mockMergeLines.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(merged);
+    const { view, a, b } = twoRows();
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedId = realRows(view.result.current)[0]!.rowId;
+    await waitFor(() =>
+      expect(view.result.current.rows.find((r) => r.rowId === mergedId)!.notice?.tone).toBe(
+        'error',
+      ),
+    );
 
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '12.5');
-    });
-    expect(result.current.lines[0].linkedItemizedAmount).toBe(12.5);
+    act(() => view.result.current.onNoticeAction(mergedId, 'retry'));
+    expect(view.result.current.rows.find((r) => r.rowId === mergedId)!.notice?.tone).toBe('busy');
+    await waitFor(() =>
+      expect(view.result.current.rows.find((r) => r.rowId === mergedId)!.description).toBe(
+        'Wood and nails',
+      ),
+    );
+    expect(mockMergeLines).toHaveBeenCalledTimes(2);
+  });
 
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 'abc');
-    });
-    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
+  it('Undo restores the original rows and their side data', async () => {
+    mockMergeLines.mockRejectedValue(new Error('down'));
+    const onFieldsEdited = jest.fn();
+    const { view, a, b, c } = twoRows({ onFieldsEdited });
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedId = realRows(view.result.current)[0]!.rowId;
+    await waitFor(() =>
+      expect(view.result.current.rows.find((r) => r.rowId === mergedId)!.notice?.tone).toBe(
+        'error',
+      ),
+    );
+    onFieldsEdited.mockClear();
 
-    act(() => {
-      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 77);
+    act(() => view.result.current.onNoticeAction(mergedId, 'undo'));
+    const ids = view.result.current.rows.map((r) => r.rowId);
+    expect(ids.slice(0, 3)).toEqual([a.rowId, b.rowId, c.rowId]);
+    expect(view.result.current.data.has(mergedId)).toBe(false);
+    expect(view.result.current.data.get(a.rowId)?.extracted.description).toBe('Boards');
+    expect(onFieldsEdited).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores notice actions for rows that were not merged and unknown actions', async () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const { view, a, b } = twoRows();
+    const before = view.result.current.rows;
+    act(() => view.result.current.onNoticeAction('nope', 'retry'));
+    expect(view.result.current.rows).toBe(before);
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedId = realRows(view.result.current)[0]!.rowId;
+    const rowsNow = view.result.current.rows;
+    act(() => view.result.current.onNoticeAction(mergedId, 'other'));
+    expect(view.result.current.rows).toBe(rowsNow);
+  });
+
+  it('Undo of a row that is no longer in the grid leaves the rows unchanged', async () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const { view, a, b } = twoRows();
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedId = realRows(view.result.current)[0]!.rowId;
+    act(() => view.result.current.replaceRows([blankGridRow('only')]));
+    const before = view.result.current.rows;
+    act(() => view.result.current.onNoticeAction(mergedId, 'undo'));
+    expect(view.result.current.rows).toBe(before);
+  });
+
+  it('a merge response for a row that was removed meanwhile changes nothing', async () => {
+    let resolve: (value: MergeResult) => void = () => {};
+    mockMergeLines.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { view, a, b } = twoRows();
+    select(view, [a.rowId, b.rowId]);
+    act(() => view.result.current.onMergeSelected());
+    const mergedId = realRows(view.result.current)[0]!.rowId;
+    act(() => view.result.current.replaceRows([blankGridRow('only')]));
+    act(() => view.result.current.load([]));
+    await act(async () => {
+      resolve(merged);
+      await Promise.resolve();
     });
-    expect(result.current.lines[0].linkedItemizedAmount).toBe(77);
+    expect(view.result.current.data.has(mergedId)).toBe(false);
   });
 });
 
-describe('useAutoItemizeLines — a budget line is never linked twice (picker exclusion)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let useAutoItemizeLines: any;
+describe('applyBudgetSource', () => {
+  it('sets the source on new-line rows, counts them and mirrors it into merge sources', async () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    const view = loaded([line(), line({ description: 'B' }), line({ description: 'C' })]);
+    const [a, b, c] = view.result.current.rows;
+    act(() =>
+      view.result.current.replaceRows([
+        a!,
+        b!,
+        { ...c!, existingLine: { id: 'x', type: 'work_item', description: null, gross: 1 } },
+        view.result.current.rows[3]!,
+      ]),
+    );
+    select(view, [a!.rowId, b!.rowId]);
+    act(() => view.result.current.onMergeSelected());
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    mockPickerStateOverride = {};
-    capturedOnLineCreated = null;
-    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+    let count = -1;
+    act(() => {
+      count = view.result.current.applyBudgetSource('src-new');
+    });
+    // The merged row counts; the linked row and the blank row do not.
+    expect(count).toBe(1);
+    const mergedRow = realRows(view.result.current)[0]!;
+    expect(mergedRow.budgetSourceId).toBe('src-new');
+    const sources = view.result.current.data.get(mergedRow.rowId)?.mergeSources;
+    expect(sources?.every((s) => s.row.budgetSourceId === 'src-new')).toBe(true);
+    // Rows without merge sources keep their data entry.
+    expect(view.result.current.data.get(c!.rowId)).toBeDefined();
+  });
+});
+
+describe('validate', () => {
+  it('returns true and shows errors for valid rows without focusing anything', () => {
+    const rafSpy = jest.spyOn(globalThis, 'requestAnimationFrame');
+    const { result } = loaded([line()]);
+    let valid = false;
+    act(() => {
+      valid = result.current.validate();
+    });
+    expect(valid).toBe(true);
+    expect(result.current.showAllErrors).toBe(true);
+    expect(rafSpy).not.toHaveBeenCalled();
+    rafSpy.mockRestore();
   });
 
-  function makeBudgetLine(id: string) {
-    return {
-      id,
-      workItemId: 'wi-1',
-      description: `Desc ${id}`,
-      plannedAmount: 5000,
-      includesVat: true,
-      invoiceLink: null,
-      budgetCategory: null,
-      budgetSource: null,
-    };
-  }
+  it('returns false for an invalid row and focuses the first invalid cell', () => {
+    const rafSpy = jest
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 1;
+      });
+    const grid = document.createElement('div');
+    grid.setAttribute('data-testid', AUTO_ITEMIZE_GRID_PREFIX);
+    const input = document.createElement('input');
+    input.setAttribute('aria-invalid', 'true');
+    grid.appendChild(input);
+    document.body.appendChild(grid);
 
-  const lineA = makeBudgetLine('wib-A');
-  const lineB = makeBudgetLine('wib-B');
-
-  function offeredIds(result: {
-    current: { picker: { pickerState: { budgetLines: Array<{ id: string }> } } };
-  }): string[] {
-    return result.current.picker.pickerState.budgetLines.map((bl) => bl.id);
-  }
-
-  function setupTwoRows() {
-    mockPickerStateOverride = { budgetLines: [lineA, lineB] };
-    const hook = renderHook(() => useAutoItemizeLines(makeOptions()));
+    const { result } = loaded([line({ description: '' })]);
+    let valid = true;
     act(() => {
-      hook.result.current.setLines([makeLine({ rowId: 'row0' }), makeLine({ rowId: 'row1' })]);
+      valid = result.current.validate();
     });
-    return hook;
-  }
-
-  function assign(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    result: { current: any },
-    rowId: string,
-    line: unknown,
-  ) {
-    act(() => {
-      result.current.handlers.onAssign(rowId);
-    });
-    act(() => {
-      result.current.handlers.onSelectBudgetLine(line);
-    });
-  }
-
-  it('offers every line when no other row has an assignment', () => {
-    const { result } = setupTwoRows();
-
-    act(() => {
-      result.current.handlers.onAssign('row0');
-    });
-
-    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+    expect(valid).toBe(false);
+    expect(document.activeElement).toBe(input);
+    rafSpy.mockRestore();
   });
 
-  it('hides a line already assigned to another row when the picker opens for a different row', () => {
-    const { result } = setupTwoRows();
-    assign(result, 'row0', lineB);
-
+  it('does not throw when no invalid cell is in the DOM', () => {
+    const rafSpy = jest
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 1;
+      });
+    const { result } = loaded([line({ description: '' })]);
     act(() => {
-      result.current.handlers.onAssign('row1');
+      result.current.validate();
     });
+    rafSpy.mockRestore();
+  });
+});
 
-    expect(offeredIds(result)).toEqual(['wib-A']);
+describe('commitContext', () => {
+  it('reports Assign all to, locale, VAT rate, document type and sources', () => {
+    const doc = { documentType: 'Invoice' } as PaperlessDocumentSearchResult;
+    const { result } = setup({ document: doc, defaultBudgetSourceId: 'def-1' });
+    const target = { type: 'work_item' as const, id: 'wi-1', label: 'Task' };
+    act(() => result.current.setAssignAll(target));
+    expect(result.current.commitContext()).toEqual({
+      assignAll: target,
+      locale: 'en',
+      vatRate: 0.19,
+      documentType: 'Invoice',
+      defaultBudgetSourceId: 'def-1',
+      discretionarySourceId: 'disc-1',
+    });
   });
 
-  it("keeps the active row's own line visible so Change can re-select it", () => {
-    const { result } = setupTwoRows();
-    assign(result, 'row0', lineB);
-
-    act(() => {
-      result.current.handlers.onAssign('row0');
-    });
-
-    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
-  });
-
-  it('offers a line again after the row that held it is cleared', () => {
-    const { result } = setupTwoRows();
-    assign(result, 'row0', lineB);
-    act(() => {
-      result.current.handlers.onAssign('row1');
-    });
-    expect(offeredIds(result)).toEqual(['wib-A']);
-
-    act(() => {
-      result.current.handlers.onClearAssign('row0');
-    });
-    act(() => {
-      result.current.handlers.onAssign('row1');
-    });
-
-    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
-  });
-
-  it('does not hide a line of the other family that merely shares the id string', () => {
-    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([
-        makeLine({
-          rowId: 'row0',
-          assignedBudgetLineId: 'wib-B',
-          assignedBudgetLineType: 'work_item',
-        }),
-        makeLine({ rowId: 'row1' }),
-      ]);
-    });
-
-    act(() => {
-      result.current.handlers.onAssign('row1');
-    });
-
-    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
-  });
-
-  it('hides a household_item line when it is assigned to another row with the household_item type', () => {
-    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
-    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-    act(() => {
-      result.current.setLines([
-        makeLine({
-          rowId: 'row0',
-          assignedBudgetLineId: 'wib-B',
-          assignedBudgetLineType: 'household_item',
-        }),
-        makeLine({ rowId: 'row1' }),
-      ]);
-    });
-
-    act(() => {
-      result.current.handlers.onAssign('row1');
-    });
-
-    expect(offeredIds(result)).toEqual(['wib-A']);
-  });
-
-  // ─── Company match on the server ────────────────────────────────────────────
-
-  describe('onQueueNewBudgetLine company match', () => {
-    async function queue(result: {
-      current: {
-        handlers: { onAssign: (id: string) => void; onQueueNewBudgetLine: () => Promise<void> };
-      };
-    }) {
-      act(() => {
-        result.current.handlers.onAssign('r1');
-      });
-      await act(async () => {
-        await result.current.handlers.onQueueNewBudgetLine();
-      });
-    }
-
-    it('matches the extracted name with folded equality (accents and case)', async () => {
-      mockSearchCompanies.mockResolvedValue([
-        { id: 'v-other', name: 'Zoe Bau GmbH' },
-        { id: 'v-7', name: 'Zoë Bau' },
-      ]);
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ vendorName: 'ZOE BAU' })]);
-      });
-
-      await queue(result);
-
-      expect(mockSearchCompanies).toHaveBeenCalledWith('ZOE BAU');
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('v-7');
-    });
-
-    it('leaves vendorId empty when the server has no equal name', async () => {
-      mockSearchCompanies.mockResolvedValue([{ id: 'v-1', name: 'Zoe Bau GmbH' }]);
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ vendorName: 'Zoe Bau' })]);
-      });
-
-      await queue(result);
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
-    });
-
-    it('leaves vendorId empty and still creates the draft when the search fails', async () => {
-      mockSearchCompanies.mockRejectedValue(new Error('offline'));
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ vendorName: 'Zoe Bau' })]);
-      });
-
-      await queue(result);
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft).toBeDefined();
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
-    });
-
-    it('does not search when the line has no extracted company name', async () => {
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
-      act(() => {
-        result.current.setLines([makeLine({ vendorName: null })]);
-      });
-
-      await queue(result);
-
-      expect(mockSearchCompanies).not.toHaveBeenCalled();
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
-    });
-
-    it('sets no draft when the user moved to another row during the search', async () => {
-      let resolveSearch!: (v: { id: string; name: string }[]) => void;
-      mockSearchCompanies.mockReturnValue(
-        new Promise((resolve) => {
-          resolveSearch = resolve;
-        }),
-      );
-      const onFieldsEdited = jest.fn();
-      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
-      act(() => {
-        result.current.setLines([
-          makeLine({ vendorName: 'Zoe Bau' }),
-          makeLine({ rowId: 'r2', vendorName: null }),
-        ]);
-      });
-      act(() => {
-        result.current.handlers.onAssign('r1');
-      });
-
-      let pending!: Promise<void>;
-      act(() => {
-        pending = result.current.handlers.onQueueNewBudgetLine();
-      });
-      act(() => {
-        result.current.handlers.onAssign('r2');
-      });
-      await act(async () => {
-        resolveSearch([{ id: 'v-7', name: 'Zoe Bau' }]);
-        await pending;
-      });
-
-      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft).toBeUndefined();
-      expect(result.current.lines[1]?.inlineCreatedBudgetLineDraft).toBeUndefined();
-      expect(onFieldsEdited).not.toHaveBeenCalled();
+  it('falls back to null sources and an undefined document type', () => {
+    mockOptions.discretionarySourceId = null;
+    const { result } = setup();
+    expect(result.current.commitContext()).toMatchObject({
+      documentType: undefined,
+      defaultBudgetSourceId: null,
+      discretionarySourceId: null,
     });
   });
 });

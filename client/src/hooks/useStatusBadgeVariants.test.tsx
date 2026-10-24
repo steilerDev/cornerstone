@@ -15,6 +15,7 @@ describe('useStatusBadgeVariants', () => {
       'attentionTier',
       'backupRun',
       'budgetVerdict',
+      'costLine',
       'criticalLine',
       'criticalSignal',
       'defect',
@@ -40,6 +41,17 @@ describe('useStatusBadgeVariants', () => {
       'pending',
       'quotation',
     ]);
+    expect(Object.keys(result.current.costLine)).toEqual([
+      'estimate',
+      'offered',
+      'invoiced',
+      'paid',
+      'submitted',
+    ]);
+    for (const variant of Object.values(result.current.costLine)) {
+      expect(variant.label).toBeTruthy();
+      expect(variant.className).toBeTruthy();
+    }
     expect(Object.keys(result.current.progressPayment).sort()).toEqual([
       'claimed',
       'paid',

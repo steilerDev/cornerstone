@@ -31,6 +31,8 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import type { CostLineState } from '../CostLineTable/costLineState.js';
+import { COST_LINE_STATES } from '../CostLineTable/costLineState.js';
 import type { BackupRunOutcome, IntegrationStatus } from '../../lib/integrationStatus.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
 import type { UserAccountStatus } from '../../lib/userAccountStatus.js';
@@ -71,6 +73,15 @@ const INVOICE_STATUS_CLASS: Record<InvoiceStatus, string> = {
   paid: badgeStyles.paid!,
   claimed: badgeStyles.claimed!,
   quotation: badgeStyles.offer!,
+};
+
+/** Cost line state chips reuse the invoice chip colours, so an Offered line looks like its offer. */
+const COST_LINE_STATE_CLASS: Record<CostLineState, string> = {
+  estimate: badgeStyles.notStarted!,
+  offered: badgeStyles.offer!,
+  invoiced: badgeStyles.pending!,
+  paid: badgeStyles.paid!,
+  submitted: badgeStyles.claimed!,
 };
 
 const INTEGRATION_STATUS_CLASS: Record<IntegrationStatus, string> = {
@@ -173,6 +184,23 @@ export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatu
       variant.title = t('statusHints.submitted', { ns: 'common' });
     }
     result[status] = variant;
+  }
+  return result;
+}
+
+export function buildCostLineStateVariants(t: StatusLabelT): Record<CostLineState, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyCostLine;
+  const result = {} as Record<CostLineState, BadgeVariant>;
+  for (const state of COST_LINE_STATES) {
+    const variant: BadgeVariant = {
+      label: t(set.key(state), { ns: set.ns }),
+      className: COST_LINE_STATE_CLASS[state],
+    };
+    if (state === 'submitted') {
+      variant.icon = <CheckIcon />;
+      variant.title = t('statusHints.submitted', { ns: 'common' });
+    }
+    result[state] = variant;
   }
   return result;
 }

@@ -26,6 +26,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { CostLinesPanel } from './components/CostLinesPanel.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
@@ -46,7 +47,9 @@ export class HouseholdItemDetailPage {
   readonly areaBreadcrumbNav: Locator;
 
   // Content sections
+  /** The "Cost" section (overview, cost lines, grant links; #2235). */
   readonly budgetSection: Locator;
+  readonly costLines: CostLinesPanel;
   readonly documentsButton: Locator;
 
   // Delete (#2209: the dialog is the shared ConfirmDialog — role="alertdialog", rendered in a portal)
@@ -79,10 +82,11 @@ export class HouseholdItemDetailPage {
     // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
     this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
 
-    // Budget section — scoped by h2 heading text (mirrors WorkItemDetailPage.ts pattern)
+    this.costLines = new CostLinesPanel(page);
+    // Cost section — scoped by h2 heading text (mirrors WorkItemDetailPage.ts pattern)
     this.budgetSection = page
       .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
+      .filter({ has: page.getByRole('heading', { level: 2, name: 'Cost', exact: true }) });
 
     // Documents section
     this.documentsButton = page.getByTestId('documents-panel-button');

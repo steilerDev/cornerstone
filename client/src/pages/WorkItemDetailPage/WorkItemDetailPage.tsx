@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type {
@@ -9,11 +9,8 @@ import type {
   NoteResponse,
   SubtaskResponse,
   DependencyResponse,
-  BudgetCategory,
-  BudgetSource,
   SubsidyProgram,
   WorkItemBudgetLine,
-  CreateWorkItemBudgetRequest,
   WorkItemMilestones,
   MilestoneSummary,
   WorkItemSubsidyPaybackResponse,
@@ -31,16 +28,9 @@ import {
   unlinkWorkItemSubsidy,
   fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
-import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import {
-  fetchWorkItemBudgets,
-  createWorkItemBudget,
-  updateWorkItemBudget,
-  deleteWorkItemBudget,
-} from '../../lib/workItemBudgetsApi.js';
-import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
+import { fetchWorkItemBudgets } from '../../lib/workItemBudgetsApi.js';
 import { listNotes, createNote, updateNote, deleteNote } from '../../lib/notesApi.js';
 import {
   listSubtasks,
@@ -52,9 +42,7 @@ import {
 import { getDependencies, createDependency, deleteDependency } from '../../lib/dependenciesApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
-import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
-import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import {
@@ -74,21 +62,19 @@ import {
 } from '../../components/AssignmentPicker/AssignmentPicker.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { BudgetSection } from '../../components/budget/BudgetSection.js';
-import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
+import { BudgetCostOverview } from '../../components/budget/BudgetCostOverview.js';
+import { SubsidyLinkSection } from '../../components/budget/SubsidyLinkSection.js';
+import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import {
   DependencySentenceBuilder,
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
 import { useFormatters, toBcp47Locale } from '../../lib/formatters.js';
-import { roundMoney } from '../../lib/money.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
-import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
@@ -124,20 +110,27 @@ interface DeletingDependency {
   title: string;
 }
 
+/** Reads the route id once; the view below always has a task id. */
 export default function WorkItemDetailPage() {
-  const { vatRate, resolvedLocale } = useLocale();
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to={routeUrl('workItems')} replace />;
+  return <WorkItemDetailView id={id} />;
+}
+
+function WorkItemDetailView({ id }: { id: string }) {
+  const { resolvedLocale } = useLocale();
   const {
     formatCurrency: _formatCurrency,
     formatDate,
     formatTime: _formatTime,
     formatDateTime: _formatDateTime,
   } = useFormatters();
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
   const { createAction: companyCreateAction } = useCompanyCreateAction();
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCostLines } = useTranslation('costLines');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
@@ -157,15 +150,10 @@ export default function WorkItemDetailPage() {
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
-  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
-  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
 
-  // Invoice linking state
-  const [showInvoiceLinkModal, setShowInvoiceLinkModal] = useState(false);
-  const [invoiceLinkingBudgetId, setInvoiceLinkingBudgetId] = useState<string | null>(null);
-  const [isUnlinkingInvoice, setIsUnlinkingInvoice] = useState<Record<string, boolean>>({});
-
-  // Subsidy linking state (linked subsidies and programs stay as local state)
+  // Subsidy linking state
+  const [selectedSubsidyId, setSelectedSubsidyId] = useState('');
+  const [isLinkingSubsidy, setIsLinkingSubsidy] = useState(false);
   const [linkedSubsidies, setLinkedSubsidies] = useState<SubsidyProgram[]>([]);
   const [allSubsidyPrograms, setAllSubsidyPrograms] = useState<SubsidyProgram[]>([]);
 
@@ -250,7 +238,6 @@ export default function WorkItemDetailPage() {
 
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
-    if (!id) return;
     try {
       const data = await fetchWorkItemBudgets(id);
       setBudgetLines(data);
@@ -260,7 +247,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadLinkedSubsidies = async () => {
-    if (!id) return;
     try {
       const data = await fetchWorkItemSubsidies(id);
       setLinkedSubsidies(data);
@@ -270,7 +256,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadSubsidyPayback = async () => {
-    if (!id) return;
     try {
       const data = await fetchWorkItemSubsidyPayback(id);
       setSubsidyPayback(data);
@@ -278,50 +263,6 @@ export default function WorkItemDetailPage() {
       console.error('Failed to reload subsidy payback:', err);
     }
   };
-
-  // Budget section hook
-  const budgetSection = useBudgetSection<WorkItemBudgetLine>({
-    api: {
-      fetchBudgets: fetchWorkItemBudgets,
-      createBudget: createWorkItemBudget,
-      updateBudget: updateWorkItemBudget,
-      deleteBudget: deleteWorkItemBudget,
-    },
-    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
-    reloadBudgetLines: async () => {
-      await reloadBudgetLines();
-      setBudgetError(null);
-    },
-    reloadSubsidyPayback,
-    reloadLinkedSubsidies,
-    toFormState: (line: WorkItemBudgetLine): BudgetLineFormState => ({
-      description: line.description ?? '',
-      plannedAmount: String(line.plannedAmount),
-      confidence: line.confidence,
-      budgetCategoryId: line.budgetCategory?.id ?? '',
-      budgetSourceId: line.budgetSource?.id ?? '',
-      vendorId: line.vendor?.id ?? '',
-      pricingMode: line.quantity !== null ? 'unit' : 'direct',
-      quantity: line.quantity !== null ? String(line.quantity) : '',
-      unit: line.unit ?? '',
-      unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
-      includesVat: line.includesVat ?? true,
-    }),
-    toPayload: (form: BudgetLineFormState): CreateWorkItemBudgetRequest => ({
-      description: form.description.trim() || null,
-      plannedAmount: parseFloat(form.plannedAmount),
-      confidence: form.confidence,
-      budgetCategoryId: form.budgetCategoryId || null,
-      budgetSourceId: form.budgetSourceId,
-      vendorId: form.vendorId || null,
-      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
-      unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
-      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-      includesVat: form.includesVat,
-    }),
-    entityId: id ?? '',
-    defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
-  });
 
   // Local state for duration/constraint inputs (onBlur save pattern to avoid race conditions)
   const [localDuration, setLocalDuration] = useState<string>('');
@@ -351,15 +292,10 @@ export default function WorkItemDetailPage() {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
-  const deleteWorkItemConsequences = useDeleteImpact(
-    'work_item',
-    showDeleteConfirm ? (id ?? null) : null,
-  );
+  const deleteWorkItemConsequences = useDeleteImpact('work_item', showDeleteConfirm ? id : null);
 
   // Load all data on mount
   useEffect(() => {
-    if (!id) return;
-
     async function loadData() {
       setIsLoading(true);
       setError(null);
@@ -372,8 +308,6 @@ export default function WorkItemDetailPage() {
           subtasksData,
           depsData,
           usersData,
-          categoriesData,
-          sourcesData,
           budgetLinesData,
           subsidiesData,
           linkedSubsidiesData,
@@ -382,20 +316,18 @@ export default function WorkItemDetailPage() {
           subsidyPaybackData,
           linkedHouseholdItemsData,
         ] = await Promise.all([
-          getWorkItem(id!),
-          listNotes(id!),
-          listSubtasks(id!),
-          getDependencies(id!),
+          getWorkItem(id),
+          listNotes(id),
+          listSubtasks(id),
+          getDependencies(id),
           listUsers(),
-          fetchBudgetCategories(),
-          fetchBudgetSources(),
-          fetchWorkItemBudgets(id!),
+          fetchWorkItemBudgets(id),
           fetchSubsidyPrograms(),
-          fetchWorkItemSubsidies(id!),
-          getWorkItemMilestones(id!),
+          fetchWorkItemSubsidies(id),
+          getWorkItemMilestones(id),
           listMilestones(),
-          fetchWorkItemSubsidyPayback(id!),
-          fetchLinkedHouseholdItems(id!),
+          fetchWorkItemSubsidyPayback(id),
+          fetchLinkedHouseholdItems(id),
         ]);
 
         setWorkItem(workItemData);
@@ -410,8 +342,6 @@ export default function WorkItemDetailPage() {
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
         setUsers(usersData.users.filter((u) => !u.deactivatedAt));
-        setBudgetCategories(categoriesData.categories);
-        setBudgetSources(sourcesData.budgetSources);
         setBudgetLines(budgetLinesData);
         setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
         setLinkedSubsidies(linkedSubsidiesData);
@@ -436,7 +366,6 @@ export default function WorkItemDetailPage() {
 
   // Reload work item details after changes
   const reloadWorkItem = async () => {
-    if (!id) return;
     try {
       const updated = await getWorkItem(id);
       setWorkItem(updated);
@@ -451,7 +380,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadNotes = async () => {
-    if (!id) return;
     try {
       const notesData = await listNotes(id);
       setNotes(notesData.notes);
@@ -461,7 +389,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadSubtasks = async () => {
-    if (!id) return;
     try {
       const subtasksData = await listSubtasks(id);
       setSubtasks(subtasksData.subtasks);
@@ -471,7 +398,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadDependencies = async () => {
-    if (!id) return;
     try {
       const depsData = await getDependencies(id);
       setDependencies(depsData);
@@ -481,7 +407,6 @@ export default function WorkItemDetailPage() {
   };
 
   const reloadWorkItemMilestones = async () => {
-    if (!id) return;
     try {
       const data = await getWorkItemMilestones(id);
       setWorkItemMilestones(data);
@@ -490,23 +415,16 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // ─── Budget line handlers (delegated to useBudgetSection hook) ────────────
-
-  const {
-    confirmDeleteBudgetLine,
-    handleLinkSubsidy: hookHandleLinkSubsidy,
-    handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
-    selectedSubsidyId,
-  } = budgetSection;
-
-  // ─── Subsidy linking handlers (delegates to hook after API calls) ──────────
+  // ─── Subsidy linking handlers ──────────────────────────────────────────────
 
   const handleLinkSubsidy = async () => {
-    if (!id || !selectedSubsidyId) return;
+    if (!selectedSubsidyId) return;
     setBudgetError(null);
+    setIsLinkingSubsidy(true);
     try {
       await linkWorkItemSubsidy(id, selectedSubsidyId);
-      await hookHandleLinkSubsidy();
+      await reloadLinkedSubsidies();
+      setSelectedSubsidyId('');
       await reloadSubsidyPayback();
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -521,15 +439,16 @@ export default function WorkItemDetailPage() {
         setBudgetError(t('detail.inlineErrors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
+    } finally {
+      setIsLinkingSubsidy(false);
     }
   };
 
   const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
-    if (!id) return;
     setBudgetError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
-      await hookHandleUnlinkSubsidy();
+      await reloadLinkedSubsidies();
       await reloadSubsidyPayback();
     } catch (err) {
       setBudgetError(t('detail.inlineErrors.unlinkSubsidy'));
@@ -537,125 +456,15 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  // ─── Invoice linking handlers ────────────────────────────────────────────
-
-  const handleLinkInvoice = (budgetLineId: string) => {
-    setInvoiceLinkingBudgetId(budgetLineId);
-    setShowInvoiceLinkModal(true);
-  };
-
-  const handleUnlinkInvoice = async (budgetLineId: string, invoiceBudgetLineId: string) => {
-    const invoiceLink = budgetLines.find((line) => line.id === budgetLineId)?.invoiceLink;
-    if (!invoiceLink) return;
-
-    setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
+  // After any cost-line change the page refreshes its lines, grant payback and linked grants.
+  const handleCostLinesChanged = async () => {
+    await Promise.all([reloadBudgetLines(), reloadSubsidyPayback(), reloadLinkedSubsidies()]);
     setBudgetError(null);
-
-    try {
-      await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
-      await reloadBudgetLines();
-    } catch (err) {
-      setBudgetError(t('detail.inlineErrors.unlinkInvoice'));
-      console.error('Failed to unlink invoice:', err);
-    } finally {
-      setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
-    }
-  };
-
-  const handleInvoiceLinkSuccess = () => {
-    setShowInvoiceLinkModal(false);
-    setInvoiceLinkingBudgetId(null);
-    reloadBudgetLines();
-  };
-
-  const handleMoveBudgetLine = async (
-    budgetLineId: string,
-    newParentType: 'work_item' | 'household_item',
-    newParentId: string,
-  ) => {
-    const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
-    if (!budgetLine) return;
-
-    setBudgetError(null);
-
-    // If the line has an invoice link, use the invoice budget line endpoint
-    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-      const moveData =
-        newParentType === 'work_item'
-          ? { newWorkItemId: newParentId }
-          : { newHouseholdItemId: newParentId };
-
-      await editAndMoveBudgetLine(
-        budgetLine.invoiceLink.invoiceId,
-        budgetLine.invoiceLink.invoiceBudgetLineId,
-        moveData,
-      );
-    } else {
-      // No invoice link — check if it's a same-table or cross-table move
-      if (newParentType === 'household_item') {
-        // Cross-table move without invoice link is not supported
-        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-      }
-
-      // Same-table work item to work item move
-      await updateWorkItemBudget(workItem!.id, budgetLineId, {
-        newWorkItemId: newParentId,
-      });
-    }
-
-    // Reload budget lines to reflect the move
-    await reloadBudgetLines();
-  };
-
-  const handleInvoiceLineEdit = async (
-    line: WorkItemBudgetLine,
-    form: BudgetLineFormState,
-    itemizedAmountStr: string,
-  ) => {
-    if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
-    setBudgetError(null);
-
-    const newAmount = parseFloat(itemizedAmountStr);
-    if (isNaN(newAmount) || newAmount <= 0) {
-      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
-    }
-
-    // Compute plannedAmount from form
-    let plannedAmount: number;
-    if (form.pricingMode === 'direct') {
-      plannedAmount = parseFloat(form.plannedAmount);
-    } else {
-      const qty = parseFloat(form.quantity);
-      const price = parseFloat(form.unitPrice);
-      plannedAmount = roundMoney(qty * price);
-    }
-
-    const payload = {
-      itemizedAmount: newAmount,
-      description: form.description || null,
-      plannedAmount,
-      confidence: form.confidence,
-      budgetCategoryId: form.budgetCategoryId || null,
-      budgetSourceId: form.budgetSourceId || null,
-      vendorId: form.vendorId || null,
-      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
-      unit: form.pricingMode === 'unit' ? form.unit || null : null,
-      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-      includesVat: form.includesVat,
-    };
-
-    await editAndMoveBudgetLine(
-      line.invoiceLink.invoiceId,
-      line.invoiceLink.invoiceBudgetLineId,
-      payload,
-    );
-    await reloadBudgetLines();
   };
 
   // ─── Milestone relationship handlers ──────────────────────────────────────
 
   const handleAddRequiredMilestone = async () => {
-    if (!id || !selectedRequiredMilestoneId) return;
     setIsAddingRequiredMilestone(true);
     setInlineError(null);
     try {
@@ -681,7 +490,6 @@ export default function WorkItemDetailPage() {
   };
 
   const handleRemoveRequiredMilestone = async (milestoneId: number) => {
-    if (!id) return;
     setInlineError(null);
     try {
       await removeRequiredMilestone(id, milestoneId);
@@ -693,7 +501,6 @@ export default function WorkItemDetailPage() {
   };
 
   const handleAddLinkedMilestone = async () => {
-    if (!id || !selectedLinkedMilestoneId) return;
     setIsAddingLinkedMilestone(true);
     setInlineError(null);
     try {
@@ -719,7 +526,6 @@ export default function WorkItemDetailPage() {
   };
 
   const handleRemoveLinkedMilestone = async (milestoneId: number) => {
-    if (!id) return;
     setInlineError(null);
     try {
       await removeLinkedMilestone(id, milestoneId);
@@ -732,13 +538,13 @@ export default function WorkItemDetailPage() {
 
   // Title editing
   const startEditingTitle = () => {
-    if (!workItem) return;
-    setEditedTitle(workItem.title);
+    const current = workItem!;
+    setEditedTitle(current.title);
     setIsEditingTitle(true);
   };
 
   const saveTitle = async () => {
-    if (!id || !editedTitle.trim()) return;
+    if (!editedTitle.trim()) return;
     setInlineError(null);
     try {
       await updateWorkItem(id, { title: editedTitle.trim() });
@@ -757,13 +563,12 @@ export default function WorkItemDetailPage() {
 
   // Description editing
   const startEditingDescription = () => {
-    if (!workItem) return;
-    setEditedDescription(workItem.description || '');
+    const current = workItem!;
+    setEditedDescription(current.description || '');
     setIsEditingDescription(true);
   };
 
   const saveDescription = async () => {
-    if (!id) return;
     setInlineError(null);
     try {
       await updateWorkItem(id, { description: editedDescription.trim() || null });
@@ -783,11 +588,11 @@ export default function WorkItemDetailPage() {
   // Status change (StatusMenu): the PATCH may return an undo token for the toast
   const { run: runStatusChange } = useUndoableStatusChange();
   const handleStatusChange = async (newStatus: WorkItemStatus, date: string | null) => {
-    if (!id || !workItem) return;
+    const current = workItem!;
     setInlineError(null);
     await runStatusChange({
       request: () => changeWorkItemStatus(id, workItemStatusBody(newStatus, date)),
-      recordName: workItem.title,
+      recordName: current.title,
       statusLabel: statusVariants.task[newStatus].label,
       dedupeKey: `task:${id}`,
       onChanged: () => void reloadWorkItem(),
@@ -797,7 +602,6 @@ export default function WorkItemDetailPage() {
 
   // Assigned user change
   const handleAssignmentChange = async (assignmentValue: string) => {
-    if (!id) return;
     setInlineError(null);
     const { userId, vendorId } = decodeAssignment(assignmentValue);
     try {
@@ -813,7 +617,6 @@ export default function WorkItemDetailPage() {
   };
 
   const handleAreaChange = async (areaId: string) => {
-    if (!id) return;
     setInlineError(null);
     try {
       await updateWorkItem(id, { areaId: areaId || null });
@@ -826,12 +629,12 @@ export default function WorkItemDetailPage() {
 
   // Duration change — saves onBlur to avoid race conditions from rapid keystroke API calls
   const handleDurationBlur = async () => {
-    if (!id || !workItem) return;
+    const current = workItem!;
     const duration = localDuration ? Number(localDuration) : null;
     if (duration !== null && (isNaN(duration) || duration < 0)) return;
 
     // Only save if the value actually changed
-    const currentDuration = workItem.durationDays;
+    const currentDuration = current.durationDays;
     if (duration === currentDuration) return;
 
     setInlineError(null);
@@ -851,9 +654,9 @@ export default function WorkItemDetailPage() {
 
   // Constraint changes — saves onBlur to avoid race conditions
   const handleConstraintBlur = async (field: 'startAfter' | 'startBefore') => {
-    if (!id || !workItem) return;
+    const current = workItem!;
     const localValue = field === 'startAfter' ? localStartAfter : localStartBefore;
-    const currentValue = workItem[field] || '';
+    const currentValue = current[field] || '';
 
     // Only save if the value actually changed
     if (localValue === currentValue) return;
@@ -876,9 +679,9 @@ export default function WorkItemDetailPage() {
 
   // Actual date changes — saves onBlur, allows manual override or clearing
   const handleActualDateBlur = async (field: 'actualStartDate' | 'actualEndDate') => {
-    if (!id || !workItem) return;
+    const current = workItem!;
     const localValue = field === 'actualStartDate' ? localActualStartDate : localActualEndDate;
-    const currentValue = workItem[field] || '';
+    const currentValue = current[field] || '';
 
     // Only save if the value actually changed
     if (localValue === currentValue) return;
@@ -906,7 +709,7 @@ export default function WorkItemDetailPage() {
   // Notes
   const handleAddNote = async (event: FormEvent) => {
     event.preventDefault();
-    if (!id || !newNoteContent.trim()) return;
+    if (!newNoteContent.trim()) return;
 
     setIsAddingNote(true);
     setInlineError(null);
@@ -928,7 +731,7 @@ export default function WorkItemDetailPage() {
   };
 
   const saveNoteEdit = async (noteId: string) => {
-    if (!id || !editedNoteContent.trim()) return;
+    if (!editedNoteContent.trim()) return;
     setInlineError(null);
     try {
       await updateNote(id, noteId, { content: editedNoteContent.trim() });
@@ -947,18 +750,17 @@ export default function WorkItemDetailPage() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!id) return;
     setConfirmError(null);
     setDeletingNoteId(noteId);
   };
 
   const confirmDeleteNote = async () => {
-    if (!id || !deletingNoteId) return;
+    const noteId = deletingNoteId!;
     setInlineError(null);
     setConfirmError(null);
     setConfirmBusy(true);
     try {
-      await deleteNote(id, deletingNoteId);
+      await deleteNote(id, noteId);
       focusPageHeading();
       setDeletingNoteId(null);
       await reloadNotes();
@@ -973,7 +775,7 @@ export default function WorkItemDetailPage() {
   // Subtasks
   const handleAddSubtask = async (event: FormEvent) => {
     event.preventDefault();
-    if (!id || !newSubtaskTitle.trim()) return;
+    if (!newSubtaskTitle.trim()) return;
 
     setIsAddingSubtask(true);
     setInlineError(null);
@@ -990,7 +792,6 @@ export default function WorkItemDetailPage() {
   };
 
   const handleToggleSubtask = async (subtaskId: string, isCompleted: boolean) => {
-    if (!id) return;
     setInlineError(null);
     try {
       await updateSubtask(id, subtaskId, { isCompleted });
@@ -1007,7 +808,7 @@ export default function WorkItemDetailPage() {
   };
 
   const saveSubtaskEdit = async (subtaskId: string) => {
-    if (!id || !editedSubtaskTitle.trim()) return;
+    if (!editedSubtaskTitle.trim()) return;
     setInlineError(null);
     try {
       await updateSubtask(id, subtaskId, { title: editedSubtaskTitle.trim() });
@@ -1026,18 +827,17 @@ export default function WorkItemDetailPage() {
   };
 
   const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!id) return;
     setConfirmError(null);
     setDeletingSubtaskId(subtaskId);
   };
 
   const confirmDeleteSubtask = async () => {
-    if (!id || !deletingSubtaskId) return;
+    const subtaskId = deletingSubtaskId!;
     setInlineError(null);
     setConfirmError(null);
     setConfirmBusy(true);
     try {
-      await deleteSubtask(id, deletingSubtaskId);
+      await deleteSubtask(id, subtaskId);
       focusPageHeading();
       setDeletingSubtaskId(null);
       await reloadSubtasks();
@@ -1050,9 +850,8 @@ export default function WorkItemDetailPage() {
   };
 
   const handleMoveSubtask = async (index: number, direction: 'up' | 'down') => {
-    if (!id) return;
+    // The move buttons are disabled at both ends, so newIndex is always a valid position.
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= subtasks.length) return;
 
     const reordered = [...subtasks];
     const [moved] = reordered.splice(index, 1);
@@ -1076,8 +875,6 @@ export default function WorkItemDetailPage() {
     dependencyType: DependencyType;
     otherItemTitle: string;
   }) => {
-    if (!id) return;
-
     setIsAddingDependency(true);
     setInlineError(null);
     try {
@@ -1114,22 +911,21 @@ export default function WorkItemDetailPage() {
     workItemId: string,
     title: string,
   ) => {
-    if (!id) return;
     setConfirmError(null);
     setDeletingDependency({ type, workItemId, title });
   };
 
   const confirmDeleteDependency = async () => {
-    if (!id || !deletingDependency) return;
+    const target = deletingDependency!;
     setInlineError(null);
     setConfirmError(null);
     setConfirmBusy(true);
     try {
-      if (deletingDependency.type === 'predecessor') {
-        await deleteDependency(id, deletingDependency.workItemId);
+      if (target.type === 'predecessor') {
+        await deleteDependency(id, target.workItemId);
       } else {
         // For successors, swap: delete from the successor's perspective
-        await deleteDependency(deletingDependency.workItemId, id);
+        await deleteDependency(target.workItemId, id);
       }
       focusPageHeading();
       setDeletingDependency(null);
@@ -1144,7 +940,6 @@ export default function WorkItemDetailPage() {
 
   // Delete work item
   const handleDeleteWorkItem = async () => {
-    if (!id) return;
     setIsDeleting(true);
     setInlineError(null);
     setDeleteWorkItemError(null);
@@ -1167,7 +962,7 @@ export default function WorkItemDetailPage() {
 
   const excludedWorkItemIds = useMemo(() => {
     const ids = new Set<string>();
-    if (id) ids.add(id);
+    ids.add(id);
     for (const dep of dependencies.predecessors) {
       ids.add(dep.workItem.id);
     }
@@ -1183,7 +978,13 @@ export default function WorkItemDetailPage() {
       {
         key: 'e',
         handler: () => {
-          if (!isEditingTitle && !isEditingDescription && !editingNoteId && !editingSubtaskId) {
+          if (
+            workItem !== null &&
+            !isEditingTitle &&
+            !isEditingDescription &&
+            !editingNoteId &&
+            !editingSubtaskId
+          ) {
             startEditingTitle();
           }
         },
@@ -1191,30 +992,20 @@ export default function WorkItemDetailPage() {
       },
       {
         key: 'Delete',
-        handler: () => {
-          if (!showDeleteConfirm) {
-            setShowDeleteConfirm(true);
-          }
-        },
+        handler: () => setShowDeleteConfirm(true),
         description: 'Delete work item (Delete / Backspace)',
       },
       {
         key: 'Backspace',
-        handler: () => {
-          if (!showDeleteConfirm) {
-            setShowDeleteConfirm(true);
-          }
-        },
+        handler: () => setShowDeleteConfirm(true),
         description: '', // Empty description to hide in help overlay
       },
       {
         key: 'Escape',
         handler: () => {
-          if (showShortcutsHelp) {
-            setShowShortcutsHelp(false);
-          } else if (showDeleteConfirm) {
-            setShowDeleteConfirm(false);
-          } else if (isEditingTitle) {
+          // Page shortcuts are off while a modal is open, so the help and delete dialogs close
+          // themselves; only the inline edits are cancelled here.
+          if (isEditingTitle) {
             cancelTitleEdit();
           } else if (isEditingDescription) {
             cancelDescriptionEdit();
@@ -1232,15 +1023,8 @@ export default function WorkItemDetailPage() {
         description: 'Show keyboard shortcuts',
       },
     ],
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- startEditingTitle is defined in the component body; the shortcuts array is recomputed to capture current state of editing flags, which is the intended behavior
-    [
-      isEditingTitle,
-      isEditingDescription,
-      editingNoteId,
-      editingSubtaskId,
-      showDeleteConfirm,
-      showShortcutsHelp,
-    ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- startEditingTitle is defined in the component body; the shortcuts array is recomputed whenever the loaded item or an editing flag changes, so `e` never runs a stale handler
+    [workItem, isEditingTitle, isEditingDescription, editingNoteId, editingSubtaskId],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -1296,7 +1080,7 @@ export default function WorkItemDetailPage() {
         <h1 className={styles.stateTitle}>{h1Text}</h1>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('detail.error.title')}</h2>
-          <p>{error || t('detail.error.fallback')}</p>
+          <p>{error}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
@@ -1570,32 +1354,48 @@ export default function WorkItemDetailPage() {
             </div>
           </section>
 
-          {/* Budget Lines */}
-          <section className={styles.section}>
-            <BudgetSection
-              invoiceLinkState={originState}
-              budgetLines={budgetLines}
-              subsidyPayback={subsidyPayback}
-              linkedSubsidies={linkedSubsidies}
-              availableSubsidies={availableSubsidies}
-              budgetSectionHook={budgetSection}
-              budgetSources={budgetSources}
-              budgetCategories={budgetCategories}
-              onLinkSubsidy={handleLinkSubsidy}
-              onUnlinkSubsidy={handleUnlinkSubsidy}
-              onConfirmDeleteBudgetLine={confirmDeleteBudgetLine}
-              budgetLineType="work_item"
-              onLinkInvoice={handleLinkInvoice}
-              onUnlinkInvoice={handleUnlinkInvoice}
-              isUnlinking={isUnlinkingInvoice}
-              inlineError={budgetError}
-              onDismissInlineError={() => setBudgetError(null)}
-              parentEntityId={workItem?.id}
-              parentEntityLabel={workItem?.title}
-              onMoveBudgetLine={handleMoveBudgetLine}
-              onInvoiceLineEdit={handleInvoiceLineEdit}
-              onInvoiceLineMove={handleMoveBudgetLine}
+          {/* Cost */}
+          <section className={styles.section} aria-labelledby="work-item-cost-heading">
+            <h2 id="work-item-cost-heading" className={styles.sectionTitle}>
+              {tCostLines('section.costHeading')}
+            </h2>
+
+            {budgetError && (
+              <div className={styles.errorBanner} role="alert">
+                {budgetError}
+                <button
+                  type="button"
+                  className={styles.closeError}
+                  onClick={() => setBudgetError(null)}
+                  aria-label={tBudget('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            <BudgetCostOverview budgetLines={budgetLines} subsidyPayback={subsidyPayback} />
+
+            <CostLinesSection
+              host={{ kind: 'work_item', id: workItem.id, label: workItem.title }}
+              lines={budgetLines}
+              onChanged={handleCostLinesChanged}
+              linkState={originState}
+              headingLevel={3}
             />
+
+            <div className={styles.grantsSubsection}>
+              <h3 className={styles.subsectionTitle}>{tBudget('budgetSection.subsidies')}</h3>
+              <SubsidyLinkSection
+                linkedSubsidies={linkedSubsidies}
+                availableSubsidies={availableSubsidies}
+                selectedSubsidyId={selectedSubsidyId}
+                onSelectSubsidy={setSelectedSubsidyId}
+                onLinkSubsidy={handleLinkSubsidy}
+                onUnlinkSubsidy={handleUnlinkSubsidy}
+                isLinking={isLinkingSubsidy}
+              />
+            </div>
           </section>
         </div>
 
@@ -1853,7 +1653,7 @@ export default function WorkItemDetailPage() {
                         aria-label={t('detail.constraints.clearStartAfter')}
                         onClick={() => {
                           setLocalStartAfter('');
-                          if (id && workItem && workItem.startAfter) {
+                          if (workItem.startAfter) {
                             setAutosaveStartAfter('saving');
                             void updateWorkItem(id, { startAfter: null })
                               .then(() => reloadWorkItem())
@@ -1894,7 +1694,7 @@ export default function WorkItemDetailPage() {
                         aria-label={t('detail.constraints.clearStartBefore')}
                         onClick={() => {
                           setLocalStartBefore('');
-                          if (id && workItem && workItem.startBefore) {
+                          if (workItem.startBefore) {
                             setAutosaveStartBefore('saving');
                             void updateWorkItem(id, { startBefore: null })
                               .then(() => reloadWorkItem())
@@ -1935,7 +1735,7 @@ export default function WorkItemDetailPage() {
                         aria-label={t('detail.constraints.clearActualStart')}
                         onClick={() => {
                           setLocalActualStartDate('');
-                          if (id && workItem && workItem.actualStartDate) {
+                          if (workItem.actualStartDate) {
                             setAutosaveActualStart('saving');
                             void updateWorkItem(id, { actualStartDate: null })
                               .then(() => reloadWorkItem())
@@ -1976,7 +1776,7 @@ export default function WorkItemDetailPage() {
                         aria-label={t('detail.constraints.clearActualEnd')}
                         onClick={() => {
                           setLocalActualEndDate('');
-                          if (id && workItem && workItem.actualEndDate) {
+                          if (workItem.actualEndDate) {
                             setAutosaveActualEnd('saving');
                             void updateWorkItem(id, { actualEndDate: null })
                               .then(() => reloadWorkItem())
@@ -2013,7 +1813,7 @@ export default function WorkItemDetailPage() {
 
               <div className={styles.addDependencySection}>
                 <DependencySentenceBuilder
-                  thisItemId={id!}
+                  thisItemId={id}
                   thisItemLabel={workItem.title}
                   excludeIds={excludedWorkItemIds}
                   disabled={isAddingDependency}
@@ -2150,7 +1950,7 @@ export default function WorkItemDetailPage() {
       {/* Documents — full-width section, loads independently */}
       <DocumentsPanelButton
         entityType="work_item"
-        entityId={id!}
+        entityId={id}
         wrapperClassName={styles.section}
       />
 
@@ -2249,23 +2049,6 @@ export default function WorkItemDetailPage() {
           onConfirm={() => void confirmDeleteDependency()}
           onCancel={() => setDeletingDependency(null)}
           testIdPrefix="dependency-remove"
-        />
-      )}
-
-      {/* Invoice link modal */}
-      {showInvoiceLinkModal && invoiceLinkingBudgetId && (
-        <InvoiceLinkModal
-          budgetLineId={invoiceLinkingBudgetId}
-          budgetLineType="work_item"
-          defaultAmount={(() => {
-            const linkLine = budgetLines.find((line) => line.id === invoiceLinkingBudgetId);
-            return linkLine ? effectivePlannedAmount(linkLine, vatRate) : 0;
-          })()}
-          onSuccess={handleInvoiceLinkSuccess}
-          onClose={() => {
-            setShowInvoiceLinkModal(false);
-            setInvoiceLinkingBudgetId(null);
-          }}
         />
       )}
     </div>

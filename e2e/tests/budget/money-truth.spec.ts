@@ -9,12 +9,11 @@
  *      pending invoice with a paid progress payment shows the remainder in both places.
  *   3. AC3 — new invoices default to "To pay" (pending) from the Invoices page and company page.
  *   4. AC4 — bank-report step 1 Claim card helper reads "to pay or paid" / "not yet submitted".
- *   5. AC5 — a net-entered linked line shows the same Planned figure on the invoice page and on
- *      the item page's invoice group.
- *   6. AC6 — invoice picker "Remaining to allocate" is the server remainder minus ticked lines.
- *   7. AC7 — Link to Invoice modal: compact rows, first invoice with remaining preselected, no
- *      warning styling on open, "Nothing left to link", keyboard reachability, neutral
- *      "Fully allocated" state with disabled link button.
+ *   5. AC5 — a net-entered linked line shows the same amount (and the same estimate) on the
+ *      invoice page and on the item page (#2235: cost lines at face value).
+ *   6. AC6 — what is left to split is the invoice amount minus the linked lines and the grid rows.
+ *   7. AC7 — Link to offer or invoice form: compact rows with what is left, "Fully split", keyboard
+ *      reachability, a refused link keeps the form open, an invoice beyond the first 50 is found.
  *   8. AC8 — Budget › Overview › Add › Add Invoice opens the create modal with status pending.
  *
  * Isolation: every entity is created with a unique synthetic name via the `testPrefix` fixture and
@@ -40,6 +39,9 @@ import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
+import { CostLineGridDialog } from '../../pages/components/CostLineGridDialog.js';
+import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
+import { SearchPickerControl } from '../../pages/components/SearchPickerControl.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cleanup registry + API helpers
@@ -343,11 +345,11 @@ test.describe('Money truth — bank report wording (AC4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5 (AC5): one Planned figure for net-entered lines
+// Scenario 5 (AC5): one amount for a linked, net-entered line on every page
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Money truth — Planned figure agrees across pages (AC5)', () => {
-  test('Invoice page Planned cell equals the item page invoice-group Planned for a net-entered line', async ({
+test.describe('Money truth — one amount across pages (AC5)', { tag: '@responsive' }, () => {
+  test('A net-entered linked line shows the same amount and estimate on the invoice page and the item page', async ({
     page,
     testPrefix,
   }) => {
@@ -363,31 +365,35 @@ test.describe('Money truth — Planned figure agrees across pages (AC5)', () => 
 
     const invoiceDetail = new InvoiceDetailPage(page);
     await invoiceDetail.goto(invoiceId);
-    const plannedCell = invoiceDetail.budgetLinesSection.locator('td[class*="tdPlanned"]').first();
-    await expect(plannedCell).toBeVisible();
-    const invoicePlanned = ((await plannedCell.textContent()) ?? '').trim();
+    await invoiceDetail.costLines.waitForLoaded();
+    const invoiceRow = invoiceDetail.costLines.row('Net entered line');
+    await expect(invoiceRow).toBeVisible();
+    const invoiceAmount = (
+      (await invoiceDetail.costLines.gross(invoiceRow).textContent()) ?? ''
+    ).trim();
 
     const workItemDetail = new WorkItemDetailPage(page);
     await workItemDetail.goto(workItemId);
-    const groupPlanned = workItemDetail.budgetSection
-      .locator('[class*="amountValueMuted"]')
-      .first();
-    await expect(groupPlanned).toBeVisible();
-    const itemPlanned = ((await groupPlanned.textContent()) ?? '').trim();
+    await workItemDetail.costLines.waitForLoaded();
+    const itemRow = workItemDetail.costLines.row('Net entered line');
+    await expect(itemRow).toBeVisible();
+    const itemAmount = ((await workItemDetail.costLines.gross(itemRow).textContent()) ?? '').trim();
 
-    expect(invoicePlanned).not.toBe('');
-    expect(invoicePlanned).toBe(itemPlanned);
-    // The net 100 is grossed up consistently, so the figure is not the raw net amount
-    expect(invoicePlanned).not.toMatch(/^\D*100[.,]00\D*$/);
+    // A linked line counts at its amount on the invoice (face value, ADR-039)
+    expect(invoiceAmount).toMatch(amountRegex(100));
+    expect(itemAmount).toBe(invoiceAmount);
+    // The net 100 is grossed up consistently: the estimate on both pages is the same 119.00
+    await expect(invoiceRow).toContainText(/Estimate\s*€119\.00/);
+    await expect(itemRow).toContainText(/Estimate\s*€119\.00/);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6 (AC6): Remaining to allocate in the invoice picker
+// Scenario 6 (AC6): what is left to split in the grid
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Money truth — Remaining to allocate (AC6)', () => {
-  test('Ticking a 100 line on an invoice of 1000 with 600 already linked shows 300 remaining', async ({
+test.describe('Money truth — Remaining to allocate (AC6)', { tag: '@responsive' }, () => {
+  test('A 100 row on an invoice of 1000 with 600 already linked leaves 300 in the grid', async ({
     page,
     testPrefix,
   }) => {
@@ -403,36 +409,32 @@ test.describe('Money truth — Remaining to allocate (AC6)', () => {
     await linkLine(page, invoiceId, linkedLine, 600);
 
     const pickWiTitle = `${testPrefix} Pick WI ${Date.now()}`;
-    const pickWi = await makeWorkItem(page, pickWiTitle);
-    const pickLine = await makeBudgetLine(page, pickWi, {
-      plannedAmount: 100,
-      includesVat: true,
-      description: 'Line to tick',
-    });
+    await makeWorkItem(page, pickWiTitle);
 
     const detail = new InvoiceDetailPage(page);
+    const grid = new CostLineGridDialog(page, /^Split /);
     await detail.goto(invoiceId);
-    await expect(detail.pickerAddBudgetLineButton).toBeVisible();
-    await detail.pickerAddBudgetLineButton.click();
+    await detail.costLines.waitForLoaded();
+    await expect(detail.costLines.notYetSplit()).toHaveText('Not yet split · €400.00');
+    await detail.costLines.splitButton().click();
+    await grid.waitForOpen();
 
-    const modal = detail.budgetLinePickerModal;
-    await modal.waitFor({ state: 'visible' });
-    await modal.getByPlaceholder('Search work items...').fill(pickWiTitle);
-    await page.getByRole('option', { name: pickWiTitle }).click();
+    await grid.paste(`Line to tick\t1\tpcs\t100`);
+    await grid.enteredAllGross.click();
+    await grid.assignAllInput.click();
+    await grid.assignAll.pick(pickWiTitle);
 
-    const row = page.getByTestId(`budget-line-row-${pickLine}`);
-    await expect(row).toBeVisible();
-    await row.getByRole('checkbox').check();
-
-    await expect(modal.locator('[class*="remainingIndicator"]')).toContainText(amountRegex(300));
+    await expect(grid.total).toHaveText('€100.00');
+    await expect(grid.remainder).toContainText(amountRegex(300));
+    await expect(grid.remainder).toContainText('Not yet split');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7 (AC7): Link to Invoice modal
+// Scenario 7 (AC7): Link to offer or invoice
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive' }, () => {
+test.describe('Money truth — Link to offer or invoice (AC7)', { tag: '@responsive' }, () => {
   interface LinkSetup {
     workItemId: string;
     vendorId: string;
@@ -443,8 +445,8 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
   }
 
   /**
-   * One company, three invoices dated in 2099 so they sort first (date desc): FULL (fully allocated), REM (500 left), OTHER (400 left). The work item under test has
-   * one unlinked 100 line.
+   * One company, three invoices dated in 2099 so they sort first (date desc): FULL (fully split),
+   * REM (500 left), OTHER (400 left). The work item under test has one unlinked 100 line.
    */
   async function setupLinkModal(page: Page, testPrefix: string): Promise<LinkSetup> {
     const stamp = Date.now();
@@ -484,13 +486,23 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     return { workItemId, vendorId, fullInvoiceId, remInvoiceId, remInvoiceNumber, otherInvoiceId };
   }
 
+  async function openLinkForm(page: Page, workItemId: string) {
+    const wi = new WorkItemDetailPage(page);
+    const link = new ObjectFormDialog(page, 'Link to offer or invoice', 'link-invoice-form');
+    await wi.goto(workItemId);
+    await wi.costLines.waitForLoaded();
+    await wi.costLines.chooseAction(wi.costLines.row('Line to link'), 'Link to offer or invoice');
+    await link.waitForOpen();
+    return { wi, link, picker: new SearchPickerControl(page, 'invoiceId', link.dialog) };
+  }
+
   test(
-    'Compact rows, first invoice with room preselected, no warning styling, "Nothing left to link", keyboard reachable',
+    'Compact rows, what is left on each invoice, "Fully split", keyboard reachable',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const s = await setupLinkModal(page, testPrefix);
       // Other workers create invoices in the shared database while this runs, and they could
-      // sort ahead of ours or appear between two reads. The modal's list is therefore narrowed to
+      // sort ahead of ours or appear between two reads. The picker's list is therefore narrowed to
       // this test's own company (the real response, filtered), so the order is ours alone.
       await page.route(
         (url) => url.pathname === '/api/invoices',
@@ -501,117 +513,71 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
           await route.fulfill({ response, json: body });
         },
       );
-      const wi = new WorkItemDetailPage(page);
-      await wi.goto(s.workItemId);
-      await wi.linkToInvoiceButton.click();
-      const modal = wi.invoiceLinkModal;
-      await expect(modal).toBeVisible();
+      const { link, picker } = await openLinkForm(page, s.workItemId);
 
-      // Preselected: the first invoice that still has room, shown as the picker's selected chip
-      // (a SearchPicker with a value has no input to read). Ours sort first (own year), so it is
-      // our REM invoice.
-      const picker = wi.invoiceLinkPicker;
-      await expect(wi.invoiceLinkSelected).toBeVisible();
-      await expect(wi.invoiceLinkSelected).toContainText('#');
-      await expect(wi.invoiceLinkSelected).toContainText(s.remInvoiceNumber);
-      await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
-
-      // No warning styling on open
-      await expect(modal.locator('[class*="Warning"]')).toHaveCount(0);
-
-      // Open the list: clearing the chip brings the input back, focusing it lists the invoices
-      await picker.clearButton.click();
+      // Nothing is preselected; focusing the picker lists the invoices
       await picker.input.click();
-      const list = wi.page.locator('[data-search-picker-dropdown]');
+      const list = picker.dropdown;
       await expect(list).toBeVisible();
       const rows = list.locator('[role="option"]');
       await expect(rows.first()).toBeVisible();
-      await expect(wi.invoiceLinkOption(s.otherInvoiceId)).toBeVisible();
-
-      const listBox = await list.boundingBox();
-      expect(listBox).not.toBeNull();
       const rowCount = await rows.count();
       expect(rowCount).toBeGreaterThanOrEqual(3);
 
+      // Compact rows, several visible without scrolling
+      const listBox = await list.boundingBox();
+      expect(listBox).not.toBeNull();
       let fullyVisible = 0;
       for (let i = 0; i < Math.min(rowCount, 6); i++) {
         const box = await rows.nth(i).boundingBox();
         expect(box).not.toBeNull();
-        expect(box!.height).toBeLessThanOrEqual(56);
+        expect(box!.height).toBeLessThanOrEqual(64);
         if (box!.y + box!.height <= listBox!.y + listBox!.height + 1) fullyVisible++;
       }
       expect(fullyVisible).toBeGreaterThan(2);
 
-      // The preselection is the first row of the list that still has room, never a full one
-      const allRows = await rows.all();
-      const optionIds: string[] = [];
-      let firstWithRoom = -1;
-      for (const [index, row] of allRows.entries()) {
-        optionIds.push((await row.getAttribute('data-testid')) ?? '');
-        const text = (await row.textContent()) ?? '';
-        if (firstWithRoom < 0 && !text.includes('Nothing left to link')) firstWithRoom = index;
-      }
-      expect(firstWithRoom, 'some invoice has room').toBeGreaterThanOrEqual(0);
-      // Our own invoices keep their order: FULL (skipped) before REM before OTHER
-      const ours = [s.fullInvoiceId, s.remInvoiceId, s.otherInvoiceId].map((id) =>
-        optionIds.indexOf(`invoice-link-option-${id}`),
-      );
-      expect(ours.every((i) => i >= 0)).toBe(true);
-      expect(ours[0]).toBeLessThan(ours[1]!);
-      expect(ours[1]).toBeLessThan(ours[2]!);
-      expect(ours[0], 'FULL is not the preselected one').not.toBe(firstWithRoom);
+      // Each row says what is left to split; the full one says "Fully split"
+      const full = rows.filter({ hasText: `${testPrefix}-LF-` });
+      const rem = rows.filter({ hasText: s.remInvoiceNumber });
+      const other = rows.filter({ hasText: `${testPrefix}-LO-` });
+      await expect(full).toContainText('Fully split');
+      await expect(rem).toContainText('left to split');
+      await expect(rem).toContainText(amountRegex(500));
+      await expect(rem).not.toContainText('Fully split');
+      await expect(other).toContainText(amountRegex(400));
 
-      // The fully allocated row says so; the others show their remaining amount
-      await expect(wi.invoiceLinkOption(s.fullInvoiceId)).toContainText('Nothing left to link');
-      await expect(wi.invoiceLinkOption(s.remInvoiceId)).toContainText(amountRegex(500));
-      await expect(wi.invoiceLinkOption(s.remInvoiceId)).not.toContainText('Nothing left to link');
-
-      // Row amount stays on the same line as the invoice number (no wrapping, also at 375px)
-      const numberBox = await wi
-        .invoiceLinkOption(s.remInvoiceId)
-        .locator('[class*="resultTitle"]')
-        .boundingBox();
-      const amountBox = await wi
-        .invoiceLinkOption(s.remInvoiceId)
-        .locator('[class*="resultTrailing"]')
-        .boundingBox();
-      expect(numberBox).not.toBeNull();
-      expect(amountBox).not.toBeNull();
-      // One line (a wrapped amount would be two lines tall), beside the number, not below it
-      expect(amountBox!.height).toBeLessThanOrEqual(28);
-      expect(amountBox!.x).toBeGreaterThan(numberBox!.x);
-      expect(amountBox!.y).toBeLessThan(numberBox!.y + numberBox!.height);
+      // Our own invoices keep their order: FULL before REM before OTHER
+      const texts = await rows.allTextContents();
+      const at = (needle: string) => texts.findIndex((text) => text.includes(needle));
+      expect(at(`${testPrefix}-LF-`)).toBeGreaterThanOrEqual(0);
+      expect(at(`${testPrefix}-LF-`)).toBeLessThan(at(s.remInvoiceNumber));
+      expect(at(s.remInvoiceNumber)).toBeLessThan(at(`${testPrefix}-LO-`));
 
       // Keyboard: ArrowDown from the search input lands on the first row
       await picker.input.focus();
       await page.keyboard.press('ArrowDown');
       await expect(rows.first()).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(link.dialog).toBeVisible();
     },
   );
 
-  test('Selecting a fully allocated invoice shows a neutral note and disables linking', async ({
+  test('Picking a fully split invoice shows that nothing is left and the link is refused', async ({
     page,
     testPrefix,
   }) => {
     const s = await setupLinkModal(page, testPrefix);
-    const wi = new WorkItemDetailPage(page);
-    await wi.goto(s.workItemId);
-    await wi.linkToInvoiceButton.click();
-    const modal = wi.invoiceLinkModal;
-    await expect(modal).toBeVisible();
+    const { link, picker } = await openLinkForm(page, s.workItemId);
 
-    // Clearing the preselection lists the invoices; the full one is picked from the list
-    await wi.invoiceLinkPicker.clearButton.click();
-    await wi.invoiceLinkPicker.input.click();
-    await wi.invoiceLinkOption(s.fullInvoiceId).click();
-    await expect(wi.invoiceLinkSelected).toBeVisible();
+    await picker.pick(`${testPrefix}-LF-`);
+    await expect(link.dialog).toContainText(/€0\.00 of this offer or invoice is not split yet/);
 
-    await expect(modal.getByText(/Fully allocated/)).toBeVisible();
-    await expect(
-      modal.getByRole('button', { name: 'Link to Invoice', exact: true }),
-    ).toBeDisabled();
-    // Neutral: neither the over-allocation warning nor the red amount indicator is present
-    await expect(modal.locator('[class*="Warning"]')).toHaveCount(0);
+    await link.save();
+    // Linking 100 to an invoice with nothing left is refused by the server: the form stays open
+    await expect(link.dialog).toBeVisible();
+    await expect(link.fieldError('itemizedAmount')).toContainText(
+      'more than this offer or invoice is worth',
+    );
   });
 
   test('An invoice beyond the first 50 is found by typing its number and can be linked', async ({
@@ -634,7 +600,7 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       );
     }
     const farNumber = `${testPrefix}-FAR-${stamp}`;
-    const farId = await makeInvoice(page, vendorId, {
+    await makeInvoice(page, vendorId, {
       invoiceNumber: farNumber,
       amount: 500,
       date: '1990-01-01',
@@ -643,30 +609,23 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     await makeBudgetLine(page, workItemId, {
       plannedAmount: 100,
       includesVat: true,
-      description: 'Line to link far',
+      description: 'Line to link',
     });
 
-    const wi = new WorkItemDetailPage(page);
-    await wi.goto(workItemId);
-    await wi.linkToInvoiceButton.click();
-    const modal = wi.invoiceLinkModal;
-    await expect(modal).toBeVisible();
-    const picker = wi.invoiceLinkPicker;
+    const { wi, link, picker } = await openLinkForm(page, workItemId);
 
     // The default list stops at 50 invoices: the far one is not in it
-    await picker.clearButton.click();
     await picker.input.click();
     await expect(picker.dropdown.getByRole('option').first()).toBeVisible();
-    await expect(wi.invoiceLinkOption(farId)).toHaveCount(0);
+    await expect(picker.option(farNumber)).toHaveCount(0);
 
     // Typing its number asks the server and finds it
     await picker.pick(farNumber);
-    await expect(wi.invoiceLinkSelected).toContainText(farNumber);
-    await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
+    await expect(link.dialog).toContainText(/of this offer or invoice is not split yet/);
 
-    await modal.getByRole('button', { name: 'Link to Invoice', exact: true }).click();
-    await expect(modal).toBeHidden();
-    await expect(wi.linkToInvoiceButton).toHaveCount(0);
+    await link.save();
+    await link.waitForClosed();
+    await expect(wi.costLines.stateChip(wi.costLines.row('Line to link'))).toHaveText('Invoiced');
   });
 });
 

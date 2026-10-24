@@ -4,7 +4,11 @@
  * Story #1564 added the original page-based flow at
  *   /budget/invoices/:id/auto-itemize/:documentId
  *
- * Story #1576 (auto-itemize UI rework) updated the DOM significantly:
+ * Since #2235 the extracted lines are the shared cost line grid (one editable row per line:
+ * Include, Description, Quantity, Unit, Unit price, Net | Gross toggle, Gross, Belongs to, Cost
+ * category, Funding source); the old line cards and the "Assign…" picker modal are gone.
+ *
+ * Story #1576 (auto-itemize UI rework) updated the DOM significantly (historical):
  * - Line table replaced with <ul role="list"> of .lineCard elements
  * - Skeleton loader replaced with Spinner (role="img" aria-label="Analyzing invoice")
  * - DocumentDetailPanel replaced with <iframe title="Invoice PDF preview">
@@ -25,18 +29,18 @@
  *   10. Responsive desktop: side-by-side layout at ≥1024px
  *   11. Responsive mobile: stacked layout, form first at <860px
  *   12. Responsive tablet breakpoint: single column below 860px threshold
- *   13. Per-row assignment: "Assign…" picker flow → assigned badge → Save → payload
+ *   13. Per-row link: "Use an existing cost line…" → "Links …" label → Save → payload
  *   14. Status change: pending → paid → save → invoice detail shows "Paid"
  *   15. Extracted date suggestion: extractedInvoiceDate → SuggestionBadge → Apply → field updates
  *   16. PDF iframe smoke: iframe present, src contains preview URL
  *   17. DELETED — superseded by Scenario 22 ("Price includes VAT" label regression guard)
  *   20. SuggestionBadge for invoiceNumber and notes (parallel to Scenario 15)
- *   30. Card bottom row layout: Include + VAT labels co-linear; Category + Funding Source below (#1595)
+ *   30. Row layout: Category above Funding source inside the form column, also at 390px (#1595)
  *   31. Category pre-filled by LLM extraction: budgetCategoryId in dry-run response (#1596)
- *   32. ParentPicker tabs (Work Item / Household Item) in assign modal (#1597)
- *   33. SearchPicker portal: dropdown renders into document.body (not clipped by modal) (#1600)
- *   34. "Create Budget Line" visible with existing lines; form pre-filled from extraction (#1600)
- *   35. Dark mode + mobile: portal within viewport; touch-target ≥44px; badge uses CSS tokens (#1600)
+ *   32. Belongs to searches tasks and purchases in one list (#1597)
+ *   33. SearchPicker portal: dropdown renders outside the grid (#1600)
+ *   34. Row pre-filled from the extraction; the task's existing cost lines are offered (#1600)
+ *   35. Dark mode + mobile: portal within viewport; the linked row is legible (#1600)
  *
  * Mocking strategy:
  *   - GET /api/config: intercepted to inject autoItemizeEnabled: true/false
@@ -55,7 +59,13 @@ import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import type { Page, Route } from '@playwright/test';
 import type { ExtractedLine } from '@cornerstone/shared';
 import { API } from '../../fixtures/testData.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+  createHouseholdItemViaApi,
+  deleteHouseholdItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+import { expectLegibleInDark } from '../../fixtures/darkMode.js';
 import { mockPaperlessConfigured } from '../../fixtures/paperlessMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -547,26 +557,25 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         ]);
         await autoItemizePage.breadcrumbs.expectNoBack();
 
-        // ── Three line cards visible (card list replaces table) ───────────────
-        const cards = page.locator('[role="list"] li[class*="lineCard"]');
-        await expect(cards).toHaveCount(3);
+        // ── Three extracted rows visible in the lines grid ────────────────────
+        await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
 
-        // ── First card description textarea visible and populated ─────────────
+        // ── First row description input visible and populated ─────────────────
         await expect(autoItemizePage.lineDescription(0)).toHaveValue('Bathroom tiles (600x600mm)');
 
-        // ── Toggle the second card (uncheck include → excluded) ───────────────
+        // ── Toggle the second row (uncheck Include → excluded) ────────────────
         const secondCheckbox = autoItemizePage.lineCheckbox(1);
         await expect(secondCheckbox).toBeChecked();
         await secondCheckbox.click();
         await expect(secondCheckbox).not.toBeChecked();
 
-        // ── Pick a category for the included lines (guard requires it for create-new mode) ──
-        // Card 0 and Card 2 are included; Card 1 is excluded. Select the first real option.
-        // Wait for categories to load first (initializeStaticData() runs asynchronously on mount).
-        const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+        // ── Pick a category for the included rows (guard requires it for create-new mode) ──
+        // Row 0 and row 2 are included; row 1 is excluded. Select the first real option.
+        // Wait for categories to load first (they load asynchronously on mount).
+        const catSelect0 = autoItemizePage.lineCategory(0);
         await expect(catSelect0.locator('option').nth(1)).toBeAttached();
         await catSelect0.selectOption({ index: 1 });
-        await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+        await autoItemizePage.lineCategory(2).selectOption({ index: 1 });
 
         // ── Save → navigate back to invoice detail ───────────────────────────
         const saveResponsePromise = page.waitForResponse(
@@ -1155,12 +1164,8 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13 — Per-row budget-line assignment (card-based UI)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () => {
-  test('Assign a seeded work-item budget line to the first extracted card; Save payload reflects the assignment', async ({
+test.describe('Scenario 13 — Per-row link: "Use an existing cost line…" flow', () => {
+  test('Link a seeded work-item cost line to the first extracted row; Save payload reflects the link', async ({
     page,
     testPrefix,
   }) => {
@@ -1174,7 +1179,7 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
-    let budgetLineId = '';
+    let budgetLineId: string;
     const budgetLineDescription = `${testPrefix} AI-Assign BL`;
 
     try {
@@ -1201,71 +1206,33 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Verify "Assign…" button is visible in first card ──────────────────
-      const firstAssignBtn = autoItemizePage.lineAssignButton(0);
-      await expect(firstAssignBtn).toBeVisible();
-      await expect(firstAssignBtn).toContainText('Assign…');
+      // ── Every row offers "Belongs to" and "Use an existing cost line…" ────
+      await expect(autoItemizePage.lineUseExistingButton(0)).toBeVisible();
+      await expect(autoItemizePage.lineUseExistingButton(1)).toBeVisible();
 
-      // ── Verify second card also has "Assign…" (will remain unassigned) ────
-      const secondAssignBtn = autoItemizePage.lineAssignButton(1);
-      await expect(secondAssignBtn).toBeVisible();
-
-      // ── Click "Assign…" on first card → picker modal opens (step 1) ──────
-      await firstAssignBtn.click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
-      await expect(autoItemizePage.pickerModal).toContainText(
-        'Assign to Work Item or Household Item',
+      // ── Without a task or purchase the picker asks for one first ──────────
+      await autoItemizePage.lineUseExistingButton(0).click();
+      await expect(autoItemizePage.grid.existingDialog).toContainText(
+        'Pick a task or purchase in this row first.',
       );
+      await page.keyboard.press('Escape');
+      await expect(autoItemizePage.grid.existingDialog).toBeHidden();
 
-      // ── Step 1: Work Item tab is active by default; WI search input visible ─
-      // ParentPicker uses tabs — only the active tab's input is rendered.
-      // HI tab input is NOT visible when WI tab is selected (it is unmounted).
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+      // ── Choose the work item, then its cost line ──────────────────────────
+      await autoItemizePage.grid.targetPicker(1).pick(`${testPrefix} AI-Assign WI`);
+      await autoItemizePage.grid.useExisting(1, new RegExp(budgetLineDescription, 'i'));
 
-      // ── Type in the work-item search input to find the seeded WI ─────────
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
+      // ── First row now names the linked line ───────────────────────────────
+      await expect(autoItemizePage.lineExistingLabel(0)).toContainText(budgetLineDescription);
+      await expect(autoItemizePage.lineClearExistingButton(0)).toBeVisible();
+      await expect(autoItemizePage.lineUseExistingButton(0)).toHaveCount(0);
 
-      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
-      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: `${testPrefix} AI-Assign WI`,
-      });
-      await wiOption.waitFor({ state: 'visible' });
-      await wiOption.click();
+      // ── Second row is still a new line ────────────────────────────────────
+      await expect(autoItemizePage.lineUseExistingButton(1)).toBeVisible();
 
-      // ── Step 2: Modal title changes; budget line list renders ─────────────
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-
-      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
-        new RegExp(budgetLineDescription, 'i'),
-      );
-      await budgetLineButton.waitFor({ state: 'visible' });
-      await budgetLineButton.click();
-
-      // ── Picker modal closes after selection ───────────────────────────────
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-
-      // ── First card now shows the assigned badge ───────────────────────────
-      const firstAssignedBadge = autoItemizePage.lineAssignedBadge(0);
-      await expect(firstAssignedBadge).toBeVisible();
-
-      const firstAssignedDesc = autoItemizePage.lineAssignedDescription(0);
-      await expect(firstAssignedDesc).toContainText(budgetLineDescription);
-
-      const clearBtn = autoItemizePage.lineClearAssignButton(0);
-      await expect(clearBtn).toBeVisible();
-      await expect(clearBtn).toHaveAttribute('aria-label', 'Clear budget line assignment');
-
-      // ── First card no longer shows "Assign…" ─────────────────────────────
-      await expect(firstAssignBtn).not.toBeVisible();
-
-      // ── Second card still shows "Assign…" ────────────────────────────────
-      await expect(secondAssignBtn).toBeVisible();
-
-      // ── Pick a category for unassigned cards 1 and 2 (guard requires it for create-new mode) ──
-      // Card 0 is in assign-existing mode (has assignedBudgetLineId) so no category needed.
-      await autoItemizePage.getLineCardCategorySelect(1).selectOption({ index: 1 });
-      await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+      // ── Pick a category for unlinked rows 1 and 2 (a row that creates a line needs one) ──
+      await autoItemizePage.lineCategory(1).selectOption({ index: 1 });
+      await autoItemizePage.lineCategory(2).selectOption({ index: 1 });
 
       // ── Click Save; intercept commit POST to verify payload ───────────────
       let capturedRequestBody: Record<string, unknown> | null = null;
@@ -1283,7 +1250,6 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
         return false;
       });
 
-      const now = '2026-05-25T00:00:00.000Z';
       await page.route(`**/api/invoices/${invoiceId}/auto-itemize`, async (route: Route) => {
         const reqBody = route.request().postDataJSON() as { dryRun: boolean } | null;
         if (reqBody?.dryRun) {
@@ -1293,34 +1259,7 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            budgetLines: [
-              {
-                id: `ibl-assign-e2e-0`,
-                workItemBudgetId: budgetLineId,
-                householdItemBudgetId: null,
-                itemizedAmount: 900.0,
-                description: budgetLineDescription,
-                plannedAmount: 900.0,
-                confidence: 'invoice',
-                budgetCategory: null,
-                budgetSource: null,
-                vendor: null,
-                quantity: null,
-                unit: null,
-                unitPrice: null,
-                includesVat: true,
-                createdAt: now,
-                updatedAt: now,
-                invoiceId,
-                origin: 'auto',
-                workItem: { id: workItemId, title: `${testPrefix} AI-Assign WI` },
-                householdItem: null,
-                isUnassigned: false,
-              },
-            ],
-            remainingAmount: 800,
-          }),
+          body: JSON.stringify({ budgetLines: [], remainingAmount: 800 }),
         });
       });
 
@@ -1339,11 +1278,11 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       const line0 = linesPayload![0] as Record<string, unknown>;
       expect(line0.assignedBudgetLineId).toBe(budgetLineId);
       expect(line0.assignedBudgetLineType).toBe('work_item');
-      // #2149: assign-existing links only. The row commits the gross itemized amount
-      // (extracted 900 net -> 1071 gross) as an already-VAT-inclusive total.
+      // #2149: assign-existing links only. The row commits its gross amount (the linked line's
+      // own 900) as an already-VAT-inclusive total.
       expect(line0.assignmentMode).toBe('assign-existing');
       expect(line0.includesVat).toBe(true);
-      expect(line0.totalAmount as number).toBeCloseTo(1071, 2);
+      expect(line0.totalAmount as number).toBeCloseTo(900, 2);
       expect(line0).not.toHaveProperty('linkedItemizedAmount');
       expect(line0).not.toHaveProperty('assignedBudgetLineSnapshot');
 
@@ -1425,14 +1364,13 @@ test.describe('Scenario 14 — Status field: change pending → paid', () => {
       await autoItemizePage.statusSelect.selectOption('paid');
       await expect(autoItemizePage.statusSelect).toHaveValue('paid');
 
-      // ── Card list and VAT checkbox unaffected ─────────────────────────────
-      const cards = page.locator('[role="list"] li[class*="lineCard"]');
-      await expect(cards).toHaveCount(3);
+      // ── The three rows are unaffected ─────────────────────────────────────
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
 
-      // ── Pick a category for all 3 cards (guard requires it for create-new mode) ──
-      await autoItemizePage.getLineCardCategorySelect(0).selectOption({ index: 1 });
-      await autoItemizePage.getLineCardCategorySelect(1).selectOption({ index: 1 });
-      await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+      // ── Pick a category for all 3 rows (guard requires it for create-new mode) ──
+      await autoItemizePage.lineCategory(0).selectOption({ index: 1 });
+      await autoItemizePage.lineCategory(1).selectOption({ index: 1 });
+      await autoItemizePage.lineCategory(2).selectOption({ index: 1 });
 
       // ── Save → commits the status change ─────────────────────────────────
       const commitResponsePromise = page.waitForResponse(
@@ -1860,9 +1798,9 @@ test.describe('Scenario 21 — Long notes suggestion wraps without shrinking pre
   });
 });
 
-// Scenario 22 — VAT label (#1587): no "VAT applies" text, label reads "Price includes VAT"
-test.describe('Scenario 22 — VAT checkbox label is "Price includes VAT" not "VAT applies" (#1587)', () => {
-  test('No element with text /VAT applies/i visible; VAT checkbox label reads "Price includes VAT"', async ({
+// Scenario 22 — Entered as (#1587, #2235): no "VAT applies" wording, a Net | Gross toggle per row
+test.describe('Scenario 22 — Entered as is a Net | Gross toggle, no "VAT applies" wording (#1587)', () => {
+  test('No element with text /VAT applies/i visible; each row has an "Entered as" Net | Gross toggle', async ({
     page,
     testPrefix,
   }) => {
@@ -1893,11 +1831,14 @@ test.describe('Scenario 22 — VAT checkbox label is "Price includes VAT" not "V
       // ── No element with text "VAT applies" anywhere on the page ─────────────
       await expect(page.getByText(/VAT applies/i)).not.toBeVisible();
 
-      // ── VAT checkbox label reads "Price includes VAT" ────────────────────────
-      // The label element wrapping the VAT checkbox
-      const vatLabel = autoItemizePage.lineRow(0).locator('[class*="cardIncludeLabel"]').nth(1);
-      await expect(vatLabel).toBeVisible();
-      await expect(vatLabel).toContainText(/Price includes VAT/i);
+      // ── The extracted lines are net: the toggle reads "Net" and flips to "Gross" ──
+      const toggle = autoItemizePage.lineEnteredAs(0);
+      await expect(toggle).toBeVisible();
+      await expect(toggle).toHaveText('Net');
+      await expect(autoItemizePage.lineGross(0)).toHaveText('€1,071.00');
+      await toggle.click();
+      await expect(autoItemizePage.lineEnteredAs(0)).toHaveText('Gross');
+      await expect(autoItemizePage.lineGross(0)).toHaveText('€900.00');
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -1905,9 +1846,9 @@ test.describe('Scenario 22 — VAT checkbox label is "Price includes VAT" not "V
   });
 });
 
-// Scenario 23 — Category picker on cards (#1588)
-test.describe('Scenario 23 — Category picker present on each line card (#1588)', () => {
-  test('Each line card contains a Category select with a placeholder option', async ({
+// Scenario 23 — Category select on every row (#1588)
+test.describe('Scenario 23 — Category select present on each row (#1588)', () => {
+  test('Each row contains a Cost category select with a "None" placeholder option', async ({
     page,
     testPrefix,
   }) => {
@@ -1935,19 +1876,18 @@ test.describe('Scenario 23 — Category picker present on each line card (#1588)
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── First card has a Category select ─────────────────────────────────────
-      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+      // ── First row has a Cost category select ─────────────────────────────────
+      const catSelect0 = autoItemizePage.lineCategory(0);
       await expect(catSelect0).toBeVisible();
 
       // ── Category select has a placeholder option (value="") ──────────────────
-      // The placeholder <option value="">Select category</option>
       const placeholderOption = catSelect0.locator('option[value=""]');
       await expect(placeholderOption).toHaveCount(1);
-      await expect(placeholderOption).toContainText(/Select category/i);
+      await expect(placeholderOption).toHaveText('None');
 
-      // ── Second and third cards also have Category selects ────────────────────
-      await expect(autoItemizePage.getLineCardCategorySelect(1)).toBeVisible();
-      await expect(autoItemizePage.getLineCardCategorySelect(2)).toBeVisible();
+      // ── Second and third rows also have Cost category selects ────────────────
+      await expect(autoItemizePage.lineCategory(1)).toBeVisible();
+      await expect(autoItemizePage.lineCategory(2)).toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -1955,9 +1895,9 @@ test.describe('Scenario 23 — Category picker present on each line card (#1588)
   });
 });
 
-// Scenario 24 — Funding source picker on cards (#1588)
-test.describe('Scenario 24 — Funding Source picker present on each line card (#1588)', () => {
-  test('Each line card contains a Funding Source select with at least one option', async ({
+// Scenario 24 — Funding source select on every row (#1588)
+test.describe('Scenario 24 — Funding source select present on each row (#1588)', () => {
+  test('Each row contains a Funding source select with at least one option', async ({
     page,
     testPrefix,
   }) => {
@@ -1985,17 +1925,16 @@ test.describe('Scenario 24 — Funding Source picker present on each line card (
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── First card has a Funding Source select ────────────────────────────────
-      const srcSelect0 = autoItemizePage.getLineCardFundingSourceSelect(0);
+      // ── First row has a Funding source select ─────────────────────────────────
+      const srcSelect0 = autoItemizePage.lineFundingSource(0);
       await expect(srcSelect0).toBeVisible();
 
       // ── Funding source select has at least one option (real data from server) ──
-      const options = srcSelect0.locator('option');
-      await expect(options).not.toHaveCount(0);
+      await expect(srcSelect0.locator('option')).not.toHaveCount(0);
 
-      // ── Second and third cards also have Funding Source selects ──────────────
-      await expect(autoItemizePage.getLineCardFundingSourceSelect(1)).toBeVisible();
-      await expect(autoItemizePage.getLineCardFundingSourceSelect(2)).toBeVisible();
+      // ── Second and third rows also have Funding source selects ───────────────
+      await expect(autoItemizePage.lineFundingSource(1)).toBeVisible();
+      await expect(autoItemizePage.lineFundingSource(2)).toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2003,9 +1942,9 @@ test.describe('Scenario 24 — Funding Source picker present on each line card (
   });
 });
 
-// Scenario 25 — Variance recompute on totalAmount edit (#1591)
-test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit without reload (#1591)', () => {
-  test('Editing a line totalAmount to deviate >5% switches variance indicator state', async ({
+// Scenario 25 — Variance recompute on amount edit (#1591)
+test.describe('Scenario 25 — Variance indicator recomputes on amount edit without reload (#1591)', () => {
+  test('Editing a row unit price to deviate >5% switches variance indicator state', async ({
     page,
     testPrefix,
   }) => {
@@ -2020,7 +1959,7 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
     let invoiceId = '';
 
     try {
-      // All THREE_LINES are includesVat:false (net), so effectiveLineAmount grosses up by 1.19:
+      // All THREE_LINES are includesVat:false (net), so the gross total grosses up by 1.19:
       //   900x1.19=1071.00 + 680x1.19=809.20 + 120x1.19=142.80 = 2023.00 gross total
       // Invoice amount = 2023 to match gross total -> 0% variance -> match state
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-Variance Vendor`);
@@ -2039,16 +1978,15 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
       // Initial state: invoice=2023, gross total=2023 -> 0% variance -> varianceMatch
       const indicator = autoItemizePage.getVarianceIndicator();
       await expect(indicator).toBeVisible();
-      // Initial: 0% variance -> varianceMatch CSS class
       await expect(indicator).toHaveClass(/varianceMatch/);
 
-      // Edit first line totalAmount to 500 (net -> grossed to 500x1.19=595.00)
+      // Row 1 is 20 m² x 45.00 = 900 net. At 25.00 per m² it is 500 net (595.00 gross).
       // New gross total = 595.00+809.20+142.80 = 1547.00
-      // Variance = |1547-2023|/2023 = 476/2023 ~23.5% -> > 5% -> varianceDanger
-      const totalInput = autoItemizePage.getLineCardTotalAmountInput(0);
-      await totalInput.fill('500');
-      // Trigger change event by tabbing away
-      await totalInput.press('Tab');
+      // Variance = |1547-2023|/2023 ~23.5% -> > 5% -> varianceDanger
+      const priceInput = autoItemizePage.lineUnitPrice(0);
+      await priceInput.fill('25');
+      await priceInput.press('Tab');
+      await expect(autoItemizePage.lineGross(0)).toHaveText('€595.00');
 
       // ── Variance indicator should switch to danger (no page reload) ──────────
       await expect(indicator).not.toHaveClass(/varianceMatch/);
@@ -2061,8 +1999,8 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
 });
 
 // Scenario 26 — Assign-existing payload flag (#1589)
-test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payload for assigned lines (#1589)', () => {
-  test('Assigned line has assignmentMode:"assign-existing"; unassigned line has assignmentMode:"create-new" in commit POST', async ({
+test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payload for linked rows (#1589)', () => {
+  test('Linked row has assignmentMode:"assign-existing"; unlinked row has assignmentMode:"create-new" in commit POST', async ({
     page,
     testPrefix,
   }) => {
@@ -2093,45 +2031,22 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
 
       const docId = 85001;
       await mockPaperlessDocument(page, docId, 'Assignment Mode Doc');
-      // Use a category for lines so they pass validation
       await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Assign the first card to an existing budget line ─────────────────────
-      await autoItemizePage.lineAssignButton(0).click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
+      // ── Link the first row to an existing cost line ──────────────────────────
+      await autoItemizePage.grid.targetPicker(1).pick(`${testPrefix} AI-AssignMode WI`);
+      await autoItemizePage.grid.useExisting(1, new RegExp(budgetLineDescription, 'i'));
+      await expect(autoItemizePage.lineExistingLabel(0)).toContainText(budgetLineDescription);
 
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-AssignMode WI`);
-      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
-      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: `${testPrefix} AI-AssignMode WI`,
-      });
-      await wiOption.waitFor({ state: 'visible' });
-      await wiOption.click();
-
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-
-      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
-        new RegExp(budgetLineDescription, 'i'),
-      );
-      await budgetLineButton.waitFor({ state: 'visible' });
-      await budgetLineButton.click();
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-
-      // ── Select a category on lines 2 and 3 so they pass validation ───────────
-      // Lines 2+3 will be "create-new" — they need a category to pass validation.
-      // Since the real category list comes from the server, we need to select one.
-      // Use the first available non-empty option.
-      const catSelect1 = autoItemizePage.getLineCardCategorySelect(1);
-      const catSelect2 = autoItemizePage.getLineCardCategorySelect(2);
-      // Get the first real option (skip placeholder value="")
-      const firstRealOption1 = catSelect1.locator('option').nth(1);
-      const firstRealOption2 = catSelect2.locator('option').nth(1);
-      const optionValue1 = await firstRealOption1.getAttribute('value');
-      const optionValue2 = await firstRealOption2.getAttribute('value');
+      // ── Select a category on rows 2 and 3 so they pass validation ────────────
+      // Rows 2+3 will be "create-new" — they need a category to pass validation.
+      const catSelect1 = autoItemizePage.lineCategory(1);
+      const catSelect2 = autoItemizePage.lineCategory(2);
+      const optionValue1 = await catSelect1.locator('option').nth(1).getAttribute('value');
+      const optionValue2 = await catSelect2.locator('option').nth(1).getAttribute('value');
       if (optionValue1) await catSelect1.selectOption(optionValue1);
       if (optionValue2) await catSelect2.selectOption(optionValue2);
 
@@ -2174,12 +2089,12 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
       expect(Array.isArray(linesPayload)).toBe(true);
       expect(linesPayload!.length).toBeGreaterThanOrEqual(2);
 
-      // Line 0 was assigned to an existing budget line → assignmentMode: "assign-existing"
+      // Line 0 was linked to an existing cost line → assignmentMode: "assign-existing"
       const line0 = linesPayload![0] as Record<string, unknown>;
       expect(line0.assignmentMode).toBe('assign-existing');
       expect(line0.assignedBudgetLineId).toBe(budgetLineId);
 
-      // Line 1 was not assigned → assignmentMode: "create-new"
+      // Line 1 was not linked → assignmentMode: "create-new"
       const line1 = linesPayload![1] as Record<string, unknown>;
       expect(line1.assignmentMode).toBe('create-new');
       expect(line1.assignedBudgetLineId).toBeUndefined();
@@ -2192,7 +2107,7 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
 });
 
 // Scenario 27 — Create-new requires category (#1588)
-test.describe('Scenario 27 — Save without category on a create-new line shows validation error (#1588)', () => {
+test.describe('Scenario 27 — Save without category on a create-new row shows validation error (#1588)', () => {
   test('Clicking Save with no category selected shows categoryRequiredError; no POST is sent', async ({
     page,
     testPrefix,
@@ -2221,10 +2136,8 @@ test.describe('Scenario 27 — Save without category on a create-new line shows 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Do NOT select a category on any line (all remain at placeholder) ─────
-      // Verify category selects are at placeholder value
-      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
-      await expect(catSelect0).toHaveValue('');
+      // ── Do NOT select a category on any row (all remain at the placeholder) ──
+      await expect(autoItemizePage.lineCategory(0)).toHaveValue('');
 
       // ── Track whether a commit POST was sent ──────────────────────────────────
       let commitPostSent = false;
@@ -2244,7 +2157,6 @@ test.describe('Scenario 27 — Save without category on a create-new line shows 
       await autoItemizePage.saveButton.click();
 
       // ── Error message should appear ───────────────────────────────────────────
-      // The error renders as a FormError banner (role="alert") inside the formColumn
       // t('autoItemize.categoryRequiredError') = "Please select a category for all included line items"
       const errorBanner = page.locator('[role="alert"]').filter({
         hasText: /Please select a category for all included line items/i,
@@ -2252,7 +2164,6 @@ test.describe('Scenario 27 — Save without category on a create-new line shows 
       await expect(errorBanner).toBeVisible();
 
       // ── No commit POST should have been sent ──────────────────────────────────
-      // Give a small time window for any spurious request to arrive
       await page.waitForTimeout(300);
       expect(commitPostSent, 'Expected no commit POST to be sent when category is missing').toBe(
         false,
@@ -2481,12 +2392,8 @@ test.describe('Scenario 20 — Extracted invoiceNumber and notes SuggestionBadge
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 30 — Card bottom row layout: checkboxes + picker row (#1595)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 30 — Card bottom row: checkbox labels and picker selects layout (#1595)', () => {
-  test('Include + VAT labels are on the same row; Category + Funding Source selects are on a separate row below', async ({
+test.describe('Scenario 30 — Row layout: Category and Funding source stack inside the form column (#1595)', () => {
+  test('Category and Funding source stack (Category above) inside the form column at 1280px and at 390px', async ({
     page,
     testPrefix,
   }) => {
@@ -2516,54 +2423,34 @@ test.describe('Scenario 30 — Card bottom row: checkbox labels and picker selec
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Locate the first line card's bottom row ──────────────────────────
-      const firstCard = autoItemizePage.lineRow(0);
-      const bottomRow = firstCard.locator('[class*="cardBottomRow"]');
+      // ── At 1280px the grid sits in the 480px form column: the row stacks into a card,
+      // Category above Funding source, both inside the column ───────────────────
+      const column = await autoItemizePage.formColumn.first().boundingBox();
+      expect(column).not.toBeNull();
+      const cat = await autoItemizePage.lineCategory(0).boundingBox();
+      const src = await autoItemizePage.lineFundingSource(0).boundingBox();
+      expect(cat).not.toBeNull();
+      expect(src).not.toBeNull();
+      expect(src!.y).toBeGreaterThan(cat!.y);
+      expect(cat!.x + cat!.width).toBeLessThanOrEqual(column!.x + column!.width + 1);
+      expect(src!.x + src!.width).toBeLessThanOrEqual(column!.x + column!.width + 1);
 
-      // ── Include label and VAT label are co-linear (same y coordinate ±10px) ─
-      const includeLabel = bottomRow.locator('[class*="cardIncludeLabel"]').nth(0);
-      const vatLabel = bottomRow.locator('[class*="cardIncludeLabel"]').nth(1);
-
-      const includeBounds = await includeLabel.boundingBox();
-      const vatBounds = await vatLabel.boundingBox();
-
-      expect(includeBounds, 'Include checkbox label must have a bounding box').not.toBeNull();
-      expect(vatBounds, 'VAT checkbox label must have a bounding box').not.toBeNull();
-
-      const checkboxRowYDiff = Math.abs(includeBounds!.y - vatBounds!.y);
-      expect(
-        checkboxRowYDiff,
-        `Include label y=${includeBounds!.y} and VAT label y=${vatBounds!.y} should be co-linear (diff ≤10px) but differ by ${checkboxRowYDiff}px`,
-      ).toBeLessThanOrEqual(10);
-
-      // ── Category and Funding Source selects are on the row below the checkboxes ─
-      const catSelect = autoItemizePage.getLineCardCategorySelect(0);
-      const srcSelect = autoItemizePage.getLineCardFundingSourceSelect(0);
-
-      const catBounds = await catSelect.boundingBox();
-      const srcBounds = await srcSelect.boundingBox();
-
-      expect(catBounds, 'Category select must have a bounding box').not.toBeNull();
-      expect(srcBounds, 'Funding Source select must have a bounding box').not.toBeNull();
-
-      // Category and Funding Source selects are co-linear (same y ±10px)
-      const selectRowYDiff = Math.abs(catBounds!.y - srcBounds!.y);
-      expect(
-        selectRowYDiff,
-        `Category select y=${catBounds!.y} and Funding Source select y=${srcBounds!.y} should be co-linear (diff ≤10px) but differ by ${selectRowYDiff}px`,
-      ).toBeLessThanOrEqual(10);
-
-      // Select row is below the checkbox row (y > checkbox y)
-      expect(
-        catBounds!.y,
-        `Category select row (y=${catBounds!.y}) should be below Include label row (y=${includeBounds!.y})`,
-      ).toBeGreaterThan(includeBounds!.y + 5);
-
-      // Category select is left-aligned (x < viewport/2 = 640px)
-      expect(
-        catBounds!.x,
-        `Category select x=${catBounds!.x} should be in the left half of viewport (< ${1280 / 2}px)`,
-      ).toBeLessThan(1280 / 2);
+      // ── Phone: the same stacking, inside the viewport ─────────────────────────
+      await page.setViewportSize({ width: 390, height: 844 });
+      // The grid reflows with the viewport: wait until the select fits before measuring
+      await expect
+        .poll(async () => {
+          const box = await autoItemizePage.lineCategory(0).boundingBox();
+          return box ? box.x + box.width : Infinity;
+        })
+        .toBeLessThanOrEqual(390 + 1);
+      const phoneCat = await autoItemizePage.lineCategory(0).boundingBox();
+      const phoneSrc = await autoItemizePage.lineFundingSource(0).boundingBox();
+      expect(phoneCat).not.toBeNull();
+      expect(phoneSrc).not.toBeNull();
+      expect(phoneSrc!.y).toBeGreaterThan(phoneCat!.y);
+      expect(phoneCat!.x + phoneCat!.width).toBeLessThanOrEqual(390 + 1);
+      expect(phoneSrc!.x + phoneSrc!.width).toBeLessThanOrEqual(390 + 1);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2576,7 +2463,7 @@ test.describe('Scenario 30 — Card bottom row: checkbox labels and picker selec
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1596)', () => {
-  test('Line card Category select is pre-filled when dry-run returns budgetCategoryId', async ({
+  test('Row Cost category select is pre-filled when dry-run returns budgetCategoryId', async ({
     page,
     testPrefix,
   }) => {
@@ -2601,22 +2488,17 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
       await mockPaperlessDocument(page, docId, 'Category Prefill Doc');
 
       // First, find a real budget category ID from the server so we can mock with a valid value.
-      // GET /api/budget-categories returns { categories: [{ id, translationKey, ... }] }
-      // (BudgetCategoryListResponse uses "categories" not "budgetCategories").
       const catResp = await page.request.get('/api/budget-categories');
       expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
       const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
       const firstCat = catBody.categories[0];
       const firstCatId = firstCat?.id ?? null;
 
-      // If server has no categories, assert directly so test fails visibly rather than skipping.
       expect(
         firstCatId,
         'Expected at least one budget category to exist on the server for pre-fill test',
       ).not.toBeNull();
 
-      // Mock dry-run to return first line with a known budgetCategoryId.
-      // Use Array.from to avoid noUncheckedIndexedAccess 'possibly undefined' on slice indices.
       const [firstLine, ...restLines] = THREE_LINES;
       const linesWithCategory: object[] = [
         { ...firstLine, budgetCategoryId: firstCatId },
@@ -2628,19 +2510,14 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── First card Category select should be pre-filled with the provided category ─
-      // initializeStaticData() loads categories asynchronously on mount; wait until
-      // at least one non-placeholder option is rendered before asserting the value.
-      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+      // ── First row's category select should be pre-filled with the provided category ─
+      const catSelect0 = autoItemizePage.lineCategory(0);
       await expect(catSelect0).toBeVisible();
       await expect(catSelect0.locator('option').nth(1)).toBeAttached();
-
-      // Now assert the pre-filled value
       await expect(catSelect0).toHaveValue(firstCatId as string);
 
-      // ── Second and third cards should still have the placeholder (no category in fixture) ─
-      const catSelect1 = autoItemizePage.getLineCardCategorySelect(1);
-      await expect(catSelect1).toHaveValue('');
+      // ── Second row should still have the placeholder (no category in fixture) ─
+      await expect(autoItemizePage.lineCategory(1)).toHaveValue('');
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2649,11 +2526,11 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 32 — ParentPicker tab UX in assign modal (#1597)
+// Scenario 32 — "Belongs to" lists tasks and purchases in one search (#1597, #2235)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 32 — ParentPicker tabs (Work Item / Household Item) in assign modal (#1597)', () => {
-  test('Assign modal shows Work Item and Household Item tabs; switching tab shows HI search input', async ({
+test.describe('Scenario 32 — Belongs to searches tasks and purchases together (#1597)', () => {
+  test('One search lists a task and a purchase with their kind words', async ({
     page,
     testPrefix,
   }) => {
@@ -2666,6 +2543,8 @@ test.describe('Scenario 32 — ParentPicker tabs (Work Item / Household Item) in
     const autoItemizePage = new AutoItemizePage(page);
     let vendorId = '';
     let invoiceId = '';
+    let workItemId = '';
+    let householdItemId = '';
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-ParentTab Vendor`);
@@ -2673,66 +2552,49 @@ test.describe('Scenario 32 — ParentPicker tabs (Work Item / Household Item) in
         amount: 900,
         date: '2026-06-01',
       });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AI-Both Task` });
+      householdItemId = await createHouseholdItemViaApi(page, {
+        name: `${testPrefix} AI-Both Purchase`,
+      });
 
       const docId = 92001;
-      await mockPaperlessDocument(page, docId, 'Parent Picker Tabs Doc');
+      await mockPaperlessDocument(page, docId, 'Parent Picker Doc');
       await mockAutoItemizeDryRun(page, invoiceId);
 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Open the assign picker modal on the first card ────────────────────
-      const assignBtn = autoItemizePage.lineAssignButton(0);
-      await expect(assignBtn).toBeVisible();
-      await assignBtn.click();
+      // ── Type the shared part of both names into the first row's Belongs to ────
+      const picker = autoItemizePage.grid.targetPicker(1);
+      await picker.type(`${testPrefix} AI-Both`);
 
-      // ── Picker modal should open (step 1) ─────────────────────────────────
-      await expect(autoItemizePage.pickerModal).toBeVisible();
+      const task = picker.option(`${testPrefix} AI-Both Task`);
+      const purchase = picker.option(`${testPrefix} AI-Both Purchase`);
+      await expect(task).toBeVisible();
+      await expect(purchase).toBeVisible();
+      await expect(task).toContainText('Task');
+      await expect(purchase).toContainText('Purchase');
 
-      // ── Both "Work Item" and "Household Item" tabs are visible ────────────
-      // ParentPicker renders role="tab" buttons inside role="tablist"
-      const workItemTab = autoItemizePage.getParentPickerWorkItemTab();
-      const householdItemTab = autoItemizePage.getParentPickerHouseholdItemTab();
-
-      await expect(workItemTab).toBeVisible();
-      await expect(householdItemTab).toBeVisible();
-
-      // ── Work Item tab is selected by default ──────────────────────────────
-      await expect(workItemTab).toHaveAttribute('aria-selected', 'true');
-      await expect(householdItemTab).toHaveAttribute('aria-selected', 'false');
-
-      // ── Work Item search input is visible under the active Work Item tab ──
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-
-      // ── Click Household Item tab → its search input becomes visible ───────
-      await householdItemTab.click();
-      await expect(householdItemTab).toHaveAttribute('aria-selected', 'true');
-      await expect(workItemTab).toHaveAttribute('aria-selected', 'false');
-
-      // Household Item search input should now be visible
-      await expect(autoItemizePage.pickerHouseholdItemSearchInput).toBeVisible();
-
-      // Work Item search input should no longer be visible (tab panel swapped)
-      await expect(autoItemizePage.pickerWorkItemSearchInput).not.toBeVisible();
-
-      // ── Close modal without selecting (click outside or escape) ──────────
+      // ── Escape closes the list without choosing ──────────────────────────────
       await page.keyboard.press('Escape');
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
+      await expect(picker.dropdown).toBeHidden();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 33 — Dropdown portal overflows modal (Flaw 1, Story #1600)
+// Scenario 33 — Dropdown portal (Flaw 1, Story #1600)
 // SearchPicker renders its dropdown into document.body via createPortal so it
-// is not clipped by the modal's overflow:hidden boundary.
+// is not clipped by the dialog or the table's overflow.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not clipped by modal)', () => {
-  test('Typing in the Work Item search input causes a portal dropdown at document.body level that is within viewport bounds', async ({
+test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not clipped by the grid)', () => {
+  test('Typing in the Belongs to input causes a portal dropdown at document.body level that is within viewport bounds', async ({
     page,
     testPrefix,
   }) => {
@@ -2748,7 +2610,6 @@ test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not
     let workItemId = '';
 
     try {
-      // ── Seed: vendor, invoice, work item ─────────────────────────────────
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-Portal Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 900,
@@ -2763,52 +2624,29 @@ test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Open the assign picker modal on the first card ────────────────────
-      const assignBtn = autoItemizePage.lineAssignButton(0);
-      await expect(assignBtn).toBeVisible();
-      await assignBtn.click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
+      // ── Type into the first row's Belongs to input → dropdown should appear ───
+      const picker = autoItemizePage.grid.targetPicker(1);
+      await picker.type(`${testPrefix} AI-Portal`);
 
-      // ── Type into the Work Item search input → dropdown should appear ────
-      // The input placeholder is "Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Portal`);
+      // ── The dropdown is a direct child of document.body (not in the grid) ─────
+      const insideGrid = await picker.dropdown.evaluate(
+        (el) => el.closest('[data-testid="auto-itemize-grid"]') !== null,
+      );
+      expect(insideGrid, 'the dropdown is portalled out of the grid').toBe(false);
 
-      // Wait for the portal dropdown to appear in document.body
-      // SearchPicker renders [data-search-picker-dropdown] into document.body when isOpen=true
-      await autoItemizePage.pickerPortalDropdown.waitFor({ state: 'visible' });
-
-      // ── Assert: portal dropdown is in document.body (not modal subtree) ──
-      // The portal is attached to document.body directly — check it is visible and
-      // that its bottom edge does not exceed the viewport height.
-      const dropdownBox = await autoItemizePage.pickerPortalDropdown.boundingBox();
+      const dropdownBox = await picker.dropdown.boundingBox();
       expect(dropdownBox, 'Portal dropdown must have a bounding box').not.toBeNull();
-
       const viewportHeight = page.viewportSize()?.height ?? 800;
       expect(
         dropdownBox!.y + dropdownBox!.height,
         `Portal dropdown bottom (${(dropdownBox!.y + dropdownBox!.height).toFixed(0)}px) ` +
-          `must be within viewport height (${viewportHeight}px) — dropdown should flip above input if needed`,
-      ).toBeLessThanOrEqual(viewportHeight + 1); // +1 for sub-pixel rounding
+          `must be within viewport height (${viewportHeight}px)`,
+      ).toBeLessThanOrEqual(viewportHeight + 1);
 
-      // ── Select the work item → step 2 renders ────────────────────────────
-      // Options are inside the portal dropdown (rendered into document.body), not the modal subtree.
-      const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: new RegExp(`${testPrefix} AI-Portal`, 'i'),
-      });
-      await wiOptionInPortal.waitFor({ state: 'visible' });
-      await wiOptionInPortal.click();
-
-      // Step 2 renders
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-
-      // Portal dropdown should have closed after selection
-      await expect(autoItemizePage.pickerPortalDropdown).not.toBeVisible();
-
-      // Close modal
-      await page.keyboard.press('Escape');
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
+      // ── Choose the task → the dropdown closes and the row shows the choice ────
+      await picker.option(`${testPrefix} AI-Portal WI`).click();
+      await expect(picker.dropdown).toBeHidden();
+      await expect(autoItemizePage.grid.row(1)).toContainText(`${testPrefix} AI-Portal WI`);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2818,25 +2656,12 @@ test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 34 — Step-2 "Create Budget Line" visible WITH existing lines +
-//               Queued inline draft pre-filled from extraction data
-//
-// NOTE: The in-modal "Create Budget Line" form flow (createBudgetLineFieldset,
-// immediate POST /api/work-items/:id/budgets on submit) was removed in PR #1747
-// (Bug A fix #1737). Clicking "Create Budget Line" now QUEUES creation — the
-// picker closes, an amber "Creating New" badge appears on the card, and an inline
-// BudgetLineForm renders below. No API write happens until the outer Save button
-// is clicked. The canonical happy-path queue flow is covered in
-// e2e/tests/budget/auto-itemize-inline-create.spec.ts (Scenario 1).
-//
-// This scenario covers a distinct angle NOT in auto-itemize-inline-create.spec.ts:
-// the WI already has an EXISTING budget line so step 2 shows existing rows
-// alongside the "Create Budget Line" button (Flaw 2 guard). We also verify
-// that the inline draft is pre-filled with extracted line data (Flaw 3 analog).
+// Scenario 34 — A task with existing cost lines: the row is pre-filled from the extraction and
+// "Use an existing cost line…" lists them (#1600, #2235)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 34 — "Create Budget Line" visible with existing budget lines; inline draft pre-filled from extraction data', () => {
-  test('"Create Budget Line" button visible in step 2 even when existing lines present; clicking it queues inline draft pre-filled with extracted data', async ({
+test.describe('Scenario 34 — Row pre-filled from extraction; existing cost lines are offered', () => {
+  test('The extracted row shows its description, quantity, unit and price; the dialog lists the task’s existing line', async ({
     page,
     testPrefix,
   }) => {
@@ -2852,31 +2677,26 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
     let workItemId = '';
     const wiTitle = `${testPrefix} AI-Prefill WI`;
     const extractedDescription = 'Bathroom tiles';
-    const extractedTotal = 900;
+    const existingDescription = `${testPrefix} AI-Prefill Existing BL`;
 
     try {
-      // ── Seed: vendor, invoice, work item, existing budget line on WI ─────
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-Prefill Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 2000,
         date: '2026-06-01',
       });
       workItemId = await createWorkItemViaApi(page, { title: wiTitle });
-      // Create an EXISTING budget line on the WI — Flaw 2 reproduces only
-      // when step 2 has at least one existing budget line row.
       await createWorkItemBudgetViaApi(page, workItemId, {
-        description: `${testPrefix} AI-Prefill Existing BL`,
+        description: existingDescription,
         plannedAmount: 500,
       });
 
       const docId = 94001;
       await mockPaperlessDocument(page, docId, 'Prefill Test Doc');
 
-      // ── Mock dry-run: one extracted line with known fields ─────────────────
-      // confidence=0.95 → maps to 'invoice' level in handleQueueNewBudgetLine
       const extractedLine = {
         description: extractedDescription,
-        totalAmount: extractedTotal,
+        totalAmount: 900,
         confidence: 0.95,
         quantity: 20,
         unit: 'm²',
@@ -2891,66 +2711,26 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Card 0: "Assign…" button visible ─────────────────────────────────
-      const assignBtn = autoItemizePage.lineAssignButton(0);
-      await expect(assignBtn).toBeVisible();
-      await assignBtn.click();
+      // ── The row is pre-filled with the extracted line ─────────────────────────
+      await expect(autoItemizePage.lineDescription(0)).toHaveValue(extractedDescription);
+      await expect(autoItemizePage.lineQuantity(0)).toHaveValue('20');
+      await expect(autoItemizePage.grid.cell('Unit', 1)).toHaveValue('m²');
+      await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue('45');
+      await expect(autoItemizePage.lineEnteredAs(0)).toHaveText('Net');
 
-      // ── Step 1: modal opens, Work Item tab active ─────────────────────────
-      await expect(autoItemizePage.pickerModal).toBeVisible();
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+      // ── The task has an existing cost line: it is offered, with its amount ────
+      await autoItemizePage.grid.targetPicker(1).pick(wiTitle);
+      await autoItemizePage.lineUseExistingButton(0).click();
+      const dialog = autoItemizePage.grid.existingDialog;
+      await expect(dialog).toBeVisible();
+      const item = dialog.getByRole('listitem').filter({ hasText: existingDescription });
+      await expect(item).toBeVisible();
+      await expect(item).toContainText('500.00');
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(dialog).toBeHidden();
 
-      // Type the WI title to search → select from dropdown
-      await autoItemizePage.pickerWorkItemSearchInput.fill(wiTitle);
-
-      // The dropdown is portalled to document.body — wait for options inside portal
-      const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: new RegExp(wiTitle, 'i'),
-      });
-      await wiOptionInPortal.waitFor({ state: 'visible' });
-      await wiOptionInPortal.click();
-
-      // ── Step 2: budget line list renders with existing line ───────────────
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-
-      // Existing budget line row is visible
-      const existingRow = autoItemizePage.pickerBudgetLineRow(
-        new RegExp(`${testPrefix} AI-Prefill Existing BL`, 'i'),
-      );
-      await expect(existingRow).toBeVisible();
-
-      // ── Flaw 2 guard: "Create Budget Line" button IS visible even with existing lines ─
-      await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
-
-      // ── Click "Create Budget Line" → picker closes, inline draft queued ───
-      // PR #1747 changed this: clicking the button now calls handleQueueNewBudgetLine,
-      // which closes the picker immediately and sets inlineCreatedBudgetLineDraft on
-      // the line. No in-modal createBudgetLineFieldset is rendered (showCreateForm: false).
-      await autoItemizePage.pickerCreateBudgetLineButton.click();
-
-      // Picker closes immediately on queue
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-
-      // ── Assert: amber "Creating New" badge visible on card 0 ──────────────
-      await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
-
-      // ── Assert: inline BudgetLineForm wrapper visible ─────────────────────
-      await expect(autoItemizePage.getInlineFormWrapper(0)).toBeVisible();
-
-      // ── Assert: Discard button visible inside the card ────────────────────
-      await expect(autoItemizePage.getInlineDraftDiscardButton(0)).toBeVisible();
-
-      // ── Assert: "Assign…" button is replaced by badge + inline form ───────
-      await expect(assignBtn).not.toBeVisible();
-
-      // ── Flaw 3 analog: inline form is pre-filled with extracted line data ──
-      // handleQueueNewBudgetLine sets description=row.description and
-      // pricingMode='unit' (because row has quantity + unitPrice).
-      // In unit mode, BudgetLineForm shows the description textbox pre-filled.
-      const descriptionInput = autoItemizePage.getInlineDraftDescriptionInput(0);
-      await expect(descriptionInput).toBeVisible();
-      await expect(descriptionInput).toHaveValue(extractedDescription);
+      // ── Cancelling the dialog leaves the extracted row as it was ──────────────
+      await expect(autoItemizePage.lineDescription(0)).toHaveValue(extractedDescription);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2960,30 +2740,18 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 35 — Dark mode + Mobile viewport (Flaws 1–3, Story #1600)
-// Verifies portal dropdown is within viewport bounds on mobile and
-// that the "Creating New" badge uses CSS custom properties (not hardcoded hex).
-//
-// NOTE: The in-modal "Create Budget Line" form flow (createBudgetLineFieldset,
-// immediate POST /api/work-items/:id/budgets, auto-created badge) was removed in
-// PR #1747 (Bug A fix #1737). Clicking the button now QUEUES creation inline.
-// The badge color assertion is updated to target the amber "Creating New" badge
-// (data-testid="creating-new-badge", .warning CSS variant) which is the visible
-// badge immediately after queuing — same CSS token resolution requirement applies.
+// Scenario 35 — Dark mode + mobile (Flaws 1–3, Story #1600, #2235)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Scenario 35 — Dark mode + mobile: portal dropdown within viewport; badge uses CSS tokens',
+  'Scenario 35 — Dark mode + mobile: portal dropdown within viewport; the row stays legible',
   { tag: '@responsive' },
   () => {
-    test('Portal dropdown is within viewport bounds on mobile (375×812) in dark mode; "Create Budget Line" button ≥44×44px touch target; "Creating New" badge uses token-resolved color', async ({
+    test('Belongs to dropdown is within the viewport on mobile (375×812) in dark mode; the linked row is legible', async ({
       page,
       testPrefix,
     }) => {
-      // Force mobile viewport
       await page.setViewportSize({ width: 375, height: 812 });
-
-      // Enable dark mode via prefers-color-scheme media emulation
       await page.emulateMedia({ colorScheme: 'dark' });
 
       const autoItemizePage = new AutoItemizePage(page);
@@ -2991,20 +2759,17 @@ test.describe(
       let invoiceId = '';
       let workItemId = '';
       const wiTitle = `${testPrefix} AI-DkMob WI`;
-      const extractedDescription = 'Bathroom tiles dark mobile';
-      const extractedTotal = 900;
+      const existingDescription = `${testPrefix} AI-DkMob Existing BL`;
 
       try {
-        // ── Seed: vendor, invoice, work item ─────────────────────────────────
         vendorId = await createVendorViaApi(page, `${testPrefix} AI-DkMob Vendor`);
         invoiceId = await createInvoiceViaApi(page, vendorId, {
           amount: 2000,
           date: '2026-06-01',
         });
         workItemId = await createWorkItemViaApi(page, { title: wiTitle });
-        // Seed an existing budget line so "Create Budget Line" appears alongside existing lines
         await createWorkItemBudgetViaApi(page, workItemId, {
-          description: `${testPrefix} AI-DkMob Existing BL`,
+          description: existingDescription,
           plannedAmount: 500,
         });
 
@@ -3012,8 +2777,8 @@ test.describe(
         await mockPaperlessDocument(page, docId, 'Dark Mobile Doc');
 
         const extractedLine = {
-          description: extractedDescription,
-          totalAmount: extractedTotal,
+          description: 'Bathroom tiles dark mobile',
+          totalAmount: 900,
           confidence: 0.95,
           quantity: 20,
           unit: 'm²',
@@ -3028,99 +2793,26 @@ test.describe(
         await autoItemizePage.goto(invoiceId, docId);
         await autoItemizePage.waitForAnalyzingDone();
 
-        // ── Open assign picker on first card ──────────────────────────────────
-        const assignBtn = autoItemizePage.lineAssignButton(0);
-        await expect(assignBtn).toBeVisible();
-        await assignBtn.click();
-        await expect(autoItemizePage.pickerModal).toBeVisible();
+        // ── Type in the first row's Belongs to input ──────────────────────────────
+        const picker = autoItemizePage.grid.targetPicker(1);
+        await picker.type(wiTitle);
 
-        // ── Type in the Work Item search input ────────────────────────────────
-        await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-        await autoItemizePage.pickerWorkItemSearchInput.fill(wiTitle);
-
-        // ── Assert: portal dropdown appears and is within viewport bounds ─────
-        await autoItemizePage.pickerPortalDropdown.waitFor({ state: 'visible' });
-
-        const dropdownBox = await autoItemizePage.pickerPortalDropdown.boundingBox();
+        // ── Assert: portal dropdown appears and is within viewport bounds ─────────
+        const dropdownBox = await picker.dropdown.boundingBox();
         expect(dropdownBox, 'Portal dropdown must have a bounding box on mobile').not.toBeNull();
+        expect(dropdownBox!.x + dropdownBox!.width).toBeLessThanOrEqual(375 + 1);
+        expect(dropdownBox!.y + dropdownBox!.height).toBeLessThanOrEqual(812 + 1);
 
-        const viewportWidth = page.viewportSize()?.width ?? 375;
-        const viewportHeight = page.viewportSize()?.height ?? 812;
+        // ── Choose the task, then link its existing cost line ─────────────────────
+        await picker.option(wiTitle).click();
+        await autoItemizePage.grid.useExisting(1, new RegExp(existingDescription, 'i'));
+        await expect(autoItemizePage.lineExistingLabel(0)).toContainText(existingDescription);
 
-        // Dropdown must not overflow on the right
+        // ── The linked row is legible in dark mode and fits the viewport ──────────
+        await expectLegibleInDark(autoItemizePage.lineExistingLabel(0));
         expect(
-          dropdownBox!.x + dropdownBox!.width,
-          `Portal dropdown right edge (${(dropdownBox!.x + dropdownBox!.width).toFixed(0)}px) ` +
-            `must not exceed viewport width (${viewportWidth}px)`,
-        ).toBeLessThanOrEqual(viewportWidth + 1);
-
-        // Dropdown must not overflow on the bottom
-        expect(
-          dropdownBox!.y + dropdownBox!.height,
-          `Portal dropdown bottom (${(dropdownBox!.y + dropdownBox!.height).toFixed(0)}px) ` +
-            `must not exceed viewport height (${viewportHeight}px) — should flip above input if needed`,
-        ).toBeLessThanOrEqual(viewportHeight + 1);
-
-        // ── Select the work item → step 2 ─────────────────────────────────────
-        const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-          name: new RegExp(wiTitle, 'i'),
-        });
-        await wiOptionInPortal.waitFor({ state: 'visible' });
-        await wiOptionInPortal.click();
-
-        const step2Modal = autoItemizePage.pickerStep2Modal();
-        await expect(step2Modal).toBeVisible();
-
-        // ── Assert: "Create Budget Line" button has ≥44×44px touch target ────
-        await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
-        const createBtnBox = await autoItemizePage.pickerCreateBudgetLineButton.boundingBox();
-        expect(createBtnBox, '"Create Budget Line" button must have a bounding box').not.toBeNull();
-
-        expect(
-          createBtnBox!.width,
-          `"Create Budget Line" button width (${createBtnBox!.width.toFixed(0)}px) must be ≥44px for mobile touch targets`,
-        ).toBeGreaterThanOrEqual(44);
-
-        expect(
-          createBtnBox!.height,
-          `"Create Budget Line" button height (${createBtnBox!.height.toFixed(0)}px) must be ≥44px for mobile touch targets`,
-        ).toBeGreaterThanOrEqual(44);
-
-        // ── Click "Create Budget Line" → picker closes, inline draft queued ───
-        // PR #1747: clicking the button calls handleQueueNewBudgetLine — the picker
-        // closes immediately and the line card shows the amber "Creating New" badge.
-        // No in-modal fieldset renders (showCreateForm: false in AutoItemizePage).
-        await autoItemizePage.pickerCreateBudgetLineButton.click();
-        await expect(autoItemizePage.pickerModal).not.toBeVisible();
-
-        // ── Assert: amber "Creating New" badge visible on card 0 ─────────────
-        const creatingBadge = autoItemizePage.getCreatingNewBadge(0);
-        await expect(creatingBadge).toBeVisible();
-
-        // ── Assert: badge uses CSS custom properties (token-resolved color) ───
-        // The .warning variant in Badge.module.css uses:
-        //   background-color: var(--color-warning-bg)
-        //   color: var(--color-warning)
-        //   border: 1px solid var(--color-warning)
-        // Computed styles resolve the CSS custom properties to actual color values.
-        // Verify that the computed background-color resolves to an rgb() value
-        // (from the token), not "transparent" or empty.
-        const badgeBgColor = await creatingBadge.evaluate(
-          (el) => window.getComputedStyle(el).backgroundColor,
-        );
-        expect(
-          badgeBgColor,
-          `Expected "Creating New" badge background to be token-resolved (rgb/rgba value), got: "${badgeBgColor}"`,
-        ).toMatch(/^rgba?\(/);
-
-        // Also verify the badge background is NOT pure transparent —
-        // this asserts the dark mode token chain is actually applied (not a CSS bug).
-        // We do not assert the exact value because it depends on the design token resolution,
-        // which may vary by environment. The rgb() check above is the primary assertion.
-        expect(
-          badgeBgColor,
-          'Badge background should not be pure transparent — CSS variables must resolve',
-        ).not.toBe('rgba(0, 0, 0, 0)');
+          await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+        ).toBe(false);
       } finally {
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);

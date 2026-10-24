@@ -30,6 +30,24 @@
   border-top-color: var(--color-bg-inverse);
 }
 
+.alignEnd {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.alignEnd::after {
+  left: auto;
+  right: var(--spacing-3);
+  transform: none;
+}
+
 .visible {
   opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    transition: none;
+  }
 }

@@ -411,7 +411,7 @@
     "to": "Task / Purchase page > Cost tab > cost line rows (one CostLine renderer)",
     "change": "same",
     "gate": "none",
-    "note": "One renderer replaces 6 (D3 §6.1); state badge Planned/Offered/Invoiced/Paid/Submitted."
+    "note": "One renderer replaces 6 (D3 §6.1); state badge Planned/Offered/Invoiced/Paid/Submitted. #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: rows come from the one renderer CostLineTable; the state chip reads Estimate / Offered / Invoiced / Paid / Submitted, derived from the linked offer or invoice; the ten old line components are deleted."
   },
   "WRK-062": {
     "name": "See each linked subsidy's reduction (percentage or fixed) on a work item or household item",
@@ -1398,7 +1398,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > line cards > edit / include / exclude",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): lines are rows of the shared cost-line grid (AutoItemizeLines › CostLineGrid) with an Include toggle per row."
   },
   "MNY-073": {
     "name": "Mark extracted lines as net or gross ('Price includes VAT')",
@@ -1406,7 +1406,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > line > 'Price includes VAT'",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): Entered as (Net / Gross) per row and \"Entered as for all\" in the shared cost-line grid."
   },
   "MNY-074": {
     "name": "Set budget category and funding source per extracted line",
@@ -1414,7 +1414,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > line > Category, Funding source",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): Cost category and Funding source columns of the shared cost-line grid."
   },
   "MNY-075": {
     "name": "Link an extracted line to an existing work-item or household-item budget line",
@@ -1422,7 +1422,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > line > Assign to existing cost line",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): row ⋯ › \"Use an existing cost line…\" in the shared cost-line grid."
   },
   "MNY-076": {
     "name": "Queue a new budget line on a work item or household item from an extracted line",
@@ -1430,7 +1430,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > line > Assign > New cost line",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): a row with Belongs to set becomes a new cost line on that task or purchase."
   },
   "MNY-077": {
     "name": "Merge several extracted lines into one consolidated line",
@@ -1438,7 +1438,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > selection bar > Merge",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): per-row selection in the shared cost-line grid and the Merge bar under it."
   },
   "MNY-078": {
     "name": "Check the extracted total against the invoice amount",
@@ -1446,7 +1446,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > total vs invoice amount",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): the total with its variance against the invoice amount sits under the shared cost-line grid."
   },
   "MNY-079": {
     "name": "View the source PDF next to the extracted lines",
@@ -1454,7 +1454,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > PDF preview",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2235: Split with AI page and New invoice from Paperless page (routes unchanged): the PDF preview is unchanged; the grid dialog on the invoice page shows the same preview (MNY-097)."
   },
   "MNY-080": {
     "name": "Save the auto-itemization or discard it with confirmation",
@@ -1462,7 +1462,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > Save / Cancel (discard modal)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2209: Money › Split with AI page › Cancel with changes → ConfirmDialog “Discard changes?”."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2209: Money › Split with AI page › Cancel with changes → ConfirmDialog “Discard changes?”. #2235: Split with AI page and New invoice from Paperless page (routes unchanged): Save and the discard confirm are unchanged; only the lines editor changed."
   },
   "MNY-081": {
     "name": "View an invoice's details",
@@ -1595,7 +1595,7 @@
     "to": "Money > Invoice / Offer page > Cost tab (lines in their entry basis, marked net or gross; totals gross) + summary 'Not yet split'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: CostLineTable mode=\"document\" lists each line with quantity × unit price, Entered as (Net/Gross), the gross amount (net in a tooltip) and Belongs to; the footer reads \"Not yet split · ‹amount›\" from 1.00 with a Split button, or \"Lines are ‹amount› over\"."
   },
   "MNY-097": {
     "name": "Itemize an invoice by linking existing budget lines with amounts",
@@ -1603,7 +1603,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Add cost line' (pick task / purchase, then estimate line or new) and 'Add lines (grid)': grid dialog with keyboard rows, duplicate, paste from a spreadsheet and the document preview beside it (Paperless only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
+    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: \"Add cost line\" (pick the task or purchase, then an existing estimate line or a new one) and \"Add lines (grid)\", a grid dialog with keyboard rows, Ctrl/⌘+D duplicate, spreadsheet paste (up to 200 rows, column-mapping preview) and the document preview beside it (Paperless only); the grid saves every row in one transaction (POST /api/budget-lines/batch)."
   },
   "MNY-098": {
     "name": "Create a new budget line on a work item or household item directly from the invoice",
@@ -1611,7 +1611,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > Add > New cost line",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: Add cost line › New line creates the line on the chosen task or purchase and links it to the offer or invoice at its gross amount in one request (POST /api/budget-lines/batch)."
   },
   "MNY-099": {
     "name": "Edit an invoice-linked budget line including its itemized amount",
@@ -1619,7 +1619,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
+    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: One cost-line form (CostLineForm, an ObjectForm) on the task, purchase and invoice pages, row ⋯ › Edit; a linked line is edited as one gross amount that becomes its itemized amount. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-100": {
     "name": "Move an invoice-linked budget line to a different work item or household item",
@@ -1627,7 +1627,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Belongs to' (task/purchase picker)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to (task or purchase search picker) moves a linked line to another task or purchase. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-101": {
     "name": "Remove a budget line from an invoice",
@@ -1635,7 +1635,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > row ⋯ > Remove from invoice (Undo); Task / Purchase page > Cost tab > row ⋯ > Unlink",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm)."
   },
   "MNY-102": {
     "name": "Assign an unassigned (orphan) invoice line to a work item or household item",
@@ -1643,7 +1643,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Not assigned' badge > Assign",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: an unassigned line shows \"Not assigned\" under Belongs to and row ⋯ › Assign opens CostLineForm in assign mode."
   },
   "MNY-105": {
     "name": "Add a planned-cost budget line to a work item or household item",
@@ -1651,7 +1651,7 @@
     "to": "Task / Purchase page > Cost tab > 'Add cost line'",
     "change": "same",
     "gate": "none",
-    "note": "Form defaults follow real use: unit pricing, net (VRD-20)."
+    "note": "Form defaults follow real use: unit pricing, net (VRD-20). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: \"Add cost line\" opens CostLineForm with unit pricing and Net as defaults; \"Add lines (grid)\" adds many estimates at once."
   },
   "MNY-106": {
     "name": "Price a budget line by quantity x unit price",
@@ -1659,7 +1659,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > Unit pricing (Quantity x Unit price)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use). #2235: CostLineForm › Pricing: Unit price (Quantity × Unit price) or Amount; in the grid a blank Quantity means a direct amount. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-107": {
     "name": "Enter amounts net or gross with automatic VAT gross-up",
@@ -1667,7 +1667,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Price includes VAT'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use). #2235: CostLineForm › Entered as (Net / Gross) replaces the \"Price includes VAT\" checkbox; lists show gross with the net amount in a tooltip. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-108": {
     "name": "Set estimate confidence to drive min/max ranges",
@@ -1675,7 +1675,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Basis' (Own estimate / Professional estimate / Offer / Invoice)",
     "change": "same",
     "gate": "none",
-    "note": "Confidence renamed 'Basis'; drives the best/worst case range."
+    "note": "Confidence renamed 'Basis'; drives the best/worst case range. #2235: CostLineForm › More details › Basis (Own estimate / Professional estimate / Offer / Invoice); read-only \"Offer\" or \"Invoice\" once the line is linked. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-109": {
     "name": "Assign a funding source and a vendor to a budget line",
@@ -1683,7 +1683,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > Funding source, Company",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use). #2235: CostLineForm › More details › Funding source and Company. Interim placement as MNY-096 / MNY-105."
   },
   "MNY-110": {
     "name": "Categorize a work-item budget line with a budget category",
@@ -1691,7 +1691,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > Cost category",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (weekly use). #2235: CostLineForm › More details › Cost category (purchase lines keep their fixed category). Interim placement as MNY-096 / MNY-105."
   },
   "MNY-111": {
     "name": "Edit or delete an un-invoiced budget line",
@@ -1699,7 +1699,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Edit (Cost line dialog) / Delete (Undo)",
     "change": "same",
     "gate": "none",
-    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed)."
+    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Edit opens CostLineForm; row ⋯ › Delete confirms with ConfirmDialog, blocked state on 409 (D4: Undo comes with P4.4 #2236)."
   },
   "MNY-112": {
     "name": "Move an un-invoiced budget line to another item of the same type (work item to work item, household item to household item)",
@@ -1707,7 +1707,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Belongs to' > other task/purchase",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to moves an unlinked line to another task (task lines) or purchase (purchase lines); the other type is refused in the form. Interim placement as MNY-105."
   },
   "MNY-113": {
     "name": "Link a budget line to an existing invoice from the item page",
@@ -1715,7 +1715,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Link to invoice",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2194: compact one-line rows with the amount left per invoice; a fully allocated invoice is neutral, never a red error (D-27)."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2194: compact one-line rows with the amount left per invoice; a fully allocated invoice is neutral, never a red error (D-27). #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: row ⋯ › Link to invoice opens LinkInvoiceForm (offers and invoices, amount left per document)."
   },
   "MNY-114": {
     "name": "See an item's budget lines grouped by invoice",
@@ -1723,7 +1723,7 @@
     "to": "Task / Purchase page > Cost tab > grouped by offer / invoice, estimates first",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones. #2203: an invoice opened from a task or purchase shows \"‹ Back to ‹that name›\"."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones. #2203: an invoice opened from a task or purchase shows \"‹ Back to ‹that name›\". #2235: Built (interim, until P5.4 #2248 / P5.5 #2249 add the Cost tab) as the Cost lines section on Tasks › Task page and Purchases › Purchase page: CostLineTable mode=\"item\" groups Estimates first, then one group per offer or invoice with company and totals."
   },
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",

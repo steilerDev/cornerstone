@@ -1,162 +1,40 @@
 # Translator Agent Memory
 
-## Glossary
+Index only. Detail lives in the linked topic files.
 
-- **Location**: `client/src/i18n/glossary.json`
-- **Supported locales**: `de` (German)
-- **Scope**: Domain-specific terms only (not common UI words like save, cancel, delete)
+## Glossary and conventions
 
-## Key Conventions
-
-- Informal register: German UI uses "du" (owner decision 2026-10-16), never "Sie"/"Ihr" for the user. See [German du register](german-du-register.md)
-- Translation files: `client/src/i18n/{locale}/{namespace}.json`
-- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, photoViewer, schedule, settings, workItems
-- Preserve `{{variable}}` interpolation placeholders exactly
-- Preserve `_one` / `_other` pluralization suffixes
-- **Repo-wide `npm run lint:fix && npm run format` reformats unrelated drifted files** (Markdown tables, `*italic*`→`_italic_`, missing semicolons in `.claude/workflows/*.js`, `eslint.config.js` array wrapping) — confirmed again 2026-08-01 in the claim/deposit fix-loop (worktree `develop-claim-semantics`): the command touched `CLAUDE.md`, `.claude/workflows/pr-review.js`, `eslint.config.js`, `Step5Actions.tsx`, and an unrelated qa-integration-tester memory file even though only two `budget.json` files were edited. Always `git status --porcelain` before AND after the lint/format run, diff every newly-dirty file, and `git checkout --` anything that's pure reformatting of pre-existing content — but leave alone files with real content additions (e.g. new test cases), since in a shared worktree other agents may be concurrently committing legitimate work in parallel.
-- **Always verify persistence before reporting done**: after Edit tool calls, run `git diff --stat <file>` and confirm it shows non-zero changes (plus a JSON-parse assertion of the new keys) BEFORE writing the final summary. A prior session (story #1900, `sourceReports.editable` in `de/budget.json`) reported a successful edit that had in fact not persisted — `git diff` was empty and the file was byte-identical to `beta`, requiring a full re-do. Root cause unconfirmed (possibly a worktree/session state issue), but the fix is cheap: never trust an Edit tool "success" response alone as proof of a persisted change — always re-verify with git diff before the final report.
-- Detailed per-issue translation rationale from 2026 H1 (before Issue #1812) has been moved to [history-2026-h1.md](history-2026-h1.md) to keep this file within the 200-line budget
-
-## Key Terminology (from glossary)
-
-| English        | German (singular) | German (plural)  |
-| -------------- | ----------------- | ---------------- |
-| Work Item      | Arbeitspaket      | Arbeitspakete    |
-| Household Item | Haushaltsartikel  | Haushaltsartikel |
-| Vendor         | Auftragnehmer     | Auftragnehmer    |
-| Budget Line    | Budgetposition    | Budgetpositionen |
-| Budget Source  | Budgetquelle      | Budgetquellen    |
-| Milestone      | Meilenstein       | Meilensteine     |
-| Invoice        | Rechnung          | Rechnungen       |
-| Subsidy        | Förderprogramm    | Förderprogramme  |
-| Diary Entry    | Tagebucheintrag   | Tagebucheinträge |
-| Quotation      | Angebot           | Angebote         |
-| Area           | Bereich           | Bereiche         |
-| Trade          | Gewerk            | Gewerke          |
-| Draft          | Entwurf           | Entwürfe         |
-| Unassigned     | Nicht zugewiesen  | —                |
-| Correspondent  | Korrespondent     | Korrespondenten  |
-
-## Button/Action Label Convention
-
-- Button and label convention (superseded 2026-10-18, owner/UX decision): German sentence case. Only the first word and nouns (including nominalised verbs such as `das Speichern`, `zum Anzeigen`, `beim Löschen`) are capitalised. Verbs, adjectives and adverbs in a mid-label position are lowercase: `Rechnung hinzufügen`, `Änderungen speichern`, `Alle auswählen`, `Verwerfen und fortfahren`. The old title-case rule (`Rechnung Hinzufügen`) is retired.
-- A quoted label inside a German hint must match the corrected label: `Klicke auf „Rechnung hinzufügen“`.
-- Quoted labels whose first word is capitalised (`„Bezahlt am“`, `„Ich verstehe“`) and sort or status labels (`↑ Aufsteigend`, `← Zurück`) keep the capital because it is the first word of the label.
-- **Exception**: phrases starting with a preposition (`Mit …`, `Zu …`, `Von …`) keep the trailing verb **lowercase** — standard German sentence-case, not title-case. Confirmed pattern: `"Mit SSO anmelden"` (auth.json), `"Mit Rechnung verknüpfen"` (householdItems.json, budget.json `invoiceLinkModal.title`/`.linkButton`). Do not capitalise the verb in this construction even though it's a button/title.
-
-## Orphan Cleanup Heuristic
-
-A DE key with **no EN counterpart** and **zero code references** (`grep -rn "<key>" client/src --include=*.tsx --include=*.ts`) is very likely a stale rename/supersession artifact — safe to delete. Confirmed case: `de/budget.json overview.costBreakdown.autoOriginBadge.*` (added Issue #1551, superseded by `autoItemize.createdFromAutoItemization`, orphan deleted during Issue #1812 full-namespace audit). Do NOT delete an orphan that still exists in the EN file (that's just a de-parity gap, not a true orphan) — only delete when it's absent from EN AND unreferenced in code.
-
-## Full-Namespace Diff Audits (Issue #1812, 2026-07-07)
-
-When a spec says "diff flattened key sets across N namespaces," write a quick Node script that `JSON.parse`s both `en/<ns>.json` and `de/<ns>.json`, flattens to dotted paths, and diffs both directions — far more reliable than eyeballing. Re-run after every edit; require 0/0 before finishing. See `/tmp/i18n-audit/diff.mjs` pattern (flatten via recursive object walk, skip arrays).
-
-**Critical gotcha — duplicate top-level JSON keys in `en/*.json`:** `en/diary.json` has had duplicate top-level keys (`page`, `filterBar`, `detailPage`) reappear **twice now** (first noted pre-#1426, recurred in #1812) — a frontend-developer adding new keys to an existing section appends a **second** top-level object with the same name instead of merging into the first. `JSON.parse`/JS object literals silently keep only the **last** occurrence, so the _entire first block_ (e.g. `page.title`, `filterBar.search`, `detailPage.backLink`, and ~40 sibling keys) is silently dropped from what i18next actually loads — a real production bug (raw keys or `undefined` shown to English AND German users, since the DE file may still have the correct un-duplicated structure). This is **frontend-developer's file to fix**, not mine to touch, but:
-
-- **Always** run the duplicate-key Python/Node check (`JSON.parse` with an `object_pairs_hook`/reviver that flags repeats) on any EN file before diffing, whenever the flattened diff shows a large, oddly-specific block of "missing in en" keys that already have plausible DE translations — that pattern is the signature of this bug, not a real translation gap.
-- On the DE side, merge new keys into the **existing** section (never duplicate) — this keeps `de/*.json` valid even while the EN source is broken.
-- **Flag the duplicate-key bug explicitly in the final report** every time it's found — it's a recurring defect worth escalating to dev-team-lead/frontend-developer for a real fix (dedupe + lint rule), not just a translator workaround.
-
-## Diary sourceType / entryTypes Glossary Fixes (Issue #1812, 2026-07-07)
-
-Found and fixed pre-existing (not newly introduced) glossary violations while auditing `de/diary.json`:
-
-- `detailPage.sourceType.budget_source`: "Budget Quellen" (two words, wrong) → "Budgetquellen" (glossary compound)
-- `detailPage.sourceType.subsidy_program`: "Zuschuss Programme" → "Förderprogramme" (glossary term)
-- `entryTypes.subsidy_status` / `typeBadge.subsidyStatus`: "Zuschussstatus" → "Förderprogrammstatus" (glossary term; matches sibling compound pattern `Rechnungsstatus`, `Budgetüberschreitung`)
-
-**Lesson**: full-namespace audits are a good opportunity to re-scan for `Zuschuss` (old/wrong term for Subsidy) and `Budget Quellen`/`Haushalts Artikel`-style incorrectly-spaced compounds, not just the "Arbeitselement"/"Haushaltsgegenstand"/"Budgetzeile" terms already tracked. Ran `grep -niE 'Budgetzeile|Arbeitselement|Arbeitsgegenstand|Haushaltsgegenstand|Haushaltselement|Anbieter'` plus a separate `grep '"Zuschuss'` across all touched namespaces as a final pre-handoff sweep — worth repeating on every full-namespace audit.
-
-## Cost Perspective / Avg Abbreviation
-
-`overview.costBreakdown.perspective.avg` = "Avg" → "Ø" (German average symbol, compact for 3-way Min/Ø/Max segmented toggle) — not "Durchschn." (too long for a toggle button).
-
-## Section-Navigation Aria Label Pattern (Issue #1887, 2026-07-30)
-
-Established de pattern for `"<X> section navigation"` aria labels (SubNav component instances) is the compound `"<X>-Abschnittsnavigation"` — confirmed from `schedule.json`'s `navigation.ariaLabel`: en "Schedule section navigation" → de "Zeitplan-Abschnittsnavigation". Applied same pattern for `budget.json` `sourceReports.subNavAriaLabel`: en "Budget section navigation" → de "Budget-Abschnittsnavigation". Note: `DashboardPage.tsx` ("Project section navigation") and `VendorsPage.tsx` ("Settings section navigation") hardcode this string directly in JSX rather than using `t()` — not a translator concern, but means those two instances have no de counterpart to check against; only use schedule.json as the reference pattern.
-
-Also confirmed: "allocated" vocabulary in de/budget.json is consistently `zugeordnet`/`Zuordnung` (e.g. `allocatedAmount` → "Zugeordneter Betrag", `unallocatedExplained` → "...nicht zugeordnet"). Used for new `sourceReports.table.splitFootnote`: "Amount shown reflects only the portion allocated to this source." → "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
-
-## Dash Convention: en dash "–" not em dash "—" (Issue #1891, 2026-07-30)
-
-`en/*.json` source text uses em dash "—" for parenthetical asides (e.g. `budgetSourceHintSingle`: "Defaulted to {{name}} — this invoice's only budget source."). Confirmed de/budget.json convention (grep for "–"/"—" across the file) consistently uses a spaced en dash "–" instead, never em dash — e.g. `revertNetworkError`: "Netzwerkfehler – Status...", `coverLetterDisabledReason`: "...Referenz – ein Anschreiben...". Always substitute "–" for en's "—" when translating, don't copy the em dash verbatim.
-
-## Report-Wizard Expand/Deposit-Tagging Keys (Issue #1891, 2026-07-30)
-
-New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + deposits in the report wizard invoice list) and `invoiceDetail.deposits.form.budgetSource*` (deposit→source picker) keys translated. Judgment calls, useful as precedent for future column-header/table keys:
-
-- `itemColumnHeader`: "Item" (generic table header for a budget-line description) → "Position" — parallels German invoicing convention where each line is a "Position"; distinct from `itemsHeading` "Budgetpositionen" (glossary Budget Line plural) which is the sub-table's section heading, not the column.
-- `datesColumnHeader`: "Dates" (column stacking due/paid/claimed dates) → "Termine", not "Daten" (which reads as "data" in modern German, not "dates").
-- `linkedColumnHeader`: "Linked to" → "Verknüpft mit" (consistent with existing `linkedItem`/`linkedItemLegend` → "Verknüpftes Element").
-- `budgetSourceNone`: "None (pro-rated)" → "Keine (anteilig)" — reused "anteilig" from the existing `splitBadge`: "anteilig {{allocated}} von {{total}}" rather than inventing a new word for "pro-rated".
-- `confirmClaimExcludedItemsWarning`: matched the sibling `confirmClaimBody`'s "Rechnung(en)" pluralization-count pattern and "eingereicht" (this locale's established word for "claimed", not "beansprucht").
-- Full flatten-diff parity (0/0) and `i18n.parity.test.ts` (46/46) both green after the change.
-
-## AI/KI + Progress-Label Lessons (Issue #1901, 2026-07-31)
-
-- [AI/KI terminology](ai-ki-terminology.md) — "AI" in user-facing German copy is always "KI", never "AI-…"; a future glossary entry should be "KI-Unterstützung", not "AI-Unterstützung"
-- [Progress/status label style](progress-label-style.md) — two co-existing patterns for "X-ing… (Ns)" labels; pick the closer sibling key as precedent (`autoItemize.analyzing` → "Analysiere… ({{seconds}}s)")
-- [EMPTY_SELECTION backfill](empty-selection-error-code.md) — pre-existing error code with no locale entry in either en or de; verify via server code before assuming a key is "new"
-
-## PDF Inline-Label Constraints (#1917/#1959)
-
-- [NBSP for inline labels](nbsp-inline-labels.md) — multi-word inline PDF labels need U+00A0, not a regular space, or pdfmake wraps mid-bracket; includes the ad-hoc real-render/pdftoppm verification recipe
-- [Abschlag glossary short-form](abschlag-glossary-shortform.md) — PO-approved `Abschlag` short form recorded IN glossary.json (75pt column has no room for any qualifier); `split`'s 3 German forms deliberately un-pinned
-
-## Inline Label Quoting (Issue #1973, 2026-08-05; standardized Issue #2013, 2026-09-30)
-
-- [Inline label quoting](inline-label-quoting-1973.md) — German UI always quotes with „“ (proper German quotes); count instances before citing conventions; cross-check referenced label's own translation (e.g. column headers)
-
-## Non-Mandatory Register / sr-only Hints (Issue #1941, 2026-08-06)
-
-- [Non-mandatory register](non-mandatory-register-1941.md) — no semicolon anywhere in de locale files, use en dash "–" as clause joiner instead; avoid "Grenze"/negated "müssen" when spec bans error-blame framing; sr-only strings have no pixel budget
-
-## Singular/Plural Key Splits
-
-- [Singular/plural announcement split #2060](singular-plural-announcement-split-2060.md) — German strong-declension rule ("weiterer Eintrag" vs "weitere Einträge") when splitting a count+adjective+noun string into *Singular/*Plural pairs
-
-## Audit Protocol History
-
-- [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives
-
-## PDF Column Header Short Forms Under Width Constraint (Issue #1937, 2026-08-04)
-
-`sourceReports.table.vendor` ("Auftragnehmer", 13 chars, 67.5pt) overflows its 45pt column. `sourceReports.table.invoiceAmount` ("Rechnungsbetrag", 15 chars, 78.66pt) overflows its 48pt column. Font: Roboto Bold 10pt, avg ~5.19pt/char from "Auftragnehmer" measurement.
-
-Fixes applied (following the Abschlag measured-space-constraint precedent):
-
-- `vendor`: "Auftragnehmer" → **"Firma"** (5 chars, ~26pt). Rationale: no standard German abbreviation of "Auftragnehmer" fits within 8 chars without ambiguity ("Auftr." could be Auftraggeber). "Firma" (company/firm) is universally clear to any German bank employee; column content (actual company names) makes context self-evident. Glossary note: this is a PDF column-header short form under a measured constraint — "Auftragnehmer" remains the canonical term everywhere else.
-- `invoiceAmount`: "Rechnungsbetrag" → **"Betrag"** (6 chars, ~27pt). Rationale: no abbreviation of "Rechnungsbetrag" fits in 9 chars in a `Rechnungsnr.`-style form. "Betrag" (amount) is universally clear; it is unambiguous adjacent to "Zugeordneter Betrag" (allocated amount column), which remains unchanged per AC5.
-
-General rule: when a glossary term overshoots a measured PDF column, prefer the shortest universally-understood German synonym or generic noun over a coined abbreviation that lacks standard status.
-
-## Cover Letter Signature Block Keys (Issue #1932, 2026-08-02)
-
-`sourceReports.editable.signatureLabel` → "Unterschrift"; `sourceReports.coverLetter.closing` → "Mit freundlichen Grüßen,"; `sourceReports.editable.closingLabel` → "Grußformel". Confirmed: neither "signature" nor "closing salutation" belongs in the glossary (grep across `glossary.json` for signature/closing/Gruß terms found nothing, and these are generic letter-writing vocabulary, not Cornerstone domain terms) — did not add.
-
-**Chrome-vs-content split, worked example**: `coverLetter.closing` and `editable.closingLabel` sit right next to each other in the UI but are translated by two different rules, and getting this backwards is the easy mistake:
-
-- `coverLetter.closing` = the letter's actual salutation text, rendered via `reportT()` into the PDF in the _report's_ language → full letter-register translation ("Mit freundlichen Grüßen,").
-- `editable.closingLabel` = the read-only caption _above_ that value in the step-5 editor, rendered via `t()` in the _interface's_ language → UI chrome, translated like its sibling captions (`senderLabel`→"Absender", `subjectLabel`→"Betreff"), using the precise German business-letter term for "closing salutation" ("Grußformel", paired with "Anrede" for the opening salutation) rather than a literal "Schließen"/"Closing"-style calque.
-- Rule of thumb: check the **call site**, not the JSON namespace path — both keys live under `sourceReports.*` but `t()` vs `reportT()` at the usage site is what actually decides chrome vs. content, per the established artifact-content-vs-edit-affordance convention from #1909/#1924.
-
-**Concurrent-worktree gotcha**: at spec time `closingLabel` didn't exist in `en/budget.json` yet (frontend-developer added it mid-session, confirmed via `git diff client/src/i18n/en/budget.json` showing the line appear between my two check-ins). When a spec says "check whether the en key already landed," re-check immediately before finalizing rather than trusting an earlier read — in a shared worktree the answer can flip within the same task.
-
-## Issue #2046: Open Items Translation (2026-09-06)
-
-- [Issue #2046 translation](issue-2046-open-items-translation.md) — 23 new keys for invoices open-items feature (deposits/refunds list); critical distinctions: `overdueLabel`/"Überfällig" vs `depositOverdueLabel`/"Abschlag überfällig", and `childIncludedCaption`/"...enthalten" vs `childExcludedCaption`/"...separat aufgeführt"; all glossary-compliant, no new glossary terms needed
-
-## Diary type names canon (EPIC-21 #2221)
-
-- [Diary type names canon](diary-type-names-canon.md) — Tagesbericht, Begehung, Mangel, Notiz; old typeBadge words were glossary deviations
-
-## En-diff key sync (Issue #2209)
-
-- [En-diff key sync](en-diff-key-sync-2209.md) — script de edits from an en diff; keep de order (no full reorder); Budget line → Kostenposition
+- [German conventions and terminology](german-conventions.md) — glossary canon table, casing, du register, dashes, quotes, vocabulary choices
+- [German du register](german-du-register.md) — informal "du" for UI text (owner decision 2026-10-16)
+- [Audit and verification rules](audit-and-verification-rules.md) — lint/format scope in shared worktrees, persistence checks, duplicate en keys, audits, orphans
+- [Translation decisions history](translation-decisions-history.md) — past judgment calls: diary, report wizard, cover letter, cost perspective, budget vocabulary
 - [Glossary proposals pending approval](glossary-proposals-pending-approval.md) — deSource must be approved|shipped; mark proposals via de.note; edit glossary.json surgically
+- [Abschlag short form](abschlag-glossary-shortform.md) — PO-approved short form recorded in glossary.json
+- [Diary type names canon](diary-type-names-canon.md) — Tagesbericht, Begehung, Mangel, Notiz
+- [History 2026 H1](history-2026-h1.md) — per-issue rationale before #1812
 
-## Photos spots / tags (#2226)
+## Terminology and labels
 
-- [Photo tags = Zuordnung](photo-tags-zuordnung-2226.md) — "Tags" has no glossary term; German is "Zuordnung" across photos.json
-- [Camera review/close labels](camera-review-close-labels.md) — "Review (n)" = Prüfen (n), "Close" = Schließen, phone camera roll = phone-neutral "auf deinem Telefon gespeichert" (#2227)
+- [Kind gender and test lists (#2235)](kind-gender-and-test-lists-2235.md) — `{{kind}}` gender clash; hand-written test lists must grow with new terms
+- [PDF column short forms](pdf-column-short-forms.md) — measured-width header short forms (Firma, Betrag)
+- [AI/KI terminology](ai-ki-terminology.md) — "AI" in UI copy is always "KI"
+- [Progress label style](progress-label-style.md) — "X-ing… (Ns)" labels; pick the closer sibling as precedent
+- [EMPTY_SELECTION backfill](empty-selection-error-code.md) — pre-existing error code with no en or de entry
+- [Inline label quoting](inline-label-quoting-1973.md) — German UI quotes with „“
+- [NBSP for inline labels](nbsp-inline-labels.md) — U+00A0 in multi-word PDF labels, plus render-check recipe
+- [Non-mandatory register](non-mandatory-register-1941.md) — no semicolons; en dash joiner; sr-only hints
+- [Singular/plural split](singular-plural-announcement-split-2060.md) — strong-declension rule for count splits
+- [Photo tags = Zuordnung](photo-tags-zuordnung-2226.md) — "Tags" is "Zuordnung" in photos.json
+- [Camera review/close labels](camera-review-close-labels.md) — "Review (n)" = Prüfen (n); "Close" = Schließen
+- [Auto-itemize patterns](auto-itemize-patterns.md) — auto-itemize keys and wording
+- [Invoice vendor field](invoice-vendor-field.md) — vendor field labelling
+
+## Feature keys
+
+- [Issue #2046 translation](issue-2046-open-items-translation.md) — open-items keys; overdue and included/excluded distinctions
+- [En-diff key sync (#2209)](en-diff-key-sync-2209.md) — script de edits from an en diff; keep de order
+- [Parent move patterns](parent-move-patterns.md) — parent-move wording patterns
+
+## Audit history
+
+- [Audit pitfalls](audit-pitfalls.md) — why the 4-step full-coverage audit protocol exists

@@ -3,8 +3,8 @@
  * one consolidated line.
  *
  * Feature summary:
- *   In the auto-itemization flow, each UNASSIGNED extracted line card shows a
- *   selection checkbox. Selecting ≥1 line reveals a sticky SelectionActionBar with
+ *   In the auto-itemization flow (rows of the shared cost line grid since #2235), each extracted
+ *   row has a "Select" checkbox. Selecting ≥1 line reveals a sticky SelectionActionBar with
  *   a "Merge" button (disabled below 2 selections). Clicking Merge:
  *     - removes the selected source rows
  *     - inserts ONE new row at their position, showing a loading indicator while
@@ -14,8 +14,7 @@
  *     - on failure, the row shows an error state with Retry and "Restore original
  *       lines" (Undo) actions
  *   Behavior is identical on AutoItemizePage (existing invoice) and
- *   PaperlessInvoiceReviewPage (new invoice) — both render the shared
- *   AutoItemizeLineList/AutoItemizeLineCard/useAutoItemizeLines stack.
+ *   PaperlessInvoiceReviewPage (new invoice) — both render the shared AutoItemizeLines grid.
  *
  * KNOWN BUGS (filed as GitHub issue #1798 by e2e-test-engineer — see also POM
  * comments in AutoItemizePage.ts / PaperlessInvoiceReviewPage.ts):
@@ -26,7 +25,6 @@
  *     3 and 4 below encode the *intended* behavior per the acceptance criteria and
  *     are expected to fail until that bug is fixed — they must not be weakened to
  *     accommodate it.
- *   - AutoItemizeLineList renders a duplicate "Clear selection" button.
  *
  * Scenarios:
  *   1. Selection + merge bar appearance (AutoItemizePage)
@@ -34,9 +32,9 @@
  *      description + code-aggregated total (AutoItemizePage)
  *   3. Merge failure (502 LLM_UPSTREAM_ERROR) + Retry → success (AutoItemizePage)
  *   4. Undo (Restore original lines) after a merge failure (AutoItemizePage)
- *   5. Assign the merged row via the existing BudgetLinePickerModal flow, then
+ *   5. Link the merged row to an existing cost line ("Use an existing cost line…"), then
  *      Save → navigate to invoice detail (AutoItemizePage)
- *   6. An already-assigned line's checkbox is disabled/absent from selection
+ *   6. A row that links an existing cost line cannot be part of a merge selection
  *      (AutoItemizePage)
  *   7. Parity smoke: select 2 → merge → success on PaperlessInvoiceReviewPage
  *   8. @responsive: selection + merge bar appearance at mobile viewport; bar stays
@@ -461,9 +459,8 @@ test.describe('Scenario 1 — Selection + merge bar appearance', () => {
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── 4 line cards present ──────────────────────────────────────────────
-      const cards = page.locator('[role="list"] li[class*="lineCard"]');
-      await expect(cards).toHaveCount(4);
+      // ── 4 extracted rows present ──────────────────────────────────────────
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(4);
 
       // ── No selection yet: Merge bar hidden ─────────────────────────────────
       expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');
@@ -521,9 +518,7 @@ test.describe('Scenario 2 — Successful merge', () => {
 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
-
-      const cards = page.locator('[role="list"] li[class*="lineCard"]');
-      await expect(cards).toHaveCount(4);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(4);
 
       await autoItemizePage.selectLineForMerge(0);
       await autoItemizePage.selectLineForMerge(1);
@@ -532,9 +527,9 @@ test.describe('Scenario 2 — Successful merge', () => {
       await autoItemizePage.clickMergeButton();
 
       // ── Source rows removed immediately; one new (loading) row takes their place ──
-      await expect(cards).toHaveCount(3);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
       await expect(autoItemizePage.mergingRow).toBeVisible();
-      await expect(autoItemizePage.mergingRow).toHaveAttribute('aria-busy', 'true');
+      await expect(autoItemizePage.mergingRow).toContainText('Merging 2 items');
 
       // ── Merge bar is dismissed once merge starts (selection cleared) ──────
       expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');
@@ -543,9 +538,9 @@ test.describe('Scenario 2 — Successful merge', () => {
       //    editable card with the LLM-synthesized description and the
       //    code-aggregated total (never touched by the LLM). ─────────────────
       await autoItemizePage.waitForMergedRow();
-      await expect(cards).toHaveCount(3);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
       await expect(autoItemizePage.lineDescription(0)).toHaveValue(MERGED_DESCRIPTION);
-      await expect(autoItemizePage.lineTotal(0)).toHaveValue(MERGED_TOTAL);
+      await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue(MERGED_TOTAL);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -602,7 +597,6 @@ test.describe('Scenario 3 — Merge failure + Retry', () => {
       // ── First attempt fails: error card with Retry + Undo ────────────────
       await expect(autoItemizePage.mergeErrorRow).toBeVisible();
       await expect(autoItemizePage.mergeErrorRow).toContainText("Couldn't merge these line items.");
-      await expect(autoItemizePage.mergeErrorRow).toContainText('Merge failed');
       await expect(autoItemizePage.mergeRetryButton).toBeVisible();
       await expect(autoItemizePage.mergeUndoButton).toBeVisible();
 
@@ -610,11 +604,9 @@ test.describe('Scenario 3 — Merge failure + Retry', () => {
       await autoItemizePage.clickRetryMerge();
       await expect(autoItemizePage.mergeErrorRow).not.toBeVisible();
       await autoItemizePage.waitForMergedRow();
-
-      const cards = page.locator('[role="list"] li[class*="lineCard"]');
-      await expect(cards).toHaveCount(3);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(3);
       await expect(autoItemizePage.lineDescription(0)).toHaveValue(MERGED_DESCRIPTION);
-      await expect(autoItemizePage.lineTotal(0)).toHaveValue(MERGED_TOTAL);
+      await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue(MERGED_TOTAL);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -662,9 +654,7 @@ test.describe('Scenario 4 — Undo restores original source lines', () => {
 
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
-
-      const cards = page.locator('[role="list"] li[class*="lineCard"]');
-      await expect(cards).toHaveCount(4);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(4);
 
       await autoItemizePage.selectLineForMerge(0);
       await autoItemizePage.selectLineForMerge(1);
@@ -675,11 +665,13 @@ test.describe('Scenario 4 — Undo restores original source lines', () => {
       // ── Undo: original source lines reappear, error row is gone ──────────
       await autoItemizePage.clickUndoMerge();
       await expect(autoItemizePage.mergeErrorRow).not.toBeVisible();
-      await expect(cards).toHaveCount(4);
+      await expect.poll(() => autoItemizePage.lineCount()).toBe(4);
       await expect(autoItemizePage.lineDescription(0)).toHaveValue('Bathroom tiles (600x600mm)');
       await expect(autoItemizePage.lineDescription(1)).toHaveValue('Installation labor');
-      await expect(autoItemizePage.lineTotal(0)).toHaveValue('900');
-      await expect(autoItemizePage.lineTotal(1)).toHaveValue('680');
+      await expect(autoItemizePage.lineQuantity(0)).toHaveValue('20');
+      await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue('45');
+      await expect(autoItemizePage.lineQuantity(1)).toHaveValue('8');
+      await expect(autoItemizePage.lineUnitPrice(1)).toHaveValue('85');
 
       // ── No lingering selection or merge bar after Undo ────────────────────
       expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');
@@ -743,38 +735,19 @@ test.describe('Scenario 5 — Assign merged row and continue the itemization flo
       // Merged row lands at index 0 (min index of the merged-away source rows).
       await expect(autoItemizePage.lineDescription(0)).toHaveValue(MERGED_DESCRIPTION);
 
-      // ── Assign the merged row via the existing picker flow ────────────────
-      const mergedAssignBtn = autoItemizePage.lineAssignButton(0);
-      await expect(mergedAssignBtn).toBeVisible();
-      await mergedAssignBtn.click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
+      // ── Link the merged row to an existing cost line of the work item ─────
+      // (the row's Belongs to comes first: the picker lists that task's lines)
+      await autoItemizePage.lineTarget(0).click();
+      await autoItemizePage.grid.targetPicker(1).pick(`${testPrefix} Merge-Assign WI`);
+      await autoItemizePage.grid.useExisting(1, budgetLineDescription);
 
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} Merge-Assign WI`);
-      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: `${testPrefix} Merge-Assign WI`,
-      });
-      await wiOption.waitFor({ state: 'visible' });
-      await wiOption.click();
+      // ── Merged row now links the existing line ────────────────────────────
+      await expect(autoItemizePage.lineExistingLabel(0)).toContainText(budgetLineDescription);
 
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
-        new RegExp(budgetLineDescription, 'i'),
-      );
-      await budgetLineButton.waitFor({ state: 'visible' });
-      await budgetLineButton.click();
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-
-      // ── Merged row now shows the assigned badge ───────────────────────────
-      const assignedBadge = autoItemizePage.lineAssignedBadge(0);
-      await expect(assignedBadge).toBeVisible();
-      await expect(autoItemizePage.lineAssignedDescription(0)).toContainText(budgetLineDescription);
-
-      // ── Pick a category for the two remaining unassigned lines (guard requires
-      //    it for create-new mode); the merged+assigned row does not need one. ──
-      await autoItemizePage.getLineCardCategorySelect(1).selectOption({ index: 1 });
-      await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+      // ── Pick a category for the two remaining rows (a row that creates a new cost line
+      //    needs one); the linked row keeps its own line's category. ──
+      await autoItemizePage.lineCategory(1).selectOption({ index: 1 });
+      await autoItemizePage.lineCategory(2).selectOption({ index: 1 });
 
       // ── Save → commit POST → navigate back to invoice detail ─────────────
       const now = '2026-05-25T00:00:00.000Z';
@@ -881,37 +854,28 @@ test.describe('Scenario 6 — Ineligible (already-assigned) line cannot be selec
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Before assignment: line 0's checkbox is enabled ───────────────────
-      await expect(autoItemizePage.lineSelectCheckbox(0)).toBeEnabled();
+      // ── Link row 0 to the seeded cost line of the work item ───────────────
+      await autoItemizePage.lineTarget(0).click();
+      await autoItemizePage.grid.targetPicker(1).pick(`${testPrefix} Merge-Ineligible WI`);
+      await autoItemizePage.grid.useExisting(1, budgetLineDescription);
+      await expect(autoItemizePage.lineExistingLabel(0)).toBeVisible();
 
-      // ── Assign line 0 to the seeded work-item budget line ─────────────────
-      await autoItemizePage.lineAssignButton(0).click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} Merge-Ineligible WI`);
-      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: `${testPrefix} Merge-Ineligible WI`,
-      });
-      await wiOption.waitFor({ state: 'visible' });
-      await wiOption.click();
-      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
-        new RegExp(budgetLineDescription, 'i'),
-      );
-      await budgetLineButton.waitFor({ state: 'visible' });
-      await budgetLineButton.click();
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-      await expect(autoItemizePage.lineAssignedBadge(0)).toBeVisible();
+      // ── A linked row cannot join a merge selection: ticking it selects nothing ──
+      // The box says so: aria-disabled, greyed out with a not-allowed cursor, and it names the
+      // reason through aria-describedby
+      const linkedSelect = autoItemizePage.lineSelectCheckbox(0);
+      await expect(linkedSelect).toHaveAttribute('aria-disabled', 'true');
+      await expect(linkedSelect).toHaveCSS('opacity', '0.5');
+      await expect(linkedSelect).toHaveCSS('cursor', 'not-allowed');
+      const reasonId = await linkedSelect.getAttribute('aria-describedby');
+      expect(reasonId, 'the disabled Select box names its reason').toBeTruthy();
+      await expect(page.locator(`[id="${reasonId}"]`)).not.toBeEmpty();
+      await linkedSelect.click({ force: true });
+      await expect(linkedSelect).not.toBeChecked();
+      expect(await autoItemizePage.getMergeButtonState()).toBe('hidden');
 
-      // ── Line 0's checkbox is now disabled and cannot be part of a selection ──
-      const checkbox0 = autoItemizePage.lineSelectCheckbox(0);
-      await expect(checkbox0).toBeDisabled();
-      await expect(checkbox0).toHaveAttribute(
-        'aria-label',
-        'Already assigned — cannot be selected for merge',
-      );
-      await expect(checkbox0).not.toBeChecked();
-
-      // ── Selecting the two still-unassigned lines works normally and does not
-      //    involve the assigned line — Merge becomes enabled with just those two. ──
+      // ── Selecting the two still-unlinked rows works normally and does not
+      //    involve the linked row — Merge becomes enabled with just those two. ──
       await autoItemizePage.selectLineForMerge(1);
       await autoItemizePage.selectLineForMerge(2);
       expect(await autoItemizePage.getMergeButtonState()).toBe('enabled');
@@ -966,12 +930,12 @@ test.describe('Scenario 7 — Parity smoke: merge on PaperlessInvoiceReviewPage'
     await reviewPage.clickMergeButton();
 
     // Source rows removed, loading row inserted.
-    await expect(page.locator('[role="list"] li[class*="lineCard"]')).toHaveCount(1);
+    await expect.poll(() => reviewPage.getLineItemCount()).toBe(1);
     await expect(reviewPage.mergingRow).toBeVisible();
 
     await reviewPage.waitForMergedRow();
     await expect(reviewPage.lineDescription(0)).toHaveValue(MERGED_DESCRIPTION);
-    await expect(reviewPage.lineTotal(0)).toHaveValue(MERGED_TOTAL);
+    await expect(reviewPage.lineUnitPrice(0)).toHaveValue(MERGED_TOTAL);
   });
 });
 

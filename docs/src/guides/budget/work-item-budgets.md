@@ -5,61 +5,93 @@ title: Work Item Budgets
 
 # Work Item Budgets
 
-Each work item can have one or more **budget lines** that track the estimated or actual cost of that task. Budget lines connect a work item to a budget category and financing source.
+Each task can have one or more **cost lines** that track what that task costs. A cost line is one priced line on a task or purchase. It is either an **estimate** you made yourself or a line from a vendor's **offer** or **invoice**. Each cost line connects a work item to a cost category and a [financing source](financing-sources).
 
-## Adding a Budget Line
+:::note Renamed from budget lines
+Earlier versions called these **budget lines**. The same lines are now called **cost lines** everywhere in the app.
+:::
 
-On the work item detail page, switch to the **Budget** tab. Click **Add Budget Line** and provide:
+## The Cost Lines Section
 
-- **Budget Category** -- Which category this cost belongs to (e.g., "Electrical")
-- **Financing Source** -- Which funding source will pay for it (selected from a dropdown of your configured [financing sources](financing-sources))
-- **Estimated Amount** -- Your best estimate of the cost
-- **Confidence Level** -- How reliable the estimate is (see below)
+On the task detail page, scroll to the **Cost** section. Its **Cost lines** list shows every cost line on the task, with the **Estimates** first and then one group for each offer or invoice the lines are linked to. The page has no tabs.
 
-## Confidence Levels
+Each line shows a **state chip** that tells you where its amount comes from:
 
-Each budget line has a confidence level that reflects how accurate the estimate is. The confidence level determines the margin used in budget projections:
+| State | Meaning |
+|-------|---------|
+| **Estimate** | Not linked to an offer or invoice yet. The amount is your planned amount. |
+| **Offered** | Linked to a company's offer. |
+| **Invoiced** | Linked to an invoice that is not paid yet. |
+| **Paid** | Linked to an invoice that has been paid. |
+| **Submitted** | Linked to an invoice that has been submitted for reimbursement from a financing source. |
 
-| Confidence Level | Margin | Meaning |
-|-----------------|--------|---------|
-| **Own Estimate** | +/- 20% | Your personal rough estimate |
-| **Professional Estimate** | +/- 10% | An estimate from a contractor or professional |
-| **Quote** | +/- 5% | A formal quote from a vendor |
-| **Invoice** | 0% | An actual invoice -- the real cost |
+Amounts are shown **gross**, which means including VAT. Hover over an amount, or focus it with the keyboard, to see the **net** amount and the VAT in a tooltip.
 
-Higher confidence levels produce tighter budget projections. As your project progresses from early estimates to formal quotes to actual invoices, the budget overview becomes increasingly accurate.
+## Adding a Cost Line
+
+Click **Add cost line** in the Cost lines section. The form asks for:
+
+- **Description** -- What the cost is (e.g., "Oak flooring", "Electrician labour")
+- **Pricing** -- **Unit pricing** (quantity times unit price, the default) or **Direct amount** (one total)
+- **Entered as** -- **Net** (the default) or **Gross**. See [VAT handling](#vat-handling) below.
+- **Basis** -- What the amount rests on (see below)
+- **Cost category** and **Funding source** -- Where the cost belongs and which source pays for it
+- **Company** -- Optional. The company you expect to pay for this line
+
+After you save, the form stays open with **Add another** so you can enter the next line straight away. To enter many lines at once, use the grid described in [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
+
+## Basis
+
+The **Basis** of an estimate says what the amount rests on. On **Money > Budget**, the basis also sets the margin used in budget projections:
+
+| Basis | Margin on Money > Budget | Meaning |
+|-------|--------------------------|---------|
+| **Own estimate** | +/- 20% | Your personal rough estimate |
+| **Professional estimate** | +/- 10% | An estimate from a contractor or professional |
+
+A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, such a line counts at its face value with no margin. **Money > Budget** still applies a +/- 5% spread to lines linked to an offer; that may change in a later release.
+
+As your project moves from early estimates to offers to invoices, the budget overview becomes more accurate.
+
+Once a line is linked to an offer or invoice, its basis is set by that document and shows as read-only text (**Offer** or **Invoice**), with the note "Set by the linked offer" or "Set by the linked invoice".
 
 ## Linking to Invoices
 
-When a vendor invoice arrives for work covered by a budget line, you can link the budget line to an invoice. You can do this from either direction:
+When a company's offer or invoice arrives for work covered by a cost line, you can link the line to it. You can do this from either direction:
 
-- From the **invoice detail page** -- use the two-step picker to select a work item and then a budget line, and specify the itemized amount
-- From the **work item Budget tab** -- click the link action on an unlinked budget line to attach it to an existing invoice
+- **From the invoice or offer page** -- split the document into cost lines on tasks and purchases. See [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
+- **From the Cost section of the task page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice. Enter the amount that applies to this line.
 
-When multiple budget lines on the same work item share an invoice, they collapse into an **Invoice Group** showing the invoice total alongside each line's planned and itemized amounts.
+A cost line can be linked to **at most one** offer or invoice. When several lines on the same task belong to the same document, they appear together in one group, headed by the document number and its total.
 
-See [Invoices & Vendors](vendors-and-invoices) for details on managing invoices and the linking workflow.
+See [Invoices & Vendors](vendors-and-invoices) for the full picture of managing offers, invoices and their lines.
 
-## Editing Invoice-Linked Budget Lines
+## Editing a Linked Cost Line
 
-Budget lines that are linked to an invoice -- including lines created by [auto-itemize](auto-itemize) -- can be edited in place, without unlinking them first. The same edit modal is available wherever the line appears: the work item's **Budget** tab, the household item's **Budget** tab, and the invoice detail page's **Linked Budget Lines** section.
+Cost lines linked to an offer or invoice -- including lines created by [Split with AI](auto-itemize) -- can be edited in place, without unlinking them first. Click **Edit** in the line's row actions to open the form. From there you can:
 
-Click **Edit** on the line to open the modal. From there you can:
+- **Change the line details** -- description, amount, cost category, funding source, company, and the amount that ties the line to its offer or invoice.
+- **Move the line to another item.** The **Belongs to** field re-homes the line on another task or purchase. A linked line can move to either a task or a purchase. A line that is not linked to an offer or invoice can only move to an item of the same kind (a task to a task, a purchase to a purchase); the form refuses the other kind with "A line without an offer or invoice can only move to the same kind of item."
 
-- **Change the line details** -- description, planned amount, category, financing source, vendor, confidence level, VAT handling, and the itemized amount that ties the line to its invoice.
-- **Move the line to a different parent item.** A parent picker lets you re-home the line on another work item or household item. This replaces the old behaviour where an invoice-linked line was permanently bound to the first item it was assigned to -- if a line landed on the wrong work item (a common case with auto-itemized lines), you can now move it across instead of deleting and re-creating it.
+The link to the offer or invoice is kept when you move the line. Only the item it belongs to changes.
 
-The invoice link, itemized amount, and invoice-group membership are preserved through the move; only the parent item changes.
+### Removing a Link
 
-## Multiple Budget Lines per Work Item
+**Remove from offer** or **Remove from invoice** (also shown as **Unlink**) detaches the line from its offer or invoice. On an offer page the action reads **Remove from offer**; on an invoice page it reads **Remove from invoice**. The line stays on the task as an estimate. A confirmation dialog appears first.
 
-A single work item can have multiple budget lines. For example, "Renovate bathroom" might have separate budget lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
+**Delete** removes the cost line, after a confirmation dialog. A line linked to an offer or invoice cannot be deleted until you remove the link.
+
+## Multiple Cost Lines per Task
+
+A single task can have many cost lines. For example, "Renovate bathroom" might have separate cost lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
 
 ## VAT Handling
 
-The budget line form has a **Price includes VAT** checkbox. When entering an amount that already includes VAT (gross), leave the box checked; when entering a net amount, uncheck the box and Cornerstone will apply the VAT multiplier on save.
+Each cost line has an **Entered as** setting:
 
-Internally, planned amounts are always stored as gross (VAT-inclusive). The checkbox controls how Cornerstone interprets your input, not how the value is stored -- so all comparisons in the [Budget Overview](budget-overview), Available Funds row, and printed reports are like-for-like across budget lines, regardless of the pricing mode you chose when entering each one. The same behavior applies whether you use direct pricing or unit pricing (quantity × unit price) on the budget line.
+- **Net** (the default for new lines) -- the amount you type excludes VAT. Cornerstone adds VAT at the rate set for your instance (19% by default).
+- **Gross** -- the amount you type already includes VAT.
 
+With unit pricing, the form shows the result as you type. For example, 10 units at a net unit price of 100 give "Gross 1,190.00 (net 1,000.00 + VAT 19%)".
 
-
+Amounts are stored gross, and the Cost lines table shows gross amounts with the net amount in the tooltip. Because every line is stored the same way, comparisons in the [Budget Overview](budget-overview) and the printed reports are like-for-like, whatever pricing mode you chose for each line.

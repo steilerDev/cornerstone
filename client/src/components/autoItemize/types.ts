@@ -1,32 +1,21 @@
-import type { BudgetCategory, BudgetSourceSummary, ExtractedLine } from '@cornerstone/shared';
-import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import type { ExtractedLine } from '@cornerstone/shared';
+import type { CostLineGridRow } from '../CostLineForm/types.js';
 
-/** The linked budget line's ORIGINAL stored values — display only, never sent to the server. */
-export interface AssignedBudgetLineSnapshot {
-  plannedAmount: number;
-  includesVat: boolean;
-  budgetCategory: Pick<BudgetCategory, 'id' | 'name' | 'translationKey'> | null;
-  budgetSource: Pick<BudgetSourceSummary, 'id' | 'name'> | null;
+/**
+ * What the extraction knows about a grid row of the Split with AI pages. The grid row itself
+ * (`CostLineGridRow`) holds everything the user edits; this side data holds what only the commit
+ * needs (company name, the extraction score, the raw category word) and, for a merged row, the rows
+ * it replaced so "Restore original lines" can bring them back.
+ */
+export interface AiRowData {
+  readonly extracted: ExtractedLine;
+  readonly mergeSources?: readonly AiMergeSource[];
 }
 
-export interface LineWithInclude extends ExtractedLine {
-  included: boolean;
-  rowId: string;
-  workItemBudgetId?: string | null;
-  householdItemBudgetId?: string | null;
-  assignedItemId?: string;
-  assignedItemType?: 'work_item' | 'household_item';
-  assignedBudgetLineId?: string;
-  assignedBudgetLineType?: 'work_item' | 'household_item';
-  assignedBudgetLineDescription?: string | null;
-  assignedBudgetLineSnapshot?: AssignedBudgetLineSnapshot;
-  /** Gross (VAT-effective) itemized amount for a linked row; committed verbatim as itemizedAmount. */
-  linkedItemizedAmount?: number;
-  createdFromExtraction?: boolean;
-  inlineCreatedBudgetLineDraft?: BudgetLineFormState;
-  inlineHideConfidence?: boolean;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
-  mergeStatus?: 'pending' | 'error';
-  mergeSourceLines?: LineWithInclude[];
+/** A row replaced by a merge, with its side data. */
+export interface AiMergeSource {
+  readonly row: CostLineGridRow;
+  readonly data: AiRowData | undefined;
 }
+
+export type AiRowDataMap = ReadonlyMap<string, AiRowData>;

@@ -127,7 +127,6 @@
     "loading": "Loading work item...",
     "error": {
       "title": "Error",
-      "fallback": "An error occurred while loading the work item.",
       "retry": "Retry"
     },
     "titleEdit": {
@@ -275,7 +274,6 @@
       "linkSubsidy": "Failed to link subsidy program",
       "unlinkSubsidy": "Failed to unlink subsidy program",
       "alreadyLinkedSubsidy": "This subsidy program is already linked",
-      "unlinkInvoice": "Failed to unlink budget line from invoice",
       "deleteWorkItem": "Failed to delete work item"
     },
     "dismissError": "Dismiss error",

@@ -9,7 +9,7 @@
  * - A detail card (section) with a dl/dt/dd list of:
  *   - Invoice #, Vendor (link), Amount, Date, Due Date, Status, Notes, Created by
  * - An InvoiceDepositsSection (deposits between details and budget lines) — Issue #1404
- * - An InvoiceBudgetLinesSection for linking work item / household item budget lines
+ * - A cost lines section (`CostLinesSection`, document host) for the invoice's lines
  * - A "Documents (n)" button (`documents-panel-button`) that opens the Documents panel (#2233)
  * - An Edit modal (role="dialog" named "Edit Invoice")
  * - A Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
@@ -28,20 +28,9 @@
  * - Delete dialog (#2209): the shared ConfirmDialog, role="alertdialog", h2 "Delete <title>?",
  *   testid prefix invoice-delete (confirm text "Delete" / "Deleting…")
  * - Error (not found): role="alert" inside div.errorCard
- * - InvoiceBudgetLinesSection has its own sections but we do not interact with it deeply here
- *
- * Budget Line Picker (two-step, Issue #1401):
- * - Picker modal: role="dialog", aria-labelledby="picker-title"
- * - Step 1: WorkItemPicker (placeholder "Search work items...") + HouseholdItemPicker
- * - Step 2: existing budget lines list OR create form (BudgetLineForm)
- * - "Create Budget Line" button appears in empty-state and below the existing list
- * - BudgetLineForm fields: #budget-description, #budget-planned-amount, #budget-quantity,
- *   #budget-unit, #budget-unit-price, #budget-confidence, #budget-category, #budget-source,
- *   #budget-vendor
- * - Mode toggle buttons: "Direct Amount" (default) / "Unit Pricing"
- * - Submit button: button[type="submit"] inside <fieldset> (locale-independent structural locator)
- * - Cancel button: [class*="cancelButton"] inside picker modal (locale-independent)
- * - Error banner inside modal: role="alert"
+ * - The cost lines (#2235) are driven through `costLines` (CostLinesPanel): table with State chips,
+ *   "Add cost line", "Add lines (grid)", Split, the "Not yet split" notice and the ⋯ row menu.
+ *   Forms and the grid dialog have their own component POMs (CostLineFormDialog, CostLineGridDialog).
  *
  * Deposits Section (Issue #1404):
  * - Section: <section aria-labelledby="deposits-title">
@@ -96,6 +85,7 @@ import { DocumentsPanel } from './DocumentsPanel.js';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { CostLinesPanel } from './components/CostLinesPanel.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
 
 /** API (not app route) detail-endpoint matcher. */
@@ -117,7 +107,7 @@ export class InvoiceDetailPage {
   readonly detailCard: Locator;
   readonly infoList: Locator;
 
-  // Budget lines section
+  /** The cost lines `<section>` (same as `costLines.section`). */
   readonly budgetLinesSection: Locator;
 
   // Documents panel (#2233): the "Documents (n)" trigger and the open sheet
@@ -282,104 +272,9 @@ export class InvoiceDetailPage {
   /** aria-live amount inside the final payment row */
   readonly finalPaymentAmount: Locator;
 
-  // ─── Budget Line Picker locators (Issue #1401) ───────────────────────────
-  /** The two-step picker modal: role="dialog", aria-labelledby="picker-title" */
-  readonly budgetLinePickerModal: Locator;
-
-  /** "+ Add Budget Line" button inside the budgetLinesSection header */
-  readonly pickerAddBudgetLineButton: Locator;
-
-  /** "Create Budget Line" button inside the picker modal (step 2) */
-  readonly pickerCreateBudgetLineButton: Locator;
-
-  /** Error banner (role="alert") inside the picker modal */
-  readonly pickerErrorBanner: Locator;
-
-  /** Description input in the BudgetLineForm: #budget-description */
-  readonly createFormDescriptionInput: Locator;
-
-  /** "Unit Pricing" mode toggle button inside the picker modal */
-  readonly createFormUnitModeButton: Locator;
-
-  /** Quantity input: #budget-quantity (unit pricing mode) */
-  readonly createFormQuantityInput: Locator;
-
-  /** Unit price input: #budget-unit-price (unit pricing mode) */
-  readonly createFormUnitPriceInput: Locator;
-
-  /** Direct amount input: #budget-planned-amount (direct mode) */
-  readonly createFormDirectAmountInput: Locator;
-
-  /** Submit button: only button[type="submit"] inside the fieldset wrapping BudgetLineForm (locale-independent) */
-  readonly createFormSubmitButton: Locator;
-
-  /** Cancel button inside the picker modal form */
-  readonly createFormCancelButton: Locator;
-
-  /** The budget lines table inside budgetLinesSection */
-  readonly budgetLinesTable: Locator;
-
-  // ─── Budget Line OverflowMenu + Edit/Remove Modals (Issue #1425) ─────────────
-  /**
-   * Edit Budget Line modal (Modal component, title="Edit Budget Line").
-   * Locates by role="dialog" + accessible name matching the modal title.
-   */
-  readonly editBudgetLineModal: Locator;
-
-  /**
-   * Amount input inside the Edit Budget Line modal: #budget-line-amount
-   */
-  readonly editBudgetLineAmountInput: Locator;
-
-  /**
-   * Remove cost line dialog (ConfirmDialog, alertdialog; confirm testid invoice-line-remove-confirm).
-   */
-  readonly removeBudgetLineModal: Locator;
-
-  // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
-
-  /**
-   * Description input in the full BudgetLineForm inside the Edit modal: #budget-description
-   */
-  readonly budgetLineFormDescription: Locator;
-
-  /**
-   * Itemized amount input rendered in the invoice-side edit context: #budget-itemized-amount
-   */
-  readonly budgetLineItemizedAmount: Locator;
-
-  /**
-   * "Linked item" legend text inside the parent picker fieldset (collapsed state).
-   * Scoped to editBudgetLineModal.
-   */
-  readonly linkedItemLegend: Locator;
-
-  /**
-   * "Change" ghost button in the collapsed parent-picker row.
-   * Clicking this expands the full parent picker tabs + search.
-   * Scoped to editBudgetLineModal.
-   */
-  readonly changeParentButton: Locator;
-
-  /**
-   * "Move to selected item" submit button in the expanded parent picker.
-   * Scoped to editBudgetLineModal.
-   */
-  readonly moveButton: Locator;
-
-  /**
-   * "Cancel" ghost button inside the expanded parent picker (collapses picker without moving).
-   * Uses .last() because the modal-level Cancel button is also in scope.
-   * Scoped to editBudgetLineModal.
-   */
-  readonly cancelChangeButton: Locator;
-
-  /**
-   * Cross-table move hint banner: role="status" with text about "transfer".
-   * Visible only when the picker is expanded and a different table type is selected.
-   * Scoped to editBudgetLineModal.
-   */
-  readonly moveHintBanner: Locator;
+  // ─── Cost lines (#2235) ───────────────────────────────────────────────────
+  /** The cost lines of the offer or invoice: table, Add cost line, Add lines (grid), Split. */
+  readonly costLines: CostLinesPanel;
 
   // ─── Auto-itemize (Issue #1547, redesigned in Issue #1564) ─────────────────
   //
@@ -649,10 +544,8 @@ export class InvoiceDetailPage {
     this.detailCard = page.locator('[class*="card"]').first();
     this.infoList = page.locator('[class*="infoList"]');
 
-    // Budget lines section (InvoiceBudgetLinesSection)
-    // The component renders <section aria-labelledby="budget-lines-title"> with CSS module class
-    // "section" (not "budgetLinesSection"), so we locate it via the landmark aria attribute.
-    this.budgetLinesSection = page.locator('[aria-labelledby="budget-lines-title"]');
+    // Cost lines section (CostLinesSection, #2235)
+    this.budgetLinesSection = page.getByTestId('cost-lines-section');
 
     // Documents panel (#2233)
     this.documentsButton = page.getByTestId('documents-panel-button');
@@ -808,90 +701,7 @@ export class InvoiceDetailPage {
     // aria-live amount inside the final payment row
     this.finalPaymentAmount = this.finalPaymentRow.locator('[aria-live="polite"]');
 
-    // ─── Budget Line Picker locators (Issue #1401) ────────────────────────
-    this.budgetLinePickerModal = page.locator('[role="dialog"][aria-labelledby="picker-title"]');
-
-    // The visible text is `+ Add Budget Line` but the `+` is a literal text node and
-    // `Add Budget Line` comes from i18n; accessible-name normalization can collapse
-    // whitespace inconsistently across React renders. Match the i18n text only so
-    // the locator is resilient to the optional `+` prefix.
-    this.pickerAddBudgetLineButton = this.budgetLinesSection.getByRole('button', {
-      name: /Add Budget Line/i,
-    });
-
-    this.pickerCreateBudgetLineButton = this.budgetLinePickerModal.getByRole('button', {
-      name: /Create Budget Line/i,
-    });
-
-    this.pickerErrorBanner = this.budgetLinePickerModal.locator('[role="alert"]');
-
-    this.createFormDescriptionInput = page.locator('#budget-description');
-    // "Unit Pricing" is the second [class*="modeBtn"] button (index 1). Using a structural
-    // locator avoids locale breakage — BudgetLineForm renders this text via t('budgetLineForm.modeUnit').
-    this.createFormUnitModeButton = this.budgetLinePickerModal.locator('[class*="modeBtn"]').nth(1);
-    this.createFormQuantityInput = page.locator('#budget-quantity');
-    this.createFormUnitPriceInput = page.locator('#budget-unit-price');
-    this.createFormDirectAmountInput = page.locator('#budget-planned-amount');
-    // Submit button is the only button[type="submit"] inside the <fieldset> that wraps
-    // BudgetLineForm in the picker modal. Using a structural locator avoids locale breakage —
-    // the button text comes from t('budgetLineForm.submitAdd') / t('budgetLineForm.submitSaving').
-    this.createFormSubmitButton = this.budgetLinePickerModal.locator(
-      'fieldset button[type="submit"]',
-    );
-    // Cancel button uses [class*="cancelButton"] — unique within the picker modal (the ×
-    // close button uses styles.modalClose, not styles.cancelButton). Avoids locale breakage
-    // from t('budgetLineForm.cancel').
-    this.createFormCancelButton = this.budgetLinePickerModal.locator('[class*="cancelButton"]');
-    this.budgetLinesTable = this.budgetLinesSection.locator('table');
-
-    // ─── Budget Line OverflowMenu modals (Issue #1425) ──────────────────────
-    // EditBudgetLineModal renders via the shared Modal component.
-    // The accessible name is the modal title text "Edit Budget Line" (i18n:
-    //   budget:invoiceDetail.budgetLines.modal.editTitle).
-    this.editBudgetLineModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-    this.editBudgetLineAmountInput = page.locator('#budget-line-amount');
-
-    // Remove-cost-line dialog: the shared ConfirmDialog (role="alertdialog", #2209),
-    // title "Remove this cost line from the invoice?", testid prefix invoice-line-remove.
-    this.removeBudgetLineModal = page
-      .getByRole('alertdialog')
-      .filter({ has: page.getByTestId('invoice-line-remove-cancel') });
-
-    // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
-    // These locators are scoped to the Edit Budget Line modal and work alongside
-    // the existing editBudgetLineModal locator above.
-
-    // Description input in the full BudgetLineForm: #budget-description
-    this.budgetLineFormDescription = page.locator('#budget-description');
-
-    // Itemized amount input in invoice-side edit context: #budget-itemized-amount
-    this.budgetLineItemizedAmount = page.locator('#budget-itemized-amount');
-
-    // The "Linked item" legend/label inside the collapsed parent picker fieldset.
-    // Scoped to the edit modal to avoid matching other BudgetLineForm instances.
-    this.linkedItemLegend = this.editBudgetLineModal.getByText('Linked item');
-
-    // "Change" ghost button in the collapsed parent-picker row.
-    // Scoped to the edit modal.
-    this.changeParentButton = this.editBudgetLineModal.getByRole('button', { name: 'Change' });
-
-    // "Move to selected item" button in the expanded parent picker.
-    // Scoped to the edit modal.
-    this.moveButton = this.editBudgetLineModal.getByRole('button', {
-      name: /Move to selected item|Moving/i,
-    });
-
-    // "Cancel" ghost button inside the expanded parent picker (collapses picker).
-    // Uses .last() because the outer Cancel button (closes modal) is also in scope.
-    this.cancelChangeButton = this.editBudgetLineModal
-      .getByRole('button', { name: 'Cancel' })
-      .last();
-
-    // Cross-table move hint banner: role="status" with text about "transfer".
-    // Visible only when the picker is expanded and a different table type is selected.
-    this.moveHintBanner = this.editBudgetLineModal
-      .locator('[role="status"]')
-      .filter({ hasText: /transfer/i });
+    this.costLines = new CostLinesPanel(page);
 
     // ─── Quotation conversion locators (Story #2107) ─────────────────────
     this.convertButton = page.getByTestId('convert-quotation-button');
@@ -1369,129 +1179,5 @@ export class InvoiceDetailPage {
         hasText: formattedAmount,
       })
       .locator('[class*="badge"], [class*="Badge"]');
-  }
-
-  // ─── Budget Line Picker helpers (Issue #1401) ────────────────────────────
-
-  // ─── Budget Line OverflowMenu helpers (Issue #1425) ────────────────────────
-
-  /**
-   * Opens the OverflowMenu for a budget line row.
-   *
-   * The OverflowMenu trigger renders as:
-   *   <button type="button" aria-haspopup="menu"
-   *           aria-label="Budget line actions for {description}">⋮</button>
-   *
-   * With usePortal=true the menu is appended to document.body — we wait for
-   * any visible role="menu" on the page after clicking.
-   *
-   * If descriptionSubstring is provided, matches the trigger by aria-label
-   * substring; otherwise clicks the first visible trigger in the section.
-   */
-  async openBudgetLineMenu(descriptionSubstring?: string): Promise<void> {
-    let trigger;
-    if (descriptionSubstring !== undefined) {
-      trigger = this.budgetLinesSection
-        .locator(
-          `button[aria-haspopup="menu"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
-        )
-        .visible()
-        .first();
-    } else {
-      trigger = this.budgetLinesSection.locator('button[aria-haspopup="menu"]').visible().first();
-    }
-    await trigger.click();
-    // Portal renders menu at document.body level
-    await this.page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Clicks a visible menu item by label text within the currently open budget
-   * line OverflowMenu.
-   */
-  async clickBudgetLineMenuItem(label: string | RegExp): Promise<void> {
-    const menuItem = this.page.locator('[role="menuitem"]').visible().filter({ hasText: label });
-    await menuItem.first().click();
-  }
-
-  /**
-   * Open the budget line picker modal by clicking "+ Add Budget Line".
-   * Waits for the modal to become visible.
-   */
-  async openBudgetLinePicker(): Promise<void> {
-    // The button may briefly detach during section re-renders (e.g. after the first budget line
-    // is created, the section transitions from empty-state to non-empty-state and the DOM
-    // is rebuilt). Wait for stable visibility before clicking to avoid a stale-element race.
-    await this.pickerAddBudgetLineButton.waitFor({ state: 'visible' });
-    await this.pickerAddBudgetLineButton.click();
-    await this.budgetLinePickerModal.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Creates a new budget line and links it to the invoice via the picker flow.
-   *
-   * Prerequisites: the picker modal must already be open at step 1.
-   *
-   * The method:
-   * 1. Searches for and clicks the item in step 1 (workItemPickerName selects a work item)
-   * 2. Clicks "Create Budget Line" to open the BudgetLineForm
-   * 3. Fills description, selects pricing mode, fills amounts
-   * 4. Submits the form
-   *
-   * Note: workItemPickerName must match the title shown in the WorkItemPicker dropdown.
-   * If omitted the caller must have already reached the create form before calling.
-   */
-  async createAndLinkBudgetLine(data: {
-    workItemPickerName?: string;
-    description: string;
-    mode?: 'direct' | 'unit';
-    amount?: string;
-    quantity?: string;
-    unit?: string;
-    unitPrice?: string;
-  }): Promise<void> {
-    // Step 1: select the work item from the picker if provided
-    if (data.workItemPickerName) {
-      const wiInput = this.budgetLinePickerModal.getByPlaceholder('Search work items...');
-      await wiInput.fill(data.workItemPickerName);
-      // WorkItemPicker wraps SearchPicker which portals its dropdown to document.body
-      // (via createPortal) — the role="option" elements are NOT inside the modal's DOM
-      // subtree. Scope to page.
-      const option = this.page.getByRole('option', {
-        name: data.workItemPickerName,
-      });
-      await option.waitFor({ state: 'visible' });
-      await option.click();
-      // Modal is now at step 2 — wait for "Create Budget Line" to appear
-      await this.pickerCreateBudgetLineButton.waitFor({ state: 'visible' });
-    }
-
-    // Click "Create Budget Line" to open the BudgetLineForm
-    await this.pickerCreateBudgetLineButton.click();
-    await this.createFormDescriptionInput.waitFor({ state: 'visible' });
-
-    // Fill description
-    if (data.description) {
-      await this.createFormDescriptionInput.fill(data.description);
-    }
-
-    // Switch pricing mode if needed
-    const mode = data.mode ?? 'direct';
-    if (mode === 'unit') {
-      await this.createFormUnitModeButton.click();
-      if (data.quantity !== undefined) {
-        await this.createFormQuantityInput.fill(data.quantity);
-      }
-      if (data.unit !== undefined) {
-        await this.page.locator('#budget-unit').fill(data.unit);
-      }
-      if (data.unitPrice !== undefined) {
-        await this.createFormUnitPriceInput.fill(data.unitPrice);
-      }
-    } else {
-      if (data.amount !== undefined) {
-        await this.createFormDirectAmountInput.fill(data.amount);
-      }
-    }
   }
 }

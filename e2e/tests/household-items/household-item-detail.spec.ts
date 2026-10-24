@@ -121,8 +121,8 @@ test.describe('Edit button navigation (Scenario 3)', { tag: '@responsive' }, () 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Budget section visible (Story 4.6)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Budget section visible (Scenario 4 — Story 4.6)', { tag: '@responsive' }, () => {
-  test('Budget section is present on the household item detail page', async ({
+test.describe('Cost section visible (Scenario 4 — Story 4.6)', { tag: '@responsive' }, () => {
+  test('Cost section is present on the household item detail page', async ({
     page,
     testPrefix,
   }) => {
@@ -136,19 +136,15 @@ test.describe('Budget section visible (Scenario 4 — Story 4.6)', { tag: '@resp
       await page.goto(`/project/household-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
 
-      // The budget section heading should be visible
-      // HouseholdItemDetailPage renders a Budget section with h2
-      const budgetHeading = page.getByRole('heading', { name: /budget/i, level: 2 });
+      // The Cost section heading should be visible (#2235: the Budget section is now "Cost")
+      const budgetHeading = page.getByRole('heading', { name: 'Cost', exact: true, level: 2 });
       await expect(budgetHeading).toBeVisible({ timeout: 10000 });
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
     }
   });
 
-  test('"Add Budget Line" or similar button is visible in the budget section', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('"Add cost line" is visible in the cost section', async ({ page, testPrefix }) => {
     let createdId: string | null = null;
 
     try {
@@ -159,10 +155,8 @@ test.describe('Budget section visible (Scenario 4 — Story 4.6)', { tag: '@resp
       await page.goto(`/project/household-items/${createdId}`);
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible', timeout: 10000 });
 
-      // The budget section should have an "Add Budget Line" button
-      const addBudgetButton = page.getByRole('button', {
-        name: /add budget line|add line/i,
-      });
+      // The cost section has an "Add cost line" button
+      const addBudgetButton = page.getByRole('button', { name: 'Add cost line', exact: true });
       await expect(addBudgetButton).toBeVisible({ timeout: 10000 });
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);

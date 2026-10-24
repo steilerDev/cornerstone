@@ -60,13 +60,20 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: jest.fn(),
 }));
 
-// ─── Mock: InvoiceBudgetLinesSection stub ─────────────────────────────────────
-// Stub out the section to avoid cascading dependencies in InvoiceDetailPage tests
+// ─── Mock: CostLinesSection stub ──────────────────────────────────────────────
+// The section has its own tests; here it is a stub that exposes the props the page hands it.
 
-jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
-  InvoiceBudgetLinesSection: (props: {
-    invoiceId: string;
-    invoiceTotal: number;
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: (props: {
+    host: {
+      kind: string;
+      id: string;
+      label: string;
+      status: string;
+      amount: number;
+      vendorId: string | null;
+    };
+    onChanged: () => Promise<void> | void;
     linkState?: unknown;
   }) => {
     useEffect(() => {
@@ -75,10 +82,18 @@ jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
     return (
       <div
         data-testid="invoice-budget-lines-section"
-        data-invoice-id={props.invoiceId}
-        data-invoice-total={props.invoiceTotal}
+        data-host-kind={props.host.kind}
+        data-invoice-id={props.host.id}
+        data-invoice-total={props.host.amount}
+        data-invoice-status={props.host.status}
+        data-vendor-id={props.host.vendorId ?? ''}
+        data-label={props.host.label}
         data-link-state={JSON.stringify(props.linkState ?? null)}
-      />
+      >
+        <button type="button" onClick={() => void props.onChanged()}>
+          stub-changed
+        </button>
+      </div>
     );
   },
 }));
@@ -278,11 +293,19 @@ jest.unstable_mockModule('../../components/SearchPicker/SearchPicker.js', () => 
     initialTitle,
     id,
     createAction,
+    searchFn,
+    renderItem,
   }: {
     value: string;
     onChange: (id: string) => void;
     initialTitle?: string;
     id?: string;
+    searchFn?: (
+      query: string,
+      excluded: string[],
+      signal: AbortSignal,
+    ) => Promise<Array<{ id: string; name: string }>>;
+    renderItem?: (item: { id: string; name: string }) => { id: string; label: string };
     createAction?: {
       show?: string;
       getLabel: (query: string) => string;
@@ -306,6 +329,20 @@ jest.unstable_mockModule('../../components/SearchPicker/SearchPicker.js', () => 
             }
           >
             {createAction.getLabel('Brand New Co')}
+          </button>
+        )}
+        {searchFn && renderItem && (
+          <button
+            type="button"
+            data-testid={`search-picker-search-${id ?? 'default'}`}
+            onClick={() =>
+              void searchFn('Builder', [], new AbortController().signal).then((items) => {
+                const labels = items.map((item) => renderItem(item).label).join(',');
+                document.body.setAttribute('data-picker-labels', labels);
+              })
+            }
+          >
+            search
           </button>
         )}
         <input
@@ -695,31 +732,229 @@ describe('InvoiceDetailPage', () => {
     });
   });
 
-  describe('InvoiceBudgetLinesSection integration', () => {
-    it('renders InvoiceBudgetLinesSection after invoice loads', async () => {
+  describe('CostLinesSection integration (#2235)', () => {
+    it('renders the cost lines section in its own card after the invoice loads', async () => {
       renderPage();
 
+      const section = await screen.findByTestId('invoice-budget-lines-section');
+      expect(section.parentElement?.className).toContain('card');
+    });
+
+    it('hands the invoice as the document host', async () => {
+      renderPage(MOCK_INVOICE_ID);
+
+      const section = await screen.findByTestId('invoice-budget-lines-section');
+      expect(section).toHaveAttribute('data-host-kind', 'invoice');
+      expect(section).toHaveAttribute('data-invoice-id', MOCK_INVOICE_ID);
+      expect(section).toHaveAttribute('data-invoice-total', '1500');
+      expect(section).toHaveAttribute('data-invoice-status', 'pending');
+      expect(section).toHaveAttribute('data-vendor-id', 'vendor-1');
+      expect(section).toHaveAttribute('data-label', 'Acme Construction · INV-2026-001');
+    });
+
+    it('onChanged refreshes the invoice so the header figures follow', async () => {
+      renderPage();
+      await screen.findByTestId('invoice-budget-lines-section');
+      mockFetchInvoiceById.mockClear();
+
+      fireEvent.click(screen.getByRole('button', { name: 'stub-changed' }));
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(1));
+    });
+
+    it('onChanged swallows a failed refresh', async () => {
+      renderPage();
+      await screen.findByTestId('invoice-budget-lines-section');
+      mockFetchInvoiceById.mockRejectedValueOnce(new Error('boom'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'stub-changed' }));
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalled());
+      expect(screen.getByTestId('invoice-budget-lines-section')).toBeInTheDocument();
+    });
+  });
+
+  describe('edit modal fields and validation', () => {
+    async function openEdit(invoice: Invoice = mockInvoice) {
+      mockFetchInvoiceById.mockResolvedValue(invoice);
+      renderPage();
+      const edit = await screen.findByRole('button', { name: /^Edit$/i });
+      await act(async () => {
+        fireEvent.click(edit);
+      });
+      await screen.findByRole('heading', { name: 'Edit Invoice', level: 2 });
+    }
+
+    const submit = () => {
+      fireEvent.submit(screen.getByRole('button', { name: /^Save Changes$/i }).closest('form')!);
+    };
+
+    it('saves every edited field and closes the modal', async () => {
+      mockUpdateInvoice.mockResolvedValue({ ...mockInvoice, amount: 1750 });
+      await openEdit();
+
+      fireEvent.change(document.getElementById('edit-invoice-number') as HTMLInputElement, {
+        target: { value: ' INV-9 ' },
+      });
+      fireEvent.change(document.getElementById('edit-amount') as HTMLInputElement, {
+        target: { value: '1750' },
+      });
+      fireEvent.change(document.getElementById('edit-date') as HTMLInputElement, {
+        target: { value: '2026-03-01' },
+      });
+      fireEvent.change(document.getElementById('edit-due-date') as HTMLInputElement, {
+        target: { value: '2026-04-01' },
+      });
+      fireEvent.change(document.getElementById('edit-status') as HTMLSelectElement, {
+        target: { value: 'paid' },
+      });
+      fireEvent.change(document.getElementById('edit-notes') as HTMLTextAreaElement, {
+        target: { value: ' Pay by transfer ' },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+
       await waitFor(() =>
-        expect(screen.getByTestId('invoice-budget-lines-section')).toBeInTheDocument(),
+        expect(mockUpdateInvoice).toHaveBeenCalledWith('vendor-1', MOCK_INVOICE_ID, {
+          invoiceNumber: 'INV-9',
+          amount: 1750,
+          date: '2026-03-01',
+          dueDate: '2026-04-01',
+          status: 'paid',
+          notes: 'Pay by transfer',
+          vendorId: 'vendor-1',
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeNull(),
       );
     });
 
-    it('passes the invoice ID to InvoiceBudgetLinesSection', async () => {
-      renderPage(MOCK_INVOICE_ID);
+    it('sends null for a blank invoice number, due date and notes', async () => {
+      mockUpdateInvoice.mockResolvedValue(mockInvoice);
+      await openEdit({ ...mockInvoice, invoiceNumber: null, dueDate: null, notes: null });
 
-      await waitFor(() => {
-        const section = screen.getByTestId('invoice-budget-lines-section');
-        expect(section).toHaveAttribute('data-invoice-id', MOCK_INVOICE_ID);
+      expect(document.getElementById('edit-invoice-number') as HTMLInputElement).toHaveValue('');
+      expect(document.getElementById('edit-due-date') as HTMLInputElement).toHaveValue('');
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
       });
+
+      await waitFor(() =>
+        expect(mockUpdateInvoice).toHaveBeenCalledWith(
+          'vendor-1',
+          MOCK_INVOICE_ID,
+          expect.objectContaining({ invoiceNumber: null, dueDate: null, notes: null }),
+        ),
+      );
     });
 
-    it('passes the invoice amount as invoiceTotal to InvoiceBudgetLinesSection', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        const section = screen.getByTestId('invoice-budget-lines-section');
-        expect(section).toHaveAttribute('data-invoice-total', '1500');
+    it('rejects a non-positive amount with the amount message and sends nothing', async () => {
+      await openEdit();
+      fireEvent.change(document.getElementById('edit-amount') as HTMLInputElement, {
+        target: { value: '0' },
       });
+      submit();
+
+      expect(await screen.findByText('Amount must be a positive number.')).toBeInTheDocument();
+      expect(mockUpdateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('rejects a missing date with the date message', async () => {
+      await openEdit();
+      fireEvent.change(document.getElementById('edit-date') as HTMLInputElement, {
+        target: { value: '' },
+      });
+      submit();
+
+      expect(await screen.findByText('Invoice date is required.')).toBeInTheDocument();
+      expect(mockUpdateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('rejects a missing vendor with the vendor message', async () => {
+      await openEdit();
+      act(() => capturedSearchPickerOnChange?.(''));
+      submit();
+
+      expect(await screen.findByText('Please select a vendor')).toBeInTheDocument();
+      expect(mockUpdateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('prefills the notes and blurs the amount field on wheel', async () => {
+      await openEdit({ ...mockInvoice, notes: 'Pay on delivery' });
+
+      expect(document.getElementById('edit-notes')).toHaveValue('Pay on delivery');
+      const amount = document.getElementById('edit-amount') as HTMLInputElement;
+      amount.focus();
+      fireEvent.wheel(amount);
+      expect(amount).not.toHaveFocus();
+    });
+
+    it('Cancel closes the modal without saving', async () => {
+      await openEdit();
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeNull(),
+      );
+      expect(mockUpdateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('a vendor-not-found 404 on save shows the vendor copy', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'raw' }),
+      );
+      await openEdit();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(screen.queryByText(/^raw$/)).toBeNull();
+    });
+  });
+
+  describe('page states', () => {
+    it('Retry on the error card reloads the invoice', async () => {
+      mockFetchInvoiceById.mockRejectedValueOnce(new Error('offline'));
+      renderPage();
+      fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: /Acme Construction/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('Back to Invoices on the error card returns to the list', async () => {
+      mockFetchInvoiceById.mockRejectedValueOnce(new Error('offline'));
+      renderPage();
+      fireEvent.click(await screen.findByRole('button', { name: /Back to Invoices/i }));
+
+      expect(await screen.findByText('Invoice List Page')).toBeInTheDocument();
+    });
+
+    it('shows an en dash for a missing due date and creator', async () => {
+      mockFetchInvoiceById.mockResolvedValue({
+        ...mockInvoice,
+        dueDate: null,
+        createdBy: null,
+      });
+      renderPage();
+      await screen.findByRole('button', { name: /^Edit$/i });
+
+      expect(document.body.textContent).toContain('—');
+    });
+
+    it('Cancel in the delete dialog closes it', async () => {
+      renderPage();
+      await screen.findByRole('heading', { level: 1 });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      fireEvent.click(await screen.findByTestId('invoice-delete-cancel'));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     });
   });
 
@@ -1971,5 +2206,52 @@ describe('InvoiceDetailPage', () => {
       });
       await waitFor(() => expect(log.actions).toHaveLength(1));
     });
+  });
+});
+
+describe('route id and delete-in-flight guards', () => {
+  it('redirects to the invoice list when the route has no id', async () => {
+    render(
+      <MemoryRouter initialEntries={['/no-id']}>
+        <Routes>
+          <Route path="/no-id" element={<InvoiceDetailPage />} />
+          <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Invoice List Page')).toBeInTheDocument();
+    expect(mockFetchInvoiceById).not.toHaveBeenCalled();
+  });
+
+  it('ignores Cancel and Escape while the delete request is running', async () => {
+    mockDeleteInvoice.mockImplementation(() => new Promise(() => {}));
+    renderPage();
+    await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+    });
+    await screen.findByRole('alertdialog');
+    await act(async () => {
+      fireEvent.click(await enabledConfirm('invoice-delete'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('invoice-delete-cancel'));
+      fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+    });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('the edit vendor picker searches companies and renders their names', async () => {
+    mockFetchVendors.mockResolvedValue({
+      vendors: [{ id: 'vendor-2', name: 'Builder Co' } as Vendor],
+      pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+    });
+    renderPage();
+    await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+    screen.getByRole('button', { name: /^Edit$/i }).click();
+    fireEvent.click(await screen.findByTestId('search-picker-search-edit-vendor'));
+    await waitFor(() =>
+      expect(document.body.getAttribute('data-picker-labels')).toBe('Builder Co'),
+    );
   });
 });

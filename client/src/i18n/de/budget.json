@@ -260,18 +260,7 @@
       "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut."
     }
   },
-  "budgetLine": {
-    "edit": "Bearbeiten",
-    "delete": "Löschen",
-    "editAria": "Kostenposition bearbeiten",
-    "editAriaNamed": "Kostenposition bearbeiten: {{description}}",
-    "item": "Kostenposition",
-    "deleteAria": "{{item}} löschen",
-    "deleteAriaNamed": "{{item}} löschen: {{description}}"
-  },
   "budgetSection": {
-    "noBudgetLines": "Noch keine Kostenpositionen. Füge die erste hinzu, um Kosten zu erfassen.",
-    "linkToInvoice": "Mit Rechnung verknüpfen",
     "subsidies": "Förderprogramme"
   },
   "vendorDetail": {
@@ -342,8 +331,6 @@
       "noNumber": "diese Rechnung"
     },
     "quotedLabel": "Angebot",
-    "quotedAmount": "Angebotsbetrag",
-    "invoicedAmount": "Rechnungsbetrag",
     "invoiceTable": {
       "invoiceNumber": "Rechnung #",
       "amount": "Betrag",
@@ -368,8 +355,7 @@
       "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut.",
       "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
-    },
-    "unlinkFromInvoice": "Von Rechnung trennen"
+    }
   },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
@@ -428,87 +414,15 @@
       "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Budgetpositionen."
     },
     "budgetLines": {
-      "createFormLegend": "Neue Budgetposition erstellen",
       "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt",
-      "sectionTitle": "Budgetpositionen",
-      "addButton": "Budgetposition hinzufügen",
-      "loading": "Budgetpositionen werden geladen…",
-      "empty": {
-        "message": "Keine Budgetpositionen verknüpft",
-        "description": "Verknüpfe Budgetpositionen, um Teile dieser Rechnung bestimmten Arbeitspaketen oder Haushaltsartikeln zuzuordnen."
-      },
       "countLabel_one": "{{count}} Budgetposition verknüpft",
       "countLabel_other": "{{count}} Budgetpositionen verknüpft",
-      "columns": {
-        "description": "Beschreibung",
-        "category": "Kategorie",
-        "planned": "Geplant",
-        "itemized": "Aufgeschlüsselt",
-        "linkedItem": "Verknüpftes Element",
-        "actions": "Aktionen",
-        "remaining": "Verbleibend"
-      },
-      "menu": {
-        "edit": "Bearbeiten",
-        "remove": "Entfernen",
-        "ariaLabel": "Aktionen für Budgetposition {{description}}"
-      },
-      "modal": {
-        "editTitle": "Budgetposition bearbeiten",
-        "removeTitle": "Diese Kostenposition aus der Rechnung entfernen?",
-        "removeConfirm": "Diese Budgetposition wird von der Rechnung getrennt. Die Budgetposition selbst verbleibt im Arbeitspaket oder Haushaltsartikel.",
-        "removeConfirmButton": "Entfernen",
-        "removing": "Wird entfernt…"
-      },
       "form": {
         "itemizedAmount": "Aufgeschlüsselter Betrag",
         "saving": "Wird gespeichert…",
         "required": "*"
       },
-      "editError": {
-        "amountInvalid": "Betrag muss eine nicht-negative Zahl sein.",
-        "exceedsTotal": "Der neue Betrag würde den Rechnungsgesamtbetrag überschreiten.",
-        "saveFailed": "Budgetposition konnte nicht aktualisiert werden. Bitte versuche es erneut."
-      },
-      "picker": {
-        "title": "Budgetposition hinzufügen",
-        "step2Title": "Budgetposition für {{itemTitle}} auswählen",
-        "closeAriaLabel": "Budgetpositions-Auswahl schließen",
-        "workItemTab": "Arbeitspaket",
-        "householdItemTab": "Haushaltsartikel",
-        "separator": "oder",
-        "loadingLines": "Budgetpositionen werden geladen…",
-        "noUnlinkedLines": "Keine nicht verknüpften Budgetpositionen für dieses Element.",
-        "createLine": "Budgetposition erstellen",
-        "unnamedBudgetLine": "Unbenannte Budgetposition",
-        "plannedLabel": "Geplant: {{amount}}",
-        "itemizedAmountAriaLabel": "Aufgeschlüsselter Betrag für {{description}}",
-        "budgetLineGeneric": "Budgetposition",
-        "remainingToAllocate": "Noch zuzuordnen:",
-        "addSelectedLines": "Ausgewählte Positionen hinzufügen",
-        "backButton": "← Zurück",
-        "loadError": "Budgetpositionen konnten nicht geladen werden.",
-        "loadFormError": "Formulardaten konnten nicht geladen werden.",
-        "error": {
-          "plannedAmountInvalid": "Geplanter Betrag muss eine gültige nicht-negative Zahl sein.",
-          "quantityInvalid": "Menge muss eine gültige positive Zahl sein.",
-          "unitPriceInvalid": "Stückpreis muss eine gültige nicht-negative Zahl sein.",
-          "exceedsTotal": "Das Verknüpfen dieser Budgetposition würde den Rechnungsgesamtbetrag überschreiten.",
-          "alreadyLinked": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
-          "linkFailed": "Budgetposition konnte nicht verknüpft werden. Bitte versuche es erneut.",
-          "createFailed": "Budgetposition konnte nicht erstellt werden."
-        },
-        "selectAriaLabel": "{{description}} auswählen"
-      },
-      "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
-      "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuche es erneut.",
-      "dismissError": "Schließen",
       "dismissErrorAriaLabel": "Fehler schließen",
-      "unassigned": "Nicht zugewiesen",
-      "unassignedAriaLabel": "Nicht zugewiesen – kein Arbeitspaket oder Haushaltsartikel verknüpft",
-      "assignButton": "Zuweisen…",
-      "assigningButton": "Wird zugewiesen…",
-      "assignAriaLabel": "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen",
       "assignedSuccess": "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen",
       "assignParentRequired": "Bitte wähle ein Arbeitspaket oder einen Haushaltsartikel aus"
     },
@@ -770,80 +684,6 @@
       "deleted": "Förderprogramm „{{name}}“ erfolgreich gelöscht"
     }
   },
-  "budgetLineForm": {
-    "assignButton": "Zuweisen",
-    "descriptionLabel": "Beschreibung",
-    "descriptionPlaceholder": "Optionale Beschreibung",
-    "modeDirect": "Direktbetrag",
-    "modeUnit": "Einheitspreise",
-    "plannedAmountLabel": "Geplanter Betrag ({{currencySymbol}}) *",
-    "quantityLabel": "Menge *",
-    "unitLabel": "Einheit",
-    "unitPlaceholder": "z. B. m², Stk.",
-    "priceLabel": "Preis *",
-    "totalLabel": "Gesamt",
-    "includesVatLabel": "Preis inkl. MwSt. ({{vatRate}}%)",
-    "vatNote": "+{{vatRate}}% MwSt. wird zum Gesamtbetrag hinzugefügt",
-    "confidenceLabel": "Konfidenz",
-    "categoryLabel": "Kategorie",
-    "categoryNone": "Keine",
-    "fundingSourceLabel": "Finanzierungsquelle",
-    "vendorLabel": "Auftragnehmer",
-    "vendorNone": "Keiner",
-    "submitSaving": "Wird gespeichert...",
-    "submitSave": "Änderungen speichern",
-    "submitAdd": "Position hinzufügen",
-    "cancel": "Abbrechen",
-    "parentPickerLabel": "Zuweisen zu",
-    "parentPickerWorkItemTab": "Arbeitspaket",
-    "parentPickerHouseholdItemTab": "Haushaltsartikel",
-    "parentPickerSeparator": "oder",
-    "parentPickerFieldsetLegend": "Arbeitspaket oder Haushaltsartikel zuweisen",
-    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuche es erneut.",
-    "linkedItemLegend": "Verknüpftes Element",
-    "changeParentButton": "Ändern",
-    "cancelChangeParentButton": "Abbrechen",
-    "moveButton": "Zum ausgewählten Element verschieben",
-    "movingButton": "Wird verschoben…",
-    "moveCrossTableHint": "Das Verschieben zu einem Haushaltsartikel überträgt diese Budgetposition in das Haushaltsartikelbudget.",
-    "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
-    "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entferne entweder die Verschiebung oder verknüpfe diese Budgetposition zuerst mit einer Rechnung.",
-    "addBudgetLineAriaLabel": "Budgetposition hinzufügen",
-    "errors": {
-      "saveFailed": "Budgetposition konnte nicht gespeichert werden. Bitte versuche es erneut.",
-      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuche es erneut."
-    }
-  },
-  "invoiceLinkModal": {
-    "title": "Mit Rechnung verknüpfen",
-    "cancel": "Abbrechen",
-    "linkButton": "Mit Rechnung verknüpfen",
-    "linking": "Wird verknüpft...",
-    "invoiceLabel": "Rechnung",
-    "loading": "Rechnungen werden geladen...",
-    "emptyState": "Keine Rechnungen verfügbar",
-    "searchPlaceholder": "Nach Rechnungsnummer oder Beschreibung suchen...",
-    "noMatches": "Keine Rechnungen entsprechen deiner Suche",
-    "amountLabel": "Aufgeschlüsselter Betrag",
-    "overAvailable": "{{amount}} über verfügbar",
-    "willRemain": "{{amount}} verbleiben",
-    "availableOnInvoice": "{{amount}} auf dieser Rechnung verfügbar",
-    "overAllocated": "Überzogen um {{amount}}",
-    "fullyAllocated": "Vollständig zugeordnet – nichts mehr zu verknüpfen",
-    "nothingLeftToLink": "Nichts mehr zu verknüpfen",
-    "invoiceFallbackLabel": "Rechnung {{id}}",
-    "successToast": "Budgetposition erfolgreich mit Rechnung verknüpft",
-    "errors": {
-      "loadFailed": "Rechnungen konnten nicht geladen werden. Bitte versuche es erneut.",
-      "selectInvoice": "Bitte wähle eine Rechnung aus",
-      "invalidAmount": "Bitte gib einen gültigen Betrag ein",
-      "exceedsBalance": "Betrag übersteigt den verfügbaren Saldo ({{amount}} verfügbar)",
-      "alreadyLinked": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft",
-      "exceedsInvoiceTotal": "Der aufgeschlüsselte Betrag übersteigt den Rechnungsgesamtbetrag",
-      "unexpected": "Ein unerwarteter Fehler ist aufgetreten"
-    }
-  },
   "health": {
     "overBudget": "Über Budget",
     "atRisk": "Gefährdet",
@@ -1021,44 +861,8 @@
     "modeReplace": "Bestehende Positionen ersetzen",
     "extractedLines": "Extrahierte Positionen",
     "discretionaryFundingNote": "Neue Positionen werden aus deiner Diskretionären Finanzierungsquelle finanziert. Du kannst die Finanzierungsquelle für jede Position unten neu zuweisen.",
-    "lineItemsListLabel": "Extrahierte Positionen",
-    "included": "Einbeziehen",
-    "description": "Beschreibung",
-    "quantity": "Menge",
-    "unit": "Einheit",
-    "unitPrice": "Stückpreis",
     "amount": "Betrag",
-    "includesVat": "Preis inkl. MwSt.",
-    "assignTo": "Zuweisen an",
-    "editDescriptionAriaLabel": "Beschreibung der Position bearbeiten",
-    "editQuantityAriaLabel": "Menge der Position bearbeiten",
-    "editUnitAriaLabel": "Einheit der Position bearbeiten",
-    "editUnitPriceAriaLabel": "Stückpreis der Position bearbeiten",
-    "editTotalAmountAriaLabel": "Gesamtbetrag der Position bearbeiten",
-    "confidenceLabel": "Konfidenz: {{pct}}%",
-    "assignButton": "Zuweisen…",
-    "assigned": "Zugewiesen",
-    "createdFromAutoItemization": "Automatisch erstellt",
-    "creatingNew": "(Neu)",
-    "clearAssignmentAriaLabel": "Budgetposition-Zuweisung löschen",
-    "linkedLineReadOnlyHint": "Das Verknüpfen behält Kategorie, Finanzierungsquelle und geplanten Betrag dieser Budgetposition unverändert.",
-    "plannedAmountLabel": "Geplanter Betrag",
-    "linkedLinePlannedNet": "{{amount}} (ohne MwSt.)",
-    "linkedLineNotSet": "Nicht gesetzt",
-    "itemizedAmountLabel": "Rechnungsbetrag (inkl. MwSt.)",
-    "changeAssignment": "Ändern…",
-    "changeAssignmentAriaLabel": "Verknüpfte Budgetposition ändern",
-    "categoryLabel": "Kategorie",
-    "categoryPlaceholder": "Kategorie auswählen",
-    "categoryAriaLabel": "Budgetkategorie für Position auswählen",
-    "fundingSourceLabel": "Finanzierungsquelle",
-    "fundingSourceAriaLabel": "Finanzierungsquelle für Position auswählen",
     "categoryRequiredError": "Bitte wähle für alle einbezogenen Positionen eine Kategorie aus",
-    "pickerTitle": "Einem Arbeitspaket oder Haushaltsartikel zuweisen",
-    "pickerStep2Title": "Budgetposition auswählen für {{itemTitle}}",
-    "pickerSelectTypeLabel": "Artikeltyp auswählen:",
-    "pickerWorkItemType": "Arbeitspaket",
-    "pickerHouseholdItemType": "Haushaltsartikel",
     "total": "Gesamt",
     "varianceMatch": "✓ Betrag stimmt mit Rechnungsgesamtbetrag überein",
     "varianceWarning": "⚠ {{amount}} Abweichung (innerhalb der Toleranz)",
@@ -1082,33 +886,25 @@
     "createAndItemize": "Rechnung erstellen & aufschlüsseln",
     "extractionStarted": "Dokument wird mit KI analysiert…",
     "extractionComplete": "Extraktion abgeschlossen. Bitte prüfe die vorgeschlagenen Positionen.",
-    "lineItems": "Positionen",
     "noLineItems": "Keine Positionen extrahiert",
-    "creatingNewBadge": "Wird erstellt",
-    "inlineFormLabel": "Details der neuen Budgetposition",
-    "discardInlineDraft": "Verwerfen",
     "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigiere dies vor dem Speichern.",
     "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuche es erneut.",
-    "inlineDraftLinkFailed": "Budgetposition konnte nicht mit der Rechnung verknüpft werden.",
-    "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfe dies und verknüpfe es manuell.",
-    "selectForMergeAriaLabel": "„{{description}}“ zum Zusammenführen auswählen",
-    "selectionDisabledAssignedAriaLabel": "Bereits zugewiesen – kann nicht zum Zusammenführen ausgewählt werden",
     "mergeSelectedCount_one": "{{count}} ausgewählt",
     "mergeSelectedCount_other": "{{count}} ausgewählt",
     "clearSelection": "Auswahl aufheben",
     "mergeButton": "Zusammenführen",
     "mergeButtonAriaLabel": "{{count}} ausgewählte Positionen zusammenführen",
     "mergeDisabledHint": "Wähle mindestens 2 Positionen zum Zusammenführen aus",
-    "mergingLabel": "Positionen werden zusammengeführt",
     "mergingCaption": "{{count}} Positionen werden zusammengeführt…",
     "mergeAnnounceStart": "{{count}} Positionen werden zusammengeführt…",
     "mergeAnnounceSuccess": "Positionen zusammengeführt",
     "mergeErrorMessage": "Diese Positionen konnten nicht zusammengeführt werden.",
-    "mergeErrorBadge": "Zusammenführen fehlgeschlagen",
     "mergeRetryButton": "Erneut versuchen",
     "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen",
     "invoiceNumberPlaceholder": "z. B. RE-001",
-    "notesPlaceholder": "Optionale Notizen"
+    "notesPlaceholder": "Optionale Notizen",
+    "aiCertainty": "KI-Sicherheit {{percent}}%",
+    "selectLinkedReason": "Eine Position, die mit einer bestehenden Kostenposition verknüpft ist, kann nicht zusammengeführt werden."
   },
   "sourceReports": {
     "subtitle": "Finanzberichte für Budgetquellen erstellen",
@@ -1401,13 +1197,7 @@
     "remove": "Entfernen",
     "close": "Schließen",
     "submit": "Absenden",
-    "required": "*",
-    "budgetSectionTitle": "Budget"
-  },
-  "invoiceGroup": {
-    "planned": "Geplant",
-    "ariaLabel_one": "{{invoice}}: {{count}} Kostenposition für diesen Eintrag, {{amount}} {{amountLabel}}",
-    "ariaLabel_other": "{{invoice}}: {{count}} Kostenpositionen für diesen Eintrag, {{amount}} {{amountLabel}}"
+    "required": "*"
   },
   "companies": {
     "list": {

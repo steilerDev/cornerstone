@@ -12,11 +12,11 @@ Household items let you track furniture, appliances, fixtures, and other purchas
 The household items system provides:
 
 - **Item Management** -- Create, edit, and track household purchases with categories, statuses, vendors, rooms, quantities, and product URLs
-- **Budget Integration** -- Add budget lines with confidence levels, budget categories, and financing sources -- household item costs appear in the project-wide budget overview
+- **Budget Integration** -- Add cost lines with a basis, cost categories, and financing sources -- household item costs appear in the project-wide budget overview
 - **Work Item Linking** -- Link household items to work items for installation coordination (e.g., "Kitchen sink" depends on "Plumbing rough-in")
 - **Delivery Scheduling** -- Track order dates, delivery windows (earliest/latest), actual delivery dates, and late detection
 - **Timeline Dependencies** -- Add dependencies on work items and milestones so delivery dates integrate with the project Gantt chart
-- **Invoice Linking** -- Link vendor invoices to household item budget lines to track actual costs
+- **Invoice Linking** -- Link vendor offers and invoices to household item cost lines to track actual costs
 - **Document Linking** -- Attach documents from [Paperless-ngx](/guides/documents) (product specs, receipts, warranties) to household items
 - **Areas & Notes** -- Assign items to project areas and add timestamped notes
 - **Subsidy Support** -- Apply subsidy programs to household item costs for budget reduction

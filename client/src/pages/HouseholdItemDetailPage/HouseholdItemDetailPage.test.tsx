@@ -68,6 +68,11 @@ class MockApiClientError extends Error {
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 // useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+// The cost lines section has its own tests; it is not under test here.
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: () => null,
+}));
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
   const localeValue = {
     locale: 'en',
@@ -1325,7 +1330,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.getByTestId('entity-id')).toHaveTextContent('item-abc');
     });
 
-    it('renders the Documents panel button after the Budget section', async () => {
+    it('renders the Documents panel button after the Cost section', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1336,10 +1341,10 @@ describe('HouseholdItemDetailPage', () => {
 
       const budgetHeading = screen
         .getAllByRole('heading', { level: 2 })
-        .find((heading) => heading.textContent === 'Budget');
+        .find((heading) => heading.textContent === 'Cost');
       const button = screen.getByTestId('documents-panel-button');
       expect(budgetHeading).toBeDefined();
-      // Documents come after Budget in document order (the button replaces the old section).
+      // Documents come after Cost in document order (the button replaces the old section).
       expect(
         (budgetHeading as HTMLElement).compareDocumentPosition(button) &
           Node.DOCUMENT_POSITION_FOLLOWING,

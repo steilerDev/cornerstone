@@ -703,3 +703,42 @@
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+/* ============================================================
+ * Cost section
+ * ============================================================ */
+
+.costTitle {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.costErrorBanner {
+  composes: bannerRow from '../../styles/shared.module.css';
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-3);
+}
+
+.costErrorClose {
+  composes: bannerClose from '../../styles/shared.module.css';
+}
+
+.grantsSubsection {
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.subsectionTitle {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}

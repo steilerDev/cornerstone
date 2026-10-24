@@ -1,4 +1,4 @@
-import type { ConfidenceLevel, BaseBudgetLine } from '@cornerstone/shared';
+import type { BaseBudgetLine } from '@cornerstone/shared';
 import {
   CONFIDENCE_MARGINS,
   effectivePlannedAmount,
@@ -7,16 +7,6 @@ import {
 
 // Re-export for convenience in client code
 export { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount };
-
-/**
- * Human-readable labels for confidence levels used in budget forms and displays.
- */
-export const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
-  own_estimate: 'Own Estimate',
-  professional_estimate: 'Professional Estimate',
-  quote: 'Quote',
-  invoice: 'Invoice',
-};
 
 /**
  * Budget totals computed from a list of budget lines.
@@ -29,12 +19,12 @@ export interface BudgetTotals {
   totalMaxPlanned: number;
   hasPlannedRange: boolean;
   allInvoiced: boolean;
-  allQuotation: boolean;
 }
 
 /**
  * Computes aggregate budget totals from a list of budget lines.
- * Applies confidence margins to non-invoiced lines to compute min/max range.
+ * Applies confidence margins to lines without an offer or invoice to compute the min/max range.
+ * A linked line counts its itemized amount at face value (ADR-039 §2): no spread for offers.
  *
  * @param budgetLines - Array of budget line objects
  * @param vatRate - VAT rate as a fraction (e.g. 0.19), from LocaleContext
@@ -45,28 +35,19 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[], vatRate: numb
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   const totalMinPlanned = budgetLines.reduce((sum, b) => {
-    if (b.invoiceCount > 0) {
-      if (b.invoiceLink?.invoiceStatus === 'quotation') return sum + b.actualCost * 0.95;
-      return sum + b.actualCost;
-    }
-    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    if (b.invoiceCount > 0) return sum + b.actualCost;
+    const margin = CONFIDENCE_MARGINS[b.confidence];
     return sum + effectivePlannedAmount(b, vatRate) * (1 - margin);
   }, 0);
 
   const totalMaxPlanned = budgetLines.reduce((sum, b) => {
-    if (b.invoiceCount > 0) {
-      if (b.invoiceLink?.invoiceStatus === 'quotation') return sum + b.actualCost * 1.05;
-      return sum + b.actualCost;
-    }
-    const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
+    if (b.invoiceCount > 0) return sum + b.actualCost;
+    const margin = CONFIDENCE_MARGINS[b.confidence];
     return sum + effectivePlannedAmount(b, vatRate) * (1 + margin);
   }, 0);
 
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
   const allInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
-  // If all lines are quotation-linked, we still have a range — don't collapse
-  const allQuotation =
-    allInvoiced && budgetLines.every((b) => b.invoiceLink?.invoiceStatus === 'quotation');
 
   return {
     totalPlanned,
@@ -75,6 +56,5 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[], vatRate: numb
     totalMaxPlanned,
     hasPlannedRange,
     allInvoiced,
-    allQuotation,
   };
 }

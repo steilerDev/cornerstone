@@ -427,6 +427,13 @@
     "unexpected": "An unexpected error occurred. Please try again."
   },
   "statusVocabulary": {
+    "costLine": {
+      "estimate": "Estimate",
+      "offered": "Offered",
+      "invoiced": "Invoiced",
+      "paid": "Paid",
+      "submitted": "Submitted"
+    },
     "invoice": {
       "pending": "To pay",
       "paid": "Paid",

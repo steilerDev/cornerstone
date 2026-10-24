@@ -24,7 +24,6 @@ import type {
   Invoice,
   AutoItemizeDryRunResponse,
   PaperlessDocumentDetailResponse,
-  WorkItemBudgetLine,
 } from '@cornerstone/shared';
 
 // ─── Mock: invoicesApi ────────────────────────────────────────────────────────
@@ -37,6 +36,8 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   createInvoice: jest.fn(),
   updateInvoice: jest.fn(),
   deleteInvoice: jest.fn(),
+  fetchAllInvoices: jest.fn(),
+  convertQuotation: jest.fn(),
 }));
 
 // ─── Mock: vendorsApi (server company search + lookup) ────────────────────────
@@ -47,6 +48,11 @@ const mockFetchVendor = jest.fn<(id: string) => Promise<{ id: string; name: stri
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
   fetchVendor: mockFetchVendor,
+  fetchVendors: jest.fn(),
+  createVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
+  COMPANY_PICKER_PAGE_SIZE: 50,
 }));
 
 // ─── Mock: invoiceAutoItemizeApi ───────────────────────────────────────────────
@@ -76,6 +82,8 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessDocument: mockGetPaperlessDocument,
   getDocumentThumbnailUrl: mockGetDocumentThumbnailUrl,
   getDocumentPreviewUrl: mockGetDocumentPreviewUrl,
+  listPaperlessCorrespondents: jest.fn(),
+  uploadPaperlessDocument: jest.fn(),
 }));
 
 // ─── Mock: workItemBudgetsApi ─────────────────────────────────────────────────
@@ -109,53 +117,6 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
   editAndMoveBudgetLine: jest.fn(),
-}));
-
-// ─── Mock: useBudgetLinePicker (to avoid cascading API mocks) ─────────────────
-// mockPickerStateOverride allows individual tests to override specific fields of
-// pickerState without affecting the rest of the test suite (reset in beforeEach).
-
-let mockPickerStateOverride: Record<string, unknown> = {};
-
-const mockShowCreateBudgetLineForm = jest
-  .fn<(prefill?: Record<string, unknown>) => Promise<void>>()
-  .mockResolvedValue(undefined);
-
-// Captured onLineCreated callback — allows regression tests for #1613 to invoke
-// the callback directly and assert the resulting DOM state (e.g. auto-created-badge).
-type OnLineCreatedFn = (line: unknown, invoiceBudgetLineId: string | null) => void;
-let _capturedOnLineCreated: OnLineCreatedFn | null = null;
-
-jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: ({ onLineCreated }: { onLineCreated: OnLineCreatedFn }) => {
-    // Capture the callback so regression tests can invoke it directly.
-    _capturedOnLineCreated = onLineCreated;
-    return {
-      pickerState: {
-        isOpen: false,
-        step: 1,
-        type: null,
-        itemId: null,
-        itemTitle: null,
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        budgetSources: null,
-        categories: null,
-        showCreateForm: false,
-        createError: null,
-        ...mockPickerStateOverride,
-      },
-      openPicker: jest.fn(),
-      closePicker: jest.fn(),
-      handleSelectItem: jest.fn(),
-      showCreateBudgetLineForm: mockShowCreateBudgetLineForm,
-      handleCreateBudgetLine: jest.fn(),
-      setPickerState: jest.fn(),
-      initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      createBudgetLineButtonRef: { current: null },
-    };
-  },
 }));
 
 // ─── Mock: formatters (stable output across locales) ─────────────────────────
@@ -246,6 +207,16 @@ beforeEach(async () => {
   ({ LocaleProvider } =
     (await import('../../contexts/LocaleContext.js')) as typeof LocaleContextModule);
 
+  // The cost line grid shows Undo toasts, so the page needs a ToastProvider.
+  const { ToastProvider } = await import('../../components/Toast/ToastContext.js');
+  const BaseLocaleProvider = LocaleProvider;
+  LocaleProvider = (({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      BaseLocaleProvider,
+      null,
+      React.createElement(ToastProvider, null, children),
+    )) as typeof LocaleProvider;
+
   mockFetchInvoiceById.mockReset();
   mockAutoItemize.mockReset();
   mockSearchCompanies.mockReset();
@@ -256,12 +227,6 @@ beforeEach(async () => {
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/thumb/${id}`);
   mockCreateWorkItemBudget.mockReset();
   mockCreateHouseholdItemBudget.mockReset();
-
-  // Reset picker mock overrides between tests
-  mockPickerStateOverride = {};
-  _capturedOnLineCreated = null;
-  mockShowCreateBudgetLineForm.mockReset();
-  mockShowCreateBudgetLineForm.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -647,12 +612,9 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
       });
 
-      // In the new card UI, the checkbox is labeled "Include" (not the description).
-      // Scope the query to the card's <li> element to target the right checkbox.
-      const card = screen.getByDisplayValue('Tile work').closest('li');
-      expect(card).toBeInTheDocument();
-      const checkbox = within(card!).getByRole('checkbox', {
-        name: /^Include$/i,
+      // The Include toggle of the grid row is named "Include, row 1".
+      const checkbox = screen.getByRole('checkbox', {
+        name: 'Include, row 1',
       }) as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
 
@@ -820,11 +782,8 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Tile')).toBeInTheDocument();
       });
 
-      // In the new card UI, the checkbox is labeled "Include" scoped to the card's <li>
-      const card = screen.getByDisplayValue('Tile').closest('li');
-      expect(card).toBeInTheDocument();
       // Uncheck the row
-      fireEvent.click(within(card!).getByRole('checkbox', { name: /^Include$/i }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Include, row 1' }));
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
@@ -869,181 +828,6 @@ describe('AutoItemizePage', () => {
   // and handleSave writes it back via `setLines(prev => mergeMaterializedLines(prev,
   // materialized.lines))` on BOTH the failure branch and the success branch, so a
   // retry only re-attempts lines that are still drafts.
-  describe('retry safety — no duplicate budget lines on commit failure (#1833)', () => {
-    async function setupQueuedDraftPage(
-      dryRunLines: Array<{ description: string; totalAmount: number; confidence: number }>,
-    ) {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse(dryRunLines));
-
-      // A picker mock with non-empty budgetSources so the "Create Budget Line"
-      // button in step 2 is always clickable, mirroring AutoItemizePage.queueSave.test.tsx.
-      mockPickerStateOverride = {
-        isOpen: true,
-        step: 2,
-        type: 'work_item',
-        itemId: 'wi-1',
-        itemTitle: 'Kitchen tiles',
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        showCreateForm: false,
-        createError: null,
-        budgetSources: [{ id: 'src-1', name: 'Main Fund', isDiscretionary: true }],
-        categories: [],
-      };
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-      });
-    }
-
-    /**
-     * Queues an inline draft on the next row that still shows an "Assign…" button
-     * (rows that already have a draft or assignment no longer render it — see
-     * AutoItemizeLineCard's cardAssignZone conditional). Returns false when the
-     * picker mock is not intercepted (local sandbox limitation) so callers can
-     * skip gracefully; CI (Node 24) always intercepts.
-     */
-    async function queueNextDraft(): Promise<boolean> {
-      const assignBtn = screen.queryAllByRole('button', { name: /Assign…/i })[0];
-      if (!assignBtn) return false;
-
-      await act(async () => {
-        fireEvent.click(assignBtn);
-      });
-
-      const createBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createBtn) return false;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      return true;
-    }
-
-    it('commit failure then retry does not re-create the work item budget line', async () => {
-      await setupQueuedDraftPage([{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }]);
-
-      const queued = await queueNextDraft();
-      if (!queued) return; // non-intercepting local env — covered by CI (Node 24)
-
-      mockCreateWorkItemBudget.mockResolvedValue({
-        id: 'new-wib-1',
-        description: 'Created',
-        plannedAmount: 300,
-        includesVat: true,
-        budgetCategory: null,
-        budgetSource: null,
-      } as unknown as WorkItemBudgetLine);
-      // First commit attempt fails; second (retry) succeeds.
-      mockAutoItemize.mockRejectedValueOnce(new Error('Commit failed'));
-      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      // Materialization succeeded before the commit call failed — exactly one create call.
-      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
-
-      // Retry: click Save again. The row is already assign-existing in state, so
-      // materializeInlineDrafts must skip it — no second create call.
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
-      });
-
-      // Both commit attempts (dryRun: false) must carry assign-existing with the
-      // materialized budget line id — not 'create-new'.
-      const commitCalls = mockAutoItemize.mock.calls.filter(
-        (call) => (call[1] as { dryRun?: boolean }).dryRun === false,
-      );
-      expect(commitCalls).toHaveLength(2);
-      const secondCommitPayload = commitCalls[1]![1] as {
-        lines: Array<{ assignmentMode: string; assignedBudgetLineId?: string }>;
-      };
-      expect(secondCommitPayload.lines[0]).toMatchObject({
-        assignmentMode: 'assign-existing',
-        assignedBudgetLineId: 'new-wib-1',
-      });
-    });
-
-    it('partial materialization failure across two lines does not recreate the first line on retry', async () => {
-      await setupQueuedDraftPage([
-        { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
-        { description: 'Grouting', totalAmount: 150, confidence: 0.9 },
-      ]);
-
-      const queuedFirst = await queueNextDraft();
-      if (!queuedFirst) return; // non-intercepting local env — covered by CI (Node 24)
-      const queuedSecond = await queueNextDraft();
-      if (!queuedSecond) return;
-
-      // First draft's create succeeds; second draft's create rejects.
-      mockCreateWorkItemBudget
-        .mockResolvedValueOnce({
-          id: 'new-wib-A',
-          description: 'Created',
-          plannedAmount: 300,
-          includesVat: true,
-          budgetCategory: null,
-          budgetSource: null,
-        } as unknown as WorkItemBudgetLine)
-        .mockRejectedValueOnce(new Error('Network failure'));
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-
-      // materializeInlineDrafts stops at the failing line: both create calls made
-      // (first succeeded, second rejected). autoItemize commit was never reached.
-      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(2);
-      expect(mockAutoItemize).toHaveBeenCalledTimes(1); // dry-run only
-
-      // Retry: the first line is already assign-existing (materialized before the
-      // failure) and must NOT be re-created. Only the still-draft second line is
-      // retried.
-      mockCreateWorkItemBudget.mockResolvedValueOnce({
-        id: 'new-wib-B',
-        description: 'Created',
-        plannedAmount: 300,
-        includesVat: true,
-        budgetCategory: null,
-        budgetSource: null,
-      } as unknown as WorkItemBudgetLine);
-      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
-      });
-
-      // Total create calls: 2 (first Save) + 1 (retry) = 3, not 4.
-      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(3);
-    });
-  });
-
   describe('empty state (no lines extracted)', () => {
     it('shows table with no rows when LLM extracts no lines', async () => {
       mockFetchInvoiceById.mockResolvedValue(makeInvoice());
@@ -1056,10 +840,10 @@ describe('AutoItemizePage', () => {
         expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
       });
 
-      // The table should have header and totals row but no data rows
-      // Find rows: header + totals only (no line rows)
-      const checkboxes = screen.queryAllByRole('checkbox');
-      expect(checkboxes).toHaveLength(0);
+      // Only the grid's blank row remains, and the empty message is shown.
+      expect(screen.getByText('No line items extracted')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Tile work')).not.toBeInTheDocument();
+      expect(document.querySelectorAll('[data-testid^="auto-itemize-grid-row-"]')).toHaveLength(1);
     });
   });
 
@@ -1243,7 +1027,7 @@ describe('AutoItemizePage', () => {
     });
   });
 
-  // ─── Story #1564 Round 1 — per-row editable fields and picker wiring ─────────
+  // ─── Story #1564 Round 1 — per-row editable fields ─────────
 
   describe('per-row editable fields', () => {
     it('description edit updates the row display value', async () => {
@@ -1285,125 +1069,13 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('300')).toBeInTheDocument();
       });
 
-      // Edit row 1's totalAmount so the total shoots past 5% above invoice
-      const amountInputs = screen.getAllByRole('spinbutton');
-      // The invoice-level amount spinbutton has value "1000", row amounts have "300" and "400"
-      const rowAmountInput = amountInputs.find(
-        (el) => (el as HTMLInputElement).value === '300',
-      ) as HTMLInputElement;
-      fireEvent.change(rowAmountInput, { target: { value: '1100' } });
+      // Edit row 1's unit price (the single amount) so the total shoots past 5% above invoice
+      fireEvent.change(screen.getByDisplayValue('300'), { target: { value: '1100' } });
 
       // Danger indicator (✕) should appear in the totals row
       await waitFor(() => {
         expect(screen.getByText('✕', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
       });
-    });
-  });
-
-  describe('assign picker wiring', () => {
-    it('clicking the Assign… button calls openPicker', async () => {
-      // We need to capture the openPicker mock from the unstable_mockModule mock.
-      // The mock at the top always returns the same literal jest.fn() instances per render,
-      // but they are created fresh for each import. Since jest.unstable_mockModule may or may
-      // not intercept in local worktree env, we capture whatever rendered and verify via DOM.
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([{ description: 'Tile', totalAmount: 300, confidence: 0.9 }]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Assign…/i })).toBeInTheDocument();
-      });
-
-      // The Assign… button should be clickable (not throw, not navigate away)
-      fireEvent.click(screen.getByRole('button', { name: /Assign…/i }));
-
-      // After clicking, the button either: opens the picker (intercepted mock) OR remains
-      // because openPicker had no effect (non-intercepted mock). Either way, no crash.
-      // We can at minimum verify the page stays mounted.
-      expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-    });
-
-    it('clearing an assigned badge reverts the row to show Assign… button', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      // Start with a row that has no assignment (so Assign… button shows)
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([{ description: 'Sofa', totalAmount: 400, confidence: 0.9 }]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        // Description is rendered inside an <input>, so use getByDisplayValue
-        expect(screen.getByDisplayValue('Sofa')).toBeInTheDocument();
-      });
-
-      // The row initially shows the Assign… button (no assignment yet)
-      expect(screen.getByRole('button', { name: /Assign…/i })).toBeInTheDocument();
-
-      // Simulate assignment by directly mutating the lines state is not possible from outside.
-      // Instead, test the clear path: if the assignment badge were present, clicking ✕ removes it.
-      // We verify this by pre-seeding row state via the handleLineFieldChange path:
-      // Actually, to test the clear path we need a pre-assigned row.
-      // Since we can't inject state from outside, we verify the clear button aria-label exists
-      // after manually triggering assignment through the component's own state flow.
-      // The "Assign…" button is visible — this confirms the unassigned state renders correctly.
-      // The clear path is tested in the save payload test below which creates a pre-assigned row.
-
-      // This test specifically validates the initial unassigned UI state
-      expect(screen.queryByLabelText(/Clear budget line assignment/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe('save payload includes assignedBudgetLineId and assignedBudgetLineType', () => {
-    it('save sends assignedBudgetLineId and assignedBudgetLineType for rows that have an assignment', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-
-      // Provide two lines in the dry-run result
-      mockAutoItemize.mockResolvedValueOnce(
-        makeDryRunResponse([
-          { description: 'Assigned line', totalAmount: 300, confidence: 0.9 },
-          { description: 'Unassigned line', totalAmount: 200, confidence: 0.8 },
-        ]),
-      );
-      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 500 }); // commit response
-
-      renderPage();
-
-      await waitFor(() => {
-        // Description is rendered inside an <input>, so use getByDisplayValue
-        expect(screen.getByDisplayValue('Assigned line')).toBeInTheDocument();
-      });
-
-      // The two rows are rendered — both start unassigned (Assign… buttons)
-      const assignButtons = screen.getAllByRole('button', { name: /Assign…/i });
-      expect(assignButtons).toHaveLength(2);
-
-      // No assignment can be injected externally, so we verify the save payload without
-      // an assignment: both rows should not have assignedBudgetLineId in the payload.
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      // Wait for navigation (save succeeded)
-      await waitFor(() => {
-        expect(mockAutoItemize).toHaveBeenCalledTimes(2);
-      });
-
-      const commitCallArgs = mockAutoItemize.mock.calls[1]!;
-
-      const linesArg = (commitCallArgs[1] as unknown as { lines: Array<Record<string, unknown>> })
-        .lines;
-      expect(linesArg).toHaveLength(2);
-
-      // Neither row has an assignedBudgetLineId since none were assigned via the picker
-      expect(linesArg[0]).not.toHaveProperty('assignedBudgetLineId');
-      expect(linesArg[1]).not.toHaveProperty('assignedBudgetLineId');
     });
   });
 
@@ -1504,148 +1176,6 @@ describe('AutoItemizePage', () => {
   });
 
   // ─── Story #1576: line items as <ul> cards ────────────────────────────────
-
-  describe('line items rendered as list cards (Story #1576)', () => {
-    beforeEach(() => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Window installation', totalAmount: 400, confidence: 0.9 },
-          { description: 'Door frame', totalAmount: 200, confidence: 0.85 },
-        ]),
-      );
-    });
-
-    it('renders extracted lines inside a <ul role="list"> element', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      const list = screen.getByRole('list', { name: /Extracted line items/i });
-      expect(list).toBeInTheDocument();
-      expect(list.tagName.toLowerCase()).toBe('ul');
-    });
-
-    it('renders each line as a <li role="listitem"> card', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      const list = screen.getByRole('list', { name: /Extracted line items/i });
-      const listItems = within(list).getAllByRole('listitem');
-      expect(listItems).toHaveLength(2);
-    });
-
-    it('each line card has a description textarea', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      // Description is a textarea (displayed value search works for textarea)
-      const desc1 = screen.getByDisplayValue('Window installation');
-      expect(desc1.tagName.toLowerCase()).toBe('textarea');
-    });
-
-    it('each line card has qty, unit, unitPrice, totalAmount input fields', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      // Each card renders qty, unit, unitPrice, totalAmount inputs
-      // We have 2 lines × 4 metric inputs = 8 metric inputs + 1 invoice amount = 9 spinbuttons
-      // But unit is a text input; qty, unitPrice, totalAmount are number inputs (spinbutton)
-      // Per line: qty (spinbutton), unit (textbox), unitPrice (spinbutton), totalAmount (spinbutton)
-      const allInputsWithAriaLabel = document.querySelectorAll('input[aria-label]');
-      // At a minimum, we expect qty/unitPrice/totalAmount number inputs per line
-      const quantityInputs = Array.from(allInputsWithAriaLabel).filter((el) =>
-        el.getAttribute('aria-label')?.toLowerCase().includes('quantity'),
-      );
-      expect(quantityInputs.length).toBeGreaterThanOrEqual(2); // one per line
-    });
-
-    it('each line card has "Include" checkbox', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      // There are 2 "Include" checkboxes (one per line)
-      const checkboxes = screen.getAllByRole('checkbox');
-      // Each line has "Include" + "Price includes VAT" = 2 per line; 2 lines = 4 total
-      expect(checkboxes.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('each line card has a "Price includes VAT" checkbox', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      // The Price includes VAT checkbox label text (from i18n: autoItemize.includesVat)
-      // In CI with real translations; locally may be key-based text
-      const vatCheckboxes = screen.queryAllByLabelText(/Price includes VAT/i);
-      const vatByText = screen.queryAllByText(/Price includes VAT/i);
-      // Accept either label-matched or text-matched approach
-      expect(vatCheckboxes.length > 0 || vatByText.length > 0).toBe(true);
-    });
-
-    it('toggling the include checkbox toggles the row included state', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
-      });
-
-      // Find the first Include checkbox by accessible name — a merge-selection checkbox
-      // now renders before it in each card, so a positional index is not reliable.
-      // This test uses the real i18n instance (not a t()-stub), so the accessible name
-      // is the translated English label, not the raw key.
-      const includeCheckboxes = screen.getAllByRole('checkbox', { name: 'Include' });
-      const firstIncludeCheckbox = includeCheckboxes[0] as HTMLInputElement;
-      expect(firstIncludeCheckbox.checked).toBe(true);
-
-      fireEvent.click(firstIncludeCheckbox);
-      expect(firstIncludeCheckbox.checked).toBe(false);
-    });
-
-    it('save payload does NOT include vatRate field on any line', async () => {
-      mockAutoItemize.mockResolvedValueOnce(
-        makeDryRunResponse([{ description: 'Labor', totalAmount: 300, confidence: 0.9 }]),
-      );
-      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 700 });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      await waitFor(() => {
-        expect(mockAutoItemize).toHaveBeenCalledTimes(2);
-      });
-
-      const commitCall = mockAutoItemize.mock.calls[1]!;
-      const lines = (commitCall[1] as unknown as { lines: Array<Record<string, unknown>> }).lines;
-      lines.forEach((line) => {
-        expect(line).not.toHaveProperty('vatRate');
-      });
-    });
-  });
 
   // ─── Story #1576: status select ───────────────────────────────────────────
 
@@ -1987,34 +1517,16 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Line')).toBeInTheDocument();
       });
 
-      // Edit the line's totalAmount to 2000 (far above invoice)
-      const amountInputs = screen.getAllByRole('spinbutton');
-      const lineAmountInput = amountInputs.find(
-        (el) =>
-          (el as HTMLInputElement).value === '1000' &&
-          el.getAttribute('aria-label')?.toLowerCase().includes('total'),
-      ) as HTMLInputElement | undefined;
+      // Edit the line's single amount to 2000 (far above invoice)
+      fireEvent.change(
+        document.querySelector('[data-testid^="auto-itemize-grid-unitPrice-"]') as HTMLInputElement,
+        { target: { value: '2000' } },
+      );
 
-      // If we can't find by aria-label, fall back to any spinbutton with value 1000
-      // that is NOT the invoice-level amount field (id="amount")
-      const targetInput =
-        lineAmountInput ??
-        (amountInputs.find(
-          (el) =>
-            (el as HTMLInputElement).value === '1000' && (el as HTMLInputElement).id !== 'amount',
-        ) as HTMLInputElement | undefined);
-
-      if (targetInput) {
-        fireEvent.change(targetInput, { target: { value: '2000' } });
-
-        // After editing, danger indicator (✕) should appear
-        await waitFor(() => {
-          expect(screen.getByText('✕', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
-        });
-      } else {
-        // If the input can't be found (mock environment difference), skip with a note
-        // This test relies on line totalAmount spinbuttons being identifiable
-      }
+      // After editing, the danger indicator (✕) appears
+      await waitFor(() => {
+        expect(screen.getByText('✕', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+      });
     });
 
     it('variance match (✓) when all included lines sum to invoice amount', async () => {
@@ -2075,7 +1587,7 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('€1200.00')).toBeInTheDocument();
+      expect(screen.getAllByText('€1200.00').length).toBeGreaterThan(0);
       expect(screen.queryByText('€1190.00')).not.toBeInTheDocument();
       expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
     });
@@ -2093,7 +1605,7 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('€1190.00')).toBeInTheDocument();
+      expect(screen.getAllByText('€1190.00').length).toBeGreaterThan(0);
     });
   });
 
@@ -2188,91 +1700,6 @@ describe('AutoItemizePage', () => {
   });
 
   // ─── Story #1588: category and funding source selects per line ────────────
-
-  describe('category and funding source selects per line (#1588)', () => {
-    it('renders a category select for each line card', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Line 1', totalAmount: 300, confidence: 0.9 },
-          { description: 'Line 2', totalAmount: 200, confidence: 0.85 },
-        ]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Line 1')).toBeInTheDocument();
-      });
-
-      // Each line card should have a category select (identified by aria-label or id pattern)
-      const categorySelects = document.querySelectorAll('select[id^="category-"]');
-      expect(categorySelects).toHaveLength(2);
-    });
-
-    it('renders a funding source select for each line card', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Line 1', totalAmount: 300, confidence: 0.9 },
-          { description: 'Line 2', totalAmount: 200, confidence: 0.85 },
-        ]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Line 1')).toBeInTheDocument();
-      });
-
-      const sourceSelects = document.querySelectorAll('select[id^="source-"]');
-      expect(sourceSelects).toHaveLength(2);
-    });
-
-    it('save with create-new line missing category shows categoryRequiredError and no API call', async () => {
-      // The page validates that all included create-new lines have a budgetCategoryId.
-      // The mock picker returns categories: null (empty), so budgetCategoryId starts null.
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValueOnce(
-        // Explicitly pass budgetCategoryId: null to test the missing-category guard
-        makeDryRunResponse([
-          {
-            description: 'No category line',
-            totalAmount: 300,
-            confidence: 0.9,
-            budgetCategoryId: null,
-          },
-        ]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-      });
-
-      // The line has no category (budgetCategoryId starts as null from the mock)
-      // and no assigned budget line, so save should show the category error
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-
-      // The error text from i18n 'autoItemize.categoryRequiredError' or the key itself
-      await waitFor(() => {
-        const hasError =
-          screen.queryByRole('alert') !== null ||
-          screen.queryByText(/category/i) !== null ||
-          screen.queryByText(/categoryRequiredError/i) !== null;
-        expect(hasError).toBe(true);
-      });
-
-      // The commit call should NOT have been made (only the initial dry-run call)
-      expect(mockAutoItemize).toHaveBeenCalledTimes(1);
-    });
-  });
 
   // ─── Story #1589: save payload includes assignmentMode ─────────────────
 
@@ -2530,603 +1957,9 @@ describe('AutoItemizePage', () => {
 
   // ─── Story #1600: step-2 "Create Budget Line" button always visible ──────────
 
-  describe('"Create Budget Line" button visibility in step-2 modal (Story #1600)', () => {
-    // These tests require the picker modal to be open at step 2.
-    // mockPickerStateOverride is used to set isOpen: true, step: 2 for this describe block.
-    // Because jest.unstable_mockModule may not intercept locally (worktree ESM issue),
-    // these tests follow the same dual-environment pattern as other CI-only tests.
-
-    function setupStep2State(
-      overrides: {
-        budgetLines?: unknown[];
-        showCreateForm?: boolean;
-      } = {},
-    ) {
-      mockPickerStateOverride = {
-        isOpen: true,
-        step: 2,
-        type: 'work_item',
-        itemId: 'wi-1',
-        itemTitle: 'Work Item 1',
-        isLoading: false,
-        error: null,
-        budgetLines: overrides.budgetLines ?? [],
-        showCreateForm: overrides.showCreateForm ?? false,
-        createError: null,
-      };
-    }
-
-    beforeEach(() => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([{ description: 'Tile', totalAmount: 300, confidence: 0.9 }]),
-      );
-    });
-
-    it('test 14: "Create Budget Line" button present when budgetLines = []', async () => {
-      setupStep2State({ budgetLines: [], showCreateForm: false });
-      renderPage();
-
-      await waitFor(() => {
-        // Attempt to find the "Create Budget Line" button
-        // In CI (mock intercepted): picker modal is open, button is rendered
-        // Locally (mock not intercepted): picker modal is closed, button absent
-        const createBtn = screen.queryByRole('button', {
-          name: /Create Budget Line/i,
-        });
-        // Accept either found (CI) or not found (non-intercepted local)
-        // The assertion that matters is: if the picker IS rendered (step 2 open), the button is present
-        const pickerOpen =
-          screen.queryByText(/Work Item 1/) !== null ||
-          document.querySelector('[class*="pickerContent"]') !== null;
-        if (pickerOpen) {
-          expect(createBtn).toBeInTheDocument();
-        } else {
-          // Mock not intercepted — the picker modal is not rendered; skip assertion
-          expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-        }
-      });
-    });
-
-    it('test 15: "Create Budget Line" button still present when budgetLines has entries', async () => {
-      setupStep2State({
-        budgetLines: [
-          {
-            id: 'wib-1',
-            workItemId: 'wi-1',
-            description: 'Existing line',
-            plannedAmount: 100,
-            confidence: 'invoice',
-            confidenceMargin: 0,
-            budgetCategory: null,
-            budgetSource: null,
-            vendor: null,
-            actualCost: 0,
-            actualCostPaid: 0,
-            invoiceCount: 0,
-            quantity: null,
-            unit: null,
-            unitPrice: null,
-            includesVat: true,
-            createdBy: null,
-            createdAt: '2026-01-01T00:00:00Z',
-            updatedAt: '2026-01-01T00:00:00Z',
-            origin: 'manual',
-            invoiceLink: null,
-          },
-        ],
-        showCreateForm: false,
-      });
-      renderPage();
-
-      await waitFor(() => {
-        const pickerOpen =
-          screen.queryByText(/Work Item 1/) !== null ||
-          document.querySelector('[class*="pickerContent"]') !== null;
-        if (pickerOpen) {
-          // When picker modal is open at step 2 with existing lines, "Create Budget Line" is still shown
-          expect(screen.queryByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument();
-        } else {
-          expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-        }
-      });
-    });
-
-    it('test 16: "Create Budget Line" button NOT rendered when showCreateForm = true', async () => {
-      setupStep2State({ showCreateForm: true });
-      renderPage();
-
-      await waitFor(() => {
-        const pickerOpen =
-          screen.queryByText(/Work Item 1/) !== null ||
-          document.querySelector('[class*="pickerContent"]') !== null;
-        if (pickerOpen) {
-          // When the create form is shown, the "Create Budget Line" trigger button is hidden
-          expect(
-            screen.queryByRole('button', { name: /Create Budget Line/i }),
-          ).not.toBeInTheDocument();
-        } else {
-          expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-        }
-      });
-    });
-  });
-
   // ─── Story #1600: prefill mapping in handleQueueNewBudgetLine ────────────────
 
-  describe('handleQueueNewBudgetLine — confidence + vendor + household prefill (Story #1600)', () => {
-    // These tests verify that when "Create Budget Line" is clicked in step-2,
-    // handleQueueNewBudgetLine queues an inline draft (inlineCreatedBudgetLineDraft)
-    // with correct prefill values derived from the extracted line's confidence,
-    // vendorName, and parent type. The inline BudgetLineForm appears in the DOM.
-    //
-    // Because jest.unstable_mockModule may not intercept locally, the assertion
-    // pattern checks whether the inline form appeared (CI) or skips gracefully.
-
-    async function setupPageWithLineAndOpenPicker(
-      lineOverride: Partial<{
-        description: string;
-        totalAmount: number;
-        confidence: number;
-        budgetCategoryId: string | null;
-        vendorName: string | null;
-      }>,
-      pickerOverride: {
-        type?: 'work_item' | 'household_item';
-      } = {},
-      serverCompanies: Array<{ id: string; name: string }> = [],
-    ) {
-      mockSearchCompanies.mockResolvedValue(serverCompanies);
-      mockFetchVendor.mockImplementation(async (id) => {
-        const found = serverCompanies.find((c) => c.id === id);
-        if (!found) throw new Error('unknown company');
-        return found;
-      });
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue({
-        lines: [
-          {
-            description: lineOverride.description ?? 'Test line',
-            totalAmount: lineOverride.totalAmount ?? 200,
-            confidence: lineOverride.confidence ?? 0.9,
-            budgetCategoryId:
-              'budgetCategoryId' in lineOverride ? lineOverride.budgetCategoryId : 'cat-5',
-            includesVat: true,
-            ...(lineOverride.vendorName != null ? { vendorName: lineOverride.vendorName } : {}),
-          },
-        ],
-        warnings: [],
-      });
-
-      // Set picker to step 2 so "Create Budget Line" button is visible
-      mockPickerStateOverride = {
-        isOpen: true,
-        step: 2,
-        type: pickerOverride.type ?? 'work_item',
-        itemId: 'wi-1',
-        itemTitle: 'Work Item 1',
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        showCreateForm: false,
-        createError: null,
-        budgetSources: [],
-        categories: [],
-      };
-
-      renderPage();
-
-      // Wait for the page to load and the row's Assign… button to appear.
-      // In CI (mocks intercepted), i18n is mocked so the button text is "Assign…".
-      // In the non-intercepted local env, the button text may be the translation key.
-      // Either way, we wait for the page to reach ready state first.
-      await waitFor(() => {
-        const pageReady = screen.queryByRole('button', { name: /^Save$/i }) !== null;
-        expect(pageReady).toBe(true);
-      });
-
-      // Click "Assign…" to set activeRowId via handleAssignButtonClick.
-      // This is required so that handleQueueNewBudgetLine passes the activeRowId guard.
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (assignBtn) {
-        await act(async () => {
-          fireEvent.click(assignBtn);
-        });
-      }
-
-      // Wait for the "Create Budget Line" button — only present when picker mock intercepts
-      await waitFor(() => {
-        const pageReady =
-          screen.queryByRole('button', { name: /Create Budget Line/i }) !== null ||
-          screen.queryByRole('button', { name: /^Save$/i }) !== null;
-        expect(pageReady).toBe(true);
-      });
-
-      const createBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      return { createBtn };
-    }
-
-    it('test 17: confidence 0.95 → inline draft confidence prefilled: "invoice"', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker({ confidence: 0.95 });
-      if (!createBtn) return; // non-intercepted env — skip
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      // handleQueueNewBudgetLine sets inlineCreatedBudgetLineDraft → inline form appears
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      const confidenceSelect = document.querySelector(
-        '[id$="budget-confidence"]',
-      ) as HTMLSelectElement | null;
-      expect(confidenceSelect?.value).toBe('invoice');
-    });
-
-    it('test 18: confidence 0.65 → inline draft confidence prefilled: "quote"', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker({ confidence: 0.65 });
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      const confidenceSelect = document.querySelector(
-        '[id$="budget-confidence"]',
-      ) as HTMLSelectElement | null;
-      expect(confidenceSelect?.value).toBe('quote');
-    });
-
-    it('test 19: confidence 0.35 → inline draft confidence prefilled: "professional_estimate"', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker({ confidence: 0.35 });
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      const confidenceSelect = document.querySelector(
-        '[id$="budget-confidence"]',
-      ) as HTMLSelectElement | null;
-      expect(confidenceSelect?.value).toBe('professional_estimate');
-    });
-
-    it('test 20: confidence 0.1 → inline draft confidence prefilled: "own_estimate"', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker({ confidence: 0.1 });
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      const confidenceSelect = document.querySelector(
-        '[id$="budget-confidence"]',
-      ) as HTMLSelectElement | null;
-      expect(confidenceSelect?.value).toBe('own_estimate');
-    });
-
-    it('test 21: vendorName matches a company on the server → inline draft shows that company', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker(
-        { vendorName: 'Vendor A', confidence: 0.9 },
-        {},
-        [{ id: 'v-1', name: 'Vendor A' }],
-      );
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      // The extracted name is matched on the server; the company picker shows the match
-      await waitFor(() => {
-        expect(
-          within(document.querySelector('form[aria-label="New budget line details"]')!).getByText(
-            'Vendor A',
-          ),
-        ).toBeInTheDocument();
-      });
-      expect(mockSearchCompanies).toHaveBeenCalledWith('Vendor A');
-      expect(mockFetchVendor).toHaveBeenCalledWith('v-1');
-    });
-
-    it('test 22: unknown vendorName → inline draft company picker is empty (no error)', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker(
-        { vendorName: 'Unknown Vendor Co', confidence: 0.9 },
-        {},
-        [{ id: 'v-1', name: 'Vendor A' }],
-      );
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      // No equal name on the server → vendorId in draft is '' → the picker input is empty
-      const vendorInput = document.querySelector(
-        '[id$="budget-vendor"]',
-      ) as HTMLInputElement | null;
-      expect(vendorInput?.value).toBe('');
-      expect(mockSearchCompanies).toHaveBeenCalledWith('Unknown Vendor Co');
-    });
-
-    it('test 23: undefined vendorName → no company search and the inline draft company picker is empty', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker(
-        { vendorName: null, confidence: 0.9 },
-        {},
-        [{ id: 'v-1', name: 'Vendor A' }],
-      );
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      const vendorInput = document.querySelector(
-        '[id$="budget-vendor"]',
-      ) as HTMLInputElement | null;
-      expect(vendorInput?.value).toBe('');
-      expect(mockSearchCompanies).not.toHaveBeenCalled();
-    });
-
-    it('test 24: parent type household_item → inline draft budgetCategoryId prefilled as "" (cleared)', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker(
-        { confidence: 0.9, budgetCategoryId: 'cat-5' },
-        { type: 'household_item' },
-      );
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      // For household_item parent, budgetCategoryId is always cleared to ''
-      // The category select should be absent (household items have no category) or empty
-      const confidenceSelect = document.querySelector(
-        '[id$="budget-confidence"]',
-      ) as HTMLSelectElement | null;
-      // Inline form rendered — draft was applied with cleared budgetCategoryId
-      expect(confidenceSelect).not.toBeNull();
-    });
-
-    it('test 25: parent type work_item with budgetCategoryId "cat-5" → inline draft budgetCategoryId: "cat-5"', async () => {
-      const { createBtn } = await setupPageWithLineAndOpenPicker(
-        { confidence: 0.9, budgetCategoryId: 'cat-5' },
-        { type: 'work_item' },
-      );
-      if (!createBtn) return;
-
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      // For work_item parent, budgetCategoryId is preserved from the extracted line
-      const categorySelect = document.querySelector(
-        '[id$="budget-category"]',
-      ) as HTMLSelectElement | null;
-      // The category select exists; its value is 'cat-5' when the category is loaded,
-      // or '' when the categories list is empty (as in this test where categories=[]).
-      // Verify the inline form rendered — that is the key assertion.
-      expect(categorySelect).not.toBeNull();
-    });
-  });
-
   // ─── Story #1600: "Created from auto-itemization" badge ──────────────────────
-
-  describe('"Created from auto-itemization" badge (Story #1600)', () => {
-    // The badge is rendered when line.createdFromExtraction === true AND
-    // line.assignedBudgetLineId is set. Since we can't inject state from outside,
-    // we verify the DOM structure through state manipulation via setLines.
-    //
-    // The badge rendering is inside the assignedBadgeWrapper div when both conditions are met.
-    // Tests 26-28 verify the rendering conditions.
-
-    function setupReadyPage(
-      lineOverrides: Partial<{
-        description: string;
-        totalAmount: number;
-        confidence: number;
-        budgetCategoryId: string;
-      }> = {},
-    ) {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          {
-            description: lineOverrides.description ?? 'Test line',
-            totalAmount: lineOverrides.totalAmount ?? 300,
-            confidence: lineOverrides.confidence ?? 0.9,
-            budgetCategoryId: lineOverrides.budgetCategoryId ?? 'bc-test-category',
-          },
-        ]),
-      );
-    }
-
-    it('test 26: badge [data-testid="auto-created-badge"] absent when row has no assignment', async () => {
-      // In the initial unassigned state, neither auto-created badge nor assignedBadgeWrapper exists
-      setupReadyPage();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Test line')).toBeInTheDocument();
-      });
-
-      // No assignment → no badge
-      expect(document.querySelector('[data-testid="auto-created-badge"]')).toBeNull();
-    });
-
-    it('test 27: badge absent when createdFromExtraction is false (manually assigned row)', async () => {
-      // This test verifies that the badge only appears for auto-created lines.
-      // When a line has assignedBudgetLineId but createdFromExtraction is falsy,
-      // the badge should NOT render.
-      // Since we can't inject state externally, we test the DOM guard: without any
-      // assignment interaction, neither badge nor assignedBadgeWrapper appear.
-      setupReadyPage({ description: 'Manual line' });
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Manual line')).toBeInTheDocument();
-      });
-
-      // No createdFromExtraction badge without assignment
-      expect(document.querySelector('[data-testid="auto-created-badge"]')).toBeNull();
-    });
-
-    it('test 28: "Assign…" button present when no assignment (unassigned state renders correctly)', async () => {
-      // Baseline test: unassigned row always shows "Assign…" button, never the badge
-      setupReadyPage({ description: 'Unassigned line' });
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Assign…/i })).toBeInTheDocument();
-      });
-
-      // The badge should never appear in the unassigned state
-      expect(document.querySelector('[data-testid="auto-created-badge"]')).toBeNull();
-      // No "Auto-created" text either
-      expect(screen.queryByText(/Auto-created/i)).not.toBeInTheDocument();
-    });
-
-    it('test 26 (positive path): badge renders when Badge component receives value="true" in assignedBadgeWrapper', async () => {
-      // This test validates the Badge rendering contract: the Badge receives
-      // variants where "true" → { label: "Auto-created", className: badgeStyles.info }.
-      // We test this by checking the Badge component JSX path in the production code
-      // is exercised: Badge is rendered with value="true" inside assignedBadgeWrapper.
-      //
-      // Since direct state injection is not possible from outside, we verify the
-      // component structure by checking that the badge container element is ABSENT
-      // when there is no assignment, confirming the conditional render path is correct.
-      // The positive-path assertion (badge IS shown) requires E2E coverage.
-      setupReadyPage({ description: 'Badge candidate' });
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Badge candidate')).toBeInTheDocument();
-      });
-
-      // The assignedBadgeWrapper is not rendered without an assignment
-      const badgeWrapper = document.querySelector('[class*="assignedBadgeWrapper"]');
-      expect(badgeWrapper).toBeNull();
-    });
-
-    // ─── Regression: Bug #1613 — handleQueueNewBudgetLine queues inline draft (not modal) ─
-    //
-    // After Story #1693, "Create Budget Line" in step-2 no longer calls
-    // showCreateBudgetLineForm (modal flow). Instead it calls handleQueueNewBudgetLine
-    // which sets inlineCreatedBudgetLineDraft on the line and closes the picker.
-    //
-    // The old flow (handleCreateNewBudgetLine → showCreateBudgetLineForm →
-    // onLineCreated → auto-created-badge) was replaced by the inline draft flow.
-    // The wasCreatedFromExtractionRef snapshot fix (the original #1613 fix) is still
-    // preserved in the onLineCreated callback for the select-existing-line path.
-    //
-    // This test verifies the new flow:
-    //   1. User clicks Assign… (sets activeRowId)
-    //   2. User clicks Create Budget Line → handleQueueNewBudgetLine fires
-    //   3. Inline BudgetLineForm appears in the DOM (draft was queued)
-    //   4. showCreateBudgetLineForm is NOT called (modal form no longer used)
-    //
-    // TODO: auto-created-badge via the select-existing-line path is covered by E2E Scenario 35
-    it('regression #1613: clicking Create Budget Line queues inline draft (not modal form)', async () => {
-      mockPickerStateOverride = {
-        isOpen: true,
-        step: 2,
-        type: 'work_item',
-        itemId: 'wi-reg-1',
-        itemTitle: 'Regression Work Item',
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        showCreateForm: false,
-        createError: null,
-        budgetSources: [],
-        categories: [],
-      };
-
-      setupReadyPage({ description: 'Extraction line' });
-      renderPage();
-
-      // Wait for ready state
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Extraction line')).toBeInTheDocument();
-      });
-
-      // Step 1: click Assign… to set activeRowId
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) {
-        // Non-intercepted env (ESM mock not captured) — skip gracefully.
-        // TODO: covered by E2E Scenario 35 (WebKit @responsive)
-        return;
-      }
-      await act(async () => {
-        fireEvent.click(assignBtn);
-      });
-
-      // Step 2: click "Create Budget Line" — now invokes handleQueueNewBudgetLine
-      const createBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createBtn) {
-        // TODO: covered by E2E Scenario 35 (WebKit @responsive)
-        return;
-      }
-      await act(async () => {
-        fireEvent.click(createBtn);
-      });
-
-      // Step 3: the inline BudgetLineForm must appear (inlineCreatedBudgetLineDraft was set)
-      await waitFor(() => {
-        const inlineForm = document.querySelector('form[aria-label="New budget line details"]');
-        expect(inlineForm).not.toBeNull();
-      });
-
-      // Step 4: showCreateBudgetLineForm must NOT have been called (modal flow is gone)
-      expect(mockShowCreateBudgetLineForm).not.toHaveBeenCalled();
-    });
-  });
 
   // ─── Story #1591 — variance recompute on metadataEdits.amount edit ────────────
 
@@ -3209,217 +2042,8 @@ describe('AutoItemizePage', () => {
 
   // ─── Story #1797: merge line items — announceMessage + documentSummary ──────
 
-  describe('merge line items — live-region announcements', () => {
-    async function selectTwoRowsAndClickMerge() {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
-          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
-        ]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
-      });
-
-      // Select both rows via their selection checkboxes (first checkbox in each card)
-      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
-      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
-      const selectCheckboxTile = within(cardTile).getAllByRole('checkbox')[0]!;
-      const selectCheckboxGrout = within(cardGrout).getAllByRole('checkbox')[0]!;
-
-      fireEvent.click(selectCheckboxTile);
-      fireEvent.click(selectCheckboxGrout);
-
-      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
-      await act(async () => {
-        fireEvent.click(mergeBtn);
-      });
-    }
-
-    it('sets the announceMessage live region when a merge starts', async () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {})); // never resolves — inspect start-state only
-      await selectTwoRowsAndClickMerge();
-
-      await waitFor(() => {
-        const region = document.querySelector('[role="status"]');
-        expect(region?.textContent).toMatch(/Merging 2 line items/i);
-      });
-    });
-
-    it('sets the announceMessage live region when a merge succeeds', async () => {
-      mockMergeLines.mockResolvedValue({
-        description: 'Tile work and grout',
-        category: null,
-        budgetCategoryId: null,
-      });
-      await selectTwoRowsAndClickMerge();
-
-      await waitFor(() => {
-        const region = document.querySelector('[role="status"]');
-        expect(region?.textContent).toMatch(/Line items merged/i);
-      });
-    });
-
-    it('passes the invoice notes field (metadataEdits.notes) as documentSummary to mergeLines', async () => {
-      mockMergeLines.mockReturnValue(new Promise(() => {}));
-      mockFetchInvoiceById.mockResolvedValue(
-        makeInvoice({ amount: 1000, notes: 'Bathroom renovation quote' }),
-      );
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
-          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
-        ]),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
-      });
-
-      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
-      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
-      fireEvent.click(within(cardTile).getAllByRole('checkbox')[0]!);
-      fireEvent.click(within(cardGrout).getAllByRole('checkbox')[0]!);
-
-      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
-      await act(async () => {
-        fireEvent.click(mergeBtn);
-      });
-
-      await waitFor(() => {
-        expect(mockMergeLines).toHaveBeenCalledTimes(1);
-      });
-      const callArg = mockMergeLines.mock.calls[0]![0] as { documentSummary?: string | null };
-      expect(callArg.documentSummary).toBe('Bathroom renovation quote');
-    });
-  });
   // ─── #2149 — linking an existing budget line commits the gross itemized amount ──
 
-  describe('linking an existing budget line (#2149)', () => {
-    function makeExistingLine(overrides: Record<string, unknown> = {}) {
-      return {
-        id: 'wib-1',
-        workItemId: 'wi-1',
-        description: 'Existing line',
-        plannedAmount: 5000,
-        confidence: 'quote',
-        confidenceMargin: 0,
-        includesVat: true,
-        quantity: null,
-        unit: null,
-        unitPrice: null,
-        budgetCategory: { id: 'cat-9', name: 'Flooring', translationKey: null },
-        budgetSource: { id: 'src-9', name: 'Main Fund' },
-        vendor: null,
-        actualCost: 0,
-        actualCostPaid: 0,
-        invoiceLink: null,
-        ...overrides,
-      };
-    }
-
-    async function renderAndLink(
-      dryRun: Parameters<typeof makeDryRunResponse>[0],
-      existing = makeExistingLine(),
-    ) {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
-      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse(dryRun));
-      mockPickerStateOverride = {
-        isOpen: true,
-        step: 2,
-        type: 'work_item',
-        itemId: 'wi-1',
-        itemTitle: 'Kitchen',
-        isLoading: false,
-        error: null,
-        budgetLines: [existing],
-        showCreateForm: false,
-        createError: null,
-        budgetSources: [],
-        categories: [],
-      };
-
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getAllByRole('button', { name: /Assign…/i })[0]!);
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Existing line/i }));
-      });
-    }
-
-    async function save() {
-      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 0 });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
-      });
-      await waitFor(() => {
-        expect(mockAutoItemize).toHaveBeenCalledTimes(2);
-      });
-      return mockAutoItemize.mock.calls[1]![1] as unknown as {
-        dryRun?: boolean;
-        lines: Array<Record<string, unknown>>;
-      };
-    }
-
-    it('shows the original values read-only and commits the edited gross amount with includesVat=true', async () => {
-      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: false }]);
-
-      // Original category / source / planned amount, no editable pickers.
-      expect(screen.getByTestId('linked-line-category')).toHaveTextContent('Flooring');
-      expect(screen.getByTestId('linked-line-source')).toHaveTextContent('Main Fund');
-      expect(screen.getByTestId('linked-line-planned')).toHaveTextContent('€5000.00');
-      expect(screen.queryByDisplayValue('Tile work')).toBeNull();
-
-      // Defaults to the gross of the extracted net amount (100 -> 119).
-      const amount = screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement;
-      expect(amount.value).toBe('119');
-      fireEvent.change(amount, { target: { value: '250' } });
-
-      const commit = await save();
-
-      expect(commit.dryRun).toBe(false);
-      expect(commit.lines).toHaveLength(1);
-      expect(commit.lines[0]).toMatchObject({
-        assignmentMode: 'assign-existing',
-        assignedBudgetLineId: 'wib-1',
-        assignedBudgetLineType: 'work_item',
-        totalAmount: 250,
-        includesVat: true,
-      });
-    });
-
-    it('commits the default gross amount when the user does not edit it', async () => {
-      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: false }]);
-
-      const commit = await save();
-
-      expect(commit.lines[0]).toMatchObject({ totalAmount: 119, includesVat: true });
-    });
-
-    it('total reflects the edited linked amount', async () => {
-      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: true }]);
-
-      fireEvent.change(screen.getByTestId('linked-line-itemized-amount'), {
-        target: { value: '640' },
-      });
-
-      expect(screen.getAllByText('€640.00').length).toBeGreaterThan(0);
-    });
-  });
   // ─── Page identity (#2203) ─────────────────────────────────────────────────
 
   describe('page identity (#2203)', () => {

@@ -100,6 +100,21 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
 }));
 
+// The cost lines section has its own tests; here it is a stub that records its props.
+const mockCostLinesSection = jest.fn<(props: unknown) => void>();
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: (props: { onChanged: () => Promise<void> | void }) => {
+    mockCostLinesSection(props);
+    return (
+      <div data-testid="cost-lines-stub">
+        <button type="button" onClick={() => void props.onChanged()}>
+          stub-changed
+        </button>
+      </div>
+    );
+  },
+}));
+
 // Mock all API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   getWorkItem: mockGetWorkItem,
@@ -119,7 +134,7 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   deleteWorkItemBudget: mockDeleteWorkItemBudget,
 }));
 
-// InvoiceLinkModal and the status hook call useToast; the page has no ToastProvider in these tests.
+// The status hook, the Documents panel and the cost line grid call useToast; the page has no ToastProvider in these tests.
 const mockShowToast = jest.fn();
 const mockShowUndoToast = jest.fn();
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
@@ -391,6 +406,7 @@ describe('WorkItemDetailPage', () => {
     mockCreateWorkItemBudget.mockReset();
     mockUpdateWorkItemBudget.mockReset();
     mockDeleteWorkItemBudget.mockReset();
+    mockCostLinesSection.mockReset();
     mockListNotes.mockReset();
     mockCreateNote.mockReset();
     mockUpdateNote.mockReset();
@@ -855,7 +871,7 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('Assignment')).toBeInTheDocument();
       // Tags section removed in migration 0028 (areas_trades_rework)
       expect(screen.queryByText('Tags')).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cost', level: 2 })).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
       expect(screen.getByText('Subtasks')).toBeInTheDocument();
       expect(screen.getByText('Dependencies')).toBeInTheDocument();
@@ -1930,7 +1946,7 @@ describe('WorkItemDetailPage', () => {
     async function expectInlineError(text: string) {
       const matches = await screen.findAllByText(text);
       expect(matches).toHaveLength(1);
-      // Page-level errors live in the top banner, outside every section (not in BudgetSection)
+      // Page-level errors live in the top banner, outside every section (not in the Cost section)
       expect(matches[0]!.closest('[role="alert"]')!.closest('section')).toBeNull();
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     }
@@ -1956,7 +1972,7 @@ describe('WorkItemDetailPage', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
     });
 
-    it('a budget-originated error (link subsidy) renders exactly once, in the BudgetSection banner and not the top banner', async () => {
+    it('a budget-originated error (link subsidy) renders exactly once, in the Cost section banner and not the top banner', async () => {
       const user = userEvent.setup();
       mockFetchSubsidyPrograms.mockResolvedValue({
         subsidyPrograms: [
@@ -2273,11 +2289,11 @@ describe('WorkItemDetailPage', () => {
     });
   });
 
-  describe('Link to Invoice default amount is gross (#2194 D-19)', () => {
-    const lineWith = (plannedAmount: number, includesVat: boolean) => ({
-      id: 'bl-net',
+  describe('Cost section (#2235)', () => {
+    const lineWith = (id: string, plannedAmount: number) => ({
+      id,
       workItemId: 'work-1',
-      description: 'Net line',
+      description: 'Tiles',
       plannedAmount,
       confidence: 'own_estimate' as const,
       confidenceMargin: 0.2,
@@ -2294,85 +2310,147 @@ describe('WorkItemDetailPage', () => {
       quantity: null,
       unit: null,
       unitPrice: null,
-      includesVat,
-    });
-
-    async function openLinkModal(includesVat: boolean) {
-      mockFetchWorkItemBudgets.mockResolvedValue([lineWith(100, includesVat)]);
-      renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: 'Link to Invoice' }));
-      return (await screen.findByLabelText(/itemized amount/i)) as HTMLInputElement;
-    }
-
-    it('prefills the gross amount (100 net at 19% VAT -> 119) for a net-entered line', async () => {
-      const input = await openLinkModal(false);
-      expect(input.value).toBe('119');
-    });
-
-    it('prefills the planned amount unchanged for a gross-entered line', async () => {
-      const input = await openLinkModal(true);
-      expect(input.value).toBe('100');
-    });
-  });
-
-  describe('cost-line delete (#2209: one dialog, hosted by BudgetSection)', () => {
-    const line = {
-      id: 'bl-1',
-      workItemId: 'work-1',
-      description: 'Tiles',
-      plannedAmount: 100,
-      confidence: 'own_estimate' as const,
-      confidenceMargin: 0.2,
-      budgetCategory: null,
-      budgetSource: null,
-      vendor: null,
-      actualCost: 0,
-      actualCostPaid: 0,
-      invoiceCount: 0,
-      invoiceLink: null,
-      createdBy: null,
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: '2024-01-15T10:00:00Z',
-      quantity: null,
-      unit: null,
-      unitPrice: null,
       includesVat: true,
-    };
+    });
 
-    async function openDialog() {
-      mockFetchWorkItemBudgets.mockResolvedValue([line]);
+    const lastProps = () =>
+      mockCostLinesSection.mock.calls[mockCostLinesSection.mock.calls.length - 1]![0] as {
+        host: unknown;
+        lines: unknown[];
+        headingLevel: number;
+        linkState: unknown;
+        onChanged: () => Promise<void>;
+      };
+
+    it('renders the Cost h2, the cost lines section and the Subsidies h3 in one section', async () => {
       renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: /delete .*tiles/i }));
-      return screen.findByRole('alertdialog');
-    }
-
-    it('opens exactly one confirm dialog (no inline swap, no second confirmation)', async () => {
-      await openDialog();
-      expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
-      expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Delete Tiles?');
-      expect(screen.getByTestId('cost-line-delete-cancel')).toHaveFocus();
-      // The card keeps its Edit/Delete buttons: the old inline Confirm/Cancel swap is gone.
-      expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
+      const heading = await screen.findByRole('heading', { name: 'Cost', level: 2 });
+      const section = heading.closest('section') as HTMLElement;
+      expect(section).toHaveAttribute('aria-labelledby', heading.id);
+      expect(within(section).getByTestId('cost-lines-stub')).toBeInTheDocument();
+      expect(
+        within(section).getByRole('heading', { name: 'Subsidies', level: 3 }),
+      ).toBeInTheDocument();
     });
 
-    it('confirming deletes the line once and closes the dialog', async () => {
-      mockDeleteWorkItemBudget.mockResolvedValue(undefined);
-      await openDialog();
-      fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
-      await waitFor(() => expect(mockDeleteWorkItemBudget).toHaveBeenCalledTimes(1));
-      expect(mockDeleteWorkItemBudget).toHaveBeenCalledWith('work-1', 'bl-1');
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    it('hands the host, the fetched lines, h3 and the origin state to the section', async () => {
+      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
+      renderPage();
+      await screen.findByTestId('cost-lines-stub');
+      await waitFor(() => expect(lastProps().lines).toHaveLength(1));
+      const props = lastProps();
+      expect(props.host).toEqual({ kind: 'work_item', id: 'work-1', label: 'Test Work Item' });
+      expect(props.headingLevel).toBe(3);
+      expect(props.linkState).toBeTruthy();
     });
 
-    it('a 409 (line in use) hides the action and shows the translated reason', async () => {
-      mockDeleteWorkItemBudget.mockRejectedValue(
-        new ApiClientError(409, { code: 'BUDGET_LINE_IN_USE', message: 'RAW-SERVER-SENTINEL' }),
+    it('shows the cost overview only once there are lines', async () => {
+      renderPage();
+      await screen.findByTestId('cost-lines-stub');
+      expect(screen.queryByText('Expected cost')).toBeNull();
+    });
+
+    it('shows Expected cost and Planned cost for lines without grants', async () => {
+      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
+      renderPage();
+      expect(await screen.findByText('Expected cost')).toBeInTheDocument();
+      expect(screen.getByText('Planned cost')).toBeInTheDocument();
+      expect(screen.queryByText('After grants')).toBeNull();
+    });
+
+    it('labels the first row After grants when a grant pays back', async () => {
+      mockFetchWorkItemBudgets.mockResolvedValue([lineWith('bl-1', 100)]);
+      mockFetchWorkItemSubsidyPayback.mockResolvedValue({
+        workItemId: 'work-1',
+        minTotalPayback: 10,
+        maxTotalPayback: 10,
+        subsidies: [
+          { subsidyProgramId: 's1', name: 'Energy Grant', minPayback: 10, maxPayback: 10 },
+        ],
+      } as never);
+      renderPage();
+      expect(await screen.findByText('After grants')).toBeInTheDocument();
+      expect(screen.queryByText('Expected cost')).toBeNull();
+    });
+
+    it('onChanged reloads the lines and the grant payback, and clears a stale budget error', async () => {
+      const user = userEvent.setup();
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [
+          {
+            id: 'sub-1',
+            name: 'Energy Grant',
+            description: null,
+            eligibility: null,
+            reductionType: 'percentage',
+            reductionValue: 10,
+            applicationStatus: 'eligible',
+            applicationDeadline: null,
+            notes: null,
+            maximumAmount: null,
+            applicableCategories: [],
+            includesNoCategoryItems: true,
+            createdBy: null,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      renderPage();
+      await user.selectOptions(
+        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        'sub-1',
       );
-      await openDialog();
-      fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
-      await waitFor(() => expect(screen.queryByTestId('cost-line-delete-confirm')).toBeNull());
-      expect(screen.getByRole('alertdialog')).toHaveTextContent(enErrors.BUDGET_LINE_IN_USE);
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+      await screen.findByRole('alert');
+
+      const budgetCalls = mockFetchWorkItemBudgets.mock.calls.length;
+      const paybackCalls = mockFetchWorkItemSubsidyPayback.mock.calls.length;
+      await user.click(screen.getByRole('button', { name: 'stub-changed' }));
+
+      await waitFor(() => expect(mockFetchWorkItemBudgets.mock.calls.length).toBe(budgetCalls + 1));
+      expect(mockFetchWorkItemSubsidyPayback.mock.calls.length).toBe(paybackCalls + 1);
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+      jest.restoreAllMocks();
+    });
+
+    it('dismisses the grant error banner with its close button', async () => {
+      const user = userEvent.setup();
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [
+          {
+            id: 'sub-1',
+            name: 'Energy Grant',
+            description: null,
+            eligibility: null,
+            reductionType: 'percentage',
+            reductionValue: 10,
+            applicationStatus: 'eligible',
+            applicationDeadline: null,
+            notes: null,
+            maximumAmount: null,
+            applicableCategories: [],
+            includesNoCategoryItems: true,
+            createdBy: null,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      renderPage();
+      await user.selectOptions(
+        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        'sub-1',
+      );
+      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+      const alert = await screen.findByRole('alert');
+      await user.click(within(alert).getByRole('button'));
+      expect(screen.queryByRole('alert')).toBeNull();
+      jest.restoreAllMocks();
     });
   });
 

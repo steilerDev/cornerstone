@@ -9,6 +9,7 @@ import enHome from './en/home.json';
 import enWorkItems from './en/workItems.json';
 import enHouseholdItems from './en/householdItems.json';
 import enBudget from './en/budget.json';
+import enCostLines from './en/costLines.json';
 import enSchedule from './en/schedule.json';
 import enDiary from './en/diary.json';
 import enDocuments from './en/documents.json';
@@ -26,6 +27,7 @@ import deHome from './de/home.json';
 import deWorkItems from './de/workItems.json';
 import deHouseholdItems from './de/householdItems.json';
 import deBudget from './de/budget.json';
+import deCostLines from './de/costLines.json';
 import deSchedule from './de/schedule.json';
 import deDiary from './de/diary.json';
 import deDocuments from './de/documents.json';
@@ -45,6 +47,7 @@ const resources = {
     workItems: enWorkItems,
     householdItems: enHouseholdItems,
     budget: enBudget,
+    costLines: enCostLines,
     schedule: enSchedule,
     diary: enDiary,
     documents: enDocuments,
@@ -63,6 +66,7 @@ const resources = {
     workItems: deWorkItems,
     householdItems: deHouseholdItems,
     budget: deBudget,
+    costLines: deCostLines,
     schedule: deSchedule,
     diary: deDiary,
     documents: deDocuments,
@@ -107,6 +111,7 @@ void i18n.use(initReactI18next).init({
     'workItems',
     'householdItems',
     'budget',
+    'costLines',
     'schedule',
     'diary',
     'documents',

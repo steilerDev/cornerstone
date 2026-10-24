@@ -13,8 +13,8 @@
  * effectivePlannedAmount({plannedAmount:100, includesVat:false}) = 119 (for display)
  *
  * Scenario coverage:
- *   1. [smoke] VAT-exclusive inline create: dry-run returns one line (VAT-exclusive, 100),
- *      user queues create-new, Saves; assert POST /api/work-items/:id/budgets has
+ *   1. [smoke] VAT-exclusive create: dry-run returns one line (VAT-exclusive, 100),
+ *      the user picks the task under Belongs to and Saves (#2235 grid); assert POST /api/work-items/:id/budgets has
  *      plannedAmount=100 & includesVat=false; assert POST /api/invoices/:id/auto-itemize
  *      (commit) is called; navigate to invoice detail and verify
  *      GET /api/work-items/:id/budgets shows plannedAmount=100 & actualCost=119.
@@ -252,36 +252,13 @@ test(
 
       await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
-      // ── Verify the extracted line shows VAT-exclusive (checkbox unchecked) ──
-      const vatCheckbox = autoItemizePage.lineVatCheckbox(0);
-      await expect(vatCheckbox).toBeVisible();
-      // includesVat=false → checkbox should NOT be checked
-      await expect(vatCheckbox).not.toBeChecked();
+      // ── The extracted line is entered Net (VAT-exclusive); 100 net shows 119 gross ──
+      await expect(autoItemizePage.lineEnteredAs(0)).toHaveText('Net');
+      await expect(autoItemizePage.lineGross(0)).toHaveText('€119.00');
 
-      // ── Open assign picker and pick the test work item ────────────────────────
-      await expect(autoItemizePage.lineAssignButton(0)).toBeVisible();
-      await autoItemizePage.lineAssignButton(0).click();
-      await expect(autoItemizePage.pickerModal).toBeVisible();
-
-      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AIVAT-S1 WI`);
-
-      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: new RegExp(`${testPrefix} AIVAT-S1 WI`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
-      });
-      await wiOption.waitFor({ state: 'visible' });
-      await wiOption.click();
-
-      // Step 2: click "Create Budget Line"
-      const step2Modal = autoItemizePage.pickerStep2Modal();
-      await expect(step2Modal).toBeVisible();
-      await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
-      await autoItemizePage.pickerCreateBudgetLineButton.click();
-
-      // Picker should have closed — inline form now visible
-      await expect(autoItemizePage.pickerModal).not.toBeVisible();
-      await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
-      await expect(autoItemizePage.getInlineFormWrapper(0)).toBeVisible();
+      // ── Belongs to: the test work item; the row creates a new cost line on it ────
+      await autoItemizePage.grid.targetPicker(1).pick(`${testPrefix} AIVAT-S1 WI`);
+      await autoItemizePage.lineCategory(0).selectOption({ index: 1 });
 
       // ── Register response interceptors BEFORE clicking Save ─────────────────
       // Register all waitForResponse BEFORE saveButton.click() to avoid races.

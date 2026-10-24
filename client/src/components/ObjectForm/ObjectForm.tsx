@@ -33,6 +33,7 @@ import {
   serverFieldErrors,
   startsExpanded,
   startValues,
+  visibleFields,
 } from './objectFormState.js';
 import type {
   ObjectFormChild,
@@ -74,7 +75,7 @@ interface Step {
   readonly errors: ObjectFormErrors;
   readonly expanded: boolean;
   readonly addedText: string;
-  readonly onCreated?: (result: ObjectFormResult) => void;
+  readonly onCreated: (result: ObjectFormResult) => void;
   readonly parentField?: string;
 }
 
@@ -93,6 +94,7 @@ function makeStep(
     errors: {},
     expanded: startsExpanded(schema, prefill),
     addedText: '',
+    onCreated: () => undefined,
     ...extra,
   };
 }
@@ -203,7 +205,7 @@ export function ObjectForm({
     if (previousWideRef.current === wide) return;
     previousWideRef.current = wide;
     const name = lastFocusedRef.current;
-    if (name) document.getElementById(name)?.focus();
+    if (name) document.getElementById(name)!.focus();
   }, [wide]);
 
   // Focus requested by a handler (first invalid field, parent field after a child) once the
@@ -216,7 +218,7 @@ export function ObjectForm({
   });
 
   useEffect(() => {
-    if (banner) bannerRef.current?.scrollIntoView?.({ block: 'nearest' });
+    if (banner) bannerRef.current!.scrollIntoView?.({ block: 'nearest' });
   }, [banner]);
 
   const setValue = (name: string, value: unknown) => {
@@ -251,22 +253,24 @@ export function ObjectForm({
     const parentField = top.parentField;
     setSteps((prev) => prev.slice(0, -1));
     setBanner(null);
-    pendingFocusRef.current = parentField ?? null;
+    pendingFocusRef.current = parentField!;
   };
 
   const handleFailure = (error: unknown) => {
     const failed = top;
     if (error instanceof ApiClientError) {
       const code = error.error.code;
-      const mappedErrors = schema.mapError?.(code, failed.values);
-      const mappedNames = Object.keys(mappedErrors ?? {}).filter(
-        (name) => mappedErrors?.[name] !== undefined,
+      const mappedErrors = schema.mapError?.(code, failed.values) ?? {};
+      const mappedNames = Object.keys(mappedErrors).filter(
+        (name) => mappedErrors[name] !== undefined,
       );
-      if (mappedErrors && mappedNames.length > 0) {
+      if (mappedNames.length > 0) {
         const errors: Record<string, string | undefined> = {};
         for (const name of mappedNames) errors[name] = mappedErrors[name];
-        const first = firstErrorField(schema.fields, errors);
-        const needsMore = schema.fields.some((f) => errors[f.name] !== undefined && isMoreField(f));
+        const first = firstErrorField(visibleFields(schema.fields, failed.values), errors);
+        const needsMore = visibleFields(schema.fields, failed.values).some(
+          (f) => errors[f.name] !== undefined && isMoreField(f),
+        );
         updateTop((step) => ({
           ...step,
           errors: { ...failed.errors, ...errors },
@@ -281,8 +285,10 @@ export function ObjectForm({
         );
         const errors: Record<string, string> = {};
         for (const name of mapped.fields) errors[name] = t('objectForm.fieldInvalid');
-        const first = firstErrorField(schema.fields, errors);
-        const needsMore = schema.fields.some((f) => errors[f.name] !== undefined && isMoreField(f));
+        const first = firstErrorField(visibleFields(schema.fields, failed.values), errors);
+        const needsMore = visibleFields(schema.fields, failed.values).some(
+          (f) => errors[f.name] !== undefined && isMoreField(f),
+        );
         updateTop((step) => ({
           ...step,
           errors: { ...failed.errors, ...errors },
@@ -299,15 +305,16 @@ export function ObjectForm({
     setBusy(false);
   };
 
-  const save = async (event?: FormEvent) => {
-    event?.preventDefault();
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
     if (busyRef.current) return;
     const step = top;
     const current = schema;
     const errors = current.validate(step.values);
-    const invalid = firstErrorField(current.fields, errors);
+    const shown = visibleFields(current.fields, step.values);
+    const invalid = firstErrorField(shown, errors);
     if (invalid) {
-      const needsMore = current.fields.some((f) => errors[f.name] !== undefined && isMoreField(f));
+      const needsMore = shown.some((f) => errors[f.name] !== undefined && isMoreField(f));
       updateTop((s) => ({ ...s, errors, expanded: s.expanded || needsMore }));
       pendingFocusRef.current = invalid.name;
       setBanner(null);
@@ -327,7 +334,7 @@ export function ObjectForm({
     if (depth > 1) {
       setBusy(false);
       popStep();
-      step.onCreated?.(result);
+      step.onCreated(result);
       return;
     }
 
@@ -379,7 +386,7 @@ export function ObjectForm({
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLFormElement>) => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault();
-      formRef.current?.requestSubmit();
+      formRef.current!.requestSubmit();
     }
   };
 
@@ -388,14 +395,16 @@ export function ObjectForm({
     if (id && schema.fields.some((f) => f.name === id)) lastFocusedRef.current = id;
   };
 
-  const essentials = schema.fields.filter((f) => !isMoreField(f));
-  const more = schema.fields.filter(isMoreField);
+  const shownFields = visibleFields(schema.fields, top.values);
+  const essentials = shownFields.filter((f) => !isMoreField(f));
+  const more = shownFields.filter(isMoreField);
 
   const renderField = (field: (typeof schema.fields)[number]) => (
     <ObjectFormField
       key={field.name}
       field={field}
       value={top.values[field.name]}
+      values={top.values}
       error={top.errors[field.name]}
       busy={busy}
       onChange={(value) => setValue(field.name, value)}
