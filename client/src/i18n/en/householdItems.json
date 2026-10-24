@@ -214,13 +214,6 @@
     "submitting": "Saving...",
     "success": "Household item updated successfully"
   },
-  "picker": {
-    "placeholder": "Search household items...",
-    "emptyHint": "Type to search household items",
-    "noResults": "No matching household items found",
-    "loadError": "Failed to load household items",
-    "searchError": "Failed to search household items"
-  },
   "detail": {
     "loading": "Loading household item...",
     "error": "Error",
@@ -289,10 +282,6 @@
       "late": "Late"
     },
     "budget": {
-      "title": "Budget",
-      "emptyState": "No budget lines yet. Add the first line to start tracking costs.",
-      "addLineButton": "+ Add Line",
-      "linkInvoiceButton": "Link to Invoice",
       "confidenceLabel": "Confidence:",
       "plannedAmountLabel": "Planned Amount",
       "actualCostLabel": "Actual Cost",
@@ -304,8 +293,7 @@
       "deleteFailed": "Failed to delete household item. Please try again.",
       "alreadyLinkedSubsidy": "This subsidy program is already linked",
       "linkSubsidy": "Failed to link subsidy program",
-      "unlinkSubsidy": "Failed to unlink subsidy program",
-      "unlinkInvoice": "Failed to unlink budget line from invoice"
+      "unlinkSubsidy": "Failed to unlink subsidy program"
     },
     "closeErrorMessage": "Close error message"
   }

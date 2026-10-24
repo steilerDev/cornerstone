@@ -7,8 +7,7 @@
  * (for useFormatters()/useLocale()) and real i18next instance (booted by
  * client/src/test/setupTests.ts) are used, so assertions check real rendered
  * English text rather than raw translation keys. configApi.js/preferencesApi.js
- * are mocked so LocaleProvider's config fetch doesn't hit the real network
- * (same pattern as EditBudgetLineModal.test.tsx).
+ * are mocked so LocaleProvider's config fetch doesn't hit the real network.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import React from 'react';

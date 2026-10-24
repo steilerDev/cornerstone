@@ -23,18 +23,20 @@ import type {
 // ─── Mock: paperlessApi ────────────────────────────────────────────────────────
 
 const mockGetPaperlessDocument = jest.fn<typeof PaperlessApiModule.getPaperlessDocument>();
+const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiModule.getPaperlessStatus>();
 const mockGetDocumentPreviewUrl = jest.fn<(id: number) => string>(
   (id) => `/paperless/documents/${id}/preview`,
 );
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
-  getPaperlessStatus: jest.fn(),
+  getPaperlessStatus: mockGetPaperlessStatus,
   listPaperlessDocuments: jest.fn(),
   listPaperlessTags: jest.fn(),
   getPaperlessDocument: mockGetPaperlessDocument,
   getDocumentThumbnailUrl: (id: number) => `/thumb/${id}`,
   getDocumentPreviewUrl: mockGetDocumentPreviewUrl,
   listPaperlessCorrespondents: jest.fn(),
+  uploadPaperlessDocument: jest.fn(),
 }));
 
 // ─── Mock: invoiceAutoItemizeApi ───────────────────────────────────────────────
@@ -69,9 +71,10 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // ─── Mock: workItemBudgetsApi ─────────────────────────────────────────────────
 
 const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiModule.createWorkItemBudget>();
+const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiModule.fetchWorkItemBudgets>();
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
-  fetchWorkItemBudgets: jest.fn(),
+  fetchWorkItemBudgets: mockFetchWorkItemBudgets,
   createWorkItemBudget: mockCreateWorkItemBudget,
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
@@ -89,54 +92,32 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   deleteHouseholdItemBudget: jest.fn(),
 }));
 
-// ─── Mock: useBudgetLinePicker ─────────────────────────────────────────────────
-// Exposes mockPickerStateOverride so individual tests can inject picker state
-// (e.g. isOpen=true, step=2, type='work_item') without changing the global default.
-// The capturedClosePicker spy lets tests verify picker.closePicker() was called.
+// ─── Funding sources and categories served to the cost line grid ──────────────
+
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: jest
+    .fn<() => Promise<unknown>>()
+    .mockResolvedValue({ categories: [{ id: 'bc-test', name: 'Flooring', translationKey: null }] }),
+}));
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: jest
+    .fn<() => Promise<unknown>>()
+    .mockImplementation(async () => ({ budgetSources: SOURCES })),
+  fetchBudgetSource: jest.fn(),
+  fetchBudgetLinesForSource: jest.fn(),
+}));
+
+const mockSearchEverywhere = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/searchApi.js', () => ({
+  searchEverywhere: mockSearchEverywhere,
+}));
 
 const SOURCES = [
   { id: 'src-disc', name: 'Discretionary Fund', isDiscretionary: true },
   { id: 'src-loan', name: 'Bank Loan', isDiscretionary: false },
   { id: 'src-sav', name: 'Savings', isDiscretionary: false },
 ];
-
-let mockPickerStateOverride: Record<string, unknown> = {};
-const mockClosePicker = jest.fn();
-// Captures the hook's onLineCreated so tests can simulate a picker-created budget line.
-let capturedOnLineCreated: ((line: unknown) => void) | null = null;
-
-jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: (opts: { onLineCreated: (line: unknown) => void }) => {
-    capturedOnLineCreated = opts.onLineCreated;
-    return {
-      pickerState: {
-        isOpen: false,
-        step: 1,
-        type: null,
-        itemId: null,
-        itemTitle: null,
-        isLoading: false,
-        error: null,
-        budgetLines: [],
-        budgetSources: SOURCES,
-        vendors: [{ id: 'v-builder', name: 'Builder Co', trade: null }],
-        categories: [],
-        showCreateForm: false,
-        createError: null,
-        createForm: undefined,
-        ...mockPickerStateOverride,
-      },
-      openPicker: jest.fn(),
-      closePicker: mockClosePicker,
-      handleSelectItem: jest.fn(),
-      showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      handleCreateBudgetLine: jest.fn(),
-      setPickerState: jest.fn(),
-      initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      createBudgetLineButtonRef: { current: null },
-    };
-  },
-}));
 
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
 
@@ -182,48 +163,6 @@ jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', 
     displayValue?: string;
     suggestedValue: string;
   }) => <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>,
-}));
-
-// ─── Mock: BudgetLineForm ──────────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  // Minimal controlled stand-in exposing the inputs these tests drive. Ids mirror the real
-  // form (`${idPrefix}budget-<field>`) so the tests query them the same way.
-  BudgetLineForm: (props: {
-    idPrefix?: string;
-    form: Record<string, string>;
-    onFormChange: (updates: Record<string, string>) => void;
-  }) => {
-    const prefix = props.idPrefix ?? '';
-    const field = (id: string, key: string) => (
-      <input
-        id={`${prefix}budget-${id}`}
-        value={props.form[key] ?? ''}
-        onChange={(e) => props.onFormChange({ [key]: e.target.value })}
-      />
-    );
-    return (
-      <div
-        data-testid="budget-line-form"
-        data-budget-source-id={props.form?.budgetSourceId ?? ''}
-        data-budget-category-id={props.form?.budgetCategoryId ?? ''}
-      >
-        {field('description', 'description')}
-        {field('planned-amount', 'plannedAmount')}
-        {field('source-id', 'budgetSourceId')}
-        {field('category-id', 'budgetCategoryId')}
-      </div>
-    );
-  },
-}));
-
-// ─── Mock: ParentPicker ────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ParentPicker: (props: any) => (
-    <div data-testid="parent-picker" data-selected-type={props.selectedType ?? ''} />
-  ),
 }));
 
 // ─── Mock: errorTranslation ────────────────────────────────────────────────────
@@ -282,6 +221,16 @@ beforeEach(async () => {
   ({ LocaleProvider } =
     (await import('../../contexts/LocaleContext.js')) as typeof LocaleContextModule);
 
+  // The cost line grid shows Undo toasts, so the page needs a ToastProvider.
+  const { ToastProvider } = await import('../../components/Toast/ToastContext.js');
+  const BaseLocaleProvider = LocaleProvider;
+  LocaleProvider = (({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      BaseLocaleProvider,
+      null,
+      React.createElement(ToastProvider, null, children),
+    )) as typeof LocaleProvider;
+
   mockGetPaperlessDocument.mockReset();
   mockGetDocumentPreviewUrl.mockImplementation((id) => `/paperless/documents/${id}/preview`);
   mockPreviewAutoItemize.mockReset();
@@ -295,11 +244,17 @@ beforeEach(async () => {
     if (!found) throw new Error('not found');
     return found as Awaited<ReturnType<typeof VendorsApiModule.fetchVendor>>;
   });
+  mockMergeLines.mockReset();
+  mockGetPaperlessStatus.mockReset().mockRejectedValue(new Error('no paperless'));
   mockCreateWorkItemBudget.mockReset();
+  mockFetchWorkItemBudgets.mockReset().mockResolvedValue([]);
+  mockSearchEverywhere.mockReset().mockResolvedValue({
+    groups: [
+      { type: 'work_item', items: [{ id: 'wi-1', label: 'Kitchen', areaPath: [] }] },
+      { type: 'household_item', items: [{ id: 'hi-1', label: 'Sofa', areaPath: [] }] },
+    ],
+  });
   mockCreateHouseholdItemBudget.mockReset();
-  mockClosePicker.mockReset();
-  capturedOnLineCreated = null;
-  mockPickerStateOverride = {};
 
   // Safe defaults so tests that don't override still reach ready state
   mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
@@ -399,29 +354,6 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
   return { invoice, budgetLines: [], remainingAmount: 0 };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeWorkItemBudgetLine(overrides: { id: string; plannedAmount: number }): any {
-  return {
-    id: overrides.id,
-    workItemId: 'wi-1',
-    description: 'Test budget line',
-    plannedAmount: overrides.plannedAmount,
-    confidence: 'invoice',
-    includesVat: true,
-    quantity: null,
-    unit: null,
-    unitPrice: null,
-    budgetCategoryId: null,
-    budgetSourceId: null,
-    // BaseBudgetLine shape: the server echoes the persisted source/category as objects.
-    budgetSource: { id: 'src-loan', name: 'Bank Loan' },
-    budgetCategory: { id: 'bc-draft', name: 'Draft Category', translationKey: null },
-    vendorId: null,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-  };
-}
-
 // ─── Render helper ─────────────────────────────────────────────────────────────
 
 function renderPage(documentId: number = 42) {
@@ -497,62 +429,27 @@ function setPreviewLines(lines: PreviewLine[]) {
   mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines }));
 }
 
-function openPickerForItem(
-  budgetLines: unknown[] = [],
-  type: 'work_item' | 'household_item' = 'work_item',
-) {
-  mockPickerStateOverride = {
-    isOpen: true,
-    step: 2,
-    type,
-    itemId: type === 'work_item' ? 'wi-1' : 'hi-1',
-    itemTitle: type === 'work_item' ? 'Kitchen tiles' : 'Sofa',
-    isLoading: false,
-    showCreateForm: false,
-    budgetLines,
-  };
+function getRowIds(): string[] {
+  return screen
+    .getAllByTestId(/^auto-itemize-grid-source-/)
+    .map((el) => el.getAttribute('data-testid')!.replace('auto-itemize-grid-source-', ''));
 }
 
-function getRows(): HTMLElement[] {
-  const list = screen.getByRole('list', { name: 'Extracted line items' });
-  return within(list).getAllByRole('listitem');
+/** Rows of extracted lines (without the grid's blank row at the end). */
+function lineRowIds(): string[] {
+  return getRowIds().slice(0, -1);
 }
 
-function getRow(index: number): HTMLElement {
-  const row = getRows()[index];
-  expect(row).toBeDefined();
-  return row as HTMLElement;
+function sourceSelect(rowId: string): HTMLSelectElement {
+  return screen.getByTestId(`auto-itemize-grid-source-${rowId}`) as HTMLSelectElement;
 }
 
-function getRowSelect(row: HTMLElement): HTMLSelectElement {
-  const select = row.querySelector<HTMLSelectElement>('select[id^="source-"]');
-  expect(select).not.toBeNull();
-  return select as HTMLSelectElement;
-}
-
-/**
- * Per-row source: the select value for editable rows; for rows linked to an existing budget line
- * (read-only original values, no select) `linked:<displayed source name>`.
- */
 function rowSources(): string[] {
-  return getRows().map((row) => {
-    const linked = row.querySelector('[data-testid="linked-line-source"]');
-    if (linked) {
-      expect(row.querySelector('select[id^="source-"]')).toBeNull();
-      return `linked:${linked.textContent}`;
-    }
-    return getRowSelect(row).value;
-  });
+  return lineRowIds().map((id) => sourceSelect(id).value);
 }
 
 function getTopSelect(): HTMLSelectElement {
   return screen.getByLabelText('Budget source') as HTMLSelectElement;
-}
-
-function draftSource(index: number): string | null {
-  return within(getRow(index))
-    .getByTestId('budget-line-form')
-    .getAttribute('data-budget-source-id');
 }
 
 function statusText(): string {
@@ -569,72 +466,53 @@ async function setTopSource(value: string) {
 
 async function setRowSource(rowIndex: number, value: string) {
   await act(async () => {
-    fireEvent.change(getRowSelect(getRow(rowIndex)), { target: { value } });
-  });
-}
-
-async function queueDraft(rowIndex: number) {
-  const row = getRow(rowIndex);
-  await act(async () => {
-    fireEvent.click(within(row).getByRole('button', { name: /Assign…/i }));
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: /Create Budget Line/i }));
-  });
-}
-
-async function linkExistingLine(rowIndex: number, buttonName: RegExp) {
-  const row = getRow(rowIndex);
-  await act(async () => {
-    fireEvent.click(within(row).getByRole('button', { name: /Assign…/i }));
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: buttonName }));
-  });
-}
-
-async function changeDraftField(rowIndex: number, field: string, value: string) {
-  const input = getRow(rowIndex).querySelector<HTMLInputElement>(`input[id$="budget-${field}"]`);
-  expect(input).not.toBeNull();
-  await act(async () => {
-    fireEvent.change(input as HTMLInputElement, { target: { value } });
+    fireEvent.change(sourceSelect(lineRowIds()[rowIndex]!), { target: { value } });
   });
 }
 
 async function renderReady() {
   renderPage();
   await waitForReady();
+  // Wait for the funding sources, so the rows carry their default.
+  await waitFor(() => expect(getTopSelect().options.length).toBeGreaterThan(1));
+}
+
+async function assignAllToKitchen(name: RegExp = /Kitchen/, label = 'Kitchen') {
+  const picker = screen.getByTestId('auto-itemize-grid-assign-all');
+  fireEvent.change(picker.querySelector('input') as HTMLInputElement, { target: { value: 'kit' } });
+  fireEvent.click(await screen.findByRole('option', { name }, { timeout: 3000 }));
+  await waitFor(() => expect(within(picker).getByText(label)).toBeInTheDocument());
 }
 
 interface CommitLine {
   assignmentMode: string;
   assignedBudgetLineId?: string;
+  assignedBudgetLineType?: string;
   budgetSourceId?: string;
   budgetCategoryId?: string | null;
+  totalAmount?: number;
 }
 
-async function clickSaveAndGetCommitLines(): Promise<CommitLine[]> {
+async function clickSave() {
   await act(async () => {
     fireEvent.click(getCreateBtn());
   });
+}
+
+async function clickSaveAndGetCommitLines(): Promise<CommitLine[]> {
+  await clickSave();
   await waitFor(() => {
     expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
   });
-  const call = mockCommitAutoItemizeCreate.mock.calls[0];
-  expect(call).toBeDefined();
-  const arg = call?.[0] as { lines: CommitLine[] } | undefined;
-  expect(arg).toBeDefined();
-  return (arg as { lines: CommitLine[] }).lines;
+  const arg = mockCommitAutoItemizeCreate.mock.calls[0]?.[0] as { lines: CommitLine[] };
+  return arg.lines;
 }
 
-const WORK_ITEM_BUDGET_LINE_DISC = {
-  id: 'wib-disc',
-  workItemId: 'wi-1',
-  description: 'Existing disc line',
-  plannedAmount: 500,
-  budgetSource: { id: 'src-disc', name: 'Discretionary Fund' },
-  budgetCategory: { id: 'bc-linked', name: 'Linked Cat', translationKey: null },
-};
+function createdLine(id: string) {
+  return { id, description: 'Created line' } as Awaited<
+    ReturnType<typeof WorkItemBudgetsApiModule.createWorkItemBudget>
+  >;
+}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -654,8 +532,6 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
 
     const status = document.getElementById('invoice-status') as HTMLElement;
     const notes = document.getElementById('notes') as HTMLElement;
-    expect(status).not.toBeNull();
-    expect(notes).not.toBeNull();
     expect(status.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(select.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -669,402 +545,439 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     expect(statusText()).toBe('');
   });
 
-  it('AC3: a queued inline draft takes the invoice default even when the row source differs', async () => {
-    openPickerForItem();
-    setPreviewLines([previewLine('Tiles', 'src-sav')]);
+  it('lines without a source start on the Discretionary source', async () => {
+    setPreviewLines([previewLine('Tiles', null)]);
     await renderReady();
 
-    await setTopSource('src-loan');
-    await setRowSource(0, 'src-sav');
-    expect(rowSources()).toEqual(['src-sav']);
-
-    await queueDraft(0);
-
-    expect(draftSource(0)).toBe('src-loan');
+    expect(rowSources()).toEqual(['src-disc']);
   });
 
-  it('AC4: with no default, a queued inline draft uses the row budget source', async () => {
-    openPickerForItem();
-    setPreviewLines([previewLine('Tiles', 'src-sav')]);
-    await renderReady();
-
-    await queueDraft(0);
-
-    expect(draftSource(0)).toBe('src-sav');
-  });
-
-  it('AC5/AC10: choosing a source applies it to every non-linked row (included, excluded, draft) and announces the count', async () => {
-    openPickerForItem();
+  it('AC5: choosing a source applies it to every row (included or not) and announces the count', async () => {
     setPreviewLines([
       previewLine('Tiles', 'src-loan'),
       previewLine('Grout', 'src-disc'),
       previewLine('Paint', 'src-loan'),
-      previewLine('Plaster', 'src-disc'),
     ]);
     await renderReady();
-
-    // Exclude the third row, queue a draft on the fourth.
+    // Exclude the third row.
     await act(async () => {
-      fireEvent.click(within(getRow(2)).getByLabelText('Include'));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Include, row 3' }));
     });
-    await queueDraft(3);
 
     await setTopSource('src-sav');
 
-    expect(getRows().length).toBe(4);
-    expect(getRowSelect(getRow(0)).value).toBe('src-sav');
-    expect(getRowSelect(getRow(1)).value).toBe('src-sav');
-    expect(getRowSelect(getRow(2)).value).toBe('src-sav');
-    expect(draftSource(3)).toBe('src-sav');
-    expect(statusText()).toBe('Budget source "Savings" applied to 4 lines');
+    expect(rowSources()).toEqual(['src-sav', 'src-sav', 'src-sav']);
+    expect(statusText()).toBe('Budget source "Savings" applied to 3 lines');
   });
 
-  it('AC6: a row linked to an existing budget line is untouched by the default, not counted, and commits no source or category', async () => {
-    openPickerForItem([WORK_ITEM_BUDGET_LINE_DISC]);
+  it('AC6: a row linked to an existing cost line keeps its own values and is not counted', async () => {
+    mockFetchWorkItemBudgets.mockResolvedValue([
+      {
+        id: 'wib-disc',
+        description: 'Existing disc line',
+        plannedAmount: 500,
+        includesVat: true,
+        invoiceLink: null,
+      },
+    ] as never);
     setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
     await renderReady();
-
-    await linkExistingLine(0, /Existing disc line/);
-    expect(rowSources()).toEqual(['linked:Discretionary Fund', 'src-loan']);
+    await assignAllToKitchen();
+    fireEvent.click(screen.getByRole('button', { name: /Use an existing cost line…, Row 1/ }));
+    fireEvent.click(await screen.findByTestId('cost-line-existing-use-wib-disc'));
+    await screen.findByText(/Links Existing disc line/);
 
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['linked:Discretionary Fund', 'src-sav']);
     expect(statusText()).toBe('Budget source "Savings" applied to 1 line');
-
+    mockCreateWorkItemBudget.mockResolvedValue(createdLine('bl-new'));
     const lines = await clickSaveAndGetCommitLines();
-    expect(lines.length).toBe(2);
-    expect(lines[0]?.assignmentMode).toBe('assign-existing');
-    expect(lines[0]?.assignedBudgetLineId).toBe('wib-disc');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      assignmentMode: 'assign-existing',
+      assignedBudgetLineId: 'wib-disc',
+      assignedBudgetLineType: 'work_item',
+      totalAmount: 500,
+    });
     expect(lines[0]?.budgetSourceId).toBeUndefined();
     expect(lines[0]?.budgetCategoryId).toBeUndefined();
-    expect(lines[1]?.assignmentMode).toBe('create-new');
-    expect(lines[1]?.budgetSourceId).toBe('src-sav');
   });
 
-  it('announces nothing when every line is linked to an existing budget line', async () => {
-    openPickerForItem([WORK_ITEM_BUDGET_LINE_DISC]);
+  it('announces nothing when every line is linked to an existing cost line', async () => {
+    mockFetchWorkItemBudgets.mockResolvedValue([
+      {
+        id: 'wib-1',
+        description: 'Existing',
+        plannedAmount: 500,
+        includesVat: true,
+        invoiceLink: null,
+      },
+    ] as never);
     setPreviewLines([previewLine('Tiles', 'src-loan')]);
     await renderReady();
+    await assignAllToKitchen();
+    fireEvent.click(screen.getByRole('button', { name: /Use an existing cost line…, Row 1/ }));
+    fireEvent.click(await screen.findByTestId('cost-line-existing-use-wib-1'));
+    await screen.findByText(/Links Existing/);
 
-    await linkExistingLine(0, /Existing disc line/);
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['linked:Discretionary Fund']);
-    expect(getTopSelect().value).toBe('src-sav');
     expect(statusText()).toBe('');
   });
 
-  it('AC7: resetting to "No default" leaves applied sources and the announcement untouched, and new drafts use the row source', async () => {
-    openPickerForItem();
-    setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
+  it('AC7: resetting to "No default" leaves applied sources and the announcement untouched', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
     await renderReady();
-
     await setTopSource('src-sav');
-    expect(statusText()).toBe('Budget source "Savings" applied to 2 lines');
+    const message = statusText();
 
     await setTopSource('');
 
-    expect(getTopSelect().value).toBe('');
-    expect(rowSources()).toEqual(['src-sav', 'src-sav']);
-    expect(statusText()).toBe('Budget source "Savings" applied to 2 lines');
-
-    await setRowSource(0, 'src-loan');
-    await queueDraft(0);
-    expect(draftSource(0)).toBe('src-loan');
+    expect(rowSources()).toEqual(['src-sav']);
+    expect(statusText()).toBe(message);
   });
 
-  it('AC8: a per-line override after applying a default only changes that line and keeps the default', async () => {
-    openPickerForItem();
-    setPreviewLines([
-      previewLine('Tiles', 'src-disc'),
-      previewLine('Grout', 'src-disc'),
-      previewLine('Paint', 'src-disc'),
-    ]);
+  it('AC8/AC9: a per-line override keeps the default; another default overwrites the override', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
     await renderReady();
-    await queueDraft(2);
-
     await setTopSource('src-sav');
-    await setRowSource(0, 'src-loan');
 
-    expect(getRowSelect(getRow(0)).value).toBe('src-loan');
-    expect(getRowSelect(getRow(1)).value).toBe('src-sav');
-    expect(draftSource(2)).toBe('src-sav');
+    await setRowSource(0, 'src-disc');
+    expect(rowSources()).toEqual(['src-disc', 'src-sav']);
     expect(getTopSelect().value).toBe('src-sav');
 
-    await changeDraftField(2, 'source-id', 'src-disc');
-
-    expect(getRowSelect(getRow(0)).value).toBe('src-loan');
-    expect(getRowSelect(getRow(1)).value).toBe('src-sav');
-    expect(draftSource(2)).toBe('src-disc');
-    expect(getTopSelect().value).toBe('src-sav');
+    await setTopSource('src-loan');
+    expect(rowSources()).toEqual(['src-loan', 'src-loan']);
   });
 
-  it('AC9: choosing another default afterwards overwrites earlier per-line overrides, drafts included', async () => {
-    openPickerForItem();
-    setPreviewLines([previewLine('Tiles', 'src-disc'), previewLine('Grout', 'src-disc')]);
+  it('re-applying a different source with the same line count changes the announcement', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
     await renderReady();
-    await queueDraft(1);
-
     await setTopSource('src-sav');
-    await setRowSource(0, 'src-loan');
-    await changeDraftField(1, 'source-id', 'src-loan');
+    const first = statusText();
 
-    await setTopSource('src-disc');
+    await setTopSource('src-loan');
 
-    expect(getRowSelect(getRow(0)).value).toBe('src-disc');
-    expect(draftSource(1)).toBe('src-disc');
-    expect(statusText()).toBe('Budget source "Discretionary Fund" applied to 2 lines');
+    expect(statusText()).not.toBe(first);
+    expect(statusText()).toBe('Budget source "Bank Loan" applied to 1 line');
   });
 
   it('AC10: a merged line takes the invoice default source', async () => {
     mockMergeLines.mockResolvedValue({
-      description: 'Merged work',
+      description: 'Tiles and grout',
       category: null,
       budgetCategoryId: 'bc-test',
     });
-    setPreviewLines([previewLine('Tiles', 'src-disc'), previewLine('Grout', 'src-disc')]);
+    setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-sav')]);
     await renderReady();
+    await setTopSource('src-disc');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 2' }));
 
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('auto-itemize-merge'));
+    });
+
+    expect(await screen.findByDisplayValue('Tiles and grout')).toBeInTheDocument();
+    expect(rowSources()).toEqual(['src-disc']);
+  });
+
+  it('AC11: commit sends the default for untouched lines and the override for edited ones', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
+    await renderReady();
     await setTopSource('src-sav');
-    // Move the rows off the default so the merge must apply it itself.
-    await setRowSource(0, 'src-loan');
     await setRowSource(1, 'src-disc');
 
-    for (const row of getRows()) {
-      fireEvent.click(within(row).getAllByRole('checkbox')[0] as HTMLElement);
-    }
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: /Merge/i }));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Merged work')).toBeInTheDocument();
-    });
-    expect(rowSources()).toEqual(['src-sav']);
-  });
-
-  it('AC11: commit sends the default for untouched create-new lines and the override for edited ones', async () => {
-    setPreviewLines([previewLine('Tiles', 'src-disc'), previewLine('Grout', 'src-disc')]);
-    await renderReady();
-
-    await setTopSource('src-sav');
-    await setRowSource(1, 'src-loan');
-
-    const lines = await clickSaveAndGetCommitLines();
-    expect(lines.length).toBe(2);
-    expect(lines[0]?.assignmentMode).toBe('create-new');
-    expect(lines[0]?.budgetSourceId).toBe('src-sav');
-    expect(lines[1]?.assignmentMode).toBe('create-new');
-    expect(lines[1]?.budgetSourceId).toBe('src-loan');
-  });
-
-  it('AC11: an overridden inline draft is created and committed with its own source and category', async () => {
-    openPickerForItem();
-    mockCreateWorkItemBudget.mockResolvedValue(
-      makeWorkItemBudgetLine({ id: 'bl-draft', plannedAmount: 100 }),
-    );
-    setPreviewLines([previewLine('Tiles', 'src-disc', { budgetCategoryId: 'bc-row' })]);
-    await renderReady();
-    await queueDraft(0);
-
-    await setTopSource('src-sav');
-    await changeDraftField(0, 'source-id', 'src-loan');
-    await changeDraftField(0, 'category-id', 'bc-draft');
-
     const lines = await clickSaveAndGetCommitLines();
 
-    expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
-    const createCall = mockCreateWorkItemBudget.mock.calls[0];
-    expect(createCall).toBeDefined();
-    expect(createCall?.[0]).toBe('wi-1');
-    expect(createCall?.[1]).toMatchObject({
-      budgetSourceId: 'src-loan',
-      budgetCategoryId: 'bc-draft',
-    });
-
-    expect(lines.length).toBe(1);
-    expect(lines[0]?.assignmentMode).toBe('assign-existing');
-    expect(lines[0]?.assignedBudgetLineId).toBe('bl-draft');
-    expect(lines[0]?.budgetSourceId).toBeUndefined();
-    expect(lines[0]?.budgetCategoryId).toBeUndefined();
-  });
-
-  it('household-item inline draft is created with the draft values and commits no source or category', async () => {
-    openPickerForItem([], 'household_item');
-    mockCreateHouseholdItemBudget.mockResolvedValue({
-      id: 'hbl-new',
-      householdItemId: 'hi-1',
-      description: 'Created HI line',
-      plannedAmount: 100,
-      confidence: 'invoice',
-      includesVat: true,
-      quantity: null,
-      unit: null,
-      unitPrice: null,
-      budgetCategory: {
-        id: 'bc-household-items',
-        name: 'Household Items',
-        translationKey: null,
-      },
-      budgetSource: { id: 'src-loan', name: 'Bank Loan' },
-      vendor: null,
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-    } as never);
-    setPreviewLines([previewLine('Sofa', 'src-loan', { budgetCategoryId: 'bc-row' })]);
-    await renderReady();
-    await queueDraft(0);
-
-    const lines = await clickSaveAndGetCommitLines();
-
-    expect(mockCreateHouseholdItemBudget).toHaveBeenCalledTimes(1);
-    expect(mockCreateHouseholdItemBudget.mock.calls[0]?.[1]).toMatchObject({
-      budgetSourceId: 'src-loan',
-    });
-    expect(lines.length).toBe(1);
-    expect(lines[0]?.assignmentMode).toBe('assign-existing');
-    expect(lines[0]?.assignedBudgetLineId).toBe('hbl-new');
-    expect(lines[0]?.budgetSourceId).toBeUndefined();
-    expect(lines[0]?.budgetCategoryId).toBeUndefined();
-  });
-
-  it('a budget line created through the picker and linked commits no source or category', async () => {
-    openPickerForItem();
-    setPreviewLines([previewLine('Tiles', 'src-loan', { budgetCategoryId: 'bc-row' })]);
-    await renderReady();
-
-    await act(async () => {
-      fireEvent.click(within(getRow(0)).getByRole('button', { name: /Assign…/i }));
-    });
-    expect(capturedOnLineCreated).not.toBeNull();
-    await act(async () => {
-      capturedOnLineCreated?.(makeWorkItemBudgetLine({ id: 'bl-picker', plannedAmount: 100 }));
-    });
-    expect(rowSources()).toEqual(['linked:Bank Loan']);
-
-    const lines = await clickSaveAndGetCommitLines();
-    expect(lines.length).toBe(1);
-    expect(lines[0]?.assignmentMode).toBe('assign-existing');
-    expect(lines[0]?.assignedBudgetLineId).toBe('bl-picker');
-    expect(lines[0]?.budgetSourceId).toBeUndefined();
-    expect(lines[0]?.budgetCategoryId).toBeUndefined();
-  });
-
-  it('clearing a linked row while a default is set makes it a new line with the default source', async () => {
-    openPickerForItem([
-      { ...WORK_ITEM_BUDGET_LINE_DISC, budgetSource: null, budgetCategory: null },
-    ]);
-    setPreviewLines([previewLine('Tiles', 'src-loan')]);
-    await renderReady();
-
-    await linkExistingLine(0, /Existing disc line/);
-    // The default is chosen while the row is linked, so it is skipped by the apply step.
-    await setTopSource('src-sav');
-    expect(rowSources()).toEqual(['linked:Not set']);
-    expect(statusText()).toBe('');
-
-    await act(async () => {
-      fireEvent.click(
-        within(getRow(0)).getByRole('button', { name: 'Clear budget line assignment' }),
-      );
-    });
-
-    expect(rowSources()).toEqual(['src-sav']);
-    const lines = await clickSaveAndGetCommitLines();
-    expect(lines.length).toBe(1);
-    expect(lines[0]?.assignmentMode).toBe('create-new');
-    expect(lines[0]?.budgetSourceId).toBe('src-sav');
-    expect(lines[0]?.budgetCategoryId).toBe('bc-test');
-  });
-
-  it('clearing a linked row without a default restores its own source on the new line', async () => {
-    openPickerForItem([
-      { ...WORK_ITEM_BUDGET_LINE_DISC, budgetSource: null, budgetCategory: null },
-    ]);
-    setPreviewLines([previewLine('Tiles', 'src-loan')]);
-    await renderReady();
-
-    await linkExistingLine(0, /Existing disc line/);
-    await act(async () => {
-      fireEvent.click(
-        within(getRow(0)).getByRole('button', { name: 'Clear budget line assignment' }),
-      );
-    });
-
-    const lines = await clickSaveAndGetCommitLines();
-    expect(lines[0]?.assignmentMode).toBe('create-new');
-    expect(lines[0]?.budgetSourceId).toBe('src-loan');
-  });
-
-  it('re-applying a different source with the same line count changes the announcement', async () => {
-    setPreviewLines([previewLine('Tiles', 'src-disc'), previewLine('Grout', 'src-disc')]);
-    await renderReady();
-
-    await setTopSource('src-sav');
-    expect(statusText()).toBe('Budget source "Savings" applied to 2 lines');
-
-    await setTopSource('src-loan');
-    expect(statusText()).toBe('Budget source "Bank Loan" applied to 2 lines');
+    expect(lines.map((l) => l.budgetSourceId)).toEqual(['src-sav', 'src-disc']);
+    expect(lines.map((l) => l.assignmentMode)).toEqual(['create-new', 'create-new']);
   });
 
   it('disables the budget source select while the invoice is being saved', async () => {
     mockCommitAutoItemizeCreate.mockReturnValue(new Promise(() => {}));
-    setPreviewLines([previewLine('Tiles', 'src-disc')]);
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
     await renderReady();
-    expect(getTopSelect().disabled).toBe(false);
 
-    await act(async () => {
-      fireEvent.click(getCreateBtn());
-    });
+    await clickSave();
 
-    await waitFor(() => {
-      expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getTopSelect()).toBeDisabled());
+  });
+});
+
+describe('PaperlessInvoiceReviewPage — cost lines created before the invoice (task or purchase)', () => {
+  it('creates the line on the task with the row values and commits it as assign-existing', async () => {
+    mockCreateWorkItemBudget.mockResolvedValue(createdLine('bl-new'));
+    setPreviewLines([previewLine('Tiles', 'src-loan', { totalAmount: 100 })]);
+    await renderReady();
+    await assignAllToKitchen();
+
+    const lines = await clickSaveAndGetCommitLines();
+
+    expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+      'wi-1',
+      expect.objectContaining({
+        description: 'Tiles',
+        plannedAmount: 100,
+        budgetSourceId: 'src-loan',
+        budgetCategoryId: 'bc-test',
+      }),
+    );
+    expect(lines[0]).toMatchObject({
+      assignmentMode: 'assign-existing',
+      assignedBudgetLineId: 'bl-new',
+      assignedBudgetLineType: 'work_item',
     });
-    expect(getTopSelect().disabled).toBe(true);
   });
 
-  describe('linking an existing budget line sends no source or category', () => {
-    it("omits the linked work-item line's source and category even though the row has extracted ones", async () => {
-      openPickerForItem([WORK_ITEM_BUDGET_LINE_DISC]);
-      setPreviewLines([previewLine('Tiles', 'src-loan', { budgetCategoryId: 'bc-row' })]);
-      await renderReady();
+  it('creates the line on a purchase through the household item endpoint', async () => {
+    mockCreateHouseholdItemBudget.mockResolvedValue(createdLine('bl-hi') as never);
+    setPreviewLines([previewLine('Sofa', 'src-loan')]);
+    await renderReady();
+    await assignAllToKitchen(/Sofa/, 'Sofa');
 
-      await linkExistingLine(0, /Existing disc line/);
+    const lines = await clickSaveAndGetCommitLines();
 
-      const lines = await clickSaveAndGetCommitLines();
-      expect(lines.length).toBe(1);
-      expect(lines[0]?.assignmentMode).toBe('assign-existing');
-      expect(lines[0]?.assignedBudgetLineId).toBe('wib-disc');
-      expect(lines[0]?.budgetCategoryId).toBeUndefined();
-      expect(lines[0]?.budgetSourceId).toBeUndefined();
+    expect(mockCreateHouseholdItemBudget).toHaveBeenCalledWith('hi-1', expect.any(Object));
+    expect(lines[0]).toMatchObject({
+      assignedBudgetLineId: 'bl-hi',
+      assignedBudgetLineType: 'household_item',
+    });
+  });
+
+  it('commit failure then retry does not create the cost line again', async () => {
+    mockCreateWorkItemBudget.mockResolvedValue(createdLine('bl-new'));
+    mockCommitAutoItemizeCreate
+      .mockRejectedValueOnce(new MockApiClientError(500, 'INTERNAL_ERROR'))
+      .mockResolvedValueOnce(makeCommitResponse());
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
+    await renderReady();
+    await assignAllToKitchen();
+
+    await clickSave();
+    expect(await screen.findByText('Translated error message')).toBeInTheDocument();
+    await clickSave();
+
+    await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(2));
+    expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
+    const retry = mockCommitAutoItemizeCreate.mock.calls[1]![0] as { lines: CommitLine[] };
+    expect(retry.lines[0]?.assignedBudgetLineId).toBe('bl-new');
+  });
+
+  it('stops with the translated error when creating the cost line fails', async () => {
+    mockCreateWorkItemBudget.mockRejectedValue(new MockApiClientError(400, 'VALIDATION_ERROR'));
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
+    await renderReady();
+    await assignAllToKitchen();
+
+    await clickSave();
+
+    expect(await screen.findByText('Translated error message')).toBeInTheDocument();
+    expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('PaperlessInvoiceReviewPage — save guards of the cost line grid', () => {
+  it('asks for a category when a line has neither a category nor a task or purchase', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan', { budgetCategoryId: null })]);
+    await renderReady();
+
+    await clickSave();
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not save while a line is invalid', async () => {
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
+    await renderReady();
+    fireEvent.change(screen.getByDisplayValue('Tiles'), { target: { value: '' } });
+
+    await clickSave();
+
+    expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        document.querySelector(
+          '[data-testid^="auto-itemize-grid-description-"][aria-invalid="true"]',
+        ),
+      ).not.toBeNull(),
+    );
+  });
+
+  it('refuses to save while a merge is running', async () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
+    await renderReady();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 2' }));
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('auto-itemize-merge'));
     });
 
-    it('a linked household-item line is not blocked by category validation and sends no source or category', async () => {
-      openPickerForItem(
-        [
-          {
-            id: 'hbl-1',
-            householdItemId: 'hi-1',
-            description: 'Sofa budget',
-            plannedAmount: 100,
-            budgetSource: null,
-            budgetCategory: null,
-          },
-        ],
-        'household_item',
+    await clickSave();
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+  });
+
+  it('passes the extracted notes to the merge as the document summary', async () => {
+    mockMergeLines.mockReturnValue(new Promise(() => {}));
+    mockPreviewAutoItemize.mockResolvedValue(
+      makePreviewResponse({
+        extractedNotes: 'Bathroom job',
+        lines: [previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')],
+      }),
+    );
+    await renderReady();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select, row 2' }));
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('auto-itemize-merge'));
+    });
+
+    await waitFor(() => expect(mockMergeLines).toHaveBeenCalledTimes(1));
+    expect((mockMergeLines.mock.calls[0]![0] as { documentSummary?: string }).documentSummary).toBe(
+      'Bathroom job',
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[role="status"]')?.textContent).toMatch(
+        /Merging 2 line items/,
+      ),
+    );
+  });
+});
+
+describe('PaperlessInvoiceReviewPage — invoice details and lookups', () => {
+  it('starts empty when the extraction found no details, and saves what the user typed', async () => {
+    mockGetPaperlessStatus.mockResolvedValue({
+      configured: true,
+      reachable: true,
+      paperlessUrl: 'https://paperless.example.test',
+      filterTag: null,
+    } as Awaited<ReturnType<typeof PaperlessApiModule.getPaperlessStatus>>);
+    mockPreviewAutoItemize.mockResolvedValue({
+      lines: [
+        {
+          description: 'Tiles',
+          confidence: 0.9,
+          budgetCategoryId: 'bc-test',
+          budgetSourceId: null,
+        },
+      ],
+      suggestedVendorId: 'vendor-1',
+    } as unknown as AutoItemizePreviewResponse);
+    await renderReady();
+
+    const number = document.getElementById('invoice-number') as HTMLInputElement;
+    const amount = document.getElementById('amount') as HTMLInputElement;
+    const due = document.getElementById('due-date') as HTMLInputElement;
+    const notes = document.getElementById('notes') as HTMLTextAreaElement;
+    expect(number).toHaveValue('');
+    expect(amount).toHaveValue(null);
+    expect((document.getElementById('date') as HTMLInputElement).value).toMatch(
+      /^\d{4}-\d{2}-\d{2}$/,
+    );
+    expect(due).toHaveValue('');
+
+    // Typing and clearing the optional fields.
+    fireEvent.change(number, { target: { value: 'X-1' } });
+    fireEvent.change(number, { target: { value: '' } });
+    fireEvent.change(due, { target: { value: '2026-05-01' } });
+    fireEvent.change(due, { target: { value: '' } });
+    fireEvent.change(notes, { target: { value: 'n' } });
+    fireEvent.change(notes, { target: { value: '' } });
+    expect(number).toHaveValue('');
+    expect(due).toHaveValue('');
+    expect(notes).toHaveValue('');
+    // A line with no amount is not a valid line: the grid blocks the save.
+    await clickSave();
+    expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+  });
+
+  it('sends the invoice with the typed number, due date and notes', async () => {
+    mockPreviewAutoItemize.mockResolvedValue(
+      makePreviewResponse({ extractedDueDate: '2026-04-01' }),
+    );
+    await renderReady();
+    expect(document.getElementById('due-date')).toHaveValue('2026-04-01');
+    fireEvent.change(document.getElementById('invoice-number') as HTMLInputElement, {
+      target: { value: 'RE-9' },
+    });
+    fireEvent.change(document.getElementById('date') as HTMLInputElement, {
+      target: { value: '2026-03-15' },
+    });
+    fireEvent.change(document.getElementById('due-date') as HTMLInputElement, {
+      target: { value: '2026-05-01' },
+    });
+    fireEvent.change(document.getElementById('notes') as HTMLTextAreaElement, {
+      target: { value: 'Paid in two parts' },
+    });
+
+    await clickSave();
+
+    await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1));
+    const arg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as {
+      invoice: Record<string, unknown>;
+    };
+    expect(arg.invoice).toMatchObject({
+      invoiceNumber: 'RE-9',
+      date: '2026-03-15',
+      dueDate: '2026-05-01',
+      notes: 'Paid in two parts',
+    });
+  });
+
+  it('commits null details when the number, due date and notes stay empty', async () => {
+    mockPreviewAutoItemize.mockResolvedValue({
+      lines: [previewLine('Tiles', 'src-loan')],
+      suggestedVendorId: 'vendor-1',
+    } as unknown as AutoItemizePreviewResponse);
+    await renderReady();
+
+    await clickSave();
+
+    await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1));
+    const arg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as {
+      invoice: Record<string, unknown>;
+    };
+    expect(arg.invoice).toMatchObject({ invoiceNumber: null, dueDate: null, notes: null });
+  });
+
+  it('ignores the company lookups when the page is left before they answer', async () => {
+    let resolveVendor: (value: never) => void = () => {};
+    let resolveVendors: (value: never) => void = () => {};
+    mockFetchVendor.mockReturnValue(new Promise((resolve) => (resolveVendor = resolve)));
+    mockFetchVendors.mockReturnValue(new Promise((resolve) => (resolveVendors = resolve)));
+    mockPreviewAutoItemize.mockResolvedValue(
+      makePreviewResponse({ extractedVendorName: 'Builder Corp' }),
+    );
+    const view = renderPage();
+    await waitForReady();
+
+    view.unmount();
+    await act(async () => {
+      resolveVendor(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]).vendors[0] as never,
       );
-      setPreviewLines([previewLine('Sofa', 'src-loan', { budgetCategoryId: null })]);
-      await renderReady();
+      resolveVendors(makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]) as never);
+      await Promise.resolve();
+    });
+  });
 
-      await linkExistingLine(0, /Sofa budget/);
+  it('ignores a failed company lookup after the page was left', async () => {
+    let rejectVendors: (reason: unknown) => void = () => {};
+    mockFetchVendors.mockReturnValue(new Promise((_, reject) => (rejectVendors = reject)));
+    mockPreviewAutoItemize.mockResolvedValue(
+      makePreviewResponse({ extractedVendorName: 'Builder Corp' }),
+    );
+    const view = renderPage();
+    await waitForReady();
 
-      const lines = await clickSaveAndGetCommitLines();
-      expect(lines.length).toBe(1);
-      expect(lines[0]?.assignmentMode).toBe('assign-existing');
-      expect(lines[0]?.assignedBudgetLineId).toBe('hbl-1');
-      expect(lines[0]?.budgetCategoryId).toBeUndefined();
-      expect(lines[0]?.budgetSourceId).toBeUndefined();
+    view.unmount();
+    await act(async () => {
+      rejectVendors(new Error('down'));
+      await Promise.resolve();
     });
   });
 });

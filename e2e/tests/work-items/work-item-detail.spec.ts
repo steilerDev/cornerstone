@@ -240,8 +240,8 @@ test.describe('Add subtask (Scenario 4)', { tag: '@responsive' }, () => {
 // (Replaces the old vendor picker regression test — vendors are now assigned
 // per budget line, not via a separate picker.)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Budget section loads without error (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Work item detail page loads without error banner and shows budget section', async ({
+test.describe('Cost section loads without error (Scenario 5)', { tag: '@responsive' }, () => {
+  test('Work item detail page loads without error banner and shows the cost section', async ({
     page,
     testPrefix,
   }) => {
@@ -259,17 +259,17 @@ test.describe('Budget section loads without error (Scenario 5)', { tag: '@respon
       const errorText = await detailPage.getInlineErrorText();
       expect(errorText).toBeNull();
 
-      // The Budget section should be visible
+      // The Cost section should be visible (#2235)
       await expect(detailPage.budgetSection).toBeVisible();
 
-      // The "Add Line" button should be visible (budget lines model)
+      // The "Add cost line" button should be visible
       await expect(detailPage.addBudgetLineButton).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Budget section shows Add Line button and Subsidies subsection', async ({
+  test('Cost section shows Add cost line and the Subsidies subsection', async ({
     page,
     testPrefix,
   }) => {
@@ -287,7 +287,7 @@ test.describe('Budget section loads without error (Scenario 5)', { tag: '@respon
       const errorText = await detailPage.getInlineErrorText();
       expect(errorText).toBeNull();
 
-      // Add Line button is visible
+      // Add cost line button is visible
       await expect(detailPage.addBudgetLineButton).toBeVisible();
 
       // Subsidies subsection heading is visible
@@ -532,7 +532,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Budget section is accessible (scrolled into view) on current viewport', async ({
+  test('Cost section is accessible (scrolled into view) on current viewport', async ({
     page,
     testPrefix,
   }) => {

@@ -1,8 +1,13 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { INVOICE_STATUSES, foldSearchText, routeUrl } from '@cornerstone/shared';
+import {
+  INVOICE_STATUSES,
+  effectiveLineAmount,
+  foldSearchText,
+  routeUrl,
+} from '@cornerstone/shared';
 import type {
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
@@ -11,39 +16,30 @@ import type {
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import {
-  applyBudgetSourceToNewLines,
   buildCommitLines,
   effectiveRowAmount,
-  isNewBudgetLineRow,
-  materializeInlineDrafts,
-  mergeMaterializedLines,
+  materializeNewRows,
+  mergeMaterializedRows,
+  rowTarget,
 } from '../../lib/autoItemizeDraftUtils.js';
-import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
 import { fetchVendor, fetchVendors, searchCompanies } from '../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
-import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
-import {
-  AutoItemizeLineList,
-  AutoItemizePdfPreview,
-  BudgetLinePickerModal,
-  type LineWithInclude,
-} from '../../components/autoItemize/index.js';
-import { effectiveLineAmount, CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { AutoItemizePdfPreview } from '../../components/autoItemize/index.js';
+import { AutoItemizeLines } from '../../components/CostLineForm/AutoItemizeLines.js';
+import { isBlankRow } from '../../components/CostLineForm/costLineGridModel.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './PaperlessInvoiceReviewPage.module.css';
 
@@ -69,28 +65,15 @@ export function PaperlessInvoiceReviewPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
-  const { t: tSettings } = useTranslation('settings');
   const { t: tc } = useTranslation('common');
   const location = useLocation();
   const pageTitle = tc('navigation.newInvoice');
   useDocumentTitle(pageTitle);
-  const { vatRate } = useLocale();
-  const vatRateRef = useRef(vatRate);
-  vatRateRef.current = vatRate;
-  const { formatCurrency } = useFormatters();
+  const { vatRate, resolvedLocale } = useLocale();
+  const locale = resolvedLocale === 'de' ? 'de' : 'en';
 
   const [searchParams] = useSearchParams();
   const documentId = parseDocumentId(searchParams.get('documentId'));
-
-  const createdFromExtractionVariants = useMemo(
-    (): BadgeVariantMap => ({
-      true: {
-        label: t('autoItemize.createdFromAutoItemization'),
-        className: badgeStyles.info,
-      },
-    }),
-    [t],
-  );
 
   const [pageStatus, setPageStatus] = useState<PageStatus>('loading');
   const [document, setDocument] = useState<PaperlessDocumentSearchResult | null>(null);
@@ -121,20 +104,7 @@ export function PaperlessInvoiceReviewPage() {
   const [defaultBudgetSourceId, setDefaultBudgetSourceId] = useState('');
   const { createAction: companyCreateAction } = useCompanyCreateAction();
 
-  const {
-    lines,
-    setLines,
-    picker,
-    handlers,
-    selectedRowIds,
-    onToggleSelect,
-    onClearSelection,
-    onMergeSelected,
-    onRetryMerge,
-    onUndoMerge,
-  } = useAutoItemizeLines({
-    invoiceId: '',
-    invoiceAmount: parseFloat(metadataEdits.amount) || 0,
+  const lineState = useAutoItemizeLines({
     document,
     documentSummary: metadataEdits.notes,
     onMergeStart: (count) => setAnnounceMessage(t('autoItemize.mergeAnnounceStart', { count })),
@@ -145,11 +115,9 @@ export function PaperlessInvoiceReviewPage() {
   const handleDefaultBudgetSourceChange = (sourceId: string) => {
     setDefaultBudgetSourceId(sourceId);
     if (!sourceId) return;
-    const appliedCount = lines.filter(isNewBudgetLineRow).length;
-    setLines((prev) => applyBudgetSourceToNewLines(prev, sourceId));
+    const appliedCount = lineState.applyBudgetSource(sourceId);
     if (appliedCount === 0) return;
-    const name =
-      (picker.pickerState.budgetSources ?? []).find((s) => s.id === sourceId)?.name ?? '';
+    const name = lineState.options.sources.find((source) => source.id === sourceId)?.name ?? '';
     setAnnounceMessage(t('autoItemize.budgetSourceApplied', { count: appliedCount, name }));
   };
 
@@ -223,15 +191,7 @@ export function PaperlessInvoiceReviewPage() {
           paperlessDocumentId: documentId,
         });
 
-        const linesWithInclude: LineWithInclude[] = previewResult.lines.map((line, idx) => ({
-          ...line,
-          included: true,
-          rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
-          budgetCategoryId: line.budgetCategoryId ?? null,
-          budgetSourceId: line.budgetSourceId ?? picker.pickerState.budgetSources?.[0]?.id ?? null,
-        }));
-
-        setLines(linesWithInclude);
+        lineState.load(previewResult.lines);
 
         setExtractedVendorName(previewResult.extractedVendorName?.trim() || null);
         if (previewResult.suggestedVendorId) {
@@ -240,12 +200,12 @@ export function PaperlessInvoiceReviewPage() {
         }
 
         // Compute total from extracted line amounts (accounting for VAT gross-up on net lines)
-        const computedTotal = linesWithInclude.reduce(
+        const computedTotal = previewResult.lines.reduce(
           (sum, line) =>
             sum +
             effectiveLineAmount(
               { amount: line.totalAmount ?? 0, includesVat: line.includesVat },
-              vatRateRef.current,
+              vatRate,
             ),
           0,
         );
@@ -271,7 +231,7 @@ export function PaperlessInvoiceReviewPage() {
     };
 
     void loadData();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- lineState.load is stable per locale; vatRate is read once at load
   }, [documentId, t, tErrors]);
 
   const handleCancel = useCallback(() => {
@@ -314,11 +274,27 @@ export function PaperlessInvoiceReviewPage() {
     setPageError(null);
 
     try {
-      const includedLines = lines.filter((l) => l.included);
+      const includedRows = lineState.rows.filter((row) => row.included && !isBlankRow(row));
 
-      // Validate categories before materialization (lines with inline draft are exempt)
-      const missingCategories = includedLines.filter(
-        (l) => !l.assignedBudgetLineId && !l.inlineCreatedBudgetLineDraft && !l.budgetCategoryId,
+      // A merge that is running or failed cannot be saved: the row has no description yet.
+      const unmerged = includedRows.find((row) => row.notice !== undefined);
+      if (unmerged?.notice) {
+        setPageError(unmerged.notice.text);
+        setPageStatus('ready');
+        return;
+      }
+      if (!lineState.validate()) {
+        setPageStatus('ready');
+        return;
+      }
+
+      // Validate categories before materialization (rows that belong to a task or purchase are exempt)
+      const context = lineState.commitContext();
+      const missingCategories = includedRows.filter(
+        (row) =>
+          row.existingLine === null &&
+          rowTarget(row, context.assignAll) === null &&
+          !row.budgetCategoryId,
       );
       if (missingCategories.length > 0) {
         setPageError(t('autoItemize.categoryRequiredError'));
@@ -326,21 +302,22 @@ export function PaperlessInvoiceReviewPage() {
         return;
       }
 
-      const materialized = await materializeInlineDrafts(
-        includedLines,
+      const materialized = await materializeNewRows(
+        includedRows,
+        context,
+        lineState.data,
         { workItem: createWorkItemBudget, householdItem: createHouseholdItemBudget },
         { t, tErrors },
       );
 
+      // Keep the cost lines created so far: a retry must not create them again.
+      lineState.replaceRows(mergeMaterializedRows(lineState.rows, materialized.rows));
       if (!materialized.ok) {
-        setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
         setPageError(materialized.error);
         setPageStatus('ready');
         return;
       }
-
-      setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
-      const workingLines = materialized.lines;
+      const workingRows = materialized.rows;
 
       const invoice: CreateInvoiceRequest = {
         invoiceNumber: metadataEdits.invoiceNumber ?? null,
@@ -351,7 +328,7 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
-      const linesPayload = buildCommitLines(workingLines, vatRate);
+      const linesPayload = buildCommitLines(workingRows, lineState.data, context);
 
       const result = await commitAutoItemizeCreate({
         paperlessDocumentId: documentId,
@@ -376,21 +353,21 @@ export function PaperlessInvoiceReviewPage() {
     documentId,
     document,
     vendorId,
-    lines,
+    lineState,
     metadataEdits,
     navigate,
     location.state,
-    setLines,
     t,
     tErrors,
-    vatRate,
   ]);
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
     () =>
-      lines.filter((l) => l.included).reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0),
-    [lines, vatRate],
+      lineState.rows
+        .filter((row) => row.included && !isBlankRow(row))
+        .reduce((sum, row) => sum + effectiveRowAmount(row, vatRate, locale), 0),
+    [lineState.rows, vatRate, locale],
   );
 
   const { variance, variancePercent } = useMemo(() => {
@@ -641,9 +618,9 @@ export function PaperlessInvoiceReviewPage() {
                     onChange={(e) => handleDefaultBudgetSourceChange(e.target.value)}
                   >
                     <option value="">{t('autoItemize.budgetSourceNone')}</option>
-                    {(picker.pickerState.budgetSources ?? []).map((src) => (
-                      <option key={src.id} value={src.id}>
-                        {src.name}
+                    {lineState.options.sourceOptions.map((source) => (
+                      <option key={source.value} value={source.value}>
+                        {source.label}
                       </option>
                     ))}
                   </select>
@@ -667,33 +644,12 @@ export function PaperlessInvoiceReviewPage() {
             </div>
 
             {/* Line items */}
-            <AutoItemizeLineList
-              lines={lines}
-              onToggleInclude={handlers.onToggleInclude}
-              onFieldChange={handlers.onFieldChange}
-              onAssign={handlers.onAssign}
-              onClearAssign={handlers.onClearAssign}
-              onInlineDraftChange={handlers.onInlineDraftChange}
-              categories={picker.pickerState.categories ?? []}
-              budgetSources={picker.pickerState.budgetSources ?? []}
-              discretionarySourceId={
-                (picker.pickerState.budgetSources ?? []).find((s) => s.isDiscretionary)?.id
-              }
+            <AutoItemizeLines
+              state={lineState}
               computedTotal={computedTotal}
               variance={variance}
               variancePercent={variancePercent}
-              createdFromExtractionVariants={createdFromExtractionVariants}
-              formatCurrency={formatCurrency}
-              confidenceLabels={CONFIDENCE_LABELS}
-              budgetCategories={picker.pickerState.categories ?? []}
-              t={t}
-              tSettings={tSettings}
-              selectedRowIds={selectedRowIds}
-              onToggleSelect={onToggleSelect}
-              onClearSelection={onClearSelection}
-              onMergeSelected={onMergeSelected}
-              onRetryMerge={onRetryMerge}
-              onUndoMerge={onUndoMerge}
+              onAnnounce={setAnnounceMessage}
             />
 
             {/* Actions */}
@@ -727,57 +683,6 @@ export function PaperlessInvoiceReviewPage() {
           </div>
         </div>
       </div>
-
-      {/* Budget line picker modal */}
-      {picker.pickerState.isOpen && (
-        <Modal
-          title={
-            picker.pickerState.step === 1
-              ? t('autoItemize.pickerTitle')
-              : t('autoItemize.pickerStep2Title', {
-                  itemTitle: picker.pickerState.itemTitle,
-                })
-          }
-          onClose={picker.closePicker}
-        >
-          <BudgetLinePickerModal
-            pickerState={picker.pickerState}
-            handleSelectItem={picker.handleSelectItem}
-            createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
-            onSelectBudgetLine={handlers.onSelectBudgetLine}
-            onCreateNewBudgetLine={handlers.onQueueNewBudgetLine}
-            onBackToStep1={() =>
-              picker.setPickerState((prev) => ({
-                ...prev,
-                step: 1,
-                budgetLines: [],
-                isLoading: false,
-              }))
-            }
-            onFormChange={(updates) =>
-              picker.setPickerState((prev) => ({
-                ...prev,
-                createForm: prev.createForm ? { ...prev.createForm, ...updates } : prev.createForm,
-              }))
-            }
-            onCancelCreateForm={() => {
-              picker.setPickerState((prev) => ({
-                ...prev,
-                showCreateForm: false,
-                createForm: undefined,
-                createError: null,
-              }));
-              setTimeout(() => {
-                picker.createBudgetLineButtonRef.current?.focus();
-              }, 0);
-            }}
-            onCreateBudgetLine={(e) => picker.handleCreateBudgetLine(e)}
-            t={t}
-            tSettings={tSettings}
-            formatCurrency={formatCurrency}
-          />
-        </Modal>
-      )}
     </>
   );
 }

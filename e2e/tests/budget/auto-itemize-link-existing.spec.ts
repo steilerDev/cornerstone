@@ -1,21 +1,23 @@
 /**
- * E2E tests for Bug #2149: assigning an extracted line to an EXISTING budget line must
- * only LINK it (create the invoice_budget_lines junction row). The budget line itself is
- * never modified, and the review UI shows the linked line's ORIGINAL values read-only.
+ * E2E tests for Bug #2149 (rebuilt on the cost line grid in #2235): linking an extracted row to an
+ * EXISTING cost line must only LINK it (create the invoice_budget_lines junction row). The cost
+ * line itself is never modified; the row shows "Links <description>" and only its gross amount
+ * stays editable.
+ *
+ * A row links an existing line in two steps: choose its task or purchase under "Belongs to", then
+ * "Use an existing cost line…" lists that item's lines that have no offer or invoice yet.
  *
  * Scenarios:
- *   1. [smoke] AutoItemizePage, work item line: link -> read-only original values, no
- *      editable description/VAT/category; edit the invoiced amount; Save -> WI line
- *      unchanged, junction itemizedAmount = edited gross amount.
- *   2. Clear restores the editable fields with the extracted values; Assign gets focus.
- *   3. Change to a second line updates the read-only values; Change gets focus after
- *      the picker closes.
- *   4. PaperlessInvoiceReviewPage, household item line: link + Save -> HI line unchanged,
- *      junction created.
- *   5. Responsive + dark mode: read-only values visible, stacked on mobile, no horizontal
- *      overflow.
- *   6. A budget line is never linked twice: the picker hides lines linked to another invoice
- *      and lines already chosen by another row of the same draft (empty state when none left).
+ *   1. [smoke] AutoItemizePage, work item line: link -> the row shows "Links ..." with only the
+ *      gross amount editable; edit the amount; Save -> WI line unchanged, junction itemizedAmount =
+ *      edited gross amount.
+ *   2. "Use a new line instead" makes the extracted description editable again.
+ *   3. Swapping the linked line: clear, then link the other line.
+ *   4. PaperlessInvoiceReviewPage, household item line: link + Save -> payload carries
+ *      assign-existing, the household item line is untouched.
+ *   5. Responsive + dark mode: the linked row is visible, without horizontal overflow at 375px.
+ *   6. A cost line is never linked twice: the picker lists no line that has an offer or invoice
+ *      and none already chosen by another row of the same draft (empty message when none left).
  *
  * Mocking strategy: dry-run/preview extraction, config and Paperless document are mocked;
  * the commit always goes to the real server so DB state can be asserted via the API, except
@@ -27,6 +29,8 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
+import type { CostLineGrid } from '../../pages/components/CostLineGrid.js';
+import { enableDarkTheme, expectLegibleInDark } from '../../fixtures/darkMode.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -36,7 +40,7 @@ import {
   deleteBudgetSourceViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
-import type { Locator, Page, Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // REST helpers
@@ -253,37 +257,20 @@ async function openAutoItemizePage(
   await autoItemizePage.waitForAnalyzingDone();
 }
 
-/** Structural subset shared by both page objects for driving the picker. */
-interface PickerDriver {
-  lineAssignButton(index: number): Locator;
-  lineChangeAssignButton(index: number): Locator;
-  pickerModal: Locator;
-  pickerWorkItemSearchInput: Locator;
-  pickerPortalDropdown: Locator;
-  pickerStep2Modal(): Locator;
-  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator;
-}
-
 const escapeRe = (s: string): RegExp => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
-/** Open the picker via `trigger`, choose the work item, then the existing budget line. */
-async function pickWorkItemBudgetLine(
-  pom: PickerDriver,
-  trigger: Locator,
-  workItemTitle: string,
+/**
+ * Link grid row `n` (1-based) to an existing cost line: choose its work item under Belongs to,
+ * then pick the line in "Use an existing cost line…".
+ */
+async function linkExistingLine(
+  grid: CostLineGrid,
+  n: number,
+  itemTitle: string,
   budgetLineDescription: string,
 ): Promise<void> {
-  await trigger.click();
-  await expect(pom.pickerModal).toBeVisible();
-  await pom.pickerWorkItemSearchInput.fill(workItemTitle);
-  const option = pom.pickerPortalDropdown.getByRole('option', { name: escapeRe(workItemTitle) });
-  await option.waitFor({ state: 'visible' });
-  await option.click();
-  await expect(pom.pickerStep2Modal()).toBeVisible();
-  const row = pom.pickerBudgetLineRow(escapeRe(budgetLineDescription));
-  await row.waitFor({ state: 'visible' });
-  await row.click();
-  await expect(pom.pickerStep2Modal()).not.toBeVisible();
+  await grid.targetPicker(n).pick(itemTitle);
+  await grid.useExisting(n, escapeRe(budgetLineDescription));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,28 +380,18 @@ test(
 
       await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
 
-      await pickWorkItemBudgetLine(
-        autoItemizePage,
-        autoItemizePage.lineAssignButton(0),
-        s.workItemTitle,
-        s.descA,
-      );
+      await linkExistingLine(autoItemizePage.grid, 1, s.workItemTitle, s.descA);
 
-      // Read-only ORIGINAL values of the linked line (not the extracted ones)
-      await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
-      await expect(autoItemizePage.lineLinkedCategory(0)).toHaveText(s.categoryAName);
-      await expect(autoItemizePage.lineLinkedSource(0)).toHaveText(s.sourceName);
-      await expect(autoItemizePage.lineLinkedPlanned(0)).toContainText(/5[.,]?000/);
-
-      // Editable description / VAT / category controls are gone
+      // The row names the linked line; description, quantity, unit and Entered as are gone
+      await expect(autoItemizePage.lineExistingLabel(0)).toContainText(s.descA);
       await expect(autoItemizePage.lineDescription(0)).toHaveCount(0);
-      await expect(autoItemizePage.lineVatCheckbox(0)).toHaveCount(0);
-      await expect(autoItemizePage.getLineCardCategorySelect(0)).toHaveCount(0);
+      await expect(autoItemizePage.lineQuantity(0)).toHaveCount(0);
+      await expect(autoItemizePage.lineEnteredAs(0)).toHaveCount(0);
 
-      // Only editable amount: gross invoiced amount (extracted 1200 net -> 1428 gross)
-      await expect(autoItemizePage.lineItemizedAmountInput(0)).toBeVisible();
-      await autoItemizePage.lineItemizedAmountInput(0).fill('1100');
-      await expect(autoItemizePage.lineItemizedAmountInput(0)).toHaveValue('1100');
+      // Only editable amount: the gross amount on this invoice
+      await expect(autoItemizePage.lineUnitPrice(0)).toBeVisible();
+      await autoItemizePage.lineUnitPrice(0).fill('1100');
+      await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue('1100');
 
       const commitDone = page.waitForResponse(
         (resp) =>
@@ -459,7 +436,7 @@ test(
 // Scenario 2
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 2: clearing the assignment restores the editable extracted values and focuses Assign', async ({
+test('Scenario 2: "Use a new line instead" makes the extracted description editable again', async ({
   page,
   testPrefix,
 }) => {
@@ -485,26 +462,26 @@ test('Scenario 2: clearing the assignment restores the editable extracted values
     );
 
     await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
-    await pickWorkItemBudgetLine(
-      autoItemizePage,
-      autoItemizePage.lineAssignButton(0),
-      s.workItemTitle,
-      s.descA,
-    );
-    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    // The extracted amounts (quantity 2 pcs x 600) before the row links anything
+    await expect(autoItemizePage.lineQuantity(0)).toHaveValue('2');
+    await expect(autoItemizePage.grid.cell('Unit', 1)).toHaveValue('pcs');
+    const unitPriceBefore = await autoItemizePage.lineUnitPrice(0).inputValue();
+    expect(Number(unitPriceBefore.replace(/[^\d.]/g, ''))).toBe(600);
 
-    await autoItemizePage.lineClearAssignButton(0).click();
+    await linkExistingLine(autoItemizePage.grid, 1, s.workItemTitle, s.descA);
+    await expect(autoItemizePage.lineExistingLabel(0)).toBeVisible();
 
-    // Editable fields are back, holding the ORIGINAL extracted values
-    await expect(autoItemizePage.lineLinkedValues(0)).toHaveCount(0);
+    await autoItemizePage.lineClearExistingButton(0).click();
+
+    // The row creates a new line again: the extracted description is editable and the
+    // extracted amounts are back, not wiped
+    await expect(autoItemizePage.lineExistingLabel(0)).toHaveCount(0);
     await expect(autoItemizePage.lineDescription(0)).toHaveValue(extractedDescription);
-    await expect(autoItemizePage.lineTotal(0)).toHaveValue('1200');
-    await expect(autoItemizePage.lineVatCheckbox(0)).toBeVisible();
-    await expect(autoItemizePage.lineVatCheckbox(0)).not.toBeChecked();
-    await expect(autoItemizePage.getLineCardCategorySelect(0)).toHaveValue(s.categoryBId);
-
-    // Focus moved to the re-mounted Assign button
-    await expect(autoItemizePage.lineAssignButton(0)).toBeFocused();
+    await expect(autoItemizePage.lineQuantity(0)).toHaveValue('2');
+    await expect(autoItemizePage.grid.cell('Unit', 1)).toHaveValue('pcs');
+    await expect(autoItemizePage.lineUnitPrice(0)).toHaveValue(unitPriceBefore);
+    await expect(autoItemizePage.lineGross(0)).toContainText('1,428.00');
+    await expect(autoItemizePage.lineUseExistingButton(0)).toBeVisible();
   } finally {
     await cleanupSeed(page, seed);
   }
@@ -514,10 +491,7 @@ test('Scenario 2: clearing the assignment restores the editable extracted values
 // Scenario 3
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 3: Change swaps the linked line, updates read-only values and focuses Change', async ({
-  page,
-  testPrefix,
-}) => {
+test('Scenario 3: swapping the linked line shows the other line', async ({ page, testPrefix }) => {
   if ((page.viewportSize()?.width ?? 1440) < 600) {
     test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
     return;
@@ -539,26 +513,15 @@ test('Scenario 3: Change swaps the linked line, updates read-only values and foc
     );
 
     await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
-    await pickWorkItemBudgetLine(
-      autoItemizePage,
-      autoItemizePage.lineAssignButton(0),
-      s.workItemTitle,
-      s.descA,
-    );
-    await expect(autoItemizePage.lineLinkedCategory(0)).toHaveText(s.categoryAName);
-    await expect(autoItemizePage.lineLinkedPlanned(0)).toContainText(/5[.,]?000/);
+    await linkExistingLine(autoItemizePage.grid, 1, s.workItemTitle, s.descA);
+    await expect(autoItemizePage.lineExistingLabel(0)).toContainText(s.descA);
 
-    await pickWorkItemBudgetLine(
-      autoItemizePage,
-      autoItemizePage.lineChangeAssignButton(0),
-      s.workItemTitle,
-      s.descB,
-    );
+    // Swap: back to a new line, then link the other one (the row keeps its Belongs to)
+    await autoItemizePage.lineClearExistingButton(0).click();
+    await autoItemizePage.grid.useExisting(1, escapeRe(s.descB));
 
-    await expect(autoItemizePage.lineLinkedCategory(0)).toHaveText(s.categoryBName);
-    await expect(autoItemizePage.lineLinkedPlanned(0)).toContainText(/3[.,]?000/);
-    await expect(autoItemizePage.lineAssignedDescription(0)).toContainText(s.descB);
-    await expect(autoItemizePage.lineChangeAssignButton(0)).toBeFocused();
+    await expect(autoItemizePage.lineExistingLabel(0)).toContainText(s.descB);
+    await expect(autoItemizePage.lineExistingLabel(0)).not.toContainText(s.descA);
   } finally {
     await cleanupSeed(page, seed);
   }
@@ -705,23 +668,11 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.waitForExtractionComplete();
 
-    // Link the household item budget line
-    await reviewPage.lineAssignButton(0).click();
-    await expect(reviewPage.pickerModal).toBeVisible();
-    await reviewPage.pickerModal.getByRole('tab', { name: /Household Item/i }).click();
-    await reviewPage.pickerModal.getByPlaceholder('Household Item').fill(hiName);
-    const option = reviewPage.pickerPortalDropdown.getByRole('option', { name: escapeRe(hiName) });
-    await option.waitFor({ state: 'visible' });
-    await option.click();
-    const row = reviewPage.pickerBudgetLineRow(escapeRe(desc));
-    await row.waitFor({ state: 'visible' });
-    await row.click();
+    // Link the household item cost line
+    await linkExistingLine(reviewPage.grid, 1, hiName, desc);
 
-    await expect(reviewPage.lineLinkedValues(0)).toBeVisible();
-    await expect(reviewPage.lineLinkedCategory(0)).toHaveText('Household Items');
-    await expect(reviewPage.lineLinkedSource(0)).toHaveText(`${testPrefix} LE-S4 Source`);
-    await expect(reviewPage.lineLinkedPlanned(0)).toContainText(/700/);
-    await expect(reviewPage.lineItemizedAmountInput(0)).toBeVisible();
+    await expect(reviewPage.lineExistingLabel(0)).toContainText(desc);
+    await expect(reviewPage.lineUnitPrice(0)).toBeVisible();
 
     // Paperless-first commit requires a configured Paperless instance (503 otherwise), so it
     // is mocked and the request payload asserted. The server-side guarantee that an
@@ -764,10 +715,10 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     expect(sent.assignmentMode).toBe('assign-existing');
     expect(sent.assignedBudgetLineId).toBe(lineId);
     expect(sent.assignedBudgetLineType).toBe('household_item');
-    // Linked row commits the gross itemized amount (extracted 1200 net -> 1428 gross)
-    // as an already-VAT-inclusive total.
+    // A linked row commits its gross amount (here the linked line's own 700) as an already
+    // VAT-inclusive total; the extracted 1200 net is not used.
     expect(sent.includesVat).toBe(true);
-    expect(sent.totalAmount as number).toBeCloseTo(1428, 2);
+    expect(sent.totalAmount as number).toBeCloseTo(700, 2);
     expect(sent).not.toHaveProperty('linkedItemizedAmount');
     expect(sent).not.toHaveProperty('assignedBudgetLineSnapshot');
   } finally {
@@ -781,7 +732,7 @@ test('Scenario 4: Paperless review page links an existing household item budget 
 // Scenario 5: responsive + dark mode (runs once, on the desktop project)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 5: linked read-only values are visible, stacked on mobile, without horizontal overflow, and readable in dark mode', async ({
+test('Scenario 5: the linked row is visible, stacked on mobile, without horizontal overflow, and readable in dark mode', async ({
   page,
   testPrefix,
 }) => {
@@ -806,28 +757,14 @@ test('Scenario 5: linked read-only values are visible, stacked on mobile, withou
     );
 
     await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
-    await pickWorkItemBudgetLine(
-      autoItemizePage,
-      autoItemizePage.lineAssignButton(0),
-      s.workItemTitle,
-      s.descA,
-    );
-    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    await linkExistingLine(autoItemizePage.grid, 1, s.workItemTitle, s.descA);
+    await expect(autoItemizePage.lineExistingLabel(0)).toBeVisible();
 
-    // Mobile: stacked single column, no horizontal overflow
+    // Mobile: the row stacks into a card, no horizontal overflow
     await page.setViewportSize({ width: 375, height: 800 });
-    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
-    await expect(autoItemizePage.lineLinkedCategory(0)).toBeVisible();
-    await expect(autoItemizePage.lineLinkedSource(0)).toBeVisible();
-    await expect(autoItemizePage.lineLinkedPlanned(0)).toBeVisible();
-    await expect(autoItemizePage.lineItemizedAmountInput(0)).toBeVisible();
-
-    const cat = await autoItemizePage.lineLinkedCategory(0).boundingBox();
-    const src = await autoItemizePage.lineLinkedSource(0).boundingBox();
-    const planned = await autoItemizePage.lineLinkedPlanned(0).boundingBox();
-    expect(cat && src && planned).toBeTruthy();
-    expect(src!.y).toBeGreaterThan(cat!.y);
-    expect(planned!.y).toBeGreaterThan(src!.y);
+    await expect(autoItemizePage.lineExistingLabel(0)).toBeVisible();
+    await expect(autoItemizePage.lineUnitPrice(0)).toBeVisible();
+    await expect(autoItemizePage.lineClearExistingButton(0)).toBeVisible();
 
     await expect
       .poll(() =>
@@ -838,10 +775,9 @@ test('Scenario 5: linked read-only values are visible, stacked on mobile, withou
       .toBe(true);
 
     // Dark mode
-    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-    await expect(autoItemizePage.lineLinkedCategory(0)).toBeVisible();
-    await expect(autoItemizePage.lineLinkedCategory(0)).toHaveText(s.categoryAName);
-    await expect(autoItemizePage.lineLinkedPlanned(0)).toBeVisible();
+    await enableDarkTheme(page);
+    await expect(autoItemizePage.lineExistingLabel(0)).toContainText(s.descA);
+    await expectLegibleInDark(autoItemizePage.lineExistingLabel(0));
   } finally {
     await cleanupSeed(page, seed);
   }
@@ -851,7 +787,7 @@ test('Scenario 5: linked read-only values are visible, stacked on mobile, withou
 // Scenario 6: a budget line cannot be linked twice
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Scenario 6: the picker hides budget lines linked to another invoice or already chosen by another row', async ({
+test('Scenario 6: the picker lists no cost line that has an invoice or is chosen by another row', async ({
   page,
   testPrefix,
 }) => {
@@ -886,35 +822,25 @@ test('Scenario 6: the picker hides budget lines linked to another invoice or alr
     await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
 
     // Row 0: line A (linked elsewhere) is hidden, line B is offered; choose B
-    await autoItemizePage.lineAssignButton(0).click();
-    await expect(autoItemizePage.pickerModal).toBeVisible();
-    await autoItemizePage.pickerWorkItemSearchInput.fill(s.workItemTitle);
-    const option0 = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-      name: escapeRe(s.workItemTitle),
-    });
-    await option0.waitFor({ state: 'visible' });
-    await option0.click();
-    await expect(autoItemizePage.pickerStep2Modal()).toBeVisible();
-    const rowB = autoItemizePage.pickerBudgetLineRow(escapeRe(s.descB));
-    await rowB.waitFor({ state: 'visible' });
-    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descA))).toHaveCount(0);
-    await rowB.click();
-    await expect(autoItemizePage.pickerStep2Modal()).not.toBeVisible();
-    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    const grid = autoItemizePage.grid;
+    await grid.targetPicker(1).pick(s.workItemTitle);
+    await grid.useExistingButton(1).click();
+    await expect(grid.existingDialog).toBeVisible();
+    const listB = grid.existingDialog.getByRole('listitem').filter({ hasText: s.descB });
+    await expect(listB).toHaveCount(1);
+    await expect(
+      grid.existingDialog.getByRole('listitem').filter({ hasText: s.descA }),
+    ).toHaveCount(0);
+    await listB.getByRole('button', { name: 'Use', exact: true }).click();
+    await expect(grid.existingDialog).toBeHidden();
+    await expect(autoItemizePage.lineExistingLabel(0)).toContainText(s.descB);
 
     // Row 1: A is linked to another invoice, B is chosen by row 0 -> nothing left
-    await autoItemizePage.lineAssignButton(1).click();
-    await expect(autoItemizePage.pickerModal).toBeVisible();
-    await autoItemizePage.pickerWorkItemSearchInput.fill(s.workItemTitle);
-    const option1 = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-      name: escapeRe(s.workItemTitle),
-    });
-    await option1.waitFor({ state: 'visible' });
-    await option1.click();
-    await expect(autoItemizePage.pickerStep2Modal()).toBeVisible();
-    await expect(autoItemizePage.pickerEmptyState()).toBeVisible();
-    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descA))).toHaveCount(0);
-    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descB))).toHaveCount(0);
+    await grid.targetPicker(2).pick(s.workItemTitle);
+    await grid.useExistingButton(2).click();
+    await expect(grid.existingDialog).toBeVisible();
+    await expect(grid.existingDialog).toContainText('has no lines without an offer or invoice');
+    await expect(grid.existingDialog.getByRole('listitem')).toHaveCount(0);
   } finally {
     if (otherInvoiceId && seed.vendorId) {
       await deleteInvoiceViaApi(page, seed.vendorId, otherInvoiceId);

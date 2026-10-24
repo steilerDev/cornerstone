@@ -239,6 +239,14 @@ export type {
   BudgetLineInvoiceLink,
 } from './types/budget.js';
 export { effectivePlannedAmount, effectiveLineAmount } from './types/budget.js';
+export type {
+  BatchBudgetLineCreate,
+  BatchBudgetLineLink,
+  BatchBudgetLineInput,
+  BatchCreateBudgetLinesRequest,
+  BatchCreatedBudgetLine,
+  BatchCreateBudgetLinesResponse,
+} from './types/budgetLineBatch.js';
 
 // Subsidy Programs
 export type {

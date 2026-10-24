@@ -2136,3 +2136,21 @@ the rise. Escalate the rename to the dev-team-lead instead of re-recording it si
 - The baseline analyzer counts search inputs by `type="search"`/role/`t('…search…')` and skips pickers
   and CommandSearch; it does not read `data-page-search`. The #2234 0 → 1 searchFields exemption
   therefore cannot be narrowed to page-search fields (the motivating ReferenceList field is unmarked).
+
+## Union request bodies vs AJV `removeAdditional` (#2235, 2026-10-24)
+
+Fastify's default AJV runs `removeAdditional: true`. A `oneOf`/`anyOf` of two shapes that each carry
+`additionalProperties: false` is broken: the first branch strips the second branch's fields before the
+second branch is tried, so entries of the second shape always fail. Contract fix: an explicit `kind`
+discriminator, one flat item schema listing every field, `if`/`then`/`else` on `kind` for the required
+sets; fields of the other kind are ignored (documented). Also seen on #2235: specs assume a server
+default that is not there — the budget-line create service **requires** `budgetSourceId` (#788) while
+the wiki said optional; check the service's throws, not the route schema, before documenting "optional".
+
+## Retiring components orphans Phase-0 defect tests (#2235)
+
+`plan/restructure/defects.json` points each defect id at test files. A story that deletes components
+(and their tests) fails `plan:check › defects` ("… does not exist") even when every other part is green.
+Before a retirement PR goes up: grep defects.json for every deleted test path, have QA re-home the
+regression assertion in the replacement component's test (naming the D-id), and repoint `tests` —
+never drop the entry. #2235: D-19/D-20 (InvoiceBudgetLinesSection) and D-27 (InvoiceLinkModal).

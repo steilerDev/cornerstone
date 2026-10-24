@@ -5,12 +5,12 @@ title: Auto-itemize Invoices
 
 # Auto-itemize Invoices
 
-When a vendor sends you a PDF invoice, Cornerstone can read the line items off the page for you and turn them into budget lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and click **Auto-itemize** on the linked document. A language model reads the OCR text and proposes one budget line per row on the invoice. Cornerstone then opens a dedicated **Auto-itemize** page with the original PDF on one side and the extracted lines on the other, so you can edit, assign, and save each line against the document it came from.
+When a vendor sends you a PDF invoice, Cornerstone can read the line items off the page for you and turn them into cost lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and choose **Itemize** on the linked document. A language model reads the OCR text and proposes one cost line per row on the invoice. Cornerstone then opens the **Split with AI** page with the original PDF on one side and the extracted lines in a grid on the other, so you can edit, assign, and save each line against the document it came from.
 
 This feature is **opt-in** and disabled by default. You connect Cornerstone to any LLM provider that speaks the OpenAI chat-completions API -- Google Gemini, Anthropic, OpenAI, or a self-hosted model running on your own machine. Cornerstone never sends the binary PDF off your server; only the OCR text and a few invoice details (vendor name, total, date) leave your host.
 
 :::tip Create a whole invoice from a document
-You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless and Auto-itemize are both configured, **New Invoice** opens a document picker, extracts the metadata and line items, and creates the invoice and its budget lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
+You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless and Auto-itemize are both configured, **New Invoice** opens a document picker, extracts the metadata and line items, and creates the invoice and its cost lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
 :::
 
 ## Prerequisites
@@ -21,7 +21,7 @@ Before you can auto-itemize, three things must be in place:
 2. **An LLM provider is configured.** Cornerstone needs an LLM endpoint to send the OCR text to (next section).
 3. **At least one Paperless document is linked to the invoice you want to itemize.** See [Linking Documents](/guides/documents/linking-documents).
 
-When all three are in place, each linked document in the **Documents** panel of the invoice detail page has an **Itemize** action in its actions menu. Choosing it opens the dedicated Auto-itemize page for that document.
+When all three are in place, each linked document in the **Documents** panel of the invoice detail page has an **Itemize** action in its actions menu. Choosing it opens the **Split with AI** page for that document.
 
 ## Configure your LLM provider
 
@@ -94,16 +94,16 @@ This walkthrough assumes you have an invoice in Cornerstone with at least one Pa
 
 Navigate to **Budget > Invoices** and open the invoice you want to itemize. Click **Documents (n)**, find the linked invoice PDF in the panel, open its actions menu, and choose **Itemize**.
 
-Cornerstone opens the dedicated **Auto-itemize** page. A spinner with an elapsed-seconds counter shows while it fetches the OCR text from Paperless and sends it to your LLM provider. There is no document-picker step -- you choose which document to itemize when you choose **Itemize** on its card.
+Cornerstone opens the **Split with AI** page. A spinner with an elapsed-seconds counter shows while it fetches the OCR text from Paperless and sends it to your LLM provider. There is no document-picker step -- you choose which document to itemize when you choose **Itemize** on its card.
 
 ### 2. Review the page layout
 
 When extraction finishes, the page shows two columns:
 
-- **Left column -- the form.** The invoice metadata fields at the top, a mode selector, and one card per extracted line item.
+- **Left column -- the form.** The invoice metadata fields at the top, a mode selector, and the extracted lines in the cost line grid. Each extracted line is one row.
 - **Right column -- the PDF preview.** The original document renders inline so you can check each extracted line against the source page without leaving the screen. If the PDF cannot be embedded, a fallback panel offers an **Open in Paperless-ngx** link instead.
 
-On narrow screens the PDF preview moves below the form.
+On narrow screens the PDF preview moves below the form. The new-invoice review screen [built from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document) uses this same grid.
 
 ### 3. Review and correct the invoice metadata
 
@@ -118,37 +118,36 @@ The **mode selector** controls how the new lines combine with what is already on
 
 ### 5. Edit, exclude, or correct each line
 
-Each extracted line is a card with editable **description, quantity, unit, unit price, and total amount** fields, plus an **include** checkbox -- uncheck a card to leave that line out. A coloured confidence dot shows how sure the model was about each row.
+Each extracted line is a row in the grid. From left to right the columns are **Row**, **Include**, **Select**, **Description**, **Quantity**, **Unit**, **Unit price**, **Entered as**, **Gross**, **Belongs to**, **Cost category**, **Funding source**, and **Actions**. **Include** switches a row off to leave that line out, and **Select** ticks rows for [merging](#merge-related-lines-into-one). Under the description of each row, the model's **AI certainty** appears as a percentage, so you can see which rows to check first.
 
-OCR is not perfect: descriptions sometimes have stray characters, quantities may be missing, and the model occasionally invents a line that does not exist on the invoice. Treat every card as a draft -- fix what is wrong, uncheck what should not be saved, and use the PDF preview to confirm against the source.
+OCR is not perfect: descriptions sometimes have stray characters, quantities may be missing, and the model occasionally invents a line that does not exist on the invoice. Treat every row as a draft -- fix what is wrong, switch off what should not be saved, and use the PDF preview to confirm against the source.
 
-A **totals card** at the bottom sums the included lines and compares them against the invoice amount, showing a green match, an amber warning (within 5%), or a red mismatch.
+The grid keyboard shortcuts work here too: **Ctrl/⌘+D** duplicates a row, **Ctrl/⌘+Backspace** removes an empty row, and **Ctrl/⌘+S** or **Ctrl/⌘+Enter** saves. You can also paste rows copied from a spreadsheet; see [Splitting an offer or invoice into cost lines](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines) for the paste rules.
+
+A **total** under the grid sums the included lines and compares them against the invoice amount, showing a green match, an amber warning (within 5%), or a red mismatch.
 
 ### Merge related lines into one
 
 Invoices often break a single logical cost across several rows -- "Labour", "Labour surcharge", and "Travel", or a run of small material rows that all belong to the same budget line. Rather than keep them apart or delete all but one, you can **merge** them into a single consolidated line.
 
-Each unassigned line card has a **selection checkbox**. Tick two or more lines and a **selection action bar** appears with a running count and a **Merge** button (merging fewer than two lines is not allowed). Click **Merge** and Cornerstone:
+Each row has a **Select** checkbox. Tick two or more rows and a **Merge** bar appears under the grid with a running count (merging fewer than two lines is not allowed; the bar tells you to select at least two). Click **Merge** and Cornerstone:
 
 - **Sums the amounts itself.** Quantities, unit prices, and totals are aggregated **client-side** for exact arithmetic -- the numbers are never handed to the language model, so nothing is rounded or hallucinated. If every merged row shares the same unit, quantities are added and the unit is kept; otherwise the merged line drops the per-unit fields and keeps just the total. The merged line takes the **lowest** confidence of its parts.
 - **Asks the model only for words.** A short, stateless LLM call proposes a combined **description** and **category** for the new line from the descriptions of the rows you selected -- text only, no figures.
 
-While the merge runs, the selected rows collapse into a single placeholder card with a spinner and a "Merging N items…" caption. When it finishes, the placeholder is replaced by one new editable line you can correct like any other. If the summarization call fails, an inline **Merge failed** badge offers **Retry**, and a **Restore original lines** action puts the separate rows back exactly as they were -- a merge is never destructive until you save.
-
-Only **unassigned** lines can be selected for merging; a line already assigned to a work item or household item is locked out of selection. Merge the rows first, then assign the single consolidated line in the next step.
+Use the **Select** checkboxes to choose the rows, then click **Merge**. While the merge runs, the selected rows show a "Merging N items…" caption. When it finishes, they are replaced by one new editable row you can correct like any other. If the summarization call fails, a **Merge failed** message offers **Retry**, and a **Restore original lines** action puts the separate rows back exactly as they were -- a merge is never destructive until you save.
 
 This works identically on the [new-invoice review screen](vendors-and-invoices#creating-an-invoice-from-a-paperless-document) built from a Paperless document.
 
 ### 6. Assign each line and set its category and funding source
 
-Each line card carries inline **Category** and **Funding source** pickers, plus an **Assign** button:
+Each row has its own cells for the line's details:
 
-- **Category / Funding source.** Pick the budget category and which financing source pays for the line directly on the card. New lines default their funding source to **Discretionary Funding** (see [Funding source](#funding-source) below).
-- **Assign.** Click **Assign** to open the two-step picker. First choose the target **work item** or **household item**; then either pick an existing budget line on that item to link to, or click **Create Budget Line** to add a fresh line (pre-filled from the extracted row). A line created from the extraction is marked with a **"Created from auto-itemization"** badge so you can tell it apart. Clear an assignment with the **✕** next to it to re-assign or switch to create-new.
+- **Cost category** and **Funding source.** Pick the cost category and which financing source pays for the line on the row. New lines default their funding source to **Discretionary Funding** (see [Funding source](#funding-source) below).
+- **Belongs to.** Search for the **task** or **purchase** the line is for. Leave it empty to save the line as **Not assigned**, and assign it later. **Assign all to** sets the same target for every row at once.
+- **Include.** Switch the row on or off. Rows that are off are not saved.
 
-When you choose **Create Budget Line**, the picker closes immediately and the new line is *queued* rather than created on the spot: the card shows a **"Creating New"** badge with an inline form for the new line's details and a **Discard** button to back out. The actual budget line is only written when you **Save** the whole page -- so you can keep reviewing the other rows without interruption, and nothing is committed until you are ready. While a queued line is active, that card's category and funding-source pickers step aside (the new line carries its own).
-
-The card's **"Price includes VAT"** checkbox stays in sync with the queued line in both directions. Toggling it on the line card updates the queued draft, and editing it inside the draft form updates the card -- so whatever you set is what gets saved. This matters most for **VAT-exclusive (net) invoice lines** assigned to a work item: unchecking **"Price includes VAT"** after queuing the new line now correctly records the line as net and computes the gross amount Cornerstone stores from it. (Previously the change could be silently dropped on save.)
+Entered amounts follow the same rules as in the rest of the app: each row is **Net** or **Gross**, and net rows get VAT added (see [VAT handling](work-item-budgets#vat-handling)). Use **Entered as for all** to set this for every row.
 
 A line you do not assign to any item is still saved against the invoice and counts toward financing-source totals and category aggregates, but it does not roll up into a single work item's budget until you assign it.
 
@@ -157,16 +156,16 @@ A line you do not assign to any item is still saved against the invoice and coun
 Click **Save**. Cornerstone writes the included lines (and any metadata changes) and returns you to the invoice. If you try to leave with unsaved edits, a confirmation dialog asks whether to discard them.
 
 :::tip You can move an assigned line later
-Unlike the old one-shot flow, an invoice-linked budget line is no longer locked to its first parent. You can later edit any invoice-linked line -- including auto-itemized ones -- and **move it to a different work item or household item** from the line's edit view. See [Inline budget line editing](work-item-budgets#editing-invoice-linked-budget-lines).
+An invoice-linked cost line is not locked to its first parent. You can later edit any invoice-linked line -- including split ones -- and **move it to a different task or purchase** from the line's edit view. See [Editing a linked cost line](work-item-budgets#editing-a-linked-cost-line).
 :::
 
 ## Funding source
 
-Every budget line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a subsidy, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
+Every cost line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a subsidy, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
 
-So auto-extracted lines default to the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from. You can override the funding source per line directly on the Auto-itemize page using each card's **Funding source** picker.
+So auto-extracted lines default to the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from. You can override the funding source per line directly in the grid, using each row's **Funding source** cell.
 
-A note in the **extracted lines** section of the Auto-itemize page reminds you, before you save, that any lines still on Discretionary Funding can be moved onto a real source at any time -- nothing is locked in. It is just a sensible default to get lines recorded quickly.
+A note above the **extracted lines** grid on the Split with AI page reminds you, before you save, that any lines still on Discretionary Funding can be moved onto a real source at any time -- nothing is locked in. It is just a sensible default to get lines recorded quickly.
 
 ### Reassign a line's funding source
 

@@ -12,6 +12,8 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2235 cost lines tests](story-2235-cost-lines-tests.md) (2026-10-24) — fixtures, grid mock ripple, focus defect pin, D-20 home
+
 - [Story #2230 Home client tests](story-2230-home-client-tests.md) (2026-10-22) — fixtures/harnesses, jest-from-root, focus-getter recipes, one dead branch
 
 - [Story #2230 Home server tests](story-2230-home-server-tests.md) (2026-10-22) — NODE_OPTIONS keeps vm-modules, dead defensive branches, 2 defect pins

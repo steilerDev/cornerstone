@@ -17,6 +17,7 @@ import {
   MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { COST_LINE_STATES } from '../CostLineTable/costLineState.js';
 import { USER_ACCOUNT_STATUSES } from '../../lib/userAccountStatus.js';
 import { BACKUP_RUN_OUTCOMES, INTEGRATION_STATUSES } from '../../lib/integrationStatus.js';
 import enCommon from '../../i18n/en/common.json';
@@ -29,6 +30,7 @@ import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
   buildBackupRunVariants,
+  buildCostLineStateVariants,
   buildDiaryOutcomeVariants,
   buildDiarySeverityVariants,
   buildDiaryStatusVariants,
@@ -118,6 +120,45 @@ describe('buildInvoiceStatusVariants', () => {
     const chip = screen.getByTestId('chip');
     expect(chip.querySelector('svg')).toBeNull();
     expect(chip).not.toHaveAttribute('title');
+  });
+});
+
+describe('buildCostLineStateVariants (#2235)', () => {
+  const variants = buildCostLineStateVariants(realT);
+
+  it('has exactly one entry per state, each with a label and a className', () => {
+    expect(Object.keys(variants)).toEqual([...COST_LINE_STATES]);
+    for (const state of COST_LINE_STATES) {
+      expect(variants[state].label.length).toBeGreaterThan(0);
+      expect(variants[state].className).toBeTruthy();
+    }
+  });
+
+  it('labels come from the canonical en costLine vocabulary', () => {
+    expect(Object.values(variants).map((v) => v.label)).toEqual([
+      enCommon.statusVocabulary.costLine.estimate,
+      enCommon.statusVocabulary.costLine.offered,
+      enCommon.statusVocabulary.costLine.invoiced,
+      enCommon.statusVocabulary.costLine.paid,
+      enCommon.statusVocabulary.costLine.submitted,
+    ]);
+  });
+
+  it('reuses the invoice chip colours', () => {
+    expect(variants.offered.className).toBe('offer');
+    expect(variants.invoiced.className).toBe('pending');
+    expect(variants.paid.className).toBe('paid');
+    expect(variants.submitted.className).toBe('claimed');
+    expect(variants.estimate.className).toBe('notStarted');
+  });
+
+  it('gives only Submitted a decorative icon and a tooltip', () => {
+    expect(variants.submitted.icon).toBeDefined();
+    expect(variants.submitted.title).toBe(enCommon.statusHints.submitted);
+    for (const state of ['estimate', 'offered', 'invoiced', 'paid'] as const) {
+      expect(variants[state].icon).toBeUndefined();
+      expect(variants[state].title).toBeUndefined();
+    }
   });
 });
 

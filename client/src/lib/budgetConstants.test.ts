@@ -1,5 +1,6 @@
 import { jest, describe, it, expect } from '@jest/globals';
-import { CONFIDENCE_LABELS, computeBudgetTotals } from './budgetConstants.js';
+import * as budgetConstants from './budgetConstants.js';
+import { computeBudgetTotals } from './budgetConstants.js';
 import type { BaseBudgetLine } from '@cornerstone/shared';
 
 // Keep jest in scope — required by the test framework even if not explicitly used
@@ -32,32 +33,17 @@ const makeLine = (overrides: Partial<BaseBudgetLine> = {}): BaseBudgetLine => ({
   ...overrides,
 });
 
-// ─── CONFIDENCE_LABELS ───────────────────────────────────────────────────────
+// ─── Retired exports ─────────────────────────────────────────────────────────
 
-describe('CONFIDENCE_LABELS', () => {
-  it('contains exactly 4 keys', () => {
-    expect(Object.keys(CONFIDENCE_LABELS)).toHaveLength(4);
+describe('budgetConstants exports', () => {
+  it('no longer exports CONFIDENCE_LABELS (labels come from the costLines namespace)', () => {
+    expect(Object.keys(budgetConstants)).not.toContain('CONFIDENCE_LABELS');
   });
 
-  it('maps own_estimate to a human-readable label', () => {
-    expect(CONFIDENCE_LABELS.own_estimate).toBe('Own Estimate');
-  });
-
-  it('maps professional_estimate to a human-readable label', () => {
-    expect(CONFIDENCE_LABELS.professional_estimate).toBe('Professional Estimate');
-  });
-
-  it('maps quote to a human-readable label', () => {
-    expect(CONFIDENCE_LABELS.quote).toBe('Quote');
-  });
-
-  it('maps invoice to a human-readable label', () => {
-    expect(CONFIDENCE_LABELS.invoice).toBe('Invoice');
-  });
-
-  it('covers all 4 confidence levels defined in the shared type', () => {
-    const expectedKeys = ['own_estimate', 'professional_estimate', 'quote', 'invoice'];
-    expect(Object.keys(CONFIDENCE_LABELS).sort()).toEqual(expectedKeys.sort());
+  it('keeps the shared helpers re-exported', () => {
+    expect(budgetConstants.CONFIDENCE_MARGINS.own_estimate).toBe(0.2);
+    expect(typeof budgetConstants.effectivePlannedAmount).toBe('function');
+    expect(typeof budgetConstants.effectiveLineAmount).toBe('function');
   });
 });
 
@@ -357,5 +343,56 @@ describe('computeBudgetTotals — configured VAT rate (vatRate=0.2)', () => {
 
     expect(result.totalMinPlanned).toBe(90);
     expect(result.totalMaxPlanned).toBe(90);
+  });
+});
+
+describe('computeBudgetTotals — linked lines at face value (ADR-039)', () => {
+  const offerLinked = makeLine({
+    plannedAmount: 4000,
+    confidence: 'quote',
+    invoiceCount: 1,
+    actualCost: 4000,
+    invoiceLink: {
+      invoiceBudgetLineId: 'ibl',
+      invoiceId: 'i1',
+      invoiceNumber: null,
+      invoiceDate: '2026-03-01',
+      invoiceStatus: 'quotation',
+      itemizedAmount: 4000,
+      vendorId: null,
+      vendorName: null,
+    },
+  });
+
+  it('an offer-linked line counts its itemized amount in both min and max, with no +/-5% spread', () => {
+    const result = computeBudgetTotals([offerLinked], 0.19);
+
+    expect(result.totalMinPlanned).toBe(4000);
+    expect(result.totalMaxPlanned).toBe(4000);
+    expect(result.hasPlannedRange).toBe(false);
+  });
+
+  it('exposes no allQuotation flag', () => {
+    const result = computeBudgetTotals([offerLinked], 0.19);
+
+    expect(Object.keys(result).sort()).toEqual([
+      'allInvoiced',
+      'hasPlannedRange',
+      'totalActualCost',
+      'totalMaxPlanned',
+      'totalMinPlanned',
+      'totalPlanned',
+    ]);
+    expect(result.allInvoiced).toBe(true);
+  });
+
+  it('a linked line next to an estimate only spreads the estimate', () => {
+    const estimate = makeLine({ id: 'e', plannedAmount: 1000, confidence: 'own_estimate' });
+
+    const result = computeBudgetTotals([offerLinked, estimate], 0.19);
+
+    expect(result.totalMinPlanned).toBeCloseTo(4800, 5);
+    expect(result.totalMaxPlanned).toBeCloseTo(5200, 5);
+    expect(result.allInvoiced).toBe(false);
   });
 });

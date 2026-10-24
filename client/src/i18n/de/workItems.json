@@ -127,7 +127,6 @@
     "loading": "Arbeitspaket wird geladen...",
     "error": {
       "title": "Fehler",
-      "fallback": "Beim Laden des Arbeitspakets ist ein Fehler aufgetreten.",
       "retry": "Erneut versuchen"
     },
     "titleEdit": {
@@ -275,7 +274,6 @@
       "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
       "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
-      "unlinkInvoice": "Verknüpfung der Budgetposition mit der Rechnung konnte nicht aufgehoben werden",
       "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
     },
     "dismissError": "Fehler ausblenden",

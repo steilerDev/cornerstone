@@ -39,6 +39,16 @@ The rows in **Needs attention** and **Tidy up** each carry a label. The label te
 | **Follow up** | Something is waiting for a decision or a reply, such as an offer or a grant deadline. | Offer due 9 April 2027 (in 18 days). |
 | **Tidy up** | A small clean-up job that is not urgent. | Shown under its own heading, not under Needs attention. |
 
+## Renamed budget words
+
+Some words in the budget pages changed. The screens do the same job as before.
+
+| Earlier word | Now | Where you see it |
+|--------------|-----|------------------|
+| **Budget line** | **Cost line** | The **Cost lines** section on a task, purchase, offer or invoice. **Add cost line** adds one; **Add lines (grid)** enters several at once. |
+| **Confidence** | **Basis** | The setting on each cost line: **Own estimate**, **Professional estimate**, **Offer** or **Invoice**. |
+| **Itemize** | **Split** | The **Not yet split** row on an offer or invoice. The **Itemize** action on a linked document still opens **Split with AI**. |
+
 Two more words come up often:
 
 - **Held up**: the task cannot start or end on time because another task it depends on is late. The line underneath says "Waits for" and names that task.

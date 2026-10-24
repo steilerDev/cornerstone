@@ -17,6 +17,9 @@ import {
   formatFileSize,
   formatFileSizeDecimal,
   formatHours,
+  formatQuantity,
+  formatLongDate,
+  formatSignedCurrency,
   formatDateTimeWithZone,
   useFormatters,
   createFormatters,
@@ -735,6 +738,56 @@ describe('formatFileSize', () => {
 });
 
 // ─── formatHours (Issue #1813) ─────────────────────────────────────────────────
+
+describe('formatLongDate / formatSignedCurrency', () => {
+  it('formats a date with the long weekday and month', () => {
+    expect(formatLongDate('2026-10-06', 'en-US')).toBe('Tuesday, October 6, 2026');
+  });
+
+  it('falls back for missing or malformed dates, with a default or custom fallback', () => {
+    expect(formatLongDate(null)).toBe('—');
+    expect(formatLongDate('', 'en-US', 'n/a')).toBe('n/a');
+    expect(formatLongDate('garbage', 'en-US')).toBe('—');
+  });
+
+  it('is bound by createFormatters', () => {
+    const bound = createFormatters('en-US', 'EUR');
+    expect(bound.formatLongDate('2026-10-06')).toBe('Tuesday, October 6, 2026');
+    expect(bound.formatLongDate(null, 'none')).toBe('none');
+    expect(bound.formatSignedCurrency(5)).toBe(formatSignedCurrency(5, 'en-US', 'EUR'));
+  });
+
+  it('signs non-zero amounts', () => {
+    expect(formatSignedCurrency(5)).toContain('+');
+    expect(formatSignedCurrency(-5)).toMatch(/[-−]/);
+  });
+});
+
+describe('formatQuantity', () => {
+  it('formats whole numbers without decimals', () => {
+    expect(formatQuantity(12, 'en-US')).toBe('12');
+  });
+
+  it('keeps up to three decimals and drops trailing zeros', () => {
+    expect(formatQuantity(2.5, 'en-US')).toBe('2.5');
+    expect(formatQuantity(1.23456, 'en-US')).toBe('1.235');
+    expect(formatQuantity(0.1, 'en-US')).toBe('0.1');
+  });
+
+  it('groups thousands by locale', () => {
+    expect(formatQuantity(1234.5, 'en-US')).toBe('1,234.5');
+    expect(formatQuantity(1234.5, 'de-DE')).toBe('1.234,5');
+  });
+
+  it('defaults to en-US', () => {
+    expect(formatQuantity(1234.5)).toBe('1,234.5');
+  });
+
+  it('is bound by createFormatters', () => {
+    expect(createFormatters('de-DE', 'EUR').formatQuantity(2.5)).toBe('2,5');
+    expect(createFormatters('en-US', 'EUR').formatQuantity(2.5)).toBe('2.5');
+  });
+});
 
 describe('formatHours', () => {
   it('formats 7.5 in de-DE as "7,50 h" (comma decimal)', () => {

@@ -3,7 +3,7 @@
  *
  * Validates that the AreaBreadcrumb component renders correctly on:
  *  - Household Items list page  (compact variant — plain span with full path, no tooltip)
- *  - HouseholdItemPicker dropdown (renderSecondary compact breadcrumb in search results)
+ *  - Belongs-to picker in the cost line form (kind and area path in the search dropdown)
  *
  * NOTE (fix/1278): The AreaBreadcrumb compact variant no longer has a Tooltip or tabIndex=0.
  * The breadcrumb has been REMOVED from the HouseholdItemDetailPage header entirely — neither
@@ -15,10 +15,13 @@
  * 3. Compact breadcrumb — no tabIndex=0 on the span; no tooltip on focus
  * 4. List page — null area shows "No area" text in row
  * 5. Detail page — no area breadcrumb (nav or "No area" text) in detail header
- * 6. HouseholdItemPicker — renderSecondary breadcrumb visible in search dropdown (smoke)
+ * 6. Belongs-to picker (cost line form) — kind and area path visible in the search dropdown (smoke)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
+import { CostLinesPanel } from '../../pages/components/CostLinesPanel.js';
 import { HouseholdItemsPage } from '../../pages/HouseholdItemsPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
 import {
@@ -273,20 +276,15 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: HouseholdItemPicker — renderSecondary breadcrumb in dropdown
+// Scenario 6: Belongs to picker (cost line form) — area path in the search dropdown
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search dropdown (Scenario 6)', () => {
-  test('Opening the HI picker and searching shows compact area breadcrumb in dropdown result', async ({
+test.describe('Belongs to picker — area path in the search dropdown (Scenario 6)', () => {
+  test('Searching a purchase in the cost line form shows its kind and area path in the dropdown result', async ({
     page,
     testPrefix,
   }) => {
-    // The HouseholdItemPicker is used on the InvoiceDetailPage to link household items
-    // to invoice budget lines. We create a vendor and invoice via API, navigate to the
-    // invoice detail page, open the "Add Budget Line" modal, and confirm the compact
-    // AreaBreadcrumb renders for the result in the HouseholdItemPicker dropdown.
-    //
-    // Note: showItemsOnFocus=true means the picker populates results on focus without
-    // needing to type — we focus then also fill the query to narrow results reliably.
+    // The cost line form on an offer or invoice has a "Belongs to" search over tasks and
+    // purchases (#2235). Each result shows the kind word and the area path as secondary text.
 
     let rootAreaId: string | null = null;
     let childAreaId: string | null = null;
@@ -303,7 +301,6 @@ test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search drop
       childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
       itemId = await createHouseholdItemViaApi(page, { name: itemName, areaId: childAreaId });
 
-      // Create vendor and invoice via inline API calls (no shared helper for these yet)
       const vendorResp = await page.request.post(API.vendors, {
         data: { name: `${testPrefix} Picker Vendor` },
       });
@@ -311,8 +308,6 @@ test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search drop
       const vendorBody = (await vendorResp.json()) as { vendor: { id: string } };
       vendorId = vendorBody.vendor.id;
 
-      // Invoice status must be one of the valid API enum values: 'pending', 'paid', 'claimed', 'quotation'.
-      // 'draft' was used here incorrectly and caused a 400 validation error from Fastify.
       const invoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
         data: { amount: 100, date: '2026-01-15', status: 'pending' },
       });
@@ -320,47 +315,19 @@ test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search drop
       const invoiceBody = (await invoiceResp.json()) as { invoice: { id: string } };
       invoiceId = invoiceBody.invoice.id;
 
-      // Navigate to invoice detail page where HouseholdItemPicker is rendered in the
-      // "Add Budget Line" modal
-      await page.goto(`/budget/invoices/${invoiceId}`);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+      const panel = new CostLinesPanel(page);
+      const form = new CostLineFormDialog(page, 'New cost line');
+      await page.goto(routeUrl('invoice', { id: invoiceId }));
+      await panel.waitForLoaded();
+      await panel.addButton.click();
+      await form.waitForOpen();
 
-      // Open the "Add Budget Line" modal
-      const addBudgetLineButton = page.getByRole('button', {
-        name: '+ Add Budget Line',
-        exact: true,
-      });
-      await addBudgetLineButton.waitFor({ state: 'visible' });
-      await addBudgetLineButton.click();
-
-      // The modal (role=dialog aria-labelledby="picker-title") opens with Step 1
-      const modal = page.getByRole('dialog', { name: 'Add Budget Line' });
-      await expect(modal).toBeVisible();
-
-      // The HouseholdItemPicker is rendered in the "Household Item" tab with
-      // placeholder="Search household items..." and showItemsOnFocus=true.
-      const pickerInput = modal.getByPlaceholder('Search household items...');
-      await pickerInput.waitFor({ state: 'visible' });
-
-      // Fill the query to find the specific item
-      await pickerInput.fill(itemName);
-
-      // Wait for the listbox to appear
-      const listbox = page.getByRole('listbox');
-      await expect(listbox).toBeVisible();
-
-      // Find the option matching our item
-      const option = listbox.getByRole('option', { name: new RegExp(itemName) });
+      await form.target.type(itemName);
+      const option = form.target.option(itemName);
       await expect(option).toBeVisible();
-
-      // The renderSecondary prop renders a compact AreaBreadcrumb inside each option.
-      // The compact variant renders a <span class*="compact"> containing the area path text.
-      // Verify the breadcrumb text appears in the option — both ancestor and leaf name.
-      const secondaryBreadcrumb = option.locator('[class*="compact"]');
-      await expect(secondaryBreadcrumb).toBeVisible();
-      const breadcrumbText = await secondaryBreadcrumb.textContent();
-      expect(breadcrumbText).toContain(rootName);
-      expect(breadcrumbText).toContain(childName);
+      await expect(option).toContainText('Purchase');
+      await expect(option).toContainText(rootName);
+      await expect(option).toContainText(childName);
     } finally {
       // Invoice is deleted with vendor (cascade) — delete invoice first, then vendor
       if (invoiceId && vendorId) {

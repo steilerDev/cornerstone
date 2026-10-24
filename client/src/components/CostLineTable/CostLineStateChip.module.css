@@ -1,0 +1,11 @@
+.chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-2);
+}
+
+.basis {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

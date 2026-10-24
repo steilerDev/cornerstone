@@ -33,28 +33,23 @@ export function BudgetCostOverview({
   oversubscribedSubsidyNames,
 }: BudgetCostOverviewProps) {
   const { t } = useTranslation('budget');
+  const { t: tCost } = useTranslation('costLines');
   const { vatRate } = useLocale();
   const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
 
-  const {
-    totalPlanned,
-    totalMinPlanned,
-    totalMaxPlanned,
-    hasPlannedRange,
-    allInvoiced,
-    allQuotation,
-  } = computeBudgetTotals(budgetLines, vatRate);
+  const { totalPlanned, totalMinPlanned, totalMaxPlanned, hasPlannedRange, allInvoiced } =
+    computeBudgetTotals(budgetLines, vatRate);
 
-  // When all lines are quotation-linked, costs are NOT fully known — show ranges
-  const costsKnown = allInvoiced && !allQuotation;
+  // Linked lines count at face value (ADR-039): costs are known once every line is linked.
+  const costsKnown = allInvoiced;
 
   const hasSubsidyPayback =
     subsidyPayback !== null &&
     subsidyPayback.subsidies.length > 0 &&
     subsidyPayback.maxTotalPayback > 0;
 
-  // When all budget lines are invoiced (non-quotation), costs are known — collapse to single values.
+  // When every budget line is linked, costs are known — collapse to single values.
   // The server-side payback should already return equal min/max when all lines are invoiced,
   // but we force collapse here for a definitive single-number display.
   const effectivePaybackMin =
@@ -74,9 +69,11 @@ export function BudgetCostOverview({
   return (
     <div className={styles.budgetSummary}>
       <div className={styles.summaryRows}>
-        {/* Expected Cost — always shown as primary value */}
+        {/* First row: the cost after grants when grants apply, else the expected cost */}
         <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Expected Cost</span>
+          <span className={styles.summaryLabel}>
+            {hasSubsidyPayback ? tCost('overview.afterGrants') : tCost('overview.expectedCost')}
+          </span>
           <span className={hasSubsidyPayback ? styles.budgetValueHighlighted : styles.budgetValue}>
             {formatRange(expectedCostMin, expectedCostMax, formatCurrency)}
           </span>
@@ -84,7 +81,7 @@ export function BudgetCostOverview({
 
         {/* Planned Range — always shown; struck-through only when ALL lines are invoiced */}
         <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Planned Cost</span>
+          <span className={styles.summaryLabel}>{tCost('overview.plannedCost')}</span>
           <span className={costsKnown ? styles.budgetValueMuted : styles.budgetValue}>
             {hasPlannedRange
               ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
@@ -102,8 +99,11 @@ export function BudgetCostOverview({
               aria-atomic="true"
               aria-label={
                 effectivePaybackMin === effectivePaybackMax
-                  ? `Expected subsidy payback: ${formatCurrency(effectivePaybackMin)}`
-                  : `Expected subsidy payback: ${formatCurrency(effectivePaybackMin)} to ${formatCurrency(effectivePaybackMax)}`
+                  ? tCost('overview.payback', { amount: formatCurrency(effectivePaybackMin) })
+                  : tCost('overview.paybackRange', {
+                      min: formatCurrency(effectivePaybackMin),
+                      max: formatCurrency(effectivePaybackMax),
+                    })
               }
             >
               {formatRange(effectivePaybackMin, effectivePaybackMax, formatCurrency)}
@@ -115,9 +115,10 @@ export function BudgetCostOverview({
           <div className={styles.oversubscribedNote}>
             <span className={styles.oversubscribedIcon}>&#9888;</span>
             <span>
-              {oversubscribedSubsidyNames.length === 1
-                ? `${oversubscribedSubsidyNames[0]} is oversubscribed`
-                : `${oversubscribedSubsidyNames.join(', ')} are oversubscribed`}
+              {tCost('overview.oversubscribed', {
+                count: oversubscribedSubsidyNames.length,
+                names: oversubscribedSubsidyNames.join(', '),
+              })}
             </span>
           </div>
         )}

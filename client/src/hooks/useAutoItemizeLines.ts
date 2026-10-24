@@ -1,90 +1,112 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
-import type {
-  WorkItemBudgetLine,
-  HouseholdItemBudgetLine,
-  PaperlessDocumentSearchResult,
-  ConfidenceLevel,
-} from '@cornerstone/shared';
-import { foldSearchText } from '@cornerstone/shared';
-import { searchCompanies } from '../lib/vendorsApi.js';
-import { useBudgetLinePicker } from './useBudgetLinePicker.js';
-import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
-import type { LineWithInclude } from '../components/autoItemize/types.js';
-import type { BudgetLineFormState } from './useBudgetSection.js';
-import { toAssignedBudgetLineSnapshot } from '../lib/autoItemizeDraftUtils.js';
-import { effectiveLineAmount } from '../lib/budgetConstants.js';
-import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { ExtractedLine, PaperlessDocumentSearchResult } from '@cornerstone/shared';
+import type { AiMergeSource, AiRowData, AiRowDataMap } from '../components/autoItemize/types.js';
+import type { CostLineTarget } from '../components/CostLineTable/types.js';
+import {
+  blankGridRow,
+  isBlankRow,
+  nextRowId,
+  validateGridRows,
+  withTrailingBlank,
+} from '../components/CostLineForm/costLineGridModel.js';
+import { numberToText } from '../components/CostLineForm/pasteRows.js';
+import type { NumberLocale } from '../components/CostLineForm/pasteRows.js';
+import type { CostLineGridOptions, CostLineGridRow } from '../components/CostLineForm/types.js';
+import { useCostLineOptions } from '../components/CostLineForm/useCostLineOptions.js';
+import type { CostLineOptions } from '../components/CostLineForm/useCostLineOptions.js';
 import { useLocale } from '../contexts/LocaleContext.js';
+import {
+  applyBudgetSourceToNewLines,
+  effectiveRowAmount,
+  isNewBudgetLineRow,
+  rowFromExtractedLine,
+} from '../lib/autoItemizeDraftUtils.js';
+import type { CommitContext } from '../lib/autoItemizeDraftUtils.js';
 import {
   aggregateMergedLineNumerics,
   buildAvailableCategories,
 } from '../lib/autoItemizeMergeUtils.js';
+import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
+
+/** `data-testid` of the grid on both Split with AI pages (the hook focuses cells inside it). */
+export const AUTO_ITEMIZE_GRID_PREFIX = 'auto-itemize-grid';
+
+/** The grid of the Split with AI pages: Include toggles, merge selection, category and source. */
+export const AUTO_ITEMIZE_GRID_OPTIONS: CostLineGridOptions = {
+  targets: true,
+  requireTarget: false,
+  positiveGross: true,
+  columns: ['category', 'fundingSource'],
+  include: true,
+  select: true,
+  existingLines: true,
+};
 
 export interface UseAutoItemizeLinesOptions {
-  invoiceId: string;
-  invoiceAmount: number;
   document?: PaperlessDocumentSearchResult | null;
   /**
-   * Called after any mutating line handler (field change, assign, clear, etc.).
+   * Called after any edit of the rows (field change, link, merge, …).
    * AutoItemizePage passes `() => setLineFieldsEdited(true)` for dirty tracking.
    */
   onFieldsEdited?: () => void;
-  /**
-   * Optional document summary (e.g., invoice notes) passed to merge LLM.
-   */
+  /** Optional document summary (e.g., invoice notes) passed to the merge LLM. */
   documentSummary?: string | null;
-  /**
-   * Called when merge starts (for live region announcements).
-   */
+  /** Called when a merge starts (live region announcement). */
   onMergeStart?: (count: number) => void;
-  /**
-   * Called when merge succeeds (for live region announcements).
-   */
+  /** Called when a merge succeeds (live region announcement). */
   onMergeSuccess?: () => void;
-  /**
-   * Invoice-level default budget source (#2158). When set, newly queued inline
-   * budget lines and merged lines use it instead of the discretionary fallback.
-   */
+  /** Invoice-wide default funding source (#2158) for rows that create new lines. */
   defaultBudgetSourceId?: string | null;
 }
 
 export interface UseAutoItemizeLinesReturn {
-  lines: LineWithInclude[];
-  setLines: Dispatch<SetStateAction<LineWithInclude[]>>;
-  picker: UseBudgetLinePickerReturn;
-  handlers: {
-    onToggleInclude: (rowId: string) => void;
-    onFieldChange: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
-    onAssign: (rowId: string) => void;
-    onSelectBudgetLine: (line: WorkItemBudgetLine | HouseholdItemBudgetLine) => void;
-    onQueueNewBudgetLine: () => Promise<void>;
-    onInlineDraftChange: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
-    onClearAssign: (rowId: string) => void;
-  };
-  selectedRowIds: Set<string>;
-  onToggleSelect: (rowId: string) => void;
-  onClearSelection: () => void;
-  onMergeSelected: () => void;
-  onRetryMerge: (rowId: string) => void;
-  onUndoMerge: (rowId: string) => void;
+  readonly rows: readonly CostLineGridRow[];
+  /** Side data of the extraction, by row id. */
+  readonly data: AiRowDataMap;
+  readonly assignAll: CostLineTarget | null;
+  readonly setAssignAll: (target: CostLineTarget | null) => void;
+  readonly options: CostLineOptions;
+  readonly selectedRowIds: ReadonlySet<string>;
+  /** true after a Save attempt: the grid shows every error. */
+  readonly showAllErrors: boolean;
+  /** Replaces the rows with the extracted lines (the first load and Retry). */
+  readonly load: (lines: readonly ExtractedLine[]) => void;
+  /** The grid's change handler. */
+  readonly onRowsChange: (rows: readonly CostLineGridRow[]) => void;
+  /** Writes rows back without counting as an edit (partially created cost lines). */
+  readonly replaceRows: (rows: readonly CostLineGridRow[]) => void;
+  readonly onToggleSelect: (rowId: string) => void;
+  readonly onClearSelection: () => void;
+  readonly onMergeSelected: () => void;
+  /** Notice buttons of a merge row: `retry` and `undo`. */
+  readonly onNoticeAction: (rowId: string, actionId: string) => void;
+  /** Applies a funding source to every row that creates a new line; returns how many. */
+  readonly applyBudgetSource: (sourceId: string) => number;
+  /** Validates the rows to save (shows every error, focuses the first). true = valid. */
+  readonly validate: () => boolean;
+  /** Everything the commit helpers need besides the rows. */
+  readonly commitContext: () => CommitContext;
+}
+
+/** Only the blank row at the end was added: the grid does this by itself on mount. */
+function onlyTrailingBlank(
+  previous: readonly CostLineGridRow[],
+  next: readonly CostLineGridRow[],
+): boolean {
+  return (
+    next.length === previous.length + 1 &&
+    previous.every((row, index) => next[index] === row) &&
+    isBlankRow(next[next.length - 1]!)
+  );
 }
 
 /**
- * Manages all line-state and picker integration for both auto-itemize flows.
- *
- * Internally calls useBudgetLinePicker so the consuming page no longer needs to.
- * All handlers are stable (useCallback with empty deps) — they read from refs
- * that are kept current on every render to avoid stale closures.
- *
- * A budget line must not be linked twice: the returned picker hides lines already
- * assigned to OTHER rows of the same draft (the active row's own line stays visible
- * so "Change" can re-select it). Lines linked to any invoice are already hidden by
- * useBudgetLinePicker itself.
+ * State of the Split with AI pages' cost line grid: the rows (`CostLineGridRow`), the extraction's
+ * side data, Assign all to, merge selection and the merge flow. Handlers are stable (refs keep them
+ * current) so the pages and the grid never see a stale closure.
  */
 export function useAutoItemizeLines({
-  invoiceId,
-  invoiceAmount,
   document,
   onFieldsEdited,
   documentSummary,
@@ -92,16 +114,27 @@ export function useAutoItemizeLines({
   onMergeSuccess,
   defaultBudgetSourceId,
 }: UseAutoItemizeLinesOptions): UseAutoItemizeLinesReturn {
-  const [lines, setLines] = useState<LineWithInclude[]>([]);
-  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
-  // `${type}:${id}` keys of budget lines assigned to other rows; set when the picker opens.
-  const [excludedLineKeys, setExcludedLineKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const { t } = useTranslation('budget');
+  const { t: tCostLines } = useTranslation('costLines');
+  const { resolvedLocale, vatRate } = useLocale();
+  const locale: NumberLocale = resolvedLocale === 'de' ? 'de' : 'en';
+  const options = useCostLineOptions();
+
+  const [storedRows, setStoredRows] = useState<readonly CostLineGridRow[]>(() => [
+    blankGridRow(nextRowId()),
+  ]);
+  const [data, setData] = useState<AiRowDataMap>(() => new Map());
+  const [assignAll, setAssignAll] = useState<CostLineTarget | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [showAllErrors, setShowAllErrors] = useState(false);
 
   // Mutable refs — updated every render so stable callbacks always see fresh values.
-  const activeRowIdRef = useRef<string | null>(null);
-  const wasCreatedFromExtractionRef = useRef(false);
-  const linesRef = useRef(lines);
-  linesRef.current = lines;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const selectedRef = useRef(selectedRowIds);
+  selectedRef.current = selectedRowIds;
+  const assignAllRef = useRef(assignAll);
+  assignAllRef.current = assignAll;
   const onFieldsEditedRef = useRef(onFieldsEdited);
   onFieldsEditedRef.current = onFieldsEdited;
   const documentRef = useRef(document);
@@ -112,490 +145,333 @@ export function useAutoItemizeLines({
   onMergeStartRef.current = onMergeStart;
   const onMergeSuccessRef = useRef(onMergeSuccess);
   onMergeSuccessRef.current = onMergeSuccess;
-  const defaultBudgetSourceIdRef = useRef(defaultBudgetSourceId);
-  defaultBudgetSourceIdRef.current = defaultBudgetSourceId;
-  const { vatRate } = useLocale();
+  const defaultSourceRef = useRef(defaultBudgetSourceId);
+  defaultSourceRef.current = defaultBudgetSourceId;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const tCostLinesRef = useRef(tCostLines);
+  tCostLinesRef.current = tCostLines;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
   const vatRateRef = useRef(vatRate);
   vatRateRef.current = vatRate;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
-  // Filled in after picker is created (breaks the circular dep on picker.closePicker /
-  // picker.openPicker without needing closePicker in useCallback deps).
-  const openPickerRef = useRef<() => void>(() => {});
-  const closePickerRef = useRef<() => void>(() => {});
+  // Rows that create a new line and have no funding source follow the default, else Discretionary.
+  const fallbackSourceId =
+    defaultBudgetSourceId || options.discretionarySourceId || options.sources[0]?.id || null;
+  const rows = useMemo(
+    () =>
+      fallbackSourceId === null
+        ? storedRows
+        : storedRows.map((row) =>
+            row.existingLine === null && row.budgetSourceId === null && !isBlankRow(row)
+              ? { ...row, budgetSourceId: fallbackSourceId }
+              : row,
+          ),
+    [storedRows, fallbackSourceId],
+  );
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
-  // Stable callback: picker calls this after a budget line is created via its form.
-  // Note: useBudgetLinePicker also calls closePicker() after invoking onLineCreated,
-  // so we do not need to do so here.
-  const onLineCreated = useCallback(
-    (line: WorkItemBudgetLine | HouseholdItemBudgetLine) => {
-      const rowId = activeRowIdRef.current;
-      if (!rowId) return;
-      const lineType: 'work_item' | 'household_item' =
-        'workItemId' in line ? 'work_item' : 'household_item';
-      const fromExtraction = wasCreatedFromExtractionRef.current;
-      wasCreatedFromExtractionRef.current = false;
-      setLines((prev) =>
-        prev.map((l) =>
-          l.rowId === rowId
-            ? {
-                ...l,
-                assignedBudgetLineId: line.id,
-                assignedBudgetLineType: lineType,
-                assignedBudgetLineDescription: line.description,
-                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(line),
-                linkedItemizedAmount:
-                  l.linkedItemizedAmount ??
-                  effectiveLineAmount(
-                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
-                    vatRateRef.current,
-                  ),
-                createdFromExtraction: fromExtraction,
-                inlineCreatedBudgetLineDraft: undefined,
-                inlineHideConfidence: undefined,
-              }
-            : l,
+  const load = useCallback(
+    (lines: readonly ExtractedLine[]) => {
+      const created = lines.map((line) => ({
+        line,
+        row: rowFromExtractedLine(line, nextRowId(), locale),
+      }));
+      setStoredRows(
+        withTrailingBlank(
+          created.map((entry) => entry.row),
+          nextRowId,
         ),
       );
-      onFieldsEditedRef.current?.();
-      activeRowIdRef.current = null;
+      setData(new Map(created.map(({ line, row }) => [row.rowId, { extracted: line }])));
+      setSelectedRowIds(new Set());
     },
-    [], // empty: all reads from stable refs or state setters
+    [locale],
   );
 
-  const picker = useBudgetLinePicker({
-    invoiceId,
-    invoiceAmount,
-    eagerLinkInvoice: false,
-    onLineCreated,
-  });
-
-  // Keep picker function refs current every render.
-  openPickerRef.current = picker.openPicker;
-  closePickerRef.current = picker.closePicker;
-  const pickerStateRef = useRef(picker.pickerState);
-  pickerStateRef.current = picker.pickerState;
-
-  // Initialize categories and sources once on mount.
-  useEffect(() => {
-    void picker.initializeStaticData();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- initialize once on mount
+  const onRowsChange = useCallback((next: readonly CostLineGridRow[]) => {
+    const previous = rowsRef.current;
+    setStoredRows(next);
+    setSelectedRowIds((current) => {
+      const present = new Set(next.map((row) => row.rowId));
+      const kept = [...current].filter((rowId) => present.has(rowId));
+      return kept.length === current.size ? current : new Set(kept);
+    });
+    if (!onlyTrailingBlank(previous, next)) onFieldsEditedRef.current?.();
   }, []);
 
-  // Re-default budgetSourceId for lines that lack one once sources become available.
-  useEffect(() => {
-    const sources = picker.pickerState.budgetSources;
-    if (!sources || sources.length === 0) return;
-    const firstSourceId = sources[0]?.id;
-    if (!firstSourceId) return;
-    if (!linesRef.current.some((l) => !l.budgetSourceId && !l.assignedBudgetLineId)) return;
-    setLines((prev) =>
-      prev.map((l) =>
-        l.budgetSourceId || l.assignedBudgetLineId ? l : { ...l, budgetSourceId: firstSourceId },
-      ),
-    );
-  }, [picker.pickerState.budgetSources]);
-
-  const visiblePicker = useMemo<UseBudgetLinePickerReturn>(() => {
-    if (excludedLineKeys.size === 0) return picker;
-    return {
-      ...picker,
-      pickerState: {
-        ...picker.pickerState,
-        budgetLines: picker.pickerState.budgetLines.filter(
-          (bl) => !excludedLineKeys.has(`${picker.pickerState.type}:${bl.id}`),
-        ),
-      },
-    };
-  }, [picker, excludedLineKeys]);
-
-  // ─── Handlers ──────────────────────────────────────────────────────────────
-
-  const onToggleInclude = useCallback((rowId: string) => {
-    setLines((prev) => prev.map((l) => (l.rowId === rowId ? { ...l, included: !l.included } : l)));
-  }, []);
-
-  const onFieldChange = useCallback(
-    (rowId: string, field: keyof LineWithInclude, value: unknown) => {
-      setLines((prev) =>
-        prev.map((line) => {
-          if (line.rowId !== rowId) return line;
-          let coercedValue: unknown = value;
-          if (['quantity', 'unitPrice'].includes(field as string)) {
-            if (value === '' || value === null) {
-              coercedValue = null;
-            } else if (typeof value === 'string') {
-              const parsed = parseFloat(value);
-              coercedValue = isNaN(parsed) ? null : parsed;
-            }
-          } else if (field === 'totalAmount' || field === 'linkedItemizedAmount') {
-            if (typeof value === 'string') {
-              const parsed = parseFloat(value);
-              coercedValue = isNaN(parsed) ? 0 : parsed;
-            }
-          }
-          return {
-            ...line,
-            [field]: coercedValue,
-            // When the user toggles includesVat on the line card, mirror it into
-            // the inline draft form so the two never drift out of sync.
-            ...(field === 'includesVat' && line.inlineCreatedBudgetLineDraft
-              ? {
-                  inlineCreatedBudgetLineDraft: {
-                    ...line.inlineCreatedBudgetLineDraft,
-                    includesVat: coercedValue as boolean,
-                  },
-                }
-              : {}),
-          };
-        }),
-      );
-      onFieldsEditedRef.current?.();
-    },
-    [],
-  );
-
-  const onAssign = useCallback((rowId: string) => {
-    activeRowIdRef.current = rowId;
-    setExcludedLineKeys(
-      new Set(
-        linesRef.current
-          .filter((l) => l.rowId !== rowId && l.assignedBudgetLineId && l.assignedBudgetLineType)
-          .map((l) => `${l.assignedBudgetLineType}:${l.assignedBudgetLineId}`),
-      ),
-    );
-    openPickerRef.current();
-  }, []);
-
-  const onSelectBudgetLine = useCallback(
-    (budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine) => {
-      const rowId = activeRowIdRef.current;
-      if (!rowId) return;
-      const lineType: 'work_item' | 'household_item' =
-        'workItemId' in budgetLine ? 'work_item' : 'household_item';
-      setLines((prev) =>
-        prev.map((l) =>
-          l.rowId === rowId
-            ? {
-                ...l,
-                assignedBudgetLineId: budgetLine.id,
-                assignedBudgetLineType: lineType,
-                assignedBudgetLineDescription: budgetLine.description ?? null,
-                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(budgetLine),
-                linkedItemizedAmount:
-                  l.linkedItemizedAmount ??
-                  effectiveLineAmount(
-                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
-                    vatRateRef.current,
-                  ),
-              }
-            : l,
-        ),
-      );
-      onFieldsEditedRef.current?.();
-      closePickerRef.current();
-      activeRowIdRef.current = null;
-    },
-    [],
-  );
-
-  const onQueueNewBudgetLine = useCallback(async () => {
-    const rowId = activeRowIdRef.current;
-    if (!rowId) return;
-    const row = linesRef.current.find((l) => l.rowId === rowId);
-    if (!row) return;
-
-    // Match the extracted company name on the server (folded equality), before the draft exists
-    // so no later write lands on a field the user is editing.
-    let vendorId: string | null = null;
-    if (row.vendorName) {
-      const wanted = foldSearchText(row.vendorName);
-      try {
-        const found = await searchCompanies(row.vendorName);
-        vendorId = found.find((v) => foldSearchText(v.name) === wanted)?.id ?? null;
-      } catch {
-        vendorId = null;
-      }
-      // The user may have closed the picker or switched rows meanwhile.
-      if (activeRowIdRef.current !== rowId) return;
-    }
-
-    const ps = pickerStateRef.current;
-    const sources = ps.budgetSources ?? [];
-    const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
-    const budgetSourceId =
-      defaultBudgetSourceIdRef.current || (row.budgetSourceId ?? discretionaryId ?? '');
-
-    // Derive confidence from Paperless document type when available (both flows),
-    // falling back to the ML extraction score.
-    let confidence: ConfidenceLevel;
-    let isConfidenceAutoApplied = false;
-    const docType = documentRef.current?.documentType;
-    if (docType === 'Invoice') {
-      confidence = 'invoice';
-      isConfidenceAutoApplied = true;
-    } else if (docType === 'Quotation') {
-      confidence = 'quote';
-      isConfidenceAutoApplied = true;
-    } else {
-      confidence =
-        row.confidence >= 0.85
-          ? 'invoice'
-          : row.confidence >= 0.6
-            ? 'quote'
-            : row.confidence >= 0.3
-              ? 'professional_estimate'
-              : 'own_estimate';
-    }
-
-    const draft: BudgetLineFormState = {
-      description: row.description ?? '',
-      plannedAmount: String(row.totalAmount ?? ''),
-      confidence,
-      budgetCategoryId: ps.type === 'household_item' ? '' : (row.budgetCategoryId ?? ''),
-      budgetSourceId,
-      vendorId: vendorId ?? '',
-      pricingMode: row.quantity != null && row.unitPrice != null ? 'unit' : 'direct',
-      quantity: row.quantity != null ? String(row.quantity) : '',
-      unit: row.unit ?? '',
-      unitPrice: row.unitPrice != null ? String(row.unitPrice) : '',
-      includesVat: row.includesVat !== false,
-    };
-
-    setLines((prev) =>
-      prev.map((l) =>
-        l.rowId === rowId
-          ? {
-              ...l,
-              assignedItemId: ps.itemId ?? undefined,
-              assignedItemType: ps.type ?? undefined,
-              inlineCreatedBudgetLineDraft: draft,
-              inlineHideConfidence: isConfidenceAutoApplied,
-            }
-          : l,
-      ),
-    );
-    onFieldsEditedRef.current?.();
-    closePickerRef.current();
-    activeRowIdRef.current = null;
-  }, []);
-
-  const onInlineDraftChange = useCallback(
-    (rowId: string, updates: Partial<BudgetLineFormState>) => {
-      setLines((prev) =>
-        prev.map((l) =>
-          l.rowId === rowId
-            ? {
-                ...l,
-                // Mirror includesVat changes from the inline form back to the
-                // parent line so the two never drift out of sync.
-                ...(updates.includesVat !== undefined ? { includesVat: updates.includesVat } : {}),
-                inlineCreatedBudgetLineDraft: l.inlineCreatedBudgetLineDraft
-                  ? { ...l.inlineCreatedBudgetLineDraft, ...updates }
-                  : l.inlineCreatedBudgetLineDraft,
-              }
-            : l,
-        ),
-      );
-      onFieldsEditedRef.current?.();
-    },
-    [],
-  );
-
-  const onClearAssign = useCallback((rowId: string) => {
-    setLines((prev) =>
-      prev.map((l) =>
-        l.rowId === rowId
-          ? {
-              ...l,
-              assignedBudgetLineId: undefined,
-              assignedBudgetLineType: undefined,
-              assignedBudgetLineDescription: undefined,
-              assignedBudgetLineSnapshot: undefined,
-              linkedItemizedAmount: undefined,
-              createdFromExtraction: undefined,
-              assignedItemId: undefined,
-              assignedItemType: undefined,
-              inlineCreatedBudgetLineDraft: undefined,
-              inlineHideConfidence: undefined,
-              // The row becomes a new line again: follow the invoice-wide default (#2158).
-              ...(defaultBudgetSourceIdRef.current
-                ? { budgetSourceId: defaultBudgetSourceIdRef.current }
-                : {}),
-            }
-          : l,
-      ),
-    );
-    onFieldsEditedRef.current?.();
-  }, []);
-
-  // ─── Merge Handlers ────────────────────────────────────────────────────────────
+  const replaceRows = useCallback((next: readonly CostLineGridRow[]) => setStoredRows(next), []);
 
   const onToggleSelect = useCallback((rowId: string) => {
-    const line = linesRef.current.find((l) => l.rowId === rowId);
-    if (!line || line.assignedBudgetLineId || line.inlineCreatedBudgetLineDraft) return;
-    setSelectedRowIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(rowId)) {
-        next.delete(rowId);
-      } else {
-        next.add(rowId);
-      }
+    const row = rowsRef.current.find((candidate) => candidate.rowId === rowId);
+    if (!row || row.existingLine !== null || row.notice) return;
+    setSelectedRowIds((current) => {
+      const next = new Set(current);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
       return next;
     });
   }, []);
 
-  const onClearSelection = useCallback(() => {
-    setSelectedRowIds(new Set());
-  }, []);
+  const onClearSelection = useCallback(() => setSelectedRowIds(new Set()), []);
 
-  const performMerge = useCallback(
-    (sourceLines: LineWithInclude[], targetRowId: string) => {
-      const descriptions = sourceLines.map((l) => l.description);
-      const ps = picker.pickerState;
-      const projectCategoryNames = (ps.categories ?? []).map((cat) =>
-        cat.translationKey ? cat.name : cat.name,
-      );
-      const availableCategories = buildAvailableCategories(linesRef.current, projectCategoryNames);
+  // ─── Merge ───────────────────────────────────────────────────────────────────
 
-      void mergeLines({
-        descriptions,
-        documentSummary: documentSummaryRef.current ?? undefined,
-        availableCategories,
-      })
-        .then((response) => {
-          setLines((prev) =>
-            prev.map((l) =>
-              l.rowId === targetRowId
-                ? {
-                    ...l,
-                    description: response.description,
-                    category: response.category,
-                    budgetCategoryId: response.budgetCategoryId,
-                    mergeStatus: undefined,
-                    mergeSourceLines: undefined,
-                  }
-                : l,
-            ),
-          );
-
-          onFieldsEditedRef.current?.();
-          onMergeSuccessRef.current?.();
-
-          // Focus the description textarea after merge completes
-          setTimeout(() => {
-            globalThis.document.getElementById(`line-description-${targetRowId}`)?.focus();
-          }, 0);
-        })
-        .catch(() => {
-          setLines((prev) =>
-            prev.map((l) => (l.rowId === targetRowId ? { ...l, mergeStatus: 'error' } : l)),
-          );
-          // focus the retry button so the user lands on the recovery affordance
-          setTimeout(
-            () => globalThis.document.getElementById(`merge-retry-${targetRowId}`)?.focus(),
-            0,
-          );
-        });
-    },
-    [picker.pickerState],
+  const busyNotice = useCallback(
+    (count: number): CostLineGridRow['notice'] => ({
+      tone: 'busy',
+      text: tRef.current('autoItemize.mergingCaption', { count }),
+    }),
+    [],
   );
+
+  const performMerge = useCallback((sources: readonly AiMergeSource[], targetRowId: string) => {
+    const available = buildAvailableCategories(
+      [...dataRef.current.values()].map((entry) => entry.extracted.category),
+      optionsRef.current.categories.map((category) => category.name),
+    );
+    void mergeLines({
+      descriptions: sources.map((source) => source.row.description),
+      documentSummary: documentSummaryRef.current ?? undefined,
+      availableCategories: available,
+    })
+      .then((response) => {
+        setStoredRows((previous) =>
+          previous.map((row) =>
+            row.rowId === targetRowId
+              ? {
+                  ...row,
+                  description: response.description,
+                  budgetCategoryId: response.budgetCategoryId,
+                  notice: undefined,
+                }
+              : row,
+          ),
+        );
+        setData((previous) => {
+          const current = previous.get(targetRowId);
+          if (!current) return previous;
+          const merged: AiRowData = {
+            extracted: {
+              ...current.extracted,
+              description: response.description,
+              category: response.category,
+            },
+          };
+          return new Map(previous).set(targetRowId, merged);
+        });
+        onFieldsEditedRef.current?.();
+        onMergeSuccessRef.current?.();
+        // Focus the description after the merge completes.
+        setTimeout(() => {
+          globalThis.document
+            .querySelector<HTMLElement>(
+              `[data-testid="${AUTO_ITEMIZE_GRID_PREFIX}-description-${targetRowId}"]`,
+            )
+            ?.focus();
+        }, 0);
+      })
+      .catch(() => {
+        setStoredRows((previous) =>
+          previous.map((row) =>
+            row.rowId === targetRowId
+              ? {
+                  ...row,
+                  notice: {
+                    tone: 'error',
+                    text: tRef.current('autoItemize.mergeErrorMessage'),
+                    actions: [
+                      { id: 'undo', label: tRef.current('autoItemize.mergeUndoButton') },
+                      { id: 'retry', label: tRef.current('autoItemize.mergeRetryButton') },
+                    ],
+                  },
+                }
+              : row,
+          ),
+        );
+        // Land on the recovery affordance.
+        setTimeout(() => {
+          globalThis.document
+            .querySelector<HTMLElement>(
+              `[data-testid="${AUTO_ITEMIZE_GRID_PREFIX}-notice-retry-${targetRowId}"]`,
+            )
+            ?.focus();
+        }, 0);
+      });
+  }, []);
 
   const onMergeSelected = useCallback(() => {
-    if (selectedRowIds.size < 2) return;
+    const selected = rowsRef.current.filter((row) => selectedRef.current.has(row.rowId));
+    if (selected.length < 2) return;
+    onMergeStartRef.current?.(selected.length);
 
-    const selectedIndices = linesRef.current
-      .map((l, i) => (selectedRowIds.has(l.rowId) ? i : -1))
-      .filter((i) => i >= 0);
-
-    const sourceIndex = Math.min(...selectedIndices);
-    const selectedLines = selectedIndices.map((i) => linesRef.current[i]!);
-
-    onMergeStartRef.current?.(selectedLines.length);
-
-    const numerics = aggregateMergedLineNumerics(selectedLines, vatRateRef.current);
-    const newRowId = `row-merged-${Math.random().toString(36).slice(2, 9)}`;
-
-    const mergedLine: LineWithInclude = {
-      ...numerics,
-      ...(defaultBudgetSourceIdRef.current
-        ? { budgetSourceId: defaultBudgetSourceIdRef.current }
-        : {}),
-      rowId: newRowId,
-      included: true,
-      createdFromExtraction: true,
-      description: '',
-      budgetCategoryId: null,
-      assignedBudgetLineId: undefined,
-      assignedBudgetLineType: undefined,
-      mergeStatus: 'pending',
-      mergeSourceLines: selectedLines,
+    const selectedIds = new Set(selected.map((row) => row.rowId));
+    const sources: AiMergeSource[] = selected.map((row) => ({
+      row,
+      data: dataRef.current.get(row.rowId),
+    }));
+    const numerics = aggregateMergedLineNumerics(
+      sources.map(({ row, data: sourceData }) => ({
+        grossAmount: effectiveRowAmount(row, vatRateRef.current, locale),
+        certainty: sourceData?.extracted.confidence ?? row.aiCertainty ?? 1,
+        vendorName: sourceData?.extracted.vendorName,
+        budgetSourceId: row.budgetSourceId,
+      })),
+    );
+    const mergedId = nextRowId();
+    const mergedRow: CostLineGridRow = {
+      ...blankGridRow(mergedId),
+      // A merged row is one amount: the sum of the rows' gross amounts.
+      unitPrice: numberToText(numerics.totalAmount, locale),
+      includesVat: true,
+      budgetSourceId: defaultSourceRef.current || numerics.budgetSourceId || null,
+      aiCertainty: numerics.certainty,
+      notice: busyNotice(selected.length),
+    };
+    const mergedData: AiRowData = {
+      extracted: {
+        description: '',
+        totalAmount: numerics.totalAmount,
+        includesVat: true,
+        vendorName: numerics.vendorName,
+        confidence: numerics.certainty,
+      },
+      mergeSources: sources,
     };
 
-    setLines((prev) => {
-      const nextLines = prev.filter((l) => !selectedRowIds.has(l.rowId));
-      nextLines.splice(sourceIndex, 0, mergedLine);
-      return nextLines;
+    setStoredRows((previous) => {
+      const firstIndex = previous.findIndex((row) => selectedIds.has(row.rowId));
+      const kept = previous.filter((row) => !selectedIds.has(row.rowId));
+      kept.splice(Math.max(firstIndex, 0), 0, mergedRow);
+      return kept;
     });
-
+    setData((previous) => new Map(previous).set(mergedId, mergedData));
     setSelectedRowIds(new Set());
+    performMerge(sources, mergedId);
+  }, [locale, busyNotice, performMerge]);
 
-    performMerge(selectedLines, newRowId);
-  }, [selectedRowIds, performMerge]);
-
-  const onRetryMerge = useCallback(
-    (rowId: string) => {
-      const line = linesRef.current.find((l) => l.rowId === rowId);
-      if (!line || !line.mergeSourceLines) return;
-
-      setLines((prev) =>
-        prev.map((l) =>
-          l.rowId === rowId
-            ? {
-                ...l,
-                mergeStatus: 'pending',
-              }
-            : l,
-        ),
-      );
-
-      performMerge(line.mergeSourceLines, rowId);
+  const onNoticeAction = useCallback(
+    (rowId: string, actionId: string) => {
+      const sources = dataRef.current.get(rowId)?.mergeSources;
+      if (!sources) return;
+      if (actionId === 'retry') {
+        setStoredRows((previous) =>
+          previous.map((row) =>
+            row.rowId === rowId ? { ...row, notice: busyNotice(sources.length) } : row,
+          ),
+        );
+        performMerge(sources, rowId);
+        return;
+      }
+      if (actionId === 'undo') {
+        setStoredRows((previous) => {
+          const index = previous.findIndex((row) => row.rowId === rowId);
+          if (index === -1) return previous;
+          const next = [...previous];
+          next.splice(index, 1, ...sources.map((source) => source.row));
+          return next;
+        });
+        setData((previous) => {
+          const next = new Map(previous);
+          next.delete(rowId);
+          for (const source of sources) if (source.data) next.set(source.row.rowId, source.data);
+          return next;
+        });
+        onFieldsEditedRef.current?.();
+      }
     },
-    [performMerge],
+    [busyNotice, performMerge],
   );
 
-  const onUndoMerge = useCallback((rowId: string) => {
-    setLines((prev) => {
-      const mergedLineIndex = prev.findIndex((l) => l.rowId === rowId);
-      if (mergedLineIndex === -1) return prev;
+  // ─── Save helpers ────────────────────────────────────────────────────────────
 
-      const mergedLine = prev[mergedLineIndex];
-      if (!mergedLine?.mergeSourceLines) return prev;
-
-      const nextLines = prev.filter((l) => l.rowId !== rowId);
-      nextLines.splice(mergedLineIndex, 0, ...mergedLine.mergeSourceLines);
-      return nextLines;
+  const applyBudgetSource = useCallback((sourceId: string) => {
+    const count = rowsRef.current.filter(isNewBudgetLineRow).length;
+    setStoredRows((previous) => applyBudgetSourceToNewLines(previous, sourceId));
+    // Rows a merge replaced follow the default too, so "Restore original lines" matches.
+    setData((previous) => {
+      const next = new Map<string, AiRowData>();
+      for (const [rowId, entry] of previous) {
+        next.set(
+          rowId,
+          entry.mergeSources
+            ? {
+                ...entry,
+                mergeSources: entry.mergeSources.map((source) => ({
+                  ...source,
+                  row: applyBudgetSourceToNewLines([source.row], sourceId)[0]!,
+                })),
+              }
+            : entry,
+        );
+      }
+      return next;
     });
-    onFieldsEditedRef.current?.();
+    return count;
   }, []);
 
+  const validate = useCallback(() => {
+    const messages = {
+      description: tCostLinesRef.current('form.errorDescription'),
+      quantity: tCostLinesRef.current('form.errorQuantity'),
+      unitPrice: tCostLinesRef.current('form.errorUnitPrice'),
+      number: tCostLinesRef.current('grid.errorNumber'),
+      amountPositive: tCostLinesRef.current('form.errorAmountPositive'),
+      belongsTo: tCostLinesRef.current('form.errorBelongsTo'),
+    };
+    const errors = validateGridRows(
+      rowsRef.current,
+      AUTO_ITEMIZE_GRID_OPTIONS,
+      assignAllRef.current,
+      { locale, vatRate: vatRateRef.current },
+      messages,
+    );
+    setShowAllErrors(true);
+    if (errors.size > 0) {
+      requestAnimationFrame(() => {
+        globalThis.document
+          .querySelector<HTMLElement>(
+            `[data-testid="${AUTO_ITEMIZE_GRID_PREFIX}"] [aria-invalid="true"]`,
+          )
+          ?.focus();
+      });
+    }
+    return errors.size === 0;
+  }, [locale]);
+
+  const commitContext = useCallback(
+    (): CommitContext => ({
+      assignAll: assignAllRef.current,
+      locale: localeRef.current,
+      vatRate: vatRateRef.current,
+      documentType: documentRef.current?.documentType,
+      defaultBudgetSourceId: defaultSourceRef.current ?? null,
+      discretionarySourceId: optionsRef.current.discretionarySourceId,
+    }),
+    [],
+  );
+
   return {
-    lines,
-    setLines,
-    picker: visiblePicker,
-    handlers: {
-      onToggleInclude,
-      onFieldChange,
-      onAssign,
-      onSelectBudgetLine,
-      onQueueNewBudgetLine,
-      onInlineDraftChange,
-      onClearAssign,
-    },
+    rows,
+    data,
+    assignAll,
+    setAssignAll,
+    options,
     selectedRowIds,
+    showAllErrors,
+    load,
+    onRowsChange,
+    replaceRows,
     onToggleSelect,
     onClearSelection,
     onMergeSelected,
-    onRetryMerge,
-    onUndoMerge,
+    onNoticeAction,
+    applyBudgetSource,
+    validate,
+    commitContext,
   };
 }

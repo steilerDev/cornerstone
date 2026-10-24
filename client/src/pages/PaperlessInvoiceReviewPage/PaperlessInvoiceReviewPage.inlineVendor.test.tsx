@@ -86,48 +86,6 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   deleteHouseholdItemBudget: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: () => ({
-    pickerState: {
-      isOpen: false,
-      step: 1,
-      type: null,
-      itemId: null,
-      itemTitle: null,
-      isLoading: false,
-      error: null,
-      budgetLines: [],
-      budgetSources: null,
-      vendors: null,
-      categories: null,
-      showCreateForm: false,
-      createError: null,
-    },
-    openPicker: jest.fn(),
-    closePicker: jest.fn(),
-    handleSelectItem: jest.fn(),
-    showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    handleCreateBudgetLine: jest.fn(),
-    setPickerState: jest.fn(),
-    initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    createBudgetLineButtonRef: { current: null },
-  }),
-}));
-
-jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BudgetLineForm: (props: any) => (
-    <div data-testid="budget-line-form">{props.form?.description ?? ''}</div>
-  ),
-}));
-
-jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ParentPicker: (props: any) => (
-    <div data-testid="parent-picker" data-selected-type={props.selectedType ?? ''} />
-  ),
-}));
-
 jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', () => ({
   SuggestionBadge: ({
     displayValue,
@@ -169,11 +127,13 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 import { foldSearchText } from '@cornerstone/shared';
 import type * as PageModule from './PaperlessInvoiceReviewPage.js';
 import type * as ProviderModule from '../../objectForms/CompanyCreateProvider.js';
+import type * as ToastContextModule from '../../components/Toast/ToastContext.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 
 let PaperlessInvoiceReviewPage: (typeof PageModule)['PaperlessInvoiceReviewPage'];
 let CompanyCreateProvider: (typeof ProviderModule)['CompanyCreateProvider'];
+let ToastProvider: (typeof ToastContextModule)['ToastProvider'];
 let media: MatchMediaControl;
 
 beforeEach(async () => {
@@ -181,6 +141,8 @@ beforeEach(async () => {
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PageModule);
   ({ CompanyCreateProvider } =
     (await import('../../objectForms/CompanyCreateProvider.js')) as typeof ProviderModule);
+  ({ ToastProvider } =
+    (await import('../../components/Toast/ToastContext.js')) as typeof ToastContextModule);
   media = installMatchMedia({ '(min-width: 768px)': true });
 
   mockGetPaperlessDocument.mockReset();
@@ -337,13 +299,18 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/budget/invoices/new/paperless?documentId=42']}>
-      <CompanyCreateProvider>
-        <Routes>
-          <Route path="/budget/invoices/new/paperless" element={<PaperlessInvoiceReviewPage />} />
-          <Route path="/budget/invoices/:id" element={<div data-testid="invoice-detail-page" />} />
-          <Route path="/budget/invoices" element={<div data-testid="invoices-list-page" />} />
-        </Routes>
-      </CompanyCreateProvider>
+      <ToastProvider>
+        <CompanyCreateProvider>
+          <Routes>
+            <Route path="/budget/invoices/new/paperless" element={<PaperlessInvoiceReviewPage />} />
+            <Route
+              path="/budget/invoices/:id"
+              element={<div data-testid="invoice-detail-page" />}
+            />
+            <Route path="/budget/invoices" element={<div data-testid="invoices-list-page" />} />
+          </Routes>
+        </CompanyCreateProvider>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
@@ -765,7 +732,7 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
   });
 
   describe('preserving the in-progress review (AC 5)', () => {
-    const includeBoxes = () => screen.getAllByRole('checkbox', { name: 'Include' });
+    const includeBoxes = () => screen.getAllByRole('checkbox', { name: /^Include, row/ });
 
     async function editForm() {
       fireEvent.change(screen.getByLabelText(/Invoice Number/i), {

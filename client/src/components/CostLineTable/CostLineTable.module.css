@@ -1,0 +1,338 @@
+/* The list adapts to its own width: table from 768px, cards below (no breakpoint tokens exist). */
+.root {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.cardSurface {
+  display: none;
+}
+
+@container (max-width: 47.999rem) {
+  .tableSurface {
+    display: none;
+  }
+
+  .cardSurface {
+    display: block;
+  }
+}
+
+/* ---------- Shared bits ---------- */
+
+.description {
+  display: block;
+  color: var(--color-text-primary);
+}
+
+.facts,
+.muted {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.muted {
+  font-size: inherit;
+}
+
+.quantityPrice {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gross {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.grossStack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.target {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  min-width: 0;
+}
+
+.targetLink,
+.groupLink {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.targetLink:hover,
+.groupLink:hover {
+  text-decoration: underline;
+}
+
+.targetLink:focus-visible,
+.groupLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
+.menuTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.menuTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (hover: hover) {
+  .menuTrigger:hover {
+    background-color: var(--color-bg-hover);
+  }
+}
+
+.splitButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.noticeSplit,
+.noticeOver {
+  border-top: 1px dashed var(--color-border-strong);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.noticeSplit {
+  background-color: var(--color-warning-bg);
+}
+
+.noticeOver {
+  background-color: var(--color-danger-bg);
+}
+
+.noticeInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+}
+
+.totalLabel {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.totalAmount {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.groupLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-1) var(--spacing-3);
+}
+
+.groupTitle {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.groupMeta {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Table ---------- */
+
+/* No overflow clipping here: the net tooltip must be able to extend past the cell. */
+.tableSurface {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.head,
+.headEnd,
+.headAction {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: start;
+}
+
+.headEnd {
+  text-align: end;
+}
+
+.headAction {
+  padding-inline: var(--spacing-1);
+}
+
+.groupHead {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  text-align: start;
+}
+
+.row {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cell,
+.cellStack,
+.cellEnd,
+.cellAction {
+  padding: var(--spacing-2) var(--spacing-3);
+  vertical-align: middle;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+}
+
+.cellStack {
+  overflow-wrap: anywhere;
+}
+
+.cellEnd {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.cellAction {
+  padding-inline: var(--spacing-1);
+  text-align: center;
+}
+
+.totalRow {
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.totalRow th,
+.totalRow td {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+.totalRow th {
+  text-align: start;
+}
+
+.totalRow .totalAmount {
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* ---------- Cards ---------- */
+
+.cardGroup + .cardGroup {
+  margin-top: var(--spacing-3);
+}
+
+.cardGroupHead {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--font-size-base);
+}
+
+.cardList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card:last-child {
+  border-bottom: none;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.cardMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+  font-size: var(--font-size-sm);
+}
+
+.cardMoney {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+.cardTarget {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cardNotice {
+  margin-top: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.cardTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3);
+  border-top: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.cardEntered {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-2);
+  min-width: 0;
+}

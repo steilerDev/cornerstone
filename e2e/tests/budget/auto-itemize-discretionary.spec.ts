@@ -11,7 +11,8 @@
  * Scenarios:
  *   1. [smoke] AutoItemizePage shows the discretionary note when ≥1 line uses the discretionary source.
  *   2. AutoItemizePage does NOT show the note when lines use a non-discretionary source.
- *   2b. AutoItemizePage does NOT show the note when lines have null budgetSourceId.
+ *   2b. A line without a funding source defaults to Discretionary (#2235: every row that creates
+ *       a cost line gets a source), so the note is shown and the row's select reads Discretionary.
  *
  * Note: Story #1551 also added an "Auto-itemized" badge to the Budget Overview
  * (CostBreakdownTable). That badge was removed in PR #1655 (Issue #1615) because it could
@@ -82,8 +83,8 @@ const NON_DISCRETIONARY_SOURCE_ID = 'disc-test-non-disc-001';
 
 /**
  * Mock GET /api/budget-sources to return a list with the system discretionary source
- * and one non-discretionary source. The picker hook (useBudgetLinePicker) calls this
- * via initializeStaticData() on AutoItemizePage mount.
+ * and one non-discretionary source. The page loads sources through useAutoItemizeLines,
+ * which calls useCostLineOptions on AutoItemizePage mount.
  */
 async function mockBudgetSources(page: Page): Promise<void> {
   await page.route('**/api/budget-sources', async (route: Route) => {
@@ -382,7 +383,7 @@ test('Scenario 2: AutoItemizePage does NOT show the discretionary note when line
 });
 
 // Also verify: when budgetSourceId is null on lines, note is also absent
-test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lines have null budgetSourceId', async ({
+test('Scenario 2b: AutoItemizePage defaults lines without a funding source to Discretionary and shows the note', async ({
   page,
   testPrefix,
 }) => {
@@ -411,7 +412,7 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
     const MOCK_DOC_ID = 88003;
     await mockPaperlessDocument(page, MOCK_DOC_ID);
 
-    // Lines have null budgetSourceId — hasDiscretionaryLines is false
+    // Lines have null budgetSourceId: the grid fills them with the discretionary source
     await mockAutoItemizeDryRun(page, invoiceId, null);
 
     // Register dry-run response listener before navigation
@@ -426,7 +427,8 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
     await dryRunDonePromise;
     await autoItemizePage.waitForAnalyzingDone();
 
-    await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
+    await expect(autoItemizePage.discretionaryNote).toBeVisible();
+    await expect(autoItemizePage.lineFundingSource(0)).toHaveValue(DISCRETIONARY_SOURCE_ID);
   } finally {
     if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
     if (vendorId) await deleteVendorViaApi(page, vendorId);

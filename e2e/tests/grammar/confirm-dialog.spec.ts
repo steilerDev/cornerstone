@@ -374,13 +374,11 @@ test.describe('ConfirmDialog — cost line delete', { tag: '@responsive' }, () =
 
       const detail = new HouseholdItemDetailPage(page);
       await detail.goto(purchaseId);
+      await detail.costLines.waitForLoaded();
       await expect(detail.budgetSection).toContainText(description);
 
-      const deleteButton = detail.budgetSection.getByRole('button', {
-        name: new RegExp(`^Delete budget line: ${description}$`),
-      });
-      await deleteButton.scrollIntoViewIfNeeded();
-      await deleteButton.click();
+      // The row's ⋯ menu offers Delete for a line without an offer or invoice (#2235)
+      await detail.costLines.chooseAction(detail.costLines.row(description), 'Delete');
 
       // One dialog; the old inline Confirm / Cancel swap and double confirmation are gone
       const dialog = new ConfirmDialogControl(page, 'cost-line-delete');

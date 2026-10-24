@@ -304,11 +304,7 @@ test.describe('Scenario 4 — Existing form state is preserved', () => {
 
       await reviewPage.invoiceNumberInput.fill(`${testPrefix}-INV-42`);
       await reviewPage.notesInput.fill(`${testPrefix} custom notes`);
-      const includeBoxes = reviewPage.lineItemsList.getByRole('checkbox', {
-        name: 'Include',
-        exact: true,
-      });
-      await includeBoxes.first().uncheck();
+      await reviewPage.lineCheckbox(0).uncheck();
 
       await reviewPage.openCreateVendor();
       const createdPromise = waitForVendorCreated(page);
@@ -318,8 +314,8 @@ test.describe('Scenario 4 — Existing form state is preserved', () => {
 
       await expect(reviewPage.invoiceNumberInput).toHaveValue(`${testPrefix}-INV-42`);
       await expect(reviewPage.notesInput).toHaveValue(`${testPrefix} custom notes`);
-      await expect(includeBoxes.first()).not.toBeChecked();
-      await expect(includeBoxes.nth(1)).toBeChecked();
+      await expect(reviewPage.lineCheckbox(0)).not.toBeChecked();
+      await expect(reviewPage.lineCheckbox(1)).toBeChecked();
       expect(preview.callCount()).toBe(1);
     } finally {
       await cleanupVendors(page, getIds);

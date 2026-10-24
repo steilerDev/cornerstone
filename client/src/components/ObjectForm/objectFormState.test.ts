@@ -74,6 +74,12 @@ describe('mapPrefill', () => {
   it('returns nothing without a schema mapping', () => {
     expect(mapPrefill(schema([]), { areaId: 'a1' })).toEqual({});
   });
+  it('skips a key mapped to an empty field name', () => {
+    const s = schema([], { prefill: { areaId: '', date: 'targetDate' } });
+    expect(mapPrefill(s, { areaId: 'a1', date: '2026-03-01' })).toEqual({
+      targetDate: '2026-03-01',
+    });
+  });
 });
 
 describe('startValues / resetValues', () => {
@@ -176,6 +182,30 @@ describe('adjustForOptions', () => {
     const r = adjustForOptions([sel({ defaultFromOptions: 'first' })], { sel: '' }, { sel: '' });
     expect(r.values.sel).toBe('x');
     expect(r.initial.sel).toBe('x');
+  });
+  it('collects the changes of several fields into one result', () => {
+    const a = sel({ name: 'a' });
+    const b = sel({ name: 'b', defaultFromOptions: 'first' });
+    const values = { a: 'gone', b: '' };
+    const r = adjustForOptions([a, b], values, values);
+    expect(r.values).toEqual({ a: '', b: 'x' });
+    expect(r.initial).toEqual({ a: '', b: 'x' });
+  });
+  it('leaves the field alone when defaultFromOptions finds no option with a value', () => {
+    const only = sel({ defaultFromOptions: 'first', options: [{ value: '', label: 'none' }] });
+    const values = { sel: '' };
+    const initial = { sel: '' };
+    const r = adjustForOptions([only], values, initial);
+    expect(r.values).toBe(values);
+    expect(r.initial).toBe(initial);
+  });
+  it('leaves the field alone when the replacement equals the current blank-looking value', () => {
+    const blankOption = sel({
+      defaultFromOptions: 'first',
+      options: [{ value: '  ', label: 'blank' }],
+    });
+    const values = { sel: '  ' };
+    expect(adjustForOptions([blankOption], values, values).values).toBe(values);
   });
   it('skips a field without options (undefined) and a field whose options are loading', () => {
     const values = { a: 'q', sel: 'q' };

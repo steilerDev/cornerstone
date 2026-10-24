@@ -34,7 +34,7 @@
 
 .pageBody {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--spacing-6);
   padding: var(--spacing-6);
   /* align-items defaults to stretch — grid items fill the row height.
@@ -46,7 +46,7 @@
 
 @media (max-width: 860px) {
   .pageBody {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .previewColumn {
@@ -59,6 +59,7 @@
 }
 
 .formColumn {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
@@ -82,6 +83,7 @@
 }
 
 .metadataCard {
+  min-width: 0;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);

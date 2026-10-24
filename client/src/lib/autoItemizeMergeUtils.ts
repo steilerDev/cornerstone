@@ -1,70 +1,57 @@
-import type { LineWithInclude } from '../components/autoItemize/types.js';
-import { effectiveLineAmount } from './budgetConstants.js';
+import { roundMoney } from './money.js';
+
+/** What a merge needs to know about each row it combines. */
+export interface MergeSourceLine {
+  /** Gross amount of the row as the grid shows it. */
+  readonly grossAmount: number;
+  /** Extraction score of the row, 0..1 (a row typed by hand counts as 1). */
+  readonly certainty: number;
+  readonly vendorName?: string | null;
+  readonly budgetSourceId?: string | null;
+}
 
 export interface AggregatedMergeNumerics {
-  totalAmount: number;
-  includesVat: true;
-  quantity?: number;
-  unit?: string;
-  confidence: number;
-  vendorName?: string;
-  budgetSourceId?: string | null;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+  /** Sum of the gross amounts. */
+  readonly totalAmount: number;
+  /** The lowest certainty of the rows. */
+  readonly certainty: number;
+  /** The company name when every row names the same one. */
+  readonly vendorName?: string;
+  readonly budgetSourceId?: string | null;
 }
 
 /**
- * Aggregates numeric fields of selected source lines into the merged line's numerics.
- * NEVER pass these numeric values to an LLM — this is the code-side aggregation the
- * story requires for accuracy.
+ * Aggregates the numbers of the rows to merge. NEVER pass these values to an LLM: this is the
+ * code-side aggregation the story requires for accuracy.
  */
 export function aggregateMergedLineNumerics(
-  sourceLines: LineWithInclude[],
-  vatRate: number,
+  sourceLines: readonly MergeSourceLine[],
 ): AggregatedMergeNumerics {
-  const grossAmounts = sourceLines.map((l) =>
-    effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }, vatRate),
-  );
-  const totalAmount = round2(grossAmounts.reduce((sum, a) => sum + a, 0));
+  const totalAmount = roundMoney(sourceLines.reduce((sum, line) => sum + line.grossAmount, 0));
+  const certainty = Math.min(...sourceLines.map((line) => line.certainty));
 
-  const allHaveQuantityAndUnit = sourceLines.every((l) => l.quantity != null && l.unit != null);
-  const distinctUnits = new Set(
-    sourceLines.map((l) => (l.unit ?? '').trim().toLowerCase()).filter((u) => u.length > 0),
-  );
-  const uniformUnit = allHaveQuantityAndUnit && distinctUnits.size === 1;
-  const quantity = uniformUnit
-    ? round2(sourceLines.reduce((sum, l) => sum + (l.quantity ?? 0), 0))
-    : undefined;
-  const unit = uniformUnit ? (sourceLines[0]?.unit ?? undefined) : undefined;
-
-  const confidence = Math.min(...sourceLines.map((l) => l.confidence));
-
-  const allHaveVendorName = sourceLines.every((l) => !!l.vendorName?.trim());
+  const allHaveVendorName = sourceLines.every((line) => !!line.vendorName?.trim());
   const vendorNames = new Set(
-    sourceLines.map((l) => (l.vendorName ?? '').trim().toLowerCase()).filter((v) => v.length > 0),
+    sourceLines
+      .map((line) => (line.vendorName ?? '').trim().toLowerCase())
+      .filter((name) => name.length > 0),
   );
   const vendorName =
-    allHaveVendorName && vendorNames.size === 1
-      ? sourceLines.find((l) => l.vendorName)?.vendorName
-      : undefined;
+    allHaveVendorName && vendorNames.size === 1 ? sourceLines[0]!.vendorName!.trim() : undefined;
 
-  const budgetSourceId = sourceLines[0]?.budgetSourceId;
-
-  return { totalAmount, includesVat: true, quantity, unit, confidence, vendorName, budgetSourceId };
+  return { totalAmount, certainty, vendorName, budgetSourceId: sourceLines[0]?.budgetSourceId };
 }
 
 /**
- * Distinct category vocabulary for the merge LLM: prefers distinct already-extracted
- * category strings across ALL current lines; falls back to project category display names.
+ * Distinct category vocabulary for the merge LLM: prefers the distinct category words already
+ * extracted for ALL current rows; falls back to the project category display names.
  */
 export function buildAvailableCategories(
-  allLines: LineWithInclude[],
-  projectCategoryNames: string[],
+  extractedCategories: readonly (string | null | undefined)[],
+  projectCategoryNames: readonly string[],
 ): string[] {
   const extracted = Array.from(
-    new Set(allLines.map((l) => l.category).filter((c): c is string => !!c && c.trim().length > 0)),
+    new Set(extractedCategories.filter((word): word is string => !!word && word.trim().length > 0)),
   );
-  return extracted.length > 0 ? extracted : projectCategoryNames;
+  return extracted.length > 0 ? extracted : [...projectCategoryNames];
 }

@@ -11,13 +11,13 @@
  * This mirrors the approach in e2e/containers/teardown.ts which also uses
  * execSync / docker CLI against the running container.
  *
- * Scenarios:
- *   1. Unassigned badge renders — "Linked Item" column shows "Unassigned" badge + "Assign…"
- *   2. Assign to work item — modal → picker → Work Item tab → pick WI → confirm → row shows link
- *   3. Assign to household item — modal → picker → Household Item tab → pick HI → confirm → row shows link
- *   4. Edit modal on already-assigned line — parent picker section NOT shown
+ * Scenarios (rebuilt on the cost line table and form in #2235):
+ *   1. A line without a task or purchase shows "Not assigned" and an Assign action
+ *   2. Assign to a task: Assign opens "Assign cost line", pick the task, Save, the row links it
+ *   3. Assign to a purchase: the same with a purchase
+ *   4. Edit on an already-assigned line: Belongs to shows the current task and there is no Assign
  *   5. POST /api/budget-lines/:id/assign on already-assigned line → 409 BUDGET_LINE_ALREADY_ASSIGNED
- *   6. Mobile responsive — scenarios 1 and 2 at mobile viewport (375px)
+ *   6. Mobile responsive: scenarios 1 and 2 at 375px
  *
  * Setup conventions (mirrors invoice-budget-line-edit-remove.spec.ts):
  *   - Vendor, invoice, work item created via REST API helpers
@@ -28,7 +28,9 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
+import { CostLinesPanel } from '../../pages/components/CostLinesPanel.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -178,378 +180,218 @@ async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: stri
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: open the OverflowMenu for a budget line and click a menu item
-// (mirrors the helpers in invoice-budget-line-edit-remove.spec.ts)
+// Page helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function openBudgetLineMenu(
-  page: Page,
-  section: ReturnType<typeof page.locator>,
-): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="menu"]').visible().first();
-  await trigger.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
-  await trigger.click();
-  await page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
-}
-
-async function clickMenuItemByText(page: Page, text: string | RegExp): Promise<void> {
-  const item = page.locator('[role="menuitem"]').visible().filter({ hasText: text });
-  await item.first().click({ force: true });
+async function openAssignForm(page: Page, panel: CostLinesPanel, description: string) {
+  const form = new CostLineFormDialog(page, 'Assign cost line');
+  await panel.chooseAction(panel.row(description), 'Assign');
+  await form.waitForOpen();
+  return form;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Unassigned badge renders
+// Scenario 1: Not assigned badge renders
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe(
-  'Unassigned budget line badge (Scenario 1)',
-  { tag: ['@smoke', '@responsive'] },
-  () => {
-    test(
-      'Linked Item column shows "Unassigned" badge and "Assign…" button for orphan budget lines',
-      { tag: '@smoke' },
-      async ({ page, testPrefix }) => {
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
-        let wibId = '';
+test.describe('Unassigned cost line badge (Scenario 1)', { tag: ['@smoke', '@responsive'] }, () => {
+  test(
+    'the Belongs to cell shows "Not assigned" and the menu offers Assign for orphan lines',
+    { tag: '@smoke' },
+    async ({ page, testPrefix }) => {
+      const panel = new CostLinesPanel(page);
+      let vendorId = '';
+      let invoiceId = '';
+      let wibId = '';
 
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} UBA Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 1000,
-            date: '2026-06-01',
-            invoiceNumber: `${testPrefix}-UBA-001`,
-          });
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} UBA Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1000,
+          date: '2026-06-01',
+          invoiceNumber: `${testPrefix}-UBA-001`,
+        });
 
-          // Seed orphan budget line via Docker exec (no REST API for null workItemId)
-          const seeded = seedOrphanBudgetLine({
-            invoiceId,
-            plannedAmount: 350,
-            itemizedAmount: 300,
-            description: `${testPrefix} Unassigned Line`,
-          });
-          wibId = seeded.wibId;
+        // Seed orphan budget line via Docker exec (no REST API for null workItemId)
+        const seeded = seedOrphanBudgetLine({
+          invoiceId,
+          plannedAmount: 350,
+          itemizedAmount: 300,
+          description: `${testPrefix} Unassigned Line`,
+        });
+        wibId = seeded.wibId;
 
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
+        await page.goto(routeUrl('invoice', { id: invoiceId }));
+        await panel.waitForLoaded();
 
-          // Budget lines section must be visible with the orphan row
-          await expect(detailPage.budgetLinesSection).toBeVisible();
-          await expect(detailPage.budgetLinesSection).toContainText(
-            `${testPrefix} Unassigned Line`,
-          );
+        const row = panel.row(`${testPrefix} Unassigned Line`);
+        await expect(row).toBeVisible();
+        await expect(row).toContainText('Not assigned');
+        await expect(panel.gross(row)).toHaveText('€300.00');
 
-          // The "Linked Item" column shows the Unassigned badge (text content)
-          // Badge renders as <span class="badge ...">Unassigned</span>
-          const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
-            hasText: 'Unassigned',
-          });
-          await expect(unassignedBadge).toBeVisible();
-
-          // The badge has aria-label "Unassigned — no work item or household item linked"
-          await expect(unassignedBadge).toHaveAttribute(
-            'aria-label',
-            'Unassigned — no work item or household item linked',
-          );
-
-          // The "Assign…" button is visible next to the badge (class*="assignButton")
-          const assignButton = detailPage.budgetLinesSection.locator('[class*="assignButton"]', {
-            hasText: 'Assign…',
-          });
-          await expect(assignButton).toBeVisible();
-
-          // Planned and itemized amounts are displayed in the row
-          await expect(detailPage.budgetLinesSection).toContainText('350');
-          await expect(detailPage.budgetLinesSection).toContainText('300');
-        } finally {
-          // Orphan wibId cleanup — if the work_item_budget wasn't assigned, delete it
-          if (wibId) deleteOrphanWorkItemBudget(wibId);
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Assign to work item
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Assign unassigned budget line to work item (Scenario 2)',
-  { tag: '@responsive' },
-  () => {
-    test(
-      'Clicking "Assign…" opens edit modal with parent picker; selecting Work Item and confirming removes the Unassigned badge',
-      { tag: '@smoke' },
-      async ({ page, testPrefix }) => {
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
-        let workItemId = '';
-        let wibId = '';
-
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AssWI Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 800,
-            date: '2026-06-01',
-          });
-          workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AssWI Work Item` });
-
-          const seeded = seedOrphanBudgetLine({
-            invoiceId,
-            plannedAmount: 500,
-            itemizedAmount: 400,
-            description: `${testPrefix} AssWI Line`,
-          });
-          wibId = seeded.wibId;
-
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
-
-          // Verify orphan badge is visible
-          const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
-            hasText: 'Unassigned',
-          });
-          await expect(unassignedBadge).toBeVisible();
-
-          // Click the "Assign…" button (scoped to this row using its description text)
-          const lineRow = detailPage.budgetLinesSection.locator('tr[data-row-id]').filter({
-            hasText: `${testPrefix} AssWI Line`,
-          });
-          const assignBtn = lineRow.locator('[class*="assignButton"]');
-          await expect(assignBtn).toBeVisible();
-          await assignBtn.click();
-
-          // The edit modal opens with title "Edit Budget Line"
-          const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-          await expect(editModal).toBeVisible();
-
-          // The parent picker section (fieldset "Assign to work item or household item") IS visible
-          const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-          await expect(parentPickerFieldset).toBeVisible();
-
-          // "Work Item" tab is active by default
-          const workItemTab = parentPickerFieldset.getByRole('tab', {
-            name: 'Work Item',
-            exact: true,
-          });
-          await expect(workItemTab).toBeVisible();
-
-          // Type in the Work Item picker to find our work item
-          // WorkItemPicker renders a SearchPicker with a text input
-          const wiInput = parentPickerFieldset.locator('input[type="text"]').first();
-          await wiInput.fill(`${testPrefix} AssWI Work Item`);
-
-          // Wait for the option to appear and click it
-          const option = page.getByRole('option', { name: `${testPrefix} AssWI Work Item` });
-          await option.waitFor({ state: 'visible' });
-          await option.click();
-
-          // The assign submit button is now enabled — it shows "Work Item" text (current implementation)
-          // Scoped to the fieldset so we don't click the tab button
-          const assignSubmitBtn = parentPickerFieldset.locator('[class*="assignSubmitButton"]');
-          await expect(assignSubmitBtn).toBeVisible();
-          await expect(assignSubmitBtn).not.toBeDisabled();
-
-          // Register waitForResponse for POST /api/budget-lines/:id/assign BEFORE clicking
-          const assignPromise = page.waitForResponse(
-            (resp) =>
-              resp.url().includes('/budget-lines/') &&
-              resp.url().includes('/assign') &&
-              resp.request().method() === 'POST' &&
-              resp.status() === 200,
-          );
-          await assignSubmitBtn.click();
-          await assignPromise;
-
-          // Modal should close after successful assignment
-          await expect(editModal).not.toBeVisible();
-
-          // The table row should now show a LINK to the work item, not the Unassigned badge
-          await expect(unassignedBadge).not.toBeVisible();
-
-          // A link to the work item detail page should appear in the row
-          const workItemLink = detailPage.budgetLinesSection.locator('a', {
-            hasText: `${testPrefix} AssWI Work Item`,
-          });
-          await expect(workItemLink).toBeVisible();
-
-          // The link should point to /project/work-items/:id
-          await expect(workItemLink).toHaveAttribute('href', new RegExp('/project/work-items/'));
-
-          // wibId is now assigned — the budget line has a workItemId, so deleteOrphanWorkItemBudget
-          // is no longer needed (it's cleaned up via deleteWorkItemViaApi cascade)
-          wibId = ''; // clear so finally block doesn't try to delete it
-        } finally {
-          if (wibId) deleteOrphanWorkItemBudget(wibId);
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-          if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        }
-      },
-    );
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Assign to household item
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Assign unassigned budget line to household item (Scenario 3)', () => {
-  test('Selecting "Household Item" tab and picking a household item assigns the line correctly', async ({
-    page,
-    testPrefix,
-  }) => {
-    // Skip on mobile viewports — this is a functional test, not a responsive test
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 1024) {
-      test.skip(true, 'Functional test — desktop only');
-      return;
-    }
-
-    const detailPage = new InvoiceDetailPage(page);
-    let vendorId = '';
-    let invoiceId = '';
-    let householdItemId = '';
-    let wibId = '';
-
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} AssHI Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 600,
-        date: '2026-06-01',
-      });
-      householdItemId = await createHouseholdItemViaApi(page, {
-        name: `${testPrefix} AssHI Item`,
-      });
-
-      const seeded = seedOrphanBudgetLine({
-        invoiceId,
-        plannedAmount: 200,
-        itemizedAmount: 180,
-        description: `${testPrefix} AssHI Line`,
-      });
-      wibId = seeded.wibId;
-
-      await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
-
-      // Open the assign modal via "Assign…" button on the orphan row
-      const lineRow = detailPage.budgetLinesSection.locator('tr[data-row-id]').filter({
-        hasText: `${testPrefix} AssHI Line`,
-      });
-      const assignBtn = lineRow.locator('[class*="assignButton"]');
-      await expect(assignBtn).toBeVisible();
-      await assignBtn.click();
-
-      const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-      await expect(editModal).toBeVisible();
-
-      const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-      await expect(parentPickerFieldset).toBeVisible();
-
-      // Click the "Household Item" tab to switch the picker
-      // ParentPicker renders role="tablist" with role="tab" buttons — not plain role="button"
-      const hiTab = parentPickerFieldset.getByRole('tab', {
-        name: 'Household Item',
-        exact: true,
-      });
-      await expect(hiTab).toBeVisible();
-      await hiTab.click();
-
-      // HouseholdItemPicker input should now be visible
-      const hiInput = parentPickerFieldset.locator('input[type="text"]').first();
-      await hiInput.fill(`${testPrefix} AssHI Item`);
-
-      // Wait for the option and click it
-      const option = page.getByRole('option', { name: `${testPrefix} AssHI Item` });
-      await option.waitFor({ state: 'visible' });
-      await option.click();
-
-      // Assign submit button should be enabled
-      const assignSubmitBtn = parentPickerFieldset.locator('[class*="assignSubmitButton"]');
-      await expect(assignSubmitBtn).not.toBeDisabled();
-
-      // Register waitForResponse BEFORE clicking
-      const assignPromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/budget-lines/') &&
-          resp.url().includes('/assign') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 200,
-      );
-      await assignSubmitBtn.click();
-      await assignPromise;
-
-      // Modal closes after success
-      await expect(editModal).not.toBeVisible();
-
-      // Unassigned badge gone
-      const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
-        hasText: 'Unassigned',
-      });
-      await expect(unassignedBadge).not.toBeVisible();
-
-      // A link to the household item detail page appears
-      const hiLink = detailPage.budgetLinesSection.locator('a', {
-        hasText: `${testPrefix} AssHI Item`,
-      });
-      await expect(hiLink).toBeVisible();
-      await expect(hiLink).toHaveAttribute('href', new RegExp('/project/household-items/'));
-
-      // After HI assignment, the original work_item_budget is deleted (cascade via assign service).
-      // No need to deleteOrphanWorkItemBudget.
-      wibId = ''; // clear so finally block doesn't double-delete
-    } finally {
-      if (wibId) deleteOrphanWorkItemBudget(wibId);
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-      if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
-    }
-  });
+        await panel.menuTrigger(row).click();
+        await expect(panel.menuItem('Assign')).toBeVisible();
+      } finally {
+        // Orphan wibId cleanup — if the work_item_budget wasn't assigned, delete it
+        if (wibId) deleteOrphanWorkItemBudget(wibId);
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Edit modal on already-assigned line — no parent picker
+// Scenario 2: Assign to a task
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Edit modal for assigned budget line — collapsed parent picker (Scenario 4)', () => {
-  // Behavior updated by PR #1553 ("full edit + linked-item move"): assigned
-  // budget lines now render the parent picker in a COLLAPSED state inside
-  // the edit modal — the current parent is shown as a pill + label with a
-  // "Change" affordance, and the expandable picker body is hidden by default.
-  // The picker only expands when the user clicks "Change".
-  test('Opening Edit modal on an already-assigned line shows the collapsed parent row with a Change button (picker body hidden), and Change/Cancel toggles the picker with focus management', async ({
+test.describe('Assign unassigned cost line to a task (Scenario 2)', { tag: '@responsive' }, () => {
+  test(
+    'Assign opens the form with Belongs to; picking a task and saving removes "Not assigned"',
+    { tag: '@smoke' },
+    async ({ page, testPrefix }) => {
+      const panel = new CostLinesPanel(page);
+      let vendorId = '';
+      let invoiceId = '';
+      let workItemId = '';
+      let wibId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AssWI Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, { amount: 800, date: '2026-06-01' });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AssWI Work Item` });
+        const seeded = seedOrphanBudgetLine({
+          invoiceId,
+          plannedAmount: 500,
+          itemizedAmount: 400,
+          description: `${testPrefix} AssWI Line`,
+        });
+        wibId = seeded.wibId;
+
+        await page.goto(routeUrl('invoice', { id: invoiceId }));
+        await panel.waitForLoaded();
+        await expect(panel.row(`${testPrefix} AssWI Line`)).toContainText('Not assigned');
+
+        const form = await openAssignForm(page, panel, `${testPrefix} AssWI Line`);
+        // Belongs to is an essential field of the assign form
+        await form.target.pick(`${testPrefix} AssWI Work Item`);
+
+        const assigned = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/budget-lines/') &&
+            resp.url().includes('/assign') &&
+            resp.request().method() === 'POST' &&
+            resp.status() === 200,
+        );
+        await form.save();
+        await assigned;
+        await form.waitForClosed();
+
+        const row = panel.row(`${testPrefix} AssWI Line`);
+        await expect(row).not.toContainText('Not assigned');
+        const link = row.getByRole('link', { name: `${testPrefix} AssWI Work Item` });
+        await expect(link).toBeVisible();
+        await expect(link).toHaveAttribute('href', /\/project\/work-items\//);
+
+        // wibId is now assigned — cleaned up through the work item
+        wibId = '';
+      } finally {
+        if (wibId) deleteOrphanWorkItemBudget(wibId);
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      }
+    },
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 3: Assign to a purchase
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Assign unassigned cost line to a purchase (Scenario 3)',
+  { tag: '@responsive' },
+  () => {
+    test('picking a purchase for Belongs to assigns the line to it', async ({
+      page,
+      testPrefix,
+    }) => {
+      const panel = new CostLinesPanel(page);
+      let vendorId = '';
+      let invoiceId = '';
+      let householdItemId = '';
+      let wibId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AssHI Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, { amount: 600, date: '2026-06-01' });
+        householdItemId = await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} AssHI Item`,
+        });
+        const seeded = seedOrphanBudgetLine({
+          invoiceId,
+          plannedAmount: 200,
+          itemizedAmount: 180,
+          description: `${testPrefix} AssHI Line`,
+        });
+        wibId = seeded.wibId;
+
+        await page.goto(routeUrl('invoice', { id: invoiceId }));
+        await panel.waitForLoaded();
+
+        const form = await openAssignForm(page, panel, `${testPrefix} AssHI Line`);
+        await form.target.pick(`${testPrefix} AssHI Item`);
+
+        const assigned = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/budget-lines/') &&
+            resp.url().includes('/assign') &&
+            resp.request().method() === 'POST' &&
+            resp.status() === 200,
+        );
+        await form.save();
+        await assigned;
+        await form.waitForClosed();
+
+        const row = panel.row(`${testPrefix} AssHI Line`);
+        await expect(row).not.toContainText('Not assigned');
+        const link = row.getByRole('link', { name: `${testPrefix} AssHI Item` });
+        await expect(link).toBeVisible();
+        await expect(link).toHaveAttribute('href', /\/project\/household-items\//);
+
+        // The original work_item_budget row is deleted by the assign service
+        wibId = '';
+      } finally {
+        if (wibId) deleteOrphanWorkItemBudget(wibId);
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 4: Edit on an already-assigned line — Belongs to shows the task, no Assign
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Edit for an assigned cost line (Scenario 4)', { tag: '@responsive' }, () => {
+  test('the menu has no Assign; the edit form shows the current task under Belongs to', async ({
     page,
     testPrefix,
   }) => {
-    // Desktop only — interaction test
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 1024) {
-      test.skip(true, 'Functional test — desktop only');
-      return;
-    }
-
-    const detailPage = new InvoiceDetailPage(page);
+    const panel = new CostLinesPanel(page);
+    const form = new CostLineFormDialog(page, 'Edit cost line');
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} CollapsedPicker Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 500,
-        date: '2026-06-01',
-      });
-      workItemId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} CollapsedPicker WI`,
-      });
+      invoiceId = await createInvoiceViaApi(page, vendorId, { amount: 500, date: '2026-06-01' });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} CollapsedPicker WI` });
 
-      // Create and link a NORMAL (assigned) budget line via REST API
       const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
         data: {
           plannedAmount: 250,
@@ -560,70 +402,26 @@ test.describe('Edit modal for assigned budget line — collapsed parent picker (
       });
       expect(budgetResp.ok(), `POST budget failed: ${budgetResp.status()}`).toBeTruthy();
       const budgetBody = (await budgetResp.json()) as { budget: { id: string } };
-
       const linkResp = await page.request.post(`/api/invoices/${invoiceId}/budget-lines`, {
-        data: {
-          workItemBudgetId: budgetBody.budget.id,
-          itemizedAmount: 200,
-        },
+        data: { workItemBudgetId: budgetBody.budget.id, itemizedAmount: 200 },
       });
       expect(linkResp.ok(), `POST budget-line failed: ${linkResp.status()}`).toBeTruthy();
 
-      await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
+      await page.goto(routeUrl('invoice', { id: invoiceId }));
+      await panel.waitForLoaded();
+      const row = panel.row(`${testPrefix} Assigned Line`);
+      await expect(row).toBeVisible();
 
-      // Budget line table should be visible with the assigned row
-      await expect(detailPage.budgetLinesSection).toContainText(`${testPrefix} Assigned Line`);
+      await panel.menuTrigger(row).click();
+      await expect(panel.menuItem('Edit')).toBeVisible();
+      await expect(panel.menuItem('Assign')).toHaveCount(0);
+      await panel.menuItem('Edit').click();
 
-      // Open the OverflowMenu for the budget line
-      await openBudgetLineMenu(page, detailPage.budgetLinesSection);
-      await clickMenuItemByText(page, 'Edit');
-
-      const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-      await expect(editModal).toBeVisible();
-
-      // The parent picker fieldset IS present (collapsed state)
-      const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-      await expect(parentPickerFieldset).toBeVisible();
-
-      // The collapsed current-parent row shows the current parent name
-      const currentParentRow = parentPickerFieldset.locator('[class*="currentParentRow"]');
-      await expect(currentParentRow).toBeVisible();
-      await expect(currentParentRow).toContainText(`${testPrefix} CollapsedPicker WI`);
-
-      // A "Change" button is available to expand the picker
-      const changeButton = currentParentRow.getByRole('button');
-      await expect(changeButton).toBeVisible();
-      // The button starts collapsed (aria-expanded="false")
-      await expect(changeButton).toHaveAttribute('aria-expanded', 'false');
-
-      // The expanded picker body is hidden by default
-      const pickerBody = parentPickerFieldset.locator('#parent-picker-body');
-      await expect(pickerBody).toBeHidden();
-
-      // #2067: "Change" expands the picker, truly hides the collapsed row (real-layout check,
-      // not just the [hidden] attribute) and moves focus into the picker fieldset.
-      await changeButton.click();
-      await expect(currentParentRow).toBeHidden();
-      await expect(pickerBody).toBeVisible();
-      await expect(parentPickerFieldset).toBeFocused();
-
-      // Picker "Cancel" (inside the fieldset) collapses it again and returns focus to "Change"
-      await parentPickerFieldset.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await expect(currentParentRow).toBeVisible();
-      await expect(pickerBody).toBeHidden();
-      await expect(changeButton).toBeFocused();
-
-      // The itemized amount input is still shown (full edit form for assigned lines)
-      // The field id changed from #budget-line-amount to #budget-itemized-amount in PR #1553
-      // when the simple amount-only modal was replaced by the unified BudgetLineForm.
-      const amountInput = page.locator('#budget-itemized-amount');
-      await expect(amountInput).toBeVisible();
-
-      // Close the modal
-      const cancelBtn = editModal.getByRole('button', { name: 'Cancel', exact: true });
-      await cancelBtn.click();
-      await expect(editModal).not.toBeVisible();
+      await form.waitForOpen();
+      await form.expandMoreDetails();
+      await expect(form.dialog).toContainText(`${testPrefix} CollapsedPicker WI`);
+      await form.cancel();
+      await form.waitForClosed();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -705,18 +503,12 @@ test.describe('POST assign on already-assigned line → 409 (Scenario 5)', () =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Mobile viewport — badge and assign flow (Scenario 6)', () => {
-  test('Unassigned badge visible on mobile and assign-to-work-item flow completes', async ({
+  test('Not assigned shows on a phone and the assign-to-task flow completes', async ({
     page,
     testPrefix,
   }) => {
-    // This test is specifically for mobile viewports (≤767px)
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth > 600) {
-      test.skip(true, 'Mobile-specific test — skip on tablet/desktop viewports');
-      return;
-    }
-
-    const detailPage = new InvoiceDetailPage(page);
+    await page.setViewportSize({ width: 375, height: 667 });
+    const panel = new CostLinesPanel(page);
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
@@ -724,12 +516,8 @@ test.describe('Mobile viewport — badge and assign flow (Scenario 6)', () => {
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} MobAss Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 700,
-        date: '2026-06-01',
-      });
+      invoiceId = await createInvoiceViaApi(page, vendorId, { amount: 700, date: '2026-06-01' });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} MobAss WI` });
-
       const seeded = seedOrphanBudgetLine({
         invoiceId,
         plannedAmount: 300,
@@ -738,64 +526,18 @@ test.describe('Mobile viewport — badge and assign flow (Scenario 6)', () => {
       });
       wibId = seeded.wibId;
 
-      await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
+      await page.goto(routeUrl('invoice', { id: invoiceId }));
+      await panel.waitForLoaded();
+      await expect(panel.row(`${testPrefix} MobAss Line`)).toContainText('Not assigned');
 
-      // Scenario 6a: Unassigned badge renders on mobile
-      const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
-        hasText: 'Unassigned',
-      });
-      await expect(unassignedBadge).toBeVisible();
+      const form = await openAssignForm(page, panel, `${testPrefix} MobAss Line`);
+      await expect(page.getByTestId('cost-line-form-sheet')).toBeVisible();
+      await form.target.pick(`${testPrefix} MobAss WI`);
+      await form.save();
+      await form.waitForClosed();
 
-      // Scenario 6b: Assign flow works on mobile
-      const assignBtn = detailPage.budgetLinesSection.locator('[class*="assignButton"]', {
-        hasText: 'Assign…',
-      });
-      await assignBtn.scrollIntoViewIfNeeded();
-      await expect(assignBtn).toBeVisible();
-      await assignBtn.click();
-
-      const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-      await expect(editModal).toBeVisible();
-
-      // Parent picker is visible on mobile too
-      const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-      await expect(parentPickerFieldset).toBeVisible();
-
-      // Select work item
-      const wiInput = parentPickerFieldset.locator('input[type="text"]').first();
-      await wiInput.scrollIntoViewIfNeeded();
-      await wiInput.fill(`${testPrefix} MobAss WI`);
-
-      const option = page.getByRole('option', { name: `${testPrefix} MobAss WI` });
-      await option.waitFor({ state: 'visible' });
-      await option.click();
-
-      const assignSubmitBtn = parentPickerFieldset.locator('[class*="assignSubmitButton"]');
-      await assignSubmitBtn.scrollIntoViewIfNeeded();
-      await expect(assignSubmitBtn).not.toBeDisabled();
-
-      const assignPromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/budget-lines/') &&
-          resp.url().includes('/assign') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 200,
-      );
-      await assignSubmitBtn.click();
-      await assignPromise;
-
-      // Modal closes
-      await expect(editModal).not.toBeVisible();
-
-      // Unassigned badge gone; link to work item appears
-      await expect(unassignedBadge).not.toBeVisible();
-      const workItemLink = detailPage.budgetLinesSection.locator('a', {
-        hasText: `${testPrefix} MobAss WI`,
-      });
-      await expect(workItemLink).toBeVisible();
-
-      wibId = ''; // cleared — work item cascade will delete the assigned budget line
+      await expect(panel.row(`${testPrefix} MobAss Line`)).not.toContainText('Not assigned');
+      wibId = '';
     } finally {
       if (wibId) deleteOrphanWorkItemBudget(wibId);
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);

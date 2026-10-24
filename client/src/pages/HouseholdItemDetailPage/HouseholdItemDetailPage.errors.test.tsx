@@ -1,13 +1,13 @@
 /**
  * @jest-environment jsdom
  *
- * #2129 — error-translation tests for HouseholdItemDetailPage's budget / subsidy / invoice /
- * move handlers. BudgetSection is replaced by a prop-capturing stub so the page's own
- * handlers can be invoked directly.
+ * #2129 — error-translation tests for HouseholdItemDetailPage's grant (subsidy) handlers and
+ * the cost-lines change callback. CostLinesSection and SubsidyLinkSection are replaced by
+ * prop-capturing stubs so the page's own handlers can be invoked directly.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { render, waitFor, act, screen, fireEvent } from '@testing-library/react';
+import { render, waitFor, act, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -18,11 +18,9 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
-import { LocalizedError } from '../../lib/localizedError.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enHouseholdItems from '../../i18n/en/householdItems.json';
-import enBudget from '../../i18n/en/budget.json';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -42,11 +40,9 @@ const mockUpdateHouseholdItemBudget = jest.fn() as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockDeleteHouseholdItemBudget = jest.fn() as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDeleteInvoiceBudgetLine = jest.fn() as any;
+let capturedCostLinesProps: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockEditAndMoveBudgetLine = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let capturedBudgetSectionProps: any = null;
+let capturedSubsidyProps: any = null;
 const mockNavigate = jest.fn();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockFetchHouseholdItemDeps =
@@ -311,18 +307,17 @@ function LocationDisplay() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
-jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
-  fetchInvoiceBudgetLines: jest.fn(),
-  createInvoiceBudgetLine: jest.fn(),
-  updateInvoiceBudgetLine: jest.fn(),
-  deleteInvoiceBudgetLine: mockDeleteInvoiceBudgetLine,
-  editAndMoveBudgetLine: mockEditAndMoveBudgetLine,
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: (props: unknown) => {
+    capturedCostLinesProps = props;
+    return null;
+  },
 }));
 
-jest.unstable_mockModule('../../components/budget/BudgetSection.js', () => ({
-  BudgetSection: (props: { inlineError?: string | null }) => {
-    capturedBudgetSectionProps = props;
-    return props.inlineError ? <div role="alert">{props.inlineError}</div> : null;
+jest.unstable_mockModule('../../components/budget/SubsidyLinkSection.js', () => ({
+  SubsidyLinkSection: (props: unknown) => {
+    capturedSubsidyProps = props;
+    return null;
   },
 }));
 
@@ -490,101 +485,48 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     includesVat: true,
   });
 
-  async function load(invoiced = false) {
-    capturedBudgetSectionProps = null;
+  async function load() {
+    capturedCostLinesProps = null;
+    capturedSubsidyProps = null;
     mockGetHouseholdItem.mockResolvedValue(makeItem());
-    mockFetchHouseholdItemBudgets.mockResolvedValue([budgetLine(invoiced)]);
-    mockDeleteHouseholdItemBudget.mockReset();
+    mockFetchHouseholdItemBudgets.mockResolvedValue([budgetLine()]);
     mockLinkHouseholdItemSubsidy.mockReset();
     mockUnlinkHouseholdItemSubsidy.mockReset();
-    mockUpdateHouseholdItemBudget.mockReset();
-    mockDeleteInvoiceBudgetLine.mockReset();
-    mockEditAndMoveBudgetLine.mockReset();
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     renderPage();
     await waitFor(() => {
-      expect(capturedBudgetSectionProps?.budgetLines).toHaveLength(1);
+      expect(capturedCostLinesProps?.lines).toHaveLength(1);
     });
   }
 
-  const inlineError = () => capturedBudgetSectionProps.inlineError as string | null;
+  // Grant errors render once, in the Cost section's own banner
   const expectInlineError = (text: string) =>
     waitFor(() => {
-      expect(inlineError()).toBe(text);
+      const matches = screen.getAllByText(text);
+      expect(matches).toHaveLength(1);
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
     });
-
-  async function confirmDelete() {
-    await act(async () => {
-      capturedBudgetSectionProps.budgetSectionHook.handleDeleteBudgetLine('bl-1');
-    });
-    await act(async () => {
-      await capturedBudgetSectionProps.onConfirmDeleteBudgetLine();
-    });
-  }
-
-  describe('delete budget line (#2209: the host dialog translates and shows the failure)', () => {
-    it.each([
-      ['ApiClientError', () => apiError(409, 'CONFLICT')],
-      ['NetworkError', () => new MockNetworkError('RAW-LOCAL')],
-      ['plain Error', () => new Error('RAW-LOCAL')],
-    ])(
-      '%s: the page rethrows the very same error and shows no banner of its own',
-      async (_n, make) => {
-        await load();
-        const failure = make();
-        mockDeleteHouseholdItemBudget.mockRejectedValue(failure);
-        await act(async () => {
-          capturedBudgetSectionProps.budgetSectionHook.handleDeleteBudgetLine('bl-1');
-        });
-        let thrown: unknown;
-        await act(async () => {
-          try {
-            await capturedBudgetSectionProps.onConfirmDeleteBudgetLine();
-          } catch (err) {
-            thrown = err;
-          }
-        });
-        expect(thrown).toBe(failure);
-        expect(inlineError() ?? null).toBeNull();
-        expect(screen.queryAllByRole('alert')).toHaveLength(0);
-      },
-    );
-  });
 
   describe('subsidy linking', () => {
     async function link(rejection: unknown) {
       await load();
       mockLinkHouseholdItemSubsidy.mockRejectedValue(rejection);
       await act(async () => {
-        capturedBudgetSectionProps.budgetSectionHook.setSelectedSubsidyId('sub-1');
+        capturedSubsidyProps.onSelectSubsidy('sub-1');
       });
       await act(async () => {
-        await capturedBudgetSectionProps.onLinkSubsidy();
+        await capturedSubsidyProps.onLinkSubsidy();
       });
     }
 
-    it('dismissing the budget banner clears the inline error', async () => {
+    it('dismissing the banner clears the inline error', async () => {
       await link(new Error('RAW-LOCAL'));
       await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
 
       await act(async () => {
-        capturedBudgetSectionProps.onDismissInlineError();
+        within(screen.getByRole('alert')).getByRole('button').click();
       });
 
-      expect(inlineError() ?? null).toBeNull();
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-
-    it('a successful budget-line delete clears a stale inline error', async () => {
-      await link(new Error('RAW-LOCAL'));
-      await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
-
-      mockDeleteHouseholdItemBudget.mockResolvedValue(undefined);
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(inlineError() ?? null).toBeNull();
-      });
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
@@ -596,6 +538,7 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     it('other ApiClientError shows the code copy, never the server text', async () => {
       await link(apiError(500, 'INTERNAL_ERROR'));
       await expectInlineError(enErrors.INTERNAL_ERROR);
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
     });
 
     it('NetworkError shows the network copy', async () => {
@@ -608,149 +551,85 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
       await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
     });
 
+    it('ignores a link request while no grant is selected', async () => {
+      await load();
+      await act(async () => {
+        await capturedSubsidyProps.onLinkSubsidy();
+      });
+      expect(mockLinkHouseholdItemSubsidy).not.toHaveBeenCalled();
+    });
+
+    it('a successful link clears the selection and reloads the payback', async () => {
+      await load();
+      mockLinkHouseholdItemSubsidy.mockResolvedValue(undefined);
+      const paybackBefore = mockFetchHouseholdItemSubsidyPayback.mock.calls.length;
+      await act(async () => {
+        capturedSubsidyProps.onSelectSubsidy('sub-1');
+      });
+      await act(async () => {
+        await capturedSubsidyProps.onLinkSubsidy();
+      });
+      expect(mockLinkHouseholdItemSubsidy).toHaveBeenCalledWith('item-1', 'sub-1');
+      expect(mockFetchHouseholdItemSubsidyPayback.mock.calls.length).toBeGreaterThan(paybackBefore);
+      await waitFor(() => expect(capturedSubsidyProps.selectedSubsidyId).toBe(''));
+      expect(capturedSubsidyProps.isLinking).toBe(false);
+    });
+
     it('unlink failure shows the unlinkSubsidy copy', async () => {
       await load();
       mockUnlinkHouseholdItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
       await act(async () => {
-        await capturedBudgetSectionProps.onUnlinkSubsidy('sub-1');
+        await capturedSubsidyProps.onUnlinkSubsidy('sub-1');
       });
       await expectInlineError(enHouseholdItems.detail.errors.unlinkSubsidy);
     });
-  });
 
-  describe('invoice unlink', () => {
-    it('failure shows the unlinkInvoice copy', async () => {
-      await load(true);
-      mockDeleteInvoiceBudgetLine.mockRejectedValue(new Error('RAW-LOCAL'));
+    it('a successful unlink reloads the payback', async () => {
+      await load();
+      mockUnlinkHouseholdItemSubsidy.mockResolvedValue(undefined);
+      const paybackBefore = mockFetchHouseholdItemSubsidyPayback.mock.calls.length;
       await act(async () => {
-        await capturedBudgetSectionProps.onUnlinkInvoice('bl-1', 'ibl-1');
+        await capturedSubsidyProps.onUnlinkSubsidy('sub-1');
       });
-      await expectInlineError(enHouseholdItems.detail.errors.unlinkInvoice);
+      expect(mockUnlinkHouseholdItemSubsidy).toHaveBeenCalledWith('item-1', 'sub-1');
+      expect(mockFetchHouseholdItemSubsidyPayback.mock.calls.length).toBeGreaterThan(paybackBefore);
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 
-  describe('a new budget action clears a stale inline error', () => {
-    async function failDelete() {
-      // Any failed budget action leaves a banner; a failed subsidy link is the simplest.
+  describe('cost lines changed', () => {
+    it('a successful change clears the banner left by a failed grant action', async () => {
+      await load();
       mockLinkHouseholdItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
       await act(async () => {
-        capturedBudgetSectionProps.budgetSectionHook.setSelectedSubsidyId('sub-1');
+        capturedSubsidyProps.onSelectSubsidy('sub-1');
       });
       await act(async () => {
-        await capturedBudgetSectionProps.onLinkSubsidy();
+        await capturedSubsidyProps.onLinkSubsidy();
       });
       await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
-    }
 
-    it('a successful move clears the banner left by a failed action', async () => {
-      await load();
-      await failDelete();
-      expect(screen.getAllByRole('alert')).toHaveLength(1);
-
-      mockUpdateHouseholdItemBudget.mockResolvedValue(undefined);
       await act(async () => {
-        await capturedBudgetSectionProps.onMoveBudgetLine('bl-1', 'household_item', 'target-1');
+        await capturedCostLinesProps.onChanged();
       });
 
       await waitFor(() => {
-        expect(inlineError() ?? null).toBeNull();
+        expect(screen.queryAllByRole('alert')).toHaveLength(0);
       });
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-
-    it('a successful invoice-line edit clears the banner left by a failed action', async () => {
-      await load(true);
-      await failDelete();
-
-      mockEditAndMoveBudgetLine.mockResolvedValue(undefined);
-      await act(async () => {
-        await capturedBudgetSectionProps.onInvoiceLineEdit(
-          capturedBudgetSectionProps.budgetLines[0],
-          {
-            description: 'd',
-            plannedAmount: '100',
-            confidence: 'own_estimate',
-            budgetCategoryId: '',
-            budgetSourceId: '',
-            vendorId: '',
-            pricingMode: 'direct',
-            quantity: '',
-            unit: '',
-            unitPrice: '',
-            includesVat: false,
-          },
-          '100',
-        );
-      });
-
-      await waitFor(() => {
-        expect(inlineError() ?? null).toBeNull();
-      });
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 
-  describe('move budget line', () => {
-    async function move(
-      invoiced: boolean,
-      type: 'work_item' | 'household_item',
-      rejection?: unknown,
-    ) {
-      await load(invoiced);
-      if (rejection !== undefined) {
-        mockEditAndMoveBudgetLine.mockRejectedValue(rejection);
-        mockUpdateHouseholdItemBudget.mockRejectedValue(rejection);
-      }
-      let thrown: unknown;
-      await act(async () => {
-        try {
-          await capturedBudgetSectionProps.onMoveBudgetLine('bl-1', type, 'target-1');
-        } catch (err) {
-          thrown = err;
-        }
-      });
-      return thrown;
-    }
-
-    // handleMoveBudgetLine has no try/catch: the picker in BudgetLineForm owns the message,
-    // so the page neither banners it nor passes it to BudgetSection (it would render twice).
-    it('invoice-linked move: ApiClientError is rethrown untouched and not set as the budget banner', async () => {
-      const err = apiError(404, 'NOT_FOUND');
-      expect(await move(true, 'work_item', err)).toBe(err);
-      expect(inlineError() ?? null).toBeNull();
-      expect(screen.queryByText(enErrors.NOT_FOUND)).toBeNull();
-    });
-
-    it('NetworkError is rethrown untouched and not set as the budget banner', async () => {
-      const err = new MockNetworkError('RAW-LOCAL');
-      expect(await move(false, 'household_item', err)).toBe(err);
-      expect(inlineError() ?? null).toBeNull();
-    });
-
-    it('cross-table move without an invoice throws a LocalizedError with the translated copy', async () => {
-      const thrown = await move(false, 'work_item');
-      expect(thrown).toBeInstanceOf(LocalizedError);
-      expect((thrown as Error).message).toBe(enBudget.budgetLineForm.moveCrossTableNoInvoiceError);
-      expect(mockUpdateHouseholdItemBudget).not.toHaveBeenCalled();
-      expect(inlineError() ?? null).toBeNull();
-    });
-
-    it('a non-Error rejection is rethrown as-is and not set as the budget banner', async () => {
-      expect(await move(false, 'household_item', 'plain string')).toBe('plain string');
-      expect(inlineError() ?? null).toBeNull();
-    });
-
-    it('a failed move renders no alert anywhere on the page', async () => {
-      await move(false, 'household_item', new Error('RAW-LOCAL'));
-      expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-  });
   describe('origin pass-through (#2203)', () => {
-    it('hands the budget section this purchase as the origin of its invoice links', async () => {
-      await load(true);
+    it('hands the cost lines section this purchase as the origin of its invoice links', async () => {
+      await load();
 
-      expect(capturedBudgetSectionProps.invoiceLinkState).toEqual({
+      expect(capturedCostLinesProps.linkState).toEqual({
         origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+      });
+      expect(capturedCostLinesProps.host).toEqual({
+        kind: 'household_item',
+        id: 'item-1',
+        label: 'Standing Desk',
       });
     });
 

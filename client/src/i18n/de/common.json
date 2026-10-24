@@ -427,6 +427,13 @@
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut."
   },
   "statusVocabulary": {
+    "costLine": {
+      "estimate": "Schätzung",
+      "offered": "Angeboten",
+      "invoiced": "Berechnet",
+      "paid": "Bezahlt",
+      "submitted": "Eingereicht"
+    },
     "invoice": {
       "pending": "Zu zahlen",
       "paid": "Bezahlt",

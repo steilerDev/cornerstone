@@ -1,0 +1,38 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.amount {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 44px hit area around a small glyph: the negative margin keeps the row height unchanged. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  margin-block: calc(-1 * var(--spacing-2-5));
+  margin-inline: calc(-1 * var(--spacing-2));
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  color: var(--color-text-primary);
+}
+
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

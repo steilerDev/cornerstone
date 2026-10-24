@@ -1,13 +1,12 @@
 /**
- * E2E tests for AreaBreadcrumb in invoice budget lines section (Story #1272)
+ * E2E tests for the area breadcrumb in the cost lines of an invoice (Story #1272, #2235)
  *
- * When a budget line's parent item is a work_item, the Linked Item cell renders a
- * compact AreaBreadcrumb beneath the work item link.
- * When the parent item is a household_item, no breadcrumb is rendered.
+ * The "Belongs to" cell of a cost line shows the task or purchase as a link and, when it has an
+ * area, a compact AreaBreadcrumb beneath it (a line whose item has no area shows only the link).
  *
- *   Scenario 1: work_item budget line with area → breadcrumb visible in linked item cell
- *   Scenario 2: work_item budget line without area → "No area" visible in linked item cell
- *   Scenario 3: household_item budget line → no breadcrumb in that row
+ *   Scenario 1: a line whose task has an area -> breadcrumb in the Belongs to cell
+ *   Scenario 2: a line whose task has no area -> link plus the muted "No area" text
+ *   Scenario 3: a line whose purchase has no area -> link plus the muted "No area" text
  *
  * Setup path for each budget line:
  *   1. Create vendor  → POST /api/vendors
@@ -17,14 +16,8 @@
  *   5. Create invoice budget line → POST /api/invoices/:invoiceId/budget-lines
  *   6. Navigate to invoice detail → assert breadcrumb in Linked Item column
  *
- * The invoice budget lines table has a "Linked Item" column (th class thLinkedItem).
- * Each row's Linked Item cell (td class tdLinkedItem) contains:
- *   - A <Link> to the parent item page
- *   - For work_item: <AreaBreadcrumb area={...} variant="compact" />
- *   - For household_item: nothing after the link
- *
- * The budget lines table is not hidden on mobile (no display:none at any viewport), so
- * no @responsive tag is needed — all viewports render identically.
+
+ * The row is found by its description (`CostLinesPanel.row`), on the table or the card list.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -133,8 +126,8 @@ async function createInvoiceBudgetLineViaApi(
 // Scenario 1: work_item budget line with area → breadcrumb visible
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoice budget line — work_item with area shows breadcrumb (Scenario 1)', () => {
-  test('Linked Item cell shows compact breadcrumb when work item has an area', async ({
+test.describe('Cost line — task with an area shows the breadcrumb (Scenario 1)', () => {
+  test('the Belongs to cell shows a compact breadcrumb when the task has an area', async ({
     page,
     testPrefix,
   }) => {
@@ -186,10 +179,10 @@ test.describe('Invoice budget line — work_item with area shows breadcrumb (Sce
 
       // Locate the "Linked Item" cell containing the work item link
       // The tdLinkedItem cell contains: link (wiTitle) + AreaBreadcrumb compact span
-      const linkedItemCell = detailPage.budgetLinesSection.locator('[class*="tdLinkedItem"]');
+      const linkedItemCell = detailPage.costLines.row(`${testPrefix} Budget`);
       await expect(linkedItemCell).toBeVisible();
 
-      // The compact breadcrumb span should be visible inside the Linked Item cell
+      // The compact breadcrumb span should be visible inside the Belongs to cell
       const breadcrumbSpan = linkedItemCell.locator('[class*="compact"]');
       await expect(breadcrumbSpan).toBeVisible();
 
@@ -213,11 +206,8 @@ test.describe('Invoice budget line — work_item with area shows breadcrumb (Sce
 // Scenario 2: work_item budget line without area → "No area" visible
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoice budget line — work_item without area shows "No area" (Scenario 2)', () => {
-  test('"No area" fallback visible in linked item cell when work item has no area', async ({
-    page,
-    testPrefix,
-  }) => {
+test.describe('Cost line — task without an area shows no breadcrumb (Scenario 2)', () => {
+  test('a task without an area shows its link and "No area"', async ({ page, testPrefix }) => {
     const detailPage = new InvoiceDetailPage(page);
 
     let vendorId: string | null = null;
@@ -254,11 +244,14 @@ test.describe('Invoice budget line — work_item without area shows "No area" (S
 
       await expect(detailPage.budgetLinesSection).toBeVisible();
 
-      const linkedItemCell = detailPage.budgetLinesSection.locator('[class*="tdLinkedItem"]');
+      const linkedItemCell = detailPage.costLines.row(`${testPrefix} Budget No Area`);
       await expect(linkedItemCell).toBeVisible();
 
-      // "No area" muted text rendered by AreaBreadcrumb when area is null
+      // The task link is there; an item without an area shows the muted "No area" text
+      // (rendered by AreaBreadcrumb when the area is null), never a breadcrumb path
+      await expect(linkedItemCell.getByRole('link', { name: wiTitle })).toBeVisible();
       await expect(linkedItemCell.getByText('No area', { exact: true })).toBeVisible();
+      await expect(linkedItemCell.locator('[class*="compact"]')).toHaveCount(0);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -272,8 +265,8 @@ test.describe('Invoice budget line — work_item without area shows "No area" (S
 // Scenario 3: household_item budget line → no breadcrumb in that row
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoice budget line — household_item row has no breadcrumb (Scenario 3)', () => {
-  test('Linked Item cell for household_item budget line has no compact breadcrumb', async ({
+test.describe('Cost line — purchase without an area shows "No area" (Scenario 3)', () => {
+  test('the Belongs to cell of a purchase line shows "No area", no breadcrumb path', async ({
     page,
     testPrefix,
   }) => {
@@ -312,8 +305,8 @@ test.describe('Invoice budget line — household_item row has no breadcrumb (Sce
 
       await expect(detailPage.budgetLinesSection).toBeVisible();
 
-      // There should be exactly one budget line row for our household item
-      const linkedItemCell = detailPage.budgetLinesSection.locator('[class*="tdLinkedItem"]');
+      // The row of our purchase's line
+      const linkedItemCell = detailPage.costLines.row(`${testPrefix} HI Budget`);
       await expect(linkedItemCell).toBeVisible();
 
       // Scope to the household item row — it must contain the hi name link
@@ -324,8 +317,8 @@ test.describe('Invoice budget line — household_item row has no breadcrumb (Sce
       const breadcrumbSpan = linkedItemCell.locator('[class*="compact"]');
       await expect(breadcrumbSpan).not.toBeVisible();
 
-      // Also confirm "No area" is not present (household items don't render area breadcrumb at all)
-      await expect(linkedItemCell.getByText('No area', { exact: true })).not.toBeVisible();
+      // A purchase with no area shows the muted "No area" text, like a task does
+      await expect(linkedItemCell.getByText('No area', { exact: true })).toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

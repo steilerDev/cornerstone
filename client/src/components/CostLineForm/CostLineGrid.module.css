@@ -1,0 +1,427 @@
+/* The grid adapts to its own width: a table from 768px, stacked row cards below. */
+.grid {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+.bulkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  align-items: flex-start;
+}
+
+.bulkField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.bulkLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.pasteHint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Table ---------- */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-size-sm);
+}
+
+.th {
+  padding: var(--spacing-2) var(--spacing-2);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-strong);
+  white-space: nowrap;
+}
+
+.row > td {
+  padding: var(--spacing-1) var(--spacing-2);
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowExcluded {
+  opacity: 0.6;
+}
+
+.numberCell {
+  width: var(--spacing-8);
+  padding-top: var(--spacing-3);
+}
+
+.rowNumber {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.checkCell {
+  width: var(--touch-target-min);
+}
+
+.check {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  margin: var(--spacing-3) 0 0;
+}
+
+.checkDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.descriptionCell {
+  min-width: 12rem;
+}
+
+.cell {
+  min-width: 0;
+}
+
+.grossCell {
+  min-width: 6rem;
+  padding-top: var(--spacing-3);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.actionsCell {
+  white-space: nowrap;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-1-5) var(--spacing-2);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+@media (hover: hover) {
+  .input:hover:not(:focus-visible) {
+    background: var(--color-bg-hover);
+  }
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inputError {
+  border-color: var(--color-danger);
+}
+
+.select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-1-5) var(--spacing-2);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.cellError {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-active);
+}
+
+.existingLabel {
+  display: block;
+  padding-top: var(--spacing-3);
+  color: var(--color-text-primary);
+}
+
+.linkButton {
+  min-height: var(--touch-target-min);
+  padding: 0;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
+.toggle,
+.rowButton {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  padding: var(--spacing-1) var(--spacing-3);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.rowButton[aria-disabled='true'] {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.toggle:focus-visible,
+.rowButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (hover: hover) {
+  .toggle:hover,
+  .rowButton:hover:not([aria-disabled='true']) {
+    background: var(--color-bg-hover);
+  }
+}
+
+/* ---------- Notice row (merge in progress / failed) ---------- */
+
+.noticeCell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-2);
+}
+
+.noticeBusy {
+  color: var(--color-text-secondary);
+}
+
+.noticeError {
+  color: var(--color-danger-active);
+}
+
+/* ---------- Footer ---------- */
+
+.tfoot td {
+  padding: var(--spacing-2);
+  background: var(--color-bg-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.footCell {
+  border-top: 1px solid var(--color-border-strong);
+  text-align: right;
+}
+
+.footRest {
+  background: var(--color-warning-bg);
+  color: var(--color-text-primary);
+  text-align: right;
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+.footOver {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-active);
+  text-align: right;
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+/* ---------- Narrow: each row is a stacked card ---------- */
+
+@container (max-width: 47.999rem) {
+  .table,
+  .table tbody,
+  .table tfoot,
+  .table tr,
+  .table td {
+    display: block;
+  }
+
+  .thead {
+    /* The headers are repeated on each cell as a label. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-primary);
+  }
+
+  .row > td {
+    min-width: 0;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .descriptionCell,
+  .grossCell {
+    min-width: 0;
+  }
+
+  .row > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: var(--spacing-1);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .numberCell,
+  .checkCell {
+    width: auto;
+    padding-top: 0;
+  }
+
+  .descriptionCell,
+  .actionsCell,
+  .noticeCell {
+    grid-column: 1 / -1;
+  }
+
+  .actionsCell {
+    display: flex;
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: var(--spacing-2);
+  }
+
+  .grossCell {
+    padding: var(--spacing-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .check {
+    margin-top: 0;
+  }
+}
+
+/* ---------- Paste preview ---------- */
+
+.previewDialog.previewDialog {
+  width: min(48rem, 100vw - 2rem);
+  max-width: none;
+}
+
+.previewBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+
+.previewStatus {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.previewScroll {
+  overflow-x: auto;
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.previewTable th,
+.previewTable td {
+  padding: var(--spacing-2);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+/* ---------- Existing cost line picker ---------- */
+
+.pickerMessage {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.pickerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pickerItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.pickerText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pickerAmount {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .toggle,
+  .rowButton {
+    transition: none;
+  }
+}

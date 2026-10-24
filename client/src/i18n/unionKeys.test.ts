@@ -36,6 +36,7 @@ import enAuth from './en/auth.json';
 import enCommon from './en/common.json';
 import enHistory from './en/history.json';
 import enHome from './en/home.json';
+import enCostLines from './en/costLines.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
@@ -44,6 +45,7 @@ import deAuth from './de/auth.json';
 import deCommon from './de/common.json';
 import deHistory from './de/history.json';
 import deHome from './de/home.json';
+import deCostLines from './de/costLines.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -57,6 +59,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   common: { en: enCommon, de: deCommon },
   history: { en: enHistory, de: deHistory },
   home: { en: enHome, de: deHome },
+  costLines: { en: enCostLines, de: deCostLines },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -85,8 +88,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 57 registered sets', () => {
-    expect(SETS).toHaveLength(57);
+  it('iterates all 62 registered sets', () => {
+    expect(SETS).toHaveLength(62);
   });
 });
 
@@ -182,6 +185,11 @@ describe('I18N_UNION_KEYS registry', () => {
       'historyObjectType',
       'oidcLoginError',
       'statusVocabularyInvoice',
+      'statusVocabularyCostLine',
+      'costLineBasis',
+      'costLineEmptyBodyDocument',
+      'costLineSplitLabel',
+      'costLineRemoveLeadNoTarget',
       'statusVocabularyProgressPayment',
       'statusVocabularyTask',
       'statusVocabularyScheduleSignal',
@@ -221,6 +229,38 @@ describe('I18N_UNION_KEYS registry', () => {
       'homeSetupHint',
       'homeAgendaKind',
     ]);
+  });
+
+  it('builds the #2235 cost line keys from their tuples', () => {
+    const sets = I18N_UNION_KEYS;
+    expect(sets.statusVocabularyCostLine.ns).toBe('common');
+    expect(sets.statusVocabularyCostLine.members).toEqual([
+      'estimate',
+      'offered',
+      'invoiced',
+      'paid',
+      'submitted',
+    ]);
+    expect(sets.statusVocabularyCostLine.key('offered')).toBe('statusVocabulary.costLine.offered');
+    expect(sets.costLineBasis.ns).toBe('costLines');
+    expect(sets.costLineBasis.members).toEqual([
+      'own_estimate',
+      'professional_estimate',
+      'quote',
+      'invoice',
+    ]);
+    expect(sets.costLineBasis.key('quote')).toBe('basis.quote');
+    for (const set of [
+      sets.costLineEmptyBodyDocument,
+      sets.costLineSplitLabel,
+      sets.costLineRemoveLeadNoTarget,
+    ]) {
+      expect(set.ns).toBe('costLines');
+      expect(set.members).toEqual(['offer', 'invoice']);
+    }
+    expect(sets.costLineEmptyBodyDocument.key('offer')).toBe('section.emptyBodyDocument.offer');
+    expect(sets.costLineSplitLabel.key('invoice')).toBe('table.splitLabel.invoice');
+    expect(sets.costLineRemoveLeadNoTarget.key('offer')).toBe('confirm.removeLeadNoTarget.offer');
   });
 
   it('builds the #2230 Home and attention keys from their tuples', () => {

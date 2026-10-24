@@ -14,7 +14,7 @@
  *   vendorId/vendorName were not propagated into the invoiceLink DTO.
  *   Fix #1440/#1441: quotation invoices included in actualCost; vendorId/vendorName denormalized.
  *   Before fix #1449: the quoted amount was shown as a ±5% range (€475.00 – €525.00).
- *   Fix #1449: InvoiceGroup now displays a single quoted amount (e.g. €500.00) with no range band.
+ *   Fix #1449: the offer/invoice group in the cost lines table (`CostLineTable`) now displays a single quoted amount (e.g. €500.00) with no range band.
  *
  * Both tests run on desktop viewport only — the bugs are viewport-agnostic and limiting to
  * desktop avoids noise from responsive-layout differences.
@@ -22,6 +22,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -103,30 +104,6 @@ async function linkBudgetLineToInvoiceViaApi(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Budget line form helpers (reused from unit-pricing.spec.ts patterns)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Open the "+ Add Line" form on the work item detail page and wait for the mode
- * toggle button to be visible, confirming the form is ready for input.
- */
-async function openAddBudgetLineForm(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Add budget line' }).click();
-  await page.getByRole('button', { name: 'Direct Amount', exact: true }).waitFor({
-    state: 'visible',
-  });
-}
-
-/**
- * Submit the open budget line form and wait for the form to close (the
- * "Add budget line" button re-appears, meaning the form unmounted).
- */
-async function submitBudgetLineForm(page: Page): Promise<void> {
-  await page.locator('[class*="submitButton"]').click();
-  await page.getByRole('button', { name: 'Add budget line' }).waitFor({ state: 'visible' });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Direct-mode VAT-off does not double-uplift (#1439)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -153,35 +130,21 @@ test.describe('Budget regression — direct-mode VAT-off single uplift (#1439)',
 
         await detailPage.goto(workItemId);
 
-        // Open the Add Line form (Direct Amount mode is the default)
-        await openAddBudgetLineForm(page);
+        // Open the cost line form: a direct amount, entered net (the default)
+        const form = new CostLineFormDialog(page, 'New cost line');
+        await detailPage.costLines.waitForLoaded();
+        await detailPage.costLines.addButton.click();
+        await form.waitForOpen();
+        await form.fillDirect(`${testPrefix} VAT line`, '100');
+        await expect(form.enteredNet).toBeChecked();
+        await expect(form.result).toContainText('Gross €119.00');
+        await form.save();
+        await form.waitForClosed();
 
-        // Confirm Direct Amount mode is active by checking the Planned Amount input is visible
-        const plannedAmountInput = page.getByLabel('Planned Amount (€) *');
-        await expect(plannedAmountInput).toBeVisible();
-
-        // Enter 100 as the planned amount
-        await plannedAmountInput.fill('100');
-
-        // Uncheck "Price includes VAT (19%)". When unchecked, the net amount is stored and
-        // effectivePlannedAmount() applies ×1.19 at display time → expected result: €119.00.
-        const vatCheckbox = page.getByLabel('Price includes VAT (19%)');
-        await expect(vatCheckbox).toBeChecked(); // confirm default state
-        await vatCheckbox.uncheck();
-        await expect(vatCheckbox).not.toBeChecked();
-
-        // Submit the form and wait for it to close
-        await submitBudgetLineForm(page);
-
-        // The newly-created unlinked budget line card should show €119.00 (one ×1.19 uplift).
-        // The BudgetLineCard renders effectivePlannedAmount(line) in a [class*="amount"] span.
-        const budgetLineAmount = detailPage.budgetSection
-          .locator('[class*="amount"]')
-          .filter({ hasText: '119' })
-          .first();
-        await expect(budgetLineAmount).toBeVisible();
-
-        // Verify the displayed amount contains exactly "€119.00"
+        // The new Estimate shows €119.00 gross (one ×1.19 uplift), the net amount sits in the tip
+        const budgetLineAmount = detailPage.costLines.gross(
+          detailPage.costLines.row(`${testPrefix} VAT line`),
+        );
         await expect(budgetLineAmount).toContainText('119.00');
 
         // The double-uplift value (×1.19² = €141.61) must NOT appear anywhere in the budget section.
@@ -202,7 +165,7 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
     'work item budget line linked to a quotation invoice shows the quoted amount and vendor name in the invoice group header',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
-      // Desktop-only — the InvoiceGroup header layout is responsive-agnostic but we keep
+      // Desktop-only — the offer/invoice group header (`CostLineTable`) layout is responsive-agnostic but we keep
       // regression tests narrow to avoid viewport-specific noise.
       const viewportWidth = page.viewportSize()?.width ?? 1440;
       if (viewportWidth < 1024) {
@@ -253,46 +216,19 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         // Navigate to the work item detail page
         await detailPage.goto(workItemId);
 
-        // The budget section should contain an InvoiceGroup for the quotation.
-        // InvoiceGroup renders as a div[role="group"] with an aria-label that includes
-        // the vendor name after the fix.
-        //
-        // The group is collapsed by default — its inner content (budget line cards) is hidden,
-        // but the group div itself and its toggle button header are always in the DOM.
+        // The offer group heading names the company and shows the offered amount once
+        // (the #1449 range band "€475.00 – €525.00" and the broken "€0.00 – €0.00" are gone).
+        await detailPage.costLines.waitForLoaded();
+        const groupHeading = detailPage.costLines.groupHeading(/^Offer /);
+        await expect(groupHeading).toBeVisible();
+        await expect(groupHeading).toContainText('QA Vendor');
+        await expect(groupHeading).toContainText('Total €500.00');
+        await expect(groupHeading.getByRole('link')).toBeVisible();
 
-        // Assert 1: the invoice group header is present and accessible
-        // aria-label format (#2203): "<invoice title>: N cost line(s) on this item, <amount> <label>",
-        // where the invoice title is "<vendorName> · <number>" or "<vendorName> · Offer"
-        // We use a regex to match the vendor name without asserting exact amounts.
-        const invoiceGroup = detailPage.budgetSection.locator('[role="group"]').first();
-        await expect(invoiceGroup).toBeVisible();
-
-        // Assert 2: vendor name appears in the invoice group header (rendered as a <span>)
-        const vendorNameSpan = invoiceGroup.locator('[class*="vendorName"]');
-        await expect(vendorNameSpan).toBeVisible();
-        await expect(vendorNameSpan).toContainText('QA Vendor');
-
-        // Assert 3: aria-label names the vendor, the Offer noun (quotation) and the line count
-        // (regression pin for accessibility); no hard-coded test prefix, retrying
-        await expect(invoiceGroup).toHaveAttribute(
-          'aria-label',
-          /QA Vendor · Offer: 1 cost line on this item/,
-        );
-
-        // Assert 4: the quoted amount is displayed as a single value (not a ±5% range).
-        // After issue #1449, InvoiceGroup renders itemizedAmount directly (e.g. €500.00)
-        // instead of a €475.00 – €525.00 band.
-        //
-        // The amount is inside the toggle button header, so it's visible without expanding.
-        const amountGroup = invoiceGroup.locator('[class*="amountGroup"]').first();
-        await expect(amountGroup).toBeVisible();
-        await expect(amountGroup).toContainText('€500.00');
-
-        // Assert 5: no en-dash range separator is present anywhere in the budget section.
-        // Before fixes #1440/#1441 the display was "€0.00 – €0.00"; before #1449 it was
-        // "€475.00 – €525.00". Both broken forms contain " – ". Assert its absence to pin
-        // against any regression back to either range format.
-        await expect(invoiceGroup).not.toContainText(' – ');
+        const row = detailPage.costLines.row(`${testPrefix} regression budget line`);
+        await expect(detailPage.costLines.stateChip(row)).toHaveText('Offered');
+        await expect(detailPage.costLines.gross(row)).toHaveText('€500.00');
+        await expect(detailPage.costLines.root).not.toContainText(' – ');
       } finally {
         // Tear down in reverse dependency order.
         // Deleting the vendor cascades the invoice; deleting the work item cascades budget lines.

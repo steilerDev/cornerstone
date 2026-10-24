@@ -4,16 +4,20 @@ import { FormError } from '../FormError/FormError.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { ColorField } from './ColorField.js';
 import styles from './ObjectForm.module.css';
-import type { ObjectFormChild, ObjectFormField as FieldDef } from './types.js';
+import type { ObjectFormChild, ObjectFormField as FieldDef, ObjectFormValues } from './types.js';
 
 export interface ObjectFormFieldProps {
   readonly field: FieldDef;
   readonly value: unknown;
+  /** All values of the step, passed to custom renderers. */
+  readonly values?: ObjectFormValues;
   readonly error: string | undefined;
   readonly busy: boolean;
   readonly onChange: (value: unknown) => void;
   readonly createChild: (child: ObjectFormChild) => void;
 }
+
+const NO_VALUES: ObjectFormValues = {};
 
 function cx(...parts: readonly (string | false | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
@@ -23,6 +27,7 @@ function cx(...parts: readonly (string | false | undefined)[]): string {
 export function ObjectFormField({
   field,
   value,
+  values = NO_VALUES,
   error,
   busy,
   onChange,
@@ -60,6 +65,7 @@ export function ObjectFormField({
       invalid,
       describedBy,
       createChild,
+      values,
     });
   } else if (kind === 'color') {
     control = (
@@ -121,12 +127,31 @@ export function ObjectFormField({
     );
   }
 
+  const labelContent = (
+    <>
+      {label}
+      {required && <span className={styles.required}> {t('objectForm.required')}</span>}
+    </>
+  );
+  const asGroup = kind === 'custom' && field.group === true;
+  const Wrapper = asGroup ? 'fieldset' : 'div';
+
   return (
-    <div className={cx(styles.field, field.width === 'half' && styles.fieldHalf)}>
-      <label htmlFor={name} className={styles.label}>
-        {label}
-        {required && <span className={styles.required}> {t('objectForm.required')}</span>}
-      </label>
+    <Wrapper
+      className={cx(
+        styles.field,
+        asGroup && styles.group,
+        field.width === 'half' && styles.fieldHalf,
+      )}
+      aria-describedby={asGroup ? describedBy : undefined}
+    >
+      {asGroup ? (
+        <legend className={styles.label}>{labelContent}</legend>
+      ) : (
+        <label htmlFor={name} className={styles.label}>
+          {labelContent}
+        </label>
+      )}
       {control}
       {field.hint && (
         <p id={hintId} className={styles.hint}>
@@ -135,6 +160,6 @@ export function ObjectFormField({
       )}
       <FormError variant="field" id={noticeId} message={field.notice} />
       <FormError variant="field" id={errorId} message={error} />
-    </div>
+    </Wrapper>
   );
 }

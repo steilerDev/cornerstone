@@ -84,38 +84,6 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   deleteHouseholdItemBudget: jest.fn(),
 }));
 
-// ─── Mock: useBudgetLinePicker ─────────────────────────────────────────────────
-// Static closed-picker stub; no test here drives the picker.
-
-jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: () => ({
-    pickerState: {
-      isOpen: false,
-      step: 1,
-      type: null,
-      itemId: null,
-      itemTitle: null,
-      isLoading: false,
-      error: null,
-      budgetLines: [],
-      budgetSources: [{ id: 'src-disc', name: 'Discretionary Fund', isDiscretionary: true }],
-      vendors: [{ id: 'v-builder', name: 'Builder Co', trade: null }],
-      categories: [],
-      showCreateForm: false,
-      createError: null,
-      createForm: undefined,
-    },
-    openPicker: jest.fn(),
-    closePicker: jest.fn(),
-    handleSelectItem: jest.fn(),
-    showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    handleCreateBudgetLine: jest.fn(),
-    setPickerState: jest.fn(),
-    initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    createBudgetLineButtonRef: { current: null },
-  }),
-}));
-
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
@@ -160,24 +128,6 @@ jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', 
     displayValue?: string;
     suggestedValue: string;
   }) => <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>,
-}));
-
-// ─── Mock: BudgetLineForm ──────────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BudgetLineForm: (props: any) => (
-    <div data-testid="budget-line-form">{props.form?.description ?? ''}</div>
-  ),
-}));
-
-// ─── Mock: ParentPicker ────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ParentPicker: (props: any) => (
-    <div data-testid="parent-picker" data-selected-type={props.selectedType ?? ''} />
-  ),
 }));
 
 // ─── Mock: errorTranslation ────────────────────────────────────────────────────
@@ -235,6 +185,16 @@ beforeEach(async () => {
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PaperlessInvoiceReviewPageModule);
   ({ LocaleProvider } =
     (await import('../../contexts/LocaleContext.js')) as typeof LocaleContextModule);
+
+  // The cost line grid shows Undo toasts, so the page needs a ToastProvider.
+  const { ToastProvider } = await import('../../components/Toast/ToastContext.js');
+  const BaseLocaleProvider = LocaleProvider;
+  LocaleProvider = (({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      BaseLocaleProvider,
+      null,
+      React.createElement(ToastProvider, null, children),
+    )) as typeof LocaleProvider;
 
   mockGetPaperlessDocument.mockReset();
   mockGetDocumentPreviewUrl.mockImplementation((id) => `/paperless/documents/${id}/preview`);
@@ -497,7 +457,7 @@ describe('PaperlessInvoiceReviewPage — invoice Status select (Story #2154)', (
         fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '123' } });
         fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'hello' } });
       });
-      const include = screen.getByLabelText('Include');
+      const include = screen.getByLabelText('Include, row 1');
       await act(async () => {
         fireEvent.click(include);
       });

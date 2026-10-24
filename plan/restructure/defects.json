@@ -132,12 +132,15 @@
     {
       "id": "D-19",
       "story": 2194,
-      "tests": ["client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx"]
+      "tests": ["client/src/components/CostLineTable/costLineRows.test.ts"]
     },
     {
       "id": "D-20",
       "story": 2194,
-      "tests": ["client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx"]
+      "tests": [
+        "client/src/components/CostLineTable/costLineRows.test.ts",
+        "client/src/components/CostLineForm/LinkInvoiceForm.test.tsx"
+      ]
     },
     {
       "id": "D-21",
@@ -180,7 +183,7 @@
     {
       "id": "D-27",
       "story": 2194,
-      "tests": ["client/src/components/budget/InvoiceLinkModal.test.tsx"]
+      "tests": ["client/src/components/CostLineTable/costLineRows.test.ts"]
     },
     {
       "id": "D-28",

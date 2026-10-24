@@ -5,12 +5,12 @@
  * past the first page can be found by typing, and a saved company outside it shows by name.
  *
  * S1  Beyond the first 100: a company that sorts after 100 others is found by typing in the cost
- *     line form (`#budget-vendor`) and is saved on the line
+ *     line form (`#vendorId`, under More details) and is saved on the line
  * S2  Task detail assignment (`#work-item-assignment`): pick a company, reload, clear, pick a person
  * S3  New task dialog (`#assignment`): pick a company; the "New company" row opens the child step
  * S4  Purchase edit page (`#vendorId`): the saved company shows, change by search, create row
- * S5  Cost line edit modal (`#budget-vendor`): the create row opens the company form over the
- *     modal; Escape closes only the company form and focus returns to the picker input
+ * S5  Cost line edit form (`#vendorId`, #2235): the create row opens the company form as a child
+ *     step of the form; Back returns to the line form, Save selects the new company
  * S6  Diary signature: vendor signer picks a company by search, or "Other..." with free text
  *
  * Every pick is by keyboard (type, ArrowDown, Enter). Companies are synthetic and carry the
@@ -29,7 +29,7 @@ import {
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API, TEST_ADMIN } from '../../fixtures/testData.js';
-import { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
+import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
@@ -118,17 +118,21 @@ test.describe('Company chooser - beyond the first 100 (S1)', { tag: '@responsive
 
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Beyond 100 Task` });
       const detail = new WorkItemDetailPage(page);
+      const form = new CostLineFormDialog(page, 'New cost line');
       await detail.goto(workItemId);
+      await detail.costLines.waitForLoaded();
       await detail.addBudgetLineButton.click();
+      await form.waitForOpen();
+      await form.fillDirect(`${testPrefix} Company line`, '250');
       await expect(detail.budgetVendorPicker.input).toBeVisible();
-      await page.locator('#budget-planned-amount').fill('250');
 
       await detail.budgetVendorPicker.pick(target);
       await expect(detail.budgetVendorPicker.selectedDisplay()).toContainText(target);
       expect(await focusIsOnBody(page)).toBe(false);
 
-      await page.locator('[class*="submitButton"]').click();
-      await expect(detail.budgetSection.getByText(target)).toBeVisible();
+      await form.save();
+      await form.waitForClosed();
+      await expect(detail.costLines.row(`${testPrefix} Company line`)).toContainText(target);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       await Promise.all(
@@ -360,36 +364,40 @@ test.describe('Company chooser - cost line edit modal (S5)', { tag: '@responsive
       expect(link.ok(), 'POST invoice budget-line').toBeTruthy();
 
       const detail = new WorkItemDetailPage(page);
+      const form = new CostLineFormDialog(page, 'Edit cost line');
+      // While the child step is open the same dialog is titled by the company form (the host's
+      // test id still names its Save / Back controls)
+      const child = new ObjectFormDialog(page, 'New company', 'cost-line-form');
       await detail.goto(workItemId);
-      await detail.budgetSection
-        .locator('[class*="toggleBtn"]')
-        .locator('visible=true')
-        .first()
-        .click();
-      await page
-        .getByRole('button', { name: new RegExp(`Edit budget line.*${description}`, 'i') })
-        .click();
-      const modal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-      await expect(modal).toBeVisible();
+      await detail.costLines.waitForLoaded();
+      await detail.costLines.chooseAction(detail.costLines.row(description), 'Edit');
+      await form.waitForOpen();
+      await form.expandMoreDetails();
 
-      const picker = new CompanyPickerControl(page, 'budget-vendor', modal);
+      const picker = detail.budgetVendorPicker;
       await expect(picker.input).toBeVisible();
 
-      // The create row opens the company form over the modal; one Escape closes only the form
-      await picker.openCreateForm(typed);
-      await page.keyboard.press('Escape');
-      await picker.form.waitForClosed();
-      await expect(modal).toBeVisible();
+      // The create row opens the company form as a child step; Back returns to the line form
+      await picker.type(typed);
+      await picker.arrowToCreateOption(typed);
+      await page.keyboard.press('Enter');
+      await child.waitForOpen();
+      await expect(child.field('name')).toHaveValue(typed);
+      await child.backButton.click();
+      await form.waitForOpen();
       await expect(picker.input).toBeFocused();
       expect(await focusIsOnBody(page)).toBe(false);
 
-      // Save selects the new company on the line form and focuses "Clear selection"
-      await picker.openCreateForm(typed);
-      await picker.form.save();
-      await picker.form.waitForClosed();
-      await expect(modal).toBeVisible();
+      // Save selects the new company on the line form
+      await picker.type(typed);
+      await picker.arrowToCreateOption(typed);
+      await page.keyboard.press('Enter');
+      await child.waitForOpen();
+      await child.save();
+      await form.waitForOpen();
       await expect(picker.selectedDisplay()).toContainText(typed);
-      await expect(picker.clearButton).toBeFocused();
+      // Focus lands on a named element inside the dialog once the child step has closed
+      await expect.poll(() => focusIsOnBody(page)).toBe(false);
 
       // Saving the line keeps the company
       const patched = page.waitForResponse(
@@ -397,9 +405,9 @@ test.describe('Company chooser - cost line edit modal (S5)', { tag: '@responsive
           resp.url().includes(`/api/invoices/${invoiceId}/budget-lines/`) &&
           resp.request().method() === 'PATCH',
       );
-      await modal.locator('[class*="submitButton"]').click();
+      await form.save();
       expect((await patched).status()).toBe(200);
-      await expect(modal).toBeHidden();
+      await form.waitForClosed();
     } finally {
       if (invoiceId) await page.request.delete(`${API.vendors}/${ownerId}/invoices/${invoiceId}`);
       await deleteWorkItemViaApi(page, workItemId);

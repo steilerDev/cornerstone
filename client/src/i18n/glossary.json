@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-22",
+    "lastUpdated": "2026-10-24",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -2446,6 +2446,78 @@
       "definition": "Signing in through an outside login service instead of a password here.",
       "doNotUse": [],
       "formerly": ["OIDC", "SSO"]
+    },
+    "Offered": {
+      "groups": ["statusWord"],
+      "en": { "singular": "Offered" },
+      "de": { "singular": "Angeboten" },
+      "deSource": "approved",
+      "definition": "A cost line linked to an offer.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Invoiced": {
+      "groups": ["statusWord"],
+      "en": { "singular": "Invoiced" },
+      "de": { "singular": "Berechnet" },
+      "deSource": "approved",
+      "definition": "A cost line linked to an invoice that is not paid yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Net": {
+      "groups": ["general"],
+      "en": { "singular": "Net" },
+      "de": { "singular": "Netto" },
+      "deSource": "approved",
+      "definition": "An amount without VAT; a cost line entered net gets VAT added.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Gross": {
+      "groups": ["general"],
+      "en": { "singular": "Gross" },
+      "de": { "singular": "Brutto" },
+      "deSource": "approved",
+      "definition": "An amount including VAT.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Basis": {
+      "groups": ["general"],
+      "en": { "singular": "Basis" },
+      "de": { "singular": "Grundlage" },
+      "deSource": "approved",
+      "definition": "What a cost line's amount rests on: own estimate, professional estimate, offer or invoice; it sets the estimate range.",
+      "doNotUse": [],
+      "formerly": ["Confidence"]
+    },
+    "Entered as": {
+      "groups": ["general"],
+      "en": { "singular": "Entered as" },
+      "de": { "singular": "Erfasst als" },
+      "deSource": "approved",
+      "definition": "Whether a cost line's prices were entered net or gross.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Own estimate": {
+      "groups": ["general"],
+      "en": { "singular": "Own estimate" },
+      "de": { "singular": "Eigene Schätzung" },
+      "deSource": "approved",
+      "definition": "A cost line amount you worked out yourself.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Professional estimate": {
+      "groups": ["general"],
+      "en": { "singular": "Professional estimate" },
+      "de": { "singular": "Fachschätzung" },
+      "deSource": "approved",
+      "definition": "A cost line amount from a tradesperson's or expert's estimate, before an offer.",
+      "doNotUse": [],
+      "formerly": ["Pro estimate"]
     }
   }
 }

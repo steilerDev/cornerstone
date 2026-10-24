@@ -103,3 +103,4 @@ removing it will fail typecheck. Flag it so QA updates the import in-session.
 - `photo-metadata-sidepanel.md` — photo metadata side panel notes (open for photo UI work)
 - `story-1035-summary.md` — ManagePage unified tags/categories story notes
 - `ISSUE-415-STATUS.md` — household item timeline dependency status notes
+- [Restructure gotchas](restructure-gotchas.md) — EPIC-21 plan:check component counting, cost line family location, Bash guard workarounds

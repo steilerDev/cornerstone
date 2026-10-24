@@ -664,7 +664,7 @@
 /**
  * Visually hidden content — readable by screen readers only.
  * Used for skip links, aria-label supplements, and live region content.
- * Seen in AutoItemizePage, PaperlessInvoiceReviewPage, and AutoItemizeLineCard.
+ * Seen in AutoItemizePage, PaperlessInvoiceReviewPage, CostLineTable and CostLineGrid.
  */
 .srOnly {
   position: absolute;

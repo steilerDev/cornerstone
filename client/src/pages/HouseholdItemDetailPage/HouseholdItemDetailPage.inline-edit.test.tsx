@@ -73,6 +73,11 @@ class MockApiClientError extends Error {
 // Must be declared before any imports of the component.
 
 // useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+// The cost lines section has its own tests; it is not under test here.
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: () => null,
+}));
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
   const localeValue = {
     locale: 'en',

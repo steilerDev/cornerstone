@@ -214,13 +214,6 @@
     "submitting": "Wird gespeichert...",
     "success": "Haushaltsartikel erfolgreich aktualisiert"
   },
-  "picker": {
-    "placeholder": "Haushaltsartikel suchen...",
-    "emptyHint": "Zum Suchen von Haushaltsartikeln tippen",
-    "noResults": "Keine passenden Haushaltsartikel gefunden",
-    "loadError": "Haushaltsartikel konnten nicht geladen werden",
-    "searchError": "Suche nach Haushaltsartikeln fehlgeschlagen"
-  },
   "detail": {
     "loading": "Haushaltsartikel wird geladen...",
     "error": "Fehler",
@@ -289,10 +282,6 @@
       "late": "Verspätet"
     },
     "budget": {
-      "title": "Budget",
-      "emptyState": "Noch keine Budgetpositionen. Füge die erste Position hinzu, um Kosten zu verfolgen.",
-      "addLineButton": "+ Zeile hinzufügen",
-      "linkInvoiceButton": "Mit Rechnung verknüpfen",
       "confidenceLabel": "Konfidenz:",
       "plannedAmountLabel": "Geplanter Betrag",
       "actualCostLabel": "Tatsächliche Kosten",
@@ -304,8 +293,7 @@
       "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuche es erneut.",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
       "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
-      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",
-      "unlinkInvoice": "Verknüpfung der Budgetposition mit der Rechnung konnte nicht aufgehoben werden"
+      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden"
     },
     "closeErrorMessage": "Fehlermeldung schließen"
   }

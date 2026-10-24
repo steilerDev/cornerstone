@@ -207,8 +207,8 @@ test.describe(
         await detailPage.goto(invoiceId);
         await expect(detailPage.heading).toBeVisible();
 
-        // Wait for the section to render (Add Budget Line button should appear)
-        await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
+        // Wait for the section to render (Add cost line button should appear)
+        await expect(detailPage.costLines.addButton).toBeVisible();
 
         // The Auto-itemize button must NOT be rendered
         await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();
@@ -243,7 +243,7 @@ test.describe(
         await expect(detailPage.heading).toBeVisible();
 
         // Wait for the section to render
-        await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
+        await expect(detailPage.costLines.addButton).toBeVisible();
 
         // The Auto-itemize button must NOT be rendered
         await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();

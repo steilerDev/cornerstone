@@ -1,0 +1,14 @@
+---
+name: story-2235-cost-lines
+description: '#2235 cost lines (table, form, grid, Split with AI grid) E2E: POM layer, seed helper, rewritten old specs, click-budget spec, 5 live-run production defects, traps.'
+metadata:
+  type: project
+---
+
+- POM layer: `pages/components/CostLinesPanel.ts` (table; both surfaces mounted, rows filtered `visible`; table testids `cost-lines-<id>`, cards `cost-lines-mobile-<id>` = DataTable rule, rows `cost-lines-row[-mobile]-<id>`), `CostLineFormDialog.ts` (extends ObjectFormDialog, testId `cost-line-form`; essentials first, Basis/Pricing/Category/Source/Company/Belongs-to-on-edit are under More details), `CostLineGrid.ts` (grid only, prefix `cost-line-grid` or `auto-itemize-grid`; cells found by aria-label "<Column>, row <n>", 1-based) and `CostLineGridDialog.ts` (dialog + footer). `AutoItemizePage`/`PaperlessInvoiceReviewPage` expose `grid` plus 0-based `lineX(i)` helpers. Seed helper `fixtures/costLineSeed.ts`; dark mode `fixtures/darkMode.ts` (`expectLegibleInDark` waits for colour transitions - measuring right after the toggle gave a false 3.4:1 on mobile).
+- The old UI is gone: line cards, "Assign…" picker modal, inline "Create Budget Line" draft, "Linked Item" column, InvoiceGroup accordion. Equivalents: Belongs to picker + "Use an existing cost line…" dialog, `Not assigned` badge + menu Assign, group headings in the table. Item pages: h2 "Cost" holds overview + cost lines + grants; `budgetSection` POM = that section.
+- List width, not viewport, picks table vs cards (container query 768px): on a task page at 1280 the list is already cards.
+- Split with AI: rows with no funding source default to Discretionary (note shows); a row creating a line needs a category (alert "Please select a category..."); `useExisting` needs the row's Belongs to first; "Use a new line instead" wipes the row's amounts.
+- Paste test: dispatch `ClipboardEvent('paste', {clipboardData: DataTransfer})` on the description input - works in WebKit. 4 columns insert directly; other column counts open "Check pasted rows".
+- AC7 click budget spec counts clicks through a wrapper (5 clicks: offer, Split, Assign all to, pick task [key press, counted], Save).
+- Production defects found live (check before blaming tests): (1) grid Enter/Shift+Enter/Arrow move focus only after the next render (`CostLineGrid.handleKeyDown` `moveTo` sets pendingFocus without a state change) -> `cost-line-grid.spec` F1; (2) after the company child step Save in the cost line form focus is on body (`company-pickers-search` S5); (3) the grid overflows its column at 375px on Split with AI / Paperless review (`paperless-invoice-budget-source` Scenario 5: scrollWidth 361 > clientWidth 311); (4) a linked row's Select checkbox looks enabled but does nothing; (5) "Use a new line instead" loses the extracted amounts.

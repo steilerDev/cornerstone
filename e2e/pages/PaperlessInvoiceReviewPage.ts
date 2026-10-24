@@ -28,12 +28,7 @@
  *       - div.vendorCard (class*="vendorCard") — SearchPicker id="vendor-picker"
  *         Vendor error (FormError variant="field") at #vendor-error inside vendorCard
  *       - div.metadataCard (class*="metadataCard") — invoice number, amount, date fields
- *       - AutoItemizeLineList (shared component — lineList/lineCard classes from its CSS module)
- *         Each <li class*="lineCard"> contains:
- *           - "Assign…" button: class*="assignButtonInTable" (when no assigned line)
- *           - amber "Creating New" badge: data-testid="creating-new-badge" (when draft queued)
- *           - "Discard" button: role="button" name="Discard" (when draft queued)
- *           - inline BudgetLineForm wrapper: class*="inlineFormWrapper" (when draft queued)
+ *       - AutoItemizeLines: the shared lines grid with the Merge bar and the total
  *       - div.actions — "Create Invoice & Itemize" button + Cancel
  *         NOTE: Button is ONLY disabled when pageStatus='saving', NOT when vendorId is empty.
  *         Clicking without a vendor shows the inline vendor FormError (silent-failure fix).
@@ -41,19 +36,10 @@
  *       - div.pdfPreviewWrapper: iframe title="Invoice PDF preview" + div.pdfLoadingOverlay
  *       - OR div.pdfFallback when iframe fires error
  *
- * Budget line picker modal (Story #1764 — queued-on-save inline create):
- *   - "Assign…" button on each extraction line card opens the BudgetLinePickerModal.
- *   - Step 1: role="dialog" with h2 "Assign to Work Item or Household Item"
- *       - Work Item tab → SearchPicker placeholder="Work Item"
- *       - Household Item tab → SearchPicker placeholder="Household Item"
- *   - Step 2: role="dialog" with h2 "Select Budget Line for {itemTitle}"
- *       - Existing budget line rows: class*="pickerBudgetLineRow"
- *       - "Create Budget Line" button: name /Create Budget Line/i
- *   - Clicking "Create Budget Line" CLOSES the modal (queue-on-save):
- *       - line card shows: amber "Creating New" badge (data-testid="creating-new-badge")
- *       - line card shows: inline BudgetLineForm in class*="inlineFormWrapper"
- *       - line card shows: "Discard" button (aria-label="Discard")
- *       - No API call until outer "Create Invoice & Itemize" button is clicked.
+ * Lines (#2235): the shared cost line grid (`grid`, prefix `auto-itemize-grid`) replaces the old
+ * line cards, the "Assign…" picker modal and the inline "Create Budget Line" draft. A row creates a
+ * NEW cost line on its "Belongs to" task or purchase (else "Assign all to"), or links an EXISTING
+ * one with "Use an existing cost line…". Nothing is created until "Create Invoice & Itemize".
  *
  * Saving state (pageStatus='saving'):
  *   - "Create Invoice & Itemize" → "Saving..." (autoItemize.saving)
@@ -64,6 +50,7 @@
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CostLineGrid } from './components/CostLineGrid.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 
 export class PaperlessInvoiceReviewPage {
@@ -149,11 +136,18 @@ export class PaperlessInvoiceReviewPage {
   readonly cancelButton: Locator;
 
   /**
-   * Line items list container.
-   * Rendered as <ul role="list" aria-label="Extracted line items"> by the shared
-   * AutoItemizeLineList component. The aria-label is stable regardless of CSS module changes.
+   * The lines grid (the shared cost line grid, test id prefix `auto-itemize-grid`, #2235). The
+   * index helpers below are 0-based; `grid.row(1)` is the first row.
    */
-  readonly lineItemsList: Locator;
+  readonly grid: CostLineGrid;
+
+  /** Merge controls (same as the Split with AI page): the Merge button and the notice rows. */
+  readonly mergeButton: Locator;
+  readonly clearSelectionButton: Locator;
+  readonly mergingRow: Locator;
+  readonly mergeErrorRow: Locator;
+  readonly mergeRetryButton: Locator;
+  readonly mergeUndoButton: Locator;
 
   // ─── Story #1703/#1704: Two-column layout + PDF preview ─────────────────────
 
@@ -186,34 +180,6 @@ export class PaperlessInvoiceReviewPage {
    * Uses .first() in case multiple alerts are briefly visible during the saving→ready transition.
    */
   readonly pageErrorBanner: Locator;
-
-  // ─── Story #1764: Budget line picker modal (queued-on-save inline create) ────
-
-  /**
-   * The "Assign to Work Item or Household Item" picker modal (step 1).
-   * Rendered as <Modal> → role="dialog" filtered by h2 text.
-   * Same component/structure as AutoItemizePage.pickerModal.
-   */
-  readonly pickerModal: Locator;
-
-  /**
-   * Work Item search input in step 1 of the picker modal.
-   * SearchPicker placeholder: "Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
-   */
-  readonly pickerWorkItemSearchInput: Locator;
-
-  /**
-   * Portal dropdown rendered by SearchPicker into document.body.
-   * Has attribute [data-search-picker-dropdown]. Scoped to full page (portal bypasses modal).
-   */
-  readonly pickerPortalDropdown: Locator;
-
-  /**
-   * "Create Budget Line" button in step 2 of the picker modal.
-   * After click: picker closes, inline form appears on line card (queued-on-save).
-   * Text: t('invoiceDetail.budgetLines.picker.createLine') = "Create Budget Line"
-   */
-  readonly pickerCreateBudgetLineButton: Locator;
 
   /** Page h1: "New invoice" in every state (loading, error, missing document, ready). */
   readonly heading: Locator;
@@ -288,10 +254,7 @@ export class PaperlessInvoiceReviewPage {
     });
     this.cancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
-    // Line items list — <ul role="list" aria-label="Extracted line items">
-    // Rendered by shared AutoItemizeLineList component. aria-label is from i18n key
-    // autoItemize.lineItemsListLabel = "Extracted line items". Stable across refactors.
-    this.lineItemsList = page.getByRole('list', { name: 'Extracted line items' });
+    this.grid = new CostLineGrid(page, 'auto-itemize-grid');
 
     // ─── Story #1703/#1704: Two-column layout + PDF preview ─────────────────────
 
@@ -311,40 +274,13 @@ export class PaperlessInvoiceReviewPage {
     // match the vendor field error (also role="alert") or the fatal error state container.
     this.pageErrorBanner = page.locator('[class*="formColumn"]').locator('[role="alert"]').first();
 
-    // ─── Story #1764: Budget line picker modal helpers ────────────────────────
-
-    // Picker step-1 modal: role="dialog" filtered by h2 "Assign to Work Item or Household Item"
-    this.pickerModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
-    });
-
-    // Work Item search input: SearchPicker placeholder="Work Item" inside step-1 modal
-    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Work Item');
-
-    // Portal dropdown: SearchPicker portals to document.body — scoped to full page
-    this.pickerPortalDropdown = page.locator('[data-search-picker-dropdown]');
-
-    // "Create Budget Line" button: present in step-2 modal (and step-1 empty state).
-    // Filter across both step titles (step 1 and step 2) so this works regardless of
-    // which step is currently showing.
-    const anyPickerModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', {
-        hasText: /Assign to Work Item or Household Item|Select Budget Line/i,
-      }),
-    });
-    this.pickerCreateBudgetLineButton = anyPickerModal.getByRole('button', {
-      name: /Create Budget Line/i,
-    });
-
-    // ─── Story #1797: Merge multiple extracted line items ────────────────────
+    // Merge: the Merge button of the SelectionActionBar and the grid's notice rows
     this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
     this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
-    this.mergingRow = page.locator('li[class*="lineCardMerging"]');
-    this.mergeErrorRow = page.locator('li[class*="lineCardMergeError"]');
-    this.mergeRetryButton = this.mergeErrorRow.getByRole('button', { name: /^Retry$/i });
-    this.mergeUndoButton = this.mergeErrorRow.getByRole('button', {
-      name: /^Restore original lines$/i,
-    });
+    this.mergingRow = this.grid.grid.locator('[role="status"]').filter({ hasText: /^Merging / });
+    this.mergeErrorRow = this.grid.grid.locator('[role="alert"]');
+    this.mergeRetryButton = page.locator('[data-testid^="auto-itemize-grid-notice-retry-"]');
+    this.mergeUndoButton = page.locator('[data-testid^="auto-itemize-grid-notice-undo-"]');
   }
 
   /**
@@ -447,24 +383,14 @@ export class PaperlessInvoiceReviewPage {
     return this.vendorError;
   }
 
-  /**
-   * Get a line item row locator by index (0-based).
-   *
-   * The component renders each extracted line as a <li class*="lineCard"> inside the
-   * extracted-lines <ul>. The lineCard class comes from AutoItemizeLineCard.module.css
-   * (shared component). The aria-based lineItemsList locator is more stable than class
-   * matching across refactors, so we scope by <li> within the list.
-   */
+  /** Row `index` (0-based) of the lines grid. */
   getLineItem(index: number): Locator {
-    return this.lineItemsList.locator('li').nth(index);
+    return this.grid.row(index + 1);
   }
 
-  /**
-   * Count the number of line items rendered.
-   * Counts <li> children of the extracted-lines <ul> (role="list" aria-label="Extracted line items").
-   */
+  /** Number of extracted lines in the grid (the trailing blank row is not counted). */
   async getLineItemCount(): Promise<number> {
-    return await this.lineItemsList.locator('li').count();
+    return this.grid.filledRowCount();
   }
 
   /**
@@ -474,307 +400,133 @@ export class PaperlessInvoiceReviewPage {
     return this.page.url().includes(routeUrl('invoicePaperlessReview'));
   }
 
-  // ─── Story #1764: Line card helpers (shared AutoItemizeLineList locators) ──
+  // ─── Grid rows (0-based indexes; the same grid as the Split with AI page) ──
 
-  /**
-   * Returns the <li class*="lineCard"> at the given 0-based index.
-   * AutoItemizeLineList renders extraction lines as:
-   *   <ul role="list" aria-label="Extracted line items">
-   *     <li class*="lineCard"> … </li>
-   *   </ul>
-   */
   lineRow(index: number): Locator {
-    return this.page.locator('[role="list"] li[class*="lineCard"]').nth(index);
+    return this.grid.row(index + 1);
   }
 
-  /**
-   * Per-line funding-source select (id="source-<rowId>") of the line card at the given
-   * 0-based index. Only rendered for lines WITHOUT a queued inline draft (drafts expose
-   * `#inline-<rowId>-budget-source` instead — see getInlineDraftSourceSelect()).
-   */
-  lineSourceSelect(index: number): Locator {
-    return this.lineRow(index).locator('select[id^="source-"]');
+  /** The Include checkbox of the row. */
+  lineCheckbox(index: number): Locator {
+    return this.grid.include(index + 1);
   }
 
-  /** Budget-source select inside the inline BudgetLineForm draft of the line at index. */
-  getInlineDraftSourceSelect(index: number): Locator {
-    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
-  }
-
-  /**
-   * Returns the "Assign…" button for the line at the given 0-based index.
-   * Present when the line has no assigned budget line and no queued draft.
-   * class*="assignButtonInTable"
-   */
-  lineAssignButton(index: number): Locator {
-    return this.lineRow(index).locator('[class*="assignButtonInTable"]');
-  }
-
-  /** Assigned badge (inner div, excludes the wrapper). */
-  lineAssignedBadge(index: number): Locator {
-    return this.lineRow(index).locator('[class*="assignedBadge"]:not([class*="Wrapper"])');
-  }
-
-  /** "Clear" button inside the assigned badge. */
-  lineClearAssignButton(index: number): Locator {
-    return this.lineAssignedBadge(index).locator('[class*="clearAssignButton"]');
-  }
-
-  /** Budget line row button in step 2 of the picker (by index or visible text). */
-  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator {
-    const rows = this.pickerStep2Modal().locator('[class*="pickerBudgetLineRow"]');
-    return typeof nameOrIndex === 'number'
-      ? rows.nth(nameOrIndex)
-      : rows.filter({ hasText: nameOrIndex });
-  }
-
-  // ─── Linked (assign-existing) read-only rendering (#2149) ──────────────────
-
-  /** Read-only values section shown for a row linked to an existing budget line. */
-  lineLinkedValues(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-values');
-  }
-
-  /** Linked line's ORIGINAL category (read-only). */
-  lineLinkedCategory(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-category');
-  }
-
-  /** Linked line's ORIGINAL funding source (read-only). */
-  lineLinkedSource(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-source');
-  }
-
-  /** Linked line's ORIGINAL planned amount (read-only). */
-  lineLinkedPlanned(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-planned');
-  }
-
-  /** The only editable number input on a linked row: gross invoiced amount. */
-  lineItemizedAmountInput(index: number): Locator {
-    return this.lineRow(index).getByTestId('linked-line-itemized-amount');
-  }
-
-  /** "Change…" button next to the assigned badge on a linked row. */
-  lineChangeAssignButton(index: number): Locator {
-    return this.lineRow(index).getByRole('button', { name: /Change linked budget line/i });
-  }
-
-  /**
-   * Returns the amber "Creating New" badge for the line at the given 0-based index.
-   * Present only when the line has an inlineCreatedBudgetLineDraft queued.
-   * Rendered as <Badge testId="creating-new-badge">.
-   */
-  getCreatingNewBadge(index: number): Locator {
-    return this.lineRow(index).getByTestId('creating-new-badge');
-  }
-
-  /**
-   * Returns the "Discard" button for the inline draft on the line card at the given index.
-   * Clicking it clears the inlineCreatedBudgetLineDraft and restores the "Assign…" button.
-   * aria-label: t('autoItemize.discardInlineDraft') = "Discard"
-   */
-  getInlineDraftDiscardButton(index: number): Locator {
-    return this.lineRow(index).getByRole('button', { name: /^Discard$/i });
-  }
-
-  /**
-   * Returns the wrapper div containing the inline BudgetLineForm for the line at index.
-   * Rendered as <div class*="inlineFormWrapper"> below the cardBottomRow.
-   * Only present when inlineCreatedBudgetLineDraft is set on the line.
-   */
-  getInlineFormWrapper(index: number): Locator {
-    return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
-  }
-
-  /**
-   * Returns the Description textbox inside the inline BudgetLineForm for the line at index.
-   * The inline form uses idPrefix=`inline-${line.rowId}-` so the id is dynamic.
-   * Locate by role textbox + accessible name "Description" (from the adjacent <label>).
-   */
-  getInlineDraftDescriptionInput(index: number): Locator {
-    return this.getInlineFormWrapper(index).getByRole('textbox', { name: /Description/i });
-  }
-
-  /**
-   * Returns the step-2 picker modal ("Select Budget Line for {itemTitle}").
-   * Only present after a work item is selected in step 1.
-   */
-  pickerStep2Modal(): Locator {
-    return this.page.locator('[role="dialog"]').filter({
-      has: this.page.locator('h2', { hasText: /Select Budget Line/i }),
-    });
-  }
-
-  /**
-   * Returns the description textarea of the line at the given 0-based index.
-   * Alias mirroring AutoItemizePage.lineDescription() — both pages render the
-   * same shared AutoItemizeLineCard component.
-   */
   lineDescription(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardDescriptionInput"], textarea').first();
+    return this.grid.description(index + 1);
+  }
+
+  lineQuantity(index: number): Locator {
+    return this.grid.cell('Quantity', index + 1);
+  }
+
+  /** The Unit price input (the whole amount for a line without a quantity). */
+  lineUnitPrice(index: number): Locator {
+    return this.grid.cell('Unit price', index + 1);
+  }
+
+  /** The Net | Gross toggle of the row. */
+  lineEnteredAs(index: number): Locator {
+    return this.grid.enteredAs(index + 1);
+  }
+
+  /** The gross amount cell of the row. */
+  lineGross(index: number): Locator {
+    return this.grid.gross(index + 1);
+  }
+
+  lineCategory(index: number): Locator {
+    return this.grid.cell('Cost category', index + 1);
+  }
+
+  /** The Funding source select of the row. */
+  lineSourceSelect(index: number): Locator {
+    return this.grid.cell('Funding source', index + 1);
+  }
+
+  /** The row's own "Belongs to" picker input. */
+  lineTarget(index: number): Locator {
+    return this.grid.target(index + 1);
+  }
+
+  /** "Use an existing cost line…" of the row. */
+  lineUseExistingButton(index: number): Locator {
+    return this.grid.useExistingButton(index + 1);
+  }
+
+  lineClearExistingButton(index: number): Locator {
+    return this.grid.clearExistingButton(index + 1);
+  }
+
+  lineExistingLabel(index: number): Locator {
+    return this.grid.existingLabel(index + 1);
+  }
+
+  /** The merge-selection checkbox of the row. */
+  lineSelectCheckbox(index: number): Locator {
+    return this.grid.select(index + 1);
   }
 
   /**
-   * Returns the totalAmount metric input of the line at the given 0-based index.
-   * cardMetricGrid order: qty=0, unit=1, unitPrice=2, totalAmount=3.
-   * Alias mirroring AutoItemizePage.lineTotal().
-   */
-  lineTotal(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardMetricInput"]').nth(3);
-  }
-
-  /**
-   * Open the assign picker for the extraction line at the given index, navigate
-   * through step 1 (select work item) and step 2, then click "Create Budget Line".
-   * On return: picker is closed and the line card shows the inline form.
+   * Mark a row as "create a NEW cost line on this task" (#2235): choose the task under Belongs to
+   * and a cost category (a row that creates a line needs one); optionally the Funding source.
+   * Nothing is created until "Create Invoice & Itemize".
    *
-   * @param workItemTitle - The title to search and select in step 1
-   * @param options.lineIndex - 0-based index of the extraction line card (default: 0)
-   * @param options.budgetSourceId - When set, explicitly selects this budget source in the
-   *   inline form's Funding Source select. Pass it for any flow that saves the draft: the
-   *   select otherwise defaults to the first source, which a parallel worker may delete.
+   * @param options.lineIndex - 0-based row (default 0)
+   * @param options.budgetSourceId - Funding source to select. Pass it for any flow that saves:
+   *   the select otherwise defaults to Discretionary.
    */
   async queueCreateNewBudgetLine(
     workItemTitle: string,
     options: { lineIndex?: number; budgetSourceId?: string } = {},
   ): Promise<void> {
     const lineIndex = options.lineIndex ?? 0;
-    const assignBtn = this.lineAssignButton(lineIndex);
-    await expect(assignBtn).toBeVisible();
-    await assignBtn.click();
-    await expect(this.pickerModal).toBeVisible();
-
-    // Type in the Work Item search input
-    await expect(this.pickerWorkItemSearchInput).toBeVisible();
-    await this.pickerWorkItemSearchInput.fill(workItemTitle);
-
-    // Wait for portal dropdown and click the work item option
-    const wiOption = this.pickerPortalDropdown.getByRole('option', {
-      name: new RegExp(workItemTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
-    });
-    await wiOption.waitFor({ state: 'visible' });
-    await wiOption.click();
-
-    // Step 2: click "Create Budget Line"
-    const step2Modal = this.pickerStep2Modal();
-    await expect(step2Modal).toBeVisible();
-    await expect(this.pickerCreateBudgetLineButton).toBeVisible();
-    await this.pickerCreateBudgetLineButton.click();
-
-    // Wait for the picker to fully close. Using pickerStep2Modal() instead of
-    // pickerModal because pickerModal checks the step-1 h2 which was already
-    // gone once we moved to step 2 — it would pass immediately without
-    // confirming the picker actually closed.
-    await expect(this.pickerStep2Modal()).not.toBeVisible();
-
+    await this.grid.targetPicker(lineIndex + 1).pick(workItemTitle);
+    await expect(this.lineRow(lineIndex)).toContainText(workItemTitle);
+    await this.lineCategory(lineIndex).selectOption({ index: 1 });
     if (options.budgetSourceId) {
-      const sourceSelect = this.getInlineDraftSourceSelect(lineIndex);
-      await expect(sourceSelect).toBeVisible();
+      const sourceSelect = this.lineSourceSelect(lineIndex);
       await sourceSelect.selectOption(options.budgetSourceId);
       await expect(sourceSelect).toHaveValue(options.budgetSourceId);
     }
   }
 
-  // ─── Story #1797: Merge multiple extracted line items ────────────────────────
-  //
-  // Identical DOM/behavior to AutoItemizePage — both pages render extraction lines
-  // via the shared AutoItemizeLineList/AutoItemizeLineCard/useAutoItemizeLines. See
-  // AutoItemizePage.ts for the full DOM notes (selection checkbox, SelectionActionBar,
-  // merging/merge-error rows) and the known-bug references (GitHub issue #1798).
+  // ─── Merge multiple extracted line items ────────────────────────────────────
 
-  /**
-   * "Merge" button inside the SelectionActionBar. Only present when ≥1 line is
-   * selected. Matched by its full aria-label — the visible text "Merge" alone is
-   * NOT the accessible name, since aria-label overrides it.
-   */
-  readonly mergeButton: Locator;
-
-  /**
-   * "Clear selection" button(s). NOTE: there are currently TWO matching buttons on
-   * the page due to a known duplication bug (issue #1798) — use .first() when
-   * clicking (see clickClearSelection()).
-   */
-  readonly clearSelectionButton: Locator;
-
-  /** The merging (loading) row: <li class*="lineCardMerging" aria-busy="true">. */
-  readonly mergingRow: Locator;
-
-  /** The merge-error row: <li class*="lineCardMergeError" role="alert">. */
-  readonly mergeErrorRow: Locator;
-
-  /** "Retry" button inside the merge-error row. */
-  readonly mergeRetryButton: Locator;
-
-  /** "Restore original lines" (Undo) button inside the merge-error row. */
-  readonly mergeUndoButton: Locator;
-
-  /**
-   * Returns the selection checkbox for the line card at the given 0-based index.
-   * Always the first (and only) <input type="checkbox"> in cardTopRow, whether
-   * selectable (enabled) or ineligible (disabled — already assigned).
-   */
-  lineSelectCheckbox(index: number): Locator {
-    return this.lineRow(index).locator('[class*="cardTopRow"] input[type="checkbox"]');
-  }
-
-  /**
-   * Returns the sticky SelectionActionBar container, derived from the Merge button's
-   * ancestor. Only present when ≥1 line is selected.
-   */
+  /** The sticky SelectionActionBar (present while at least one row is selected). */
   selectionActionBar(): Locator {
     return this.mergeButton.locator('xpath=ancestor::div[contains(@class,"bar")][1]');
   }
 
-  /**
-   * Checks the selection checkbox for the line card at the given 0-based index,
-   * adding it to the merge selection.
-   */
   async selectLineForMerge(index: number): Promise<void> {
     await this.lineSelectCheckbox(index).check();
   }
 
-  /** Clicks the Merge button in the SelectionActionBar. */
   async clickMergeButton(): Promise<void> {
     await this.mergeButton.click();
   }
 
-  /**
-   * Clicks "Clear selection". Uses .first() because AutoItemizeLineList currently
-   * renders two matching buttons (known duplication bug, issue #1798) that both
-   * invoke the same handler.
-   */
   async clickClearSelection(): Promise<void> {
     await this.clearSelectionButton.first().click();
   }
 
-  /**
-   * Returns the current state of the Merge button:
-   *   'hidden'   — 0 lines selected (SelectionActionBar is not rendered at all)
-   *   'disabled' — exactly 1 line selected (merge requires ≥2)
-   *   'enabled'  — 2+ lines selected
-   */
+  /** 'hidden' (no selection), 'disabled' (one row, `aria-disabled`) or 'enabled' (two or more). */
   async getMergeButtonState(): Promise<'hidden' | 'disabled' | 'enabled'> {
     if ((await this.mergeButton.count()) === 0) return 'hidden';
     if (!(await this.mergeButton.isVisible())) return 'hidden';
-    return (await this.mergeButton.isDisabled()) ? 'disabled' : 'enabled';
+    return (await this.mergeButton.getAttribute('aria-disabled')) === 'true'
+      ? 'disabled'
+      : 'enabled';
   }
 
-  /**
-   * Waits for the merging (loading) row to resolve — i.e., for mergeStatus to leave
-   * 'pending'. Call after clickMergeButton() (or clickRetryMerge()) once the mocked
-   * merge-lines response is set up to resolve.
-   */
+  /** Waits until no row is merging any more. */
   async waitForMergedRow(): Promise<void> {
     await this.mergingRow.waitFor({ state: 'hidden' });
   }
 
-  /** Clicks "Retry" on the merge-error row. */
   async clickRetryMerge(): Promise<void> {
     await this.mergeRetryButton.click();
   }
 
-  /** Clicks "Restore original lines" (Undo) on the merge-error row. */
   async clickUndoMerge(): Promise<void> {
     await this.mergeUndoButton.click();
   }
