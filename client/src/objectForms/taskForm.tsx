@@ -2,11 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type { DependencyType, UserResponse, WorkItemStatus } from '@cornerstone/shared';
-import {
-  AssignmentPicker,
-  decodeAssignment,
-  encodeAssignment,
-} from '../components/AssignmentPicker/AssignmentPicker.js';
+import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
+import { decodeWho, encodeWho } from '../components/EntityPicker/entityPickerKinds.js';
 import {
   DependencySentenceBuilder,
   THIS_ITEM_ID,
@@ -112,7 +109,6 @@ function DependenciesField({ ctx }: DependenciesFieldProps) {
 export function useTaskFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('workItems');
   const { t: tc } = useTranslation('common');
-  const { t: tb } = useTranslation('budget');
   const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
@@ -186,29 +182,26 @@ export function useTaskFormSchema(): ObjectFormSchema {
         optionsLoading: dataLoading,
         render: (ctx) => (
           <>
-            <AssignmentPicker
+            <EntityPicker
+              kind="who"
               id={ctx.id}
               users={users}
-              knownVendor={createdCompany}
+              knownCompany={createdCompany}
               value={typeof ctx.value === 'string' ? ctx.value : ''}
               onChange={ctx.setValue}
               disabled={ctx.busy}
-              createAction={{
-                getLabel: (query) => tb('companies.picker.newNamed', { name: query }),
-                show: 'noExactMatch',
-                // The form continues in a child step (dialogs never stack); the new company
-                // is set on this field when it is saved.
-                onCreate: async (query) => {
-                  ctx.createChild({
-                    schema: companySchema,
-                    prefill: { name: query },
-                    onCreated: (result) => {
-                      setCreatedCompany({ id: result.id, name: result.label });
-                      ctx.setValue(encodeAssignment(undefined, result.id));
-                    },
-                  });
-                  return null;
-                },
+              // The form continues in a child step (dialogs never stack); the new company
+              // is set on this field when it is saved.
+              create={(query) => {
+                ctx.createChild({
+                  schema: companySchema,
+                  prefill: { name: query },
+                  onCreated: (result) => {
+                    setCreatedCompany({ id: result.id, name: result.label });
+                    ctx.setValue(encodeWho({ vendorId: result.id }));
+                  },
+                });
+                return Promise.resolve(null);
               }}
             />
             <FormError
@@ -279,7 +272,7 @@ export function useTaskFormSchema(): ObjectFormSchema {
     },
     submit: async (values) => {
       const title = String(values.title).trim();
-      const { userId, vendorId } = decodeAssignment(String(values.assignment ?? ''));
+      const { userId, vendorId } = decodeWho(String(values.assignment ?? ''));
       const duration = String(values.durationDays ?? '');
       const workItem = await createWorkItem({
         title,

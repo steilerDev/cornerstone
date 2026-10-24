@@ -572,6 +572,14 @@ export class DiaryCapturePage {
    */
   async chooseSignatureCompany(name: string): Promise<void> {
     await this.signatureCompanyInput.fill('');
+    if (name === 'Other...') {
+      // The special row is always listed; typing its label would only add a "New company Other..."
+      // create row (#2236), so open the list empty and take the special row
+      await this.signatureCompanyInput.click();
+      await this.page.locator('[data-search-picker-dropdown]').waitFor({ state: 'visible' });
+      await pickByKeyboard(this.page, this.signatureCompanyInput, /^Other\.\.\.$/, /./);
+      return;
+    }
     await this.signatureCompanyInput.fill(name);
     await this.page.locator('[data-search-picker-dropdown]').waitFor({ state: 'visible' });
     // "Other..." is always listed first, so it is not an extra row to wait out

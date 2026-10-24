@@ -36,6 +36,7 @@ describe('useTagCreate', () => {
 
     expect(provided.mock.calls[0]![0]).toBe('area');
     expect(provided.mock.calls[0]![1]).toBe(opener);
+    expect(provided.mock.calls[0]![2]).toBeUndefined();
     expect(resolved).toBe(tag);
   });
 
@@ -48,8 +49,37 @@ describe('useTagCreate', () => {
       resolved = await result.current.request!('orientation');
     });
 
-    expect(provided).toHaveBeenCalledWith('orientation', undefined);
+    expect(provided).toHaveBeenCalledWith('orientation', undefined, undefined);
     expect(resolved).toBeNull();
+  });
+
+  it.each(['area', 'orientation', 'trade', 'category'] as const)(
+    'passes the %s kind, the opener and the typed name through to the provider',
+    async (kind) => {
+      const tag: CreatedTag = { id: 'x-1', name: 'Typed' };
+      const provided = jest.fn<RequestTagCreate>().mockResolvedValue(tag);
+      const { result } = renderHook(() => useTagCreate(), { wrapper: withRequest(provided) });
+      const opener = document.createElement('input');
+
+      let resolved: CreatedTag | null = null;
+      await act(async () => {
+        resolved = await result.current.request!(kind, opener, 'Typed');
+      });
+
+      expect(provided.mock.calls[0]).toEqual([kind, opener, 'Typed']);
+      expect(resolved).toBe(tag);
+    },
+  );
+
+  it('passes no name when none was typed', async () => {
+    const provided = jest.fn<RequestTagCreate>().mockResolvedValue(null);
+    const { result } = renderHook(() => useTagCreate(), { wrapper: withRequest(provided) });
+
+    await act(async () => {
+      await result.current.request!('trade', null);
+    });
+
+    expect(provided).toHaveBeenCalledWith('trade', null, undefined);
   });
 
   it('isCreating is true while the dialog is open and false once it closes', async () => {

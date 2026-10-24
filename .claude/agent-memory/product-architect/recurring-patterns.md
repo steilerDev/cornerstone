@@ -2136,6 +2136,12 @@ the rise. Escalate the rename to the dev-team-lead instead of re-recording it si
 - The baseline analyzer counts search inputs by `type="search"`/role/`t('…search…')` and skips pickers
   and CommandSearch; it does not read `data-page-search`. The #2234 0 → 1 searchFields exemption
   therefore cannot be narrowed to page-search fields (the motivating ReferenceList field is unmarked).
+- A capmap `from` is the historical (pre-restructure) location: never rewrite it to the new
+  component name (e.g. WRK-030 "searchable AreaPicker" stays after #2236 retired AreaPicker); record
+  the as-built state in a `#NNNN:` note instead. Edit capmap with a JSON load/dump (`indent=2`,
+  `ensure_ascii=False`) — it round-trips byte-identically apart from the edited strings.
+- Retiring shared components drops `sharedComponents.names`; `plan:build` re-baselines them and
+  removes consumed names from `allowedAdditions` (#2236: 105 → 102, EntityPicker/RelatedList consumed).
 
 ## Union request bodies vs AJV `removeAdditional` (#2235, 2026-10-24)
 

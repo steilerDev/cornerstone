@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoiceDeposits, invoices, users } from '../db/schema.js';
+import { budgetSources, invoiceDeposits, invoices, users } from '../db/schema.js';
 import type {
   InvoiceDeposit,
   InvoiceDepositStatus,
@@ -17,7 +17,9 @@ import {
   RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
+  ConflictError,
 } from '../errors/AppError.js';
+import type { UndoTransaction } from './undoService.js';
 import { PROGRESS_PAYMENT_TRANSITIONS, allowedTargets } from '@cornerstone/shared';
 import {
   onDepositStatusChanged,
@@ -68,6 +70,28 @@ export function getDepositEntryTotals(
   return { depositTotal, refundTotal };
 }
 
+/** Refund-cap figures for an invoice (#2188). */
+function checkRefundCap(
+  db: Pick<DbType, 'select'>,
+  invoiceId: string,
+  invoiceAmount: number,
+  requestedAmount: number,
+  excludeEntryId?: string,
+): { exceeds: boolean; refundCap: number; depositTotal: number; currentRefundSum: number } {
+  const { depositTotal, refundTotal: currentRefundSum } = getDepositEntryTotals(
+    db,
+    invoiceId,
+    excludeEntryId,
+  );
+  const refundCap = Math.max(invoiceAmount, depositTotal);
+  return {
+    exceeds: exceedsAmount(currentRefundSum + requestedAmount, refundCap),
+    refundCap,
+    depositTotal,
+    currentRefundSum,
+  };
+}
+
 /**
  * Throw RefundExceedsInvoiceError if gross refunds (others + requested) would exceed
  * max(invoice amount, gross deposit-type sum), all statuses (#2188).
@@ -79,13 +103,14 @@ function assertRefundsWithinCap(
   requestedAmount: number,
   excludeEntryId?: string,
 ): void {
-  const { depositTotal, refundTotal: currentRefundSum } = getDepositEntryTotals(
+  const { exceeds, refundCap, depositTotal, currentRefundSum } = checkRefundCap(
     db,
     invoiceId,
+    invoiceAmount,
+    requestedAmount,
     excludeEntryId,
   );
-  const refundCap = Math.max(invoiceAmount, depositTotal);
-  if (exceedsAmount(currentRefundSum + requestedAmount, refundCap)) {
+  if (exceeds) {
     throw new RefundExceedsInvoiceError(
       'Sum of refund amounts would exceed the larger of the invoice total and the deposits recorded',
       {
@@ -170,7 +195,7 @@ function assertInvoiceExists(db: DbType, invoiceId: string): typeof invoices.$in
  * Returns the deposit row.
  */
 function assertDepositBelongsToInvoice(
-  db: DbType,
+  db: Pick<DbType, 'select'>,
   invoiceId: string,
   depositId: string,
 ): typeof invoiceDeposits.$inferSelect {
@@ -433,8 +458,9 @@ export function updateDeposit(
         // paid → pending: clear both dates
         effectiveNewPaidDate = null;
         effectiveNewClaimedDate = null;
-      } else if (oldStatus === 'claimed' && newStatus === 'paid') {
-        // claimed → paid: clear claimed_date, preserve paid_date
+      } else {
+        // claimed → paid (the only remaining permitted transition): clear claimed_date,
+        // preserve paid_date
         effectiveNewClaimedDate = null;
       }
 
@@ -516,15 +542,76 @@ export function updateDeposit(
   return toInvoiceDeposit(db, row);
 }
 
+/** A deleted deposit or refund row, as needed to restore it. */
+export interface DeletedDepositSnapshot {
+  row: typeof invoiceDeposits.$inferSelect;
+}
+
 /**
- * Delete an invoice deposit. Never checked against the invoice amount (#2188).
+ * Delete an invoice deposit and return the deleted row for an Undo snapshot. Never checked
+ * against the invoice amount (#2188).
  * @throws NotFoundError if invoice or deposit not found
  */
-export function deleteDeposit(db: DbType, invoiceId: string, depositId: string): void {
-  // Verify ownership
-  assertDepositBelongsToInvoice(db, invoiceId, depositId);
-
-  db.transaction((tx) => {
+export function deleteDepositWithSnapshot(
+  db: DbType,
+  invoiceId: string,
+  depositId: string,
+): DeletedDepositSnapshot {
+  return db.transaction((tx) => {
+    const row = assertDepositBelongsToInvoice(tx, invoiceId, depositId);
     tx.delete(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).run();
+    return { row };
   });
+}
+
+/**
+ * Re-insert a deleted deposit or refund with its original id and timestamps. The budget source
+ * and creator come back only while they still exist, otherwise NULL (mirrors ON DELETE SET NULL).
+ * @throws ConflictError (details.changed) when the invoice is gone, the id is taken, or a
+ *   restored refund would exceed the refund cap (#2188)
+ */
+export function restoreDeletedDeposit(tx: UndoTransaction, snapshot: DeletedDepositSnapshot): void {
+  const { row } = snapshot;
+  const refuse = (): never => {
+    throw new ConflictError('The record changed after this action', {
+      changed: [{ type: 'invoice_deposit', id: row.id }],
+    });
+  };
+
+  const invoice = tx
+    .select({ amount: invoices.amount })
+    .from(invoices)
+    .where(eq(invoices.id, row.invoiceId))
+    .get();
+  if (!invoice) return refuse();
+
+  const idTaken = tx
+    .select({ id: invoiceDeposits.id })
+    .from(invoiceDeposits)
+    .where(eq(invoiceDeposits.id, row.id))
+    .get();
+  if (idTaken) refuse();
+
+  if ((row.entryType as InvoiceDepositEntryType) === 'refund') {
+    if (checkRefundCap(tx, row.invoiceId, invoice.amount, row.amount).exceeds) refuse();
+  }
+
+  const source = row.budgetSourceId
+    ? tx
+        .select({ id: budgetSources.id })
+        .from(budgetSources)
+        .where(eq(budgetSources.id, row.budgetSourceId))
+        .get()
+    : undefined;
+  const creator = row.createdBy
+    ? tx.select({ id: users.id }).from(users).where(eq(users.id, row.createdBy)).get()
+    : undefined;
+
+  tx.insert(invoiceDeposits)
+    .values({
+      ...row,
+      budgetSourceId: source ? row.budgetSourceId : null,
+      createdBy: creator ? row.createdBy : null,
+    })
+    .run();
 }

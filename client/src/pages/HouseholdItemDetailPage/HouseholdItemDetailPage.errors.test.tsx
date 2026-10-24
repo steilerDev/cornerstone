@@ -405,7 +405,9 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
       predecessorId: 'wi-1',
       predecessor: { id: 'wi-1', title: 'Work Item', status: 'not_started', endDate: null },
     } as HouseholdItemDepDetail);
-    mockDeleteHouseholdItemDep.mockResolvedValue(undefined);
+    mockDeleteHouseholdItemDep.mockResolvedValue({
+      undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
+    });
     mockListMilestones.mockResolvedValue([]);
     mockFetchInvoices.mockResolvedValue([]);
     // Use id 'furniture' to match the category value on the test item (category: 'furniture')
@@ -586,7 +588,9 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
 
     it('a successful unlink reloads the payback', async () => {
       await load();
-      mockUnlinkHouseholdItemSubsidy.mockResolvedValue(undefined);
+      mockUnlinkHouseholdItemSubsidy.mockResolvedValue({
+        undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
+      });
       const paybackBefore = mockFetchHouseholdItemSubsidyPayback.mock.calls.length;
       await act(async () => {
         await capturedSubsidyProps.onUnlinkSubsidy('sub-1');

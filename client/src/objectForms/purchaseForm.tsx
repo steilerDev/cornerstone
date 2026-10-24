@@ -16,21 +16,20 @@ import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
 import { ApiClientError } from '../lib/apiClient.js';
 import { fetchHouseholdItemCategories } from '../lib/householdItemCategoriesApi.js';
 import { createHouseholdItem } from '../lib/householdItemsApi.js';
-import { fetchVendor, fetchVendors, searchCompanies } from '../lib/vendorsApi.js';
+import { getCategoryDisplayName } from '../lib/categoryUtils.js';
+import { fetchVendor, fetchVendors } from '../lib/vendorsApi.js';
 import { prefillFromSearch } from '../navigation/createQuery.js';
 import { useRealLocation } from '../navigation/realLocation.js';
-import { SearchPicker } from '../components/SearchPicker/SearchPicker.js';
+import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
 import { AreaField } from './AreaField.js';
 import { useCompanyFormSchema } from './companyForm.js';
 import type { CompanyOption } from './companyForm.js';
-
-const NO_EXCLUDED: string[] = [];
 
 /** The New purchase form: a 1:1 port of the former create page. */
 export function usePurchaseFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('householdItems');
   const { t: tc } = useTranslation('common');
-  const { t: tb } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
@@ -115,18 +114,37 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
       {
         name: 'category',
         label: t('create.form.category.label'),
-        kind: 'select',
+        kind: 'custom',
         essential: true,
         required: true,
         optionsLoading: loading,
         defaultFromOptions: 'first',
         notice: loadFailed ? t('create.errors.loadFailed') : undefined,
-        options: loading
-          ? []
-          : [
-              { value: '', label: t('create.form.category.placeholder') },
-              ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
-            ],
+        options: loading ? [] : categories.map((cat) => ({ value: cat.id, label: cat.name })),
+        render: (ctx) => {
+          const categoryId = typeof ctx.value === 'string' ? ctx.value : '';
+          const category = categories.find((cat) => cat.id === categoryId);
+          return (
+            <EntityPicker
+              kind="category"
+              id={ctx.id}
+              value={categoryId}
+              selectedLabel={
+                category
+                  ? getCategoryDisplayName(tSettings, category.name, category.translationKey)
+                  : undefined
+              }
+              onChange={ctx.setValue}
+              disabled={ctx.busy}
+              placeholder={t('create.form.category.placeholder')}
+              inputAriaProps={{
+                'aria-required': true,
+                'aria-invalid': ctx.invalid || undefined,
+                'aria-describedby': ctx.describedBy,
+              }}
+            />
+          );
+        },
       },
       {
         name: 'status',
@@ -167,41 +185,31 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
         render: (ctx) => {
           const value = typeof ctx.value === 'string' ? ctx.value : '';
           return (
-            <SearchPicker<CompanyOption>
+            <EntityPicker
+              kind="company"
               id={ctx.id}
               value={value}
               onChange={ctx.setValue}
-              excludeIds={NO_EXCLUDED}
               disabled={ctx.busy}
               placeholder={t('create.form.vendor.placeholder')}
-              searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
-              renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
-              showItemsOnFocus
-              initialTitle={
-                createdCompany?.id === value
-                  ? createdCompany.name
-                  : vendors.find((v) => v.id === value)?.name
-              }
+              selectedLabel={vendors.find((v) => v.id === value)?.name}
+              knownCompany={createdCompany}
               inputAriaProps={{
                 'aria-invalid': ctx.invalid || undefined,
                 'aria-describedby': ctx.describedBy,
               }}
-              createAction={{
-                getLabel: (query) => tb('companies.picker.newNamed', { name: query }),
-                show: 'noExactMatch',
-                // The form continues in a child step (dialogs never stack); the new company
-                // is set on this field when it is saved.
-                onCreate: async (query) => {
-                  ctx.createChild({
-                    schema: companySchema,
-                    prefill: { name: query },
-                    onCreated: (result) => {
-                      setCreatedCompany({ id: result.id, name: result.label });
-                      ctx.setValue(result.id);
-                    },
-                  });
-                  return null;
-                },
+              // The form continues in a child step (dialogs never stack); the new company
+              // is set on this field when it is saved.
+              create={(query) => {
+                ctx.createChild({
+                  schema: companySchema,
+                  prefill: { name: query },
+                  onCreated: (result) => {
+                    setCreatedCompany({ id: result.id, name: result.label });
+                    ctx.setValue(result.id);
+                  },
+                });
+                return Promise.resolve(null);
               }}
             />
           );

@@ -5,24 +5,6 @@
   min-width: 0;
 }
 
-.heading {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-}
-
-.heading:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-}
-
 .secondary {
   composes: btnSecondary from '../../styles/shared.module.css';
   min-height: var(--touch-target-min);

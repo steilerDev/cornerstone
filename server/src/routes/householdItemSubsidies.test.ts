@@ -386,7 +386,7 @@ describe('Household Item Subsidy Routes', () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it('unlinks a subsidy program from a household item and returns 204', async () => {
+    it('unlinks a subsidy program from a household item and returns 200 with an undo token', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -410,7 +410,7 @@ describe('Household Item Subsidy Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
 
       // Verify it's unlinked
       const listResp = await app.inject({

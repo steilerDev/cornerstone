@@ -8,7 +8,8 @@ import type {
   CreateVendorContactRequest,
   UpdateVendorContactRequest,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import type { UndoTransaction } from './undoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -164,8 +165,7 @@ export function createContact(
     })
     .run();
 
-  const row = db.select().from(vendorContacts).where(eq(vendorContacts.id, id)).get();
-  if (!row) throw new Error('Failed to create contact');
+  const row = db.select().from(vendorContacts).where(eq(vendorContacts.id, id)).get()!;
 
   return toVendorContact(row);
 }
@@ -291,28 +291,66 @@ export function updateContact(
 
   db.update(vendorContacts).set(updates).where(eq(vendorContacts.id, contactId)).run();
 
-  const updated = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
-  if (!updated) throw new Error('Failed to update contact');
+  const updated = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get()!;
 
   return toVendorContact(updated);
 }
 
+/** A deleted vendor contact row, as needed to restore it. */
+export interface DeletedVendorContactSnapshot {
+  row: typeof vendorContacts.$inferSelect;
+}
+
 /**
- * Delete a vendor contact.
+ * Delete a vendor contact and return the deleted row for an Undo snapshot.
  * Throws NotFoundError if vendor or contact does not exist.
  */
-export function deleteContact(db: DbType, vendorId: string, contactId: string): void {
+export function deleteContactWithSnapshot(
+  db: DbType,
+  vendorId: string,
+  contactId: string,
+): DeletedVendorContactSnapshot {
   // Validate vendor exists
   const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   if (!vendor) {
     throw new NotFoundError(`Vendor with ID ${vendorId} not found`);
   }
 
-  // Validate contact exists and belongs to vendor
-  const contact = db.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
-  if (!contact || contact.vendorId !== vendorId) {
-    throw new NotFoundError(`Contact with ID ${contactId} not found`);
+  return db.transaction((tx) => {
+    // Validate contact exists and belongs to vendor
+    const row = tx.select().from(vendorContacts).where(eq(vendorContacts.id, contactId)).get();
+    if (!row || row.vendorId !== vendorId) {
+      throw new NotFoundError(`Contact with ID ${contactId} not found`);
+    }
+    tx.delete(vendorContacts).where(eq(vendorContacts.id, contactId)).run();
+    return { row };
+  });
+}
+
+/**
+ * Re-insert a deleted vendor contact with its original id and timestamps.
+ * @throws ConflictError (details.changed) when the vendor is gone or the id is taken
+ */
+export function restoreDeletedContact(
+  tx: UndoTransaction,
+  snapshot: DeletedVendorContactSnapshot,
+): void {
+  const { row } = snapshot;
+  const vendor = tx
+    .select({ id: vendors.id })
+    .from(vendors)
+    .where(eq(vendors.id, row.vendorId))
+    .get();
+  const idTaken = tx
+    .select({ id: vendorContacts.id })
+    .from(vendorContacts)
+    .where(eq(vendorContacts.id, row.id))
+    .get();
+  if (!vendor || idTaken) {
+    throw new ConflictError('The record changed after this action', {
+      changed: [{ type: 'vendor_contact', id: row.id }],
+    });
   }
 
-  db.delete(vendorContacts).where(eq(vendorContacts.id, contactId)).run();
+  tx.insert(vendorContacts).values(row).run();
 }

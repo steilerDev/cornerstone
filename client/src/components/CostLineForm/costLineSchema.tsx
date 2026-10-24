@@ -24,10 +24,10 @@ import type {
   ObjectFormValues,
 } from '../ObjectForm/types.js';
 import { CostLineAmountField, CostLineBasisField } from './CostLineFields.js';
-import { CostLineCompanyPicker } from './CostLineCompanyPicker.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
+import { itemValue } from '../EntityPicker/entityPickerKinds.js';
 import { CostLineEnteredAs } from './CostLineEnteredAs.js';
 import { CostLineExistingField } from './CostLineExistingField.js';
-import { CostLineTargetPicker } from './CostLineTargetPicker.js';
 import {
   DESCRIPTION_MAX_LENGTH,
   UNIT_MAX_LENGTH,
@@ -35,6 +35,7 @@ import {
   isEmptyPayload,
   readValues,
   toBatchCreate,
+  toCostLineTarget,
   toCreatePayload,
   toEditPayload,
   validateValues,
@@ -101,19 +102,26 @@ export function useCostLineSchema(
       essential: targetEssential,
       required: targetEssential,
       keep: true,
-      render: (ctx) => (
-        <CostLineTargetPicker
-          id={ctx.id}
-          value={(ctx.value as CostLineValues['target']) ?? null}
-          onChange={ctx.setValue}
-          disabled={ctx.busy}
-          inputAriaProps={{
-            'aria-invalid': ctx.invalid || undefined,
-            'aria-describedby': ctx.describedBy,
-          }}
-          testId="cost-line-target"
-        />
-      ),
+      render: (ctx) => {
+        const target = (ctx.value as CostLineValues['target']) ?? null;
+        return (
+          <div data-testid="cost-line-target">
+            <EntityPicker
+              kind="taskOrPurchase"
+              id={ctx.id}
+              value={target ? itemValue(target) : ''}
+              selectedLabel={target?.label}
+              onChange={(_value, option) => ctx.setValue(option ? toCostLineTarget(option) : null)}
+              disabled={ctx.busy}
+              placeholder={t('form.belongsToPlaceholder')}
+              inputAriaProps={{
+                'aria-invalid': ctx.invalid || undefined,
+                'aria-describedby': ctx.describedBy,
+              }}
+            />
+          </div>
+        );
+      },
     });
   }
 
@@ -252,17 +260,37 @@ export function useCostLineSchema(
       kind: 'custom',
       keep: true,
       render: (ctx) => (
-        <CostLineCompanyPicker
-          ctx={ctx}
-          companySchema={companySchema}
-          known={
+        <EntityPicker
+          kind="company"
+          id={ctx.id}
+          value={typeof ctx.value === 'string' ? ctx.value : ''}
+          onChange={ctx.setValue}
+          disabled={ctx.busy}
+          placeholder={t('form.companyNone')}
+          knownCompany={
             createdCompany ??
             (row !== null && row.vendorId !== null && row.vendorName !== null
               ? { id: row.vendorId, name: row.vendorName }
               : null)
           }
-          onCreatedCompany={setCreatedCompany}
-          placeholder={t('form.companyNone')}
+          onUnknownCompany={() => ctx.setValue('')}
+          inputAriaProps={{
+            'aria-invalid': ctx.invalid || undefined,
+            'aria-describedby': ctx.describedBy,
+          }}
+          // The form continues in a child step (dialogs never stack); the new company is set on
+          // this field when it is saved.
+          create={(query) => {
+            ctx.createChild({
+              schema: companySchema,
+              prefill: { name: query },
+              onCreated: (result) => {
+                setCreatedCompany({ id: result.id, name: result.label });
+                ctx.setValue(result.id);
+              },
+            });
+            return Promise.resolve(null);
+          }}
         />
       ),
     },

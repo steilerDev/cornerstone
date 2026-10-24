@@ -145,7 +145,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Area picker (area path shown; inline 'New area')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New task dialog's Area field is EntityPicker kind 'area' (area path rows, inline 'New area' through TagCreateProvider); AreaPicker retired."
   },
   "WRK-020": {
     "name": "Assign the new work item to a household member or a vendor",
@@ -153,7 +153,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Who (one picker: companies first, then household members; inline 'New company')",
     "change": "same",
     "gate": "none",
-    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New task dialog's Who field is EntityPicker kind 'who' (companies first, then household members; value company:<id> / member:<id>, the kind as muted text after the selection; 'New company' opens the ObjectForm child step); AssignmentPicker retired."
   },
   "WRK-021": {
     "name": "Set duration and start-after / start-before constraints at creation",
@@ -236,7 +236,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Area picker; Save.",
-    "note": "180 px single-field card retired."
+    "note": "180 px single-field card retired. #2236: the interim Area card on the Task page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.2."
   },
   "WRK-031": {
     "name": "Assign or reassign a work item to a household member or a vendor",
@@ -245,7 +245,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Who picker (company or household member; clearing allowed); Save.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2196: assigning both a user and a vendor answers 400 instead of 500."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2196: assigning both a user and a vendor answers 400 instead of 500. #2236: the interim Assignment card on the Task page uses EntityPicker kind 'who' (one picker, companies then household members); AssignmentPicker retired. The section Edit placement arrives with 5.2."
   },
   "WRK-032": {
     "name": "Set or clear a work item's duration (days)",
@@ -371,7 +371,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page > Timing tab (1) > Waits for > Add (2) — type is a field of the dialog",
-    "note": "The type is a field of the add dialog instead of an 'Advanced' step (C-04): 2 clicks from the task page."
+    "note": "The type is a field of the add dialog instead of an 'Advanced' step (C-04): 2 clicks from the task page. #2236: the sentence builder's task picker is EntityPicker kind 'task' (status as a word, no colour border; WorkItemPicker retired). Removing a dependency now returns an Undo token; the Waits for RelatedList and the add dialog arrive with 5.4."
   },
   "WRK-045": {
     "name": "Remove a dependency with confirmation",
@@ -1300,7 +1300,7 @@
     "to": "Global > New menu > Invoice / Offer (company pre-filled on a company page); Money > Invoices > primary 'New invoice' ('New offer' on the Offers chip); Companies > Company page > Payments tab > 'New invoice'; Task / Purchase page > Cost tab > 'New invoice' -> one New invoice / New offer dialog (ObjectForm) with 'For task / purchase' (allocates the full amount at create) and the 'Add another after saving' checkbox",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer (quotation); company pre-filled on a company page). The ObjectForm schema arrives with 4.9."
+    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer (quotation); company pre-filled on a company page). The ObjectForm schema arrives with 4.9. #2236: the create modal's company field is EntityPicker kind 'company' (inline 'New company')."
   },
   "MNY-061": {
     "name": "Choose a Paperless document as the starting point for a new invoice",
@@ -1324,7 +1324,7 @@
     "to": "Money > New from document page (Paperless + AI only) > Company picker with AI suggestion",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2236: the Company picker is EntityPicker kind 'company'; when the AI-extracted company matches none, a host-defined 'New company ‹extracted name›' row shows even while the field is empty."
   },
   "MNY-064": {
     "name": "Create a missing vendor without leaving the invoice review",
@@ -1332,7 +1332,7 @@
     "to": "Money > New from document page (Paperless + AI only) > Company picker > inline 'New company'",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Inline create becomes the standard EntityPicker pattern everywhere."
+    "note": "Inline create becomes the standard EntityPicker pattern everywhere. #2236: delivered as EntityPicker's host-defined create row (pre-filled with the extracted name), opening the company ObjectForm in place."
   },
   "MNY-065": {
     "name": "Review and edit extracted invoice metadata (number, amount, dates, status, notes)",
@@ -1478,7 +1478,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Edit details (section form; same field sections as create)",
     "change": "same",
     "gate": "none",
-    "note": "Vendor picker identical to create (PAT-05)."
+    "note": "Vendor picker identical to create (PAT-05). #2236: the Edit invoice modal's company field is EntityPicker kind 'company', identical to create (PAT-05)."
   },
   "MNY-083": {
     "name": "Change an invoice's payment status (Quotation / Pending / Paid / Claimed)",
@@ -1627,7 +1627,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Belongs to' (task/purchase picker)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to (task or purchase search picker) moves a linked line to another task or purchase. Interim placement as MNY-096 / MNY-105."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to (task or purchase search picker) moves a linked line to another task or purchase. Interim placement as MNY-096 / MNY-105. #2236: Belongs to is EntityPicker kind 'taskOrPurchase' (CostLineTargetPicker retired)."
   },
   "MNY-101": {
     "name": "Remove a budget line from an invoice",
@@ -1635,7 +1635,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > row ⋯ > Remove from invoice (Undo); Task / Purchase page > Cost tab > row ⋯ > Unlink",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm). #2236: Undo delivered. Remove from invoice / Remove from offer (document host) and Unlink (task and purchase pages) apply at once with an Undo toast (DELETE /api/invoices/:invoiceId/budget-lines/:id returns { undo }); no ConfirmDialog. Deleting a cost line keeps its ConfirmDialog."
   },
   "MNY-102": {
     "name": "Assign an unassigned (orphan) invoice line to a work item or household item",
@@ -1707,7 +1707,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Belongs to' > other task/purchase",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to moves an unlinked line to another task (task lines) or purchase (purchase lines); the other type is refused in the form. Interim placement as MNY-105."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to moves an unlinked line to another task (task lines) or purchase (purchase lines); the other type is refused in the form. Interim placement as MNY-105. #2236: Belongs to is EntityPicker kind 'taskOrPurchase' (CostLineTargetPicker retired); the other-type refusal is unchanged."
   },
   "MNY-113": {
     "name": "Link a budget line to an existing invoice from the item page",
@@ -1902,7 +1902,7 @@
     "to": "Global > New menu > Company (/companies/new); Companies > Companies list > primary 'New company'; inline 'New company ‹text›' in company search pickers",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2213: one ObjectForm create dialog (route /companies/new); pickers open the same form in place."
+    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2213: one ObjectForm create dialog (route /companies/new); pickers open the same form in place. #2236: every company picker is EntityPicker kind 'company' or 'who', so 'New company ‹text›' is offered wherever a company is picked (CostLineCompanyPicker, CompanyPickerDialog and the hand-built company SearchPickers retired)."
   },
   "MNY-138": {
     "name": "Delete a vendor",
@@ -2141,7 +2141,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Category* with inline 'New category'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: Category is EntityPicker kind 'category' (translated names matched on the client; inline 'New purchase category' through TagCreateProvider)."
   },
   "HHI-034": {
     "name": "Set the initial purchase status when creating",
@@ -2168,7 +2168,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Area picker.",
-    "note": "Area editable in one place only (P44). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Area editable in one place only (P44). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: Area is EntityPicker kind 'area' in the New purchase dialog and on the purchase edit page (AreaPicker retired)."
   },
   "HHI-037": {
     "name": "Assign a vendor (retailer/supplier) to a household item",
@@ -2177,7 +2177,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Company picker with inline 'New company'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema. #2236: the New purchase dialog's Company field is EntityPicker kind 'company' (inline 'New company' through the ObjectForm child step), as on the purchase edit page; the hand-built company SearchPicker is retired."
   },
   "HHI-038": {
     "name": "Store a product URL for a household item",
@@ -2356,7 +2356,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Area picker; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the interim Area card on the Purchase page uses EntityPicker kind 'area' (AreaPicker retired); the section Edit placement arrives with 5.5."
   },
   "HHI-059": {
     "name": "View the work items and milestones a delivery depends on",
@@ -2432,7 +2432,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Purchase page > Overview section Edit > Company, Product link, Quantity; Save.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2236: the purchase edit page's Company field is EntityPicker kind 'company' with inline 'New company'."
   },
   "HHI-093": {
     "name": "Delete a household item from its detail page",
@@ -2613,7 +2613,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > Site details > Company: suggestion chips ranked by the companies used with the chosen title, then companies with tasks in that area's floor; nothing pre-selected; 'Other company…' picker",
     "change": "same",
     "gate": "none",
-    "note": "Pre-filling the last entry's company would be wrong for 44 of 74 real entries; the title-based first suggestion is right in 24 of 30 cases (R-B1, O-M1). #2221: built. Suggestion chips (companies used with the same title, then companies with tasks on that floor), nothing pre-selected, 'Other company…' picker with New company."
+    "note": "Pre-filling the last entry's company would be wrong for 44 of 74 real entries; the title-based first suggestion is right in 24 of 30 cases (R-B1, O-M1). #2221: built. Suggestion chips (companies used with the same title, then companies with tasks on that floor), nothing pre-selected, 'Other company…' picker with New company. #2236: the 'Other company…' picker is an EntityPickerDialog (kind 'company', inline 'New company'); CompanyPickerDialog retired."
   },
   "JRN-021": {
     "name": "Record work start and end times and see the computed work duration",
@@ -2679,7 +2679,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > 'More details' (1) > 'Add signature' (2) > Signer field",
-    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable. #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2))."
+    "note": "Tucked away at most 2 clicks from its object in Site diary, because real use is zero or near zero (USE §5); still reachable. #2221: built. Built as described (clicks unchanged: More details (1), Add signature (2)). #2236: the signature's company field is EntityPicker kind 'company'."
   },
   "JRN-028": {
     "name": "Draw, clear, accept or remove a handwritten signature",
@@ -2809,7 +2809,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Capture: sticky Area and Orientation chips tag new or selected photos; tapping a thumbnail edits its tags and caption.",
-    "note": "Replaces one metadata dialog per photo (JRN-05, WALK-07). Benchmark: the real median entry, 5 photos at 4 spots (usability-judge blind spot 1). Tag chips never pre-select from a previous entry; the household's own last spot is offered first. #2221: built. Decision 13 provenance (a chip change re-tags only untagged or retro-tagged photos)."
+    "note": "Replaces one metadata dialog per photo (JRN-05, WALK-07). Benchmark: the real median entry, 5 photos at 4 spots (usability-judge blind spot 1). Tag chips never pre-select from a previous entry; the household's own last spot is offered first. #2221: built. Decision 13 provenance (a chip change re-tags only untagged or retro-tagged photos). #2236: the chips' 'Other…' opens an EntityPickerDialog (kind 'area' / 'orientation'); TagPickerDialog retired."
   },
   "JRN-044": {
     "name": "Follow uploads in a per-file queue with retry and remove",
@@ -2876,7 +2876,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q16a, Q16b (approved, PLAN §2.0 #24)",
-    "note": "Q16 approved (owner, 7 Oct): tags are edited in the viewer and in place on Spots. Photos without an area are normal and form a neutral 'No area' group, not an Unsorted mode. #2226: built; the photo metadata side panel is retired and caption editing moved into Edit tags."
+    "note": "Q16 approved (owner, 7 Oct): tags are edited in the viewer and in place on Spots. Photos without an area are normal and form a neutral 'No area' group, not an Unsorted mode. #2226: built; the photo metadata side panel is retired and caption editing moved into Edit tags. #2236: Edit tags uses EntityPicker kinds 'area' and 'orientation' (AreaPicker, OrientationPicker retired)."
   },
   "JRN-052": {
     "name": "Delete a photo from the viewer with confirmation",
@@ -3967,7 +3967,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index 'New area'; inline 'New area' in pickers; Project setup 'Areas' row.",
-    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2218: Areas index 'New area' and row ⋯ > Add sub-area."
+    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2218: Areas index 'New area' and row ⋯ > Add sub-area. #2236: 'every area picker' is EntityPicker kind 'area', whose create row opens New area through TagCreateProvider with the typed name pre-filled."
   },
   "PLT-094": {
     "name": "View the area hierarchy",
@@ -3994,7 +3994,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page section Edit > Parent area.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit > Part of."
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2218: Areas index row ⋯ > Edit > Part of. #2236: the area form's Parent area field is EntityPicker kind 'area' ('Top level' as the none option); AreaPicker retired."
   },
   "PLT-097": {
     "name": "Delete an area together with its sub-areas",
@@ -4008,10 +4008,10 @@
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
     "from": "/settings/manage?tab=trades > \"Create New Trade\": Trade Name, Color, Sort Order, Description > \"Create Trade\" | Settings > Manage > Trades tab",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there; inline 'New trade ‹text›' in trade pickers",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them.",
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. #2236: trade pickers (company form, company page; the Trades sheet's Merge target with create off) are EntityPicker kind 'trade'; their 'New trade ‹text›' row opens the trade form through TagCreateProvider. TradePicker retired.",
     "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
   },
   "PLT-099": {
@@ -4038,7 +4038,7 @@
     "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale."
+    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language."
   },
   "PLT-102": {
     "name": "Create a photo orientation (viewing direction) with description and sort order",
@@ -4046,7 +4046,7 @@
     "to": "Settings > Project setup > Photo orientations > New; inline 'New orientation' in the photo tag picker",
     "change": "same",
     "gate": "none",
-    "note": "Inline create removes the Settings detour for photos (J05 prerequisite). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
+    "note": "Inline create removes the Settings detour for photos (J05 prerequisite). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete). #2236: the photo tag picker is EntityPicker kind 'orientation' with inline 'New orientation' (TagCreateProvider); OrientationPicker retired."
   },
   "PLT-103": {
     "name": "Edit an orientation inline",
@@ -4150,7 +4150,7 @@
     "to": "Global > toasts (with Undo for unlinks and state changes)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2209: Global › toasts (UndoToast, Ctrl/⌘ Z); server snapshot Undo via POST /api/undo/:token."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2209: Global › toasts (UndoToast, Ctrl/⌘ Z); server snapshot Undo via POST /api/undo/:token. #2236: relation removes (dependencies, milestone links, cost-line links, payments, contact persons, covered items, purchase links) return an Undo token; cost-line Unlink / Remove show the Undo toast now, the other relation UIs with their page stories (RelatedList)."
   },
   "PLT-117": {
     "name": "Monitor instance liveness and readiness (container health checks)",

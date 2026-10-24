@@ -673,6 +673,15 @@
       "doNotUse": [],
       "formerly": ["Assigned to", "Responsible"]
     },
+    "Household member": {
+      "groups": ["supportingNoun"],
+      "en": { "singular": "Household member", "plural": "Household members" },
+      "de": { "singular": "Haushaltsmitglied", "plural": "Haushaltsmitglieder" },
+      "deSource": "approved",
+      "definition": "A person in your household with their own sign-in, who can be given a task.",
+      "doNotUse": [],
+      "formerly": []
+    },
     "Dependency": {
       "groups": ["supportingNoun"],
       "en": {

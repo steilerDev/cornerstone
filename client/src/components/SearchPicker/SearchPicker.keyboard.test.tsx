@@ -97,6 +97,43 @@ describe('SearchPicker keyboard and refocus behaviour', () => {
     });
   });
 
+  describe('ArrowDown on a closed input with showItemsOnFocus', () => {
+    it('searches the typed text instead of loading the initial list', async () => {
+      renderPicker({ showItemsOnFocus: true });
+      const input = screen.getByPlaceholderText('Search...');
+      await user.type(input, 'al');
+      await act(async () => {
+        jest.advanceTimersByTime(500);
+      });
+      await screen.findByRole('listbox');
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      mockSearchFn.mockClear();
+
+      await user.keyboard('{ArrowDown}');
+
+      expect(await screen.findByRole('listbox')).toBeInTheDocument();
+      expect(mockSearchFn).toHaveBeenCalledTimes(1);
+      expect(mockSearchFn.mock.calls[0]![0]).toBe('al');
+    });
+
+    it('loads the initial list when the input is empty', async () => {
+      renderPicker({ showItemsOnFocus: true });
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await screen.findByRole('listbox');
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      mockSearchFn.mockClear();
+
+      await user.keyboard('{ArrowDown}');
+
+      expect(await screen.findByRole('listbox')).toBeInTheDocument();
+      expect(mockSearchFn).toHaveBeenCalledTimes(1);
+      expect(mockSearchFn.mock.calls[0]![0]).toBe('');
+    });
+  });
+
   describe('moving through the options', () => {
     it('ArrowDown from the input focuses the first option, then steps and stops at the last', async () => {
       await openWithFocusItems();

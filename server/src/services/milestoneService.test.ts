@@ -6,7 +6,12 @@ import { eq, and } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as milestoneService from './milestoneService.js';
-import { NotFoundError, ValidationError, DuplicateDependencyError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  DuplicateDependencyError,
+  CircularDependencyError,
+} from '../errors/AppError.js';
 import type { CreateMilestoneRequest } from '@cornerstone/shared';
 
 // Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
@@ -1074,9 +1079,9 @@ describe('Milestone Service', () => {
     });
   });
 
-  // ─── unlinkWorkItem ───────────────────────────────────────────────────────────
+  // ─── unlinkWorkItemWithSnapshot ───────────────────────────────────────────────────────────
 
-  describe('unlinkWorkItem', () => {
+  describe('unlinkWorkItemWithSnapshot', () => {
     it('should unlink a work item from a milestone', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       const workItem = createTestWorkItem(userId, 'Pour Foundation');
@@ -1093,7 +1098,7 @@ describe('Milestone Service', () => {
       expect(before.workItems).toHaveLength(1);
 
       // Unlink
-      milestoneService.unlinkWorkItem(db, milestone.id, workItem);
+      milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, workItem);
 
       // Verify it's unlinked
       const after = milestoneService.getMilestoneById(db, milestone.id);
@@ -1113,7 +1118,7 @@ describe('Milestone Service', () => {
       milestoneService.linkWorkItem(db, milestone.id, workItemA);
       milestoneService.linkWorkItem(db, milestone.id, workItemB);
 
-      milestoneService.unlinkWorkItem(db, milestone.id, workItemA);
+      milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, workItemA);
 
       const after = milestoneService.getMilestoneById(db, milestone.id);
       expect(after.workItems).toHaveLength(1);
@@ -1124,8 +1129,10 @@ describe('Milestone Service', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       const workItem = createTestWorkItem(userId, 'Work Item');
 
-      expect(() => milestoneService.unlinkWorkItem(db, 99999, workItem)).toThrow(NotFoundError);
-      expect(() => milestoneService.unlinkWorkItem(db, 99999, workItem)).toThrow(
+      expect(() => milestoneService.unlinkWorkItemWithSnapshot(db, 99999, workItem)).toThrow(
+        NotFoundError,
+      );
+      expect(() => milestoneService.unlinkWorkItemWithSnapshot(db, 99999, workItem)).toThrow(
         'Milestone not found',
       );
     });
@@ -1138,12 +1145,12 @@ describe('Milestone Service', () => {
         userId,
       );
 
-      expect(() => milestoneService.unlinkWorkItem(db, milestone.id, 'nonexistent-id')).toThrow(
-        NotFoundError,
-      );
-      expect(() => milestoneService.unlinkWorkItem(db, milestone.id, 'nonexistent-id')).toThrow(
-        'Work item not found',
-      );
+      expect(() =>
+        milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, 'nonexistent-id'),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, 'nonexistent-id'),
+      ).toThrow('Work item not found');
     });
 
     it('should throw NotFoundError when work item is not linked to the milestone', () => {
@@ -1156,10 +1163,10 @@ describe('Milestone Service', () => {
       );
 
       // Never linked — should throw NotFoundError
-      expect(() => milestoneService.unlinkWorkItem(db, milestone.id, workItem)).toThrow(
+      expect(() => milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, workItem)).toThrow(
         NotFoundError,
       );
-      expect(() => milestoneService.unlinkWorkItem(db, milestone.id, workItem)).toThrow(
+      expect(() => milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, workItem)).toThrow(
         'not linked',
       );
     });
@@ -1206,6 +1213,226 @@ describe('Milestone Service', () => {
       expect(linked.isLate).toBe(true);
       expect(linked.lateDays).toBe(5);
       expect(linked.isHeldUp).toBe(false);
+    });
+  });
+
+  // ─── updateMilestone: completedAt handling ─────────────────────────────────
+
+  describe('updateMilestone completedAt', () => {
+    it('uses the supplied completedAt when completing a milestone', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = milestoneService.createMilestone(
+        db,
+        { title: 'Walls', targetDate: '2026-04-15' },
+        userId,
+      );
+
+      const updated = milestoneService.updateMilestone(db, created.id, {
+        isCompleted: true,
+        completedAt: '2026-04-01',
+      });
+
+      expect(updated.isCompleted).toBe(true);
+      expect(updated.completedAt).toBe('2026-04-01');
+    });
+
+    it('updates completedAt on its own, and clears it with null', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = milestoneService.createMilestone(
+        db,
+        { title: 'Walls', targetDate: '2026-04-15' },
+        userId,
+      );
+      milestoneService.updateMilestone(db, created.id, { isCompleted: true });
+
+      const moved = milestoneService.updateMilestone(db, created.id, { completedAt: '2026-04-02' });
+      expect(moved.completedAt).toBe('2026-04-02');
+
+      const cleared = milestoneService.updateMilestone(db, created.id, { completedAt: null });
+      expect(cleared.completedAt).toBeNull();
+    });
+  });
+
+  // ─── Dependent work items (milestone page) ─────────────────────────────────
+
+  describe('dependent work items', () => {
+    function setup() {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = createTestWorkItem(userId, 'Install windows');
+      const milestone = milestoneService.createMilestone(
+        db,
+        { title: 'Roof complete', targetDate: '2026-04-15' },
+        userId,
+      );
+      return { userId, workItem, milestone };
+    }
+
+    it('getDependentWorkItems lists the work items that require the milestone', () => {
+      const { workItem, milestone } = setup();
+      milestoneService.addDependentWorkItem(db, milestone.id, workItem);
+
+      const result = milestoneService.getDependentWorkItems(db, milestone.id);
+
+      expect(result.map((w) => w.id)).toEqual([workItem]);
+    });
+
+    it('getDependentWorkItems throws NotFoundError for an unknown milestone', () => {
+      expect(() => milestoneService.getDependentWorkItems(db, 9999)).toThrow(NotFoundError);
+    });
+
+    it('addDependentWorkItem throws NotFoundError for an unknown milestone or work item', () => {
+      const { workItem, milestone } = setup();
+
+      expect(() => milestoneService.addDependentWorkItem(db, 9999, workItem)).toThrow(
+        'Milestone not found',
+      );
+      expect(() => milestoneService.addDependentWorkItem(db, milestone.id, 'nope')).toThrow(
+        'Work item not found',
+      );
+    });
+
+    it('addDependentWorkItem rejects a duplicate and a work item that already contributes', () => {
+      const { userId, workItem, milestone } = setup();
+      milestoneService.addDependentWorkItem(db, milestone.id, workItem);
+      expect(() => milestoneService.addDependentWorkItem(db, milestone.id, workItem)).toThrow(
+        DuplicateDependencyError,
+      );
+
+      const contributor = createTestWorkItem(userId, 'Frame roof');
+      milestoneService.linkWorkItem(db, milestone.id, contributor);
+      expect(() => milestoneService.addDependentWorkItem(db, milestone.id, contributor)).toThrow(
+        CircularDependencyError,
+      );
+    });
+
+    it('linkWorkItem rejects a work item that already requires the milestone', () => {
+      const { workItem, milestone } = setup();
+      milestoneService.addDependentWorkItem(db, milestone.id, workItem);
+
+      expect(() => milestoneService.linkWorkItem(db, milestone.id, workItem)).toThrow(
+        CircularDependencyError,
+      );
+    });
+
+    it('removeDependentWorkItemWithSnapshot returns the deleted row', () => {
+      const { workItem, milestone } = setup();
+      milestoneService.addDependentWorkItem(db, milestone.id, workItem);
+
+      const snapshot = milestoneService.removeDependentWorkItemWithSnapshot(
+        db,
+        milestone.id,
+        workItem,
+      );
+
+      expect(snapshot.row).toEqual({ workItemId: workItem, milestoneId: milestone.id });
+      expect(milestoneService.getDependentWorkItems(db, milestone.id)).toEqual([]);
+    });
+
+    it('removeDependentWorkItemWithSnapshot throws NotFoundError for unknown ids and no dependency', () => {
+      const { workItem, milestone } = setup();
+
+      expect(() =>
+        milestoneService.removeDependentWorkItemWithSnapshot(db, 9999, workItem),
+      ).toThrow('Milestone not found');
+      expect(() =>
+        milestoneService.removeDependentWorkItemWithSnapshot(db, milestone.id, 'nope'),
+      ).toThrow('Work item not found');
+      expect(() =>
+        milestoneService.removeDependentWorkItemWithSnapshot(db, milestone.id, workItem),
+      ).toThrow('Work item does not depend on this milestone');
+    });
+  });
+
+  // ─── Milestone-page link and unlink reschedule (#2236) ─────────────────────
+
+  describe('linkWorkItem reschedules; unlinkWorkItemWithSnapshot leaves it to the route', () => {
+    it('moves a dependent work item on link, and the service unlink writes no dates', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const now = new Date().toISOString();
+      const insert = (id: string, startDate: string, endDate: string, durationDays: number) =>
+        db
+          .insert(schema.workItems)
+          .values({
+            id,
+            title: id,
+            status: 'not_started',
+            startDate,
+            endDate,
+            durationDays,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      insert('contributor', '2026-03-01', '2026-03-20', 19);
+      insert('dependent', '2026-03-01', '2026-03-06', 5);
+      const milestone = milestoneService.createMilestone(
+        db,
+        { title: 'Roof complete', targetDate: '2026-03-05' },
+        userId,
+      );
+      milestoneService.addDependentWorkItem(db, milestone.id, 'dependent');
+      const startOfDependent = () =>
+        db.select().from(schema.workItems).where(eq(schema.workItems.id, 'dependent')).get()!
+          .startDate;
+
+      milestoneService.linkWorkItem(db, milestone.id, 'contributor');
+      expect(startOfDependent()).toBe('2026-03-20');
+
+      // The route reschedules after issuing the Undo token (relationUnlink.undo.test.ts)
+      milestoneService.unlinkWorkItemWithSnapshot(db, milestone.id, 'contributor');
+      expect(startOfDependent()).toBe('2026-03-20');
+    });
+  });
+
+  // ─── updateMilestone: null and undefined values ─────────────────────────────
+
+  describe('updateMilestone null and undefined values', () => {
+    it('clears the description with null and treats an undefined description as null', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = milestoneService.createMilestone(
+        db,
+        { title: 'Walls', targetDate: '2026-04-15', description: 'Brick walls' },
+        userId,
+      );
+
+      const cleared = milestoneService.updateMilestone(db, created.id, { description: null });
+      expect(cleared.description).toBeNull();
+
+      milestoneService.updateMilestone(db, created.id, { description: 'Again' });
+      const undef = milestoneService.updateMilestone(db, created.id, { description: undefined });
+      expect(undef.description).toBeNull();
+    });
+
+    it('treats an explicit undefined isCompleted as not completed and leaves completedAt alone', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = milestoneService.createMilestone(
+        db,
+        { title: 'Walls', targetDate: '2026-04-15' },
+        userId,
+      );
+      milestoneService.updateMilestone(db, created.id, { isCompleted: true });
+
+      const completedAt = milestoneService.getMilestoneById(db, created.id).completedAt;
+      const updated = milestoneService.updateMilestone(db, created.id, { isCompleted: undefined });
+
+      expect(updated.isCompleted).toBe(false);
+      expect(updated.completedAt).toBe(completedAt);
+    });
+
+    it('shows no creator for a milestone whose creator is NULL', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const created = milestoneService.createMilestone(
+        db,
+        { title: 'Walls', targetDate: '2026-04-15' },
+        userId,
+      );
+      db.update(schema.milestones)
+        .set({ createdBy: null })
+        .where(eq(schema.milestones.id, created.id))
+        .run();
+
+      expect(milestoneService.getMilestoneById(db, created.id).createdBy).toBeNull();
     });
   });
 });

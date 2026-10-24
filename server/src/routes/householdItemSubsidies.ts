@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as householdItemSubsidyService from '../services/householdItemSubsidyService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for path params with householdItemId only
 const householdItemParamsSchema = {
@@ -42,6 +45,7 @@ const subsidyLinkParamsSchema = {
       subsidyProgramId: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function householdItemSubsidyRoutes(fastify: FastifyInstance) {
@@ -101,12 +105,18 @@ export default async function householdItemSubsidyRoutes(fastify: FastifyInstanc
         throw new UnauthorizedError();
       }
 
-      householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
+      const snapshot = householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
         fastify.db,
         request.params.householdItemId,
         request.params.subsidyProgramId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'household_item', id: request.params.householdItemId },
+        restore: (tx) =>
+          householdItemSubsidyService.restoreDeletedHouseholdItemSubsidyLink(tx, snapshot),
+      });
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

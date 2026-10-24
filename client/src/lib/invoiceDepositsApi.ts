@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   InvoiceDeposit,
   CreateDepositRequest,
@@ -36,6 +37,9 @@ export function updateDeposit(
 /**
  * Deletes a deposit.
  */
-export function deleteDeposit(invoiceId: string, depositId: string): Promise<void> {
-  return del<void>(`/invoices/${invoiceId}/deposits/${depositId}`);
+export function deleteDeposit(
+  invoiceId: string,
+  depositId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/invoices/${invoiceId}/deposits/${depositId}`);
 }

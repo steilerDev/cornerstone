@@ -3,14 +3,11 @@ import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
-import { searchCompanies } from '../../lib/vendorsApi.js';
-import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
-import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
-import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
@@ -102,8 +99,7 @@ function InvoiceDetailView({ id }: { id: string }) {
   });
   const [isUpdating, setIsUpdating] = useState(false);
   // The New company form stacks over the edit modal; the lower dialog stays put meanwhile.
-  const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
-    useCompanyCreateAction();
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const [editError, setEditError] = useState('');
   const [vendorError, setVendorError] = useState('');
 
@@ -564,19 +560,15 @@ function InvoiceDetailView({ id }: { id: string }) {
                   {t('invoiceDetail.form.vendor')}{' '}
                   <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                 </label>
-                <SearchPicker<CompanyOption>
+                <EntityPicker
+                  kind="company"
                   id="edit-vendor"
                   value={editForm.vendorId}
                   onChange={(id) => setEditForm({ ...editForm, vendorId: id })}
-                  excludeIds={[]}
+                  selectedLabel={editForm.vendorName}
+                  onCreatingChange={setIsCreatingCompany}
                   disabled={isUpdating}
                   placeholder={t('invoiceDetail.form.placeholders.vendor')}
-                  searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
-                  renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
-                  showItemsOnFocus
-                  initialTitle={editForm.vendorName}
-                  noResultsMessage={t('invoiceDetail.form.noVendorsFound')}
-                  createAction={companyCreateAction}
                 />
                 <FormError message={vendorError} variant="field" />
               </div>

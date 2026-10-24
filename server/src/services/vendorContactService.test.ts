@@ -7,6 +7,7 @@ import { buildApp } from '../app.js';
 import * as vendorContactService from './vendorContactService.js';
 import { vendors, vendorContacts } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
+import { ConflictError } from '../errors/AppError.js';
 
 // Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
 const DO_NOT_FAKE_TIMERS: Array<
@@ -313,14 +314,14 @@ describe('vendorContactService', () => {
     });
   });
 
-  // ─── deleteContact ─────────────────────────────────────────────────────────
+  // ─── deleteContactWithSnapshot ─────────────────────────────────────────────────────────
 
-  describe('deleteContact', () => {
+  describe('deleteContactWithSnapshot', () => {
     it('removes contact and verifies deletion', () => {
       const vendorId = createTestVendor();
       const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
 
-      vendorContactService.deleteContact(app.db, vendorId, contact.id);
+      vendorContactService.deleteContactWithSnapshot(app.db, vendorId, contact.id);
 
       const remaining = vendorContactService.listContacts(app.db, vendorId);
       expect(remaining).toHaveLength(0);
@@ -328,16 +329,16 @@ describe('vendorContactService', () => {
 
     it('throws NotFoundError for unknown contactId', () => {
       const vendorId = createTestVendor();
-      expect(() => vendorContactService.deleteContact(app.db, vendorId, 'not-real')).toThrow(
-        'not found',
-      );
+      expect(() =>
+        vendorContactService.deleteContactWithSnapshot(app.db, vendorId, 'not-real'),
+      ).toThrow('not found');
     });
 
     it('throws NotFoundError for unknown vendorId', () => {
       const vendorId = createTestVendor();
       const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
       expect(() =>
-        vendorContactService.deleteContact(app.db, 'not-real-vendor', contact.id),
+        vendorContactService.deleteContactWithSnapshot(app.db, 'not-real-vendor', contact.id),
       ).toThrow('not found');
     });
 
@@ -356,6 +357,201 @@ describe('vendorContactService', () => {
         .where(eq(vendorContacts.vendorId, vendorId))
         .all();
       expect(remaining).toHaveLength(0);
+    });
+  });
+
+  // ─── Field length validation (create and update) ───────────────────────────
+
+  describe('field length validation', () => {
+    const tooLong: Array<[string, number, string]> = [
+      ['firstName', 101, 'First name must be 100 characters or less'],
+      ['lastName', 101, 'Last name must be 100 characters or less'],
+      ['role', 101, 'Contact role must be 100 characters or less'],
+      ['phone', 51, 'Contact phone must be 50 characters or less'],
+      ['email', 256, 'Contact email must be 255 characters or less'],
+      ['notes', 2001, 'Contact notes must be 2000 characters or less'],
+    ];
+
+    it.each(tooLong)(
+      'createContact rejects a %s longer than the limit',
+      (field, length, message) => {
+        const vendorId = createTestVendor();
+
+        expect(() =>
+          vendorContactService.createContact(app.db, vendorId, {
+            firstName: 'Alice',
+            [field]: 'x'.repeat(length),
+          }),
+        ).toThrow(message);
+      },
+    );
+
+    it.each(tooLong)(
+      'updateContact rejects a %s longer than the limit',
+      (field, length, message) => {
+        const vendorId = createTestVendor();
+        const contact = vendorContactService.createContact(app.db, vendorId, {
+          firstName: 'Alice',
+        });
+
+        expect(() =>
+          vendorContactService.updateContact(app.db, vendorId, contact.id, {
+            [field]: 'x'.repeat(length),
+          }),
+        ).toThrow(message);
+      },
+    );
+
+    it('updateContact stores trimmed role, phone, email and notes', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
+
+      const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
+        role: ' Site lead ',
+        phone: ' +000 111 ',
+        email: ' alice@example.test ',
+        notes: ' Call before 9 ',
+      });
+
+      expect(updated.role).toBe('Site lead');
+      expect(updated.phone).toBe('+000 111');
+      expect(updated.email).toBe('alice@example.test');
+      expect(updated.notes).toBe('Call before 9');
+    });
+
+    it('updateContact treats null values as cleared fields', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        lastName: 'Example',
+        role: 'Lead',
+        phone: '+000 111',
+        email: 'alice@example.test',
+        notes: 'Synthetic',
+      });
+
+      const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
+        lastName: null,
+        role: null,
+        phone: null,
+        email: null,
+        notes: null,
+      });
+
+      expect(updated).toMatchObject({
+        name: 'Alice',
+        lastName: null,
+        role: null,
+        phone: null,
+        email: null,
+        notes: null,
+      });
+    });
+
+    it('updateContact clears the first name when the last name stays', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        lastName: 'Example',
+      });
+
+      const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
+        firstName: null,
+        lastName: 'Sample',
+      });
+
+      expect(updated.name).toBe('Sample');
+    });
+
+    it('updateContact keeps the other name part when only one changes', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        lastName: 'Example',
+      });
+
+      const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
+        lastName: 'Sample',
+      });
+
+      expect(updated.name).toBe('Alice Sample');
+    });
+
+    it('updateContact renames to the placeholder-free display name from the remaining part', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        lastName: 'Example',
+      });
+
+      const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
+        firstName: null,
+      });
+
+      expect(updated.name).toBe('Example');
+    });
+  });
+
+  // ─── listContactsRaw ───────────────────────────────────────────────────────
+
+  describe('listContactsRaw', () => {
+    it('lists the contacts of a vendor without a vendor existence check', () => {
+      const vendorId = createTestVendor();
+      vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
+
+      expect(vendorContactService.listContactsRaw(app.db, vendorId).map((c) => c.name)).toEqual([
+        'Alice',
+      ]);
+      expect(vendorContactService.listContactsRaw(app.db, 'unknown-vendor')).toEqual([]);
+    });
+  });
+
+  // ─── restoreDeletedContact ─────────────────────────────────────────────────
+
+  describe('restoreDeletedContact', () => {
+    it('re-inserts the deleted row with its id and timestamps', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, {
+        firstName: 'Alice',
+        notes: 'Synthetic',
+      });
+      const original = app.db
+        .select()
+        .from(vendorContacts)
+        .where(eq(vendorContacts.id, contact.id))
+        .get()!;
+      const snapshot = vendorContactService.deleteContactWithSnapshot(app.db, vendorId, contact.id);
+
+      app.db.transaction((tx) => vendorContactService.restoreDeletedContact(tx, snapshot));
+
+      expect(
+        app.db.select().from(vendorContacts).where(eq(vendorContacts.id, contact.id)).get(),
+      ).toEqual(original);
+    });
+
+    it('refuses with a ConflictError naming the contact when the vendor is gone', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
+      const snapshot = vendorContactService.deleteContactWithSnapshot(app.db, vendorId, contact.id);
+      app.db.delete(vendors).where(eq(vendors.id, vendorId)).run();
+
+      expect(() =>
+        app.db.transaction((tx) => vendorContactService.restoreDeletedContact(tx, snapshot)),
+      ).toThrow(ConflictError);
+    });
+
+    it('refuses with a ConflictError when the id is taken again', () => {
+      const vendorId = createTestVendor();
+      const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
+      const snapshot = vendorContactService.deleteContactWithSnapshot(app.db, vendorId, contact.id);
+      app.db
+        .insert(vendorContacts)
+        .values({ ...snapshot.row, name: 'Someone else' })
+        .run();
+
+      expect(() =>
+        app.db.transaction((tx) => vendorContactService.restoreDeletedContact(tx, snapshot)),
+      ).toThrow(ConflictError);
     });
   });
 });

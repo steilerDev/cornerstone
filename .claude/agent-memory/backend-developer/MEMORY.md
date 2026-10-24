@@ -112,3 +112,4 @@ Running from the parent project root uses a different config and may not format 
 - [system-events.md](system-events.md) — system event writer/context, R1/R2 display SQL, migration 0047, pitfalls (#2223)
 - [attention-service.md](attention-service.md) — #2229 attention rules/snooze entry points; holds-up single definition in shared/holdsUp.ts
 - [home-service.md](home-service.md) — #2230 /api/home/_, heldUpCauseOf, stillToPayCount, home._ prefs, migration 0048
+- [relation-unlink-undo.md](relation-unlink-undo.md) — #2236 snapshot/restore for relation DELETEs, helper locations

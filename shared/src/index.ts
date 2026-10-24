@@ -663,7 +663,14 @@ export type {
 
 // Undo snapshots (story 1.3)
 export { UNDO_WINDOW_MS, UNDO_SUBJECT_TYPES } from './types/undo.js';
-export type { UndoSubjectType, UndoToken, UndoRow, UndoResponse, WithUndo } from './types/undo.js';
+export type {
+  UndoSubjectType,
+  UndoToken,
+  UndoRow,
+  UndoResponse,
+  WithUndo,
+  UndoableDeleteResponse,
+} from './types/undo.js';
 
 // Delete impact (story 1.3)
 export { DELETE_IMPACT_ENTITY_TYPES, DELETE_IMPACT_KINDS } from './types/deleteImpact.js';

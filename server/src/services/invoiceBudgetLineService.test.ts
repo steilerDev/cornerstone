@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
@@ -10,6 +11,7 @@ import {
   ValidationError,
   BudgetLineAlreadyLinkedError,
   ItemizedSumExceedsInvoiceError,
+  ConflictError,
 } from '../errors/AppError.js';
 
 describe('Invoice Budget Line Service', () => {
@@ -866,12 +868,16 @@ describe('Invoice Budget Line Service', () => {
     });
   });
 
-  // ─── deleteInvoiceBudgetLine() ───────────────────────────────────────────────
+  // ─── deleteInvoiceBudgetLineWithSnapshot() ───────────────────────────────────────────────
 
-  describe('deleteInvoiceBudgetLine()', () => {
+  describe('deleteInvoiceBudgetLineWithSnapshot()', () => {
     it('throws NotFoundError when invoice does not exist', () => {
       expect(() => {
-        invoiceBudgetLineService.deleteInvoiceBudgetLine(db, 'non-existent', 'some-line');
+        invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+          db,
+          'non-existent',
+          'some-line',
+        );
       }).toThrow(NotFoundError);
     });
 
@@ -880,7 +886,11 @@ describe('Invoice Budget Line Service', () => {
       const invoiceId = createTestInvoice(vendorId);
 
       expect(() => {
-        invoiceBudgetLineService.deleteInvoiceBudgetLine(db, invoiceId, 'non-existent-line');
+        invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+          db,
+          invoiceId,
+          'non-existent-line',
+        );
       }).toThrow(NotFoundError);
     });
 
@@ -897,7 +907,7 @@ describe('Invoice Budget Line Service', () => {
       });
 
       expect(() => {
-        invoiceBudgetLineService.deleteInvoiceBudgetLine(
+        invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
           db,
           invoice2Id,
           createResult.budgetLine.id,
@@ -917,7 +927,11 @@ describe('Invoice Budget Line Service', () => {
       });
 
       // Should not throw
-      invoiceBudgetLineService.deleteInvoiceBudgetLine(db, invoiceId, createResult.budgetLine.id);
+      invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        createResult.budgetLine.id,
+      );
 
       // Verify it's gone
       const listResult = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
@@ -941,7 +955,11 @@ describe('Invoice Budget Line Service', () => {
         itemizedAmount: 200,
       });
 
-      invoiceBudgetLineService.deleteInvoiceBudgetLine(db, invoiceId, result1.budgetLine.id);
+      invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        result1.budgetLine.id,
+      );
 
       const listResult = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
       expect(listResult.budgetLines).toHaveLength(1);
@@ -1026,6 +1044,309 @@ describe('Invoice Budget Line Service', () => {
 
       expect(result.budgetLines).toHaveLength(2);
       expect(result.remainingAmount).toBe(300);
+    });
+  });
+
+  // ─── Duplicate household item link, detail lookup ───────────────────────────
+
+  describe('createInvoiceBudgetLine() duplicate household item link', () => {
+    it('throws ValidationError when the household item cost line is already on this invoice', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Dup'), { amount: 1000 });
+      const hibId = createTestHouseholdItemBudget(createTestHouseholdItem());
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        householdItemBudgetId: hibId,
+        itemizedAmount: 100,
+      });
+
+      expect(() =>
+        invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+          householdItemBudgetId: hibId,
+          itemizedAmount: 100,
+        }),
+      ).toThrow('This budget line is already linked to this invoice');
+    });
+  });
+
+  describe('getBudgetLineDetail()', () => {
+    it('returns the detail of a line and throws NotFoundError for an unknown id', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Detail'), { amount: 1000 });
+      const wibId = createTestWorkItemBudget(createTestWorkItem('Task Detail'));
+      const created = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wibId,
+        itemizedAmount: 100,
+      });
+
+      const detail = invoiceBudgetLineService.getBudgetLineDetail(db, created.budgetLine.id);
+
+      expect(detail.id).toBe(created.budgetLine.id);
+      expect(() => invoiceBudgetLineService.getBudgetLineDetail(db, 'unknown')).toThrow(
+        NotFoundError,
+      );
+    });
+  });
+
+  // ─── restoreDeletedInvoiceBudgetLine() ──────────────────────────────────────
+
+  describe('restoreDeletedInvoiceBudgetLine()', () => {
+    function restore(snapshot: invoiceBudgetLineService.DeletedInvoiceBudgetLineSnapshot) {
+      db.transaction((tx) =>
+        invoiceBudgetLineService.restoreDeletedInvoiceBudgetLine(tx, snapshot),
+      );
+    }
+
+    function lineOn(invoiceId: string, kind: 'wi' | 'hi', amount = 100) {
+      const budgetId =
+        kind === 'wi'
+          ? createTestWorkItemBudget(createTestWorkItem('Task R'))
+          : createTestHouseholdItemBudget(createTestHouseholdItem());
+      const created = invoiceBudgetLineService.createInvoiceBudgetLine(
+        db,
+        invoiceId,
+        kind === 'wi'
+          ? { workItemBudgetId: budgetId, itemizedAmount: amount }
+          : { householdItemBudgetId: budgetId, itemizedAmount: amount },
+      );
+      return { lineId: created.budgetLine.id, budgetId };
+    }
+
+    it('deleteInvoiceBudgetLineWithSnapshot returns the deleted row', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Snap'), { amount: 1000 });
+      const { lineId, budgetId } = lineOn(invoiceId, 'wi', 250);
+
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+
+      expect(snapshot.row).toMatchObject({
+        id: lineId,
+        invoiceId,
+        workItemBudgetId: budgetId,
+        itemizedAmount: 250,
+      });
+    });
+
+    it.each(['wi', 'hi'] as const)('re-inserts a %s cost line link', (kind) => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Re'), { amount: 1000 });
+      const { lineId } = lineOn(invoiceId, kind, 400);
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+      expect(invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId).budgetLines).toEqual(
+        [],
+      );
+
+      restore(snapshot);
+
+      const lines = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId).budgetLines;
+      expect(lines.map((l) => [l.id, l.itemizedAmount])).toEqual([[lineId, 400]]);
+    });
+
+    it('refuses with a ConflictError naming the line when the invoice is gone', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Gone'), { amount: 1000 });
+      const { lineId } = lineOn(invoiceId, 'wi');
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+      db.delete(schema.invoices).where(eq(schema.invoices.id, invoiceId)).run();
+
+      let error: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({
+        changed: [{ type: 'invoice_budget_line', id: lineId }],
+      });
+    });
+
+    it('refuses when the itemized sum would exceed the invoice amount', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Sum'), { amount: 500 });
+      const { lineId } = lineOn(invoiceId, 'wi', 300);
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+      lineOn(invoiceId, 'hi', 400);
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it.each(['wi', 'hi'] as const)(
+      'refuses when the %s cost line is linked to another invoice meanwhile',
+      (kind) => {
+        const vendorId = createTestVendor('Vendor Other');
+        const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+        const otherInvoiceId = createTestInvoice(vendorId, { amount: 1000 });
+        const { lineId, budgetId } = lineOn(invoiceId, kind);
+        const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+          db,
+          invoiceId,
+          lineId,
+        );
+        invoiceBudgetLineService.createInvoiceBudgetLine(
+          db,
+          otherInvoiceId,
+          kind === 'wi'
+            ? { workItemBudgetId: budgetId, itemizedAmount: 100 }
+            : { householdItemBudgetId: budgetId, itemizedAmount: 100 },
+        );
+
+        expect(() => restore(snapshot)).toThrow(ConflictError);
+      },
+    );
+
+    it.each(['wi', 'hi'] as const)('refuses when the %s cost line was deleted', (kind) => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Del'), { amount: 1000 });
+      const { lineId, budgetId } = lineOn(invoiceId, kind);
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+      if (kind === 'wi') {
+        db.delete(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, budgetId)).run();
+      } else {
+        db.delete(schema.householdItemBudgets)
+          .where(eq(schema.householdItemBudgets.id, budgetId))
+          .run();
+      }
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it('refuses when the line id is taken again', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Taken'), { amount: 1000 });
+      const { lineId } = lineOn(invoiceId, 'wi');
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
+        db,
+        invoiceId,
+        lineId,
+      );
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: lineId,
+          invoiceId,
+          workItemBudgetId: createTestWorkItemBudget(createTestWorkItem('Task Taken')),
+          itemizedAmount: 1,
+          createdAt: snapshot.row.createdAt,
+          updatedAt: snapshot.row.updatedAt,
+        })
+        .run();
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+  });
+
+  // ─── Custom category without a translation key; update without changes ─────
+
+  describe('category and update edge cases', () => {
+    it('shows a custom category (no translation key) in the list and the detail', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Cat'), { amount: 1000 });
+      const now = new Date().toISOString();
+      db.insert(schema.budgetCategories)
+        .values({
+          id: 'bc-custom-roofing',
+          name: 'Roofing extras',
+          color: '#112233',
+          translationKey: null,
+          sortOrder: 99,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const wibId = createTestWorkItemBudget(createTestWorkItem('Task Cat'));
+      db.update(schema.workItemBudgets)
+        .set({ budgetCategoryId: 'bc-custom-roofing' })
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .run();
+      const created = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wibId,
+        itemizedAmount: 100,
+      });
+
+      const listed = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId).budgetLines[0]!;
+      const detail = invoiceBudgetLineService.getBudgetLineDetail(db, created.budgetLine.id);
+
+      expect(listed.categoryName).toBe('Roofing extras');
+      expect(listed.categoryTranslationKey).toBeNull();
+      expect(detail.categoryName).toBe('Roofing extras');
+      expect(detail.categoryTranslationKey).toBeNull();
+    });
+
+    it('embeds the category name, colour and translation key in the invoice summary', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Sum'), { amount: 1000 });
+      const wibId = createTestWorkItemBudget(createTestWorkItem('Task Sum'));
+      const now = new Date().toISOString();
+      db.insert(schema.budgetCategories)
+        .values({
+          id: 'bc-custom-keyed',
+          name: 'Keyed extras',
+          color: '#445566',
+          translationKey: 'categories.keyed',
+          sortOrder: 98,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.update(schema.workItemBudgets)
+        .set({ budgetCategoryId: 'bc-custom-keyed' })
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .run();
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wibId,
+        itemizedAmount: 100,
+      });
+
+      const line = invoiceBudgetLineService.getInvoiceBudgetLinesForInvoice(db, invoiceId, 1000)
+        .budgetLines[0]!;
+
+      expect(line.categoryName).toBe('Keyed extras');
+      expect(line.categoryColor).toBe('#445566');
+      expect(line.categoryTranslationKey).toBe('categories.keyed');
+    });
+
+    it('leaves the category translation key null for an uncategorized or custom category', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Sum2'), { amount: 1000 });
+      const wibId = createTestWorkItemBudget(createTestWorkItem('Task Sum2'));
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wibId,
+        itemizedAmount: 100,
+      });
+
+      const line = invoiceBudgetLineService.getInvoiceBudgetLinesForInvoice(db, invoiceId, 1000)
+        .budgetLines[0]!;
+
+      expect(line.categoryName).toBeNull();
+      expect(line.categoryTranslationKey).toBeNull();
+    });
+
+    it('updateInvoiceBudgetLine with no itemizedAmount leaves the amount unchanged', () => {
+      const invoiceId = createTestInvoice(createTestVendor('Vendor Upd'), { amount: 1000 });
+      const wibId = createTestWorkItemBudget(createTestWorkItem('Task Upd'));
+      const created = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wibId,
+        itemizedAmount: 150,
+      });
+
+      const result = invoiceBudgetLineService.updateInvoiceBudgetLine(
+        db,
+        invoiceId,
+        created.budgetLine.id,
+        {},
+      );
+
+      expect(result.budgetLine.itemizedAmount).toBe(150);
+      expect(result.remainingAmount).toBe(850);
     });
   });
 });

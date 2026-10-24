@@ -1,4 +1,5 @@
 import { get, post, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   WorkItemDependenciesResponse,
   CreateDependencyRequest,
@@ -25,6 +26,9 @@ export function createDependency(
 /**
  * Deletes a dependency.
  */
-export function deleteDependency(workItemId: string, predecessorId: string): Promise<void> {
-  return del<void>(`/work-items/${workItemId}/dependencies/${predecessorId}`);
+export function deleteDependency(
+  workItemId: string,
+  predecessorId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/work-items/${workItemId}/dependencies/${predecessorId}`);
 }

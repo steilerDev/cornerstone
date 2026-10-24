@@ -424,7 +424,7 @@ describe('Dependency Routes', () => {
   });
 
   describe('DELETE /api/work-items/:workItemId/dependencies/:predecessorId', () => {
-    it('should delete a dependency with 204 status', async () => {
+    it('should delete a dependency with 200 status', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -448,8 +448,8 @@ describe('Dependency Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ undo: { token: string } }>().undo.token).toMatch(/^u_/);
 
       // Verify it's deleted by fetching dependencies
       const getResponse = await app.inject({

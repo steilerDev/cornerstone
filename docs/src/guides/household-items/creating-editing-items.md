@@ -20,6 +20,7 @@ Navigate to **Household Items** in the sidebar and click **New Household Item**.
 - **Order Date** -- When the item was or will be ordered
 - **Earliest Delivery Date** -- Start of the expected delivery window
 - **Latest Delivery Date** -- End of the expected delivery window
+- **Category** -- The purchase category. Type to search, or choose **New category ‹text›** to create one. A small dialog asks only for the name
 - **Area** -- Optional location within your project (e.g., "Kitchen", "Master Bedroom")
 
 Click **Create** to save the new household item. You will be taken to the item's detail page where you can add budget lines, notes, dependencies, and more.
@@ -48,7 +49,7 @@ Deleting a note is permanent and cannot be undone.
 
 ## Areas
 
-Household items share the same area system as work items. You can assign any existing area to a household item to indicate where it belongs in your home. The area picker displays the full hierarchy so you can quickly find the right location.
+Household items share the same area system as work items. Type in the **Area** field to search. Results show the full path, such as *Ground floor › Kitchen*, so you can quickly find the right location. If no area matches, choose **New area ‹text›** to create it and select it.
 
 ## Deleting a Household Item
 

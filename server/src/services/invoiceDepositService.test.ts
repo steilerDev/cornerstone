@@ -15,7 +15,8 @@ import * as schema from '../db/schema.js';
 import {
   createDeposit,
   updateDeposit,
-  deleteDeposit,
+  deleteDepositWithSnapshot,
+  restoreDeletedDeposit,
   listDepositsForInvoice,
   getDepositEntryTotals,
 } from './invoiceDepositService.js';
@@ -26,6 +27,7 @@ import {
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
   ValidationError,
+  ConflictError,
 } from '../errors/AppError.js';
 
 describe('invoiceDepositService', () => {
@@ -1212,25 +1214,25 @@ describe('invoiceDepositService', () => {
       }).toThrow(NotFoundError);
     });
 
-    it('scenario 39: deleteDeposit with non-existent depositId throws NotFoundError', () => {
+    it('scenario 39: deleteDepositWithSnapshot with non-existent depositId throws NotFoundError', () => {
       const { invoiceId } = setup();
 
       expect(() => {
-        deleteDeposit(db, invoiceId, 'nonexistent-deposit-id');
+        deleteDepositWithSnapshot(db, invoiceId, 'nonexistent-deposit-id');
       }).toThrow(NotFoundError);
     });
   });
 
-  // ─── Additional coverage: deleteDeposit success path ────────────────────────
+  // ─── Additional coverage: deleteDepositWithSnapshot success path ────────────────────────
 
-  describe('deleteDeposit success path', () => {
+  describe('deleteDepositWithSnapshot success path', () => {
     it('deletes an existing deposit', () => {
       const { userId, invoiceId } = setup();
 
       const deposit = createDeposit(db, invoiceId, { amount: 200, dueDate: '2026-02-01' }, userId);
 
       expect(() => {
-        deleteDeposit(db, invoiceId, deposit.id);
+        deleteDepositWithSnapshot(db, invoiceId, deposit.id);
       }).not.toThrow();
 
       const remaining = db
@@ -1697,7 +1699,7 @@ describe('invoiceDepositService', () => {
 
       expect(updateDeposit(db, invoiceId, d2.id, { amount: 300 }).amount).toBe(300);
       expect(updateDeposit(db, invoiceId, d2.id, { amount: 401 }).amount).toBe(401);
-      deleteDeposit(db, invoiceId, d1.id);
+      deleteDepositWithSnapshot(db, invoiceId, d1.id);
       expect(amountInDb(d1.id)).toBeUndefined();
     });
   });
@@ -1844,7 +1846,7 @@ describe('invoiceDepositService', () => {
       mk(userId, invoiceId, 'refund', 1500);
 
       expect(updateDeposit(db, invoiceId, d.id, { amount: 100 }).amount).toBe(100);
-      deleteDeposit(db, invoiceId, d.id);
+      deleteDepositWithSnapshot(db, invoiceId, d.id);
       expect(amountInDb(d.id)).toBeUndefined();
     });
 
@@ -1854,13 +1856,13 @@ describe('invoiceDepositService', () => {
       const r = mk(userId, invoiceId, 'refund', 300);
       mk(userId, invoiceId, 'deposit', 300);
 
-      deleteDeposit(db, invoiceId, r.id);
+      deleteDepositWithSnapshot(db, invoiceId, r.id);
       expect(amountInDb(r.id)).toBeUndefined();
     });
 
     it('deleting a non-existent deposit throws NotFoundError', () => {
       const { invoiceId } = setup();
-      expect(() => deleteDeposit(db, invoiceId, 'missing')).toThrow(NotFoundError);
+      expect(() => deleteDepositWithSnapshot(db, invoiceId, 'missing')).toThrow(NotFoundError);
     });
   });
 
@@ -1959,6 +1961,230 @@ describe('invoiceDepositService', () => {
       expect(() => updateDeposit(db, invoiceId, dep.id, { claimedDate: '2026-02-30' })).toThrow(
         ValidationError,
       );
+    });
+  });
+
+  // ─── Remaining create/update branches ───────────────────────────────────────
+
+  describe('create and update branch coverage', () => {
+    it('lists a deposit that has no creator (createdBy NULL) with createdBy null', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(db, invoiceId, { amount: 10, dueDate: '2026-02-01' }, userId);
+      db.update(schema.invoiceDeposits)
+        .set({ createdBy: null })
+        .where(eq(schema.invoiceDeposits.id, dep.id))
+        .run();
+
+      expect(listDepositsForInvoice(db, invoiceId)[0]!.createdBy).toBeNull();
+    });
+
+    it('createDeposit rejects an initial status outside the transition map', () => {
+      const { userId, invoiceId } = setup();
+
+      expect(() =>
+        createDeposit(
+          db,
+          invoiceId,
+          {
+            amount: 10,
+            dueDate: '2026-02-01',
+            status: 'bogus' as unknown as 'paid',
+          },
+          userId,
+        ),
+      ).toThrow(InvalidDepositStatusTransitionError);
+    });
+
+    it('createDeposit keeps supplied paid and claimed dates for a claimed entry', () => {
+      const { userId, invoiceId } = setup();
+
+      const dep = createDeposit(
+        db,
+        invoiceId,
+        {
+          amount: 10,
+          dueDate: '2026-02-01',
+          status: 'claimed',
+          paidDate: '2026-01-10',
+          claimedDate: '2026-01-12',
+        },
+        userId,
+      );
+
+      expect(dep.paidDate).toBe('2026-01-10');
+      expect(dep.claimedDate).toBe('2026-01-12');
+    });
+
+    it('updateDeposit clears the description with null', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(
+        db,
+        invoiceId,
+        { amount: 10, dueDate: '2026-02-01', description: 'Down payment' },
+        userId,
+      );
+
+      const updated = updateDeposit(db, invoiceId, dep.id, { description: null });
+
+      expect(updated.description).toBeNull();
+    });
+
+    it('updateDeposit with the current status changes nothing about the status', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(db, invoiceId, { amount: 10, dueDate: '2026-02-01' }, userId);
+
+      const updated = updateDeposit(db, invoiceId, dep.id, { status: 'pending' });
+
+      expect(updated.status).toBe('pending');
+      expect(updated.paidDate).toBeNull();
+    });
+
+    it('updateDeposit pending to claimed keeps the supplied paid and claimed dates', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(db, invoiceId, { amount: 10, dueDate: '2026-02-01' }, userId);
+
+      const updated = updateDeposit(db, invoiceId, dep.id, {
+        status: 'claimed',
+        paidDate: '2026-01-10',
+        claimedDate: '2026-01-12',
+      });
+
+      expect(updated.paidDate).toBe('2026-01-10');
+      expect(updated.claimedDate).toBe('2026-01-12');
+    });
+
+    it('updateDeposit clears the paid date and the claimed date with null', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(
+        db,
+        invoiceId,
+        { amount: 10, dueDate: '2026-02-01', status: 'claimed' },
+        userId,
+      );
+
+      const clearedClaimed = updateDeposit(db, invoiceId, dep.id, { claimedDate: null });
+      expect(clearedClaimed.claimedDate).toBeNull();
+
+      const clearedPaid = updateDeposit(db, invoiceId, dep.id, { paidDate: null });
+      expect(clearedPaid.paidDate).toBeNull();
+    });
+  });
+
+  // ─── restoreDeletedDeposit ──────────────────────────────────────────────────
+
+  describe('restoreDeletedDeposit', () => {
+    function restore(snapshot: ReturnType<typeof deleteDepositWithSnapshot>) {
+      db.transaction((tx) => restoreDeletedDeposit(tx, snapshot));
+    }
+
+    it('re-inserts the deleted row with every original column', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(
+        db,
+        invoiceId,
+        { amount: 120.5, dueDate: '2026-02-01', description: 'Down payment', status: 'paid' },
+        userId,
+      );
+      const original = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .where(eq(schema.invoiceDeposits.id, dep.id))
+        .get()!;
+      const snapshot = deleteDepositWithSnapshot(db, invoiceId, dep.id);
+      expect(snapshot.row).toEqual(original);
+
+      restore(snapshot);
+
+      expect(
+        db.select().from(schema.invoiceDeposits).where(eq(schema.invoiceDeposits.id, dep.id)).get(),
+      ).toEqual(original);
+    });
+
+    it('refuses with a ConflictError naming the entry when the invoice is gone', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(db, invoiceId, { amount: 10, dueDate: '2026-02-01' }, userId);
+      const snapshot = deleteDepositWithSnapshot(db, invoiceId, dep.id);
+      db.delete(schema.invoices).where(eq(schema.invoices.id, invoiceId)).run();
+
+      let error: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({
+        changed: [{ type: 'invoice_deposit', id: dep.id }],
+      });
+    });
+
+    it('refuses when the entry id is taken again', () => {
+      const { userId, invoiceId } = setup();
+      const dep = createDeposit(db, invoiceId, { amount: 10, dueDate: '2026-02-01' }, userId);
+      const snapshot = deleteDepositWithSnapshot(db, invoiceId, dep.id);
+      db.insert(schema.invoiceDeposits)
+        .values({ ...snapshot.row, amount: 1 })
+        .run();
+
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+    });
+
+    it('refuses a refund that would now exceed the refund cap, and accepts one that fits', () => {
+      const { userId, invoiceId } = setup2(1000);
+      const refund = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+      const snapshot = deleteDepositWithSnapshot(db, invoiceId, refund.id);
+      const other = createDeposit(
+        db,
+        invoiceId,
+        { amount: 800, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+      expect(() => restore(snapshot)).toThrow(ConflictError);
+
+      deleteDepositWithSnapshot(db, invoiceId, other.id);
+      restore(snapshot);
+
+      expect(listDepositsForInvoice(db, invoiceId).map((d) => d.id)).toEqual([refund.id]);
+    });
+
+    it('restores with NULL source and creator when they no longer exist', () => {
+      const { userId, invoiceId } = setup();
+      const now = new Date().toISOString();
+      db.insert(schema.budgetSources)
+        .values({
+          id: 'source-1',
+          name: 'Savings',
+          sourceType: 'savings',
+          totalAmount: 1000,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const dep = createDeposit(
+        db,
+        invoiceId,
+        { amount: 10, dueDate: '2026-02-01', budgetSourceId: 'source-1' },
+        userId,
+      );
+      const snapshot = deleteDepositWithSnapshot(db, invoiceId, dep.id);
+      db.delete(schema.budgetSources).where(eq(schema.budgetSources.id, 'source-1')).run();
+      db.delete(schema.users).where(eq(schema.users.id, userId)).run();
+
+      restore(snapshot);
+
+      const row = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .where(eq(schema.invoiceDeposits.id, dep.id))
+        .get()!;
+      expect(row.budgetSourceId).toBeNull();
+      expect(row.createdBy).toBeNull();
     });
   });
 });

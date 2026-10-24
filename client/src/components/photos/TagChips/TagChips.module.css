@@ -19,7 +19,3 @@
 .root[data-tone='onPhoto'] .rowLabel {
   color: var(--color-photo-text);
 }
-
-.pickerBody {
-  min-height: 12rem;
-}

@@ -14,9 +14,8 @@ import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
 import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
-import { TradePicker } from '../../components/TradePicker/TradePicker.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
@@ -74,7 +73,6 @@ export function VendorDetailPage() {
   // The route always supplies :id
   const id = useParams<{ id: string }>().id!;
   const navigate = useNavigate();
-  const { trades } = useTrades();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   // New › Invoice / Offer / Purchase start from this company.
@@ -544,9 +542,10 @@ export function VendorDetailPage() {
                 <label htmlFor="edit-tradeId" className={styles.label}>
                   {t('vendorDetail.form.trade')}
                 </label>
-                <TradePicker
+                <EntityPicker
+                  kind="trade"
                   id="edit-tradeId"
-                  initialTitle={
+                  selectedLabel={
                     vendor.trade
                       ? getCategoryDisplayName(
                           tSettings,
@@ -555,7 +554,6 @@ export function VendorDetailPage() {
                         )
                       : undefined
                   }
-                  trades={trades}
                   value={(editForm.tradeId as string) ?? ''}
                   onChange={(tradeId) => setEditForm({ ...editForm, tradeId })}
                   disabled={isUpdating}
@@ -750,7 +748,9 @@ export function VendorDetailPage() {
                                   state: originState,
                                 })
                               }
-                              aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
+                              aria-label={t('vendorDetail.invoiceEditAria', {
+                                number: invoice.invoiceNumber ?? invoice.id,
+                              })}
                             >
                               {t('vendorDetail.buttons.editRow')}
                             </button>
@@ -758,7 +758,9 @@ export function VendorDetailPage() {
                               type="button"
                               className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
                               onClick={() => openDeleteInvoiceConfirm(invoice)}
-                              aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
+                              aria-label={t('vendorDetail.invoiceDeleteAria', {
+                                number: invoice.invoiceNumber ?? invoice.id,
+                              })}
                             >
                               {t('vendorDetail.buttons.deleteRow')}
                             </button>
@@ -805,7 +807,9 @@ export function VendorDetailPage() {
                         onClick={() =>
                           navigate(routeUrl('invoice', { id: invoice.id }), { state: originState })
                         }
-                        aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
+                        aria-label={t('vendorDetail.invoiceEditAria', {
+                          number: invoice.invoiceNumber ?? invoice.id,
+                        })}
                       >
                         {t('vendorDetail.buttons.editRow')}
                       </button>
@@ -813,7 +817,9 @@ export function VendorDetailPage() {
                         type="button"
                         className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
                         onClick={() => openDeleteInvoiceConfirm(invoice)}
-                        aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
+                        aria-label={t('vendorDetail.invoiceDeleteAria', {
+                          number: invoice.invoiceNumber ?? invoice.id,
+                        })}
                       >
                         {t('vendorDetail.buttons.deleteRow')}
                       </button>

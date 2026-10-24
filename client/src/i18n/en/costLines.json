@@ -143,19 +143,12 @@
     "errorAlreadyLinked": "This line is already linked to an offer or invoice.",
     "linked": "Linked to {{invoice}}."
   },
+  "undo": {
+    "unlinked": "{{name}} unlinked from {{document}}.",
+    "removed": "{{name}} removed from {{document}}."
+  },
   "confirm": {
-    "removeTitle": "Remove {{name}} from {{invoice}}?",
-    "removeLead": "The line stays on {{target}} as an estimate.",
-    "removeLeadNoTarget": {
-      "offer": "The line is removed from this offer.",
-      "invoice": "The line is removed from this invoice."
-    },
     "remove": "Remove",
-    "removing": "Removing…",
-    "unlinkTitle": "Unlink {{name}} from {{invoice}}?",
-    "unlinkLead": "The line stays here as an estimate.",
-    "unlink": "Unlink",
-    "unlinking": "Unlinking…",
     "errorFailed": "That did not work. Try again."
   },
   "grid": {
@@ -219,11 +212,5 @@
     "empty": "{{target}} has no lines without an offer or invoice.",
     "pickTargetFirst": "Pick a task or purchase in this row first.",
     "use": "Use"
-  },
-  "target": {
-    "kindTask": "Task",
-    "kindPurchase": "Purchase",
-    "noResults": "No tasks or purchases match.",
-    "typeMore": "Type at least 2 letters."
   }
 }

@@ -3,7 +3,6 @@ export { CostLineForm } from './CostLineForm.js';
 export { LinkInvoiceForm } from './LinkInvoiceForm.js';
 export { CostLineGridDialog } from './CostLineGridDialog.js';
 export { CostLineGrid } from './CostLineGrid.js';
-export { CostLineTargetPicker } from './CostLineTargetPicker.js';
 export {
   blankGridRow,
   gridRowGross,

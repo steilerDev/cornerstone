@@ -244,6 +244,8 @@
       "actualDelivery": "Actual Delivery",
       "earliestDelivery": "Earliest Delivery",
       "latestDelivery": "Latest Delivery",
+      "actualDeliveryAria": "Actual delivery: {{actual}}, target was {{target}}",
+      "targetNotSet": "not set",
       "clearOrderDate": "Clear order date",
       "clearActualDelivery": "Clear actual delivery date",
       "clearEarliestDelivery": "Clear earliest delivery date",

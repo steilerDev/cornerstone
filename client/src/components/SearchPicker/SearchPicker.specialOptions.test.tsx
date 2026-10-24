@@ -356,60 +356,6 @@ describe('SearchPicker', () => {
     });
   });
 
-  // ── 14. getStatusBorderColor ──────────────────────────────────────────────
-
-  describe('getStatusBorderColor prop', () => {
-    it('after selection, selectedDisplay has borderLeftColor from callback', async () => {
-      const getStatusBorderColor = (item: TestItem) =>
-        item.status === 'active' ? 'rgb(0, 128, 0)' : undefined;
-
-      renderPicker({
-        showItemsOnFocus: true,
-        getStatusBorderColor,
-        placeholder: 'Search...',
-      });
-
-      const input = screen.getByPlaceholderText('Search...');
-      await user.click(input);
-
-      await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
-      await user.click(screen.getByText('Alpha Widget'));
-
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
-      });
-
-      // The selectedDisplay element should have the border color applied
-      const selectedDisplay = document.querySelector('[class*="selectedDisplay"]');
-      expect(selectedDisplay).toBeInTheDocument();
-      expect((selectedDisplay as HTMLElement).style.borderLeftColor).toBe('rgb(0, 128, 0)');
-    });
-
-    it('no borderLeftColor style when callback returns undefined', async () => {
-      const getStatusBorderColor = (_item: TestItem) => undefined;
-
-      renderPicker({
-        showItemsOnFocus: true,
-        getStatusBorderColor,
-        placeholder: 'Search...',
-      });
-
-      const input = screen.getByPlaceholderText('Search...');
-      await user.click(input);
-
-      await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
-      await user.click(screen.getByText('Alpha Widget'));
-
-      await waitFor(() =>
-        expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument(),
-      );
-
-      const selectedDisplay = document.querySelector('[class*="selectedDisplay"]');
-      expect(selectedDisplay).toBeInTheDocument();
-      expect((selectedDisplay as HTMLElement).style.borderLeftColor).toBe('');
-    });
-  });
-
   // ── 16. No divider when no results ───────────────────────────────────────
 
   describe('special options divider logic', () => {

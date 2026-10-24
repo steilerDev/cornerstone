@@ -97,6 +97,8 @@ jest.unstable_mockModule('../../../lib/workItemsApi.js', () => ({
 }));
 jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
   searchCompanies: jest.fn(async () => []),
+  // Named import of the EntityPicker closure (useCompanyName).
+  fetchVendor: jest.fn(),
 }));
 jest.unstable_mockModule('../../Toast/ToastContext.js', () => ({
   useToast: () => ({ showToast: mockShowToast, showUndoToast: mockShowUndoToast }),

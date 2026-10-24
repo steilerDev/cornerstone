@@ -3,13 +3,16 @@
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type {
   BaseBudgetLine,
   InvoiceBudgetLineDetailResponse,
   InvoiceStatus,
+  UndoToken,
 } from '@cornerstone/shared';
+import { ToastProvider, useToast } from '../Toast/ToastContext.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import type * as SectionModule from './CostLinesSection.js';
 import type { CostLineHost } from './types.js';
@@ -34,7 +37,9 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
 const mockDeleteWorkItemBudget = jest.fn<(...a: unknown[]) => Promise<void>>();
 const mockDeleteHouseholdItemBudget = jest.fn<(...a: unknown[]) => Promise<void>>();
 const mockFetchInvoiceBudgetLines = jest.fn<(...a: unknown[]) => Promise<unknown>>();
-const mockDeleteInvoiceBudgetLine = jest.fn<(...a: unknown[]) => Promise<void>>();
+const mockDeleteInvoiceBudgetLine = jest.fn<(...a: unknown[]) => Promise<{ undo: UndoToken }>>();
+const mockUndoChange = jest.fn<(token: string) => Promise<unknown>>();
+const TOKEN: UndoToken = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
 const mockFetchBudgetSources = jest.fn<(...a: unknown[]) => Promise<unknown>>();
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
@@ -46,6 +51,9 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
 jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   fetchInvoiceBudgetLines: mockFetchInvoiceBudgetLines,
   deleteInvoiceBudgetLine: mockDeleteInvoiceBudgetLine,
+}));
+jest.unstable_mockModule('../../lib/undoApi.js', () => ({
+  undoChange: mockUndoChange,
 }));
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   fetchBudgetSources: mockFetchBudgetSources,
@@ -228,12 +236,66 @@ function docResponse(lines = DOC_LINES, remainingAmount = 0) {
 
 const onChanged = jest.fn<() => Promise<void> | void>();
 
+function ToastView() {
+  const { toasts, undoToast } = useToast();
+  return (
+    <ul data-testid="toasts">
+      {toasts.map((toast) => (
+        <li key={toast.id} data-testid="toast" data-dedupe={toast.dedupeKey}>
+          <span>{toast.message}</span>
+          {toast.variant === 'undo' && (
+            <button type="button" data-testid="toast-undo" onClick={() => void undoToast(toast.id)}>
+              Undo
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Section(props: Partial<React.ComponentProps<typeof CostLinesSection>>) {
   return (
-    <MemoryRouter>
-      <CostLinesSection host={ITEM_HOST} lines={ITEM_LINES} onChanged={onChanged} {...props} />
-    </MemoryRouter>
+    <ToastProvider>
+      <MemoryRouter>
+        <CostLinesSection host={ITEM_HOST} lines={ITEM_LINES} onChanged={onChanged} {...props} />
+        <ToastView />
+      </MemoryRouter>
+    </ToastProvider>
   );
+}
+
+/** The lines the "server" holds; `Stateful` reloads them whenever the section reports a change. */
+let serverLines: BaseBudgetLine[] = [];
+
+function Stateful({
+  initial,
+  host = ITEM_HOST,
+}: {
+  initial: BaseBudgetLine[];
+  host?: CostLineHost;
+}) {
+  const [lines, setLines] = useState<BaseBudgetLine[]>(initial);
+  return (
+    <ToastProvider>
+      <MemoryRouter>
+        <CostLinesSection
+          host={host}
+          lines={lines}
+          onChanged={async () => {
+            await onChanged();
+            setLines([...serverLines]);
+          }}
+        />
+        <ToastView />
+      </MemoryRouter>
+    </ToastProvider>
+  );
+}
+
+function renderStateful(initial: BaseBudgetLine[], host: CostLineHost = ITEM_HOST) {
+  serverLines = [...initial];
+  return render(<Stateful initial={initial} host={host} />);
 }
 
 function renderSection(props: Partial<React.ComponentProps<typeof CostLinesSection>> = {}) {
@@ -254,7 +316,8 @@ beforeEach(async () => {
   onChanged.mockResolvedValue(undefined);
   mockDeleteWorkItemBudget.mockReset().mockResolvedValue(undefined);
   mockDeleteHouseholdItemBudget.mockReset().mockResolvedValue(undefined);
-  mockDeleteInvoiceBudgetLine.mockReset().mockResolvedValue(undefined);
+  mockDeleteInvoiceBudgetLine.mockReset().mockResolvedValue({ undo: TOKEN });
+  mockUndoChange.mockReset().mockResolvedValue({ restored: [] });
   mockFetchInvoiceBudgetLines.mockReset().mockResolvedValue(docResponse());
   mockFetchBudgetSources.mockReset().mockResolvedValue({ budgetSources: [] });
 });
@@ -268,7 +331,7 @@ afterEach(() => {
 describe('CostLinesSection item host', () => {
   it('renders the heading, both add buttons and the table groups', () => {
     renderSection();
-    expect(screen.getByRole('heading', { level: 2, name: 'Cost lines' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Cost lines (3)' })).toBeInTheDocument();
     expect(screen.getByTestId('cost-lines-add')).toHaveTextContent('Add cost line');
     expect(screen.getByTestId('cost-lines-add-grid')).toHaveTextContent('Add lines (grid)');
     expect(screen.getByTestId('cost-lines-row-e1')).toBeInTheDocument();
@@ -277,7 +340,7 @@ describe('CostLinesSection item host', () => {
 
   it('honours headingLevel 3 and a custom testId', () => {
     renderSection({ headingLevel: 3, testId: 'wi-cost' });
-    expect(screen.getByRole('heading', { level: 3, name: 'Cost lines' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Cost lines (3)' })).toBeInTheDocument();
     expect(screen.getByTestId('wi-cost-section')).toBeInTheDocument();
     expect(screen.getByTestId('wi-cost-row-e1')).toBeInTheDocument();
   });
@@ -398,129 +461,102 @@ describe('CostLinesSection item host delete and unlink', () => {
       .mockReturnValue([{}] as unknown as DOMRectList);
   });
 
+  const dropFromServer = async (_target: unknown, lineId: unknown) => {
+    serverLines = serverLines.filter((line) => line.id !== lineId);
+  };
+
   it('delete: confirms, deletes through the work item API, reloads and focuses the next row', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
-    renderSection();
-    const user = await openMenu(
-      'e1',
-      'Delete',
-      userEvent.setup({ advanceTimers: jest.advanceTimersByTime }),
-    );
+    mockDeleteWorkItemBudget.mockImplementation(dropFromServer);
+    renderStateful(ITEM_LINES);
+    const user = await openMenu('e1', 'Delete');
     expect(screen.getByRole('alertdialog')).toHaveTextContent('Delete Tile the hallway?');
     await user.click(screen.getByTestId('cost-line-delete-confirm'));
     await waitFor(() => expect(mockDeleteWorkItemBudget).toHaveBeenCalledWith('w1', 'e1'));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    expect(screen.getByTestId('cost-lines-actions-e2')).toHaveFocus();
-    jest.useRealTimers();
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-actions-e2')).toHaveFocus());
+    expect(screen.getByRole('heading', { name: 'Cost lines (2)' })).toBeInTheDocument();
+    expect(screen.queryByTestId('toast')).toBeNull();
   });
 
   it('delete on a purchase uses the purchase API; the last row falls back to the previous one', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
-    renderSection({
-      host: HOUSEHOLD_HOST,
-      lines: [ITEM_LINES[0] as BaseBudgetLine, ITEM_LINES[1] as BaseBudgetLine],
-    });
-    const user = await openMenu(
-      'e2',
-      'Delete',
-      userEvent.setup({ advanceTimers: jest.advanceTimersByTime }),
+    mockDeleteHouseholdItemBudget.mockImplementation(dropFromServer);
+    renderStateful(
+      [ITEM_LINES[0] as BaseBudgetLine, ITEM_LINES[1] as BaseBudgetLine],
+      HOUSEHOLD_HOST,
     );
+    const user = await openMenu('e2', 'Delete');
     await user.click(screen.getByTestId('cost-line-delete-confirm'));
     await waitFor(() => expect(mockDeleteHouseholdItemBudget).toHaveBeenCalledWith('h1', 'e2'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    expect(screen.getByTestId('cost-lines-actions-e1')).toHaveFocus();
-    jest.useRealTimers();
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-actions-e1')).toHaveFocus());
   });
 
   it('does not throw when the section unmounts before the focus timer fires', async () => {
-    const held: (() => void)[] = [];
-    const original = window.setTimeout.bind(window);
-    const spy = jest.spyOn(window, 'setTimeout').mockImplementation(((
-      fn: () => void,
-      delay?: number,
-    ) => {
-      // Hold only the row-menu focus callback; everything else schedules normally.
-      if (String(fn).includes('getClientRects')) {
-        held.push(fn);
-        return 0;
-      }
-      return original(fn, delay);
-    }) as typeof window.setTimeout);
+    jest.useFakeTimers({ advanceTimers: true });
     try {
-      const view = renderSection({ lines: [ITEM_LINES[0] as BaseBudgetLine] });
-      const user = await openMenu('e1', 'Delete', userEvent.setup());
+      mockDeleteWorkItemBudget.mockImplementation(dropFromServer);
+      const view = renderStateful([
+        ITEM_LINES[0] as BaseBudgetLine,
+        ITEM_LINES[1] as BaseBudgetLine,
+      ]);
+      const user = await openMenu(
+        'e1',
+        'Delete',
+        userEvent.setup({ advanceTimers: jest.advanceTimersByTime }),
+      );
       await user.click(screen.getByTestId('cost-line-delete-confirm'));
-      await waitFor(() => expect(held).toHaveLength(1));
+      await waitFor(() => expect(mockDeleteWorkItemBudget).toHaveBeenCalled());
       view.unmount();
-      expect(() => held[0]?.()).not.toThrow();
+
+      expect(() => jest.runOnlyPendingTimers()).not.toThrow();
     } finally {
-      spy.mockRestore();
+      jest.useRealTimers();
     }
   });
 
-  it('delete of the only row focuses the section heading', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
-    renderSection({ lines: [ITEM_LINES[0] as BaseBudgetLine] });
-    const user = await openMenu(
-      'e1',
-      'Delete',
-      userEvent.setup({ advanceTimers: jest.advanceTimersByTime }),
-    );
+  it('delete of the only row focuses Add cost line', async () => {
+    mockDeleteWorkItemBudget.mockImplementation(dropFromServer);
+    renderStateful([ITEM_LINES[0] as BaseBudgetLine]);
+    const user = await openMenu('e1', 'Delete');
     await user.click(screen.getByTestId('cost-line-delete-confirm'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    expect(screen.getByRole('heading', { name: 'Cost lines' })).toHaveFocus();
-    jest.useRealTimers();
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-add')).toHaveFocus());
+    expect(screen.getByRole('heading', { name: 'Cost lines (0)' })).toBeInTheDocument();
   });
 
-  it('focus falls back to the heading when the neighbour row is not rendered', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
+  it('focus falls back to Add cost line when the neighbour row is not rendered', async () => {
+    mockDeleteWorkItemBudget.mockImplementation(dropFromServer);
     jest
       .spyOn(HTMLElement.prototype, 'getClientRects')
       .mockReturnValue([] as unknown as DOMRectList);
-    renderSection();
-    const user = await openMenu(
-      'e1',
-      'Delete',
-      userEvent.setup({ advanceTimers: jest.advanceTimersByTime }),
-    );
+    renderStateful(ITEM_LINES);
+    const user = await openMenu('e1', 'Delete');
     await user.click(screen.getByTestId('cost-line-delete-confirm'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    expect(screen.getByRole('heading', { name: 'Cost lines' })).toHaveFocus();
-    jest.useRealTimers();
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-add')).toHaveFocus());
   });
 
   it('delete on the card surface focuses the next card menu', async () => {
-    jest.useFakeTimers({ advanceTimers: true });
+    mockDeleteWorkItemBudget.mockImplementation(dropFromServer);
     jest.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
       this: HTMLElement,
     ) {
       const mobile = (this.dataset.testid ?? '').includes('mobile');
       return (mobile ? [{}] : []) as unknown as DOMRectList;
     });
-    renderSection();
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderStateful(ITEM_LINES);
+    const user = userEvent.setup();
     await user.click(screen.getByTestId('cost-lines-actions-mobile-e1'));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
     await user.click(screen.getByTestId('cost-line-delete-confirm'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    jest.useRealTimers();
-    expect(screen.getByTestId('cost-lines-actions-mobile-e2')).toHaveFocus();
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-actions-mobile-e2')).toHaveFocus());
   });
 
   it('Cancel while a delete is running keeps the dialog open', async () => {
@@ -607,24 +643,192 @@ describe('CostLinesSection item host delete and unlink', () => {
     expect(mockDeleteWorkItemBudget).not.toHaveBeenCalled();
   });
 
-  it('unlink: names the line and the offer or invoice, then removes the link', async () => {
+  it('unlink: acts at once with no confirmation, then offers Undo naming the line and the invoice', async () => {
     renderSection();
-    const user = await openMenu('l3', 'Unlink');
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Unlink Fit the sink from Invoice INV-100?');
-    expect(dialog).toHaveTextContent('The line stays here as an estimate.');
-    await user.click(screen.getByTestId('cost-line-unlink-confirm'));
+    await openMenu('l3', 'Unlink');
+
     await waitFor(() => expect(mockDeleteInvoiceBudgetLine).toHaveBeenCalledWith('inv-1', 'ibl-3'));
-    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    const toast = await screen.findByTestId('toast');
+    expect(toast).toHaveTextContent('Fit the sink unlinked from Invoice INV-100.');
+    expect(toast).toHaveAttribute('data-dedupe', 'cost-line-unlink-l3');
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
   });
 
-  it('unlink of an offer-linked line without a number titles it with the date', async () => {
+  it('unlink of an offer-linked line without a number names the offer with its date', async () => {
     const link = { ...linked('quotation'), invoiceNumber: null } as BaseBudgetLine['invoiceLink'];
     renderSection({
       lines: [budgetLine({ id: 'q1', description: 'Quote line', invoiceLink: link })],
     });
     await openMenu('q1', 'Unlink');
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(/Unlink Quote line from Offer/);
+
+    expect(await screen.findByTestId('toast')).toHaveTextContent(
+      /^Quote line unlinked from Offer .+\.Undo$/,
+    );
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('a name-less linked line is named with the fallback description in the toast', async () => {
+    renderSection({
+      lines: [budgetLine({ id: 'n1', description: null, invoiceLink: linked() })],
+    });
+    await openMenu('n1', 'Unlink');
+
+    expect(await screen.findByTestId('toast')).toHaveTextContent(
+      'Line without a description unlinked from Invoice INV-100.',
+    );
+  });
+
+  it('Undo restores through undoChange with the token, then reloads, then restores focus', async () => {
+    renderSection();
+    await openMenu('l3', 'Unlink');
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+
+    await waitFor(() => expect(mockUndoChange).toHaveBeenCalledWith('tok-1'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+    expect(mockUndoChange.mock.invocationCallOrder[0] as number).toBeLessThan(
+      onChanged.mock.invocationCallOrder[1] as number,
+    );
+    await waitFor(() => expect(screen.getByTestId('cost-lines-actions-l3')).toHaveFocus());
+    expect(screen.getByText('Change undone.')).toBeInTheDocument();
+  });
+
+  it('Undo leaves focus alone when the user moved it elsewhere', async () => {
+    renderSection();
+    await openMenu('l3', 'Unlink');
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    const add = screen.getByTestId('cost-lines-add');
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+    add.focus();
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+    expect(add).toHaveFocus();
+  });
+
+  it('a refused Undo (409) tells the user it changed since and does not reload', async () => {
+    mockUndoChange.mockRejectedValue(
+      new ApiClientError(409, { code: 'CONFLICT', message: 'raw server prose' }),
+    );
+    renderSection();
+    await openMenu('l3', 'Unlink');
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+
+    expect(await screen.findByText("This changed since, so it can't be undone.")).toBeVisible();
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed unlink shows the translated error, no toast, and nothing changes', async () => {
+    mockDeleteInvoiceBudgetLine.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'raw' }),
+    );
+    renderSection();
+    await openMenu('l3', 'Unlink');
+
+    await waitFor(() => expect(mockDeleteInvoiceBudgetLine).toHaveBeenCalled());
+    expect(await screen.findByRole('alert')).not.toHaveTextContent('raw');
+    expect(screen.queryByTestId('toast')).toBeNull();
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('shows no toast when the server answers without an undo token', async () => {
+    mockDeleteInvoiceBudgetLine.mockResolvedValue({} as { undo: UndoToken });
+    renderSection();
+    await openMenu('l3', 'Unlink');
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('Delete of an unlinked line still asks first and offers no Undo toast', async () => {
+    renderSection();
+    const user = await openMenu('e1', 'Delete');
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(mockDeleteWorkItemBudget).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() => expect(mockDeleteWorkItemBudget).toHaveBeenCalledWith('w1', 'e1'));
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+});
+
+// ─── Item host: Unlink with a stateful page (reload, focus, Undo) ───────────
+
+describe('CostLinesSection item host unlink with reloading data', () => {
+  const original = [
+    budgetLine({ id: 'e1', description: 'Tile the hallway' }),
+    budgetLine({ id: 'l2', description: 'Fit the sink', invoiceLink: linked() }),
+    budgetLine({ id: 'e3', description: 'Paint the walls' }),
+  ];
+
+  beforeEach(() => {
+    jest
+      .spyOn(HTMLElement.prototype, 'getClientRects')
+      .mockReturnValue([{}] as unknown as DOMRectList);
+    mockDeleteInvoiceBudgetLine.mockImplementation(async () => {
+      serverLines = serverLines.map((line) => ({ ...line, invoiceLink: null }));
+      return { undo: TOKEN };
+    });
+    mockUndoChange.mockImplementation(async () => {
+      serverLines = [...original];
+      return { restored: [] };
+    });
+  });
+
+  it('the heading count stays the same after Unlink, and the line becomes an estimate', async () => {
+    renderStateful(original);
+    expect(screen.getByRole('heading', { name: 'Cost lines (3)' })).toBeInTheDocument();
+    expect(screen.getByTestId('cost-lines-row-l2')).toHaveTextContent('Invoiced');
+
+    await openMenu('l2', 'Unlink');
+
+    await waitFor(() =>
+      expect(screen.getByTestId('cost-lines-row-l2')).not.toHaveTextContent('Invoiced'),
+    );
+    expect(screen.getByRole('heading', { name: 'Cost lines (3)' })).toBeInTheDocument();
+  });
+
+  it('Undo brings the invoice link back after the reload', async () => {
+    renderStateful(original);
+    await openMenu('l2', 'Unlink');
+    await waitFor(() =>
+      expect(screen.getByTestId('cost-lines-row-l2')).not.toHaveTextContent('Invoiced'),
+    );
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('cost-lines-row-l2')).toHaveTextContent('Invoiced'),
+    );
+  });
+
+  // DEFECT (reported to dev-team-lead): an item-host Unlink keeps the line (same id, it moves to
+  // the Estimates group), so useRelatedListFocus.afterRemove never sees the id leave and the
+  // remount of the moved row drops focus to <body>. UX spec and E2E scenario 6 want the next
+  // row's menu. Flip to `it` once the focus rule handles a row that moves instead of leaving.
+  it('focus after Unlink goes to the next row’s menu', async () => {
+    renderStateful(original);
+    await openMenu('l2', 'Unlink');
+    await waitFor(() =>
+      expect(screen.getByTestId('cost-lines-row-l2')).not.toHaveTextContent('Invoiced'),
+    );
+
+    await waitFor(() => expect(screen.getByTestId('cost-lines-actions-e3')).toHaveFocus());
   });
 });
 
@@ -772,48 +976,173 @@ describe('CostLinesSection document host', () => {
     expect(screen.queryByRole('menuitem', { name: 'Link to offer or invoice' })).toBeNull();
   });
 
-  it('remove: names the target in the lead, deletes the invoice line and reloads', async () => {
+  it('shows the line count in the heading once the lines are loaded', async () => {
+    renderSection({ host: DOC_HOST });
+
+    expect(await screen.findByRole('heading', { name: 'Cost lines (2)' })).toBeInTheDocument();
+  });
+
+  it('shows only the title while loading and after a load error', async () => {
+    mockFetchInvoiceBudgetLines.mockRejectedValueOnce(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+    );
+    renderSection({ host: DOC_HOST });
+
+    expect(screen.getByRole('heading', { name: 'Cost lines' })).toBeInTheDocument();
+    await screen.findByRole('alert');
+    expect(screen.getByRole('heading', { name: 'Cost lines' })).toBeInTheDocument();
+  });
+
+  it('remove: acts at once, then offers Undo naming the line and the invoice', async () => {
     renderSection({ host: DOC_HOST });
     await screen.findByTestId('cost-lines-row-wb-d1');
-    const user = await openMenu('wb-d1', 'Remove from invoice');
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Remove Fit the sink from Example Plumbing Co · INV-100?');
-    expect(dialog).toHaveTextContent('Renovate the kitchen');
-    await user.click(screen.getByTestId('cost-line-remove-confirm'));
+    await openMenu('wb-d1', 'Remove from invoice');
+
     await waitFor(() => expect(mockDeleteInvoiceBudgetLine).toHaveBeenCalledWith('inv-1', 'd1'));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    const toast = await screen.findByTestId('toast');
+    expect(toast).toHaveTextContent('Fit the sink removed from Example Plumbing Co · INV-100.');
+    expect(toast).toHaveAttribute('data-dedupe', 'cost-line-remove-wb-d1');
   });
 
-  it('remove of an orphan uses the no-target lead for an invoice and for an offer', async () => {
-    renderSection({ host: DOC_HOST });
-    await screen.findByTestId('cost-lines-row-wb-d1');
-    const user = await openMenu('d2', 'Remove from invoice');
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'The line is removed from this invoice.',
-    );
-    await user.click(screen.getByTestId('cost-line-remove-cancel'));
-  });
-
-  it('remove of an orphan on an offer uses the offer wording', async () => {
-    renderSection({ host: OFFER_HOST });
+  it('remove on an offer uses the offer wording in the menu and names the offer in the toast', async () => {
+    renderSection({
+      host: { ...OFFER_HOST, label: 'Example Plumbing Co · Offer A' } as CostLineHost,
+    });
     await screen.findByTestId('cost-lines-row-wb-d1');
     await openMenu('d2', 'Remove from offer');
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'The line is removed from this offer.',
+
+    expect(await screen.findByTestId('toast')).toHaveTextContent(
+      'Loose pipe work removed from Example Plumbing Co · Offer A.',
     );
   });
 
-  it('remove failure keeps the dialog open with translated text', async () => {
+  it('Undo of a remove restores through undoChange, then reloads the lines again', async () => {
+    renderSection({ host: DOC_HOST });
+    await screen.findByTestId('cost-lines-row-wb-d1');
+    await openMenu('wb-d1', 'Remove from invoice');
+    await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+
+    await waitFor(() => expect(mockUndoChange).toHaveBeenCalledWith('tok-1'));
+    await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(3));
+    expect(mockUndoChange.mock.invocationCallOrder[0] as number).toBeLessThan(
+      mockFetchInvoiceBudgetLines.mock.invocationCallOrder[2] as number,
+    );
+    expect(onChanged).toHaveBeenCalledTimes(2);
+  });
+
+  it('a refused Undo (409) says it changed since and does not reload', async () => {
+    mockUndoChange.mockRejectedValue(
+      new ApiClientError(409, { code: 'CONFLICT', message: 'raw server prose' }),
+    );
+    renderSection({ host: DOC_HOST });
+    await screen.findByTestId('cost-lines-row-wb-d1');
+    await openMenu('wb-d1', 'Remove from invoice');
+    await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('toast-undo'));
+    });
+
+    expect(await screen.findByText("This changed since, so it can't be undone.")).toBeVisible();
+    expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2);
+  });
+
+  it('remove failure shows the translated error and no toast', async () => {
     mockDeleteInvoiceBudgetLine.mockRejectedValue(
       new ApiClientError(404, { code: 'NOT_FOUND', message: 'raw' }),
     );
     renderSection({ host: DOC_HOST });
     await screen.findByTestId('cost-lines-row-wb-d1');
-    const user = await openMenu('wb-d1', 'Remove from invoice');
-    await user.click(screen.getByTestId('cost-line-remove-confirm'));
-    await waitFor(() => expect(screen.getByRole('alertdialog')).not.toHaveTextContent('raw'));
-    expect(screen.getByTestId('cost-line-remove-confirm')).toBeInTheDocument();
+    await openMenu('wb-d1', 'Remove from invoice');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).not.toHaveTextContent('raw');
+    expect(screen.queryByTestId('toast')).toBeNull();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  describe('with a reloading document', () => {
+    let serverLines: InvoiceBudgetLineDetailResponse[];
+
+    beforeEach(() => {
+      serverLines = [
+        docLine({ id: 'd1', budgetLineDescription: 'Fit the sink' }),
+        docLine({ id: 'd3', budgetLineDescription: 'Lay the pipes' }),
+        docLine({ id: 'd4', budgetLineDescription: 'Seal the joints' }),
+      ];
+      const all = [...serverLines];
+      mockFetchInvoiceBudgetLines.mockImplementation(async () => docResponse(serverLines, 0));
+      mockDeleteInvoiceBudgetLine.mockImplementation(async (_invoice, id) => {
+        serverLines = serverLines.filter((line) => line.id !== id);
+        return { undo: TOKEN };
+      });
+      mockUndoChange.mockImplementation(async () => {
+        serverLines = all;
+        return { restored: [] };
+      });
+    });
+
+    it('the heading count follows Remove and Undo', async () => {
+      renderSection({ host: DOC_HOST });
+      expect(await screen.findByRole('heading', { name: 'Cost lines (3)' })).toBeInTheDocument();
+
+      await openMenu('wb-d3', 'Remove from invoice');
+      expect(await screen.findByRole('heading', { name: 'Cost lines (2)' })).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(await screen.findByTestId('toast-undo'));
+      });
+      expect(await screen.findByRole('heading', { name: 'Cost lines (3)' })).toBeInTheDocument();
+    });
+
+    it('focus after Remove goes to the next row’s menu', async () => {
+      renderSection({ host: DOC_HOST });
+      await screen.findByTestId('cost-lines-row-wb-d1');
+
+      await openMenu('wb-d3', 'Remove from invoice');
+
+      await waitFor(() => expect(screen.getByTestId('cost-lines-actions-wb-d4')).toHaveFocus());
+    });
+
+    it('focus after removing the last row goes to the previous row’s menu', async () => {
+      renderSection({ host: DOC_HOST });
+      await screen.findByTestId('cost-lines-row-wb-d1');
+
+      await openMenu('wb-d4', 'Remove from invoice');
+
+      await waitFor(() => expect(screen.getByTestId('cost-lines-actions-wb-d3')).toHaveFocus());
+    });
+
+    it('focus after removing the only row goes to Add cost line', async () => {
+      serverLines = [docLine({ id: 'd1', budgetLineDescription: 'Fit the sink' })];
+      renderSection({ host: DOC_HOST });
+      await screen.findByTestId('cost-lines-row-wb-d1');
+
+      await openMenu('wb-d1', 'Remove from invoice');
+
+      await waitFor(() => expect(screen.getByTestId('cost-lines-add')).toHaveFocus());
+    });
+
+    it('Undo puts focus back on the restored row’s menu when focus was on body', async () => {
+      renderSection({ host: DOC_HOST });
+      await screen.findByTestId('cost-lines-row-wb-d1');
+      await openMenu('wb-d3', 'Remove from invoice');
+      await screen.findByRole('heading', { name: 'Cost lines (2)' });
+      (document.activeElement as HTMLElement | null)?.blur();
+
+      await act(async () => {
+        fireEvent.click(await screen.findByTestId('toast-undo'));
+      });
+
+      await waitFor(() => expect(screen.getByTestId('cost-lines-actions-wb-d3')).toHaveFocus());
+    });
   });
 
   it('Edit of a document line opens the form and a close needs no reload', async () => {
@@ -822,21 +1151,6 @@ describe('CostLinesSection document host', () => {
     const user = await openMenu('wb-d1', 'Edit');
     await user.click(screen.getByText('form-close'));
     expect(onChanged).not.toHaveBeenCalled();
-  });
-
-  it('the remove confirm cannot be dismissed while the request is running', async () => {
-    let finish: () => void = () => undefined;
-    mockDeleteInvoiceBudgetLine.mockImplementation(
-      () => new Promise<void>((resolve) => (finish = resolve)),
-    );
-    renderSection({ host: DOC_HOST });
-    await screen.findByTestId('cost-lines-row-wb-d1');
-    const user = await openMenu('wb-d1', 'Remove from invoice');
-    await user.click(screen.getByTestId('cost-line-remove-confirm'));
-    await user.click(screen.getByTestId('cost-line-remove-cancel'));
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    await act(async () => finish());
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   });
 });
 

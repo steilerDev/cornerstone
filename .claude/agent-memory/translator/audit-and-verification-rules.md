@@ -18,3 +18,7 @@ metadata:
 **Orphan cleanup.** A de key with no en counterpart and zero code references (`grep -rn "<key>" client/src`) is a stale artifact and can be deleted. Never delete a de key that still exists in en. Never delete a key just because it looks unused. Dynamic keys (`labelKey` props, template literals) are common, so grep first.
 
 **Concurrent worktrees.** Re-check that an en key exists right before finishing. In a shared worktree the answer can change within one task (see `budget.json` `closingLabel`, #1932).
+
+**Audit false positives (#2236).** `scripts/i18n-audit.mjs` does not read an explicit `{ ns: "..." }` option in `t()` calls and reports `does not resolve` for them (e.g. `t(draft.badgeLabel, { ns: 'diary' })`). Verify with a direct JSON lookup before fixing the de file.
+
+**Order-preserving de sync.** Rebuild a de namespace by keeping its existing key order, dropping de-only keys and inserting each new en key after its nearest preceding en sibling. Do not re-serialize in en order, which reshuffles unrelated de keys (#2236 first attempt, 363-line diff for 2 added keys).

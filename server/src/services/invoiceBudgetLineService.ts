@@ -25,7 +25,9 @@ import {
   ValidationError,
   BudgetLineAlreadyLinkedError,
   ItemizedSumExceedsInvoiceError,
+  ConflictError,
 } from '../errors/AppError.js';
+import type { UndoTransaction } from './undoService.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 import { exceedsAmount } from './shared/money.js';
@@ -52,8 +54,8 @@ function getAreaWithAncestors(
   areaMap: Map<string, AreaMapEntry>,
 ): AreaSummary | null {
   if (!areaId) return null;
-  const entry = areaMap.get(areaId);
-  if (!entry) return null;
+  // areaId is a foreign key into the same areas table the map was loaded from
+  const entry = areaMap.get(areaId)!;
   const ancestors = resolveAreaAncestors(areaId, areaMap);
   return toAreaSummary(
     {
@@ -101,10 +103,7 @@ function resolveDetail(
       .select()
       .from(workItemBudgets)
       .where(eq(workItemBudgets.id, row.workItemBudgetId))
-      .get();
-    if (!wib) {
-      throw new NotFoundError('Work item budget line not found');
-    }
+      .get()!; // FK invoice_budget_lines.work_item_budget_id guarantees the row
     budgetLineDescription = wib.description;
     plannedAmount = wib.plannedAmount;
     confidence = wib.confidence as ConfidenceLevel;
@@ -123,10 +122,7 @@ function resolveDetail(
       parentItemTitle = null;
       parentItemArea = null;
     } else {
-      const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get();
-      if (!wi) {
-        throw new NotFoundError('Work item not found');
-      }
+      const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get()!;
       parentItemId = wi.id;
       parentItemTitle = wi.title;
       parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
@@ -136,10 +132,7 @@ function resolveDetail(
       .select()
       .from(householdItemBudgets)
       .where(eq(householdItemBudgets.id, row.householdItemBudgetId))
-      .get();
-    if (!hib) {
-      throw new NotFoundError('Household item budget line not found');
-    }
+      .get()!; // FK guarantees the row
     budgetLineDescription = hib.description;
     plannedAmount = hib.plannedAmount;
     confidence = hib.confidence as ConfidenceLevel;
@@ -155,10 +148,7 @@ function resolveDetail(
       .select()
       .from(householdItems)
       .where(eq(householdItems.id, hib.householdItemId))
-      .get();
-    if (!hi) {
-      throw new NotFoundError('Household item not found');
-    }
+      .get()!;
     parentItemId = hi.id;
     parentItemTitle = hi.name;
     parentItemArea = null; // Household items always have null area
@@ -471,31 +461,106 @@ export function updateInvoiceBudgetLine(
   };
 }
 
+/** A deleted invoice budget line row, as needed to restore it. */
+export interface DeletedInvoiceBudgetLineSnapshot {
+  row: typeof invoiceBudgetLines.$inferSelect;
+}
+
 /**
- * Delete an invoice budget line.
+ * Delete an invoice budget line and return the deleted row for an Undo snapshot.
+ * @throws NotFoundError if the invoice or the line (in this invoice) does not exist
  */
-export function deleteInvoiceBudgetLine(db: DbType, invoiceId: string, lineId: string): void {
+export function deleteInvoiceBudgetLineWithSnapshot(
+  db: DbType,
+  invoiceId: string,
+  lineId: string,
+): DeletedInvoiceBudgetLineSnapshot {
   // Verify invoice exists
   const invoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
   if (!invoice) {
     throw new NotFoundError('Invoice not found');
   }
 
-  // Verify the line exists and belongs to this invoice
-  const existing = db
-    .select()
-    .from(invoiceBudgetLines)
-    .where(eq(invoiceBudgetLines.id, lineId))
+  return db.transaction((tx) => {
+    // Verify the line exists and belongs to this invoice
+    const row = tx.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get();
+    if (!row) {
+      throw new NotFoundError('Invoice budget line not found');
+    }
+    if (row.invoiceId !== invoiceId) {
+      throw new NotFoundError('Invoice budget line not found in this invoice');
+    }
+
+    tx.delete(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).run();
+    return { row };
+  });
+}
+
+/**
+ * Re-insert a deleted invoice budget line with its original id and timestamps.
+ * @throws ConflictError (details.changed) when the invoice or the cost line is gone, the cost
+ *   line is linked again, the id is taken, or the itemized sum would now exceed the invoice amount
+ */
+export function restoreDeletedInvoiceBudgetLine(
+  tx: UndoTransaction,
+  snapshot: DeletedInvoiceBudgetLineSnapshot,
+): void {
+  const { row } = snapshot;
+  const refuse = (): never => {
+    throw new ConflictError('The record changed after this action', {
+      changed: [{ type: 'invoice_budget_line', id: row.id }],
+    });
+  };
+
+  const invoice = tx
+    .select({ amount: invoices.amount })
+    .from(invoices)
+    .where(eq(invoices.id, row.invoiceId))
     .get();
-  if (!existing) {
-    throw new NotFoundError('Invoice budget line not found');
-  }
-  if (existing.invoiceId !== invoiceId) {
-    throw new NotFoundError('Invoice budget line not found in this invoice');
+  if (!invoice) return refuse();
+
+  const idTaken = tx
+    .select({ id: invoiceBudgetLines.id })
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, row.id))
+    .get();
+  if (idTaken) refuse();
+
+  if (row.workItemBudgetId) {
+    const costLine = tx
+      .select({ id: workItemBudgets.id })
+      .from(workItemBudgets)
+      .where(eq(workItemBudgets.id, row.workItemBudgetId))
+      .get();
+    const linkedAgain = tx
+      .select({ id: invoiceBudgetLines.id })
+      .from(invoiceBudgetLines)
+      .where(eq(invoiceBudgetLines.workItemBudgetId, row.workItemBudgetId))
+      .get();
+    if (!costLine || linkedAgain) refuse();
+  } else {
+    // CHECK constraint: exactly one of the two cost-line ids is set
+    const costLine = tx
+      .select({ id: householdItemBudgets.id })
+      .from(householdItemBudgets)
+      .where(eq(householdItemBudgets.id, row.householdItemBudgetId!))
+      .get();
+    const linkedAgain = tx
+      .select({ id: invoiceBudgetLines.id })
+      .from(invoiceBudgetLines)
+      .where(eq(invoiceBudgetLines.householdItemBudgetId, row.householdItemBudgetId!))
+      .get();
+    if (!costLine || linkedAgain) refuse();
   }
 
-  // Delete
-  db.delete(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).run();
+  const { total } = tx
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.invoiceId, row.invoiceId))
+    .get()!; // an aggregate select always returns one row
+  if (exceedsAmount(total + row.itemizedAmount, invoice.amount)) refuse();
+
+  tx.insert(invoiceBudgetLines).values(row).run();
 }
 
 /**
@@ -783,11 +848,7 @@ export function editAndMoveBudgetLine(
           .select()
           .from(workItemBudgets)
           .where(eq(workItemBudgets.id, ibl.workItemBudgetId!))
-          .get();
-
-        if (!wib) {
-          throw new NotFoundError('Work item budget line not found');
-        }
+          .get()!; // FK guarantees the row
 
         // Determine budgetCategoryId: use form value if provided, else existing WIB's value or fallback
         const finalCategoryId =
@@ -856,11 +917,7 @@ export function editAndMoveBudgetLine(
           .select()
           .from(householdItemBudgets)
           .where(eq(householdItemBudgets.id, ibl.householdItemBudgetId!))
-          .get();
-
-        if (!hib) {
-          throw new NotFoundError('Household item budget line not found');
-        }
+          .get()!; // FK guarantees the row
 
         // Determine budgetCategoryId: use form value if provided, else existing HIB's value
         const finalCategoryId =

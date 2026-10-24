@@ -40,7 +40,10 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 type TrackedValues = Record<string, unknown>;
 
 /** Subjects restored by re-applying tracked column values (everything except `restore` kinds). */
-type StatusUndoSubjectType = Exclude<UndoSubjectType, 'area' | 'photo' | 'document_link'>;
+type StatusUndoSubjectType = Exclude<
+  UndoSubjectType,
+  'area' | 'photo' | 'document_link' | 'vendor_contact' | 'invoice_budget_line'
+>;
 
 /** A status-kind subject: the only kind `runUndoable` and the column snapshots handle. */
 interface StatusUndoRow {
@@ -138,6 +141,8 @@ interface RestoreSnapshot {
   restore: (tx: UndoTransaction) => void;
   /** Runs exactly once when the snapshot leaves the store without a successful restore. */
   discard?: () => void;
+  /** Runs once after the restore transaction committed (not on 404/409). */
+  afterRestore?: () => void;
 }
 
 type Snapshot = StatusSnapshot | RestoreSnapshot;
@@ -309,9 +314,7 @@ function storeSnapshot(store: UndoStore, build: (createdAt: number) => Snapshot)
   while (store.snapshots.size >= store.maxEntries) {
     const oldest = store.snapshots.keys().next().value;
     if (oldest === undefined) break;
-    const evicted = store.snapshots.get(oldest);
-    if (evicted) dropSnapshot(store, oldest, evicted);
-    else store.snapshots.delete(oldest);
+    dropSnapshot(store, oldest, store.snapshots.get(oldest)!);
   }
 
   const token = `u_${randomBytes(16).toString('hex')}`;
@@ -334,6 +337,11 @@ export interface IssueRestoreTokenArgs {
   readonly restore: (tx: UndoTransaction) => void;
   /** Cleanup run once if the snapshot expires, is evicted or its restore is refused or fails. */
   readonly discard?: () => void;
+  /**
+   * Runs once after the restore transaction committed (e.g. autoReschedule); not on 404/409.
+   * If it throws, the error propagates but the restore stays committed.
+   */
+  readonly afterRestore?: () => void;
 }
 
 /**
@@ -341,7 +349,7 @@ export interface IssueRestoreTokenArgs {
  * cap and token format as status snapshots.
  */
 export function issueRestoreToken(store: UndoStore, args: IssueRestoreTokenArgs): UndoToken {
-  const { userId, subject, restore, discard } = args;
+  const { userId, subject, restore, discard, afterRestore } = args;
   return storeSnapshot(store, (createdAt) => ({
     kind: 'restore',
     userId,
@@ -349,6 +357,7 @@ export function issueRestoreToken(store: UndoStore, args: IssueRestoreTokenArgs)
     subject,
     restore,
     discard,
+    afterRestore,
   }));
 }
 
@@ -405,6 +414,7 @@ export function applyUndo(
       runDiscard(snapshot);
       throw err;
     }
+    snapshot.afterRestore?.();
     return { restored: [snapshot.subject], retractedEventIds: [] };
   }
 

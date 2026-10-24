@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { AreaResponse, UpdateAreaRequest } from '@cornerstone/shared';
 import { AreaBreadcrumb } from '../components/AreaBreadcrumb/index.js';
-import { AreaPicker } from '../components/AreaPicker/AreaPicker.js';
+import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
 import type {
   ObjectFormErrors,
   ObjectFormSchema,
@@ -99,15 +99,16 @@ export function useAreaFormSchema({ mode, area, areas }: AreaFormOptions): Objec
           const path = value ? areaPath(areas, value) : [];
           return (
             <>
-              <AreaPicker
+              <EntityPicker
+                kind="area"
                 id={ctx.id}
                 areas={[...areas]}
                 value={value}
                 onChange={ctx.setValue}
                 disabled={ctx.busy}
-                nullable
-                nullLabel={t('index.form.topLevel')}
+                noneLabel={t('index.form.topLevel')}
                 excludeIds={excludeIds}
+                create="off"
               />
               {path.length > 0 && (
                 <div className={styles.areaPreview}>

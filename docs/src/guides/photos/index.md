@@ -75,8 +75,8 @@ Area names link to the Areas page.
 
 Select **Edit tags** in the details to change a single photo:
 
-- **Area** -- Pick an area, or clear it
-- **Orientation** -- Pick an orientation, or clear it
+- **Area** -- Pick an area, or clear it. Type to search. If the area is missing, choose **New area ‹text›**
+- **Orientation** -- Pick an orientation, or clear it. Type to search. If the orientation is missing, choose **New orientation ‹text›**
 - **Caption** -- Add or change the description
 - **Save tags** saves your changes. **Cancel** discards them
 

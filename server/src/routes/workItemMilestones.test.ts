@@ -394,7 +394,7 @@ describe('Work Item Milestone Routes', () => {
   // ─── DELETE /api/work-items/:workItemId/milestones/required/:milestoneId ──
 
   describe('DELETE /api/work-items/:workItemId/milestones/required/:milestoneId', () => {
-    it('returns 204 when successfully removing a required milestone dependency', async () => {
+    it('returns 200 when successfully removing a required milestone dependency', async () => {
       // Given: A required milestone dependency in place
       const { userId, cookie } = await createUserWithSession('user@example.com', 'User', 'pw');
       const workItemId = createTestWorkItem(userId, 'Install trim');
@@ -413,8 +413,8 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 204 No Content
-      expect(response.statusCode).toBe(204);
+      // Then: 200 with undo token
+      expect(response.statusCode).toBe(200);
     });
 
     it('removes the dependency so that GET returns an empty required array', async () => {
@@ -690,7 +690,7 @@ describe('Work Item Milestone Routes', () => {
   // ─── DELETE /api/work-items/:workItemId/milestones/linked/:milestoneId ───
 
   describe('DELETE /api/work-items/:workItemId/milestones/linked/:milestoneId', () => {
-    it('returns 204 when successfully unlinking a work item from a milestone', async () => {
+    it('returns 200 when successfully unlinking a work item from a milestone', async () => {
       // Given: A work item linked to a milestone
       const { userId, cookie } = await createUserWithSession('user@example.com', 'User', 'pw');
       const workItemId = createTestWorkItem(userId, 'Clean construction debris');
@@ -709,8 +709,8 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 204 No Content
-      expect(response.statusCode).toBe(204);
+      // Then: 200 with undo token
+      expect(response.statusCode).toBe(200);
     });
 
     it('removes the link so that GET returns an empty linked array', async () => {

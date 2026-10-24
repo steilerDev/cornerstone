@@ -143,19 +143,12 @@
     "errorAlreadyLinked": "Diese Position ist bereits mit einem Angebot oder einer Rechnung verknüpft.",
     "linked": "Verknüpft mit {{invoice}}."
   },
+  "undo": {
+    "unlinked": "Verknüpfung von {{name}} mit {{document}} gelöst.",
+    "removed": "{{name}} aus {{document}} entfernt."
+  },
   "confirm": {
-    "removeTitle": "{{name}} aus {{invoice}} entfernen?",
-    "removeLead": "Die Position bleibt bei {{target}} als Schätzung erhalten.",
     "remove": "Entfernen",
-    "removing": "Wird entfernt…",
-    "unlinkTitle": "Verknüpfung von {{name}} mit {{invoice}} lösen?",
-    "unlinkLead": "Die Position bleibt hier als Schätzung erhalten.",
-    "unlink": "Verknüpfung lösen",
-    "unlinking": "Verknüpfung wird gelöst…",
-    "removeLeadNoTarget": {
-      "offer": "Die Position wird aus diesem Angebot entfernt.",
-      "invoice": "Die Position wird aus dieser Rechnung entfernt."
-    },
     "errorFailed": "Das hat nicht funktioniert. Versuche es erneut."
   },
   "grid": {
@@ -219,11 +212,5 @@
     "empty": "{{target}} hat keine Positionen ohne Angebot oder Rechnung.",
     "pickTargetFirst": "Wähle zuerst eine Aufgabe oder Anschaffung in dieser Zeile.",
     "use": "Verwenden"
-  },
-  "target": {
-    "kindTask": "Aufgabe",
-    "kindPurchase": "Anschaffung",
-    "noResults": "Keine Aufgaben oder Anschaffungen gefunden.",
-    "typeMore": "Gib mindestens 2 Buchstaben ein."
   }
 }

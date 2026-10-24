@@ -1,6 +1,7 @@
 import { eq, and, inArray, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { UndoTransaction } from '../undoService.js';
 import type * as schemaTypes from '../../db/schema.js';
 import {
   subsidyPrograms,
@@ -31,13 +32,26 @@ export interface SubsidyServiceConfig {
   budgetLinesTable: string;
   budgetLinesEntityIdColumn: string;
   entityLabel: string;
+  /** Undo subject reported when a restore is refused. */
+  subjectType: 'work_item' | 'household_item';
   makeInsertValues: (entityId: string, subsidyProgramId: string) => Record<string, string>;
+}
+
+/** A deleted subsidy link, as needed to restore it. */
+export interface DeletedSubsidyLinkSnapshot {
+  entityId: string;
+  subsidyProgramId: string;
 }
 
 export interface SubsidyService {
   list: (db: DbType, entityId: string) => SubsidyProgram[];
   link: (db: DbType, entityId: string, subsidyProgramId: string) => SubsidyProgram;
-  unlink: (db: DbType, entityId: string, subsidyProgramId: string) => void;
+  unlinkWithSnapshot: (
+    db: DbType,
+    entityId: string,
+    subsidyProgramId: string,
+  ) => DeletedSubsidyLinkSnapshot;
+  restore: (tx: UndoTransaction, snapshot: DeletedSubsidyLinkSnapshot) => void;
 }
 
 function loadApplicableCategories(db: DbType, subsidyProgramId: string): BudgetCategory[] {
@@ -147,10 +161,48 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
     return toSubsidyProgram(db, program);
   }
 
-  function unlink(db: DbType, entityId: string, subsidyProgramId: string): void {
+  function unlinkWithSnapshot(
+    db: DbType,
+    entityId: string,
+    subsidyProgramId: string,
+  ): DeletedSubsidyLinkSnapshot {
     assertEntityExists(db, entityId);
 
-    const existing = db
+    return db.transaction((tx) => {
+      const where = and(
+        eq(config.junctionEntityIdColumn, entityId),
+        eq(config.junctionSubsidyProgramIdColumn, subsidyProgramId),
+      );
+      const existing = tx.select().from(config.junctionTable).where(where).get();
+      if (!existing) {
+        throw new NotFoundError(
+          `Subsidy program is not linked to this ${config.entityLabel.toLowerCase()}`,
+        );
+      }
+
+      tx.delete(config.junctionTable).where(where).run();
+      return { entityId, subsidyProgramId };
+    });
+  }
+
+  /**
+   * Re-insert a deleted subsidy link.
+   * @throws ConflictError (details.changed) when the entity or the subsidy program is gone, or
+   *   the link exists again
+   */
+  function restore(tx: UndoTransaction, snapshot: DeletedSubsidyLinkSnapshot): void {
+    const { entityId, subsidyProgramId } = snapshot;
+    const entity = tx
+      .select()
+      .from(config.entityTable)
+      .where(eq(config.entityIdColumn, entityId))
+      .get();
+    const program = tx
+      .select({ id: subsidyPrograms.id })
+      .from(subsidyPrograms)
+      .where(eq(subsidyPrograms.id, subsidyProgramId))
+      .get();
+    const linkedAgain = tx
       .select()
       .from(config.junctionTable)
       .where(
@@ -160,22 +212,16 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
         ),
       )
       .get();
-
-    if (!existing) {
-      throw new NotFoundError(
-        `Subsidy program is not linked to this ${config.entityLabel.toLowerCase()}`,
-      );
+    if (!entity || !program || linkedAgain) {
+      throw new ConflictError('The record changed after this action', {
+        changed: [{ type: config.subjectType, id: entityId }],
+      });
     }
 
-    db.delete(config.junctionTable)
-      .where(
-        and(
-          eq(config.junctionEntityIdColumn, entityId),
-          eq(config.junctionSubsidyProgramIdColumn, subsidyProgramId),
-        ),
-      )
+    tx.insert(config.junctionTable)
+      .values(config.makeInsertValues(entityId, subsidyProgramId))
       .run();
   }
 
-  return { list, link, unlink };
+  return { list, link, unlinkWithSnapshot, restore };
 }

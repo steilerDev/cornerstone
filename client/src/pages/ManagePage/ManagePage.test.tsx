@@ -90,8 +90,8 @@ jest.unstable_mockModule('../../lib/settingsApi.js', () => ({
   updateHouseholdSettings: mockUpdateSettings,
 }));
 
-jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: () => <select data-testid="area-picker" />,
+jest.unstable_mockModule('../../components/EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: () => <select data-testid="area-picker" />,
 }));
 
 let ManagePage: typeof PageTypes.ManagePage;
