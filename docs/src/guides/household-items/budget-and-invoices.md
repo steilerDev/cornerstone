@@ -34,12 +34,12 @@ Click **Add cost line** and provide:
 - **Entered as** -- **Net** (the default, VAT is added) or **Gross** (VAT already included)
 - **Basis** -- How reliable the amount is:
 
-| Basis | Margin | Meaning |
-|-------|--------|---------|
+| Basis | Margin on Money > Budget | Meaning |
+|-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a professional |
-| **Offer** | +/- 5% | A formal offer from a company |
-| **Invoice** | 0% | An actual invoice -- the real cost |
+
+A line linked to an offer or invoice shows Basis **Offer** or **Invoice** and counts at face value on the purchase page.
 
 - **Cost category** -- Which category this cost belongs to (e.g., "Kitchen", "Fixtures")
 - **Funding source** -- Which funding source will pay for it
