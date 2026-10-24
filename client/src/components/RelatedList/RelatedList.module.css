@@ -17,6 +17,10 @@
   margin-bottom: var(--spacing-3);
 }
 
+.headerFlush {
+  margin-bottom: 0;
+}
+
 .title {
   margin: 0;
   min-width: 0;

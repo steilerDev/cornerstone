@@ -26,9 +26,9 @@ Use this page as a reference. You can open it any time from **Page actions** (`â
 
 Some old cards are split across two places on purpose. A payment that needs you appears as a row in **Needs attention**, and the total you still owe appears in **Pulse**.
 
-## Who does a task
+## Assigned To
 
-The **Assigned To** field on a task is now **Who**. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
+**Assigned To** on a task is one picker with two groups: companies and household members. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
 
 ## What the labels mean
 

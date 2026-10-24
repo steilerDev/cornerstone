@@ -249,7 +249,7 @@ function CostLinesView({
   const removeWithUndo = async (action: 'unlink' | 'remove', row: CostLineRow) => {
     const before = rowIds;
     const result = await mutations.run(action, row);
-    if (!result.ok || result.undo === undefined) return;
+    if (!result.ok) return;
     const token = result.undo.token;
     // Unlink keeps the line's id: it moves into the Estimates group instead of leaving.
     focus.afterRemove(before, row.id, { moves: action === 'unlink' });
@@ -292,7 +292,6 @@ function CostLinesView({
     const immediate = (id: 'remove' | 'unlink', label: string): OverflowMenuItem => ({
       id,
       label,
-      variant: 'destructive',
       onClick: () => void removeWithUndo(id, row),
     });
     if (row.invoiceId === null) {
@@ -451,6 +450,7 @@ function CostLinesView({
         headingLevel={headingLevel}
         headingId={headingId}
         headingRef={headingRef}
+        flush
       >
         <button
           type="button"

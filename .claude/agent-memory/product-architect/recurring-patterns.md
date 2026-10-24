@@ -2168,3 +2168,14 @@ and if it ever ran it would lose data quietly: the row is dropped from a batch, 
 with an empty id. Grep payload builders and submit handlers for `continue` / `return ''` / `?? ''` after
 validation, and ask for a throw or a non-null type instead. A related check: `request.user!` in a route
 works only because the global auth hook runs first; still ask for the explicit `UnauthorizedError` guard.
+
+## "As route X" references in my own contracts (PR #2334)
+
+My contract 11 text said the 12 relation DELETEs declare the 200 `{ undo }` schema "as
+`DELETE /api/document-links/:id`", and the checklist told implementers to copy `deleteLinkSchema`.
+That schema has only `params`; the cited route has no response schema at all. Before citing a route
+as the model for a pattern, open it and confirm it actually has the pattern. Point at the shared
+helper (`routes/undoResponseSchema.ts` `undoableDeleteResponse`) instead. Same PR: a behaviour
+change that a fix sneaks into a route (the vendor-scope 404 on `/api/vendors/:vendorId/invoices/...`,
+reschedule-failure-now-200) also needs the wiki updated, even when the brief calls it "a
+pre-existing bug fix".

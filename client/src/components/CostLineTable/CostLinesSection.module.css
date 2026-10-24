@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: var(--spacing-3);
   min-width: 0;
+  container-type: inline-size;
 }
 
 .secondary {

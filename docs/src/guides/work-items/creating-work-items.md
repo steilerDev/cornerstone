@@ -19,7 +19,7 @@ From the work items list, click the **New Work Item** button (or press `n`) to o
 - **Status** -- Not Started (default), In Progress, Completed, or Blocked
 - **Start Date** / **End Date** -- When the task should begin and finish
 - **Duration** -- How long the task takes (auto-calculated from dates if both are set)
-- **Who** -- The company or household member doing this task. Pick one. Type to search: companies are listed first, then household members. Picking another one replaces the first, so a task never has both. See [Who does a task](/guides/home/what-moved-where#who-does-a-task)
+- **Assigned To** -- The company or household member doing this task. Pick one. Type to search: companies are listed first, then household members. Picking another one replaces the first, so a task never has both. See [Assigned To](/guides/home/what-moved-where#assigned-to)
 - **Area** -- A location within your project (e.g., "Kitchen", "Ground Floor")
 - **Start After** / **Start Before** -- Scheduling constraints for vendor or weather dependencies
 

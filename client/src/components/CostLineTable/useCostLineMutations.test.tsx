@@ -5,6 +5,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
 import type { UndoToken } from '@cornerstone/shared';
 import type * as MutationsModule from './useCostLineMutations.js';
+import type { CostLineMutationResult } from './useCostLineMutations.js';
 import type * as ApiClientModule from '../../lib/apiClient.js';
 import type { CostLineRow } from './types.js';
 
@@ -75,7 +76,7 @@ describe('useCostLineMutations', () => {
     const afterChange = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
     mockDeleteWork.mockResolvedValue(undefined);
     const { result } = renderHook(() => useCostLineMutations(afterChange));
-    let outcome: Awaited<ReturnType<typeof result.current.run>> | undefined;
+    let outcome: CostLineMutationResult | undefined;
     await act(async () => {
       outcome = await result.current.run('delete', makeRow());
     });
@@ -121,7 +122,7 @@ describe('useCostLineMutations', () => {
       mockDeleteInvoiceLine.mockResolvedValue({ undo: TOKEN });
       const afterChange = jest.fn<() => void>();
       const { result } = renderHook(() => useCostLineMutations(afterChange));
-      let outcome: Awaited<ReturnType<typeof result.current.run>> | undefined;
+      let outcome: CostLineMutationResult | undefined;
       await act(async () => {
         outcome = await result.current.run(
           kind,
@@ -134,24 +135,43 @@ describe('useCostLineMutations', () => {
     },
   );
 
-  it('does not call an API for unlink on a line without an invoice link', async () => {
-    const afterChange = jest.fn<() => void>();
-    const { result } = renderHook(() => useCostLineMutations(afterChange));
-    let outcome: Awaited<ReturnType<typeof result.current.run>> | undefined;
-    await act(async () => {
-      outcome = await result.current.run('unlink', makeRow());
-    });
-    expect(outcome).toEqual({ ok: true });
-    expect(mockDeleteInvoiceLine).not.toHaveBeenCalled();
-    expect(afterChange).toHaveBeenCalled();
-  });
+  it.each(['unlink', 'remove'] as const)(
+    '%s on a line without an invoice link fails with the generic error and calls no API',
+    async (kind) => {
+      const afterChange = jest.fn<() => void>();
+      const { result } = renderHook(() => useCostLineMutations(afterChange));
+      let outcome: CostLineMutationResult | undefined;
+      await act(async () => {
+        outcome = await result.current.run(kind, makeRow());
+      });
+      expect(outcome).toEqual({ ok: false });
+      expect(mockDeleteInvoiceLine).not.toHaveBeenCalled();
+      expect(afterChange).not.toHaveBeenCalled();
+      expect(result.current.error).toBe('That did not work. Try again.');
+      expect(result.current.busy).toBe(false);
+    },
+  );
+
+  it.each(['unlink', 'remove'] as const)(
+    '%s on a line with an invoice but no invoice-line id fails without calling the API',
+    async (kind) => {
+      const { result } = renderHook(() => useCostLineMutations(jest.fn<() => void>()));
+      let outcome: CostLineMutationResult | undefined;
+      await act(async () => {
+        outcome = await result.current.run(kind, makeRow({ invoiceId: 'inv-1' }));
+      });
+      expect(outcome).toEqual({ ok: false });
+      expect(mockDeleteInvoiceLine).not.toHaveBeenCalled();
+      expect(result.current.error).toBeTruthy();
+    },
+  );
 
   it('maps a 409 on delete to a blocked state with translated text, never the server message', async () => {
     mockDeleteWork.mockRejectedValue(
       new ApiClientError(409, { code: 'CONFLICT', message: 'raw server prose' }),
     );
     const { result } = renderHook(() => useCostLineMutations(jest.fn<() => void>()));
-    let outcome: Awaited<ReturnType<typeof result.current.run>> | undefined;
+    let outcome: CostLineMutationResult | undefined;
     await act(async () => {
       outcome = await result.current.run('delete', makeRow());
     });
@@ -191,7 +211,7 @@ describe('useCostLineMutations', () => {
     mockDeleteWork.mockResolvedValue(undefined);
     const afterChange = jest.fn<() => Promise<void>>().mockRejectedValue(new Error('secret'));
     const { result } = renderHook(() => useCostLineMutations(afterChange));
-    let outcome: Awaited<ReturnType<typeof result.current.run>> | undefined;
+    let outcome: CostLineMutationResult | undefined;
     await act(async () => {
       outcome = await result.current.run('delete', makeRow());
     });

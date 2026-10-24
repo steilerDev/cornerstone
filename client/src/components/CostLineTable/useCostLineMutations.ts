@@ -10,8 +10,10 @@ import type { CostLineRow } from './types.js';
 
 export type CostLineMutation = 'delete' | 'unlink' | 'remove';
 
-export type CostLineMutationResult =
-  { readonly ok: true; readonly undo?: UndoToken } | { readonly ok: false };
+export type CostLineDeleteResult = { readonly ok: true } | { readonly ok: false };
+export type CostLineUndoableResult =
+  { readonly ok: true; readonly undo: UndoToken } | { readonly ok: false };
+export type CostLineMutationResult = CostLineDeleteResult | CostLineUndoableResult;
 
 export interface UseCostLineMutationsResult {
   readonly busy: boolean;
@@ -24,7 +26,10 @@ export interface UseCostLineMutationsResult {
    * Runs the mutation, then `afterChange`. Unlink and Remove resolve with their Undo token;
    * Delete resolves without one.
    */
-  readonly run: (kind: CostLineMutation, row: CostLineRow) => Promise<CostLineMutationResult>;
+  readonly run: {
+    (kind: 'delete', row: CostLineRow): Promise<CostLineDeleteResult>;
+    (kind: 'unlink' | 'remove', row: CostLineRow): Promise<CostLineUndoableResult>;
+  };
 }
 
 /**
@@ -52,16 +57,20 @@ export function useCostLineMutations(
       setBusy(true);
       clearError();
       try {
-        let undo: UndoToken | undefined;
         if (kind === 'delete') {
           if (row.lineType === 'work_item') {
             await deleteWorkItemBudget(row.target?.id ?? '', row.id);
           } else {
             await deleteHouseholdItemBudget(row.target?.id ?? '', row.id);
           }
-        } else if (row.invoiceId !== null && row.invoiceBudgetLineId !== null) {
-          undo = (await deleteInvoiceBudgetLine(row.invoiceId, row.invoiceBudgetLineId)).undo;
+          await afterChange();
+          return { ok: true };
         }
+        // Unlink and Remove are offered only for linked rows.
+        if (row.invoiceId === null || row.invoiceBudgetLineId === null) {
+          throw new Error('Cost line has no invoice link');
+        }
+        const { undo } = await deleteInvoiceBudgetLine(row.invoiceId, row.invoiceBudgetLineId);
         await afterChange();
         return { ok: true, undo };
       } catch (err) {
@@ -79,7 +88,7 @@ export function useCostLineMutations(
       }
     },
     [afterChange, clearError, t, tCommon, tErrors],
-  );
+  ) as UseCostLineMutationsResult['run'];
 
   return { busy, error, blocked, clearError, run };
 }

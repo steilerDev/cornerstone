@@ -440,6 +440,21 @@ describe('CostLinesSection item host', () => {
     expect(screen.queryByRole('dialog', { name: 'link-probe' })).toBeNull();
   });
 
+  it('only Delete is styled destructive; Unlink is not', async () => {
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(screen.getByTestId('cost-lines-actions-l3'));
+    expect((await screen.findByRole('menuitem', { name: 'Unlink' })).className).not.toContain(
+      'itemDanger',
+    );
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByTestId('cost-lines-actions-e1'));
+    expect((await screen.findByRole('menuitem', { name: 'Delete' })).className).toContain(
+      'itemDanger',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Edit' }).className).not.toContain('itemDanger');
+  });
+
   it('a linked row offers Edit, Duplicate and Unlink, no Delete or Link', async () => {
     const user = userEvent.setup();
     renderSection();
@@ -744,15 +759,6 @@ describe('CostLinesSection item host delete and unlink', () => {
     expect(onChanged).not.toHaveBeenCalled();
   });
 
-  it('shows no toast when the server answers without an undo token', async () => {
-    mockDeleteInvoiceBudgetLine.mockResolvedValue({} as { undo: UndoToken });
-    renderSection();
-    await openMenu('l3', 'Unlink');
-
-    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
-    expect(screen.queryByTestId('toast')).toBeNull();
-  });
-
   it('Delete of an unlinked line still asks first and offers no Undo toast', async () => {
     renderSection();
     const user = await openMenu('e1', 'Delete');
@@ -974,6 +980,15 @@ describe('CostLinesSection document host', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Assign' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Link to offer or invoice' })).toBeNull();
+  });
+
+  it('Remove from invoice is not styled destructive', async () => {
+    const user = userEvent.setup();
+    renderSection({ host: DOC_HOST });
+    await screen.findByTestId('cost-lines-row-wb-d1');
+    await user.click(screen.getByTestId('cost-lines-actions-wb-d1'));
+    const item = await screen.findByRole('menuitem', { name: 'Remove from invoice' });
+    expect(item.className).not.toContain('itemDanger');
   });
 
   it('shows the line count in the heading once the lines are loaded', async () => {

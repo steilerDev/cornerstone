@@ -52,4 +52,16 @@ describe('RelatedListHeader', () => {
     expect(screen.queryByRole('button', { name: 'Add payment' })).toBeNull();
     expect(container.firstElementChild?.children).toHaveLength(1);
   });
+
+  it('adds the flush class only when flush is set', () => {
+    const { container, rerender } = render(
+      <RelatedListHeader title="Payments" count={2} headingId="h-1" />,
+    );
+    expect(container.firstElementChild?.className).toContain('header');
+    expect(container.firstElementChild?.className).not.toContain('headerFlush');
+
+    rerender(<RelatedListHeader title="Payments" count={2} headingId="h-1" flush />);
+    expect(container.firstElementChild?.className).toContain('header');
+    expect(container.firstElementChild?.className).toContain('headerFlush');
+  });
 });
