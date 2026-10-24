@@ -176,6 +176,8 @@ describe('CostLineGridRowView normal row', () => {
     expect(first.onDuplicate).toHaveBeenCalledWith('r1');
     const remove = screen.getByRole('button', { name: 'Remove row 3' });
     expect(remove).not.toHaveAttribute('aria-disabled');
+    expect(remove).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText('A grid needs at least one row.')).not.toBeInTheDocument();
     await user.click(remove);
     expect(first.onRemove).toHaveBeenCalledWith('r1');
     first.unmount();
@@ -184,6 +186,10 @@ describe('CostLineGridRowView normal row', () => {
     const inert = screen.getByRole('button', { name: 'Remove row 3' });
     expect(inert).toHaveAttribute('aria-disabled', 'true');
     expect(inert).not.toBeDisabled();
+    const reasonId = inert.getAttribute('aria-describedby');
+    expect(reasonId).toBeTruthy();
+    expect(document.getElementById(reasonId!)).toHaveTextContent('A grid needs at least one row.');
+    expect(inert).toHaveAccessibleDescription('A grid needs at least one row.');
     await user.click(inert);
     expect(last.onRemove).not.toHaveBeenCalled();
   });
@@ -270,7 +276,8 @@ describe('CostLineGridRowView Entered as toggle', () => {
     renderRow();
     const toggle = screen.getByTestId('g-entered-r1');
     expect(toggle).toHaveTextContent('Net');
-    expect(toggle).toHaveAccessibleName('Entered as, row 3: Net');
+    expect(toggle).toHaveAccessibleName('Net, entered as, row 3');
+    expect(toggle.getAttribute('aria-label')?.startsWith(toggle.textContent ?? '?')).toBe(true);
     expect(toggle).not.toHaveAttribute('aria-pressed');
   });
 
@@ -284,7 +291,8 @@ describe('CostLineGridRowView Entered as toggle', () => {
     const gross = renderRow({ row: makeRow({ includesVat: true }) });
     const toggle = screen.getByTestId('g-entered-r1');
     expect(toggle).toHaveTextContent('Gross');
-    expect(toggle).toHaveAccessibleName('Entered as, row 3: Gross');
+    expect(toggle).toHaveAccessibleName('Gross, entered as, row 3');
+    expect(toggle.getAttribute('aria-label')?.startsWith(toggle.textContent ?? '?')).toBe(true);
     expect(toggle).not.toHaveAttribute('aria-pressed');
     await user.click(toggle);
     expect(gross.onChange).toHaveBeenCalledWith('r1', { includesVat: false });
@@ -307,6 +315,7 @@ describe('CostLineGridRowView include and select columns', () => {
     });
     const box = screen.getByLabelText('Include, row 3');
     expect(box).toBeChecked();
+    expect(box.closest('label')).toHaveClass('checkHit');
     expect(screen.getByTestId('g-row-r1').className).not.toMatch(/rowExcluded/);
     await user.click(box);
     expect(onChange).toHaveBeenCalledWith('r1', { included: false });
@@ -335,6 +344,8 @@ describe('CostLineGridRowView include and select columns', () => {
     const box = screen.getByLabelText('Select, row 3');
     expect(box).toBeChecked();
     expect(box).not.toHaveAttribute('aria-disabled');
+    expect(box.closest('label')).toHaveClass('checkHit');
+    expect(box.closest('label')).not.toHaveClass('checkHitDisabled');
     await user.click(box);
     expect(onToggleSelect).toHaveBeenCalledWith('r1');
   });
@@ -359,6 +370,10 @@ describe('CostLineGridRowView include and select columns', () => {
     expect(box).not.toBeDisabled();
     expect(box).not.toBeChecked();
     expect(box).toHaveAccessibleDescription('A linked line cannot be merged.');
+    expect(box.closest('label')).toHaveClass('checkHit', 'checkHitDisabled');
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    box.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
     await user.click(box);
     // (jsdom flips a controlled box on a prevented click, so only the contract is asserted.)
     expect(box).toHaveAttribute('aria-disabled', 'true');

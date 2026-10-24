@@ -281,7 +281,7 @@ function CostLinesView({
       isDocument
         ? item(
             'remove',
-            t('action.removeFromInvoice'),
+            t(I18N_UNION_KEYS.costLineRemoveFromDocument.key(documentKind)),
             { kind: 'confirm', action: 'remove', row },
             'destructive',
           )

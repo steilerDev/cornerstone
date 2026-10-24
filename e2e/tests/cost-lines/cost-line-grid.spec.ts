@@ -340,6 +340,53 @@ test.describe('Cost line grid - document preview and surfaces', { tag: '@respons
     await expect(grid.saveButton).toBeVisible();
   });
 
+  for (const width of [768, 834, 1024]) {
+    test(`at ${width}px the Split dialog causes no horizontal overflow of the page or the dialog`, async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      const { panel } = await openOfferGrid(page, testPrefix, 1000);
+      const grid = new CostLineGridDialog(page, /^Split /);
+
+      await panel.emptySplitButton().click();
+      await grid.waitForOpen();
+      await grid.paste(
+        [
+          `${testPrefix} Door\t1\tpcs\t100`,
+          `${testPrefix} Frame\t2\tpcs\t50`,
+          `${testPrefix} Hinges\t6\tpcs\t4`,
+          `${testPrefix} Handle\t1\tpcs\t35`,
+        ].join('\n'),
+      );
+      await expect(grid.description(4)).toHaveValue(`${testPrefix} Handle`);
+
+      // The table may scroll inside its own region; the page and the dialog must not
+      await expect(grid.scrollRegion).toBeVisible();
+      const overflow = await page.evaluate(() => {
+        const dialog = document.querySelector('[role="dialog"]') as HTMLElement | null;
+        return {
+          page: document.documentElement.scrollWidth - window.innerWidth,
+          dialog: dialog ? dialog.scrollWidth - dialog.clientWidth : null,
+        };
+      });
+      expect(overflow.page, 'the page does not scroll sideways').toBeLessThanOrEqual(0);
+      expect(overflow.dialog, 'the dialog does not scroll sideways').not.toBeNull();
+      expect(overflow.dialog, 'the dialog does not scroll sideways').toBeLessThanOrEqual(0);
+      await expect(grid.saveButton).toBeVisible();
+    });
+  }
+
+  test('the table scroll region is focusable and named', async ({ page, testPrefix }) => {
+    const { grid } = await openTaskGrid(page, testPrefix);
+
+    await expect(grid.scrollRegion).toHaveAttribute('role', 'region');
+    await expect(grid.scrollRegion).toHaveAttribute('tabindex', '0');
+    await expect(
+      grid.dialog.getByRole('region', { name: 'Lines table, scrolls sideways' }),
+    ).toBeVisible();
+  });
+
   test('dark mode: the grid, its inputs and the footer stay legible', async ({
     page,
     testPrefix,

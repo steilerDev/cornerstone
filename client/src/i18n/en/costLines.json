@@ -70,9 +70,12 @@
     "edit": "Edit",
     "duplicate": "Duplicate",
     "delete": "Delete",
-    "linkInvoice": "Link to invoice",
+    "linkInvoice": "Link to offer or invoice",
     "unlink": "Unlink",
-    "removeFromInvoice": "Remove from invoice",
+    "removeFromDocument": {
+      "offer": "Remove from offer",
+      "invoice": "Remove from invoice"
+    },
     "assign": "Assign",
     "useExisting": "Use an existing cost line…"
   },
@@ -127,7 +130,7 @@
     "errorOverInvoice": "The cost lines would be more than this offer or invoice is worth."
   },
   "linkInvoice": {
-    "title": "Link to invoice",
+    "title": "Link to offer or invoice",
     "invoice": "Offer or invoice",
     "invoicePlaceholder": "Search by number, company or notes",
     "amount": "Amount",
@@ -169,6 +172,9 @@
     "rowLabel": "Row {{row}}",
     "duplicateRow": "Duplicate row {{row}}",
     "removeRow": "Remove row {{row}}",
+    "removeLastReason": "A grid needs at least one row.",
+    "enteredToggle": "{{value}}, entered as, row {{row}}",
+    "scrollRegion": "Lines table, scrolls sideways",
     "rowActions": "Actions for row {{row}}",
     "rowRemoved": "Row {{row}} removed.",
     "status_one": "{{count}} line",

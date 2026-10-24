@@ -15,7 +15,7 @@ const INVOICE_PAGE_SIZE = 50;
 const NO_EXCLUDED: string[] = [];
 
 /**
- * "Link to invoice": links a cost line that has no offer or invoice to one, with the amount it takes
+ * "Link to offer or invoice": links a cost line that has no offer or invoice to one, with the amount it takes
  * (gross). Replaces the former link modal.
  */
 export function LinkInvoiceForm({ row, onSaved, onClose, returnFocusRef }: LinkInvoiceFormProps) {

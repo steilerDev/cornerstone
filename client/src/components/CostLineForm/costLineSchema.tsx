@@ -303,7 +303,7 @@ export function useCostLineSchema(
     }
     // Document host: the target is required by the validation above.
     const target = values.target;
-    if (target === null) return '';
+    if (target === null) throw new Error('A document cost line needs a target');
     if (values.existingLineId) {
       const existing = values.existingLineId;
       const typed = parseAmount(values.amount);
@@ -328,7 +328,9 @@ export function useCostLineSchema(
       invoiceId: host.id,
       lines: [toBatchCreate(values, host, target, options.discretionarySourceId)],
     });
-    return response.lines[0]?.budgetLineId ?? '';
+    const created = response.lines[0];
+    if (created === undefined) throw new Error('The batch response has no entry for the line sent');
+    return created.budgetLineId;
   };
 
   const editLine = async (line: NonNullable<typeof row>, rawValues: ObjectFormValues) => {

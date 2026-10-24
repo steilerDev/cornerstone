@@ -131,6 +131,16 @@ describe('CostLineGrid structure', () => {
     expect(screen.queryByLabelText('Assign all to')).not.toBeInTheDocument();
   });
 
+  it('wraps the table in a focusable, labelled scroll region', () => {
+    renderGrid([tile()]);
+    const region = screen.getByRole('region', { name: 'Lines table, scrolls sideways' });
+    expect(region).toBe(screen.getByTestId('cost-line-grid-scroll'));
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).toContainElement(screen.getByTestId('cost-line-grid-table'));
+    act(() => region.focus());
+    expect(region).toHaveFocus();
+  });
+
   it('starts from an empty row list', async () => {
     const { probe } = renderGrid([]);
     await waitFor(() => expect(probe.rows).toHaveLength(1));
@@ -191,11 +201,13 @@ describe('Entered as', () => {
     renderGrid([tile()]);
     const toggle = screen.getByTestId('cost-line-grid-entered-a');
     expect(toggle).toHaveTextContent('Net');
-    expect(toggle).toHaveAccessibleName('Entered as, row 1: Net');
+    expect(toggle).toHaveAccessibleName('Net, entered as, row 1');
+    expect(toggle.getAttribute('aria-label')?.startsWith(toggle.textContent ?? '?')).toBe(true);
     expect(toggle).not.toHaveAttribute('aria-pressed');
     await user.click(toggle);
     expect(toggle).toHaveTextContent('Gross');
-    expect(toggle).toHaveAccessibleName('Entered as, row 1: Gross');
+    expect(toggle).toHaveAccessibleName('Gross, entered as, row 1');
+    expect(toggle.getAttribute('aria-label')?.startsWith(toggle.textContent ?? '?')).toBe(true);
     expect(toggle).not.toHaveAttribute('aria-pressed');
     expect(screen.getByTestId('cost-line-grid-gross-a')).toHaveTextContent('20.00');
   });

@@ -14,8 +14,8 @@
  * - groups (item pages): "Estimates" and one heading per offer/invoice; totals `cost-lines-total`;
  * - document pages: "Not yet split · €x" (`cost-lines-not-yet-split`) with Split (`cost-lines-split`)
  *   or "Lines are €x over" (`cost-lines-over`);
- * - the ⋯ menu is portalled to the body (role `menuitem`): Edit, Duplicate, Delete, Link to
- *   invoice, Unlink, Remove from invoice, Assign.
+ * - the ⋯ menu is portalled to the body (role `menuitem`): Edit, Duplicate, Delete, Link to offer or
+ *   invoice, Unlink, Remove from offer or invoice (by page), Assign.
  */
 
 import { expect } from '@playwright/test';
@@ -23,7 +23,14 @@ import type { Locator, Page } from '@playwright/test';
 import { ConfirmDialogControl } from './ConfirmDialogControl.js';
 
 export type CostLineAction =
-  'Edit' | 'Duplicate' | 'Delete' | 'Link to invoice' | 'Unlink' | 'Remove from invoice' | 'Assign';
+  | 'Edit'
+  | 'Duplicate'
+  | 'Delete'
+  | 'Link to offer or invoice'
+  | 'Unlink'
+  | 'Remove from offer'
+  | 'Remove from invoice'
+  | 'Assign';
 
 export class CostLinesPanel {
   readonly page: Page;

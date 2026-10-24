@@ -2154,3 +2154,11 @@ the wiki said optional; check the service's throws, not the route schema, before
 Before a retirement PR goes up: grep defects.json for every deleted test path, have QA re-home the
 regression assertion in the replacement component's test (naming the D-id), and repoint `tests` —
 never drop the entry. #2235: D-19/D-20 (InvoiceBudgetLinesSection) and D-27 (InvoiceLinkModal).
+
+## "Validation requires it first" guards that skip silently (PR #2333)
+
+A `if (target === null) continue;` / `return '';` justified by "validation ran first" is a dead branch,
+and if it ever ran it would lose data quietly: the row is dropped from a batch, or a save reports success
+with an empty id. Grep payload builders and submit handlers for `continue` / `return ''` / `?? ''` after
+validation, and ask for a throw or a non-null type instead. A related check: `request.user!` in a route
+works only because the global auth hook runs first; still ask for the explicit `UnauthorizedError` guard.

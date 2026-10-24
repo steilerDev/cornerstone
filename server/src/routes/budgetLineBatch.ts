@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { UnauthorizedError } from '../errors/AppError.js';
 import { createBudgetLinesBatch } from '../services/budgetLineBatchService.js';
 import type { BatchCreateBudgetLinesRequest } from '@cornerstone/shared';
 
@@ -68,9 +69,13 @@ export default async function budgetLineBatchRoutes(fastify: FastifyInstance) {
     '/batch',
     { schema: batchBudgetLinesSchema },
     async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
       const result = createBudgetLinesBatch(
         fastify.db,
-        request.user!.id,
+        request.user.id,
         request.body,
         fastify.config.vatRate,
       );

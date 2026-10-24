@@ -36,6 +36,17 @@
 
 /* ---------- Table ---------- */
 
+/* The table has up to 10 columns: when they do not fit, the wrapper scrolls instead of the page. */
+.scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.scroll:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .table {
   width: 100%;
   border-collapse: separate;
@@ -78,10 +89,24 @@
   width: var(--touch-target-min);
 }
 
+.checkHit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  margin: 0;
+  cursor: pointer;
+}
+
 .check {
   width: var(--spacing-5);
   height: var(--spacing-5);
-  margin: var(--spacing-3) 0 0;
+  margin: 0;
+}
+
+.checkHitDisabled {
+  cursor: not-allowed;
 }
 
 .checkDisabled {
@@ -342,10 +367,6 @@
   .grossCell {
     padding: var(--spacing-2);
     border-radius: var(--radius-sm);
-  }
-
-  .check {
-    margin-top: 0;
   }
 }
 

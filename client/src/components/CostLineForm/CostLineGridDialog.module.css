@@ -99,3 +99,9 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* The visible reason Save is inert while the funding sources load (a failure shows the banner). */
+.saveReason {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

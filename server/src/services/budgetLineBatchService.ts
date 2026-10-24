@@ -7,10 +7,12 @@ import type {
   BatchCreateBudgetLinesResponse,
 } from '@cornerstone/shared';
 import { effectivePlannedAmount } from '@cornerstone/shared';
-import { AppError, ValidationError } from '../errors/AppError.js';
+import { eq } from 'drizzle-orm';
+import { invoices } from '../db/schema.js';
+import { AppError, NotFoundError, ValidationError } from '../errors/AppError.js';
 import { createWorkItemBudget } from './workItemBudgetService.js';
 import { createHouseholdItemBudget } from './householdItemBudgetService.js';
-import { createInvoiceBudgetLine, listInvoiceBudgetLines } from './invoiceBudgetLineService.js';
+import { createInvoiceBudgetLine } from './invoiceBudgetLineService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -125,7 +127,10 @@ export function createBudgetLinesBatch(
     const { invoiceId } = request;
     if (invoiceId) {
       // Throws NOT_FOUND (without index) when the invoice is missing.
-      listInvoiceBudgetLines(db, invoiceId);
+      const invoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+      if (!invoice) {
+        throw new NotFoundError('Invoice not found');
+      }
     }
 
     const lines: BatchCreatedBudgetLine[] = [];

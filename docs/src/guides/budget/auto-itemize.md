@@ -5,12 +5,12 @@ title: Auto-itemize Invoices
 
 # Auto-itemize Invoices
 
-When a vendor sends you a PDF invoice, Cornerstone can read the line items off the page for you and turn them into cost lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and choose **Itemize** on the linked document. A language model reads the OCR text and proposes one cost line per row on the invoice. Cornerstone then opens the **Split with AI** page with the original PDF on one side and the extracted lines in a grid on the other, so you can edit, assign, and save each line against the document it came from.
+When a company sends you a PDF invoice, Cornerstone can read the rows off the page for you and turn them into cost lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and choose **Itemize** on the linked document. A language model reads the OCR text and proposes one cost line per row on the invoice. Cornerstone then opens the **Split with AI** page with the original PDF on one side and the extracted lines in a grid on the other, so you can edit, assign, and save each line against the document it came from.
 
-This feature is **opt-in** and disabled by default. You connect Cornerstone to any LLM provider that speaks the OpenAI chat-completions API -- Google Gemini, Anthropic, OpenAI, or a self-hosted model running on your own machine. Cornerstone never sends the binary PDF off your server; only the OCR text and a few invoice details (vendor name, total, date) leave your host.
+This feature is **opt-in** and disabled by default. You connect Cornerstone to any LLM provider that speaks the OpenAI chat-completions API -- Google Gemini, Anthropic, OpenAI, or a self-hosted model running on your own machine. Cornerstone never sends the binary PDF off your server; only the OCR text and a few invoice details (company name, total, date) leave your host.
 
 :::tip Create a whole invoice from a document
-You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless and Auto-itemize are both configured, **New Invoice** opens a document picker, extracts the metadata and line items, and creates the invoice and its cost lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
+You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless and Auto-itemize are both configured, **New Invoice** opens a document picker, extracts the metadata and rows, and creates the invoice and its cost lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
 :::
 
 ## Prerequisites
@@ -88,7 +88,7 @@ The easiest way to verify: open any invoice that has at least one linked Paperle
 
 ## Walkthrough
 
-This walkthrough assumes you have an invoice in Cornerstone with at least one Paperless document linked to it -- typically the PDF the vendor sent you.
+This walkthrough assumes you have an invoice in Cornerstone with at least one Paperless document linked to it -- typically the PDF the company sent you.
 
 ### 1. Open the invoice and start auto-itemize
 
@@ -128,7 +128,7 @@ A **total** under the grid sums the included lines and compares them against the
 
 ### Merge related lines into one
 
-Invoices often break a single logical cost across several rows -- "Labour", "Labour surcharge", and "Travel", or a run of small material rows that all belong to the same budget line. Rather than keep them apart or delete all but one, you can **merge** them into a single consolidated line.
+Invoices often break a single logical cost across several rows -- "Labour", "Labour surcharge", and "Travel", or a run of small material rows that all belong to the same cost line. Rather than keep them apart or delete all but one, you can **merge** them into a single consolidated line.
 
 Each row has a **Select** checkbox. Tick two or more rows and a **Merge** bar appears under the grid with a running count (merging fewer than two lines is not allowed; the bar tells you to select at least two). Click **Merge** and Cornerstone:
 
@@ -149,7 +149,7 @@ Each row has its own cells for the line's details:
 
 Entered amounts follow the same rules as in the rest of the app: each row is **Net** or **Gross**, and net rows get VAT added (see [VAT handling](work-item-budgets#vat-handling)). Use **Entered as for all** to set this for every row.
 
-A line you do not assign to any item is still saved against the invoice and counts toward financing-source totals and category aggregates, but it does not roll up into a single work item's budget until you assign it.
+A line you do not assign to any item is still saved against the invoice and counts toward financing-source totals and category aggregates, but it does not roll up into a single task's budget until you assign it.
 
 ### 7. Save
 
@@ -171,13 +171,13 @@ A note above the **extracted lines** grid on the Split with AI page reminds you,
 
 When you know which source should fund a line, change it from the line's edit view:
 
-1. Open the work item or household item the line is assigned to (or **Money > Overview**).
+1. Open the task or purchase the line is assigned to (or **Money > Overview**).
 2. Edit the line and pick the correct financing source from the source selector, then save.
 
 If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the [Financing Sources](financing-sources) page lets you multi-select lines and move them in a single operation. The depletion totals on both the old and new source update immediately.
 
 :::tip Funding source is not the same as the linked item
-Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **work item or household item** (what the line is for). You can change either independently and as often as you like -- both the funding source and the parent item assignment can be edited later from the line's edit view.
+Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **task or purchase** (what the line is for). You can change either independently and as often as you like -- both the funding source and the parent item assignment can be edited later from the line's edit view.
 :::
 
 ## What data leaves your server
@@ -185,8 +185,8 @@ Reassigning the **funding source** (which pot of money pays for the line) is sep
 Cornerstone sends the following to your LLM provider when you click Auto-itemize:
 
 - **The OCR text from the selected Paperless document.** This is plain text Paperless extracted from the PDF -- typically 1-5 KB. The text is truncated at 32,000 characters to keep prompts small and predictable.
-- **The human-authored Paperless metadata for that document** -- the details you (or Paperless) maintain about the file: its **title, correspondent, document type, tags, creation date, and original filename**. These are sent alongside the OCR text, and the model is told to treat them as authoritative over anything it would otherwise have to infer from the scanned text. This is what makes the extracted vendor, dates, and line items more accurate -- a clean correspondent name beats a smudged letterhead, and a Paperless creation date beats an OCR misread.
-- **A few invoice metadata hints** to help the model produce useful output: vendor name, invoice total, and invoice date.
+- **The human-authored Paperless metadata for that document** -- the details you (or Paperless) maintain about the file: its **title, correspondent, document type, tags, creation date, and original filename**. These are sent alongside the OCR text, and the model is told to treat them as authoritative over anything it would otherwise have to infer from the scanned text. This is what makes the extracted company, dates, and rows more accurate -- a clean correspondent name beats a smudged letterhead, and a Paperless creation date beats an OCR misread.
+- **A few invoice metadata hints** to help the model produce useful output: company name, invoice total, and invoice date.
 
 The same OCR text plus Paperless metadata is sent on both paths that call the model -- itemizing an existing invoice from its linked document, and [creating a new invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document).
 
@@ -196,7 +196,7 @@ Cornerstone does **not** send:
 
 - The binary PDF or any image of the document.
 - Your API keys, user accounts, or anything from other parts of the app.
-- The contents of other invoices, work items, or budget lines.
+- The contents of other invoices, tasks, or cost lines.
 
 API keys are never logged and never returned to the browser. The `GET /api/config` endpoint only exposes a boolean flag (`autoItemizeEnabled`) so the frontend can decide whether to show the button -- it never sees the key itself.
 
@@ -211,7 +211,7 @@ For the full architectural rationale and security review, see [ADR-031: Outbound
 | **LLM upstream error**           | The provider returned a non-200 status (e.g., rate-limited, out of quota, model not found). Check your provider's dashboard.                   |
 | **Auto-itemize is not configured** | One of `LLM_BASE_URL`, `LLM_API_KEY`, or `LLM_MODEL` is missing. The button should not be visible in this case -- if you see this error, double-check the container's environment.        |
 | **Sum exceeds invoice amount**   | The included lines' total is more than the invoice's amount. Uncheck some rows or correct their amounts before applying.                       |
-| **No line items detected**       | The OCR text did not contain anything the model recognized as a line item. The invoice may be a scan of poor quality, or it might just be a single-line bill -- fall back to manual itemization. |
+| **No rows detected**       | The OCR text did not contain anything the model recognized as a row. The invoice may be a scan of poor quality, or it might just be a single-line bill -- fall back to manual itemization. |
 
 ## Caveats and limits
 

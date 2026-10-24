@@ -5,7 +5,7 @@ title: Work Item Budgets
 
 # Work Item Budgets
 
-Each work item can have one or more **cost lines** that track what that task costs. A cost line is one priced line on a task or purchase. It is either an **estimate** you made yourself or a line from a vendor's **offer** or **invoice**. Each cost line connects a work item to a cost category and a [financing source](financing-sources).
+Each task can have one or more **cost lines** that track what that task costs. A cost line is one priced line on a task or purchase. It is either an **estimate** you made yourself or a line from a vendor's **offer** or **invoice**. Each cost line connects a work item to a cost category and a [financing source](financing-sources).
 
 :::note Renamed from budget lines
 Earlier versions called these **budget lines**. The same lines are now called **cost lines** everywhere in the app.
@@ -13,14 +13,14 @@ Earlier versions called these **budget lines**. The same lines are now called **
 
 ## The Cost Lines Section
 
-On the work item detail page, open the **Budget** tab. The **Cost lines** section lists every cost line on the task, with the **Estimates** first and then one group for each offer or invoice the lines are linked to.
+On the task detail page, scroll to the **Cost** section. Its **Cost lines** list shows every cost line on the task, with the **Estimates** first and then one group for each offer or invoice the lines are linked to. The page has no tabs.
 
 Each line shows a **state chip** that tells you where its amount comes from:
 
 | State | Meaning |
 |-------|---------|
 | **Estimate** | Not linked to an offer or invoice yet. The amount is your planned amount. |
-| **Offered** | Linked to a vendor's offer. |
+| **Offered** | Linked to a company's offer. |
 | **Invoiced** | Linked to an invoice that is not paid yet. |
 | **Paid** | Linked to an invoice that has been paid. |
 | **Submitted** | Linked to an invoice that has been submitted for reimbursement from a financing source. |
@@ -42,14 +42,14 @@ After you save, the form stays open with **Add another** so you can enter the ne
 
 ## Basis
 
-The **Basis** of an estimate says what the amount rests on. It also sets the margin used in budget projections:
+The **Basis** of an estimate says what the amount rests on. On **Money > Budget**, the basis also sets the margin used in budget projections:
 
-| Basis | Margin | Meaning |
-|-------|--------|---------|
+| Basis | Margin on Money > Budget | Meaning |
+|-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a contractor or professional |
-| **Offer** | +/- 5% | A formal offer from a vendor |
-| **Invoice** | 0% | An actual invoice -- the real cost |
+
+A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, such a line counts at its face value with no margin. **Money > Budget** still applies a +/- 5% spread to lines linked to an offer; that may change in a later release.
 
 As your project moves from early estimates to offers to invoices, the budget overview becomes more accurate.
 
@@ -57,10 +57,10 @@ Once a line is linked to an offer or invoice, its basis is set by that document 
 
 ## Linking to Invoices
 
-When a vendor's offer or invoice arrives for work covered by a cost line, you can link the line to it. You can do this from either direction:
+When a company's offer or invoice arrives for work covered by a cost line, you can link the line to it. You can do this from either direction:
 
 - **From the invoice or offer page** -- split the document into cost lines on tasks and purchases. See [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
-- **From the work item Budget tab** -- on an estimate, click **Link to invoice** and pick the offer or invoice. Enter the amount that applies to this line.
+- **From the Cost section of the task page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice. Enter the amount that applies to this line.
 
 A cost line can be linked to **at most one** offer or invoice. When several lines on the same task belong to the same document, they appear together in one group, headed by the document number and its total.
 
@@ -77,13 +77,13 @@ The link to the offer or invoice is kept when you move the line. Only the item i
 
 ### Removing a Link
 
-**Remove from invoice** (also shown as **Unlink**) detaches the line from its offer or invoice. The line stays on the task as an estimate. A confirmation dialog appears first.
+**Remove from offer** or **Remove from invoice** (also shown as **Unlink**) detaches the line from its offer or invoice. On an offer page the action reads **Remove from offer**; on an invoice page it reads **Remove from invoice**. The line stays on the task as an estimate. A confirmation dialog appears first.
 
 **Delete** removes the cost line, after a confirmation dialog. A line linked to an offer or invoice cannot be deleted until you remove the link.
 
-## Multiple Cost Lines per Work Item
+## Multiple Cost Lines per Task
 
-A single work item can have many cost lines. For example, "Renovate bathroom" might have separate cost lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
+A single task can have many cost lines. For example, "Renovate bathroom" might have separate cost lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
 
 ## VAT Handling
 

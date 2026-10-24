@@ -70,9 +70,12 @@
     "edit": "Bearbeiten",
     "duplicate": "Duplizieren",
     "delete": "Löschen",
-    "linkInvoice": "Mit Rechnung verknüpfen",
+    "linkInvoice": "Mit Angebot oder Rechnung verknüpfen",
     "unlink": "Verknüpfung lösen",
-    "removeFromInvoice": "Aus Rechnung entfernen",
+    "removeFromDocument": {
+      "offer": "Aus dem Angebot entfernen",
+      "invoice": "Aus der Rechnung entfernen"
+    },
     "assign": "Zuweisen",
     "useExisting": "Vorhandene Kostenposition verwenden…"
   },
@@ -127,7 +130,7 @@
     "errorOverInvoice": "Die Kostenpositionen würden den Wert dieses Angebots oder dieser Rechnung übersteigen."
   },
   "linkInvoice": {
-    "title": "Mit Rechnung verknüpfen",
+    "title": "Mit Angebot oder Rechnung verknüpfen",
     "invoice": "Angebot oder Rechnung",
     "invoicePlaceholder": "Nach Nummer, Firma oder Notizen suchen",
     "amount": "Betrag",
@@ -169,6 +172,9 @@
     "rowLabel": "Zeile {{row}}",
     "duplicateRow": "Zeile {{row}} duplizieren",
     "removeRow": "Zeile {{row}} entfernen",
+    "removeLastReason": "Eine Tabelle braucht mindestens eine Zeile.",
+    "enteredToggle": "{{value}}, erfasst als, Zeile {{row}}",
+    "scrollRegion": "Tabelle der Kostenpositionen, scrollt seitlich",
     "rowActions": "Aktionen für Zeile {{row}}",
     "rowRemoved": "Zeile {{row}} entfernt.",
     "status_one": "{{count}} Position",

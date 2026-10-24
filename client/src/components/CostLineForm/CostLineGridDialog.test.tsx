@@ -320,6 +320,9 @@ describe('saving while the funding sources are not ready', () => {
     expect(reason).toHaveAttribute('id', 'cost-line-grid-save-reason');
     expect(reason).toHaveTextContent('Funding sources are still loading.');
     expect(save).toHaveAccessibleDescription('Funding sources are still loading.');
+    // While loading the reason is visible muted text, not screen-reader-only.
+    expect(reason).toHaveClass('saveReason');
+    expect(reason).not.toHaveClass('srOnly');
 
     await user.click(save);
     await user.keyboard('{Control>}s{/Control}');
@@ -338,9 +341,11 @@ describe('saving while the funding sources are not ready', () => {
     expect(save).toHaveAttribute('aria-disabled', 'true');
     expect(save).not.toBeDisabled();
     expect(save).toHaveAttribute('aria-describedby', 'cost-line-grid-save-reason');
-    expect(screen.getByTestId('cost-line-grid-save-reason')).toHaveTextContent(
-      'The cost lines could not be loaded.',
-    );
+    const reason = screen.getByTestId('cost-line-grid-save-reason');
+    expect(reason).toHaveTextContent('The cost lines could not be loaded.');
+    // The banner already shows the failure, so the reason stays visually hidden.
+    expect(reason).toHaveClass('srOnly');
+    expect(reason).not.toHaveClass('saveReason');
     // The existing failure banner stays next to the new reason.
     expect(screen.getAllByText('The cost lines could not be loaded.')).toHaveLength(2);
 

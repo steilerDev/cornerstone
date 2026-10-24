@@ -36,6 +36,8 @@ export class CostLineGrid {
   readonly prefix: string;
   readonly grid: Locator;
   readonly table: Locator;
+  /** The focusable scroll region around the table ("Lines table, scrolls sideways"). */
+  readonly scrollRegion: Locator;
   readonly assignAllInput: Locator;
   readonly assignAll: SearchPickerControl;
   /** The "Net | Gross" chip group "Entered as for all". */
@@ -54,6 +56,7 @@ export class CostLineGrid {
     this.prefix = prefix;
     this.grid = page.getByTestId(prefix);
     this.table = page.getByTestId(`${prefix}-table`);
+    this.scrollRegion = page.getByTestId(`${prefix}-scroll`);
     this.assignAllInput = page.getByTestId(`${prefix}-assign-all`).locator('input');
     this.assignAll = new SearchPickerControl(page, this.assignAllInput);
     this.enteredAllNet = page.getByTestId(`${prefix}-entered-all-net`);
@@ -86,9 +89,11 @@ export class CostLineGrid {
     return this.cell('Description', n);
   }
 
-  /** The Net/Gross toggle button of row `n` ("Entered as, row 1: Net"). */
+  /** The Net/Gross toggle button of row `n` ("Net, entered as, row 1"; starts with the visible text). */
   enteredAs(n: number): Locator {
-    return this.grid.getByRole('button', { name: new RegExp(`^Entered as, row ${n}: `) });
+    return this.grid.getByRole('button', {
+      name: new RegExp(`^(Net|Gross), entered as, row ${n}$`),
+    });
   }
 
   /** The Gross amount cell of row `n`. */

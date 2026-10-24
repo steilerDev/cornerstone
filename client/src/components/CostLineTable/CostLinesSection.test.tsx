@@ -368,7 +368,7 @@ describe('CostLinesSection item host', () => {
 
   it('link to invoice (unlinked row, item host) announces the linked invoice', async () => {
     renderSection();
-    const user = await openMenu('e1', 'Link to invoice');
+    const user = await openMenu('e1', 'Link to offer or invoice');
     const dialog = screen.getByRole('dialog', { name: 'link-probe' });
     expect(dialog).toHaveAttribute('data-row', 'e1');
     await user.click(within(dialog).getByText('link-save'));
@@ -383,7 +383,7 @@ describe('CostLinesSection item host', () => {
     await user.click(screen.getByTestId('cost-lines-actions-l3'));
     expect(await screen.findByRole('menuitem', { name: 'Unlink' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'Link to invoice' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Link to offer or invoice' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Assign' })).toBeNull();
   });
 });
@@ -769,7 +769,7 @@ describe('CostLinesSection document host', () => {
       await screen.findByRole('menuitem', { name: 'Remove from invoice' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Assign' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'Link to invoice' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Link to offer or invoice' })).toBeNull();
   });
 
   it('remove: names the target in the lead, deletes the invoice line and reloads', async () => {
@@ -798,7 +798,7 @@ describe('CostLinesSection document host', () => {
   it('remove of an orphan on an offer uses the offer wording', async () => {
     renderSection({ host: OFFER_HOST });
     await screen.findByTestId('cost-lines-row-wb-d1');
-    await openMenu('d2', 'Remove from invoice');
+    await openMenu('d2', 'Remove from offer');
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
       'The line is removed from this offer.',
     );

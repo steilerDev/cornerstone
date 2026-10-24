@@ -187,14 +187,16 @@ export function CostLineGridRowView({
       </td>
       {options.include && (
         <td role="cell" className={styles.checkCell} data-col="include" data-kind="button">
-          <input
-            type="checkbox"
-            className={styles.check}
-            checked={row.included}
-            aria-label={label(t('grid.colIncluded'))}
-            onChange={(event) => onChange(row.rowId, { included: event.target.checked })}
-            data-testid={`${prefix}-include-${row.rowId}`}
-          />
+          <label className={styles.checkHit}>
+            <input
+              type="checkbox"
+              className={styles.check}
+              checked={row.included}
+              aria-label={label(t('grid.colIncluded'))}
+              onChange={(event) => onChange(row.rowId, { included: event.target.checked })}
+              data-testid={`${prefix}-include-${row.rowId}`}
+            />
+          </label>
         </td>
       )}
       {options.select && (
@@ -203,18 +205,20 @@ export function CostLineGridRowView({
             // Linked to an existing cost line: it cannot be merged, so the box says so instead of
             // looking clickable.
             <>
-              <input
-                type="checkbox"
-                className={cx(styles.check, styles.checkDisabled)}
-                checked={false}
-                readOnly
-                aria-disabled="true"
-                aria-label={label(t('grid.colSelect'))}
-                aria-describedby={selectLinkedReason ? `${rowKey}-select-reason` : undefined}
-                onChange={() => undefined}
-                onClick={(event) => event.preventDefault()}
-                data-testid={`${prefix}-select-${row.rowId}`}
-              />
+              <label className={cx(styles.checkHit, styles.checkHitDisabled)}>
+                <input
+                  type="checkbox"
+                  className={cx(styles.check, styles.checkDisabled)}
+                  checked={false}
+                  readOnly
+                  aria-disabled="true"
+                  aria-label={label(t('grid.colSelect'))}
+                  aria-describedby={selectLinkedReason ? `${rowKey}-select-reason` : undefined}
+                  onChange={() => undefined}
+                  onClick={(event) => event.preventDefault()}
+                  data-testid={`${prefix}-select-${row.rowId}`}
+                />
+              </label>
               {selectLinkedReason && (
                 <span id={`${rowKey}-select-reason`} className={sharedStyles.srOnly}>
                   {selectLinkedReason}
@@ -222,14 +226,16 @@ export function CostLineGridRowView({
               )}
             </>
           ) : (
-            <input
-              type="checkbox"
-              className={styles.check}
-              checked={selected}
-              aria-label={label(t('grid.colSelect'))}
-              onChange={() => onToggleSelect?.(row.rowId)}
-              data-testid={`${prefix}-select-${row.rowId}`}
-            />
+            <label className={styles.checkHit}>
+              <input
+                type="checkbox"
+                className={styles.check}
+                checked={selected}
+                aria-label={label(t('grid.colSelect'))}
+                onChange={() => onToggleSelect?.(row.rowId)}
+                data-testid={`${prefix}-select-${row.rowId}`}
+              />
+            </label>
           )}
         </td>
       )}
@@ -309,7 +315,10 @@ export function CostLineGridRowView({
           <button
             type="button"
             className={styles.toggle}
-            aria-label={`${label(t('table.colEnteredAs'))}: ${t(row.includesVat ? 'entered.gross' : 'entered.net')}`}
+            aria-label={t('grid.enteredToggle', {
+              value: t(row.includesVat ? 'entered.gross' : 'entered.net'),
+              row: number,
+            })}
             onClick={() => onChange(row.rowId, { includesVat: !row.includesVat })}
             data-testid={`${prefix}-entered-${row.rowId}`}
           >
@@ -436,6 +445,7 @@ export function CostLineGridRowView({
           className={styles.rowButton}
           aria-label={t('grid.removeRow', { row: number })}
           aria-disabled={!canRemove || undefined}
+          aria-describedby={canRemove ? undefined : `${rowKey}-remove-reason`}
           onClick={() => {
             if (canRemove) onRemove(row.rowId);
           }}
@@ -443,6 +453,11 @@ export function CostLineGridRowView({
         >
           {t('confirm.remove')}
         </button>
+        {!canRemove && (
+          <span id={`${rowKey}-remove-reason`} className={sharedStyles.srOnly}>
+            {t('grid.removeLastReason')}
+          </span>
+        )}
       </td>
     </tr>
   );

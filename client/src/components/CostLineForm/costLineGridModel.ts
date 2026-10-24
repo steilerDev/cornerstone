@@ -187,7 +187,7 @@ export interface BatchBuild {
   readonly rowIds: string[];
 }
 
-/** Rows to batch entries. A row with no resolvable target is skipped (validation requires one first). */
+/** Rows to batch entries. Validation requires a target first; a row without one throws. */
 export function buildBatch(rows: readonly CostLineGridRow[], context: BatchContext): BatchBuild {
   const lines: BatchBudgetLineInput[] = [];
   const rowIds: string[] = [];
@@ -204,7 +204,8 @@ export function buildBatch(rows: readonly CostLineGridRow[], context: BatchConte
       continue;
     }
     const target = row.target ?? context.assignAll ?? context.fallbackTarget;
-    if (target === null) continue;
+    if (target === null)
+      throw new Error('buildBatch: a row has no target; validate before building');
     const unitPriced = row.quantity.trim() !== '';
     const price = parsed(row.unitPrice, context.locale);
     const unit = row.unit.trim();

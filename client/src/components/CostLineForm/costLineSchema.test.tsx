@@ -201,15 +201,34 @@ describe('useCostLineSchema (direct)', () => {
     expect(get('pricing').visibleWhen!({ existingLineId: existing })).toBe(false);
   });
 
-  it('does nothing when a document line is submitted without a target', async () => {
+  it('throws when a document line is submitted without a target', async () => {
     const schema = build({ host: INVOICE });
-    const result = await schema.submit({ description: 'Tiles' });
-    expect(result.id).toBe('');
+    await expect(schema.submit({ description: 'Tiles' })).rejects.toThrow(
+      'A document cost line needs a target',
+    );
     expect(mockBatch).not.toHaveBeenCalled();
-    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it('returns an empty id when the batch answers without lines', async () => {
+  it('throws when the batch answers without an entry for the line sent', async () => {
+    const schema = build({ host: INVOICE });
+    await expect(
+      schema.submit({
+        description: 'Tiles',
+        target: { type: 'work_item', id: 'wi-1', label: 'x' },
+        quantity: '1',
+        unitPrice: '5',
+      }),
+    ).rejects.toThrow('The batch response has no entry for the line sent');
+    expect(mockBatch).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('returns the created budget line id from the first batch entry', async () => {
+    mockBatch.mockResolvedValue({
+      lines: [{ index: 0, budgetLineId: 'bl-new' }],
+      remainingAmount: null,
+    } as never);
     const schema = build({ host: INVOICE });
     const result = await schema.submit({
       description: 'Tiles',
@@ -217,8 +236,8 @@ describe('useCostLineSchema (direct)', () => {
       quantity: '1',
       unitPrice: '5',
     });
-    expect(result.id).toBe('');
-    expect(mockBatch).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe('bl-new');
+    expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
   it('does not assign without a target', async () => {

@@ -451,96 +451,104 @@ export function CostLineGrid({
       )}
       <p className={styles.pasteHint}>{t('grid.pasteHint')}</p>
       <FormError message={pasteError} />
-      <table
-        ref={tableRef}
-        role="table"
-        className={styles.table}
-        onKeyDown={handleKeyDown}
-        data-testid={`${testIdPrefix}-table`}
+      <div
+        className={styles.scroll}
+        role="region"
+        tabIndex={0}
+        aria-label={t('grid.scrollRegion')}
+        data-testid={`${testIdPrefix}-scroll`}
       >
-        <caption className={sharedStyles.srOnly}>{t('grid.caption')}</caption>
-        <thead role="rowgroup" className={styles.thead}>
-          <tr role="row">
-            {th('rowNumber', t('grid.colRow'), true)}
-            {options.include && th('include', t('grid.colIncluded'))}
-            {options.select && th('select', t('grid.colSelect'), true)}
-            {th('description', t('table.colDescription'))}
-            {th('quantity', t('form.quantity'))}
-            {th('unit', t('form.unit'))}
-            {th('unitPrice', t('form.unitPrice'))}
-            {th('enteredAs', t('table.colEnteredAs'))}
-            {th('gross', t('table.colGross'))}
-            {options.targets && th('target', t('table.colBelongsTo'))}
-            {columns.includes('category') && th('category', t('form.category'))}
-            {columns.includes('fundingSource') && th('source', t('form.fundingSource'))}
-            {th('actions', t('table.colActions'), true)}
-          </tr>
-        </thead>
-        <tbody role="rowgroup">
-          {rows.map((row, index) => (
-            <CostLineGridRowView
-              key={row.rowId}
-              row={row}
-              index={index}
-              prefix={testIdPrefix}
-              options={options}
-              categoryOptions={categoryOptions}
-              sourceOptions={sourceOptions}
-              assignAll={assignAll}
-              errors={errorsFor(row.rowId)}
-              ambiguous={
-                new Set(
-                  (['quantity', 'unitPrice'] as const).filter((field) =>
-                    ambiguous.has(`${row.rowId}:${field}`),
-                  ),
-                )
-              }
-              gross={gridRowGross(row, vatRate, locale)}
-              selected={selectedRowIds?.has(row.rowId) ?? false}
-              canRemove={rows.length > 1}
-              onChange={updateRow}
-              onBlurField={blurField}
-              onDuplicate={duplicate}
-              onRemove={remove}
-              onUseExisting={(rowId, trigger) => {
-                pickerReturnRef.current = trigger;
-                setPickerRowId(rowId);
-              }}
-              onPaste={handlePaste}
-              onToggleSelect={onToggleSelect}
-              selectLinkedReason={selectLinkedReason}
-              onClearExisting={clearExisting}
-              onNoticeAction={onNoticeAction}
-              renderRowExtra={renderRowExtra}
-              firstDescriptionRef={index === 0 ? firstRef : undefined}
-            />
-          ))}
-        </tbody>
-        {remainingAmount !== undefined && (
-          <tfoot role="rowgroup" className={styles.tfoot}>
+        <table
+          ref={tableRef}
+          role="table"
+          className={styles.table}
+          onKeyDown={handleKeyDown}
+          data-testid={`${testIdPrefix}-table`}
+        >
+          <caption className={sharedStyles.srOnly}>{t('grid.caption')}</caption>
+          <thead role="rowgroup" className={styles.thead}>
             <tr role="row">
-              <td role="cell" colSpan={columnCount} className={styles.footCell}>
-                <span>{t('table.total')}</span>{' '}
-                <strong data-testid={`${testIdPrefix}-total`}>{formatCurrency(total)}</strong>
-              </td>
+              {th('rowNumber', t('grid.colRow'), true)}
+              {options.include && th('include', t('grid.colIncluded'))}
+              {options.select && th('select', t('grid.colSelect'), true)}
+              {th('description', t('table.colDescription'))}
+              {th('quantity', t('form.quantity'))}
+              {th('unit', t('form.unit'))}
+              {th('unitPrice', t('form.unitPrice'))}
+              {th('enteredAs', t('table.colEnteredAs'))}
+              {th('gross', t('table.colGross'))}
+              {options.targets && th('target', t('table.colBelongsTo'))}
+              {columns.includes('category') && th('category', t('form.category'))}
+              {columns.includes('fundingSource') && th('source', t('form.fundingSource'))}
+              {th('actions', t('table.colActions'), true)}
             </tr>
-            {remainderState !== 'none' && (
+          </thead>
+          <tbody role="rowgroup">
+            {rows.map((row, index) => (
+              <CostLineGridRowView
+                key={row.rowId}
+                row={row}
+                index={index}
+                prefix={testIdPrefix}
+                options={options}
+                categoryOptions={categoryOptions}
+                sourceOptions={sourceOptions}
+                assignAll={assignAll}
+                errors={errorsFor(row.rowId)}
+                ambiguous={
+                  new Set(
+                    (['quantity', 'unitPrice'] as const).filter((field) =>
+                      ambiguous.has(`${row.rowId}:${field}`),
+                    ),
+                  )
+                }
+                gross={gridRowGross(row, vatRate, locale)}
+                selected={selectedRowIds?.has(row.rowId) ?? false}
+                canRemove={rows.length > 1}
+                onChange={updateRow}
+                onBlurField={blurField}
+                onDuplicate={duplicate}
+                onRemove={remove}
+                onUseExisting={(rowId, trigger) => {
+                  pickerReturnRef.current = trigger;
+                  setPickerRowId(rowId);
+                }}
+                onPaste={handlePaste}
+                onToggleSelect={onToggleSelect}
+                selectLinkedReason={selectLinkedReason}
+                onClearExisting={clearExisting}
+                onNoticeAction={onNoticeAction}
+                renderRowExtra={renderRowExtra}
+                firstDescriptionRef={index === 0 ? firstRef : undefined}
+              />
+            ))}
+          </tbody>
+          {remainingAmount !== undefined && (
+            <tfoot role="rowgroup" className={styles.tfoot}>
               <tr role="row">
-                <td
-                  role="cell"
-                  colSpan={columnCount}
-                  className={remainderState === 'over' ? styles.footOver : styles.footRest}
-                  data-testid={`${testIdPrefix}-remainder`}
-                >
-                  {remainderState === 'over'
-                    ? t('table.over', { amount: formatCurrency(Math.abs(remainder)) })
-                    : t('table.notYetSplit', { amount: formatCurrency(remainder) })}
+                <td role="cell" colSpan={columnCount} className={styles.footCell}>
+                  <span>{t('table.total')}</span>{' '}
+                  <strong data-testid={`${testIdPrefix}-total`}>{formatCurrency(total)}</strong>
                 </td>
               </tr>
-            )}
-          </tfoot>
-        )}
-      </table>
+              {remainderState !== 'none' && (
+                <tr role="row">
+                  <td
+                    role="cell"
+                    colSpan={columnCount}
+                    className={remainderState === 'over' ? styles.footOver : styles.footRest}
+                    data-testid={`${testIdPrefix}-remainder`}
+                  >
+                    {remainderState === 'over'
+                      ? t('table.over', { amount: formatCurrency(Math.abs(remainder)) })
+                      : t('table.notYetSplit', { amount: formatCurrency(remainder) })}
+                  </td>
+                </tr>
+              )}
+            </tfoot>
+          )}
+        </table>
+      </div>
       {preview && (
         <PastePreviewDialog
           table={preview.result.table}

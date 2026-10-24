@@ -167,6 +167,12 @@ export const I18N_UNION_KEYS = {
     'section.emptyBodyDocument',
     COST_LINE_DOCUMENT_KINDS,
   ),
+  /** costLines — row action that takes a line off its offer or invoice. */
+  costLineRemoveFromDocument: unionKeySet(
+    'costLines',
+    'action.removeFromDocument',
+    COST_LINE_DOCUMENT_KINDS,
+  ),
   /** costLines — aria-label of the Split button per document kind. */
   costLineSplitLabel: unionKeySet('costLines', 'table.splitLabel', COST_LINE_DOCUMENT_KINDS),
   /** costLines — Remove-from-document lead for a line without a task or purchase. */

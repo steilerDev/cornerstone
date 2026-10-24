@@ -5,7 +5,7 @@ title: Invoices & Vendors
 
 # Invoices & Vendors
 
-Invoices track the real cost of your project -- the receipts from everyone you pay. Each invoice can be split into cost lines across your work items and household items, and each vendor can have any number of invoices attached.
+Invoices track the real cost of your project -- the receipts from everyone you pay. Each invoice can be split into cost lines across your tasks and purchases, and each company can have any number of invoices attached.
 
 :::info Vendors now live under Settings
 Vendor records have moved out of the Budget subnav and into **Settings > Vendors**. That makes sense because a vendor's name, trade, and contact details are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. All existing links between invoices, cost lines, and vendors are preserved; only the menu location has changed.
@@ -17,9 +17,9 @@ Vendor records have moved out of the Budget subnav and into **Settings > Vendors
 
 Navigate to **Settings > Vendors** in the sidebar to see all vendors. The list supports:
 
-- **Search** -- Find vendors by name
+- **Search** -- Find companies by name
 - **Sorting** -- Sort by name or creation date
-- **Pagination** -- Browse through large vendor lists
+- **Pagination** -- Browse through large company lists
 
 ### Creating a Vendor
 
@@ -27,7 +27,7 @@ Click **New Vendor** and provide the vendor's name and optionally assign a **tra
 
 ### Vendor Detail
 
-Click a vendor to see their detail page, which shows the vendor's information, assigned trade, and all their invoices. From the vendor edit page, you can navigate directly to any invoice detail by clicking on it.
+Click a company to see their detail page, which shows the company's information, assigned trade, and all their invoices. From the company edit page, you can navigate directly to any invoice detail by clicking on it.
 
 ![Vendor detail page](/img/screenshots/budget-vendor-detail-light.png)
 
@@ -37,7 +37,7 @@ Click a vendor to see their detail page, which shows the vendor's information, a
 
 Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. (Invoices remain in the Budget section; only the vendor records themselves moved to Settings.) The list supports:
 
-- **Search** -- Find invoices by number or vendor name
+- **Search** -- Find invoices by number or company name
 - **Status Filter** -- Filter by Offer, To pay, Paid, or Submitted (disabled while "Show only open items" is on)
 - **Sorting** -- Sort by date, amount, or status
 - **Pagination** -- Browse through large invoice lists
@@ -56,9 +56,9 @@ The "Show only open items" toggle is mutually exclusive with the Status filter (
 
 ### Creating an Invoice
 
-Click **New Invoice** -- either from a vendor's detail page or from the top of the **Budget > Invoices** list. Provide:
+Click **New Invoice** -- either from a company's detail page or from the top of the **Budget > Invoices** list. Provide:
 
-- **Invoice Number** -- The vendor's invoice reference number
+- **Invoice Number** -- The company's invoice reference number
 - **Date** -- The invoice date
 - **Amount** -- The total invoice amount
 
@@ -70,16 +70,16 @@ If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](aut
 
 Picking a document takes you to a multi-step review screen:
 
-**Step 1: Vendor & Status**
+**Step 1: Company & Status**
 
-- **Vendor picker** -- Pick the matching vendor (the picker pre-suggests one based on the document). If the vendor doesn't exist, you can create one inline by typing a new name and confirming.
+- **Company picker** -- Pick the matching company (the picker pre-suggests one based on the document). If the company doesn't exist, you can create one inline by typing a new name and confirming.
 - **Invoice status** -- Choose the initial status: Offer, To pay, Paid, or Submitted. Defaults to **To pay**.
 - **Default budget source (optional)** -- If set, all extracted lines are assigned to this funding source. You can still override the source for individual lines in step 2. This field is useful when you know the entire invoice comes from a single financing source.
 
 **Step 2: Metadata & Lines**
 
 - **Pre-fills the invoice metadata** (number, amount, date, due date, notes) from the document, each with a one-click suggestion to apply the extracted value.
-- **Lists the extracted lines in the same grid as [Split with AI](auto-itemize)**, so you can include, edit, categorise, fund, and assign each line to a work item or household item. Net lines are grossed up by VAT so the totals match the invoice. If you specified a default budget source in step 1, each line uses that source by default but can be overridden.
+- **Lists the extracted lines in the same grid as [Split with AI](auto-itemize)**, so you can include, edit, categorise, fund, and assign each line to a task or purchase. Net lines are grossed up by VAT so the totals match the invoice. If you specified a default budget source in step 1, each line uses that source by default but can be overridden.
 
 Click **Create Invoice & Itemize** to create the invoice and its cost lines in one step. The new-invoice review screen and the existing-invoice [Split with AI](auto-itemize) page share the same grid, so line editing, assignment, and funding-source behaviour is identical in both. See [Assign each line](auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source) for the details.
 
@@ -93,20 +93,20 @@ Invoices have four statuses:
 
 | Status | Meaning |
 |--------|---------|
-| **Offer** | A formal quote from the vendor -- not yet an actual cost |
+| **Offer** | A formal offer from the company -- not yet an actual cost |
 | **To pay** | Invoice received but not yet paid |
-| **Paid** | Invoice has been paid to the vendor |
+| **Paid** | Invoice has been paid to the company |
 | **Submitted** | Paid or due, and included in a draw-down request to the bank (a claim for reimbursement from the financing source) |
 
 :::tip
-Use the **Offer** status for vendor offers that you want to track alongside actual invoices. Offer amounts are treated with a +/- 5% margin in budget projections, reflecting the typical variance from a formal quote.
+Use the **Offer** status for company offers that you want to track alongside actual invoices. On **Money > Budget**, offer amounts carry a +/- 5% margin in budget projections, reflecting the typical variance from a formal offer. Cost lines linked to an offer count at face value on the task and purchase pages, and the **Expected cost** row on the offer page shows no range.
 :::
 
 ### Converting an Offer to a Final Invoice
 
-When an offer becomes a finalized invoice from the vendor, you can convert it to capture the final amounts and details. On the offer's invoice detail page, click **Convert to final invoice** to open a dialog where you:
+When an offer becomes a finalized invoice from the company, you can convert it to capture the final amounts and details. On the offer's invoice detail page, click **Convert to final invoice** to open a dialog where you:
 
-1. **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes (the quoted amount is automatically added as a note)
+1. **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes (the offered amount is automatically added as a note)
 2. **Optionally select a Paperless document** -- the document becomes the invoice attachment. If Paperless and an LLM are configured, **Prefill from document** auto-extracts the final details
 3. **Review and edit the cost lines** -- proposed amounts are scaled pro rata to the final amount. You can adjust them or keep the existing lines; any unallocated amount goes to Discretionary
 4. **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final balance
@@ -143,7 +143,7 @@ Each line shows:
 
 Use **Add cost line** to add a single line, or **Add lines (grid)** to enter several at once.
 
-The **Total** of the lines is shown beneath them. For an offer, the **Expected cost** row does not show a +/- 5% range. When grants apply to the lines, the row reads **After grants**.
+The **Total** of the lines is shown beneath them. For an offer, the **Expected cost** row on this page does not show a +/- 5% range. When grants apply to the lines, the row reads **After grants**.
 
 ### Splitting an Offer or Invoice into Cost Lines
 
@@ -173,12 +173,12 @@ See [Work Item Budgets](work-item-budgets#linking-to-invoices) for linking from 
 
 ### Removing a Line from the Invoice
 
-**Remove from invoice** detaches a line from this invoice. The line stays on its task or purchase as an estimate. A confirmation dialog appears first.
+**Remove from invoice** detaches a line from this invoice. On an offer page, the action reads **Remove from offer**. The line stays on its task or purchase as an estimate. A confirmation dialog appears first.
 
 ### Rules and Constraints
 
 - A cost line can be linked to **at most one** offer or invoice -- each line is exclusive to a single document
-- An offer or invoice can have **many** cost lines across different work items and household items
+- An offer or invoice can have **many** cost lines across different tasks and purchases
 - Line amounts are the amounts that apply to each line from the document. They are independent of the planned amount on the task or purchase.
 - A line with no task or purchase is saved as **Not assigned**. It still counts toward financing-source and category totals.
 

@@ -4,7 +4,7 @@
  * - AC5 defaults (unit pricing, Entered as Net, live Gross line) and Add another;
  * - AC2 Basis: a select for an Estimate, read-only with its reason once the line is linked;
  * - editing a linked line updates what is left on the offer; moving a line to another task;
- * - Link to invoice from a task; Unlink and Remove from invoice ask first (ConfirmDialog);
+ * - Link to offer or invoice from a task; Unlink and Remove from invoice ask first (ConfirmDialog);
  * - Delete asks first; a linked line offers no Delete;
  * - dark mode: the form stays legible.
  *
@@ -312,7 +312,7 @@ test.describe('Cost line form - Basis and editing (AC2)', { tag: '@responsive' }
 });
 
 test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@responsive' }, () => {
-  test('Link to invoice from a task links the line and shows its new state', async ({
+  test('Link to offer or invoice from a task links the line and shows its new state', async ({
     page,
     testPrefix,
   }) => {
@@ -334,11 +334,11 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     });
 
     const panel = new CostLinesPanel(page);
-    const link = new ObjectFormDialog(page, 'Link to invoice', 'link-invoice-form');
+    const link = new ObjectFormDialog(page, 'Link to offer or invoice', 'link-invoice-form');
     await page.goto(routeUrl('workItem', { id: taskId }));
     await panel.waitForLoaded();
 
-    await panel.chooseAction(panel.row(`${testPrefix} To link`), 'Link to invoice');
+    await panel.chooseAction(panel.row(`${testPrefix} To link`), 'Link to offer or invoice');
     await link.waitForOpen();
     await new SearchPickerControl(page, 'invoiceId', link.dialog).pick(`${testPrefix}-LINK`);
     await expect(link.field('itemizedAmount')).toHaveValue('300');

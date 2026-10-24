@@ -254,7 +254,7 @@ export function CostLineGridDialog({
       {optionsBlocked && (
         <span
           id="cost-line-grid-save-reason"
-          className={sharedStyles.srOnly}
+          className={options.loading ? styles.saveReason : sharedStyles.srOnly}
           data-testid="cost-line-grid-save-reason"
         >
           {blockedReason}

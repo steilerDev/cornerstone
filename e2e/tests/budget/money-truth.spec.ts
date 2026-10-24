@@ -12,7 +12,7 @@
  *   5. AC5 — a net-entered linked line shows the same amount (and the same estimate) on the
  *      invoice page and on the item page (#2235: cost lines at face value).
  *   6. AC6 — what is left to split is the invoice amount minus the linked lines and the grid rows.
- *   7. AC7 — Link to invoice form: compact rows with what is left, "Fully split", keyboard
+ *   7. AC7 — Link to offer or invoice form: compact rows with what is left, "Fully split", keyboard
  *      reachability, a refused link keeps the form open, an invoice beyond the first 50 is found.
  *   8. AC8 — Budget › Overview › Add › Add Invoice opens the create modal with status pending.
  *
@@ -431,10 +431,10 @@ test.describe('Money truth — Remaining to allocate (AC6)', { tag: '@responsive
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7 (AC7): Link to invoice
+// Scenario 7 (AC7): Link to offer or invoice
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Money truth — Link to invoice (AC7)', { tag: '@responsive' }, () => {
+test.describe('Money truth — Link to offer or invoice (AC7)', { tag: '@responsive' }, () => {
   interface LinkSetup {
     workItemId: string;
     vendorId: string;
@@ -488,10 +488,10 @@ test.describe('Money truth — Link to invoice (AC7)', { tag: '@responsive' }, (
 
   async function openLinkForm(page: Page, workItemId: string) {
     const wi = new WorkItemDetailPage(page);
-    const link = new ObjectFormDialog(page, 'Link to invoice', 'link-invoice-form');
+    const link = new ObjectFormDialog(page, 'Link to offer or invoice', 'link-invoice-form');
     await wi.goto(workItemId);
     await wi.costLines.waitForLoaded();
-    await wi.costLines.chooseAction(wi.costLines.row('Line to link'), 'Link to invoice');
+    await wi.costLines.chooseAction(wi.costLines.row('Line to link'), 'Link to offer or invoice');
     await link.waitForOpen();
     return { wi, link, picker: new SearchPickerControl(page, 'invoiceId', link.dialog) };
   }

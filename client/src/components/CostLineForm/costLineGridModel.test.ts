@@ -248,18 +248,30 @@ describe('buildBatch', () => {
     ).toMatchObject({ budgetSourceId: '' });
   });
 
-  it('links existing lines and skips rows without a target', () => {
+  it('links existing lines', () => {
+    const linked = row({
+      rowId: 'l',
+      unitPrice: '119',
+      existingLine: { id: 'e1', type: 'household_item', description: 'x', gross: 119 },
+    });
+    const { lines, rowIds } = buildBatch([linked], base);
+    expect(lines).toEqual([
+      { kind: 'link', budgetLineType: 'household_item', budgetLineId: 'e1', itemizedAmount: 119 },
+    ]);
+    expect(rowIds).toEqual(['l']);
+  });
+
+  it('throws on a row without a target instead of skipping it', () => {
     const linked = row({
       rowId: 'l',
       unitPrice: '119',
       existingLine: { id: 'e1', type: 'household_item', description: 'x', gross: 119 },
     });
     const orphan = row({ rowId: 'o', description: 'a', unitPrice: '1' });
-    const { lines, rowIds } = buildBatch([linked, orphan], base);
-    expect(lines).toEqual([
-      { kind: 'link', budgetLineType: 'household_item', budgetLineId: 'e1', itemizedAmount: 119 },
-    ]);
-    expect(rowIds).toEqual(['l']);
+    expect(() => buildBatch([linked, orphan], base)).toThrow(
+      'buildBatch: a row has no target; validate before building',
+    );
+    expect(() => buildBatch([orphan], base)).toThrow(/has no target/);
   });
 });
 
