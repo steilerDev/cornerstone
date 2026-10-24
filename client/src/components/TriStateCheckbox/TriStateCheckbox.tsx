@@ -7,6 +7,8 @@ export interface TriStateCheckboxProps {
   indeterminate: boolean;
   onChange: (checked: boolean) => void;
   label?: string;
+  /** Keeps `label` as the accessible name only; no visible text. */
+  hideLabel?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -17,19 +19,18 @@ export function TriStateCheckbox({
   indeterminate,
   onChange,
   label,
+  hideLabel = false,
   disabled = false,
   className,
 }: TriStateCheckboxProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.indeterminate = indeterminate;
-    }
+    inputRef.current!.indeterminate = indeterminate;
   }, [indeterminate]);
 
   return (
-    <label className={`${styles.label} ${className || ''}`}>
+    <label className={`${styles.label} ${hideLabel ? styles.labelHidden : ''} ${className || ''}`}>
       <input
         ref={inputRef}
         id={id}
@@ -40,7 +41,7 @@ export function TriStateCheckbox({
         disabled={disabled}
         aria-label={label}
       />
-      {label && <span className={styles.text}>{label}</span>}
+      {label && !hideLabel && <span className={styles.text}>{label}</span>}
     </label>
   );
 }

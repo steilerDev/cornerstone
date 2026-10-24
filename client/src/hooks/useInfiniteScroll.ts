@@ -62,6 +62,12 @@ export interface UseInfiniteScrollResult<T> {
   loadMore: () => void;
   /** Re-issues the SAME page that just failed. No-ops unless status === 'error'. */
   retry: () => void;
+  /**
+   * Applies `updater` to the current items (a row removed or edited in place). Touches no
+   * paging state (`page`, `hasMore`, `status`, `fetchSequence`, `lastBatchCount`). Synchronous
+   * and acting on the current items only, so it needs no epoch guard. Stable identity.
+   */
+  updateItems: (updater: (items: T[]) => T[]) => void;
 }
 
 export function useInfiniteScroll<T, M = undefined>({
@@ -185,6 +191,10 @@ export function useInfiniteScroll<T, M = undefined>({
     }
   }, [fetchSequence, sentinelNode]);
 
+  const updateItems = useCallback((updater: (current: T[]) => T[]) => {
+    setItems(updater);
+  }, []);
+
   return {
     items,
     status,
@@ -194,5 +204,6 @@ export function useInfiniteScroll<T, M = undefined>({
     sentinelRef,
     loadMore,
     retry,
+    updateItems,
   };
 }

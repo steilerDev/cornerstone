@@ -706,7 +706,87 @@
     "reorderFailed": "Couldn't save the new order. Try again.",
     "added": "{{name}} added.",
     "saved": "{{name}} saved.",
-    "deleted": "{{name}} deleted."
+    "deleted": "{{name}} deleted.",
+    "count": "({{count}})",
+    "reorderWhileSearching": "Clear the search to reorder.",
+    "clearSearch": "Clear search",
+    "matches_one": "{{count}} match",
+    "matches_other": "{{count}} matches"
+  },
+  "objectList": {
+    "count": "({{count}})",
+    "countOf": "({{count}} of {{total}})",
+    "loading": "Loading the list",
+    "searchLabel": "{{label}} in this list",
+    "chips": {
+      "label": "Filter by status",
+      "all": "All"
+    },
+    "filters": {
+      "button": "Filters",
+      "buttonActive_one": "Filters, {{count}} active",
+      "buttonActive_other": "Filters, {{count}} active",
+      "done": "Done",
+      "clear": "Clear filters"
+    },
+    "groupBy": {
+      "label": "Group by",
+      "trigger": "Group: {{label}}",
+      "none": "None",
+      "unavailable": "Grouping needs all rows. Narrow the list to 100 or fewer."
+    },
+    "sort": {
+      "label": "Sort",
+      "trigger": "Sort: {{label}}",
+      "direction": "Direction",
+      "ascending": "Ascending",
+      "descending": "Descending"
+    },
+    "searchingAll": {
+      "none": "Searching all",
+      "inChip_one": "Searching all · {{count}} more in {{chip}}",
+      "inChip_other": "Searching all · {{count}} more in {{chip}}",
+      "inTwo_one": "Searching all · {{count}} more in {{first}} and {{second}}",
+      "inTwo_other": "Searching all · {{count}} more in {{first}} and {{second}}",
+      "inOther_one": "Searching all · {{count}} more in other statuses",
+      "inOther_other": "Searching all · {{count}} more in other statuses"
+    },
+    "group": {
+      "count": "({{count}})",
+      "countOf": "({{loaded}} of {{count}})",
+      "collapsed": "{{group}} collapsed",
+      "expanded": "{{group}} expanded"
+    },
+    "selection": {
+      "selectAllShort": "Select all",
+      "selectRow": "Select {{title}}",
+      "selectGroup": "Select {{group}}",
+      "count_one": "{{count}} selected",
+      "count_other": "{{count}} selected",
+      "countNotLoaded_one": "{{count}} selected, {{rest}} more not loaded",
+      "countNotLoaded_other": "{{count}} selected, {{rest}} more not loaded",
+      "clear": "Clear selection"
+    },
+    "row": {
+      "actionsFor": "Actions for {{title}}"
+    },
+    "columns": {
+      "menuItem": "Columns…",
+      "title": "Columns",
+      "actions": "Actions"
+    },
+    "footer": {
+      "showing": "Showing {{count}} of {{total}}",
+      "loading": "Loading more…",
+      "loadingAria": "Loading more rows",
+      "loadMore": "Load more",
+      "error": "Couldn't load more rows.",
+      "end": "All rows shown.",
+      "appended_one": "{{count}} more row loaded.",
+      "appended_other": "{{count}} more rows loaded.",
+      "appendedEnd_one": "{{count}} more row loaded. All rows shown.",
+      "appendedEnd_other": "{{count}} more rows loaded. All rows shown."
+    }
   },
   "integrationStatus": {
     "connected": "Connected",

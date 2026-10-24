@@ -97,6 +97,14 @@ describe('DataTableColumnSettings', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    it('stays open on other key presses', async () => {
+      const user = userEvent.setup();
+      renderSettings();
+      await user.click(screen.getByRole('button', { name: /column settings/i }));
+      fireEvent.keyDown(document, { key: 'a' });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
     it('hides popover on Escape key press', async () => {
       const user = userEvent.setup();
       renderSettings();

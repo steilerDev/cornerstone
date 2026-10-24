@@ -1,25 +1,18 @@
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MANUAL_DIARY_ENTRY_TYPES, foldSearchText } from '@cornerstone/shared';
 import type { AreaSummary, DiaryFilterOptions, ManualDiaryEntryType } from '@cornerstone/shared';
 import { FilterChipGroup } from '../../components/FilterChipGroup/FilterChipGroup.js';
 import { FormError } from '../../components/FormError/FormError.js';
-import { AnchoredPanel } from '../../components/Modal/AnchoredPanel.js';
-import { Sheet } from '../../components/Modal/Sheet.js';
-import { getFocusableElements } from '../../components/Modal/useFocusTrap.js';
+import { ObjectListFiltersPanel } from '../../components/ObjectList/ObjectListFiltersPanel.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
-import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { diaryEntryTypeLabelKey } from '../../lib/diaryEntryTypeLabel.js';
 import { useFormatters } from '../../lib/formatters.js';
 import shared from '../../styles/shared.module.css';
 import { activeFilterCount } from './diaryQuery.js';
 import type { DiaryFilterState } from './diaryQuery.js';
 import styles from './DiaryFilters.module.css';
-
-const PANEL_ID = 'diary-filters-panel';
-const SHEET_ID = 'diary-filters-sheet';
 
 export interface DiaryFiltersProps {
   state: DiaryFilterState;
@@ -34,7 +27,7 @@ function areaPath(area: AreaSummary): string {
   return [...area.ancestors.map((a) => a.name), area.name].join(' › ');
 }
 
-/** The Filters button and the surface it opens: a bottom Sheet below 768px, an anchored panel above. */
+/** The Filters button and the surface it opens (the shared object-list Filters panel). */
 export function DiaryFilters({
   state,
   onChange,
@@ -43,92 +36,24 @@ export function DiaryFilters({
   buttonRef,
 }: DiaryFiltersProps) {
   const { t } = useTranslation('diary');
-  const location = useLocation();
-  const isWide = useMediaQuery('(min-width: 768px)');
-  const [open, setOpen] = useState(false);
-  const count = activeFilterCount(state);
-
-  const close = () => {
-    setOpen(false);
-    buttonRef.current?.focus();
-  };
-
-  const content = (
-    <DiaryFiltersContent
-      state={state}
-      onChange={onChange}
-      options={options}
-      autoFocus={isWide && open}
-    />
-  );
 
   return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        className={`${shared.btnSecondary} ${styles.button}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={isWide ? PANEL_ID : SHEET_ID}
-        aria-label={count > 0 ? t('filters.buttonActive', { count }) : undefined}
-        onClick={() => setOpen((prev) => !prev)}
-        data-testid="diary-filters-button"
-      >
-        {t('filters.button')}
-        {count > 0 ? <span className={shared.filtersToggleCount}>{count}</span> : null}
-      </button>
-
-      {isWide ? (
-        <AnchoredPanel
-          open={open}
-          anchorRef={buttonRef}
-          role="dialog"
-          id={PANEL_ID}
-          ariaLabel={t('filters.button')}
-          trapFocus
-          closeSignal={location.pathname}
-          onDismiss={(reason) => {
-            if (reason === 'route') setOpen(false);
-            else close();
-          }}
-          testId="diary-filters-panel"
-        >
-          <div className={styles.panel}>{content}</div>
-        </AnchoredPanel>
-      ) : (
-        <Sheet
-          id={SHEET_ID}
-          open={open}
-          onClose={close}
-          title={t('filters.button')}
-          returnFocusRef={buttonRef}
-          testId="diary-filters-sheet"
-          footer={
-            <div className={styles.sheetFooter}>
-              <button
-                type="button"
-                className={shared.btnSecondary}
-                onClick={onClearAll}
-                data-testid="diary-filters-sheet-clear"
-              >
-                {t('filters.clearAll')}
-              </button>
-              <button
-                type="button"
-                className={shared.btnPrimary}
-                onClick={close}
-                data-testid="diary-filters-done"
-              >
-                {t('filters.done')}
-              </button>
-            </div>
-          }
-        >
-          {content}
-        </Sheet>
-      )}
-    </>
+    <ObjectListFiltersPanel
+      idPrefix="diary-filters"
+      testIdPrefix="diary-filters"
+      activeCount={activeFilterCount(state)}
+      buttonRef={buttonRef}
+      buttonClassName={`${shared.btnSecondary} ${styles.button}`}
+      onClear={onClearAll}
+      labels={{
+        button: t('filters.button'),
+        buttonActive: (count) => t('filters.buttonActive', { count }),
+        done: t('filters.done'),
+        clear: t('filters.clearAll'),
+      }}
+    >
+      <DiaryFiltersContent state={state} onChange={onChange} options={options} />
+    </ObjectListFiltersPanel>
   );
 }
 
@@ -136,19 +61,11 @@ interface DiaryFiltersContentProps {
   state: DiaryFilterState;
   onChange: (patch: Partial<DiaryFilterState>) => void;
   options: DiaryFilterOptions | null;
-  /** Move focus to the first control on mount (the anchored panel; the Sheet does it itself). */
-  autoFocus: boolean;
 }
 
-function DiaryFiltersContent({ state, onChange, options, autoFocus }: DiaryFiltersContentProps) {
+function DiaryFiltersContent({ state, onChange, options }: DiaryFiltersContentProps) {
   const { t } = useTranslation('diary');
-  const rootRef = useRef<HTMLDivElement>(null);
   const rangeErrorId = useId();
-
-  useLayoutEffect(() => {
-    if (!autoFocus || !rootRef.current) return;
-    getFocusableElements(rootRef.current)[0]?.focus();
-  }, [autoFocus]);
 
   // Types in use, plus any type still active in the URL so it can be removed.
   const typeValues = (MANUAL_DIARY_ENTRY_TYPES as readonly ManualDiaryEntryType[]).filter(
@@ -211,7 +128,7 @@ function DiaryFiltersContent({ state, onChange, options, autoFocus }: DiaryFilte
   };
 
   return (
-    <div ref={rootRef} className={styles.content} data-testid="diary-filters-content">
+    <div className={styles.content} data-testid="diary-filters-content">
       {showTypes ? (
         <div className={styles.field}>
           <span id="diary-filter-type-label" className={styles.label}>

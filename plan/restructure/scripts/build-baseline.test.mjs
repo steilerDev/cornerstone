@@ -627,10 +627,11 @@ describe('compareBaseline', () => {
   it('treats missing metrics on a baseline screen as zero', () => {
     const b = baselineOf(measuredBase());
     b.measured.screens.A = {};
-    assert.deepEqual(compareBaseline(b, measuredBase()).rises, [
-      'A.destinations: 0 → 2',
-      'A.primaryButtons: 0 → 1',
-      'A.searchFields: 0 → 1',
+    const res = compareBaseline(b, measuredBase());
+    assert.deepEqual(res.rises, ['A.destinations: 0 → 2', 'A.primaryButtons: 0 → 1']);
+    // searchFields 0 → 1 is a screen's first search field (#2234): recorded, not a rise.
+    assert.deepEqual(res.unrecorded, [
+      'A.searchFields: 0 → 1 (first search field, not yet recorded)',
     ]);
   });
 });
@@ -708,6 +709,67 @@ describe('compareBaseline with approved glossary labels', () => {
   it('does not report a label already in the baseline even if approved', () => {
     const res = compareBaseline(baselineOf(measuredBase()), measuredBase(), new Set(['paid']));
     assert.deepEqual(res, { rises: [], drops: [], unrecorded: [] });
+  });
+});
+
+describe("compareBaseline: a screen's first search field (#2234)", () => {
+  const withSearch = (n) => {
+    const m = measuredBase();
+    m.screens.Z = { destinations: 0, primaryButtons: 0, searchFields: n };
+    return m;
+  };
+
+  it('records 0 → 1 on an existing screen as unrecorded, not as a rise', () => {
+    const res = compareBaseline(baselineOf(withSearch(0)), withSearch(1));
+    assert.deepEqual(res.rises, []);
+    assert.deepEqual(res.drops, []);
+    assert.deepEqual(res.unrecorded, [
+      'Z.searchFields: 0 → 1 (first search field, not yet recorded)',
+    ]);
+  });
+
+  it('treats a screen whose baseline has no searchFields entry as 0', () => {
+    const b = baselineOf(withSearch(0));
+    delete b.measured.screens.Z.searchFields;
+    const res = compareBaseline(b, withSearch(1));
+    assert.deepEqual(res.rises, []);
+    assert.deepEqual(res.unrecorded, [
+      'Z.searchFields: 0 → 1 (first search field, not yet recorded)',
+    ]);
+  });
+
+  it('still flags 1 → 2 as a rise', () => {
+    const res = compareBaseline(baselineOf(withSearch(1)), withSearch(2));
+    assert.deepEqual(res.rises, ['Z.searchFields: 1 → 2']);
+    assert.deepEqual(res.unrecorded, []);
+  });
+
+  it('still flags 0 → 2 as a rise', () => {
+    const res = compareBaseline(baselineOf(withSearch(0)), withSearch(2));
+    assert.deepEqual(res.rises, ['Z.searchFields: 0 → 2']);
+    assert.deepEqual(res.unrecorded, []);
+  });
+
+  it('has nothing to report once plan:build recorded the field', () => {
+    assert.deepEqual(compareBaseline(baselineOf(withSearch(1)), withSearch(1)), {
+      rises: [],
+      drops: [],
+      unrecorded: [],
+    });
+  });
+
+  it('reports 1 → 0 as a drop', () => {
+    const res = compareBaseline(baselineOf(withSearch(1)), withSearch(0));
+    assert.deepEqual(res.drops, ['Z.searchFields: 1 → 0']);
+    assert.deepEqual(res.unrecorded, []);
+  });
+
+  it('does not extend to primary buttons or destinations', () => {
+    const m = withSearch(0);
+    m.screens.Z.primaryButtons = 1;
+    m.screens.Z.destinations = 1;
+    const res = compareBaseline(baselineOf(withSearch(0)), m);
+    assert.deepEqual(res.rises, ['Z.primaryButtons: 0 → 1', 'Z.destinations: 0 → 1'].sort());
   });
 });
 

@@ -10,6 +10,12 @@ import {
 } from './invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 
+const EMPTY_CHIP_COUNTS = {
+  matching: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+  outsideToPay: { offers: 0, paid: 0, submitted: 0, all: 0 },
+  totals: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+};
+
 describe('invoicesApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -469,6 +475,7 @@ describe('invoicesApi', () => {
     const samplePaginatedResponse: InvoiceListPaginatedResponse = {
       invoices: [sampleInvoice],
       pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+      chipCounts: EMPTY_CHIP_COUNTS,
       summary: {
         pending: { count: 1, totalAmount: 2500.0 },
         paid: { count: 0, totalAmount: 0 },

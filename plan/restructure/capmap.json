@@ -71,7 +71,7 @@
     "to": "All lists > filter bar > Clear filters",
     "change": "same",
     "gate": "none",
-    "note": "Same control on Tasks, Milestones, Purchases, Invoices, Companies. #2197: Clear filters also clears text still being typed in the search box."
+    "note": "Same control on Tasks, Milestones, Purchases, Invoices, Companies. #2197: Clear filters also clears text still being typed in the search box. #2234: Clear filters also resets the status chip to the list's starting chip (ObjectList note row; it keeps sort and group)."
   },
   "WRK-010": {
     "name": "Sort work items by title, status, start date or end date",
@@ -79,15 +79,16 @@
     "to": "Tasks > Tasks list (/project/work-items) > Sort menu / column headers",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2199: start/end sort follows the shown date (actual, else forecast); empty dates last."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2199: start/end sort follows the shown date (actual, else forecast); empty dates last. #2234: the shared ObjectList Sort menu (key + direction) and sortable column headers (asc → desc → default) share one URL state; Tasks adopts it in P5.1."
   },
   "WRK-011": {
-    "name": "Page through long lists (work items, household items, invoices) and change the page size (10/25/50/100)",
+    "name": "Reach every row of a long list (work items, household items, invoices, companies): all rows up to 100 load at once, more load as you scroll",
     "from": "/project/work-items > pagination bar below the table (only when >1 page) | /project/household-items > pagination bar (desktop: numbered pages + page-size select; mobile: Prev/Next) | /budget/invoices > pagination footer (10 / 25 / 50 / 100)",
-    "to": "All lists (Tasks, Purchases, Invoices, Companies) > pagination bar + page size",
-    "change": "same",
+    "to": "All lists (Tasks, Purchases, Invoices, Milestones, Companies) > list body > load-all up to 100, then 'Showing n of m' footer with Load more / Retry",
+    "change": "merged",
     "gate": "none",
-    "note": "Grouped Tasks list shows all 47 real rows without paging; paging kicks in above 100. #2200: hover shows a primary border, not only a fill."
+    "note": "#2200: hover shows a primary border, not only a fill. The page-size choice (10/25/50/100) and the numbered pages are retired: they only existed to bound a table, which scrolling does. Nothing replaces the select. Old `?page=` and `?pageSize=` in bookmarks are ignored, not an error, and are no longer written. #2234: built in the shared ObjectList template (page size 100, InfiniteScrollFooter beyond 100 rows); each list adopts it and drops page/pageSize from its route's carries in its own story (Invoices P4.6, Tasks P5.1, Purchases/Companies/Milestones P5.2).",
+    "acceptance": "Every row of a list over 100 rows is reachable by scrolling or Load more; a failed batch shows Retry."
   },
   "WRK-013": {
     "name": "Bookmark or share a filtered/sorted list (work items, household items) via its URL",
@@ -95,7 +96,7 @@
     "to": "All lists > URL query state (filters, sort, group, view)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ObjectList URL state: every write replaces the history entry, absent = default, unknown values are removed, page/pageSize are ignored and dropped; params the list does not own are kept."
   },
   "WRK-014": {
     "name": "Open a work item from the list",
@@ -4141,7 +4142,7 @@
     "to": "All lists > ⋯ > Columns (show/hide, reorder, reset; per user)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ⋯ › Columns… on the table layout (ObjectList, a Columns dialog with the shared ColumnSettingsList; same per-user preference key as the page's DataTable)."
   },
   "PLT-116": {
     "name": "Get short toast notifications for completed or failed actions",

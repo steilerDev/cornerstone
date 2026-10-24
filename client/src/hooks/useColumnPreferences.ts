@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ColumnDef } from '../components/DataTable/DataTable.js';
 import { useToast } from '../components/Toast/ToastContext.js';
 import { usePreferences } from './usePreferences.js';
+
+/** The part of a column definition the preferences need (DataTable and ObjectList columns both fit). */
+export interface ColumnPreferenceColumn {
+  readonly key: string;
+  readonly defaultVisible?: boolean;
+}
 
 export interface UseColumnPreferencesResult {
   visibleColumns: Set<string>;
@@ -23,9 +28,9 @@ export interface UseColumnPreferencesResult {
  * @param columns Column definitions
  * @returns Visible columns, column order, and control functions
  */
-export function useColumnPreferences<T>(
+export function useColumnPreferences(
   pageKey: string,
-  columns: ColumnDef<T>[],
+  columns: readonly ColumnPreferenceColumn[],
 ): UseColumnPreferencesResult {
   const preferenceKey = `table.${pageKey}.columns`;
   const { preferences, upsert } = usePreferences();

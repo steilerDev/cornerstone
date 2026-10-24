@@ -22,6 +22,8 @@ const LABELS: ReferenceListLabels = {
   editItem: 'Edit sample',
   empty: 'Nothing here',
   loadFailed: 'Could not load',
+  search: 'Search',
+  noMatch: 'No match',
   duplicateName: 'A sample with this name already exists.',
 };
 

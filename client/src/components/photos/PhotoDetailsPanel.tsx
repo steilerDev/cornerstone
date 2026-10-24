@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
@@ -112,6 +112,7 @@ export function PhotoDetailsPanel({
   const ownEditRef = useRef<HTMLButtonElement | null>(null);
   const editBtnRef = editTagsButtonRef ?? ownEditRef;
   const rootRef = useRef<HTMLElement | null>(null);
+  const pendingFocusRef = useRef(false);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => draftOf(photo));
@@ -136,6 +137,16 @@ export function PhotoDetailsPanel({
 
   const changeEditing = setEditing;
 
+  useLayoutEffect(() => {
+    if (editing || !pendingFocusRef.current) return;
+    pendingFocusRef.current = false;
+    // The editor's focused control is gone (focus is on the body) or still inside the panel;
+    // focus that moved elsewhere is left alone.
+    const active = document.activeElement;
+    if (active && active !== document.body && !rootRef.current!.contains(active)) return;
+    editBtnRef.current!.focus();
+  }, [editing, editBtnRef]);
+
   const areaRecord = photo.areaId ? areas.find((a) => a.id === photo.areaId) : undefined;
   const hintArea = area && area.id === photo.areaId ? area : null;
   const areaPath = photo.areaId
@@ -153,12 +164,10 @@ export function PhotoDetailsPanel({
     changeEditing(true);
   };
 
+  // The Edit tags button mounts only once editing has ended, so focus moves from the effect
+  // below, after that commit, never from the click handler.
   const focusEditButton = () => {
-    window.requestAnimationFrame(() => {
-      const active = document.activeElement;
-      if (active && active !== document.body && !rootRef.current?.contains(active)) return;
-      editBtnRef.current?.focus();
-    });
+    pendingFocusRef.current = true;
   };
 
   const cancel = () => {

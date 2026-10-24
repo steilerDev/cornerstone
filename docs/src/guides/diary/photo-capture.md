@@ -47,13 +47,14 @@ Orientations are a managed list, just like [areas and trades](/guides/work-items
 
 ### Managing orientations
 
-Navigate to **Manage** in the sidebar and open the **Orientations** tab. Under **Create orientation**, provide:
+Navigate to **Settings > Project setup** and find the **Photo orientations** section. Select **New orientation** and provide:
 
 - **Name** -- A short label, required (up to 100 characters). For example `North side` or `From the street`.
 - **Description** -- Optional context, e.g. *Side facing the garden* (up to 500 characters).
-- **Sort Order** -- A number that controls where the orientation appears in pickers; lower values sort first.
 
-Click **Create orientation** to add it. The list below shows every orientation with its sort-order label; each row has **Edit** and **Delete** actions. Deleting an orientation asks for confirmation first.
+The list shows every orientation in the order you set. To change the order, drag a row by its reorder handle, or open the row's actions menu and choose **Move up** or **Move down**. Each row also has **Edit** and **Delete** actions. Deleting an orientation asks for confirmation first.
+
+When the list has 8 or more orientations, a **Search orientations** field appears above it. Clear the search before you reorder. See [Searching and Reordering](/guides/budget/categories#searching-and-reordering) for the details, which work the same way for every Project setup list.
 
 Once you have created orientations they appear in the **Orientation** chips over the camera and in the **Orientation** picker when you tag a photo. The picker searches as you type, matching your query against both the orientation **name** and its **description** -- so typing *street* finds *From the street* even when "street" only appears in the description.
 

@@ -403,6 +403,27 @@ describe('useInfiniteScroll', () => {
 
   // ─── onPageApplied / onPageFailed callbacks ──────────────────────────────────
 
+  describe('updateItems (#2234)', () => {
+    it('edits items in place without touching paging state and keeps a stable identity', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValueOnce(page(['a', 'b', 'c'], true));
+
+      const { result } = renderHook(() => useInfiniteScroll({ fetchPage, resetKey: 'k' }));
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+      const before = result.current;
+      const identity = before.updateItems;
+
+      act(() => result.current.updateItems((items) => items.filter((i) => i !== 'b')));
+
+      expect(result.current.items).toEqual(['a', 'c']);
+      expect(result.current.status).toBe('idle');
+      expect(result.current.hasMore).toBe(true);
+      expect(result.current.fetchSequence).toBe(before.fetchSequence);
+      expect(result.current.updateItems).toBe(identity);
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('onPageApplied / onPageFailed', () => {
     it('calls onPageApplied exactly once with (meta, page) on a normal, non-superseded success', async () => {
       const fetchPage =

@@ -117,6 +117,12 @@ jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.
 
 import React from 'react';
 
+const EMPTY_CHIP_COUNTS = {
+  matching: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+  outsideToPay: { offers: 0, paid: 0, submitted: 0, all: 0 },
+  totals: { toPay: 0, offers: 0, paid: 0, submitted: 0, all: 0 },
+};
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -336,6 +342,7 @@ function openResponse(
   return {
     invoices,
     pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: invoices.length },
+    chipCounts: EMPTY_CHIP_COUNTS,
     summary: { ...baseOpenSummary, ...summaryOverrides },
   };
 }
@@ -343,6 +350,7 @@ function openResponse(
 const emptyOffResponse: InvoiceListPaginatedResponse = {
   invoices: [],
   pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+  chipCounts: EMPTY_CHIP_COUNTS,
   summary: {
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
@@ -803,6 +811,7 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       mockFetchAllInvoices.mockResolvedValueOnce({
         invoices: [{ ...invC, deposits: [], openAmount: undefined }],
         pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+        chipCounts: EMPTY_CHIP_COUNTS,
         summary: emptyOffResponse.summary,
       });
       renderPageAt('/budget/invoices');

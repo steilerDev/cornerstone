@@ -93,7 +93,7 @@ test.describe('Photo orientations — section (Scenario 1)', { tag: '@responsive
       await setup.goto('orientations');
       const list = setup.orientations;
 
-      await expect(list.heading).toHaveText('Photo orientations');
+      await expect(list.heading).toContainText('Photo orientations');
       await expect(list.section).toContainText('Name the viewing directions you tag photos with.');
       await expect(list.newButton).toBeVisible();
       await expect(list.newButton).toHaveAccessibleName('New orientation');

@@ -82,8 +82,9 @@ test.describe('Project setup — layout (AC1)', { tag: '@responsive' }, () => {
       await expect(setup.purchaseCategories.section).toBeVisible();
       await expect(setup.orientations.section).toBeVisible();
       await expect(setup.pointers).toBeVisible();
+      // The h2 carries the row count after the title ("Cost categories (7)")
       await expect(
-        page.getByRole('heading', { level: 2, name: 'Cost categories', exact: true }),
+        page.getByRole('heading', { level: 2, name: /^Cost categories( \(\d+\))?$/ }),
       ).toBeVisible();
     },
   );

@@ -66,3 +66,4 @@
 - [story-2230-home.md](story-2230-home.md) — #2230 Home spec/POM/stateful homeMocks, StatusMenu action has no option step, set-up-mode trap for real-data specs, 2 live defects.
 - [story-2233-documents-panel.md](story-2233-documents-panel.md) — #2233 Documents panel POM/hosts, real-server Unlink+Undo recipe, slide-in box trap, Escape-in-menu defect.
 - [story-2232-consistency-test.md](story-2232-consistency-test.md) — #2232 figureSurfaces registry, FC1-FC5 spec, overview mocks must carry `money` (moneyMocks), holdsUp tooltip mock.
+- [feedback_cleanup_scope.md](feedback_cleanup_scope.md) — post-run cleanup: only git clean docs/static/img/screenshots; never revert docs/src or others' tracked files.

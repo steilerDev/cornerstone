@@ -14,6 +14,49 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import { SelectionActionBar } from './SelectionActionBar.js';
 
+describe('SelectionActionBar announce and testId (#2234)', () => {
+  it('announces through its own live region by default', () => {
+    render(
+      <SelectionActionBar countLabel="2 selected" onClear={jest.fn()} clearLabel="Clear">
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    const count = screen.getByText('2 selected');
+    expect(count).toHaveAttribute('aria-live', 'polite');
+    expect(count).toHaveAttribute('aria-atomic', 'true');
+  });
+
+  it('drops the live region with announce={false}', () => {
+    render(
+      <SelectionActionBar
+        countLabel="2 selected"
+        onClear={jest.fn()}
+        clearLabel="Clear"
+        announce={false}
+      >
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    const count = screen.getByText('2 selected');
+    expect(count).not.toHaveAttribute('aria-live');
+    expect(count).not.toHaveAttribute('aria-atomic');
+  });
+
+  it('puts the testId on the bar', () => {
+    render(
+      <SelectionActionBar
+        countLabel="1 selected"
+        onClear={jest.fn()}
+        clearLabel="Clear"
+        testId="bar-x"
+      >
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    expect(screen.getByTestId('bar-x')).toBeInTheDocument();
+  });
+});
+
 describe('SelectionActionBar', () => {
   it('renders the countLabel text', () => {
     render(

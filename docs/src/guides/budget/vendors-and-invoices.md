@@ -23,7 +23,7 @@ Navigate to **Settings > Vendors** in the sidebar to see all vendors. The list s
 
 ### Creating a Vendor
 
-Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Trades are managed on the [Manage page](/guides/work-items/areas-and-trades).
+Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
 
 ### Vendor Detail
 

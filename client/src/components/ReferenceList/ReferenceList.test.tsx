@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import type { DeleteImpactResponse } from '@cornerstone/shared';
@@ -38,6 +38,8 @@ const LABELS: ListTypes.ReferenceListLabels = {
   editItem: 'Edit sample thing',
   empty: 'No sample things yet.',
   loadFailed: 'Sample things could not be loaded.',
+  search: 'Search sample things',
+  noMatch: 'No sample things match.',
   duplicateName: 'That name is taken.',
   deleteBlocked: (name) => `${name} is still in use.`,
 };
@@ -198,7 +200,7 @@ describe('ReferenceList', () => {
 
       const section = screen.getByTestId('sample-section');
       expect(section).toHaveAttribute('id', 'sample-things');
-      expect(section).toHaveAccessibleName('Sample things');
+      expect(section).toHaveAccessibleName('Sample things (3)');
       expect(screen.getByRole('heading', { level: 2 })).toHaveAttribute(
         'id',
         'sample-things-heading',
@@ -679,6 +681,284 @@ describe('ReferenceList', () => {
       render(<Host status="loading" />);
 
       expect(screen.queryByTestId('sample-handle-a')).toBeNull();
+    });
+  });
+
+  describe('409 without a deleteBlocked label', () => {
+    it('stays a normal confirm with an error instead of the blocked dialog', async () => {
+      const user = userEvent.setup();
+      h.onDelete.mockRejectedValue(
+        new ApiClientError(409, { code: 'CATEGORY_IN_USE', message: 'x', details: {} }),
+      );
+      render(<Host labels={{ ...LABELS, deleteBlocked: undefined }} />);
+
+      await chooseAction(user, 'b', 'delete');
+      await user.click(screen.getByTestId('sample-delete-dialog-confirm'));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).queryByText('Bravo is still in use.')).toBeNull();
+      expect(screen.getByTestId('sample-delete-dialog-confirm')).toBeInTheDocument();
+    });
+  });
+
+  describe('pointer drag', () => {
+    class TestPointerEvent extends MouseEvent {
+      readonly pointerId: number;
+      readonly pointerType = 'mouse';
+      constructor(type: string, init: MouseEventInit & { pointerId?: number } = {}) {
+        super(type, init);
+        this.pointerId = init.pointerId ?? 1;
+      }
+    }
+    let originalPointerEvent: unknown;
+    let rectSpy: ReturnType<typeof jest.spyOn>;
+
+    beforeEach(() => {
+      originalPointerEvent = (window as unknown as { PointerEvent?: unknown }).PointerEvent;
+      Object.defineProperty(window, 'PointerEvent', {
+        configurable: true,
+        writable: true,
+        value: TestPointerEvent,
+      });
+      Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+        configurable: true,
+        writable: true,
+        value: () => {},
+      });
+      rectSpy = jest
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: HTMLElement) {
+          const index = this.parentElement
+            ? Array.from(this.parentElement.children).indexOf(this)
+            : 0;
+          return { top: index * 40, height: 40, bottom: index * 40 + 40 } as DOMRect;
+        });
+    });
+
+    afterEach(() => {
+      rectSpy.mockRestore();
+      Object.defineProperty(window, 'PointerEvent', {
+        configurable: true,
+        writable: true,
+        value: originalPointerEvent,
+      });
+    });
+
+    it('marks the dragged row and the drop position, and commits on release', async () => {
+      render(<Host />);
+      const handle = screen.getByTestId('sample-handle-a');
+
+      fireEvent.pointerDown(handle, { clientY: 20 });
+      fireEvent.pointerMove(handle, { clientY: 110 });
+
+      expect(screen.getByTestId('sample-row-a')).toHaveAttribute('data-dragging', 'true');
+      expect(screen.getByTestId('sample-row-c')).toHaveAttribute('data-drop', 'after');
+      expect(screen.getByTestId('sample-row-b')).not.toHaveAttribute('data-drop');
+
+      fireEvent.pointerUp(handle, { clientY: 110 });
+      await waitFor(() => expect(h.onReorder).toHaveBeenCalledWith(['b', 'c', 'a']));
+    });
+
+    it('marks the drop position before the target when dragging up', () => {
+      render(<Host />);
+      const handle = screen.getByTestId('sample-handle-c');
+
+      fireEvent.pointerDown(handle, { clientY: 110 });
+      fireEvent.pointerMove(handle, { clientY: 10 });
+
+      expect(screen.getByTestId('sample-row-a')).toHaveAttribute('data-drop', 'before');
+    });
+  });
+
+  describe('search (#2234)', () => {
+    const NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel Küche'];
+    const MANY: Item[] = NAMES.map((name, i) => ({
+      id: `n${i}`,
+      name,
+      color: null,
+      description: i === 2 ? 'Wet room' : undefined,
+    }));
+    const searchInput = () => screen.getByTestId('sample-search');
+
+    it('has no search field below 8 rows (R1)', () => {
+      render(<Host initial={MANY.slice(0, 7)} />);
+      expect(screen.queryByTestId('sample-search')).toBeNull();
+      expect(screen.getByTestId('sample-count')).toHaveTextContent('(7)');
+    });
+
+    it('shows a labelled search field from 8 rows, outside the page-search shortcut (R2)', () => {
+      render(<Host initial={MANY} />);
+      expect(searchInput()).toHaveAttribute('placeholder', 'Search sample things');
+      expect(searchInput()).toHaveAccessibleName('Search sample things');
+      expect(searchInput()).not.toHaveAttribute('data-page-search');
+    });
+
+    it('filters by name and by description with folding (R3)', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'kuche');
+      expect(names()).toEqual(['Hotel Küche']);
+      await user.clear(searchInput());
+      await user.type(searchInput(), 'WET');
+      expect(names()).toEqual(['Charlie']);
+      await user.clear(searchInput());
+      expect(names()).toHaveLength(8);
+    });
+
+    it('disables reordering while searching and says why (R4)', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'a');
+      const handle = screen.getByTestId('sample-handle-n0');
+      expect(handle).toHaveAttribute('aria-disabled', 'true');
+      expect(handle).toHaveAccessibleDescription(/Clear the search to reorder\./);
+      handle.focus();
+      await user.keyboard(' ');
+      await user.keyboard('{ArrowDown}');
+      await user.keyboard(' ');
+      expect(h.onReorder).not.toHaveBeenCalled();
+      await user.click(menuTrigger('n0'));
+      expect(await screen.findByTestId('sample-move-down-n0')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await user.click(screen.getByTestId('sample-move-down-n0'));
+      expect(h.onReorder).not.toHaveBeenCalled();
+    });
+
+    it('reorders again once the search is cleared', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'a');
+      await user.clear(searchInput());
+      expect(screen.getByTestId('sample-handle-n0')).not.toHaveAttribute('aria-disabled');
+      expect(screen.queryByText('Clear the search to reorder.', { exact: false })).toBeNull();
+    });
+
+    it('shows the no-match state with Clear search that refocuses the field (R5)', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'zzzz');
+      expect(screen.getByText('No sample things match.')).toBeInTheDocument();
+      expect(screen.queryByRole('list')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      expect(names()).toHaveLength(8);
+      expect(searchInput()).toHaveValue('');
+      expect(searchInput()).toHaveFocus();
+    });
+
+    describe('announcement (R6)', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+      });
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('announces the match count 500 ms after typing settles, once', () => {
+        render(<Host initial={MANY} />);
+        fireEvent.change(searchInput(), { target: { value: 'a' } });
+        act(() => jest.advanceTimersByTime(499));
+        expect(h.onAnnounce).not.toHaveBeenCalled();
+        fireEvent.change(searchInput(), { target: { value: 'al' } });
+        act(() => jest.advanceTimersByTime(499));
+        expect(h.onAnnounce).not.toHaveBeenCalled();
+        act(() => jest.advanceTimersByTime(1));
+        expect(h.onAnnounce).toHaveBeenCalledTimes(1);
+        expect(h.onAnnounce).toHaveBeenCalledWith('1 match');
+      });
+
+      it('uses the plural form and announces no match through the label', () => {
+        render(<Host initial={MANY} />);
+        fireEvent.change(searchInput(), { target: { value: 'o' } });
+        act(() => jest.advanceTimersByTime(500));
+        expect(h.onAnnounce).toHaveBeenLastCalledWith('6 matches');
+        fireEvent.change(searchInput(), { target: { value: 'zzzz' } });
+        act(() => jest.advanceTimersByTime(500));
+        expect(h.onAnnounce).toHaveBeenLastCalledWith('No sample things match.');
+      });
+
+      it('announces nothing for an emptied query', () => {
+        render(<Host initial={MANY} />);
+        fireEvent.change(searchInput(), { target: { value: 'a' } });
+        fireEvent.change(searchInput(), { target: { value: '' } });
+        act(() => jest.advanceTimersByTime(1000));
+        expect(h.onAnnounce).not.toHaveBeenCalled();
+      });
+
+      it('clears the pending timer on unmount', () => {
+        const { unmount } = render(<Host initial={MANY} />);
+        fireEvent.change(searchInput(), { target: { value: 'a' } });
+        unmount();
+        act(() => jest.advanceTimersByTime(1000));
+        expect(h.onAnnounce).not.toHaveBeenCalled();
+      });
+    });
+
+    it('shows the count only when the list is ready (R7)', () => {
+      const { unmount } = render(<Host initial={MANY} />);
+      expect(screen.getByTestId('sample-count')).toHaveTextContent('(8)');
+      unmount();
+      render(<Host status="loading" />);
+      expect(screen.queryByTestId('sample-count')).toBeNull();
+    });
+
+    it('keeps the full count while a query narrows the rows', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'alpha');
+      expect(screen.getByTestId('sample-count')).toHaveTextContent('(8)');
+    });
+
+    it('deleting while searching focuses a visible neighbour (R8)', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'o');
+      // visible: Bravo (n1), Charlie (n2), Echo (n4), Foxtrot (n5), Golf (n6), Hotel (n7)
+      expect(names()).toEqual(['Bravo', 'Charlie', 'Echo', 'Foxtrot', 'Golf', 'Hotel Küche']);
+      await user.click(menuTrigger('n4'));
+      await user.click(await screen.findByTestId('sample-delete-n4'));
+      await user.click(await screen.findByTestId('sample-delete-dialog-confirm'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(menuTrigger('n5')).toHaveFocus();
+    });
+
+    it('keeps the toolbar when deleting drops the list below 8 rows with a query', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'o');
+      await user.click(menuTrigger('n1'));
+      await user.click(await screen.findByTestId('sample-delete-n1'));
+      await user.click(await screen.findByTestId('sample-delete-dialog-confirm'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(searchInput()).toHaveValue('o');
+      expect(screen.getByTestId('sample-count')).toHaveTextContent('(7)');
+    });
+
+    it('keeps the focused search field mounted below 8 rows until it loses focus', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY} />);
+      await user.type(searchInput(), 'o');
+      await user.click(menuTrigger('n1'));
+      await user.click(await screen.findByTestId('sample-delete-n1'));
+      await user.click(await screen.findByTestId('sample-delete-dialog-confirm'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await user.clear(searchInput());
+      await user.type(searchInput(), 'zzz');
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      expect(searchInput()).toHaveValue('');
+      expect(searchInput()).toHaveFocus();
+      await user.tab();
+      await waitFor(() => expect(screen.queryByTestId('sample-search')).toBeNull());
+    });
+
+    it('drops the toolbar below 8 rows once the query is empty', async () => {
+      const user = userEvent.setup();
+      render(<Host initial={MANY.slice(0, 8)} />);
+      await user.click(menuTrigger('n0'));
+      await user.click(await screen.findByTestId('sample-delete-n0'));
+      await user.click(await screen.findByTestId('sample-delete-dialog-confirm'));
+      await waitFor(() => expect(screen.queryByTestId('sample-search')).toBeNull());
     });
   });
 

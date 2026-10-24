@@ -121,10 +121,20 @@ as "baseline is behind" ("glossary label … not yet recorded") and recorded by 
 new money label is still a rise. A missing glossary exempts nothing. This rule and `glossaryLabels()`
 in `build-baseline.mjs` change together.
 
+First-search-field exemption (#2234, orchestrator approval in that story): an existing screen whose
+`searchFields` goes from 0 to 1 gains its one own search field, the same cap a new screen gets. It is not
+a rise: it is reported as "baseline is behind" ("first search field, not yet recorded") and recorded by
+`plan:build`. 0 → 2 and 1 → 2 are still rises, and the rule covers `searchFields` only. Limitation: the
+counter does not read `data-page-search`. It already skips pickers and the command search, so the
+exempt field is a screen's own search field, but it need not be marked `data-page-search` (the
+motivating case, the `ReferenceList` search on Settings › Project setup, is deliberately unmarked:
+three lists share that page). This rule lives in `compareBaseline()` in `build-baseline.mjs`.
+
 ### Changing the baseline
 
 - Any pull request that triggers the "baseline is behind" notice (a drop, a new screen, a consumed
-  addition, or a new glossary money label) commits the output of `npm run plan:build`.
+  addition, a new glossary money label, or a screen's first search field) commits the output of
+  `npm run plan:build`.
 - `plan:build` refuses to write while an unallowed rise exists. A shared component outside the seeded
   list enters `allowedAdditions` only with dev-team-lead approval in that PR; `plan:build` moves a name
   out of the list once the component exists.

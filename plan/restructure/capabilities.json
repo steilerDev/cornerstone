@@ -147,7 +147,7 @@
   {
     "id": "WRK-011",
     "domain": "platform",
-    "name": "Page through long lists (work items, household items, invoices) and change the page size (10/25/50/100)",
+    "name": "Reach every row of a long list (work items, household items, invoices, companies): all rows up to 100 load at once, more load as you scroll",
     "currentLocations": [
       "/project/work-items > pagination bar below the table (only when >1 page)",
       "/project/household-items > pagination bar (desktop: numbered pages + page-size select; mobile: Prev/Next)",

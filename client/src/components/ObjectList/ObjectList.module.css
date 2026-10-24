@@ -1,0 +1,499 @@
+/* The list adapts to its own width: table from 768px, cards below (no breakpoint tokens exist). */
+.root {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.list {
+  min-width: 0;
+}
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.showing {
+  margin: var(--spacing-3) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.cardSurface {
+  display: none;
+}
+
+@container (max-width: 47.999rem) {
+  .tableSurface {
+    display: none;
+  }
+
+  .cardSurface {
+    display: block;
+  }
+}
+
+/* ---------- Table ---------- */
+
+.tableSurface {
+  overflow-x: auto;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.colCheck {
+  width: var(--touch-target-min);
+}
+
+.colTitle {
+  width: 32%;
+}
+
+.colNarrow {
+  width: 6rem;
+}
+
+.colMedium {
+  width: 9rem;
+}
+
+.colWide {
+  width: 14rem;
+}
+
+.colAuto {
+  width: auto;
+}
+
+.head,
+.headEnd,
+.headCheck {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: start;
+}
+
+.headEnd {
+  text-align: end;
+}
+
+.headAction {
+  padding-inline: var(--spacing-1);
+}
+
+.headCheck {
+  padding-inline: var(--spacing-1);
+  text-align: center;
+}
+
+.sortButton {
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sortButton:hover {
+  color: var(--color-text-primary);
+}
+
+.sortButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.row {
+  position: relative;
+  min-height: calc(var(--touch-target-min) + var(--spacing-2));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.cell,
+.cellEnd,
+.cellTitle,
+.cellStatus,
+.cellCommand,
+.cellMenu,
+.cellCheck,
+.cellExpand,
+.childLead {
+  padding: var(--spacing-2) var(--spacing-3);
+  vertical-align: middle;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+}
+
+.cellEnd {
+  text-align: end;
+}
+
+.cellCheck,
+.cellExpand,
+.cellMenu {
+  padding-inline: var(--spacing-1);
+  text-align: center;
+}
+
+.cellTitle {
+  overflow-wrap: anywhere;
+}
+
+.childRow {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.childRow[hidden] {
+  display: none;
+}
+
+/* ---------- Group headings (both surfaces) ---------- */
+
+.groupHeadCell {
+  padding: 0 var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  text-align: start;
+}
+
+.groupHeadInner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.groupHeadCell .groupHeadInner {
+  border-bottom: none;
+}
+
+.groupTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.groupToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.groupToggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.groupCount {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.caret {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  color: var(--color-text-muted);
+}
+
+.caret[data-open='true'] {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .caret {
+    transition: transform var(--transition-fast);
+  }
+}
+
+.groupBody[hidden],
+.cardList[hidden],
+.cardChildren[hidden] {
+  display: none;
+}
+
+.groupCheck {
+  flex-shrink: 0;
+}
+
+/* ---------- Row controls ---------- */
+
+/* The label is the 44px hit area; it sits above the stretched title link. */
+.rowCheckBox {
+  position: relative;
+  z-index: var(--z-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  cursor: pointer;
+}
+
+.rowCheck {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.rowCheck:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.titleLink {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
+}
+
+/* The title link covers the whole row; every sibling control is lifted above it. */
+.titleLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.titleLink:focus-visible {
+  outline: none;
+}
+
+/* Inset ring: the table surface clips overflow, so an outer ring would be cut off. */
+.titleLink:focus-visible::after {
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1) var(--spacing-2);
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.secondary:empty {
+  display: none;
+}
+
+.secondary > *,
+.cellStatus > *,
+.cellCommand > *,
+.cardStatus > *,
+.expandButton,
+.rowMenuTrigger {
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+.expandButton,
+.rowMenuTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.expandButton:hover,
+.rowMenuTrigger:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.expandButton:focus-visible,
+.rowMenuTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.row[data-selected],
+.card[data-selected] {
+  background-color: var(--color-primary-bg);
+}
+
+@media (hover: hover) {
+  .row:hover,
+  .card:hover {
+    background-color: var(--color-bg-secondary);
+  }
+
+  .row[data-selected]:hover,
+  .card[data-selected]:hover {
+    background-color: var(--color-primary-bg);
+  }
+}
+
+/* ---------- Cards ---------- */
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardGroup {
+  margin-bottom: var(--spacing-3);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-3) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+}
+
+.cardLine {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.cardLine .titleLink {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardStatus {
+  flex-shrink: 0;
+}
+
+.cardFacts {
+  flex-wrap: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.fact {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fact[data-keep] {
+  flex-shrink: 0.2;
+}
+
+.factSeparator {
+  flex-shrink: 0;
+}
+
+.cardChildren {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardChild {
+  padding: var(--spacing-2) 0 0 var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------- Print: the table surface, everything open, no controls ---------- */
+
+@media print {
+  .root {
+    color-scheme: light;
+  }
+
+  .root .tableSurface {
+    display: block;
+    overflow: visible;
+  }
+
+  .root .cardSurface {
+    display: none;
+  }
+
+  .root .groupBody[hidden] {
+    display: table-row-group;
+  }
+
+  .root .cardList[hidden] {
+    display: block;
+  }
+
+  .root .childRow[hidden] {
+    display: table-row;
+  }
+
+  .row,
+  .childRow {
+    break-inside: avoid;
+  }
+
+  .groupHead {
+    break-after: avoid;
+  }
+
+  .caret,
+  .rowCheckBox,
+  .headCheck,
+  .cellCheck,
+  .cellExpand,
+  .cellCommand,
+  .cellMenu,
+  .headAction,
+  .groupCheck,
+  .showing {
+    display: none;
+  }
+}

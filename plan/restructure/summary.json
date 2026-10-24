@@ -5,16 +5,16 @@
     "byChange": {
       "consolidated-entry-points": 14,
       "demoted": 19,
-      "merged": 40,
+      "merged": 41,
       "moved": 47,
       "promoted": 47,
-      "same": 335
+      "same": 334
     },
     "byGate": { "ai": 1, "none": 451, "oidc": 8, "paperless": 21, "paperless+ai": 21 },
     "byDestinationSection": {
       "404 page": 1,
       "All lists": 3,
-      "All lists (Tasks, Purchases, Invoices, Companies)": 1,
+      "All lists (Tasks, Purchases, Invoices, Milestones, Companies)": 1,
       "Areas": 6,
       "Auth": 8,
       "Companies": 11,

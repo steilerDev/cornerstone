@@ -73,6 +73,12 @@ export class ReferenceListControl {
   readonly heading: Locator;
   readonly newButton: Locator;
   readonly items: Locator;
+  /** Search field (#2234): rendered from 8 rows, or while a query is typed. */
+  readonly searchInput: Locator;
+  /** The "(n)" total after the h2 title (counts all rows, not the matches). */
+  readonly count: Locator;
+  /** "Clear search" action of the no-match empty state. */
+  readonly clearSearchButton: Locator;
   readonly reorderError: Locator;
   readonly retryButton: Locator;
   readonly dialog: Locator;
@@ -94,6 +100,12 @@ export class ReferenceListControl {
     this.heading = page.locator(`#${config.anchor}-heading`);
     this.newButton = page.getByTestId(`${config.prefix}-new`);
     this.items = this.section.getByRole('listitem');
+    this.searchInput = page.getByTestId(`${config.prefix}-search`);
+    this.count = page.getByTestId(`${config.prefix}-count`);
+    this.clearSearchButton = this.section.getByRole('button', {
+      name: 'Clear search',
+      exact: true,
+    });
     this.reorderError = page.getByTestId(`${config.prefix}-reorder-error`);
     this.retryButton = page.getByTestId(`${config.prefix}-retry`);
     this.dialog = page

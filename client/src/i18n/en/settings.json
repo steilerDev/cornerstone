@@ -166,6 +166,8 @@
       "editItem": "Edit {{item}}",
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
+      "search": "Search {{items}}",
+      "noMatch": "No {{items}} match.",
       "duplicateName": "A cost category with this name already exists.",
       "deleteBlocked": "{{name}} is still used by cost lines or grants, so it can't be deleted."
     },
@@ -178,6 +180,8 @@
       "editItem": "Edit {{item}}",
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
+      "search": "Search {{items}}",
+      "noMatch": "No {{items}} match.",
       "duplicateName": "A purchase category with this name already exists.",
       "deleteBlocked": "{{name}} is still used by purchases, so it can't be deleted."
     },
@@ -190,6 +194,8 @@
       "editItem": "Edit {{item}}",
       "empty": "No {{items}} yet.",
       "loadFailed": "Couldn't load the {{items}}.",
+      "search": "Search {{items}}",
+      "noMatch": "No {{items}} match.",
       "duplicateName": "An orientation with this name already exists."
     },
     "pointers": {

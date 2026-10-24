@@ -418,21 +418,11 @@ describe('PhotoDetailsPanel editor', () => {
     expect(screen.getByTestId('area-picker')).toHaveAttribute('data-autofocus', 'true');
   });
 
-  it('does not throw when the panel unmounts before the focus frame', async () => {
+  it('does not throw when the panel unmounts while the editor is open', async () => {
     const { unmount } = setup();
     const user = userEvent.setup();
-    const spy = jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
-      pending.push(cb);
-      return 0;
-    });
-    const pending: FrameRequestCallback[] = [];
-    try {
-      await user.click(editButton());
-      unmount();
-      expect(() => pending.forEach((cb) => cb(0))).not.toThrow();
-    } finally {
-      spy.mockRestore();
-    }
+    await user.click(editButton());
+    expect(() => unmount()).not.toThrow();
   });
 
   it('opens with empty values for a photo with no tags and no caption', async () => {
@@ -502,17 +492,16 @@ describe('PhotoDetailsPanel editor', () => {
     expect(screen.getByTestId('photo-details-form')).toBeInTheDocument();
   });
 
-  it('does not steal focus back to Edit tags when the user moved it outside the panel', async () => {
+  it('does not steal focus back to Edit tags when focus sits outside the panel', async () => {
     setup();
-    const user = await openEditor();
+    await openEditor();
     const outside = document.createElement('button');
     document.body.appendChild(outside);
     try {
-      await user.click(screen.getByTestId('photo-details-cancel'));
       outside.focus();
-      await act(async () => {
-        await new Promise((r) => window.requestAnimationFrame(() => r(null)));
-      });
+      // A bare click keeps focus where it is: the effect runs with the active element outside.
+      fireEvent.click(screen.getByTestId('photo-details-cancel'));
+      await waitFor(() => expect(screen.queryByTestId('photo-details-form')).toBeNull());
       expect(outside).toHaveFocus();
     } finally {
       outside.remove();
@@ -538,6 +527,7 @@ describe('PhotoDetailsPanel saving', () => {
     expect(mockUpdatePhotoDetails).not.toHaveBeenCalled();
     expect(props.onSaved).not.toHaveBeenCalled();
     expect(screen.queryByTestId('photo-details-form')).not.toBeInTheDocument();
+    await waitFor(() => expect(editButton()).toHaveFocus());
     await waitFor(() => expect(editButton()).toHaveFocus());
     expect(screen.getByTestId('photo-details-saved')).toBeEmptyDOMElement();
   });

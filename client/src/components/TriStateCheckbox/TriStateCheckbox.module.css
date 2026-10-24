@@ -29,3 +29,11 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
 }
+
+@media (max-width: 1023px) {
+  .labelHidden {
+    justify-content: center;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+}

@@ -1126,6 +1126,48 @@ describe('OverflowMenu entry kinds and menu-button pattern', () => {
   });
 });
 
+describe('OverflowMenu aria-disabled choice option (#2234)', () => {
+  it('keeps the option focusable, described, and inert when activated', () => {
+    const onChange = jest.fn<(v: string) => void>();
+    render(
+      <OverflowMenu
+        triggerAriaLabel="Group menu"
+        items={[
+          {
+            kind: 'choice',
+            id: 'group',
+            label: 'Group by',
+            value: 'none',
+            onChange,
+            options: [
+              { value: 'none', label: 'None', testId: 'opt-none' },
+              {
+                value: 'area',
+                label: 'Area',
+                testId: 'opt-area',
+                ariaDisabled: true,
+                description: 'Too many rows to group',
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Group menu' }), { key: 'ArrowDown' });
+    const disabled = screen.getByTestId('opt-area');
+    expect(disabled).toHaveAttribute('aria-disabled', 'true');
+    expect(disabled.className).toContain('optionDisabled');
+    expect(disabled).toHaveAccessibleDescription('Too many rows to group');
+    expect(screen.getByTestId('opt-none')).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByTestId('opt-none')).not.toHaveAttribute('aria-describedby');
+    fireEvent.click(disabled);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('opt-none'));
+    expect(onChange).toHaveBeenCalledWith('none');
+  });
+});
+
 describe('OverflowMenu Escape from outside the menu element', () => {
   it('closes an open menu and returns focus to the trigger when Escape reaches the document', () => {
     render(<OverflowMenu items={buildItems(2)} triggerAriaLabel="Open menu" />);

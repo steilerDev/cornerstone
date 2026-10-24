@@ -238,6 +238,23 @@ export interface InvoiceStatusBreakdown {
   refundsDue: InvoiceStatusSummary;
 }
 
+/** Status chips of the Invoices list (EPIC-21 P4.2/P4.6). 'all' is not a chip value here. */
+export const INVOICE_LIST_CHIPS = ['toPay', 'offers', 'paid', 'submitted'] as const;
+export type InvoiceListChip = (typeof INVOICE_LIST_CHIPS)[number];
+/** A count per chip plus 'all'. Chips overlap: To pay holds offers with a progress payment to pay. */
+export type InvoiceChipTally = Readonly<Record<InvoiceListChip | 'all', number>>;
+export type InvoiceChipsOutsideToPay = Readonly<
+  Record<Exclude<InvoiceListChip, 'toPay'> | 'all', number>
+>;
+export interface InvoiceChipCounts {
+  /** Rows matching q and every filter except status/openOnly. */
+  readonly matching: InvoiceChipTally;
+  /** Of `matching`, rows outside To pay ("Searching all · n more in Offers"). */
+  readonly outsideToPay: InvoiceChipsOutsideToPay;
+  /** All invoices, no condition (the "of m" of the list heading). */
+  readonly totals: InvoiceChipTally;
+}
+
 /**
  * Response for GET /api/invoices (paginated, cross-vendor listing).
  */
@@ -246,6 +263,7 @@ export interface InvoiceListPaginatedResponse {
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
   filterMeta?: FilterMeta;
+  chipCounts: InvoiceChipCounts;
 }
 
 /**

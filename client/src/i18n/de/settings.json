@@ -167,7 +167,9 @@
       "empty": "Noch keine {{items}}.",
       "loadFailed": "Die {{items}} konnten nicht geladen werden.",
       "duplicateName": "Eine Kostenkategorie mit diesem Namen existiert bereits.",
-      "deleteBlocked": "{{name}} wird noch von Kostenpositionen oder Förderprogrammen verwendet und kann daher nicht gelöscht werden."
+      "deleteBlocked": "{{name}} wird noch von Kostenpositionen oder Förderprogrammen verwendet und kann daher nicht gelöscht werden.",
+      "search": "{{items}} durchsuchen",
+      "noMatch": "Keine {{items}} gefunden."
     },
     "purchaseCategories": {
       "title": "Anschaffungskategorien",
@@ -179,7 +181,9 @@
       "empty": "Noch keine {{items}}.",
       "loadFailed": "Die {{items}} konnten nicht geladen werden.",
       "duplicateName": "Eine Anschaffungskategorie mit diesem Namen existiert bereits.",
-      "deleteBlocked": "{{name}} wird noch von Anschaffungen verwendet und kann daher nicht gelöscht werden."
+      "deleteBlocked": "{{name}} wird noch von Anschaffungen verwendet und kann daher nicht gelöscht werden.",
+      "search": "{{items}} durchsuchen",
+      "noMatch": "Keine {{items}} gefunden."
     },
     "orientations": {
       "title": "Fotoausrichtungen",
@@ -190,7 +194,9 @@
       "editItem": "{{item}} bearbeiten",
       "empty": "Noch keine {{items}}.",
       "loadFailed": "Die {{items}} konnten nicht geladen werden.",
-      "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
+      "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits.",
+      "search": "{{items}} durchsuchen",
+      "noMatch": "Keine {{items}} gefunden."
     },
     "pointers": {
       "title": "Auf anderen Seiten",

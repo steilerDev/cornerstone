@@ -706,7 +706,12 @@
     "reorderFailed": "Die neue Reihenfolge konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "added": "{{name}} hinzugefügt.",
     "saved": "{{name}} gespeichert.",
-    "deleted": "{{name}} gelöscht."
+    "deleted": "{{name}} gelöscht.",
+    "count": "({{count}})",
+    "reorderWhileSearching": "Lösche die Suche, um neu anzuordnen.",
+    "clearSearch": "Suche löschen",
+    "matches_one": "{{count}} Treffer",
+    "matches_other": "{{count}} Treffer"
   },
   "integrationStatus": {
     "connected": "Verbunden",
@@ -726,5 +731,80 @@
   },
   "integrationsLink": {
     "label": "Zu den Integrationen"
+  },
+  "objectList": {
+    "count": "({{count}})",
+    "countOf": "({{count}} von {{total}})",
+    "loading": "Liste wird geladen",
+    "searchLabel": "{{label}} in dieser Liste",
+    "chips": {
+      "label": "Nach Status filtern",
+      "all": "Alle"
+    },
+    "filters": {
+      "button": "Filter",
+      "buttonActive_one": "Filter, {{count}} aktiv",
+      "buttonActive_other": "Filter, {{count}} aktiv",
+      "done": "Fertig",
+      "clear": "Filter zurücksetzen"
+    },
+    "groupBy": {
+      "label": "Gruppieren nach",
+      "trigger": "Gruppierung: {{label}}",
+      "none": "Keine",
+      "unavailable": "Gruppierung benötigt alle Einträge. Grenze die Liste auf 100 oder weniger Einträge ein."
+    },
+    "sort": {
+      "label": "Sortieren",
+      "trigger": "Sortierung: {{label}}",
+      "direction": "Richtung",
+      "ascending": "Aufsteigend",
+      "descending": "Absteigend"
+    },
+    "searchingAll": {
+      "none": "Alle durchsuchen",
+      "inChip_one": "Alle durchsuchen · {{count}} weitere in „{{chip}}“",
+      "inChip_other": "Alle durchsuchen · {{count}} weitere in „{{chip}}“",
+      "inTwo_one": "Alle durchsuchen · {{count}} weitere in „{{first}}“ und „{{second}}“",
+      "inTwo_other": "Alle durchsuchen · {{count}} weitere in „{{first}}“ und „{{second}}“",
+      "inOther_one": "Alle durchsuchen · {{count}} weitere in anderen Status",
+      "inOther_other": "Alle durchsuchen · {{count}} weitere in anderen Status"
+    },
+    "group": {
+      "count": "({{count}})",
+      "countOf": "({{loaded}} von {{count}})",
+      "collapsed": "{{group}} eingeklappt",
+      "expanded": "{{group}} ausgeklappt"
+    },
+    "selection": {
+      "selectAllShort": "Alle auswählen",
+      "selectRow": "{{title}} auswählen",
+      "selectGroup": "{{group}} auswählen",
+      "count_one": "{{count}} ausgewählt",
+      "count_other": "{{count}} ausgewählt",
+      "countNotLoaded_one": "{{count}} ausgewählt, {{rest}} weitere nicht geladen",
+      "countNotLoaded_other": "{{count}} ausgewählt, {{rest}} weitere nicht geladen",
+      "clear": "Auswahl aufheben"
+    },
+    "row": {
+      "actionsFor": "Aktionen für {{title}}"
+    },
+    "columns": {
+      "menuItem": "Spalten…",
+      "title": "Spalten",
+      "actions": "Aktionen"
+    },
+    "footer": {
+      "showing": "{{count}} von {{total}} angezeigt",
+      "loading": "Weitere werden geladen…",
+      "loadingAria": "Weitere Einträge werden geladen",
+      "loadMore": "Mehr laden",
+      "error": "Weitere Einträge konnten nicht geladen werden.",
+      "end": "Alle Einträge werden angezeigt.",
+      "appended_one": "{{count}} weiterer Eintrag geladen.",
+      "appended_other": "{{count}} weitere Einträge geladen.",
+      "appendedEnd_one": "{{count}} weiterer Eintrag geladen. Alle Einträge werden angezeigt.",
+      "appendedEnd_other": "{{count}} weitere Einträge geladen. Alle Einträge werden angezeigt."
+    }
   }
 }
