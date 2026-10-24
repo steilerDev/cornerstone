@@ -18,6 +18,9 @@ import { expect } from '@playwright/test';
 import { ObjectFormDialog } from './ObjectFormDialog.js';
 import { SearchPickerControl } from './SearchPickerControl.js';
 
+/** How long one attempt waits for the search to filter the list before the query is retyped. */
+const SEARCH_SETTLE_MS = 3_000;
+
 export class CompanyPickerControl extends SearchPickerControl {
   /** The New company form opened by the create row (not the `/companies/new` route dialog). */
   readonly form: ObjectFormDialog;
@@ -36,15 +39,24 @@ export class CompanyPickerControl extends SearchPickerControl {
   /**
    * Move to the create row with ArrowDown (never `.focus()`: the keyboard path is what users
    * take) and return once it is focused. The picker searches 300ms after typing and ignores
-   * ArrowDown while it loads, so the key press is retried until the create row holds focus.
+   * ArrowDown while it loads, so each attempt first waits for the search to have filtered the
+   * list (`text` matches no company, so the create row then stands alone). When the filter did
+   * not apply within the settle window the query is typed again (a lost or stale search answer)
+   * instead of arrowing through the unfiltered list; then the key press is retried until the
+   * create row holds focus.
    */
   async arrowToCreateOption(text: string): Promise<void> {
     const option = this.createOption(text);
-    await expect(option).toBeVisible();
-    // `text` matches no company, so once the search has answered the create row stands alone.
-    // Until then the dropdown still lists the unfiltered results and ignores ArrowDown.
-    await expect(this.dropdown.getByRole('option')).toHaveCount(1);
+    const options = this.dropdown.getByRole('option');
     await expect(async () => {
+      try {
+        await expect(options).toHaveCount(1, { timeout: SEARCH_SETTLE_MS });
+        await expect(option).toBeVisible();
+      } catch (error) {
+        await this.input.fill('');
+        await this.input.fill(text);
+        throw error;
+      }
       const focused = await option
         .evaluate((el) => el === document.activeElement)
         .catch(() => false);
@@ -54,8 +66,11 @@ export class CompanyPickerControl extends SearchPickerControl {
         }
         await this.page.keyboard.press('ArrowDown');
       }
-      expect(await option.evaluate((el) => el === document.activeElement)).toBe(true);
-    }).toPass();
+      expect(
+        await option.evaluate((el) => el === document.activeElement),
+        `the "New company ${text}" row should hold focus after ArrowDown`,
+      ).toBe(true);
+    }, `could not reach the "New company ${text}" row with the keyboard`).toPass();
   }
 
   /**
@@ -70,7 +85,7 @@ export class CompanyPickerControl extends SearchPickerControl {
       await this.arrowToCreateOption(text);
       await this.page.keyboard.press('Enter');
       await expect(this.form.dialog).toBeVisible();
-    }).toPass();
+    }, `the New company form did not open for "${text}"`).toPass();
     await this.form.waitForOpen();
   }
 }

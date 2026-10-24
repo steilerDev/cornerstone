@@ -21,3 +21,10 @@ Found while speccing #2235 (P4.3). Each was invisible in the AC text.
 **How to apply:** any story that replaces several editors with one form/grid, adds short money-ish UI strings, or retires components shared across agents.
 
 Related: [[restructure-i18n-specs]], [[detail-template-specs]], [[object-list-specs]], [[money-service-specs]], [[restructure-baseline-hazards]]
+
+## PR-body capability ids: derive by script, not by grepping the diff (PR #2333)
+
+Grepping `"MNY-…` out of a capmap diff also catches ids that are only _mentioned_ in other entries' notes.
+#2333's body listed MNY-081 and MNY-116 (untouched) and left out 072/096/WRK-053, and the PO flagged it.
+Compare `git show origin/beta:plan/restructure/capmap.json` with HEAD per key in node, and list the
+changed keys. UAT-gated stories use `Refs #N`, not `Fixes #N`, in the PR body.
