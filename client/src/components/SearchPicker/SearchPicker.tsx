@@ -136,6 +136,9 @@ export function SearchPicker<T>({
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // True from typing until the search for the current text answers: the list still shows the
+  // answer to an older query, so a "New ‹text›" row computed from it would be stale.
+  const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
   // Track whether the user has explicitly cleared an initialTitle-based selection
@@ -171,6 +174,8 @@ export function SearchPicker<T>({
     }
   }, [autoFocus]);
   const searchControllerRef = useRef<AbortController | null>(null);
+  // Text of the latest keystroke; read only to decide whether a search answer may clear searchPending
+  const typedQueryRef = useRef('');
 
   const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
@@ -200,6 +205,7 @@ export function SearchPicker<T>({
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
+      setSearchPending(false);
       setInitialTitleCleared(false);
     } else {
       if (specialOptions?.some((opt) => opt.id === value)) {
@@ -232,7 +238,10 @@ export function SearchPicker<T>({
       setError(resolvedLoadError);
       setResults([]);
     } finally {
-      if (searchControllerRef.current === controller) setIsLoading(false);
+      if (searchControllerRef.current === controller) {
+        setIsLoading(false);
+        if (typedQueryRef.current.trim() === '') setSearchPending(false);
+      }
     }
   }, [excludeIds, searchFn, resolvedLoadError]);
 
@@ -259,7 +268,10 @@ export function SearchPicker<T>({
         setError(resolvedSearchError);
         setResults([]);
       } finally {
-        if (searchControllerRef.current === controller) setIsLoading(false);
+        if (searchControllerRef.current === controller) {
+          setIsLoading(false);
+          if (query === typedQueryRef.current) setSearchPending(false);
+        }
       }
     },
     [excludeIds, fetchInitialResults, searchFn, resolvedSearchError],
@@ -270,6 +282,8 @@ export function SearchPicker<T>({
   const handleInputChange = (inputValue: string) => {
     setSearchTerm(inputValue);
     setIsOpen(true);
+    typedQueryRef.current = inputValue;
+    setSearchPending(true);
     debouncedSearch.trigger(inputValue);
   };
 
@@ -305,6 +319,7 @@ export function SearchPicker<T>({
     (createAction.show !== 'noExactMatch' ||
       ((trimmedTerm !== '' || createAction.showWhenEmpty === true) &&
         !isLoading &&
+        !searchPending &&
         !error &&
         !results.some(
           (item) => foldSearchText(renderItem(item).label) === foldSearchText(trimmedTerm),
@@ -390,6 +405,7 @@ export function SearchPicker<T>({
     searchControllerRef.current?.abort();
     searchControllerRef.current = null;
     setIsLoading(false);
+    setSearchPending(false);
   };
 
   const handleSelect = (item: T) => {

@@ -136,6 +136,45 @@ describe('useCostLineMutations', () => {
   );
 
   it.each(['unlink', 'remove'] as const)(
+    '%s keeps the Undo token and reports the error when the refresh after it fails',
+    async (kind) => {
+      mockDeleteInvoiceLine.mockResolvedValue({ undo: TOKEN });
+      const afterChange = jest.fn<() => Promise<void>>().mockRejectedValue(new Error('secret'));
+      const { result } = renderHook(() => useCostLineMutations(afterChange));
+      let outcome: CostLineMutationResult | undefined;
+      await act(async () => {
+        outcome = await result.current.run(
+          kind,
+          makeRow({ invoiceId: 'inv-1', invoiceBudgetLineId: 'ibl-1' }),
+        );
+      });
+      expect(outcome).toEqual({ ok: true, undo: TOKEN });
+      expect(result.current.error).toBe('That did not work. Try again.');
+      expect(result.current.blocked).toBe(false);
+      expect(result.current.busy).toBe(false);
+    },
+  );
+
+  it('translates an API error from the refresh after unlink without losing the Undo token', async () => {
+    mockDeleteInvoiceLine.mockResolvedValue({ undo: TOKEN });
+    const afterChange = jest
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new ApiClientError(409, { code: 'CONFLICT', message: 'raw' }));
+    const { result } = renderHook(() => useCostLineMutations(afterChange));
+    let outcome: CostLineMutationResult | undefined;
+    await act(async () => {
+      outcome = await result.current.run(
+        'unlink',
+        makeRow({ invoiceId: 'inv-1', invoiceBudgetLineId: 'ibl-1' }),
+      );
+    });
+    expect(outcome).toEqual({ ok: true, undo: TOKEN });
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.error).not.toContain('raw');
+    expect(result.current.blocked).toBe(false);
+  });
+
+  it.each(['unlink', 'remove'] as const)(
     '%s on a line without an invoice link fails with the generic error and calls no API',
     async (kind) => {
       const afterChange = jest.fn<() => void>();

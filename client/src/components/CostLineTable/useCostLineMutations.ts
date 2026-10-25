@@ -52,6 +52,20 @@ export function useCostLineMutations(
     setBlocked(false);
   }, []);
 
+  const showError = useCallback(
+    (err: unknown, kind: CostLineMutation) => {
+      if (err instanceof ApiClientError) {
+        setBlocked(kind === 'delete' && err.statusCode === 409);
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
+      } else {
+        setError(t('confirm.errorFailed'));
+      }
+    },
+    [t, tCommon, tErrors],
+  );
+
   const run = useCallback(
     async (kind: CostLineMutation, row: CostLineRow): Promise<CostLineMutationResult> => {
       setBusy(true);
@@ -71,23 +85,21 @@ export function useCostLineMutations(
           throw new Error('Cost line has no invoice link');
         }
         const { undo } = await deleteInvoiceBudgetLine(row.invoiceId, row.invoiceBudgetLineId);
-        await afterChange();
+        // The server already removed the relation: a failed refresh must not lose the Undo token.
+        try {
+          await afterChange();
+        } catch (refreshError) {
+          showError(refreshError, kind);
+        }
         return { ok: true, undo };
       } catch (err) {
-        if (err instanceof ApiClientError) {
-          setBlocked(kind === 'delete' && err.statusCode === 409);
-          setError(translateApiError(err.error.code, tErrors));
-        } else if (err instanceof NetworkError) {
-          setError(tCommon('requestErrors.network'));
-        } else {
-          setError(t('confirm.errorFailed'));
-        }
+        showError(err, kind);
         return { ok: false };
       } finally {
         setBusy(false);
       }
     },
-    [afterChange, clearError, t, tCommon, tErrors],
+    [afterChange, clearError, showError],
   ) as UseCostLineMutationsResult['run'];
 
   return { busy, error, blocked, clearError, run };
