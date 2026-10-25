@@ -1152,7 +1152,8 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
               predEF = wiRow.endDate;
             }
           }
-        } else if (dep.predecessorType === 'milestone') {
+        } else {
+          // predecessor_type CHECK: 'work_item' | 'milestone'
           // Determine effective milestone finish date using priority:
           // 1. completedAt (actual) → truncate to YYYY-MM-DD
           // 2. Projected: max scheduledEndDate of contributing work items
@@ -1199,17 +1200,8 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
 
       // ── 10. Apply floor rules ─────────────────────────────────────────────────────
 
-      if (hi.actualDeliveryDate) {
-        // Actual date overrides CPM — use it directly
-        targetDate = hi.actualDeliveryDate;
-      } else if (
-        hi.status === 'planned' ||
-        hi.status === 'purchased' ||
-        hi.status === 'scheduled'
-      ) {
-        // Floor the target to today
-        targetDate = maxDate(targetDate, today);
-      }
+      // ES starts at today, so the target is already floored
+      if (hi.actualDeliveryDate) targetDate = hi.actualDeliveryDate;
 
       // Late is the one purchase definition: past its planned (entered) delivery date
       const isLate = isPurchaseLate(hi, today);
@@ -1297,4 +1289,20 @@ export function ensureDailyReschedule(db: DbType): void {
   }
   autoReschedule(db);
   lastRescheduleDate = today;
+}
+
+/**
+ * Reschedule after a relation delete whose Undo token was already issued. A failing reschedule
+ * is logged and swallowed so the caller still answers `200 { undo }` (the row is gone and the
+ * token is the only way back).
+ */
+export function autoRescheduleLogged(
+  db: DbType,
+  log: { error: (obj: unknown, msg: string) => void },
+): void {
+  try {
+    autoReschedule(db);
+  } catch (err) {
+    log.error({ err }, 'Reschedule after relation delete failed');
+  }
 }

@@ -13,6 +13,8 @@ import { ApiClientError } from './apiClient.js';
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('dependenciesApi', () => {
   beforeEach(() => {
     mockFetch.mockClear();
@@ -246,7 +248,8 @@ describe('dependenciesApi', () => {
     it('sends DELETE request', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteDependency('work-1', 'work-0');
@@ -257,6 +260,18 @@ describe('dependenciesApi', () => {
           method: 'DELETE',
         }),
       );
+    });
+
+    it('resolves with the Undo token the server returns (200)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ undo: UNDO }),
+      } as Response);
+
+      const result = await deleteDependency('work-1', 'work-0');
+
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws ApiClientError on 404 when dependency does not exist', async () => {

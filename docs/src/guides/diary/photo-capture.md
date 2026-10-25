@@ -56,7 +56,7 @@ The list shows every orientation in the order you set. To change the order, drag
 
 When the list has 8 or more orientations, a **Search orientations** field appears above it. Clear the search before you reorder. See [Searching and Reordering](/guides/budget/categories#searching-and-reordering) for the details, which work the same way for every Project setup list.
 
-Once you have created orientations they appear in the **Orientation** chips over the camera and in the **Orientation** picker when you tag a photo. The picker searches as you type, matching your query against both the orientation **name** and its **description** -- so typing *street* finds *From the street* even when "street" only appears in the description.
+Once you have created orientations they appear in the **Orientation** chips over the camera and in the **Orientation** picker when you tag a photo. The picker searches as you type, matching your query against both the orientation **name** and its **description** -- so typing *street* finds *From the street* even when "street" only appears in the description. If the orientation you need is not there yet, type its name and choose **New orientation ‹text›**. The new orientation is created and selected straight away.
 
 ## Working with photos after upload
 

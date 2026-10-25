@@ -666,4 +666,215 @@ describe('editAndMoveBudgetLine()', () => {
     // itemizedAmount unchanged
     expect(result.budgetLine.itemizedAmount).toBe(300);
   });
+
+  // ─── Remaining guards and paths ─────────────────────────────────────────────
+
+  it('guard: throws NotFoundError when the invoice does not exist', () => {
+    expect(() =>
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, 'no-invoice', 'no-line', {}),
+    ).toThrow('Invoice not found');
+  });
+
+  it('guard: throws NotFoundError when the line does not exist', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+
+    expect(() =>
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, 'no-line', {}),
+    ).toThrow('Invoice budget line not found');
+  });
+
+  it('guard: throws NotFoundError when the line belongs to another invoice', () => {
+    const vendorId = createVendor();
+    const invoiceId = createInvoice(vendorId, 1000);
+    const otherInvoiceId = createInvoice(vendorId, 1000);
+    const { iblId } = createIblOnWorkItem(otherInvoiceId, createWorkItem('Painting'), 300);
+
+    expect(() => invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {})).toThrow(
+      'Invoice budget line not found in this invoice',
+    );
+  });
+
+  it('guard: throws ValidationError when itemizedAmount is not above zero', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnWorkItem(invoiceId, createWorkItem('Painting'), 300);
+
+    expect(() =>
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, { itemizedAmount: 0 }),
+    ).toThrow(ValidationError);
+  });
+
+  it('same-table HI move to a household item that does not exist throws NotFoundError', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+
+    expect(() =>
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+        newHouseholdItemId: 'non-existent-hi',
+      }),
+    ).toThrow('Household item not found');
+  });
+
+  it('cross-table HI to WI move to a work item that does not exist throws NotFoundError', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+
+    expect(() =>
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+        newWorkItemId: 'non-existent-wi',
+      }),
+    ).toThrow('Work item not found');
+  });
+
+  it('same-table WI move can change the itemized amount in the same call', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnWorkItem(invoiceId, createWorkItem('Painting'), 300);
+    const target = createWorkItem('Tiling');
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      newWorkItemId: target,
+      itemizedAmount: 450,
+    });
+
+    expect(result.budgetLine.parentItemId).toBe(target);
+    expect(result.budgetLine.itemizedAmount).toBe(450);
+  });
+
+  it('same-table HI move can change the itemized amount in the same call', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+    const target = createHouseholdItem('Table');
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      newHouseholdItemId: target,
+      itemizedAmount: 250,
+    });
+
+    expect(result.budgetLine.parentItemId).toBe(target);
+    expect(result.budgetLine.itemizedAmount).toBe(250);
+  });
+
+  it('in-place HIB edit can change the itemized amount', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      itemizedAmount: 120,
+    });
+
+    expect(result.budgetLine.itemizedAmount).toBe(120);
+  });
+
+  // ─── Every budget-line field supplied ───────────────────────────────────────
+
+  const ALL_FIELDS = {
+    description: 'Updated description',
+    plannedAmount: 640,
+    confidence: 'quote' as const,
+    budgetCategoryId: 'bc-materials',
+    budgetSourceId: null,
+    vendorId: null,
+    quantity: 4,
+    unit: 'pcs',
+    unitPrice: 160,
+    includesVat: false,
+    itemizedAmount: 280,
+  };
+
+  function expectAllFields(row: {
+    description: string | null;
+    plannedAmount: number;
+    confidence: string;
+    budgetCategoryId: string | null;
+    quantity: number | null;
+    unit: string | null;
+    unitPrice: number | null;
+    includesVat: boolean;
+  }) {
+    expect(row).toMatchObject({
+      description: 'Updated description',
+      plannedAmount: 640,
+      confidence: 'quote',
+      budgetCategoryId: 'bc-materials',
+      quantity: 4,
+      unit: 'pcs',
+      unitPrice: 160,
+      includesVat: false,
+    });
+  }
+
+  it('in-place WIB edit applies every supplied field', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId, wibId } = createIblOnWorkItem(invoiceId, createWorkItem('Painting'), 300);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, ALL_FIELDS);
+
+    expect(result.budgetLine.itemizedAmount).toBe(280);
+    expectAllFields(
+      db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get()!,
+    );
+  });
+
+  it('in-place HIB edit applies every supplied field', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId, hibId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+
+    invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, ALL_FIELDS);
+
+    expectAllFields(
+      db
+        .select()
+        .from(schema.householdItemBudgets)
+        .where(eq(schema.householdItemBudgets.id, hibId))
+        .get()!,
+    );
+  });
+
+  it('cross-table WI to HI move applies every supplied field to the new household item cost line', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnWorkItem(invoiceId, createWorkItem('Painting'), 300);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      ...ALL_FIELDS,
+      newHouseholdItemId: createHouseholdItem('Sofa'),
+    });
+
+    expect(result.budgetLine.itemizedAmount).toBe(280);
+    expectAllFields(
+      db
+        .select()
+        .from(schema.householdItemBudgets)
+        .where(eq(schema.householdItemBudgets.id, result.budgetLine.householdItemBudgetId!))
+        .get()!,
+    );
+  });
+
+  it('cross-table HI to WI move applies every supplied field to the new work item cost line', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnHouseholdItem(invoiceId, createHouseholdItem('Sofa'), 300);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      ...ALL_FIELDS,
+      newWorkItemId: createWorkItem('Painting'),
+    });
+
+    expect(result.budgetLine.itemizedAmount).toBe(280);
+    expectAllFields(
+      db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, result.budgetLine.workItemBudgetId!))
+        .get()!,
+    );
+  });
+
+  it('in-place edit without itemizedAmount keeps the itemized amount', () => {
+    const invoiceId = createInvoice(createVendor(), 1000);
+    const { iblId } = createIblOnWorkItem(invoiceId, createWorkItem('Painting'), 300);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      description: 'Only the text changes',
+    });
+
+    expect(result.budgetLine.itemizedAmount).toBe(300);
+  });
 });

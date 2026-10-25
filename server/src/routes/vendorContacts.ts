@@ -1,7 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as vendorContactService from '../services/vendorContactService.js';
-import type { CreateVendorContactRequest, UpdateVendorContactRequest } from '@cornerstone/shared';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
+import type {
+  CreateVendorContactRequest,
+  UpdateVendorContactRequest,
+  UndoableDeleteResponse,
+} from '@cornerstone/shared';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for GET /api/vendors/:vendorId/contacts (list contacts)
 const listContactsSchema = {
@@ -72,6 +78,7 @@ const deleteContactSchema = {
       contactId: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function vendorContactRoutes(fastify: FastifyInstance) {
@@ -150,12 +157,18 @@ export default async function vendorContactRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      vendorContactService.deleteContact(
+      const { vendorId, contactId } = request.params;
+      const snapshot = vendorContactService.deleteContactWithSnapshot(
         fastify.db,
-        request.params.vendorId,
-        request.params.contactId,
+        vendorId,
+        contactId,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'vendor_contact', id: contactId },
+        restore: (tx) => vendorContactService.restoreDeletedContact(tx, snapshot),
+      });
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

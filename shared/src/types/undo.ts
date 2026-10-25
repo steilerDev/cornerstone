@@ -21,6 +21,8 @@ export const UNDO_SUBJECT_TYPES = [
   'area',
   'photo',
   'document_link',
+  'vendor_contact',
+  'invoice_budget_line',
 ] as const;
 
 export type UndoSubjectType = (typeof UNDO_SUBJECT_TYPES)[number];
@@ -47,4 +49,9 @@ export interface UndoResponse {
 /** Additive mixin for PATCH responses; absent (never null) when no token was issued. */
 export interface WithUndo {
   undo?: UndoToken;
+}
+
+/** 200 body of a DELETE that issues a restore-kind Undo token (#2236). */
+export interface UndoableDeleteResponse {
+  undo: UndoToken;
 }

@@ -1,4 +1,5 @@
 import { get, post, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type { SubsidyProgram, HouseholdItemSubsidyPaybackResponse } from '@cornerstone/shared';
 
 /**
@@ -28,8 +29,10 @@ export function linkHouseholdItemSubsidy(
 export function unlinkHouseholdItemSubsidy(
   householdItemId: string,
   subsidyProgramId: string,
-): Promise<void> {
-  return del<void>(`/household-items/${householdItemId}/subsidies/${subsidyProgramId}`);
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(
+    `/household-items/${householdItemId}/subsidies/${subsidyProgramId}`,
+  );
 }
 
 /**

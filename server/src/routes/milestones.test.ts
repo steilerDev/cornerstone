@@ -14,7 +14,7 @@ import type {
   CreateMilestoneRequest,
   UpdateMilestoneRequest,
 } from '@cornerstone/shared';
-import { workItems } from '../db/schema.js';
+import { householdItemDeps, householdItems, workItems } from '../db/schema.js';
 
 describe('Milestone Routes', () => {
   let app: FastifyInstance;
@@ -1137,7 +1137,7 @@ describe('Milestone Routes', () => {
   });
 
   describe('DELETE /api/milestones/:id/work-items/:workItemId', () => {
-    it('should unlink a work item with 204 status', async () => {
+    it('should unlink a work item with 200 status', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -1164,8 +1164,8 @@ describe('Milestone Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
-      expect(response.body).toBe('');
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ undo: { token: string } }>().undo.token).toMatch(/^u_/);
     });
 
     it('should remove the work item from milestone detail after unlinking', async () => {
@@ -1287,6 +1287,82 @@ describe('Milestone Routes', () => {
       expect(response.statusCode).toBe(401);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+  });
+
+  // ─── GET /api/milestones/:id/dependent-household-items ──────────────────────
+
+  describe('GET /api/milestones/:id/dependent-household-items', () => {
+    it('lists the household items that depend on the milestone', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'hi-dep@example.com',
+        'Test User',
+        'password',
+      );
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Roof complete',
+        targetDate: '2026-04-15',
+      });
+      const ts = new Date().toISOString();
+      app.db
+        .insert(householdItems)
+        .values({
+          id: 'hi-sofa',
+          name: 'Sofa',
+          categoryId: 'hic-furniture',
+          createdBy: userId,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      app.db
+        .insert(householdItemDeps)
+        .values({
+          householdItemId: 'hi-sofa',
+          predecessorType: 'milestone',
+          predecessorId: String(milestone.id),
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/milestones/${milestone.id}/dependent-household-items`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ householdItems: Array<{ id: string; name: string }> }>();
+      expect(body.householdItems.map((h) => [h.id, h.name])).toEqual([['hi-sofa', 'Sofa']]);
+    });
+
+    it('returns an empty list for a milestone nothing depends on', async () => {
+      const { cookie } = await createUserWithSession(
+        'hi-dep2@example.com',
+        'Test User',
+        'password',
+      );
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Walls up',
+        targetDate: '2026-05-01',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/milestones/${milestone.id}/dependent-household-items`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ householdItems: [] });
+    });
+
+    it('returns 401 when unauthenticated', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/milestones/1/dependent-household-items',
+      });
+
+      expect(response.statusCode).toBe(401);
     });
   });
 });

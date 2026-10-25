@@ -11,6 +11,8 @@ import type {
   UpdateDepositRequest,
 } from '@cornerstone/shared';
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('invoiceDepositsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -384,8 +386,8 @@ describe('invoiceDepositsApi', () => {
     it('sends DELETE request to /api/invoices/:invoiceId/deposits/:depositId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteDeposit(INVOICE_ID, DEPOSIT_ID);
@@ -396,23 +398,23 @@ describe('invoiceDepositsApi', () => {
       );
     });
 
-    it('resolves without a return value on 204 response', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await deleteDeposit(INVOICE_ID, DEPOSIT_ID);
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('uses the correct invoiceId and depositId in the URL', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteDeposit('inv-xyz', 'dep-abc');

@@ -85,8 +85,6 @@
     "selectArea": "Bereich auswählen",
     "selectTrade": "Gewerk auswählen",
     "selectOrientation": "Ausrichtung auswählen",
-    "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
-    "unassigned": "Nicht zugewiesen",
     "mainNavigation": "Hauptnavigation",
     "settingsNavigation": "Einstellungen"
   },
@@ -331,6 +329,58 @@
     "saveHint": "Strg+Enter zum Speichern",
     "saveHintMac": "⌘+Enter zum Speichern",
     "discardLead": "Deine Änderungen an {{section}} sind nicht gespeichert."
+  },
+  "entityPicker": {
+    "new": {
+      "area": "Neuer Bereich {{name}}",
+      "orientation": "Neue Ausrichtung {{name}}",
+      "trade": "Neues Gewerk {{name}}",
+      "category": "Neue Kategorie {{name}}"
+    },
+    "who": {
+      "group": {
+        "company": "Firmen",
+        "member": "Haushaltsmitglieder"
+      },
+      "kind": {
+        "company": "Firma",
+        "member": "Haushaltsmitglied"
+      }
+    },
+    "placeholder": {
+      "company": "Firmen suchen",
+      "who": "Firmen oder Haushaltsmitglieder suchen",
+      "category": "Kategorie auswählen",
+      "taskOrPurchase": "Aufgaben oder Anschaffungen suchen"
+    },
+    "typeMore": "Gib mindestens 2 Buchstaben ein.",
+    "task": {
+      "placeholder": "Aufgaben suchen",
+      "emptyHint": "Zum Suchen von Aufgaben tippen",
+      "noResults": "Keine passenden Aufgaben gefunden",
+      "loadError": "Aufgaben konnten nicht geladen werden.",
+      "searchError": "Die Suche hat nicht funktioniert. Versuche es erneut."
+    },
+    "taskOrPurchase": {
+      "noResults": "Keine Aufgaben oder Anschaffungen gefunden.",
+      "kindTask": "Aufgabe",
+      "kindPurchase": "Anschaffung"
+    },
+    "forms": {
+      "tradeTitle": "Neues Gewerk",
+      "categoryTitle": "Neue Anschaffungskategorie",
+      "name": "Name"
+    }
+  },
+  "relatedList": {
+    "titleWithCount": "{{title}} ({{count}})",
+    "showAll": "Alle anzeigen ({{count}})",
+    "rowActions": "{{title}}, Aktionen",
+    "edit": "{{title}} bearbeiten",
+    "remove": "Entfernen",
+    "removed": "{{title}} aus {{list}} entfernt.",
+    "removeFailed": "{{title}} konnte nicht entfernt werden. Versuche es erneut.",
+    "retry": "Erneut versuchen"
   },
   "tagPicker": {
     "placeholderEmpty": "Tags hinzufügen...",

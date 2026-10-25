@@ -20,6 +20,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
@@ -54,7 +55,8 @@ export class HouseholdItemCreatePage {
   // Form fields
   readonly nameInput: Locator;
   readonly descriptionInput: Locator;
-  readonly categorySelect: Locator;
+  /** The category chooser (#category): an EntityPicker; the first category is preselected. */
+  readonly categoryPicker: EntityPickerControl;
   readonly statusSelect: Locator;
   readonly quantityInput: Locator;
   /** The company picker's text input (#vendorId); only present while no company is selected. */
@@ -88,7 +90,7 @@ export class HouseholdItemCreatePage {
 
     this.nameInput = this.form.field('name');
     this.descriptionInput = this.form.field('description');
-    this.categorySelect = this.form.field('category');
+    this.categoryPicker = new EntityPickerControl(page, 'category', this.dialog);
     this.statusSelect = this.form.field('status');
     this.quantityInput = this.form.field('quantity');
     this.vendorSelect = this.form.field('vendorId');
@@ -122,6 +124,16 @@ export class HouseholdItemCreatePage {
     await this.form.expandMoreDetails();
   }
 
+  /**
+   * Choose a category by its (display) name, e.g. "Furniture". The first category is preselected,
+   * so a chip is cleared first; the picker is then searched and the one match picked by keyboard.
+   */
+  async chooseCategory(name: string): Promise<void> {
+    if ((await this.categoryPicker.input.count()) === 0)
+      await this.categoryPicker.clearButton.click();
+    await this.categoryPicker.pick(name, new RegExp(`^${name}$`));
+  }
+
   /** Inline error text under a field (`#<name>-error`). */
   fieldError(name: string): Locator {
     return this.form.fieldError(name);
@@ -143,7 +155,7 @@ export class HouseholdItemCreatePage {
 
     if (data.name !== undefined) await this.nameInput.fill(data.name);
     if (data.description !== undefined) await this.descriptionInput.fill(data.description);
-    if (data.category !== undefined) await this.categorySelect.selectOption(data.category);
+    if (data.category !== undefined) await this.chooseCategory(data.category);
     if (data.status !== undefined) await this.statusSelect.selectOption(data.status);
     if (data.quantity !== undefined) await this.quantityInput.fill(data.quantity);
     if (data.vendorName !== undefined) {

@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { AreaResponse } from '@cornerstone/shared';
 import { Modal } from '../../Modal/Modal.js';
 import { Sheet } from '../../Modal/Sheet.js';
-import { AreaPicker } from '../../AreaPicker/AreaPicker.js';
-import { OrientationPicker } from '../../OrientationPicker/OrientationPicker.js';
+import { EntityPicker } from '../../EntityPicker/EntityPicker.js';
 import { FormError } from '../../FormError/FormError.js';
 import { useWideDialog } from '../../../hooks/useWideDialog.js';
 import { ApiClientError, NetworkError } from '../../../lib/apiClient.js';
@@ -123,7 +122,8 @@ export function PhotoBulkTagSheet({
         <label htmlFor={areaInputId} className={styles.label}>
           {t('photos:bulk.area')}
         </label>
-        <AreaPicker
+        <EntityPicker
+          kind="area"
           id={areaInputId}
           areas={areas}
           value={area}
@@ -136,7 +136,8 @@ export function PhotoBulkTagSheet({
         <label htmlFor={`${baseId}-orientation`} className={styles.label}>
           {t('photos:bulk.orientation')}
         </label>
-        <OrientationPicker
+        <EntityPicker
+          kind="orientation"
           id={`${baseId}-orientation`}
           emptyHint={t('photos:tags.noOrientationsHint')}
           value={orientation}

@@ -36,7 +36,7 @@ Click **Add cost line** in the Cost lines section. The form asks for:
 - **Entered as** -- **Net** (the default) or **Gross**. See [VAT handling](#vat-handling) below.
 - **Basis** -- What the amount rests on (see below)
 - **Cost category** and **Funding source** -- Where the cost belongs and which source pays for it
-- **Company** -- Optional. The company you expect to pay for this line
+- **Company** -- Optional. The company you expect to pay for this line. Type to search. If no company matches, choose **New company ‹text›** to create it and select it
 
 After you save, the form stays open with **Add another** so you can enter the next line straight away. To enter many lines at once, use the grid described in [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
 
@@ -77,7 +77,9 @@ The link to the offer or invoice is kept when you move the line. Only the item i
 
 ### Removing a Link
 
-**Remove from offer** or **Remove from invoice** (also shown as **Unlink**) detaches the line from its offer or invoice. On an offer page the action reads **Remove from offer**; on an invoice page it reads **Remove from invoice**. The line stays on the task as an estimate. A confirmation dialog appears first.
+**Remove from offer** or **Remove from invoice** (also shown as **Unlink**) detaches the line from its offer or invoice. On an offer page the action reads **Remove from offer**; on an invoice page it reads **Remove from invoice**. The line stays on the task as an estimate.
+
+The link is removed at once, with no confirmation dialog. A message appears with an **Undo** button. Select **Undo** to link the line to the same offer or invoice again. If the line has changed since, Undo does not restore the link, and the message says so.
 
 **Delete** removes the cost line, after a confirmation dialog. A line linked to an offer or invoice cannot be deleted until you remove the link.
 

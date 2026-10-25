@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceBudgetLineService from '../services/invoiceBudgetLineService.js';
+import { issueRestoreToken, undoStore } from '../services/undoService.js';
 import type {
   CreateInvoiceBudgetLineRequest,
   EditAndMoveBudgetLineRequest,
+  UndoableDeleteResponse,
 } from '@cornerstone/shared';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 
 // JSON schema for GET /api/invoices/:invoiceId/budget-lines
 const listBudgetLinesSchema = {
@@ -86,6 +89,7 @@ const budgetLineIdParamsSchema = {
       id: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) {
@@ -167,12 +171,17 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
         throw new UnauthorizedError();
       }
 
-      invoiceBudgetLineService.deleteInvoiceBudgetLine(
+      const snapshot = invoiceBudgetLineService.deleteInvoiceBudgetLineWithSnapshot(
         fastify.db,
         request.params.invoiceId,
         request.params.id,
       );
-      return reply.status(204).send();
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'invoice_budget_line', id: request.params.id },
+        restore: (tx) => invoiceBudgetLineService.restoreDeletedInvoiceBudgetLine(tx, snapshot),
+      });
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

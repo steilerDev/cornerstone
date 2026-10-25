@@ -1,13 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as householdItemService from '../services/householdItemService.js';
-import { runUndoable, undoStore } from '../services/undoService.js';
+import { issueRestoreToken, runUndoable, undoStore } from '../services/undoService.js';
+import { autoReschedule, autoRescheduleLogged } from '../services/schedulingEngine.js';
+import { undoableDeleteResponse } from './undoResponseSchema.js';
 import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
   CreateHouseholdItemDepRequest,
+  UndoableDeleteResponse,
 } from '@cornerstone/shared';
 
 // JSON schema for POST /api/household-items (create household item)
@@ -161,6 +164,7 @@ const deleteHouseholdItemDepSchema = {
       predecessorId: { type: 'string' },
     },
   },
+  response: undoableDeleteResponse,
 };
 
 export default async function householdItemRoutes(fastify: FastifyInstance) {
@@ -338,9 +342,21 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
         predecessorId: string;
       };
 
-      householdItemDepService.deleteDep(fastify.db, id, predecessorType, predecessorId);
+      const snapshot = householdItemDepService.deleteDepWithSnapshot(
+        fastify.db,
+        id,
+        predecessorType,
+        predecessorId,
+      );
+      const undo = issueRestoreToken(undoStore, {
+        userId: request.user.id,
+        subject: { type: 'household_item', id },
+        restore: (tx) => householdItemDepService.restoreDeletedDep(tx, snapshot),
+        afterRestore: () => autoReschedule(fastify.db),
+      });
+      autoRescheduleLogged(fastify.db, request.log);
 
-      return reply.status(204).send();
+      return reply.status(200).send({ undo } satisfies UndoableDeleteResponse);
     },
   );
 }

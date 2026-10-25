@@ -4,13 +4,13 @@
  *
  * Each row of the Cost lines table has a ⋯ menu (Edit, Duplicate, Remove from invoice, Assign):
  *   - "Edit" opens the cost line form; a linked line's amount is one gross figure
- *   - "Remove from invoice" asks first (ConfirmDialog) and keeps the line on its task
+ *   - "Remove from invoice" acts at once, shows an Undo toast and keeps the line on its task
  *
  * Scenarios covered:
  *   1. Edit the amount -> the row and what is left on the invoice reflect it
- *   2. Remove from invoice -> confirm -> the row disappears
+ *   2. Remove from invoice (no dialog) -> the row disappears
  *   3. Edit can be cancelled without saving
- *   4. Remove can be cancelled without removing the line
+ *   4. Undo after Remove restores the line and returns focus to its menu
  *   5. An amount beyond the invoice total shows an error in the form
  *   6. A phone: edit and remove work from the card
  *
@@ -106,7 +106,7 @@ test.describe('Cost line edit (Scenario 1)', { tag: '@responsive' }, () => {
 
 test.describe('Cost line remove (Scenario 2)', { tag: '@responsive' }, () => {
   test(
-    'Remove from invoice -> confirm -> the row disappears and the amount is unsplit again',
+    'Remove from invoice (no dialog) -> the row disappears and the amount is unsplit again',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const description = `${testPrefix} Remove Me`;
@@ -116,8 +116,7 @@ test.describe('Cost line remove (Scenario 2)', { tag: '@responsive' }, () => {
       await panel.waitForLoaded();
 
       await panel.chooseAction(panel.row(description), 'Remove from invoice');
-      await panel.removeDialog.waitForOpen();
-      await panel.removeDialog.confirmAndWaitClosed();
+      await expect(panel.toasts.undoToastWith(`${description} removed from`)).toBeVisible();
 
       await expect(panel.row(description)).toHaveCount(0);
       await expect(panel.emptyTitle).toBeVisible();
@@ -149,8 +148,11 @@ test.describe('Cost line edit - cancel (Scenario 3)', { tag: '@responsive' }, ()
   });
 });
 
-test.describe('Cost line remove - cancel (Scenario 4)', { tag: '@responsive' }, () => {
-  test('Cancelling the remove dialog keeps the line', async ({ page, testPrefix }) => {
+test.describe('Cost line remove - Undo (Scenario 4)', { tag: '@responsive' }, () => {
+  test('Undo after Remove brings the line back and returns focus to its menu', async ({
+    page,
+    testPrefix,
+  }) => {
     const description = `${testPrefix} Stay Put`;
     const { invoice } = await seedLinked(page, testPrefix, 800, 250, description);
     const panel = new CostLinesPanel(page);
@@ -158,9 +160,9 @@ test.describe('Cost line remove - cancel (Scenario 4)', { tag: '@responsive' }, 
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(description), 'Remove from invoice');
-    await panel.removeDialog.waitForOpen();
-    await panel.removeDialog.cancel();
-    await expect(panel.removeDialog.dialog).toBeHidden();
+    await expect(panel.row(description)).toHaveCount(0);
+    // Focus is inside the section after Remove, so the keyboard Undo returns it to the menu
+    await panel.toasts.undoViaShortcut('Control');
 
     await expect(panel.row(description)).toBeVisible();
     await expect(panel.menuTrigger(panel.row(description))).toBeFocused();
@@ -219,8 +221,6 @@ test.describe('Cost line edit and remove - phone (Scenario 6)', { tag: '@respons
     await form.waitForClosed();
 
     await panel.chooseAction(panel.row(description), 'Remove from invoice');
-    await panel.removeDialog.waitForOpen();
-    await panel.removeDialog.confirmAndWaitClosed();
     await expect(panel.row(description)).toHaveCount(0);
   });
 });

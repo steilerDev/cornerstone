@@ -20,36 +20,40 @@ jest.unstable_mockModule('../lib/areasApi.js', () => ({
   updateArea: mockUpdateArea,
 }));
 
-jest.unstable_mockModule('../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
+jest.unstable_mockModule('../components/EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: ({
+    kind,
     areas,
     value,
     onChange,
     id,
     disabled,
-    nullable,
-    nullLabel,
+    noneLabel,
     excludeIds,
+    create,
   }: {
+    kind: string;
     areas: Array<{ id: string; name: string }>;
     value: string;
-    onChange: (id: string) => void;
+    onChange: (id: string, option: null) => void;
     id?: string;
     disabled?: boolean;
-    nullable?: boolean;
-    nullLabel?: string;
+    noneLabel?: string;
     excludeIds?: readonly string[];
+    create?: string;
   }) => (
     <select
       id={id}
       data-testid="area-picker-mock"
-      data-nullable={String(nullable)}
+      data-kind={kind}
+      data-nullable={String(noneLabel !== undefined)}
+      data-create={create}
       data-exclude={(excludeIds ?? []).join(',')}
       value={value}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => onChange(event.target.value, null)}
     >
-      <option value="">{nullLabel}</option>
+      <option value="">{noneLabel}</option>
       {areas.map((a) => (
         <option key={a.id} value={a.id}>
           {a.name}
@@ -191,6 +195,12 @@ describe('areaForm', () => {
       expect(screen.getByTestId('area-description-input')).not.toBeVisible();
       expect(nameInput()).toBeVisible();
       expect(screen.getByTestId('object-form-more')).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('renders the parent field as an area EntityPicker that cannot create areas inline', () => {
+      renderForm();
+      expect(parentSelect()).toHaveAttribute('data-kind', 'area');
+      expect(parentSelect()).toHaveAttribute('data-create', 'off');
     });
 
     it('offers "Top level (no parent)" as the empty parent option', () => {

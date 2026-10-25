@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Modal } from '../Modal/Modal.js';
 import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
@@ -95,6 +95,84 @@ describe('SearchPicker createAction (Story #2148)', () => {
       expect(options).toHaveLength(3);
       expect(options[options.length - 1]).toHaveAccessibleName('Add new');
       expect(mockGetLabel).toHaveBeenCalledWith('');
+    });
+
+    describe('reopening a closed picker', () => {
+      async function typeThenClose() {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.type(input, 'alp');
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        await user.keyboard('{Escape}');
+        await waitFor(() => {
+          expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        });
+        mockSearchFn.mockClear();
+        return input;
+      }
+
+      it('searches the text still in the input when the input is clicked again', async () => {
+        const input = await typeThenClose();
+        mockSearchFn.mockResolvedValue([sampleItems[0]!]);
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        expect(await screen.findByText('Alpha Widget')).toBeInTheDocument();
+        expect(screen.queryByText('Beta Gadget')).not.toBeInTheDocument();
+        expect(mockSearchFn).not.toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+      });
+
+      it('searches the text still in the input when focus returns to it', async () => {
+        const input = await typeThenClose();
+        input.blur();
+        mockSearchFn.mockResolvedValue([sampleItems[0]!]);
+
+        act(() => input.focus());
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));
+        });
+        expect(mockSearchFn).not.toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+      });
+
+      it('fetches the initial list when the input is empty', async () => {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.click(input);
+        await screen.findByText('Alpha Widget');
+        await user.keyboard('{Escape}');
+        await waitFor(() => {
+          expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        });
+        mockSearchFn.mockClear();
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+        });
+        expect(await screen.findByText('Beta Gadget')).toBeInTheDocument();
+      });
+
+      it('treats whitespace-only text as empty and fetches the initial list', async () => {
+        renderPicker();
+        const input = screen.getByPlaceholderText('Search...');
+        await user.type(input, '  ');
+        await user.keyboard('{Escape}');
+        mockSearchFn.mockClear();
+
+        await user.click(input);
+
+        await waitFor(() => {
+          expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
+        });
+        expect(mockSearchFn).not.toHaveBeenCalledWith('  ', [], expect.any(AbortSignal));
+      });
     });
 
     it('still shows the create row after the "no results" message', async () => {
@@ -508,9 +586,89 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       await user.type(screen.getByPlaceholderText('Search...'), 'Alpha');
 
+      await screen.findByRole('option', { name: 'Add "Alpha"' });
       const options = await screen.findAllByRole('option');
       expect(options).toHaveLength(3);
       expect(options[2]).toHaveAccessibleName('Add "Alpha"');
+    });
+
+    it('hides the row between typing and the search answer, then shows it once results arrive', async () => {
+      let resolveSearch: (items: TestItem[]) => void = () => {};
+      mockSearchFn.mockImplementation(
+        () =>
+          new Promise<TestItem[]>((resolve) => {
+            resolveSearch = resolve;
+          }),
+      );
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'noExactMatch' },
+      });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
+
+      // Debounce window: the search has not even started.
+      expect(mockSearchFn).not.toHaveBeenCalledWith('Gamma', [], expect.any(AbortSignal));
+      expect(createRow()).not.toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() =>
+        expect(mockSearchFn).toHaveBeenCalledWith('Gamma', [], expect.any(AbortSignal)),
+      );
+      expect(createRow()).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveSearch(sampleItems);
+      });
+      expect(await screen.findByRole('option', { name: 'Add "Gamma"' })).toBeInTheDocument();
+    });
+
+    it('keeps the row hidden when an aborted older search answers late', async () => {
+      const resolvers: Array<(items: TestItem[]) => void> = [];
+      mockSearchFn.mockImplementation(
+        () =>
+          new Promise<TestItem[]>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      );
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'noExactMatch' },
+      });
+      const input = screen.getByPlaceholderText('Search...');
+
+      await user.type(input, 'Gam');
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      // resolvers[0] is the on-focus search, already superseded by typing.
+      await waitFor(() => expect(resolvers).toHaveLength(2));
+      await user.type(input, 'ma');
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() => expect(resolvers).toHaveLength(3));
+
+      // The first (aborted) search answers: it must not clear the flag.
+      await act(async () => {
+        resolvers[1]!([]);
+      });
+      expect(createRow()).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolvers[2]!([]);
+      });
+      expect(await screen.findByRole('option', { name: 'Add "Gamma"' })).toBeInTheDocument();
+    });
+
+    it('shows the error and no create row when the search fails', async () => {
+      mockSearchFn.mockRejectedValue(new Error('boom'));
+      renderNoExact();
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
+
+      await waitFor(() => expect(mockSearchFn).toHaveBeenCalled());
+      expect(createRow()).not.toBeInTheDocument();
     });
 
     it('does not count a partial match as exact', async () => {
@@ -560,6 +718,19 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       expect(await screen.findByText('No matching items found')).toBeInTheDocument();
       expect(await screen.findByRole('option', { name: 'Add "Zzz"' })).toBeInTheDocument();
+    });
+  });
+
+  describe("show: 'always' during the debounce window", () => {
+    it('keeps the create row available while the search is still pending', async () => {
+      mockSearchFn.mockReturnValue(new Promise(() => {}));
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'always' },
+      });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
+
+      expect(await screen.findByRole('option', { name: 'Add "Gamma"' })).toBeInTheDocument();
     });
   });
 
@@ -634,6 +805,224 @@ describe('SearchPicker createAction (Story #2148)', () => {
       renderPicker({ createAction: action({ show: 'always' }) });
 
       await user.click(screen.getByPlaceholderText('Search...'));
+
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+    });
+  });
+
+  describe('stale answers and the pending flag (#2236 round 2)', () => {
+    interface Call {
+      query: string;
+      signal: AbortSignal;
+      resolve: (items: TestItem[]) => void;
+    }
+    let calls: Call[];
+
+    function deferSearches() {
+      calls = [];
+      mockSearchFn.mockImplementation(
+        (query, _exclude, signal) =>
+          new Promise<TestItem[]>((resolve) => {
+            calls.push({ query, signal, resolve });
+          }),
+      );
+    }
+
+    const lastCall = (query: string) => [...calls].reverse().find((c) => c.query === query)!;
+    const createRow = () => screen.queryByRole('option', { name: /^Add / });
+
+    const action = (over: Partial<SearchPickerCreateAction<TestItem>> = {}) => ({
+      getLabel: mockGetLabel,
+      onCreate: mockOnCreate,
+      show: 'noExactMatch' as const,
+      ...over,
+    });
+
+    function pickerElement(value: string) {
+      return (
+        <ControlledSearchPicker<TestItem>
+          value={value}
+          onChange={mockOnChange}
+          onSelectItem={mockOnSelectItem}
+          excludeIds={[]}
+          searchFn={mockSearchFn}
+          renderItem={mockRenderItem}
+          placeholder="Search..."
+          createAction={action({ showWhenEmpty: true })}
+        />
+      );
+    }
+
+    async function typeAndStartSearch(input: HTMLElement, text: string) {
+      await user.type(input, text);
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() => expect(calls.some((c) => c.query === text)).toBe(true));
+    }
+
+    async function staleAnswerScenario() {
+      deferSearches();
+      renderPicker({ createAction: action() });
+      const input = screen.getByPlaceholderText('Search...');
+
+      await typeAndStartSearch(input, 'Acme X');
+      await user.type(input, '{Backspace}{Backspace}');
+      expect(input).toHaveValue('Acme');
+
+      // Search A (for "Acme X") answers while the text is already "Acme".
+      await act(async () => {
+        lastCall('Acme X').resolve([{ id: 'x1', label: 'Zeta Corp' }]);
+      });
+      expect(createRow()).not.toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() => expect(calls.some((c) => c.query === 'Acme')).toBe(true));
+    }
+
+    it('keeps the row hidden when the answer for the latest text contains an exact match', async () => {
+      await staleAnswerScenario();
+
+      await act(async () => {
+        lastCall('Acme').resolve([{ id: 'a1', label: 'Acme' }]);
+      });
+
+      await screen.findByRole('option', { name: 'Acme' });
+      expect(createRow()).not.toBeInTheDocument();
+    });
+
+    it('shows the row once the answer for the latest text has no exact match', async () => {
+      await staleAnswerScenario();
+
+      await act(async () => {
+        lastCall('Acme').resolve([{ id: 'a2', label: 'Acme Holdings' }]);
+      });
+
+      expect(await screen.findByRole('option', { name: 'Add "Acme"' })).toBeInTheDocument();
+    });
+
+    it('does not strand the flag when the host resets the value and the old search answers late', async () => {
+      deferSearches();
+      const view = render(pickerElement(''));
+      await typeAndStartSearch(screen.getByPlaceholderText('Search...'), 'Gam');
+
+      view.rerender(pickerElement('picked'));
+      view.rerender(pickerElement(''));
+      expect(screen.getByPlaceholderText('Search...')).toHaveValue('');
+
+      await act(async () => {
+        lastCall('Gam').resolve([]);
+      });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+      await waitFor(() => expect(calls.some((c) => c.query === '')).toBe(true));
+      await act(async () => {
+        lastCall('').resolve(sampleItems);
+      });
+
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+    });
+
+    it('lets the empty-text row appear when focusing aborts the old search after a reset', async () => {
+      deferSearches();
+      const view = render(pickerElement(''));
+      await typeAndStartSearch(screen.getByPlaceholderText('Search...'), 'Gam');
+      const old = lastCall('Gam');
+
+      view.rerender(pickerElement('picked'));
+      view.rerender(pickerElement(''));
+
+      // Leave the input, then focus it again: the focus search aborts the old one.
+      await user.click(document.body);
+      const before = calls.length;
+      await user.click(screen.getByPlaceholderText('Search...'));
+      await waitFor(() => expect(calls.length).toBeGreaterThan(before));
+      expect(old.signal.aborted).toBe(true);
+      await act(async () => {
+        old.resolve([]);
+        lastCall('').resolve(sampleItems);
+      });
+
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+    });
+
+    it('keeps the flag set when the initial search answers while non-blank text is typed', async () => {
+      deferSearches();
+      renderPicker({ createAction: action() });
+      const input = screen.getByPlaceholderText('Search...');
+
+      await user.click(input);
+      await waitFor(() => expect(calls.some((c) => c.query === '')).toBe(true));
+      await user.type(input, 'Zed');
+      await act(async () => {
+        lastCall('').resolve([{ id: 'z1', label: 'Other' }]);
+      });
+
+      await screen.findByRole('option', { name: 'Other' });
+      expect(createRow()).not.toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() => expect(calls.some((c) => c.query === 'Zed')).toBe(true));
+      await act(async () => {
+        lastCall('Zed').resolve([]);
+      });
+      expect(await screen.findByRole('option', { name: 'Add "Zed"' })).toBeInTheDocument();
+    });
+
+    it('lets the empty-text row appear after backspacing the text to blank', async () => {
+      deferSearches();
+      renderPicker({ createAction: action({ showWhenEmpty: true }) });
+      const input = screen.getByPlaceholderText('Search...');
+
+      await typeAndStartSearch(input, 'G');
+      await act(async () => {
+        lastCall('G').resolve([]);
+      });
+
+      await user.type(input, '{Backspace}');
+      expect(input).toHaveValue('');
+      expect(createRow()).not.toBeInTheDocument();
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      await waitFor(() => expect(calls.some((c) => c.query === '')).toBe(true));
+      await act(async () => {
+        lastCall('').resolve(sampleItems);
+      });
+
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+    });
+
+    it('does not strand the flag when an item is selected inside the debounce window', async () => {
+      deferSearches();
+      renderPicker({
+        createAction: action({ showWhenEmpty: true }),
+        clearOnSelect: true,
+      });
+      const input = screen.getByPlaceholderText('Search...');
+
+      await user.click(input);
+      await waitFor(() => expect(calls.some((c) => c.query === '')).toBe(true));
+      await act(async () => {
+        lastCall('').resolve(sampleItems);
+      });
+
+      await user.type(input, 'Gam');
+      await user.click(await screen.findByRole('option', { name: 'Alpha Widget' }));
+      expect(input).toHaveValue('');
+
+      const before = calls.length;
+      await user.click(input);
+      await user.keyboard('{ArrowDown}');
+      await waitFor(() => expect(calls.length).toBeGreaterThan(before));
+      await act(async () => {
+        lastCall('').resolve(sampleItems);
+      });
 
       expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
     });

@@ -17,8 +17,10 @@ import {
   NotFoundError,
   DuplicateDependencyError,
   CircularDependencyError,
+  ConflictError,
 } from '../errors/AppError.js';
 import { autoReschedule } from './schedulingEngine.js';
+import type { UndoTransaction } from './undoService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -135,12 +137,178 @@ export function addRequiredMilestone(
   return getWorkItemMilestones(db, workItemId);
 }
 
+/** A deleted milestone-to-work-item link (`milestone_work_items`), as needed to restore it. */
+export interface DeletedMilestoneLinkSnapshot {
+  row: typeof milestoneWorkItems.$inferSelect;
+}
+
+/** A deleted work-item-requires-milestone dependency, as needed to restore it. */
+export interface DeletedMilestoneDepSnapshot {
+  row: typeof workItemMilestoneDeps.$inferSelect;
+}
+
 /**
- * Remove a required milestone dependency from a work item.
+ * Read and delete a `milestone_work_items` row in one transaction. Callers verify that the
+ * milestone and work item exist and re-schedule afterwards.
+ * @throws NotFoundError (with the given message) if the link does not exist
+ */
+export function deleteMilestoneLinkRow(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+  notFoundMessage: string,
+): DeletedMilestoneLinkSnapshot {
+  const where = and(
+    eq(milestoneWorkItems.milestoneId, milestoneId),
+    eq(milestoneWorkItems.workItemId, workItemId),
+  );
+  const row = db.transaction((tx) => {
+    const existing = tx.select().from(milestoneWorkItems).where(where).get();
+    if (!existing) {
+      throw new NotFoundError(notFoundMessage);
+    }
+    tx.delete(milestoneWorkItems).where(where).run();
+    return existing;
+  });
+  return { row };
+}
+
+/**
+ * Read and delete a `work_item_milestone_deps` row in one transaction. Callers verify that the
+ * milestone and work item exist and re-schedule afterwards.
+ * @throws NotFoundError (with the given message) if the dependency does not exist
+ */
+export function deleteMilestoneDepRow(
+  db: DbType,
+  milestoneId: number,
+  workItemId: string,
+  notFoundMessage: string,
+): DeletedMilestoneDepSnapshot {
+  const where = and(
+    eq(workItemMilestoneDeps.workItemId, workItemId),
+    eq(workItemMilestoneDeps.milestoneId, milestoneId),
+  );
+  const row = db.transaction((tx) => {
+    const existing = tx.select().from(workItemMilestoneDeps).where(where).get();
+    if (!existing) {
+      throw new NotFoundError(notFoundMessage);
+    }
+    tx.delete(workItemMilestoneDeps).where(where).run();
+    return existing;
+  });
+  return { row };
+}
+
+function refuseRestore(workItemId: string): never {
+  throw new ConflictError('The record changed after this action', {
+    changed: [{ type: 'work_item', id: workItemId }],
+  });
+}
+
+function milestoneAndWorkItemExist(
+  tx: UndoTransaction,
+  milestoneId: number,
+  workItemId: string,
+): boolean {
+  const milestone = tx
+    .select({ id: milestones.id })
+    .from(milestones)
+    .where(eq(milestones.id, milestoneId))
+    .get();
+  const workItem = tx
+    .select({ id: workItems.id })
+    .from(workItems)
+    .where(eq(workItems.id, workItemId))
+    .get();
+  return Boolean(milestone && workItem);
+}
+
+/**
+ * Re-insert a deleted milestone link.
+ * @throws ConflictError (details.changed) when the milestone or work item is gone, the link
+ *   exists again, or the work item now depends on that milestone
+ */
+export function restoreDeletedMilestoneLink(
+  tx: UndoTransaction,
+  snapshot: DeletedMilestoneLinkSnapshot,
+): void {
+  const { row } = snapshot;
+  if (!milestoneAndWorkItemExist(tx, row.milestoneId, row.workItemId))
+    refuseRestore(row.workItemId);
+
+  const linkAgain = tx
+    .select({ workItemId: milestoneWorkItems.workItemId })
+    .from(milestoneWorkItems)
+    .where(
+      and(
+        eq(milestoneWorkItems.milestoneId, row.milestoneId),
+        eq(milestoneWorkItems.workItemId, row.workItemId),
+      ),
+    )
+    .get();
+  const nowDepends = tx
+    .select({ workItemId: workItemMilestoneDeps.workItemId })
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, row.workItemId),
+        eq(workItemMilestoneDeps.milestoneId, row.milestoneId),
+      ),
+    )
+    .get();
+  if (linkAgain || nowDepends) refuseRestore(row.workItemId);
+
+  tx.insert(milestoneWorkItems).values(row).run();
+}
+
+/**
+ * Re-insert a deleted required-milestone dependency.
+ * @throws ConflictError (details.changed) when the milestone or work item is gone, the
+ *   dependency exists again, or the work item now contributes to that milestone
+ */
+export function restoreDeletedMilestoneDep(
+  tx: UndoTransaction,
+  snapshot: DeletedMilestoneDepSnapshot,
+): void {
+  const { row } = snapshot;
+  if (!milestoneAndWorkItemExist(tx, row.milestoneId, row.workItemId))
+    refuseRestore(row.workItemId);
+
+  const depAgain = tx
+    .select({ workItemId: workItemMilestoneDeps.workItemId })
+    .from(workItemMilestoneDeps)
+    .where(
+      and(
+        eq(workItemMilestoneDeps.workItemId, row.workItemId),
+        eq(workItemMilestoneDeps.milestoneId, row.milestoneId),
+      ),
+    )
+    .get();
+  const nowContributes = tx
+    .select({ workItemId: milestoneWorkItems.workItemId })
+    .from(milestoneWorkItems)
+    .where(
+      and(
+        eq(milestoneWorkItems.milestoneId, row.milestoneId),
+        eq(milestoneWorkItems.workItemId, row.workItemId),
+      ),
+    )
+    .get();
+  if (depAgain || nowContributes) refuseRestore(row.workItemId);
+
+  tx.insert(workItemMilestoneDeps).values(row).run();
+}
+
+/**
+ * Remove a required milestone dependency from a work item and return the deleted row.
  *
  * @throws NotFoundError if work item, milestone, or the dependency does not exist
  */
-export function removeRequiredMilestone(db: DbType, workItemId: string, milestoneId: number): void {
+export function removeRequiredMilestoneWithSnapshot(
+  db: DbType,
+  workItemId: string,
+  milestoneId: number,
+): DeletedMilestoneDepSnapshot {
   // Verify work item exists
   const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
   if (!workItem) {
@@ -153,32 +321,14 @@ export function removeRequiredMilestone(db: DbType, workItemId: string, mileston
     throw new NotFoundError('Milestone not found');
   }
 
-  // Verify the dependency exists
-  const dep = db
-    .select()
-    .from(workItemMilestoneDeps)
-    .where(
-      and(
-        eq(workItemMilestoneDeps.workItemId, workItemId),
-        eq(workItemMilestoneDeps.milestoneId, milestoneId),
-      ),
-    )
-    .get();
+  const snapshot = deleteMilestoneDepRow(
+    db,
+    milestoneId,
+    workItemId,
+    'Work item does not depend on this milestone',
+  );
 
-  if (!dep) {
-    throw new NotFoundError('Work item does not depend on this milestone');
-  }
-
-  db.delete(workItemMilestoneDeps)
-    .where(
-      and(
-        eq(workItemMilestoneDeps.workItemId, workItemId),
-        eq(workItemMilestoneDeps.milestoneId, milestoneId),
-      ),
-    )
-    .run();
-
-  autoReschedule(db);
+  return snapshot;
 }
 
 /**
@@ -248,11 +398,15 @@ export function addLinkedMilestone(
 }
 
 /**
- * Remove a linked milestone association from a work item.
+ * Remove a linked milestone association from a work item and return the deleted row.
  *
  * @throws NotFoundError if work item, milestone, or the link does not exist
  */
-export function removeLinkedMilestone(db: DbType, workItemId: string, milestoneId: number): void {
+export function removeLinkedMilestoneWithSnapshot(
+  db: DbType,
+  workItemId: string,
+  milestoneId: number,
+): DeletedMilestoneLinkSnapshot {
   // Verify work item exists
   const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
   if (!workItem) {
@@ -265,30 +419,12 @@ export function removeLinkedMilestone(db: DbType, workItemId: string, milestoneI
     throw new NotFoundError('Milestone not found');
   }
 
-  // Verify the link exists
-  const link = db
-    .select()
-    .from(milestoneWorkItems)
-    .where(
-      and(
-        eq(milestoneWorkItems.milestoneId, milestoneId),
-        eq(milestoneWorkItems.workItemId, workItemId),
-      ),
-    )
-    .get();
+  const snapshot = deleteMilestoneLinkRow(
+    db,
+    milestoneId,
+    workItemId,
+    'Work item is not linked to this milestone',
+  );
 
-  if (!link) {
-    throw new NotFoundError('Work item is not linked to this milestone');
-  }
-
-  db.delete(milestoneWorkItems)
-    .where(
-      and(
-        eq(milestoneWorkItems.milestoneId, milestoneId),
-        eq(milestoneWorkItems.workItemId, workItemId),
-      ),
-    )
-    .run();
-
-  autoReschedule(db);
+  return snapshot;
 }

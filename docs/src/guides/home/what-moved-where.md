@@ -26,6 +26,10 @@ Use this page as a reference. You can open it any time from **Page actions** (`â
 
 Some old cards are split across two places on purpose. A payment that needs you appears as a row in **Needs attention**, and the total you still owe appears in **Pulse**.
 
+## Assigned To
+
+**Assigned To** on a task is one picker with two groups: companies and household members. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
+
 ## What the labels mean
 
 The rows in **Needs attention** and **Tidy up** each carry a label. The label tells you how urgent the row is. The words on each row describe what happened, with a date.

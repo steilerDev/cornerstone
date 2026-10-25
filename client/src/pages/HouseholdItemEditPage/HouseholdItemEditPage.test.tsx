@@ -9,6 +9,7 @@ import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'rea
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type * as AreasApiTypes from '../../lib/areasApi.js';
 import type * as HouseholdItemEditPageTypes from './HouseholdItemEditPage.js';
 import type React from 'react';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -19,6 +20,15 @@ const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockFetchHouseholdItemCategories =
   jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
+
+const mockFetchAreas = jest.fn<typeof AreasApiTypes.fetchAreas>();
+
+jest.unstable_mockModule('../../lib/areasApi.js', () => ({
+  fetchAreas: mockFetchAreas,
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
 
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
@@ -136,6 +146,8 @@ describe('HouseholdItemEditPage', () => {
     mockFetchVendors.mockReset();
     mockFetchVendor.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
+    mockFetchAreas.mockReset();
+    mockFetchAreas.mockResolvedValue({ areas: [] });
 
     if (!HouseholdItemEditPageModule) {
       HouseholdItemEditPageModule = await import('./HouseholdItemEditPage.js');
@@ -837,6 +849,163 @@ describe('HouseholdItemEditPage', () => {
 
       await screen.findByLabelText(/^name/i);
       expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('fields and validation of a loaded purchase', () => {
+    const saveButton = () => screen.getByRole('button', { name: /save changes/i });
+
+    it('saves the edited description, category and URL', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      const description = screen.getByLabelText(/description/i);
+      await user.clear(description);
+      await user.type(description, 'Reclaimed oak top');
+      await user.selectOptions(screen.getByLabelText(/^category/i), 'appliances');
+      const url = screen.getByLabelText('URL');
+      await user.clear(url);
+      await user.type(url, 'https://example.test/oak');
+      await user.click(saveButton());
+
+      await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({
+          description: 'Reclaimed oak top',
+          category: 'appliances',
+          url: 'https://example.test/oak',
+        }),
+      );
+    });
+
+    it('saves an empty description and URL as null', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue({ ...mockItem, description: null, url: null });
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+      expect(screen.getByLabelText(/description/i)).toHaveValue('');
+
+      await user.click(saveButton());
+
+      await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({ description: null, url: null }),
+      );
+    });
+
+    it('falls back to a quantity of 1 when the field is emptied', async () => {
+      renderPage();
+      const quantity = await screen.findByLabelText(/quantity/i);
+
+      fireEvent.change(quantity, { target: { value: '4' } });
+      expect(quantity).toHaveValue(4);
+      fireEvent.change(quantity, { target: { value: '' } });
+
+      expect(quantity).toHaveValue(1);
+    });
+
+    it('blocks the save when the loaded purchase has no category', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue({ ...mockItem, category: '' as never });
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      await user.click(saveButton());
+
+      expect(await screen.findByText('Category is required')).toBeInTheDocument();
+      expect(mockUpdateHouseholdItem).not.toHaveBeenCalled();
+    });
+
+    it('blocks the save when the loaded purchase has a quantity below 1', async () => {
+      mockGetHouseholdItem.mockResolvedValue({ ...mockItem, quantity: 0 });
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      // The browser's own min=1 check would stop a click, so submit the form directly.
+      fireEvent.submit(saveButton().closest('form')!);
+
+      expect(await screen.findByText('Quantity must be at least 1')).toBeInTheDocument();
+      expect(screen.getByLabelText(/quantity/i)).toHaveAttribute('aria-invalid', 'true');
+      expect(mockUpdateHouseholdItem).not.toHaveBeenCalled();
+    });
+
+    it('lets go of the quantity field when the mouse wheel turns over it', async () => {
+      renderPage();
+      const quantity = await screen.findByLabelText(/quantity/i);
+      quantity.focus();
+      expect(quantity).toHaveFocus();
+
+      fireEvent.wheel(quantity);
+
+      expect(quantity).not.toHaveFocus();
+    });
+
+    it('shows a loading placeholder in place of the area chooser while areas load', async () => {
+      mockFetchAreas.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+
+    describe('with a saved area', () => {
+      beforeEach(() => {
+        mockFetchAreas.mockResolvedValue({
+          areas: [
+            {
+              id: 'area-1',
+              name: 'Hallway',
+              parentId: null,
+              color: null,
+              description: null,
+              sortOrder: 0,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          ],
+        });
+        mockGetHouseholdItem.mockResolvedValue({
+          ...mockItem,
+          vendor: null,
+          area: { id: 'area-1', name: 'Hallway', color: null, parentId: null } as never,
+        });
+        mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      });
+
+      it('keeps the saved area id when it is left untouched', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await screen.findByText('Hallway');
+
+        await user.click(saveButton());
+
+        await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+          'hi-001',
+          expect.objectContaining({ areaId: 'area-1' }),
+        );
+      });
+
+      it('sends areaId: null after the area is cleared', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await screen.findByText('Hallway');
+
+        await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+        await user.click(saveButton());
+
+        await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+        expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+          'hi-001',
+          expect.objectContaining({ areaId: null }),
+        );
+      });
     });
   });
 

@@ -55,6 +55,8 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: mockDeleteVendor,
   createVendor: jest.fn(),
   fetchVendor: jest.fn(),
+  // Named import of the EntityPicker closure (the Trades sheet's merge picker).
+  searchCompanies: jest.fn(),
   updateVendor: jest.fn(),
 }));
 

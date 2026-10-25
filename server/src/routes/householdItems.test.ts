@@ -1788,7 +1788,7 @@ describe('Household Item Routes', () => {
   // ---------------------------------------------------------------------------
 
   describe('DELETE /api/household-items/:id/dependencies/:predecessorType/:predecessorId', () => {
-    it('returns 204 when dependency is successfully deleted', async () => {
+    it('returns 200 when dependency is successfully deleted', async () => {
       // Given: An authenticated user, work item, and HI with a dependency
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
@@ -1818,8 +1818,8 @@ describe('Household Item Routes', () => {
         headers: { cookie },
       });
 
-      // Then: Returns 204
-      expect(response.statusCode).toBe(204);
+      // Then: Returns 200
+      expect(response.statusCode).toBe(200);
 
       // Verify: The dep is gone
       const depsResponse = await app.inject({

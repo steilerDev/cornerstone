@@ -1,0 +1,250 @@
+.root {
+  container-type: inline-size;
+}
+
+.card {
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+}
+
+.headerFlush {
+  margin-bottom: 0;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.title:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.add {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.add[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.srOnly {
+  composes: srOnly from '../../styles/shared.module.css';
+}
+
+.picker {
+  margin-bottom: var(--spacing-3);
+}
+
+.loadError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.retry {
+  composes: btnText from '../../styles/shared.module.css';
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+  padding-block: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border);
+  overflow: visible;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .row {
+    transition: background var(--transition-fast);
+  }
+}
+
+.row:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-3);
+  min-width: 0;
+}
+
+.titleCell {
+  min-width: 0;
+}
+
+.link,
+.plainTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* The title anchor is stretched over the whole row; Edit, the menu and interactive facts sit above it. */
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.plainTitle {
+  color: var(--color-text-primary);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.facts a,
+.facts button {
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+.amount {
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.editCell,
+.menuCell {
+  position: relative;
+  z-index: var(--z-raised);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+}
+
+.edit {
+  composes: btnIcon from '../../styles/shared.module.css';
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+}
+
+.showAll {
+  composes: btnText from '../../styles/shared.module.css';
+  margin-top: var(--spacing-2);
+}
+
+/* Below 768px of the list's own width the row is two lines: title, Edit and menu, then chips, facts and amount. */
+@container (max-width: 47.999rem) {
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'title edit menu'
+      'meta amount amount';
+    align-items: center;
+    column-gap: var(--spacing-2);
+  }
+
+  .main {
+    display: contents;
+  }
+
+  .titleCell {
+    grid-area: title;
+  }
+
+  .meta {
+    grid-area: meta;
+  }
+
+  .amount {
+    grid-area: amount;
+  }
+
+  .editCell {
+    grid-area: edit;
+  }
+
+  .menuCell {
+    grid-area: menu;
+  }
+}
+
+@container (max-width: 39.999rem) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .add {
+    width: 100%;
+  }
+}

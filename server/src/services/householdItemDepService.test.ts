@@ -17,7 +17,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as householdItemDepService from './householdItemDepService.js';
-import { NotFoundError, DuplicateDependencyError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  DuplicateDependencyError,
+  ValidationError,
+  ConflictError,
+} from '../errors/AppError.js';
 
 function futureDateStr(daysFromNow: number): string {
   const d = new Date();
@@ -451,7 +456,7 @@ describe('householdItemDepService', () => {
       expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(1);
 
       // Delete dep
-      householdItemDepService.deleteDep(db, hiId, 'work_item', wiId);
+      householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId);
 
       // Verify dep is gone
       expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(0);
@@ -459,10 +464,10 @@ describe('householdItemDepService', () => {
 
     it('throws NotFoundError when household item does not exist', () => {
       expect(() =>
-        householdItemDepService.deleteDep(db, 'nonexistent-hi', 'work_item', 'some-wi'),
+        householdItemDepService.deleteDepWithSnapshot(db, 'nonexistent-hi', 'work_item', 'some-wi'),
       ).toThrow(NotFoundError);
       expect(() =>
-        householdItemDepService.deleteDep(db, 'nonexistent-hi', 'work_item', 'some-wi'),
+        householdItemDepService.deleteDepWithSnapshot(db, 'nonexistent-hi', 'work_item', 'some-wi'),
       ).toThrow('Household item not found');
     });
 
@@ -472,12 +477,12 @@ describe('householdItemDepService', () => {
       const wiId = insertWorkItem(db, userId);
 
       // Dep was never created
-      expect(() => householdItemDepService.deleteDep(db, hiId, 'work_item', wiId)).toThrow(
-        NotFoundError,
-      );
-      expect(() => householdItemDepService.deleteDep(db, hiId, 'work_item', wiId)).toThrow(
-        'Dependency not found',
-      );
+      expect(() =>
+        householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId),
+      ).toThrow('Dependency not found');
     });
 
     it('only removes the specified dependency, leaving others intact', () => {
@@ -497,14 +502,14 @@ describe('householdItemDepService', () => {
 
       expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(2);
 
-      householdItemDepService.deleteDep(db, hiId, 'work_item', wiId1);
+      householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId1);
 
       const remaining = householdItemDepService.listDeps(db, hiId);
       expect(remaining).toHaveLength(1);
       expect(remaining[0]!.predecessorId).toBe(wiId2);
     });
 
-    it('calls autoReschedule after deleting dep', () => {
+    it('does not reschedule on delete (the route does): the delivery date stays', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db);
       const wiId = insertWorkItem(db, userId);
@@ -514,11 +519,16 @@ describe('householdItemDepService', () => {
         predecessorId: wiId,
       });
 
-      // Delete should not throw and removes the dep
-      expect(() => householdItemDepService.deleteDep(db, hiId, 'work_item', wiId)).not.toThrow();
+      db.update(schema.householdItems).set({ targetDeliveryDate: '2020-01-01' }).run();
+      const before = '2020-01-01';
 
-      // Dep is gone = autoReschedule completed without error
+      expect(() =>
+        householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId),
+      ).not.toThrow();
+
       expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(0);
+      const after = db.select().from(schema.householdItems).all()[0]!.targetDeliveryDate;
+      expect(after).toBe(before);
     });
   });
 
@@ -650,6 +660,192 @@ describe('householdItemDepService', () => {
       expect(ids).toContain(hi1);
       expect(ids).toContain(hi2);
       expect(ids).toContain(hi3);
+    });
+  });
+
+  // ─── Dangling predecessors and invalid input ───────────────────────────────
+
+  describe('dangling predecessors (predecessor_id has no foreign key)', () => {
+    it('listDeps throws NotFoundError for a work item predecessor that no longer exists', () => {
+      const hiId = insertHouseholdItem(db);
+      db.insert(schema.householdItemDeps)
+        .values({ householdItemId: hiId, predecessorType: 'work_item', predecessorId: 'gone-wi' })
+        .run();
+
+      expect(() => householdItemDepService.listDeps(db, hiId)).toThrow('Work item not found');
+    });
+
+    it('listDeps throws NotFoundError for a milestone predecessor that no longer exists', () => {
+      const hiId = insertHouseholdItem(db);
+      db.insert(schema.householdItemDeps)
+        .values({ householdItemId: hiId, predecessorType: 'milestone', predecessorId: '9999' })
+        .run();
+
+      expect(() => householdItemDepService.listDeps(db, hiId)).toThrow('Milestone not found');
+    });
+
+    it('createDep rejects an unknown predecessor type with a ValidationError', () => {
+      const hiId = insertHouseholdItem(db);
+
+      expect(() =>
+        householdItemDepService.createDep(db, hiId, {
+          predecessorType: 'invoice' as unknown as 'work_item',
+          predecessorId: 'x',
+        }),
+      ).toThrow(ValidationError);
+    });
+  });
+
+  // ─── listDependentHouseholdItemsForMilestone ───────────────────────────────
+
+  describe('listDependentHouseholdItemsForMilestone', () => {
+    it('returns an empty array when nothing depends on the milestone', () => {
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId);
+
+      expect(
+        householdItemDepService.listDependentHouseholdItemsForMilestone(db, milestoneId),
+      ).toEqual([]);
+    });
+
+    it('returns the dependent household items with their delivery dates', () => {
+      const userId = insertUser(db);
+      const milestoneId = insertMilestone(db, userId);
+      const hiId = insertHouseholdItem(db, {
+        name: 'Dining table',
+        status: 'purchased',
+        targetDeliveryDate: '2026-07-01',
+        earliestDeliveryDate: '2026-06-20',
+        latestDeliveryDate: '2026-07-10',
+      });
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: hiId,
+          predecessorType: 'milestone',
+          predecessorId: String(milestoneId),
+        })
+        .run();
+      // A work item dependency with the same id string must not be listed
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: insertHouseholdItem(db),
+          predecessorType: 'work_item',
+          predecessorId: String(milestoneId),
+        })
+        .run();
+
+      const result = householdItemDepService.listDependentHouseholdItemsForMilestone(
+        db,
+        milestoneId,
+      );
+
+      expect(result).toEqual([
+        {
+          id: hiId,
+          name: 'Dining table',
+          category: 'hic-furniture',
+          status: 'purchased',
+          targetDeliveryDate: '2026-07-01',
+          earliestDeliveryDate: '2026-06-20',
+          latestDeliveryDate: '2026-07-10',
+        },
+      ]);
+    });
+  });
+
+  // ─── restoreDeletedDep ─────────────────────────────────────────────────────
+
+  describe('restoreDeletedDep', () => {
+    function restore(snapshot: householdItemDepService.DeletedHouseholdItemDepSnapshot) {
+      db.transaction((tx) => householdItemDepService.restoreDeletedDep(tx, snapshot));
+    }
+
+    it('re-inserts a work item dependency', () => {
+      const userId = insertUser(db);
+      const hiId = insertHouseholdItem(db);
+      const wiId = insertWorkItem(db, userId);
+      householdItemDepService.createDep(db, hiId, {
+        predecessorType: 'work_item',
+        predecessorId: wiId,
+      });
+      const snapshot = householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId);
+      expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(0);
+
+      restore(snapshot);
+
+      expect(householdItemDepService.listDeps(db, hiId).map((d) => d.predecessorId)).toEqual([
+        wiId,
+      ]);
+    });
+
+    it('re-inserts a milestone dependency', () => {
+      const userId = insertUser(db);
+      const hiId = insertHouseholdItem(db);
+      const milestoneId = insertMilestone(db, userId);
+      householdItemDepService.createDep(db, hiId, {
+        predecessorType: 'milestone',
+        predecessorId: String(milestoneId),
+      });
+      const snapshot = householdItemDepService.deleteDepWithSnapshot(
+        db,
+        hiId,
+        'milestone',
+        String(milestoneId),
+      );
+
+      restore(snapshot);
+
+      expect(householdItemDepService.listDeps(db, hiId)).toHaveLength(1);
+    });
+
+    it.each([
+      ['household item', 'item'],
+      ['work item predecessor', 'wi'],
+      ['milestone predecessor', 'ms'],
+      ['dependency that exists again', 'again'],
+    ])('refuses with a ConflictError for a %s change', (_label, what) => {
+      const userId = insertUser(db);
+      const hiId = insertHouseholdItem(db);
+      const wiId = insertWorkItem(db, userId);
+      const milestoneId = insertMilestone(db, userId);
+      householdItemDepService.createDep(db, hiId, {
+        predecessorType: 'work_item',
+        predecessorId: wiId,
+      });
+      householdItemDepService.createDep(db, hiId, {
+        predecessorType: 'milestone',
+        predecessorId: String(milestoneId),
+      });
+      const wiSnapshot = householdItemDepService.deleteDepWithSnapshot(db, hiId, 'work_item', wiId);
+      const msSnapshot = householdItemDepService.deleteDepWithSnapshot(
+        db,
+        hiId,
+        'milestone',
+        String(milestoneId),
+      );
+      let snapshot = wiSnapshot;
+      if (what === 'item') {
+        db.delete(schema.householdItems).run();
+      } else if (what === 'wi') {
+        db.delete(schema.workItems).run();
+      } else if (what === 'ms') {
+        db.delete(schema.milestones).run();
+        snapshot = msSnapshot;
+      } else {
+        db.insert(schema.householdItemDeps).values(wiSnapshot.row).run();
+      }
+
+      let error: unknown;
+      try {
+        restore(snapshot);
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({
+        changed: [{ type: 'household_item', id: hiId }],
+      });
     });
   });
 });

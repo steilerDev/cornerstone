@@ -261,6 +261,7 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
   searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendorById: jest.fn(),
+  fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),

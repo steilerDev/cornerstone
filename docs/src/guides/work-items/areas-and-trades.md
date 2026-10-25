@@ -32,7 +32,9 @@ Areas can be nested to any depth. A parent area implicitly includes all its chil
 
 ### Assigning Areas
 
-When creating or editing a work item or household item, select an area from the area picker. The picker is hierarchy-aware: each option is indented to reflect its depth in the tree, and the **full ancestor path** (e.g. *Ground Floor › Kitchen*) is shown beneath the area name. This makes it easy to disambiguate rooms that share a name on different floors. Once you pick an area, the picker collapses to show just the concise area name.
+When creating or editing a work item or household item, type in the **Area** field to search. Each result shows the **full path**, such as *Ground floor › Kitchen*, so rooms that share a name on different floors are easy to tell apart. The field then shows the same path for the area you picked.
+
+If no area matches what you typed, choose **New area ‹text›**. The New area form opens with your text as the name, and the new area is selected when you save it.
 
 ### Area Breadcrumbs Everywhere
 
@@ -70,9 +72,11 @@ Trades are managed on the **Companies** page. Open the **Trades** list there (**
 - **Color** -- Pick from a color palette for visual identification
 - **Description** -- Optional details about the trade
 
+You can also create a trade from a company's **Trade** field. Type the name and choose **New trade ‹text›**. A small dialog asks only for the name, and the new trade is selected once you save it.
+
 ### Linking Vendors to Trades
 
-Each vendor can be assigned a trade to indicate their specialty. When creating or editing a vendor, select a trade from the dropdown. This makes it easy to see which vendors cover which types of work.
+Each vendor can be assigned a trade to indicate their specialty. When creating or editing a vendor, type in the **Trade** field to search for one. This makes it easy to see which vendors cover which types of work.
 
 ## Managing Areas & Trades
 

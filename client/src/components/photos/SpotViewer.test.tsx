@@ -32,21 +32,24 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: () => ({ ...areasState }),
 }));
 
-// Stand-in pickers: the viewer tests only need the editor to open and a value to change.
-jest.unstable_mockModule('../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: { id?: string; value: string; onChange: (id: string) => void }) => (
-    <div data-value={props.value}>
-      <input id={props.id} aria-label="area input" readOnly />
-      <button type="button" onClick={() => props.onChange('')}>
-        clear area
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: { id?: string; value: string }) => (
-    <input id={props.id} aria-label="orientation input" readOnly data-value={props.value} />
-  ),
+// Stand-in EntityPicker: the viewer tests only need the editor to open and a value to change.
+jest.unstable_mockModule('../EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: {
+    kind: 'area' | 'orientation';
+    id?: string;
+    value: string;
+    onChange: (id: string, option: null) => void;
+  }) =>
+    props.kind === 'area' ? (
+      <div data-value={props.value}>
+        <input id={props.id} aria-label="area input" readOnly />
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear area
+        </button>
+      </div>
+    ) : (
+      <input id={props.id} aria-label="orientation input" readOnly data-value={props.value} />
+    ),
 }));
 
 let SpotViewer: typeof SpotViewerType;

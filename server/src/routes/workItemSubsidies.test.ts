@@ -562,7 +562,7 @@ describe('Work Item Subsidy Routes', () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it('returns 204 on successful unlink', async () => {
+    it('returns 200 with an undo token on successful unlink', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -586,7 +586,7 @@ describe('Work Item Subsidy Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
     });
 
     it('subsidy is no longer listed after unlink', async () => {

@@ -2,8 +2,8 @@
  * E2E tests for the photo lightbox picker hierarchy feature (Issue #1723).
  *
  * What this covers:
- * 1. Nested area option rows show em-dash-prefixed label AND ancestor-path secondary line.
- *    Top-level areas show NO secondary line.
+ * 1. Nested area option rows show the full path (#2236): muted ancestors, then the last level;
+ *    the accessible name joins the levels with ", ". Top-level areas show no ancestors.
  * 2. Searching by parent name returns the parent AND all descendants.
  * 3. Searching a shared leaf name (same name on two floors) returns two results,
  *    each disambiguated by a DIFFERENT secondary line (ancestor path showing floor).
@@ -92,11 +92,11 @@ async function openPhotoViewer(page: Page, draftId: string, photoId: string): Pr
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Area picker hierarchy display — indented label + ancestor-path secondary (Scenario 1)',
+  'Area picker hierarchy display — full path with muted ancestors (Scenario 1)',
   { tag: '@responsive' },
   () => {
     test(
-      '[smoke] Nested area shows em-dash-prefixed label and ancestor-path secondary; top-level shows no secondary',
+      '[smoke] Nested area shows its full path with muted ancestors; top-level shows no ancestors',
       { tag: '@smoke' },
       async ({ page, testPrefix }) => {
         // Seed a two-level area tree: Floor → Room
@@ -138,23 +138,21 @@ test.describe(
             'Top-level area should have no ancestor-path secondary line',
           ).toBeNull();
 
-          // Find the room option (depth=1 → rendered with em-dash prefix "— RoomName")
-          const roomOption = options.find((o) => o.label.includes(roomName));
-          expect(
-            roomOption,
-            `Room option containing "${roomName}" should be in the dropdown`,
-          ).toBeTruthy();
-          // Em-dash prefix: label starts with "— " (one em-dash + space, repeated depth times)
-          expect(
-            roomOption!.label,
-            'Nested area label should start with em-dash indent prefix',
-          ).toMatch(/^—\s+/);
-          // Secondary line: ancestor path showing the floor name
+          // Find the room option (depth=1): its last level is the room, the floor is the muted
+          // ancestor above it (the EntityPicker path, #2236)
+          const roomOption = options.find((o) => o.label === roomName);
+          expect(roomOption, `Room option "${roomName}" should be in the dropdown`).toBeTruthy();
           expect(
             roomOption!.secondary,
-            'Nested area should show ancestor-path secondary line (floor name)',
-          ).toBeTruthy();
-          expect(roomOption!.secondary).toContain(floorName);
+            'Nested area should show its ancestor path (the floor name)',
+          ).toBe(floorName);
+          // The accessible name is the path levels joined with commas
+          await expect(
+            viewer.pickerDropdown.getByRole('option', {
+              name: `${floorName}, ${roomName}`,
+              exact: true,
+            }),
+          ).toBeVisible();
         } finally {
           if (photoId) await page.request.delete(`/api/photos/${photoId}`).catch(() => {});
           if (draftId) await deleteDiaryEntryViaApi(page, draftId);
@@ -174,10 +172,59 @@ test.describe(
   'Area picker hierarchy-aware search — parent search returns descendants (Scenario 2)',
   { tag: '@responsive' },
   () => {
-    test('Searching a parent name returns the parent AND all its descendants', async ({
+    test('Searching a parent name returns the parent (server area search, #2236)', async ({
       page,
       testPrefix,
     }) => {
+      // Seed: Floor2 → Room2A, Room2B
+      const floorName = `${testPrefix} SearchFloor`;
+      const room2aName = `${testPrefix} SearchRoom2A`;
+      const room2bName = `${testPrefix} SearchRoom2B`;
+      let floorId = '';
+      let room2aId = '';
+      let room2bId = '';
+      let draftId: string | null = null;
+      let photoId: string | null = null;
+
+      try {
+        floorId = await createAreaViaApi(page, { name: floorName });
+        room2aId = await createAreaViaApi(page, { name: room2aName, parentId: floorId });
+        room2bId = await createAreaViaApi(page, { name: room2bName, parentId: floorId });
+
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        photoId = await uploadPhotoViaApi(page, draftId, `hier-s2-${testPrefix}.png`);
+        if (!photoId) {
+          test.skip();
+          return;
+        }
+
+        await openPhotoViewer(page, draftId, photoId);
+        const viewer = new PhotoViewerPage(page);
+        await viewer.openTagsEditor();
+
+        // Open area picker and search by part of the floor name
+        await viewer.openAreaPicker();
+        // Use "SearchFloor" as the search term — matches the floor name
+        await viewer.searchAreaPicker('SearchFloor');
+
+        const options = await viewer.getDropdownOptions();
+        const labels = options.map((o) => o.label);
+
+        // Floor must be present
+        expect(
+          labels.some((l) => l.includes(floorName)),
+          `Search results must include the floor "${floorName}"`,
+        ).toBe(true);
+      } finally {
+        if (photoId) await page.request.delete(`/api/photos/${photoId}`).catch(() => {});
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        if (room2aId) await deleteAreaViaApi(page, room2aId);
+        if (room2bId) await deleteAreaViaApi(page, room2bId);
+        if (floorId) await deleteAreaViaApi(page, floorId);
+      }
+    });
+
+    test('Searching a parent name also returns its descendants', async ({ page, testPrefix }) => {
       // Seed: Floor2 → Room2A, Room2B
       const floorName = `${testPrefix} SearchFloor`;
       const room2aName = `${testPrefix} SearchRoom2A`;

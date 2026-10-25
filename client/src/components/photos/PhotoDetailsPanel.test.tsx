@@ -36,69 +36,65 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: () => ({ ...areasState }),
 }));
 
-// Pickers: expose value / nullable and let tests change the value.
-jest.unstable_mockModule('../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: {
-    id?: string;
-    value: string;
-    nullable?: boolean;
-    disabled?: boolean;
-    autoFocus?: boolean;
-    onChange: (id: string) => void;
-  }) => (
-    <div
-      data-testid="area-picker"
-      data-value={props.value}
-      data-nullable={String(props.nullable)}
-      data-autofocus={String(Boolean(props.autoFocus))}
-    >
-      {props.value !== '' ? (
-        <button type="button" data-testid="area-chip-clear" aria-label="Clear Area">
-          chip
+// Pickers: one EntityPicker mock per kind; expose value / noneLabel and let tests change the value.
+type MockPickerProps = {
+  kind: 'area' | 'orientation';
+  id?: string;
+  value: string;
+  noneLabel?: string;
+  selectedLabel?: string;
+  disabled?: boolean;
+  autoFocus?: boolean;
+  onChange: (id: string, option: null) => void;
+};
+jest.unstable_mockModule('../EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: MockPickerProps) =>
+    props.kind === 'area' ? (
+      <div
+        data-testid="area-picker"
+        data-value={props.value}
+        data-nullable={String(props.noneLabel !== undefined)}
+        data-none-label={props.noneLabel ?? ''}
+        data-autofocus={String(Boolean(props.autoFocus))}
+      >
+        {props.value !== '' ? (
+          <button type="button" data-testid="area-chip-clear" aria-label="Clear Area">
+            chip
+          </button>
+        ) : null}
+        <input
+          id={props.id}
+          aria-label="area input"
+          disabled={props.disabled}
+          readOnly
+          onKeyDown={(e) => {
+            // an open picker consumes Escape (closes its list)
+            if (e.key === 'Escape' && e.currentTarget.dataset.open === 'true') e.preventDefault();
+          }}
+          data-testid="area-input"
+        />
+        <button type="button" onClick={() => props.onChange('area-2', null)}>
+          pick area
         </button>
-      ) : null}
-      <input
-        id={props.id}
-        aria-label="area input"
-        disabled={props.disabled}
-        readOnly
-        onKeyDown={(e) => {
-          // an open picker consumes Escape (closes its list)
-          if (e.key === 'Escape' && e.currentTarget.dataset.open === 'true') e.preventDefault();
-        }}
-        data-testid="area-input"
-      />
-      <button type="button" onClick={() => props.onChange('area-2')}>
-        pick area
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear area
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: {
-    id?: string;
-    value: string;
-    initialOrientationName?: string;
-    nullable?: boolean;
-    disabled?: boolean;
-    onChange: (id: string) => void;
-  }) => (
-    <div
-      data-testid="orientation-picker"
-      data-value={props.value}
-      data-name={props.initialOrientationName ?? ''}
-    >
-      <button type="button" onClick={() => props.onChange('ori-2')}>
-        pick orientation
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear orientation
-      </button>
-    </div>
-  ),
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear area
+        </button>
+      </div>
+    ) : (
+      <div
+        data-testid="orientation-picker"
+        data-value={props.value}
+        data-name={props.selectedLabel ?? ''}
+        data-none-label={props.noneLabel ?? ''}
+      >
+        <button type="button" onClick={() => props.onChange('ori-2', null)}>
+          pick orientation
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear orientation
+        </button>
+      </div>
+    ),
 }));
 
 let PhotoDetailsPanel: typeof PanelType;
@@ -398,6 +394,11 @@ describe('PhotoDetailsPanel editor', () => {
     expect(screen.queryByTestId('photo-details-edit-tags')).not.toBeInTheDocument();
     expect(screen.getByTestId('area-picker')).toHaveAttribute('data-value', 'kitchen');
     expect(screen.getByTestId('area-picker')).toHaveAttribute('data-nullable', 'true');
+    expect(screen.getByTestId('area-picker')).toHaveAttribute('data-none-label', 'No area');
+    expect(screen.getByTestId('orientation-picker')).toHaveAttribute(
+      'data-none-label',
+      'No orientation',
+    );
     expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-value', 'o1');
     expect(screen.getByTestId('orientation-picker')).toHaveAttribute('data-name', 'Ceiling');
     expect(screen.getByLabelText('Caption')).toHaveValue('Fresh plaster');

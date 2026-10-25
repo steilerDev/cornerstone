@@ -4,7 +4,7 @@
  * - AC5 defaults (unit pricing, Entered as Net, live Gross line) and Add another;
  * - AC2 Basis: a select for an Estimate, read-only with its reason once the line is linked;
  * - editing a linked line updates what is left on the offer; moving a line to another task;
- * - Link to offer or invoice from a task; Unlink and Remove from invoice ask first (ConfirmDialog);
+ * - Link to offer or invoice from a task; Unlink and Remove from invoice act at once with an Undo toast;
  * - Delete asks first; a linked line offers no Delete;
  * - dark mode: the form stays legible.
  *
@@ -354,7 +354,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     await expect(panel.notYetSplit()).toHaveText('Not yet split · €600.00');
   });
 
-  test('Unlink asks first; confirming turns the line back into an Estimate', async ({
+  test('Unlink acts at once with Undo; the line turns back into an Estimate', async ({
     page,
     testPrefix,
   }) => {
@@ -379,24 +379,17 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     await page.goto(routeUrl('workItem', { id: taskId }));
     await panel.waitForLoaded();
 
-    // Cancel leaves the line linked
+    // Unlink acts at once: no dialog, an Undo toast, the line stays as an estimate
     await panel.chooseAction(panel.row(`${testPrefix} Linked`), 'Unlink');
-    await panel.unlinkDialog.waitForOpen();
-    await expect(panel.unlinkDialog.dialog).toContainText(`Unlink ${testPrefix} Linked from`);
-    await expect(panel.unlinkDialog.dialog).toContainText('The line stays here as an estimate.');
-    await panel.unlinkDialog.cancel();
-    await expect(panel.unlinkDialog.dialog).toBeHidden();
-    await expect(panel.stateChip(panel.row(`${testPrefix} Linked`))).toHaveText('Offered');
-
-    // Confirm unlinks it
-    await panel.chooseAction(panel.row(`${testPrefix} Linked`), 'Unlink');
-    await panel.unlinkDialog.waitForOpen();
-    await panel.unlinkDialog.confirmAndWaitClosed();
+    await expect(panel.deleteDialog.dialog).toBeHidden();
+    await expect(
+      panel.toasts.undoToastWith(`${testPrefix} Linked unlinked from Offer`),
+    ).toBeVisible();
     await expect(panel.stateChip(panel.row(`${testPrefix} Linked`))).toHaveText('Estimate');
     await expect(panel.groupHeading(`Offer ${testPrefix}-OFFER`)).toHaveCount(0);
   });
 
-  test('Remove from invoice asks first; the line stays on its task as an estimate', async ({
+  test('Remove from invoice acts at once with Undo; the line stays on its task as an estimate', async ({
     page,
     testPrefix,
   }) => {
@@ -421,16 +414,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} Removable`), 'Remove from invoice');
-    await panel.removeDialog.waitForOpen();
-    await expect(panel.removeDialog.dialog).toContainText(`Remove ${testPrefix} Removable from`);
-    await expect(panel.removeDialog.dialog).toContainText('stays on');
-    await panel.removeDialog.cancel();
-    await expect(panel.removeDialog.dialog).toBeHidden();
-    await expect(panel.row(`${testPrefix} Removable`)).toBeVisible();
-
-    await panel.chooseAction(panel.row(`${testPrefix} Removable`), 'Remove from invoice');
-    await panel.removeDialog.waitForOpen();
-    await panel.removeDialog.confirmAndWaitClosed();
+    await expect(panel.toasts.undoToastWith(`${testPrefix} Removable removed from`)).toBeVisible();
     await expect(panel.row(`${testPrefix} Removable`)).toHaveCount(0);
 
     await page.goto(routeUrl('workItem', { id: taskId }));

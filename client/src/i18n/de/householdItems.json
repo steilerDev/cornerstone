@@ -244,6 +244,8 @@
       "actualDelivery": "Tatsächliche Lieferung",
       "earliestDelivery": "Früheste Lieferung",
       "latestDelivery": "Späteste Lieferung",
+      "actualDeliveryAria": "Tatsächliche Lieferung: {{actual}}, Ziel war {{target}}",
+      "targetNotSet": "nicht festgelegt",
       "clearOrderDate": "Bestelldatum löschen",
       "clearActualDelivery": "Tatsächliches Lieferdatum löschen",
       "clearEarliestDelivery": "Frühestes Lieferdatum löschen",

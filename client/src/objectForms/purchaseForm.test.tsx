@@ -2,7 +2,15 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ApiClientError } from '../lib/apiClient.js';
@@ -43,38 +51,10 @@ jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
 }));
 
 const AREAS = [
-  { id: 'a1', name: 'Kitchen', parentId: null, color: null },
+  { id: 'a1', name: 'Kitchen', parentId: null, color: null, sortOrder: 0 },
 ] as unknown as UseAreasResult['areas'];
 const mockUseAreas = jest.fn<() => UseAreasResult>();
 jest.unstable_mockModule('../hooks/useAreas.js', () => ({ useAreas: mockUseAreas }));
-
-jest.unstable_mockModule('../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
-    areas,
-    value,
-    onChange,
-    id,
-  }: {
-    areas: Array<{ id: string; name: string }>;
-    value: string;
-    onChange: (id: string) => void;
-    id?: string;
-  }) => (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label="Area picker"
-    >
-      <option value="">None</option>
-      {areas.map((a) => (
-        <option key={a.id} value={a.id}>
-          {a.name}
-        </option>
-      ))}
-    </select>
-  ),
-}));
 
 const CREATED = { id: 'hi-1' } as unknown as Awaited<
   ReturnType<typeof HouseholdItemsApiTypes.createHouseholdItem>
@@ -107,8 +87,8 @@ describe('purchaseForm (ObjectForm schema)', () => {
     } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.fetchVendors>>);
     mockFetchCategories.mockResolvedValue({
       categories: [
-        { id: 'hic-furniture', name: 'Furniture' },
-        { id: 'hic-lighting', name: 'Lighting' },
+        { id: 'hic-furniture', name: 'Furniture', translationKey: null },
+        { id: 'hic-lighting', name: 'Lighting', translationKey: 'householdItemCategories.other' },
       ],
     } as unknown as Awaited<ReturnType<typeof CategoriesApiTypes.fetchHouseholdItemCategories>>);
     media = installMatchMedia({ '(min-width: 768px)': true });
@@ -158,10 +138,13 @@ describe('purchaseForm (ObjectForm schema)', () => {
   it('shows the essentials and keeps the delivery details under More details', async () => {
     renderForm();
     await name();
-    for (const label of [/^name/i, /category/i, /purchase status/i, /quantity/i, /vendor/i]) {
+    for (const label of [/^name/i, /purchase status/i, /quantity/i, /vendor/i]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    expect(screen.getByLabelText('Area picker')).toBeInTheDocument();
+    // Category is an EntityPicker custom field: the first category is preselected as a chip.
+    expect(await screen.findByText('Furniture')).toBeInTheDocument();
+    // Area is an EntityPicker (kind area): its input is labelled by the field label.
+    expect(screen.getByLabelText(/^area/i)).toHaveAttribute('placeholder', 'Select an area');
     const more = screen.getByTestId('object-form-more');
     expect(more).toHaveAttribute('aria-expanded', 'false');
     const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
@@ -196,24 +179,31 @@ describe('purchaseForm (ObjectForm schema)', () => {
   });
 
   it('marks name, category as required', async () => {
-    renderForm();
-    await name();
-    expect(screen.getByLabelText(/^name/i)).toHaveAttribute('aria-required', 'true');
-    expect(screen.getByLabelText(/category/i)).toHaveAttribute('aria-required', 'true');
-  });
-
-  it('offers the categories (placeholder first) and searches companies as you type', async () => {
     const user = userEvent.setup();
     renderForm();
     await name();
-    await waitFor(() =>
-      expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe('hic-furniture'),
-    );
-    const category = screen.getByLabelText(/category/i) as HTMLSelectElement;
-    expect(Array.from(category.options).map((o) => o.value)).toEqual([
-      '',
-      'hic-furniture',
-      'hic-lighting',
+    expect(screen.getByLabelText(/^name/i)).toHaveAttribute('aria-required', 'true');
+    // The category chip has no input; clearing it brings the required input back.
+    await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+    expect(await screen.findByLabelText(/category/i)).toHaveAttribute('aria-required', 'true');
+  });
+
+  it('offers the categories with their display names and searches companies as you type', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await name();
+    await screen.findByText('Furniture');
+    await user.click(screen.getAllByRole('button', { name: 'Clear selection' })[0]!);
+    await user.click(await screen.findByLabelText(/category/i));
+    const list = await screen.findByRole('listbox');
+    expect(
+      within(list)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual([
+      'Furniture',
+      // A built-in category shows its translated name, not the stored one.
+      'Other',
     ]);
 
     // The company is a text picker now: no <select>, the list loads from the search.
@@ -243,9 +233,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
 
   it('defaults the category to the first option and the form stays clean', async () => {
     renderForm();
-    await waitFor(() =>
-      expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe('hic-furniture'),
-    );
+    expect(await screen.findByText('Furniture')).toBeInTheDocument();
     await userEvent.setup().keyboard('{Escape}');
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
@@ -254,18 +242,16 @@ describe('purchaseForm (ObjectForm schema)', () => {
     it('pre-selects a known area and company, showing the company name', async () => {
       renderForm('?areaId=a1&companyId=v1');
       expect(await screen.findByText('Acme Supply')).toBeInTheDocument();
-      expect((screen.getByLabelText('Area picker') as HTMLSelectElement).value).toBe('a1');
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+      expect(
+        screen.getAllByRole('button', { name: 'Clear selection' }).length,
+      ).toBeGreaterThanOrEqual(2);
     });
 
     async function submitNamed(user: ReturnType<typeof userEvent.setup>) {
       mockCreateHouseholdItem.mockResolvedValue(CREATED);
       await name();
-      await waitFor(() =>
-        expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe(
-          'hic-furniture',
-        ),
-      );
+      await screen.findByText('Furniture');
       await user.type(screen.getByLabelText(/^name/i), 'Chair');
       await user.click(save());
       await waitFor(() => expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1));
@@ -475,15 +461,12 @@ describe('purchaseForm (ObjectForm schema)', () => {
       const user = userEvent.setup();
       renderForm();
       await name();
-      await waitFor(() =>
-        expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe(
-          'hic-furniture',
-        ),
-      );
+      await screen.findByText('Furniture');
       await user.type(screen.getByLabelText(/^name/i), 'Sofa');
-      fireEvent.change(screen.getByLabelText(/category/i), { target: { value: '' } });
+      await user.click(screen.getAllByRole('button', { name: 'Clear selection' })[0]!);
       await user.click(save());
       expect(await screen.findByText('Category is required')).toBeInTheDocument();
+      expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
     });
 
     it('rejects a quantity below 1', async () => {
@@ -622,6 +605,100 @@ describe('purchaseForm (ObjectForm schema)', () => {
     });
   });
 
+  describe('schema (called directly)', () => {
+    const schema = async () => {
+      const view = renderHook(() => Form.usePurchaseFormSchema(), { wrapper: MemoryRouter });
+      await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled());
+      return view.result;
+    };
+
+    it('reports every missing required field for an empty value set', async () => {
+      const result = await schema();
+
+      expect(result.current.validate({})).toEqual({
+        name: 'Name is required',
+        category: 'Category is required',
+        quantity: 'Quantity must be at least 1',
+      });
+    });
+
+    it('submits the minimal value set with every optional field normalised to null or undefined', async () => {
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      const result = await schema();
+
+      const outcome = await result.current.submit({
+        name: ' Lamp ',
+        category: 'hic-lighting',
+        status: 'planned',
+        quantity: '2',
+      });
+
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith({
+        name: 'Lamp',
+        description: null,
+        category: 'hic-lighting',
+        status: 'planned',
+        quantity: 2,
+        areaId: null,
+        vendorId: null,
+        url: null,
+        orderDate: null,
+        earliestDeliveryDate: undefined,
+        latestDeliveryDate: undefined,
+        actualDeliveryDate: null,
+      });
+      expect(outcome).toEqual({
+        id: 'hi-1',
+        href: '/project/household-items/hi-1',
+        label: 'Lamp',
+      });
+    });
+
+    it.each(['category', 'vendorId'])(
+      'renders the %s picker empty when its value is not text',
+      async (field) => {
+        const result = await schema();
+        const definition = result.current.fields.find((f) => f.name === field);
+        if (definition?.kind !== 'custom' || !definition.render) {
+          throw new Error('expected a custom field');
+        }
+
+        render(
+          <MemoryRouter>
+            {definition.render({
+              id: field,
+              value: undefined,
+              setValue: jest.fn(),
+              busy: false,
+              invalid: false,
+              describedBy: undefined,
+              createChild: jest.fn(),
+              values: {},
+            })}
+          </MemoryRouter>,
+        );
+
+        expect(screen.getByRole('textbox')).toHaveValue('');
+      },
+    );
+
+    it('accepts equal delivery dates and an in-order delivery window', async () => {
+      const result = await schema();
+
+      expect(
+        result.current.validate({
+          name: 'Lamp',
+          category: 'c',
+          quantity: '1',
+          orderDate: '2026-03-01',
+          actualDeliveryDate: '2026-03-01',
+          earliestDeliveryDate: '2026-03-02',
+          latestDeliveryDate: '2026-03-02',
+        }),
+      ).toEqual({});
+    });
+  });
+
   describe('data loading failure', () => {
     it('shows no notice when the data loads', async () => {
       renderForm();
@@ -643,6 +720,51 @@ describe('purchaseForm (ObjectForm schema)', () => {
         rejectVendors(new Error('late'));
       });
       expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
+    });
+
+    it('ignores a late success after unmount (no state update, nothing logged)', async () => {
+      let resolveVendors!: (value: never) => void;
+      mockFetchVendors.mockReturnValue(new Promise((resolve) => (resolveVendors = resolve)));
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { unmount } = renderForm();
+      unmount();
+
+      await act(async () => {
+        resolveVendors({ vendors: [], pagination: {} } as never);
+      });
+
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    it('ignores a late company lookup after unmount', async () => {
+      let resolveVendor!: (value: never) => void;
+      mockFetchVendor.mockReturnValue(new Promise((resolve) => (resolveVendor = resolve)));
+      const { unmount } = renderForm('?companyId=v-far');
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-far'));
+      unmount();
+
+      await act(async () => {
+        resolveVendor({ id: 'v-far', name: 'Far Away Co' } as never);
+      });
+
+      expect(screen.queryByText('Far Away Co')).toBeNull();
+    });
+
+    it('ignores a late company lookup failure after unmount', async () => {
+      let rejectVendor!: (error: Error) => void;
+      mockFetchVendor.mockReturnValue(new Promise((_r, reject) => (rejectVendor = reject)));
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { unmount } = renderForm('?companyId=v-far');
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalled());
+      unmount();
+
+      await act(async () => {
+        rejectVendor(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
+      });
+
+      expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
     });
 

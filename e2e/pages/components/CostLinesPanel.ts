@@ -7,13 +7,15 @@
  * the record id (`cost-lines-row-<id>`, cards `cost-lines-row-mobile-<id>`), so rows are found by
  * their text.
  *
- * - header: h2 "Cost lines" inside `cost-lines-section`, the secondary buttons "Add cost line"
+ * - header: h2 "Cost lines (n)" inside `cost-lines-section`, the secondary buttons "Add cost line"
  *   (`cost-lines-add`) and "Add lines (grid)" (`cost-lines-add-grid`);
  * - a row: State chip (`cost-lines-state-<id>`), description + muted facts, "qty unit × price",
  *   gross (`cost-lines-gross-<id>`; item pages add the ⓘ net tip button), ⋯ "Actions for <name>";
  * - groups (item pages): "Estimates" and one heading per offer/invoice; totals `cost-lines-total`;
  * - document pages: "Not yet split · €x" (`cost-lines-not-yet-split`) with Split (`cost-lines-split`)
  *   or "Lines are €x over" (`cost-lines-over`);
+ * - Unlink and Remove from offer or invoice act at once (no dialog) and show an Undo toast; Delete
+ *   still opens the ConfirmDialog (`deleteDialog`);
  * - the ⋯ menu is portalled to the body (role `menuitem`): Edit, Duplicate, Delete, Link to offer or
  *   invoice, Unlink, Remove from offer or invoice (by page), Assign.
  */
@@ -21,6 +23,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { ConfirmDialogControl } from './ConfirmDialogControl.js';
+import { ToastRegion } from './ToastRegion.js';
 
 export type CostLineAction =
   | 'Edit'
@@ -45,22 +48,22 @@ export class CostLinesPanel {
   readonly status: Locator;
   readonly emptyTitle: Locator;
   readonly deleteDialog: ConfirmDialogControl;
-  readonly unlinkDialog: ConfirmDialogControl;
-  readonly removeDialog: ConfirmDialogControl;
+  /** The Undo toast region (Unlink and Remove act at once and offer Undo, #2236). */
+  readonly toasts: ToastRegion;
 
   constructor(page: Page, prefix = 'cost-lines') {
     this.page = page;
     this.prefix = prefix;
     this.section = page.getByTestId(`${prefix}-section`);
-    this.heading = this.section.getByRole('heading', { name: 'Cost lines', exact: true });
+    // "Cost lines (n)": the count follows the title (#2236)
+    this.heading = this.section.getByRole('heading', { name: /^Cost lines( \(\d+\))?$/ });
     this.root = page.getByTestId(prefix);
     this.addButton = page.getByTestId(`${prefix}-add`);
     this.addGridButton = page.getByTestId(`${prefix}-add-grid`);
     this.status = page.getByTestId(`${prefix}-status`);
     this.emptyTitle = this.section.getByText('There are no cost lines yet', { exact: true });
     this.deleteDialog = new ConfirmDialogControl(page, 'cost-line-delete');
-    this.unlinkDialog = new ConfirmDialogControl(page, 'cost-line-unlink');
-    this.removeDialog = new ConfirmDialogControl(page, 'cost-line-remove');
+    this.toasts = new ToastRegion(page);
   }
 
   /** The section is rendered and past its loading skeleton (a table or the empty state). */
@@ -106,6 +109,12 @@ export class CostLinesPanel {
 
   menuItem(label: CostLineAction): Locator {
     return this.page.getByRole('menuitem', { name: label, exact: true });
+  }
+
+  /** The count shown in the h2 "Cost lines (n)". */
+  async headingCount(): Promise<number> {
+    const text = (await this.heading.textContent()) ?? '';
+    return Number(/\((\d+)\)/.exec(text)?.[1] ?? NaN);
   }
 
   /** Open a row's ⋯ menu and choose an action. */

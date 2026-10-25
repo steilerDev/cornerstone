@@ -1,4 +1,5 @@
 import { get, post, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type { WorkItemMilestones } from '@cornerstone/shared';
 
 /**
@@ -21,8 +22,13 @@ export function addRequiredMilestone(workItemId: string, milestoneId: number): P
 /**
  * Removes a required milestone dependency from a work item.
  */
-export function removeRequiredMilestone(workItemId: string, milestoneId: number): Promise<void> {
-  return del<void>(`/work-items/${workItemId}/milestones/required/${milestoneId}`);
+export function removeRequiredMilestone(
+  workItemId: string,
+  milestoneId: number,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(
+    `/work-items/${workItemId}/milestones/required/${milestoneId}`,
+  );
 }
 
 /**
@@ -35,6 +41,9 @@ export function addLinkedMilestone(workItemId: string, milestoneId: number): Pro
 /**
  * Unlinks a milestone from a work item.
  */
-export function removeLinkedMilestone(workItemId: string, milestoneId: number): Promise<void> {
-  return del<void>(`/work-items/${workItemId}/milestones/linked/${milestoneId}`);
+export function removeLinkedMilestone(
+  workItemId: string,
+  milestoneId: number,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/work-items/${workItemId}/milestones/linked/${milestoneId}`);
 }

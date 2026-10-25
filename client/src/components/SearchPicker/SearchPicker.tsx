@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useId } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -62,7 +62,14 @@ export interface SearchPickerProps<T> {
   renderItem: (item: T) => { id: string; label: string };
   renderSecondary?: (item: T) => ReactNode;
   renderSelectedLabel?: (item: T) => string;
-  getStatusBorderColor?: (item: T) => string | undefined;
+  /** Results render in groups, in order of first appearance (e.g. Who: Companies, Household members). */
+  groupBy?: (item: T) => { readonly id: string; readonly label: string };
+  /** Replaces the visible title text of a result option (e.g. an area path). */
+  renderOptionLabel?: (item: T) => ReactNode;
+  /** aria-label of a result option, when its visible text does not read well (area paths). */
+  getOptionAriaLabel?: (item: T) => string;
+  /** Muted text after the selected title (Who: "Company" / "Household member"); null = initialTitle mode. */
+  getSelectedSuffix?: (item: T | null) => string | undefined;
   specialOptions?: SpecialOption[];
   showItemsOnFocus?: boolean;
   initialTitle?: string;
@@ -100,7 +107,10 @@ export function SearchPicker<T>({
   renderItem,
   renderSecondary,
   renderSelectedLabel,
-  getStatusBorderColor,
+  groupBy,
+  renderOptionLabel,
+  getOptionAriaLabel,
+  getSelectedSuffix,
   specialOptions,
   showItemsOnFocus,
   initialTitle,
@@ -126,6 +136,9 @@ export function SearchPicker<T>({
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // True from typing until the search for the current text answers: the list still shows the
+  // answer to an older query, so a "New ‹text›" row computed from it would be stale.
+  const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
   // Track whether the user has explicitly cleared an initialTitle-based selection
@@ -140,6 +153,7 @@ export function SearchPicker<T>({
       ? (specialOptions.find((opt) => opt.id === value) ?? null)
       : null;
 
+  const groupBaseId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
@@ -160,6 +174,8 @@ export function SearchPicker<T>({
     }
   }, [autoFocus]);
   const searchControllerRef = useRef<AbortController | null>(null);
+  // Text of the latest keystroke; read only to decide whether a search answer may clear searchPending
+  const typedQueryRef = useRef('');
 
   const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
@@ -189,6 +205,7 @@ export function SearchPicker<T>({
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
+      setSearchPending(false);
       setInitialTitleCleared(false);
     } else {
       if (specialOptions?.some((opt) => opt.id === value)) {
@@ -221,7 +238,10 @@ export function SearchPicker<T>({
       setError(resolvedLoadError);
       setResults([]);
     } finally {
-      if (searchControllerRef.current === controller) setIsLoading(false);
+      if (searchControllerRef.current === controller) {
+        setIsLoading(false);
+        if (typedQueryRef.current.trim() === '') setSearchPending(false);
+      }
     }
   }, [excludeIds, searchFn, resolvedLoadError]);
 
@@ -248,7 +268,10 @@ export function SearchPicker<T>({
         setError(resolvedSearchError);
         setResults([]);
       } finally {
-        if (searchControllerRef.current === controller) setIsLoading(false);
+        if (searchControllerRef.current === controller) {
+          setIsLoading(false);
+          if (query === typedQueryRef.current) setSearchPending(false);
+        }
       }
     },
     [excludeIds, fetchInitialResults, searchFn, resolvedSearchError],
@@ -259,7 +282,21 @@ export function SearchPicker<T>({
   const handleInputChange = (inputValue: string) => {
     setSearchTerm(inputValue);
     setIsOpen(true);
+    typedQueryRef.current = inputValue;
+    setSearchPending(true);
     debouncedSearch.trigger(inputValue);
+  };
+
+  // Opens the closed list. Typed text stays in the input (e.g. after a cancelled inline
+  // create), so the list matches it instead of showing the unfiltered initial list.
+  const openList = () => {
+    if (showItemsOnFocus || specialOptions || createAction) {
+      setIsOpen(true);
+      if (searchTerm.trim()) void performSearch(searchTerm);
+      else void fetchInitialResults();
+    } else if (searchTerm.trim()) {
+      setIsOpen(true);
+    }
   };
 
   const handleFocus = () => {
@@ -267,23 +304,13 @@ export function SearchPicker<T>({
       suppressFocusOpenRef.current = false;
       return;
     }
-    if (showItemsOnFocus || specialOptions || createAction) {
-      setIsOpen(true);
-      fetchInitialResults();
-    } else if (searchTerm.trim()) {
-      setIsOpen(true);
-    }
+    openList();
   };
 
   // A click on the already focused, closed input opens it like focus would (no focus event fires)
   const handleClick = () => {
     if (isOpen) return;
-    if (showItemsOnFocus || specialOptions || createAction) {
-      setIsOpen(true);
-      fetchInitialResults();
-    } else if (searchTerm.trim()) {
-      setIsOpen(true);
-    }
+    openList();
   };
 
   const trimmedTerm = searchTerm.trim();
@@ -292,6 +319,7 @@ export function SearchPicker<T>({
     (createAction.show !== 'noExactMatch' ||
       ((trimmedTerm !== '' || createAction.showWhenEmpty === true) &&
         !isLoading &&
+        !searchPending &&
         !error &&
         !results.some(
           (item) => foldSearchText(renderItem(item).label) === foldSearchText(trimmedTerm),
@@ -321,12 +349,7 @@ export function SearchPicker<T>({
       if (options.length > 0) {
         options[0]!.focus();
       } else if (!isOpen) {
-        if (showItemsOnFocus || specialOptions || createAction) {
-          setIsOpen(true);
-          void fetchInitialResults();
-        } else if (searchTerm.trim()) {
-          setIsOpen(true);
-        }
+        openList();
       }
     } else if (e.key === 'ArrowUp') {
       const options = isOpen ? getOptions() : [];
@@ -382,6 +405,7 @@ export function SearchPicker<T>({
     searchControllerRef.current?.abort();
     searchControllerRef.current = null;
     setIsLoading(false);
+    setSearchPending(false);
   };
 
   const handleSelect = (item: T) => {
@@ -485,6 +509,65 @@ export function SearchPicker<T>({
     [refs],
   );
 
+  const renderOption = (item: T) => {
+    const rendered = renderItem(item);
+    const secondary = renderSecondary?.(item);
+    const trailing = renderTrailing?.(item);
+    const hasSecondary = secondary !== undefined && secondary !== null;
+    const title = renderOptionLabel ? renderOptionLabel(item) : rendered.label;
+    return (
+      <button
+        key={rendered.id}
+        type="button"
+        role="option"
+        aria-selected={false}
+        aria-label={getOptionAriaLabel?.(item)}
+        className={`${styles.resultOption} ${hasSecondary ? styles.resultOptionTwoLine : ''}`}
+        data-testid={getOptionTestId?.(item)}
+        onClick={() => handleSelect(item)}
+      >
+        {hasSecondary ? (
+          <span className={styles.resultContent}>
+            <span className={styles.resultTitle}>{title}</span>
+            <span
+              className={styles.resultSecondary}
+              title={typeof secondary === 'string' ? secondary : undefined}
+            >
+              {secondary}
+            </span>
+          </span>
+        ) : (
+          <span className={styles.resultTitle}>{title}</span>
+        )}
+        {trailing !== undefined && trailing !== null && (
+          <span className={styles.resultTrailing}>{trailing}</span>
+        )}
+      </button>
+    );
+  };
+
+  const renderResults = () => {
+    if (!groupBy) return results.map(renderOption);
+    const groups: { id: string; label: string; items: T[] }[] = [];
+    for (const item of results) {
+      const group = groupBy(item);
+      const existing = groups.find((g) => g.id === group.id);
+      if (existing) existing.items.push(item);
+      else groups.push({ id: group.id, label: group.label, items: [item] });
+    }
+    return groups.map((group) => {
+      const headingId = `${groupBaseId}-${group.id}`;
+      return (
+        <div key={group.id} role="group" aria-labelledby={headingId}>
+          <div id={headingId} className={styles.groupHeading}>
+            {group.label}
+          </div>
+          {group.items.map(renderOption)}
+        </div>
+      );
+    });
+  };
+
   // If a special option is selected, show it in a display similar to selectedItem
   if (selectedSpecial) {
     return (
@@ -510,10 +593,12 @@ export function SearchPicker<T>({
 
   // Show initialTitle when value is pre-populated and not yet changed by the user
   if (initialTitle && value && !initialTitleCleared) {
+    const suffix = getSelectedSuffix?.(null);
     return (
       <div className={styles.container} ref={containerRef}>
         <div className={styles.selectedDisplay}>
           <span className={styles.selectedTitle}>{initialTitle}</span>
+          {suffix && <span className={styles.selectedSuffix}>{suffix}</span>}
           <button
             ref={clearButtonRef}
             type="button"
@@ -530,17 +615,15 @@ export function SearchPicker<T>({
   }
 
   if (selectedItem && value !== '') {
-    const borderColor = getStatusBorderColor?.(selectedItem);
+    const suffix = getSelectedSuffix?.(selectedItem);
     const label = renderSelectedLabel
       ? renderSelectedLabel(selectedItem)
       : renderItem(selectedItem).label;
     return (
       <div className={styles.container} ref={containerRef}>
-        <div
-          className={styles.selectedDisplay}
-          style={borderColor ? { borderLeftColor: borderColor } : undefined}
-        >
+        <div className={styles.selectedDisplay}>
           <span className={styles.selectedTitle}>{label}</span>
+          {suffix && <span className={styles.selectedSuffix}>{suffix}</span>}
           <button
             ref={clearButtonRef}
             type="button"
@@ -611,46 +694,7 @@ export function SearchPicker<T>({
 
             {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
 
-            {!isLoading &&
-              !error &&
-              results.length > 0 &&
-              results.map((item) => {
-                const rendered = renderItem(item);
-                const secondary = renderSecondary?.(item);
-                const trailing = renderTrailing?.(item);
-                return (
-                  <button
-                    key={rendered.id}
-                    type="button"
-                    role="option"
-                    aria-selected={false}
-                    className={`${styles.resultOption} ${
-                      secondary !== undefined && secondary !== null
-                        ? styles.resultOptionTwoLine
-                        : ''
-                    }`}
-                    data-testid={getOptionTestId?.(item)}
-                    onClick={() => handleSelect(item)}
-                  >
-                    {secondary !== undefined && secondary !== null ? (
-                      <span className={styles.resultContent}>
-                        <span className={styles.resultTitle}>{rendered.label}</span>
-                        <span
-                          className={styles.resultSecondary}
-                          title={typeof secondary === 'string' ? secondary : undefined}
-                        >
-                          {secondary}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className={styles.resultTitle}>{rendered.label}</span>
-                    )}
-                    {trailing !== undefined && trailing !== null && (
-                      <span className={styles.resultTrailing}>{trailing}</span>
-                    )}
-                  </button>
-                );
-              })}
+            {!isLoading && !error && results.length > 0 && renderResults()}
 
             {!isLoading &&
               !error &&

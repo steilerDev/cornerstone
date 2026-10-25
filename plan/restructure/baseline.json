@@ -40,13 +40,11 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 105,
+      "count": 102,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
         "AreaLink/AreaLink",
-        "AreaPicker/AreaPicker",
-        "AssignmentPicker/AssignmentPicker",
         "AttentionList/AttentionList",
         "AuthGuard/AuthGuard",
         "AutosaveIndicator/AutosaveIndicator",
@@ -69,6 +67,7 @@
         "DependencySentenceBuilder/DependencySentenceBuilder",
         "DocumentsPanel/DocumentsPanel",
         "EmptyState/EmptyState",
+        "EntityPicker/EntityPicker",
         "FeedRow/FeedRow",
         "FileList/FileList",
         "FilterChipGroup/FilterChipGroup",
@@ -85,11 +84,11 @@
         "ObjectHeader/ObjectHeader",
         "ObjectList/ObjectList",
         "ObjectTabs/ObjectTabs",
-        "OrientationPicker/OrientationPicker",
         "OverflowMenu/OverflowMenu",
         "PageLayout/PageLayout",
         "RapidCamera/RapidCamera",
         "ReferenceList/ReferenceList",
+        "RelatedList/RelatedList",
         "SearchPicker/SearchPicker",
         "SectionCard/SectionCard",
         "SelectionActionBar/SelectionActionBar",
@@ -107,13 +106,11 @@
         "Toast/Toast",
         "Tooltip/Tooltip",
         "TopBar/TopBar",
-        "TradePicker/TradePicker",
         "TradesManager/TradesManager",
         "TreeTable/TreeTable",
         "TriStateCheckbox/TriStateCheckbox",
         "UserMenu/UserMenu",
         "WizardStepper/WizardStepper",
-        "WorkItemPicker/WorkItemPicker",
         "autoItemize/AutoItemizePdfPreview",
         "budget/BudgetCostOverview",
         "budget/SubsidyLinkSection",
@@ -292,15 +289,7 @@
     "windowConfirm": 0,
     "handRolledDialogs": 3
   },
-  "allowedAdditions": {
-    "sharedComponents": [
-      "RelatedList",
-      "MoneyFigure",
-      "ReschedulePanel",
-      "UndoToast",
-      "EntityPicker"
-    ]
-  },
+  "allowedAdditions": { "sharedComponents": ["MoneyFigure", "ReschedulePanel", "UndoToast"] },
   "audited": {
     "createPatterns": {
       "count": 11,

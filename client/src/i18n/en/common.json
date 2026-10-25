@@ -85,8 +85,6 @@
     "selectArea": "Select an area",
     "selectTrade": "Select a trade",
     "selectOrientation": "Select an orientation",
-    "selectAssignment": "Select user or vendor",
-    "unassigned": "Unassigned",
     "mainNavigation": "Main navigation",
     "settingsNavigation": "Settings"
   },
@@ -331,6 +329,52 @@
     "saveHint": "Ctrl+Enter to save",
     "saveHintMac": "⌘+Enter to save",
     "discardLead": "Your changes to {{section}} are not saved."
+  },
+  "entityPicker": {
+    "new": {
+      "area": "New area {{name}}",
+      "orientation": "New orientation {{name}}",
+      "trade": "New trade {{name}}",
+      "category": "New category {{name}}"
+    },
+    "who": {
+      "group": { "company": "Companies", "member": "Household members" },
+      "kind": { "company": "Company", "member": "Household member" }
+    },
+    "placeholder": {
+      "company": "Search companies",
+      "who": "Search companies or household members",
+      "category": "Select a category",
+      "taskOrPurchase": "Search tasks or purchases"
+    },
+    "typeMore": "Type at least 2 letters.",
+    "task": {
+      "placeholder": "Search tasks",
+      "emptyHint": "Type to search tasks",
+      "noResults": "No matching tasks",
+      "loadError": "Tasks could not be loaded.",
+      "searchError": "The search did not work. Try again."
+    },
+    "taskOrPurchase": {
+      "noResults": "No tasks or purchases match.",
+      "kindTask": "Task",
+      "kindPurchase": "Purchase"
+    },
+    "forms": {
+      "tradeTitle": "New trade",
+      "categoryTitle": "New purchase category",
+      "name": "Name"
+    }
+  },
+  "relatedList": {
+    "titleWithCount": "{{title}} ({{count}})",
+    "showAll": "Show all ({{count}})",
+    "rowActions": "{{title}}, actions",
+    "edit": "Edit {{title}}",
+    "remove": "Remove",
+    "removed": "{{title}} removed from {{list}}.",
+    "removeFailed": "{{title}} could not be removed. Try again.",
+    "retry": "Try again"
   },
   "tagPicker": {
     "placeholderEmpty": "Add tags...",

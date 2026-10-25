@@ -3,9 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import { MAX_SIGNER_NAME_LENGTH } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
-import { searchCompanies } from '../../../lib/vendorsApi.js';
-import type { CompanyOption } from '../../../objectForms/companyForm.js';
-import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
+import { EntityPicker } from '../../EntityPicker/EntityPicker.js';
 import styles from './SignatureCapture.module.css';
 
 /** Max length of a typed vendor name; matches the server's vendor name cap (vendors.ts, maxLength: 200). */
@@ -13,8 +11,6 @@ const MAX_VENDOR_NAME_INPUT_LENGTH = 200;
 
 /** Special option id of the free-text company entry. */
 const OTHER_COMPANY = '__other__';
-
-const NO_EXCLUDED: string[] = [];
 
 export interface SignatureCaptureProps {
   signature?: DiarySignatureEntry | null;
@@ -94,10 +90,8 @@ export function SignatureCapture({
         ctx.lineWidth = 2;
         ctx.strokeStyle = strokeColor;
 
-        // Draw signature line if no signature yet
-        if (!signature) {
-          drawSignatureLine(ctx, rect.width, rect.height);
-        }
+        // The canvas only renders while there is no signature, so always draw the line
+        drawSignatureLine(ctx, rect.width, rect.height);
       }
     };
 
@@ -107,40 +101,13 @@ export function SignatureCapture({
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- drawSignatureLine is a stable component-scope helper; effect rebinds on signature/locale change only
   }, [signature, t]);
 
-  // Load existing signature image if provided
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !signature) {
-      setHasStrokes(false);
-
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const img = new Image();
-    img.onload = () => {
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw image
-      const dpr = window.devicePixelRatio || 1;
-      ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
-
-      setHasStrokes(true);
-    };
-    img.src = signature.signatureDataUrl;
-  }, [signature]);
-
   const drawSignatureLine = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.clearRect(0, 0, width, height);
 
     // Get CSS variable values via computed style
-    const canvas = canvasRef.current;
-    const computedStyle = canvas ? getComputedStyle(canvas) : null;
-    const borderColor = computedStyle?.getPropertyValue('--color-border') || '#e5e7eb';
-    const textColor = computedStyle?.getPropertyValue('--color-text-muted') || '#9ca3af';
+    const computedStyle = getComputedStyle(canvasRef.current!);
+    const borderColor = computedStyle.getPropertyValue('--color-border') || '#e5e7eb';
+    const textColor = computedStyle.getPropertyValue('--color-text-muted') || '#9ca3af';
 
     // Draw horizontal line at bottom third
     const lineY = (height * 2) / 3;
@@ -158,23 +125,19 @@ export function SignatureCapture({
     ctx.fillText(t('signature.canvasPlaceholder'), 16, lineY - 8);
   };
 
-  const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-
-    const rect = canvas.getBoundingClientRect();
+  // The pointer handlers belong to the rendered canvas, so it exists whenever they run.
+  const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } => {
+    const rect = canvasRef.current!.getBoundingClientRect();
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
   };
 
-  const getTouchPos = (e: React.TouchEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
-    const canvas = canvasRef.current;
-    if (!canvas || !e.touches.length) return null;
-
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0]!; // guarded by length check at line 163
+  // Callers check `e.touches.length` first.
+  const getTouchPos = (e: React.TouchEvent<HTMLCanvasElement>): { x: number; y: number } => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const touch = e.touches[0]!;
     return {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,
@@ -182,10 +145,7 @@ export function SignatureCapture({
   };
 
   const drawLine = (x0: number, y0: number, x1: number, y1: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
+    const ctx = canvasRef.current!.getContext('2d');
     if (!ctx) return;
 
     ctx.beginPath();
@@ -197,7 +157,6 @@ export function SignatureCapture({
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (disabled || signature) return;
     const pos = getMousePos(e);
-    if (!pos) return;
 
     setIsDrawing(true);
     lastPosRef.current = pos;
@@ -207,15 +166,11 @@ export function SignatureCapture({
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || disabled || signature) return;
     const pos = getMousePos(e);
-    if (!pos) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
+    const ctx = canvasRef.current!.getContext('2d');
     if (!ctx) return;
 
-    const last = lastPosRef.current || pos;
+    const last = lastPosRef.current!;
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.lineTo(pos.x, pos.y);
@@ -237,7 +192,6 @@ export function SignatureCapture({
     if (disabled || signature || !e.touches.length) return;
     e.preventDefault(); // Prevent scrolling while drawing
     const pos = getTouchPos(e);
-    if (!pos) return;
 
     setIsDrawing(true);
     lastPosRef.current = pos;
@@ -248,16 +202,12 @@ export function SignatureCapture({
     if (!isDrawing || disabled || signature || !e.touches.length) return;
     e.preventDefault();
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
+    const ctx = canvasRef.current!.getContext('2d');
     if (!ctx) return;
 
     const pos = getTouchPos(e);
-    if (!pos) return;
 
-    const last = lastPosRef.current || pos;
+    const last = lastPosRef.current!;
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.lineTo(pos.x, pos.y);
@@ -276,9 +226,7 @@ export function SignatureCapture({
   };
 
   const handleClear = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -291,8 +239,7 @@ export function SignatureCapture({
   };
 
   const handleAccept = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !hasStrokes) return;
+    const canvas = canvasRef.current!;
 
     const now = new Date();
     const signedAt = now.toISOString();
@@ -330,6 +277,8 @@ export function SignatureCapture({
     }
 
     setSizeError(null);
+    // The stored signature replaces the canvas, so no stroke survives it (also after Remove).
+    setHasStrokes(false);
     onSignatureChange({
       signerName: displayName,
       signerType,
@@ -434,27 +383,26 @@ export function SignatureCapture({
             <div className={styles.readOnlyName}>{currentUserName || signerName || '—'}</div>
           ) : (
             <>
-              <SearchPicker<CompanyOption>
+              <EntityPicker
+                kind="company"
                 id={companyInputId}
                 value={selectedVendorId}
-                onChange={(id) => {
+                onChange={(id, option) => {
                   if (id === '') {
                     setSelectedVendorId('');
                     setVendorName('');
                     setSignatoryName('');
+                    return;
                   }
-                }}
-                onSelectItem={(item) => {
-                  setSelectedVendorId(item.id);
+                  setSelectedVendorId(id);
                   setSignatoryName('');
-                  setVendorName(item.id === OTHER_COMPANY ? '' : item.label);
+                  setVendorName(id === OTHER_COMPANY ? '' : (option?.label ?? ''));
                 }}
-                excludeIds={NO_EXCLUDED}
+                selectedLabel={
+                  selectedVendorId === OTHER_COMPANY ? t('signature.otherVendor') : vendorName
+                }
                 disabled={disabled}
                 placeholder={t('signature.selectVendor')}
-                searchFn={(q, _excluded, signal) => searchCompanies(q, signal)}
-                renderItem={(v) => ({ id: v.id, label: v.name })}
-                showItemsOnFocus
                 specialOptions={[{ id: OTHER_COMPANY, label: t('signature.otherVendor') }]}
               />
               {selectedVendorId === OTHER_COMPANY && (

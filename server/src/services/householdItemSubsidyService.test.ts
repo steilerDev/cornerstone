@@ -333,15 +333,19 @@ describe('householdItemSubsidyService', () => {
     });
   });
 
-  // ─── unlinkSubsidyFromHouseholdItem() ──────────────────────────────────────
+  // ─── unlinkSubsidyFromHouseholdItemWithSnapshot() ──────────────────────────────────────
 
-  describe('unlinkSubsidyFromHouseholdItem()', () => {
+  describe('unlinkSubsidyFromHouseholdItemWithSnapshot()', () => {
     it('removes the subsidy link from a household item', () => {
       const householdItemId = insertTestHouseholdItem();
       const subsidyId = insertTestSubsidyProgram('Linked Subsidy');
 
       householdItemSubsidyService.linkSubsidyToHouseholdItem(db, householdItemId, subsidyId);
-      householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId);
+      householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
+        db,
+        householdItemId,
+        subsidyId,
+      );
 
       const result = householdItemSubsidyService.listHouseholdItemSubsidies(db, householdItemId);
       expect(result).toEqual([]);
@@ -355,7 +359,11 @@ describe('householdItemSubsidyService', () => {
       householdItemSubsidyService.linkSubsidyToHouseholdItem(db, householdItemId, subsidyId1);
       householdItemSubsidyService.linkSubsidyToHouseholdItem(db, householdItemId, subsidyId2);
 
-      householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId1);
+      householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
+        db,
+        householdItemId,
+        subsidyId1,
+      );
 
       const result = householdItemSubsidyService.listHouseholdItemSubsidies(db, householdItemId);
       expect(result).toHaveLength(1);
@@ -366,7 +374,7 @@ describe('householdItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Some Subsidy');
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
           db,
           'non-existent-hi',
           subsidyId,
@@ -374,7 +382,7 @@ describe('householdItemSubsidyService', () => {
       }).toThrow(NotFoundError);
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
           db,
           'non-existent-hi',
           subsidyId,
@@ -387,11 +395,19 @@ describe('householdItemSubsidyService', () => {
       const subsidyId = insertTestSubsidyProgram('Unlinked Subsidy');
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId);
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
+          db,
+          householdItemId,
+          subsidyId,
+        );
       }).toThrow(NotFoundError);
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, householdItemId, subsidyId);
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
+          db,
+          householdItemId,
+          subsidyId,
+        );
       }).toThrow('Subsidy program is not linked to this household item');
     });
 
@@ -403,7 +419,11 @@ describe('householdItemSubsidyService', () => {
       householdItemSubsidyService.linkSubsidyToHouseholdItem(db, hiId1, subsidyId);
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(db, hiId2, subsidyId);
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
+          db,
+          hiId2,
+          subsidyId,
+        );
       }).toThrow(NotFoundError);
     });
 
@@ -411,7 +431,7 @@ describe('householdItemSubsidyService', () => {
       const householdItemId = insertTestHouseholdItem();
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
           db,
           householdItemId,
           'non-existent-subsidy',
@@ -419,7 +439,7 @@ describe('householdItemSubsidyService', () => {
       }).toThrow(NotFoundError);
 
       expect(() => {
-        householdItemSubsidyService.unlinkSubsidyFromHouseholdItem(
+        householdItemSubsidyService.unlinkSubsidyFromHouseholdItemWithSnapshot(
           db,
           householdItemId,
           'non-existent-subsidy',

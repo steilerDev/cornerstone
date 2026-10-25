@@ -149,8 +149,8 @@ test.describe('Milestone detail — null area "No area" in linked WI (Scenario 2
 // Scenario 3: WorkItemPicker — breadcrumb in DependencySentenceBuilder result
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('WorkItemPicker — compact breadcrumb in search result (Scenario 3)', () => {
-  test('Dependency builder picker shows compact breadcrumb under WI title in dropdown', async ({
+test.describe('Task picker — area path in search result (Scenario 3)', () => {
+  test('Dependency builder picker shows the area path under the task title in the dropdown', async ({
     page,
     testPrefix,
   }) => {
@@ -207,10 +207,12 @@ test.describe('WorkItemPicker — compact breadcrumb in search result (Scenario 
       const resultOption = listbox.locator('[role="option"]').filter({ hasText: targetTitle });
       await expect(resultOption).toBeVisible();
 
-      // The renderSecondary slot renders inside resultSecondary span inside resultContent span
-      // AreaBreadcrumb compact renders <span class*="compact"> inside resultSecondary
-      const breadcrumbSpan = resultOption.locator('[class*="compact"]');
+      // The EntityPicker task row (#2236) shows the area as a path (muted ancestors, then the
+      // last level) in the row's secondary line
+      const breadcrumbSpan = resultOption.locator('[class*="resultSecondary"]');
       await expect(breadcrumbSpan).toBeVisible();
+      await expect(breadcrumbSpan.locator('[class*="pathSegment"]')).toHaveText([rootName]);
+      await expect(breadcrumbSpan.locator('[class*="pathLast"]')).toHaveText(childName);
 
       const breadcrumbText = await breadcrumbSpan.textContent();
       expect(breadcrumbText).toContain(rootName);

@@ -19,10 +19,9 @@ import { areaPathFromList, formatAreaPath } from '../../lib/photoSpots.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import type { OriginState } from '../../navigation/origin.js';
 import { AreaLink } from '../AreaLink/index.js';
-import { AreaPicker } from '../AreaPicker/AreaPicker.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
 import { Badge } from '../Badge/Badge.js';
 import { FormError } from '../FormError/FormError.js';
-import { OrientationPicker } from '../OrientationPicker/OrientationPicker.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import styles from './PhotoDetailsPanel.module.css';
 
@@ -303,13 +302,13 @@ export function PhotoDetailsPanel({
               <label htmlFor={`${baseId}-area`} className={styles.fieldLabel}>
                 {t('photos:viewer.area')}
               </label>
-              <AreaPicker
+              <EntityPicker
+                kind="area"
                 id={`${baseId}-area`}
                 areas={areas}
                 value={draft.areaId}
                 onChange={(id) => setDraft((d) => ({ ...d, areaId: id }))}
-                nullable
-                nullLabel={t('photos:spots.noArea')}
+                noneLabel={t('photos:spots.noArea')}
                 disabled={saving}
                 autoFocus
               />
@@ -318,13 +317,14 @@ export function PhotoDetailsPanel({
               <label htmlFor={`${baseId}-orientation`} className={styles.fieldLabel}>
                 {t('photos:viewer.orientation')}
               </label>
-              <OrientationPicker
+              <EntityPicker
+                kind="orientation"
                 id={`${baseId}-orientation`}
                 emptyHint={t('photos:tags.noOrientationsHint')}
                 value={draft.orientationId}
                 onChange={(id) => setDraft((d) => ({ ...d, orientationId: id }))}
-                initialOrientationName={photo.orientation?.name}
-                nullable
+                selectedLabel={photo.orientation?.name}
+                noneLabel={t('common:aria.noOrientation')}
                 disabled={saving}
               />
             </div>

@@ -61,6 +61,8 @@ const makeCreateResponse = (
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
+
 describe('invoiceBudgetLinesApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
@@ -552,8 +554,8 @@ describe('invoiceBudgetLinesApi', () => {
     it('sends DELETE request to /api/invoices/:invoiceId/budget-lines/:lineId', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteInvoiceBudgetLine('inv-100', 'ibl-1');
@@ -567,8 +569,8 @@ describe('invoiceBudgetLinesApi', () => {
     it('interpolates both invoiceId and lineId correctly into the DELETE URL', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       await deleteInvoiceBudgetLine('inv-XYZ', 'ibl-ABC');
@@ -579,16 +581,16 @@ describe('invoiceBudgetLinesApi', () => {
       );
     });
 
-    it('returns void on successful delete (204)', async () => {
+    it('resolves with the Undo token (200)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 204,
-        text: async () => '',
+        status: 200,
+        json: async () => ({ undo: UNDO }),
       } as Response);
 
       const result = await deleteInvoiceBudgetLine('inv-100', 'ibl-1');
 
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ undo: UNDO });
     });
 
     it('throws error when invoice budget line not found (404)', async () => {

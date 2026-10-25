@@ -21,18 +21,27 @@ jest.unstable_mockModule('../../../contexts/LocaleContext.js', () => ({
 }));
 
 // The picker dialog has its own tests; here it is a button that picks a company.
-jest.unstable_mockModule('./CompanyPickerDialog.js', () => ({
-  CompanyPickerDialog: (props: {
+jest.unstable_mockModule('../../EntityPicker/EntityPickerDialog.js', () => ({
+  EntityPickerDialog: (props: {
     open: boolean;
+    title: string;
+    testId?: string;
+    picker: { kind: string; placeholder?: string };
     onClose: () => void;
-    onPick: (company: { id: string; name: string }) => void;
+    onPick: (option: { id: string; label: string }) => void;
   }) =>
     props.open ? (
-      <div data-testid="picker-stub">
+      <div
+        data-testid="picker-stub"
+        data-title={props.title}
+        data-test-id={props.testId}
+        data-kind={props.picker.kind}
+        data-placeholder={props.picker.placeholder}
+      >
         <button
           type="button"
           onClick={() => {
-            props.onPick({ id: 'c-picked', name: 'Picked Co' });
+            props.onPick({ id: 'c-picked', label: 'Picked Co' });
             props.onClose();
           }}
         >
@@ -566,6 +575,19 @@ describe('SiteDetailsFields', () => {
         'aria-pressed',
         'true',
       );
+    });
+
+    it('opens a company EntityPicker dialog titled "Choose a company" with the capture sheet testId', async () => {
+      const user = userEvent.setup();
+      render(<Harness entryType="delivery" />);
+
+      await user.click(screen.getByRole('button', { name: 'Other company…' }));
+
+      const stub = screen.getByTestId('picker-stub');
+      expect(stub).toHaveAttribute('data-title', 'Choose a company');
+      expect(stub).toHaveAttribute('data-test-id', 'capture-company-sheet');
+      expect(stub).toHaveAttribute('data-kind', 'company');
+      expect(stub).toHaveAttribute('data-placeholder', 'Company name');
     });
 
     it('stores the name of a company picked in the dialog', async () => {

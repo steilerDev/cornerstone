@@ -2136,6 +2136,12 @@ the rise. Escalate the rename to the dev-team-lead instead of re-recording it si
 - The baseline analyzer counts search inputs by `type="search"`/role/`t('…search…')` and skips pickers
   and CommandSearch; it does not read `data-page-search`. The #2234 0 → 1 searchFields exemption
   therefore cannot be narrowed to page-search fields (the motivating ReferenceList field is unmarked).
+- A capmap `from` is the historical (pre-restructure) location: never rewrite it to the new
+  component name (e.g. WRK-030 "searchable AreaPicker" stays after #2236 retired AreaPicker); record
+  the as-built state in a `#NNNN:` note instead. Edit capmap with a JSON load/dump (`indent=2`,
+  `ensure_ascii=False`) — it round-trips byte-identically apart from the edited strings.
+- Retiring shared components drops `sharedComponents.names`; `plan:build` re-baselines them and
+  removes consumed names from `allowedAdditions` (#2236: 105 → 102, EntityPicker/RelatedList consumed).
 
 ## Union request bodies vs AJV `removeAdditional` (#2235, 2026-10-24)
 
@@ -2162,3 +2168,14 @@ and if it ever ran it would lose data quietly: the row is dropped from a batch, 
 with an empty id. Grep payload builders and submit handlers for `continue` / `return ''` / `?? ''` after
 validation, and ask for a throw or a non-null type instead. A related check: `request.user!` in a route
 works only because the global auth hook runs first; still ask for the explicit `UnauthorizedError` guard.
+
+## "As route X" references in my own contracts (PR #2334)
+
+My contract 11 text said the 12 relation DELETEs declare the 200 `{ undo }` schema "as
+`DELETE /api/document-links/:id`", and the checklist told implementers to copy `deleteLinkSchema`.
+That schema has only `params`; the cited route has no response schema at all. Before citing a route
+as the model for a pattern, open it and confirm it actually has the pattern. Point at the shared
+helper (`routes/undoResponseSchema.ts` `undoableDeleteResponse`) instead. Same PR: a behaviour
+change that a fix sneaks into a route (the vendor-scope 404 on `/api/vendors/:vendorId/invoices/...`,
+reschedule-failure-now-200) also needs the wiki updated, even when the brief calls it "a
+pre-existing bug fix".

@@ -11,11 +11,19 @@ import { installMatchMedia } from '../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormResult } from '../components/ObjectForm/types.js';
 import type * as VendorsApiTypes from '../lib/vendorsApi.js';
+import type * as TradesApiTypes from '../lib/tradesApi.js';
 import type * as FormTypes from './companyForm.js';
 import type * as ObjectFormTypes from '../components/ObjectForm/ObjectForm.js';
 
 const mockCreateVendor = jest.fn<typeof VendorsApiTypes.createVendor>();
-jest.unstable_mockModule('../lib/vendorsApi.js', () => ({ createVendor: mockCreateVendor }));
+jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
+  createVendor: mockCreateVendor,
+  // Named imports of EntityPicker's closure (the trade field is an EntityPicker).
+  searchCompanies: jest.fn(),
+  fetchVendor: jest.fn(),
+}));
+const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
+jest.unstable_mockModule('../lib/tradesApi.js', () => ({ fetchTrades: mockFetchTrades }));
 
 const trade = (id: string, name: string): TradeListItem => ({
   id,
@@ -28,7 +36,11 @@ const trade = (id: string, name: string): TradeListItem => ({
   updatedAt: '2026-01-01T00:00:00.000Z',
   vendorCount: 0,
 });
-const TRADES = [trade('t-roof', 'Roofing'), trade('t-tile', 'Tiling')];
+const TRADES = [
+  trade('t-roof', 'Roofing'),
+  trade('t-tile', 'Tiling'),
+  { ...trade('t-elec', 'Electrical'), translationKey: 'trades.electrical' },
+];
 jest.unstable_mockModule('../hooks/useTrades.js', () => ({
   useTrades: () => ({ trades: TRADES, isLoading: false, isInitialLoading: false, error: null }),
 }));
@@ -41,6 +53,8 @@ describe('companyForm (ObjectForm schema)', () => {
 
   beforeEach(async () => {
     mockCreateVendor.mockReset();
+    mockFetchTrades.mockReset();
+    mockFetchTrades.mockResolvedValue({ trades: TRADES } as never);
     onCreated.mockReset();
     mockCreateVendor.mockResolvedValue({
       id: 'c-1',
@@ -250,6 +264,51 @@ describe('companyForm (ObjectForm schema)', () => {
 
       await waitFor(() => expect(mockCreateVendor).toHaveBeenCalledTimes(1));
       expect(mockCreateVendor).toHaveBeenCalledWith(expect.objectContaining({ tradeId: 't-tile' }));
+    });
+
+    it('lists the trades with their translated names and filters them as the person types', async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText('Trade'));
+      expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+        'Roofing',
+        'Tiling',
+        'Electrical',
+      ]);
+      await user.type(screen.getByLabelText('Trade'), 'tili');
+
+      await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(1));
+      expect(screen.getByRole('option', { name: 'Tiling' })).toBeInTheDocument();
+    });
+
+    it('shows a prefilled trade by its translated display name', () => {
+      renderForm({ tradeId: 't-elec' });
+
+      expect(screen.getByText('Electrical')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Trade')).toBeNull();
+    });
+
+    it('shows a prefilled trade without a translation under its stored name, and clears it again', async () => {
+      const user = userEvent.setup();
+      renderForm({ tradeId: 't-roof' });
+
+      expect(screen.getByText('Roofing')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+
+      expect(await screen.findByLabelText('Trade')).toBeInTheDocument();
+    });
+
+    it('uses the form placeholder for the trade input and offers no inline trade creation outside a provider', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      const input = screen.getByLabelText('Trade');
+
+      expect(input).not.toHaveAttribute('aria-invalid');
+      expect(input).toHaveAttribute('placeholder', 'Choose a trade');
+      await user.type(input, 'Glazing');
+      await waitFor(() => expect(screen.queryByText('Searching...')).toBeNull());
+      expect(screen.queryByRole('option', { name: /New trade/ })).toBeNull();
     });
 
     it('shows an invalid e-mail on the e-mail field', async () => {

@@ -76,11 +76,11 @@ async function exerciseCreateRow(
   // An existing name, in another case with a folded umlaut, shows no create row
   await picker.type(variant);
   await expect(picker.dropdown.getByRole('option', { name: existing, exact: true })).toBeVisible();
-  await expect(picker.createOption()).toHaveCount(0);
+  await expect(picker.createOption('company')).toHaveCount(0);
 
   // A new name: the create row is the last option, reached with ArrowDown
   await picker.type(typed);
-  await expect(picker.createOption(typed)).toBeVisible();
+  await expect(picker.createOption('company', typed)).toBeVisible();
   const options = picker.dropdown.getByRole('option');
   await expect(options.last()).toHaveText(new RegExp(`New company ${typed}$`));
   await picker.arrowToCreateOption(typed);

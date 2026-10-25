@@ -21,7 +21,13 @@ import type {
   HouseholdItemStatus,
   AreaSummary,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, DuplicateDependencyError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  DuplicateDependencyError,
+  ConflictError,
+} from '../errors/AppError.js';
+import type { UndoTransaction } from './undoService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
@@ -36,8 +42,8 @@ function getAreaWithAncestors(
   areaMap: Map<string, AreaMapEntry>,
 ): AreaSummary | null {
   if (!areaId) return null;
-  const entry = areaMap.get(areaId);
-  if (!entry) return null;
+  // areaId is a foreign key into the same areas table the map was loaded from
+  const entry = areaMap.get(areaId)!;
   const ancestors = resolveAreaAncestors(areaId, areaMap);
   return toAreaSummary(
     {
@@ -232,50 +238,95 @@ export function createDep(
   };
 }
 
+/** A deleted household item dependency, as needed to restore it. */
+export interface DeletedHouseholdItemDepSnapshot {
+  row: typeof householdItemDeps.$inferSelect;
+}
+
 /**
- * Delete a dependency for a household item.
+ * Delete a dependency for a household item and return the deleted row for an Undo snapshot.
+ * The route reschedules after issuing the Undo token.
  * @throws NotFoundError if household item or dependency does not exist
  */
-export function deleteDep(
+export function deleteDepWithSnapshot(
   db: DbType,
   householdItemId: string,
   predecessorType: string,
   predecessorId: string,
-): void {
+): DeletedHouseholdItemDepSnapshot {
   ensureHouseholdItemExists(db, householdItemId);
 
   // Cast predecessorType to the proper enum type
   const predType = predecessorType as 'work_item' | 'milestone';
+  const where = and(
+    eq(householdItemDeps.householdItemId, householdItemId),
+    eq(householdItemDeps.predecessorType, predType),
+    eq(householdItemDeps.predecessorId, predecessorId),
+  );
 
-  // Check if dependency exists
-  const dependency = db
-    .select()
+  const row = db.transaction((tx) => {
+    const existing = tx.select().from(householdItemDeps).where(where).get();
+    if (!existing) {
+      throw new NotFoundError('Dependency not found');
+    }
+    tx.delete(householdItemDeps).where(where).run();
+    return existing;
+  });
+
+  return { row };
+}
+
+/**
+ * Re-insert a deleted household item dependency.
+ * @throws ConflictError (details.changed) when the household item or the predecessor is gone,
+ *   or the dependency exists again
+ */
+export function restoreDeletedDep(
+  tx: UndoTransaction,
+  snapshot: DeletedHouseholdItemDepSnapshot,
+): void {
+  const { row } = snapshot;
+  const refuse = (): never => {
+    throw new ConflictError('The record changed after this action', {
+      changed: [{ type: 'household_item', id: row.householdItemId }],
+    });
+  };
+
+  const itemExists = tx
+    .select({ id: householdItems.id })
+    .from(householdItems)
+    .where(eq(householdItems.id, row.householdItemId))
+    .get();
+  if (!itemExists) refuse();
+
+  const predecessorExists =
+    row.predecessorType === 'work_item'
+      ? tx
+          .select({ id: workItems.id })
+          .from(workItems)
+          .where(eq(workItems.id, row.predecessorId))
+          .get()
+      : tx
+          .select({ id: milestones.id })
+          .from(milestones)
+          .where(eq(milestones.id, parseInt(row.predecessorId, 10)))
+          .get();
+  if (!predecessorExists) refuse();
+
+  const again = tx
+    .select({ id: householdItemDeps.predecessorId })
     .from(householdItemDeps)
     .where(
       and(
-        eq(householdItemDeps.householdItemId, householdItemId),
-        eq(householdItemDeps.predecessorType, predType),
-        eq(householdItemDeps.predecessorId, predecessorId),
+        eq(householdItemDeps.householdItemId, row.householdItemId),
+        eq(householdItemDeps.predecessorType, row.predecessorType),
+        eq(householdItemDeps.predecessorId, row.predecessorId),
       ),
     )
     .get();
+  if (again) refuse();
 
-  if (!dependency) {
-    throw new NotFoundError('Dependency not found');
-  }
-
-  // Delete the dependency
-  db.delete(householdItemDeps)
-    .where(
-      and(
-        eq(householdItemDeps.householdItemId, householdItemId),
-        eq(householdItemDeps.predecessorType, predType),
-        eq(householdItemDeps.predecessorId, predecessorId),
-      ),
-    )
-    .run();
-
-  autoReschedule(db);
+  tx.insert(householdItemDeps).values(row).run();
 }
 
 /**

@@ -26,6 +26,8 @@ jest.unstable_mockModule('../hooks/useAreas.js', () => ({
 
 const mockAreaSubmit = jest.fn<ObjectFormSchema['submit']>();
 const mockOrientationSubmit = jest.fn<ObjectFormSchema['submit']>();
+const mockTradeSubmit = jest.fn<ObjectFormSchema['submit']>();
+const mockCategorySubmit = jest.fn<ObjectFormSchema['submit']>();
 const areasSeen: unknown[] = [];
 const makeSchema = (
   id: string,
@@ -50,6 +52,14 @@ jest.unstable_mockModule('./orientationForm.js', () => ({
     makeSchema('orientation', 'New orientation', mockOrientationSubmit),
 }));
 
+jest.unstable_mockModule('./tradeForm.js', () => ({
+  useTradeFormSchema: () => makeSchema('trade', 'New trade', mockTradeSubmit),
+}));
+jest.unstable_mockModule('./purchaseCategoryForm.js', () => ({
+  usePurchaseCategoryFormSchema: () =>
+    makeSchema('purchase-category', 'New purchase category', mockCategorySubmit),
+}));
+
 describe('TagCreateProvider', () => {
   let Provider: typeof ProviderTypes.TagCreateProvider;
   let useTagCreate: typeof HookTypes.useTagCreate;
@@ -63,6 +73,10 @@ describe('TagCreateProvider', () => {
     mockAreaSubmit.mockResolvedValue({ id: 'a-1', href: '/areas/a-1', label: 'Shed' });
     mockOrientationSubmit.mockReset();
     mockOrientationSubmit.mockResolvedValue({ id: 'o-1', href: '/x', label: 'North' });
+    mockTradeSubmit.mockReset();
+    mockTradeSubmit.mockResolvedValue({ id: 't-1', href: '/x', label: 'Glazing' });
+    mockCategorySubmit.mockReset();
+    mockCategorySubmit.mockResolvedValue({ id: 'c-1', href: '/x', label: 'Lighting' });
     media = installMatchMedia({ '(min-width: 768px)': true });
     if (!Provider) {
       ({ TagCreateProvider: Provider } = await import('./TagCreateProvider.js'));
@@ -111,10 +125,14 @@ describe('TagCreateProvider', () => {
     );
   }
 
-  function open(kind: 'area' | 'orientation', returnFocus?: HTMLElement | null) {
+  function open(
+    kind: 'area' | 'orientation' | 'trade' | 'category',
+    returnFocus?: HTMLElement | null,
+    name?: string,
+  ) {
     let result: Promise<CreatedTag | null> = Promise.resolve(null);
     act(() => {
-      result = latest!.request!(kind, returnFocus);
+      result = latest!.request!(kind, returnFocus, name);
     });
     return { result };
   }
@@ -155,6 +173,86 @@ describe('TagCreateProvider', () => {
 
     await expect(result).resolves.toEqual({ id: 'o-9', name: 'Stored North' });
     expect(mockAreaSubmit).not.toHaveBeenCalled();
+  });
+
+  it('opens the New trade form and resolves { id, name } on Save', async () => {
+    const user = userEvent.setup();
+    setup();
+    const { result } = open('trade');
+
+    expect(await screen.findByRole('dialog', { name: 'New trade' })).toBeInTheDocument();
+    expect(screen.getByTestId('tag-create-form')).toBeInTheDocument();
+    await user.type(nameInput(), 'glazing');
+    await user.click(screen.getByTestId('tag-create-form-save'));
+
+    await expect(result).resolves.toEqual({ id: 't-1', name: 'Glazing' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mockTradeSubmit).toHaveBeenCalledWith({ name: 'glazing' });
+    expect(mockAreaSubmit).not.toHaveBeenCalled();
+    expect(mockCategorySubmit).not.toHaveBeenCalled();
+  });
+
+  it('opens the New purchase category form and resolves { id, name } on Save', async () => {
+    const user = userEvent.setup();
+    setup();
+    const { result } = open('category');
+
+    expect(
+      await screen.findByRole('dialog', { name: 'New purchase category' }),
+    ).toBeInTheDocument();
+    await user.type(nameInput(), 'lighting');
+    await user.click(screen.getByTestId('tag-create-form-save'));
+
+    await expect(result).resolves.toEqual({ id: 'c-1', name: 'Lighting' });
+    expect(mockCategorySubmit).toHaveBeenCalledWith({ name: 'lighting' });
+    expect(mockTradeSubmit).not.toHaveBeenCalled();
+  });
+
+  it.each(['trade', 'category'] as const)('Cancel on the %s form resolves null', async (kind) => {
+    const user = userEvent.setup();
+    setup();
+    const { result } = open(kind);
+    await screen.findByRole('dialog');
+
+    await user.click(screen.getByTestId('tag-create-form-cancel'));
+
+    await expect(result).resolves.toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mockTradeSubmit).not.toHaveBeenCalled();
+    expect(mockCategorySubmit).not.toHaveBeenCalled();
+  });
+
+  it.each(['area', 'orientation', 'trade', 'category'] as const)(
+    'pre-fills the %s Name field with the typed text, trimmed',
+    async (kind) => {
+      setup();
+      open(kind, null, '  Typed name  ');
+
+      await screen.findByRole('dialog');
+
+      expect(nameInput()).toHaveValue('Typed name');
+    },
+  );
+
+  it.each([undefined, '', '   '])('leaves the Name field empty for the name %j', async (name) => {
+    setup();
+    open('orientation', null, name);
+
+    await screen.findByRole('dialog');
+
+    expect(nameInput()).toHaveValue('');
+  });
+
+  it('saves the pre-filled name without retyping it', async () => {
+    const user = userEvent.setup();
+    setup();
+    const { result } = open('trade', null, 'Glazing');
+    await screen.findByRole('dialog');
+
+    await user.click(screen.getByTestId('tag-create-form-save'));
+
+    await expect(result).resolves.toEqual({ id: 't-1', name: 'Glazing' });
+    expect(mockTradeSubmit).toHaveBeenCalledWith({ name: 'Glazing' });
   });
 
   it('Cancel resolves null without saving', async () => {
@@ -282,6 +380,21 @@ describe('TagCreateProvider', () => {
     expect(mockAreaSubmit).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByTestId('creating')).toHaveTextContent('false'));
   });
+
+  it.each(['trade', 'category'] as const)(
+    'leaving the pathname resolves the %s request with null',
+    async (kind) => {
+      const user = userEvent.setup();
+      setup();
+      const { result } = open(kind);
+      await screen.findByRole('dialog');
+
+      await user.click(screen.getByTestId('go-other'));
+
+      await expect(result).resolves.toBeNull();
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    },
+  );
 
   it('a query-only change keeps the form open', async () => {
     const user = userEvent.setup();

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { UndoToken } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { deleteHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
@@ -9,6 +10,11 @@ import type { CostLineRow } from './types.js';
 
 export type CostLineMutation = 'delete' | 'unlink' | 'remove';
 
+export type CostLineDeleteResult = { readonly ok: true } | { readonly ok: false };
+export type CostLineUndoableResult =
+  { readonly ok: true; readonly undo: UndoToken } | { readonly ok: false };
+export type CostLineMutationResult = CostLineDeleteResult | CostLineUndoableResult;
+
 export interface UseCostLineMutationsResult {
   readonly busy: boolean;
   /** Translated; null when there is nothing to show. */
@@ -16,8 +22,14 @@ export interface UseCostLineMutationsResult {
   /** The last delete failed with 409: the line is in use and there is nothing to retry. */
   readonly blocked: boolean;
   readonly clearError: () => void;
-  /** Runs the mutation, then `afterChange`. Resolves true when it worked. */
-  readonly run: (kind: CostLineMutation, row: CostLineRow) => Promise<boolean>;
+  /**
+   * Runs the mutation, then `afterChange`. Unlink and Remove resolve with their Undo token;
+   * Delete resolves without one.
+   */
+  readonly run: {
+    (kind: 'delete', row: CostLineRow): Promise<CostLineDeleteResult>;
+    (kind: 'unlink' | 'remove', row: CostLineRow): Promise<CostLineUndoableResult>;
+  };
 }
 
 /**
@@ -40,8 +52,22 @@ export function useCostLineMutations(
     setBlocked(false);
   }, []);
 
+  const showError = useCallback(
+    (err: unknown, kind: CostLineMutation) => {
+      if (err instanceof ApiClientError) {
+        setBlocked(kind === 'delete' && err.statusCode === 409);
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
+      } else {
+        setError(t('confirm.errorFailed'));
+      }
+    },
+    [t, tCommon, tErrors],
+  );
+
   const run = useCallback(
-    async (kind: CostLineMutation, row: CostLineRow): Promise<boolean> => {
+    async (kind: CostLineMutation, row: CostLineRow): Promise<CostLineMutationResult> => {
       setBusy(true);
       clearError();
       try {
@@ -51,27 +77,30 @@ export function useCostLineMutations(
           } else {
             await deleteHouseholdItemBudget(row.target?.id ?? '', row.id);
           }
-        } else if (row.invoiceId !== null && row.invoiceBudgetLineId !== null) {
-          await deleteInvoiceBudgetLine(row.invoiceId, row.invoiceBudgetLineId);
+          await afterChange();
+          return { ok: true };
         }
-        await afterChange();
-        return true;
+        // Unlink and Remove are offered only for linked rows.
+        if (row.invoiceId === null || row.invoiceBudgetLineId === null) {
+          throw new Error('Cost line has no invoice link');
+        }
+        const { undo } = await deleteInvoiceBudgetLine(row.invoiceId, row.invoiceBudgetLineId);
+        // The server already removed the relation: a failed refresh must not lose the Undo token.
+        try {
+          await afterChange();
+        } catch (refreshError) {
+          showError(refreshError, kind);
+        }
+        return { ok: true, undo };
       } catch (err) {
-        if (err instanceof ApiClientError) {
-          setBlocked(kind === 'delete' && err.statusCode === 409);
-          setError(translateApiError(err.error.code, tErrors));
-        } else if (err instanceof NetworkError) {
-          setError(tCommon('requestErrors.network'));
-        } else {
-          setError(t('confirm.errorFailed'));
-        }
-        return false;
+        showError(err, kind);
+        return { ok: false };
       } finally {
         setBusy(false);
       }
     },
-    [afterChange, clearError, t, tCommon, tErrors],
-  );
+    [afterChange, clearError, showError],
+  ) as UseCostLineMutationsResult['run'];
 
   return { busy, error, blocked, clearError, run };
 }

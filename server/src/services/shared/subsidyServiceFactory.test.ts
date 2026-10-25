@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../../db/migrate.js';
@@ -22,6 +23,7 @@ function makeWorkItemService(_db: BetterSQLite3Database<typeof schema>) {
     budgetLinesTable: 'work_item_budgets',
     budgetLinesEntityIdColumn: 'work_item_id',
     entityLabel: 'Work item',
+    subjectType: 'work_item',
     makeInsertValues: (workItemId, subsidyProgramId) => ({ workItemId, subsidyProgramId }),
   });
 }
@@ -39,6 +41,7 @@ function makeHouseholdItemService(_db: BetterSQLite3Database<typeof schema>) {
     budgetLinesTable: 'household_item_budgets',
     budgetLinesEntityIdColumn: 'household_item_id',
     entityLabel: 'Household item',
+    subjectType: 'household_item',
     makeInsertValues: (householdItemId, subsidyProgramId) => ({
       householdItemId,
       subsidyProgramId,
@@ -180,12 +183,12 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
   // ─── Factory shape ────────────────────────────────────────────────────────
 
   describe('factory shape', () => {
-    it('returns a service object with list, link, and unlink methods', () => {
+    it('returns a service object with list, link, unlinkWithSnapshot and restore methods', () => {
       const service = makeWorkItemService(db);
 
       expect(typeof service.list).toBe('function');
       expect(typeof service.link).toBe('function');
-      expect(typeof service.unlink).toBe('function');
+      expect(typeof service.unlinkWithSnapshot).toBe('function');
     });
 
     it('two factory instances created with different configs are independent', () => {
@@ -483,7 +486,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Linked Subsidy');
 
         service.link(db, workItemId, subsidyId);
-        service.unlink(db, workItemId, subsidyId);
+        service.unlinkWithSnapshot(db, workItemId, subsidyId);
 
         expect(service.list(db, workItemId)).toEqual([]);
       });
@@ -496,7 +499,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
         service.link(db, workItemId, subsidyId1);
         service.link(db, workItemId, subsidyId2);
-        service.unlink(db, workItemId, subsidyId1);
+        service.unlinkWithSnapshot(db, workItemId, subsidyId1);
 
         const result = service.list(db, workItemId);
         expect(result).toHaveLength(1);
@@ -508,11 +511,11 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
-          service.unlink(db, 'non-existent-wi', subsidyId);
+          service.unlinkWithSnapshot(db, 'non-existent-wi', subsidyId);
         }).toThrow(NotFoundError);
 
         expect(() => {
-          service.unlink(db, 'non-existent-wi', subsidyId);
+          service.unlinkWithSnapshot(db, 'non-existent-wi', subsidyId);
         }).toThrow('Work item not found');
       });
 
@@ -522,11 +525,11 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Unlinked Subsidy');
 
         expect(() => {
-          service.unlink(db, workItemId, subsidyId);
+          service.unlinkWithSnapshot(db, workItemId, subsidyId);
         }).toThrow(NotFoundError);
 
         expect(() => {
-          service.unlink(db, workItemId, subsidyId);
+          service.unlinkWithSnapshot(db, workItemId, subsidyId);
         }).toThrow('Subsidy program is not linked to this work item');
       });
     });
@@ -538,7 +541,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Linked Subsidy');
 
         service.link(db, hiId, subsidyId);
-        service.unlink(db, hiId, subsidyId);
+        service.unlinkWithSnapshot(db, hiId, subsidyId);
 
         expect(service.list(db, hiId)).toEqual([]);
       });
@@ -548,11 +551,11 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Some Subsidy');
 
         expect(() => {
-          service.unlink(db, 'non-existent-hi', subsidyId);
+          service.unlinkWithSnapshot(db, 'non-existent-hi', subsidyId);
         }).toThrow(NotFoundError);
 
         expect(() => {
-          service.unlink(db, 'non-existent-hi', subsidyId);
+          service.unlinkWithSnapshot(db, 'non-existent-hi', subsidyId);
         }).toThrow('Household item not found');
       });
 
@@ -562,11 +565,11 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const subsidyId = insertSubsidyProgram('Unlinked Subsidy');
 
         expect(() => {
-          service.unlink(db, hiId, subsidyId);
+          service.unlinkWithSnapshot(db, hiId, subsidyId);
         }).toThrow(NotFoundError);
 
         expect(() => {
-          service.unlink(db, hiId, subsidyId);
+          service.unlinkWithSnapshot(db, hiId, subsidyId);
         }).toThrow('Subsidy program is not linked to this household item');
       });
     });
@@ -654,5 +657,105 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
       expect(result[0]!.applicableCategories).toEqual([]);
     });
+  });
+
+  // ─── Populated optional fields ────────────────────────────────────────────
+
+  describe('optional subsidy program fields', () => {
+    it('lists description, eligibility, deadline, notes and cap when they are set', () => {
+      const service = makeWorkItemService(db);
+      const workItemId = insertWorkItem();
+      const subsidyId = insertSubsidyProgram('Full Subsidy', { maximumAmount: 2500 });
+      db.update(schema.subsidyPrograms)
+        .set({
+          description: 'Insulation grant',
+          eligibility: 'Owner-occupied homes',
+          applicationDeadline: '2026-12-31',
+          notes: 'Apply before ordering',
+          includesNoCategoryItems: 1,
+        })
+        .where(eq(schema.subsidyPrograms.id, subsidyId))
+        .run();
+      service.link(db, workItemId, subsidyId);
+
+      const [program] = service.list(db, workItemId);
+
+      expect(program).toMatchObject({
+        description: 'Insulation grant',
+        eligibility: 'Owner-occupied homes',
+        applicationDeadline: '2026-12-31',
+        notes: 'Apply before ordering',
+        maximumAmount: 2500,
+        includesNoCategoryItems: true,
+      });
+    });
+  });
+
+  // ─── unlinkWithSnapshot() / restore() ─────────────────────────────────────
+
+  describe('unlinkWithSnapshot() and restore()', () => {
+    it('returns the entity and subsidy ids of the deleted link', () => {
+      const service = makeHouseholdItemService(db);
+      const householdItemId = insertHouseholdItem();
+      const subsidyId = insertSubsidyProgram('Linked Subsidy');
+      service.link(db, householdItemId, subsidyId);
+
+      expect(service.unlinkWithSnapshot(db, householdItemId, subsidyId)).toEqual({
+        entityId: householdItemId,
+        subsidyProgramId: subsidyId,
+      });
+    });
+
+    it.each([
+      ['work item', makeWorkItemService, 'work_item'],
+      ['household item', makeHouseholdItemService, 'household_item'],
+    ] as const)('restores a %s link', (_label, make, _subject) => {
+      const service = make(db);
+      const entityId = make === makeWorkItemService ? insertWorkItem() : insertHouseholdItem();
+      const subsidyId = insertSubsidyProgram('Linked Subsidy');
+      service.link(db, entityId, subsidyId);
+      const snapshot = service.unlinkWithSnapshot(db, entityId, subsidyId);
+      expect(service.list(db, entityId)).toEqual([]);
+
+      db.transaction((tx) => service.restore(tx, snapshot));
+
+      expect(service.list(db, entityId).map((p) => p.id)).toEqual([subsidyId]);
+    });
+
+    it.each([
+      ['entity', 'entity'],
+      ['subsidy program', 'program'],
+      ['link', 'link'],
+    ])(
+      'refuses a restore with a ConflictError naming the subject when the %s changed',
+      (_l, what) => {
+        const service = makeWorkItemService(db);
+        const workItemId = insertWorkItem();
+        const subsidyId = insertSubsidyProgram('Linked Subsidy');
+        service.link(db, workItemId, subsidyId);
+        const snapshot = service.unlinkWithSnapshot(db, workItemId, subsidyId);
+        if (what === 'entity') {
+          db.delete(schema.workItems).where(eq(schema.workItems.id, workItemId)).run();
+        } else if (what === 'program') {
+          db.delete(schema.subsidyPrograms).where(eq(schema.subsidyPrograms.id, subsidyId)).run();
+        } else {
+          db.insert(schema.workItemSubsidies)
+            .values({ workItemId, subsidyProgramId: subsidyId })
+            .run();
+        }
+
+        let error: unknown;
+        try {
+          db.transaction((tx) => service.restore(tx, snapshot));
+        } catch (err) {
+          error = err;
+        }
+
+        expect(error).toBeInstanceOf(ConflictError);
+        expect((error as InstanceType<typeof ConflictError>).details).toEqual({
+          changed: [{ type: 'work_item', id: workItemId }],
+        });
+      },
+    );
   });
 });

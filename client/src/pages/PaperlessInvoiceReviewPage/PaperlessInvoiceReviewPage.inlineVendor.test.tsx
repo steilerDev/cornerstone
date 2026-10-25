@@ -29,6 +29,8 @@ import type {
 
 const mockGetPaperlessDocument = jest.fn<typeof PaperlessApiModule.getPaperlessDocument>();
 
+const mockLocale = { value: 'en' as 'en' | 'de' };
+
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: jest.fn(),
   listPaperlessDocuments: jest.fn(),
@@ -90,10 +92,19 @@ jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', 
   SuggestionBadge: ({
     displayValue,
     suggestedValue,
+    onApply,
   }: {
     displayValue?: string;
     suggestedValue: string;
-  }) => <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>,
+    onApply: () => void;
+  }) => (
+    <>
+      <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>
+      <button type="button" data-testid="suggestion-apply" onClick={onApply}>
+        Apply suggestion
+      </button>
+    </>
+  ),
 }));
 
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
@@ -108,7 +119,12 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn(), vatRate: 0.19 }),
+  useLocale: () => ({
+    locale: mockLocale.value,
+    resolvedLocale: mockLocale.value,
+    setLocale: jest.fn(),
+    vatRate: 0.19,
+  }),
 }));
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
@@ -170,6 +186,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  mockLocale.value = 'en';
   media.restore();
   jest.restoreAllMocks();
 });
@@ -496,6 +513,20 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       );
     });
 
+    it('keeps the suggested company selected when its Apply button is pressed', async () => {
+      serverBacked([{ id: 'v-1', name: 'Alpha Co' }]);
+      mockFetchVendor.mockResolvedValue(
+        makeVendor('v-1', 'Alpha Co') as Awaited<ReturnType<typeof VendorsApiModule.fetchVendor>>,
+      );
+      await renderReady({ suggestedVendorId: 'v-1' });
+      await screen.findAllByText('Alpha Co');
+
+      fireEvent.click(screen.getByTestId('suggestion-apply'));
+
+      expect(screen.getAllByText('Alpha Co').length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    });
+
     it('shows no title for a suggested company that cannot be looked up, but keeps the id', async () => {
       serverBacked([]);
       mockFetchVendor.mockRejectedValue(new Error('offline'));
@@ -688,6 +719,38 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       );
     });
 
+    it('selects a company created under another name than the extracted one and keeps the extracted name unmatched', async () => {
+      mockCreateVendor.mockResolvedValue(makeVendor('vendor-typed', 'Typed Co'));
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+
+      fireEvent.change(input, { target: { value: 'Typed Co' } });
+      fireEvent.click(await screen.findByRole('option', { name: 'New company Typed Co' }));
+      const dialog = await screen.findByRole('dialog', { name: 'New company' });
+      saveCompany(dialog);
+
+      expect(await screen.findByText('Typed Co')).toBeInTheDocument();
+      expect(document.querySelector('[role="status"]')).toHaveTextContent(
+        'Vendor "Typed Co" created and selected',
+      );
+      // The extracted name still has no company, so clearing offers its row again.
+      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      const cleared = await screen.findByPlaceholderText('Search vendors…');
+      fireEvent.focus(cleared);
+      expect(await screen.findByRole('option', { name: createRowName })).toBeInTheDocument();
+    });
+
+    it('lets the user clear the created company and choose again', async () => {
+      mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      saveCompany(await openCreateDialog(input));
+      await screen.findByText('Neue Firma');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+
+      expect(await screen.findByPlaceholderText('Search vendors…')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    });
+
     it('after creating the extracted company the empty-field row is gone and the server lists it', async () => {
       const store = serverBacked([]);
       mockCreateVendor.mockImplementation(async () => {
@@ -709,6 +772,25 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
 
       expect(await screen.findByRole('option', { name: 'Neue Firma' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('commits the same invoice total when the interface is German', async () => {
+      mockLocale.value = 'de';
+      mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
+      mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      saveCompany(await openCreateDialog(input));
+      await screen.findByRole('button', { name: 'Clear selection' });
+
+      fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
+
+      await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1));
+      expect(mockCommitAutoItemizeCreate.mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({
+          vendorId: 'vendor-new',
+          invoice: expect.objectContaining({ amount: 350 }),
+        }),
+      );
     });
 
     it('commits the invoice with the created company id', async () => {

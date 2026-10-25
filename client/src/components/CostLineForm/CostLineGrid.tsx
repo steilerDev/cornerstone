@@ -21,7 +21,9 @@ import { remainingState } from '../CostLineTable/costLineRows.js';
 import { CostLineEstimatePicker } from './CostLineEstimatePicker.js';
 import { CostLineGridRowView } from './CostLineGridRow.js';
 import type { GridColumn } from './CostLineGridRow.js';
-import { CostLineTargetPicker } from './CostLineTargetPicker.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
+import { itemValue } from '../EntityPicker/entityPickerKinds.js';
+import { toCostLineTarget } from './costLineValues.js';
 import { PastePreviewDialog } from './PastePreviewDialog.js';
 import {
   blankGridRow,
@@ -424,12 +426,18 @@ export function CostLineGrid({
             <label htmlFor={`${gridId}-assign-all`} className={styles.bulkLabel}>
               {t('grid.assignAll')}
             </label>
-            <CostLineTargetPicker
-              id={`${gridId}-assign-all`}
-              value={assignAll}
-              onChange={onAssignAllChange}
-              testId={`${testIdPrefix}-assign-all`}
-            />
+            <div data-testid={`${testIdPrefix}-assign-all`}>
+              <EntityPicker
+                kind="taskOrPurchase"
+                id={`${gridId}-assign-all`}
+                value={assignAll ? itemValue(assignAll) : ''}
+                selectedLabel={assignAll?.label}
+                onChange={(_value, option) =>
+                  onAssignAllChange(option ? toCostLineTarget(option) : null)
+                }
+                placeholder={t('form.belongsToPlaceholder')}
+              />
+            </div>
           </div>
           <div className={styles.bulkField}>
             <span id={`${gridId}-entered-all`} className={styles.bulkLabel}>

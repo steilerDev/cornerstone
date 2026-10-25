@@ -303,7 +303,7 @@ describe('Vendor Contact Routes', () => {
   // ─── DELETE /api/vendors/:vendorId/contacts/:contactId ─────────────────────
 
   describe('DELETE /api/vendors/:vendorId/contacts/:contactId', () => {
-    it('returns 204 on successful delete', async () => {
+    it('returns 200 with an undo token on successful delete', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
       const vendorId = createTestVendor();
 
@@ -321,7 +321,7 @@ describe('Vendor Contact Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(204);
+      expect(response.statusCode).toBe(200);
     });
 
     it('verifies deletion: GET returns empty after DELETE', async () => {

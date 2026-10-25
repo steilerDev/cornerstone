@@ -5,7 +5,8 @@ import type {
   ObjectFormSchema,
   ObjectFormValues,
 } from '../components/ObjectForm/types.js';
-import { TradePicker } from '../components/TradePicker/TradePicker.js';
+import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
+import { getCategoryDisplayName } from '../lib/categoryUtils.js';
 import { useTrades } from '../hooks/useTrades.js';
 import { createVendor } from '../lib/vendorsApi.js';
 
@@ -28,6 +29,7 @@ function text(value: unknown): string {
  */
 export function useCompanyFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const { trades } = useTrades();
 
   return {
@@ -50,20 +52,29 @@ export function useCompanyFormSchema(): ObjectFormSchema {
         kind: 'custom',
         essential: true,
         testId: 'company-trade-input',
-        render: (ctx) => (
-          <TradePicker
-            id={ctx.id}
-            trades={trades}
-            value={typeof ctx.value === 'string' ? ctx.value : ''}
-            onChange={ctx.setValue}
-            disabled={ctx.busy}
-            placeholder={t('companies.form.tradePlaceholder')}
-            inputAriaProps={{
-              'aria-invalid': ctx.invalid || undefined,
-              'aria-describedby': ctx.describedBy,
-            }}
-          />
-        ),
+        render: (ctx) => {
+          const tradeId = typeof ctx.value === 'string' ? ctx.value : '';
+          const trade = trades.find((candidate) => candidate.id === tradeId);
+          return (
+            <EntityPicker
+              kind="trade"
+              id={ctx.id}
+              value={tradeId}
+              selectedLabel={
+                trade
+                  ? getCategoryDisplayName(tSettings, trade.name, trade.translationKey)
+                  : undefined
+              }
+              onChange={ctx.setValue}
+              disabled={ctx.busy}
+              placeholder={t('companies.form.tradePlaceholder')}
+              inputAriaProps={{
+                'aria-invalid': ctx.invalid || undefined,
+                'aria-describedby': ctx.describedBy,
+              }}
+            />
+          );
+        },
       },
       {
         name: 'phone',

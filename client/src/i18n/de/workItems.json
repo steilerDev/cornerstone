@@ -116,13 +116,6 @@
     },
     "added": "Aufgabe „{{title}}“ hinzugefügt."
   },
-  "picker": {
-    "placeholder": "Arbeitspakete suchen...",
-    "emptyHint": "Zum Suchen von Arbeitspaketen tippen",
-    "noResults": "Keine passenden Arbeitspakete gefunden",
-    "loadError": "Arbeitspakete konnten nicht geladen werden",
-    "searchError": "Suche nach Arbeitspaketen fehlgeschlagen"
-  },
   "detail": {
     "loading": "Arbeitspaket wird geladen...",
     "error": {
@@ -216,6 +209,8 @@
       "noLinkedMilestones": "Keine verknüpften Meilensteine",
       "selectMilestone": "Meilenstein auswählen...",
       "selectMilestonePlaceholder": "Meilenstein auswählen...",
+      "removeRequiredMilestoneAria": "Erforderlichen Meilenstein entfernen: {{name}}",
+      "removeLinkedMilestoneAria": "Verknüpften Meilenstein entfernen: {{name}}",
       "selectRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein zum Hinzufügen auswählen",
       "selectLinkedMilestoneAriaLabel": "Meilenstein zum Verknüpfen auswählen",
       "addMilestone": "Hinzufügen",

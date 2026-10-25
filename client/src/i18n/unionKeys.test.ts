@@ -27,6 +27,7 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 import enBudget from './en/budget.json';
 import enDocuments from './en/documents.json';
@@ -88,8 +89,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 63 registered sets', () => {
-    expect(SETS).toHaveLength(63);
+  it('iterates all 65 registered sets', () => {
+    expect(SETS).toHaveLength(65);
   });
 });
 
@@ -190,7 +191,6 @@ describe('I18N_UNION_KEYS registry', () => {
       'costLineEmptyBodyDocument',
       'costLineRemoveFromDocument',
       'costLineSplitLabel',
-      'costLineRemoveLeadNoTarget',
       'statusVocabularyProgressPayment',
       'statusVocabularyTask',
       'statusVocabularyScheduleSignal',
@@ -218,6 +218,9 @@ describe('I18N_UNION_KEYS registry', () => {
       'userAccountStatus',
       'createMenuEntry',
       'quickLogMode',
+      'whoGroup',
+      'whoKind',
+      'entityPickerNew',
       'objectTab',
       'documentLinkEntity',
       'documentLinkEmptyBody',
@@ -255,14 +258,31 @@ describe('I18N_UNION_KEYS registry', () => {
       sets.costLineEmptyBodyDocument,
       sets.costLineRemoveFromDocument,
       sets.costLineSplitLabel,
-      sets.costLineRemoveLeadNoTarget,
     ]) {
       expect(set.ns).toBe('costLines');
       expect(set.members).toEqual(['offer', 'invoice']);
     }
     expect(sets.costLineEmptyBodyDocument.key('offer')).toBe('section.emptyBodyDocument.offer');
     expect(sets.costLineSplitLabel.key('invoice')).toBe('table.splitLabel.invoice');
-    expect(sets.costLineRemoveLeadNoTarget.key('offer')).toBe('confirm.removeLeadNoTarget.offer');
+    // The confirm-dialog lead was retired with the Undo toast (#2236).
+    expect(Object.keys(sets)).not.toContain('costLineRemoveLeadNoTarget');
+  });
+
+  it('builds the #2236 entity picker keys from their tuples', () => {
+    const sets = I18N_UNION_KEYS;
+    expect(sets.whoGroup.ns).toBe('common');
+    expect(sets.whoGroup.members).toBe(WHO_KINDS);
+    expect(sets.whoGroup.members).toEqual(['company', 'member']);
+    expect(sets.whoGroup.key('company')).toBe('entityPicker.who.group.company');
+    expect(sets.whoGroup.key('member')).toBe('entityPicker.who.group.member');
+    expect(sets.whoKind.ns).toBe('common');
+    expect(sets.whoKind.members).toBe(WHO_KINDS);
+    expect(sets.whoKind.key('member')).toBe('entityPicker.who.kind.member');
+    expect(sets.entityPickerNew.ns).toBe('common');
+    expect(sets.entityPickerNew.members).toBe(ENTITY_CREATE_KINDS);
+    expect(sets.entityPickerNew.members).toEqual(['area', 'orientation', 'trade', 'category']);
+    expect(sets.entityPickerNew.key('trade')).toBe('entityPicker.new.trade');
+    expect(sets.entityPickerNew.key('category')).toBe('entityPicker.new.category');
   });
 
   it('builds the #2230 Home and attention keys from their tuples', () => {

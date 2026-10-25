@@ -858,7 +858,9 @@ describe('InvoiceDepositsSection', () => {
 
     it('confirming delete calls deleteDeposit then onDepositMutated', async () => {
       const deposit = makeDeposit('dep-1', { status: 'pending' });
-      mockDeleteDeposit.mockResolvedValueOnce(undefined);
+      mockDeleteDeposit.mockResolvedValueOnce({
+        undo: { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' },
+      });
 
       const onMutated = jest.fn();
       renderSection([deposit], { onDepositMutated: onMutated });

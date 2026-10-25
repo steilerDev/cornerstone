@@ -4,22 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
-import { searchCompanies } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
-import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
-import { useCompanyName, type KnownCompany } from '../../hooks/useCompanyName.js';
-import type { CompanyOption } from '../../objectForms/companyForm.js';
-import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
+import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import type { KnownCompany } from '../../hooks/useCompanyName.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { readOrigin, pathnameOf } from '../../navigation/origin.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './HouseholdItemEditPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
-
-const NO_EXCLUDED: string[] = [];
 
 export function HouseholdItemEditPage() {
   const navigate = useNavigate();
@@ -29,7 +23,6 @@ export function HouseholdItemEditPage() {
   const { t } = useTranslation('householdItems');
   const { t: tc } = useTranslation('common');
   const { areas, isLoading: areasLoading } = useAreas();
-  const { createAction: companyCreateAction } = useCompanyCreateAction();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -47,7 +40,6 @@ export function HouseholdItemEditPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
   const [loadedName, setLoadedName] = useState<string | null>(null);
-  const company = useCompanyName(vendorId, { known: knownVendor });
 
   const h1Text = notFound ? tc('navigation.purchaseNotFound') : tc('navigation.editPurchase');
   useDocumentTitle(h1Text);
@@ -289,12 +281,13 @@ export function HouseholdItemEditPage() {
               {t('edit.loading')}
             </div>
           ) : (
-            <AreaPicker
+            <EntityPicker
+              kind="area"
               areas={areas}
               value={areaId}
               onChange={setAreaId}
               disabled={isSubmitting}
-              nullable
+              noneLabel={tc('aria.noArea')}
             />
           )}
         </div>
@@ -303,19 +296,14 @@ export function HouseholdItemEditPage() {
           <label htmlFor="vendorId" className={styles.label}>
             {t('edit.form.vendor.label')}
           </label>
-          <SearchPicker<CompanyOption>
+          <EntityPicker
+            kind="company"
             id="vendorId"
             value={vendorId}
             onChange={setVendorId}
-            onSelectItem={company.remember}
-            excludeIds={NO_EXCLUDED}
-            disabled={isSubmitting || company.isResolving}
+            knownCompany={knownVendor}
+            disabled={isSubmitting}
             placeholder={t('edit.form.vendor.placeholder')}
-            searchFn={(q, _excluded, signal) => searchCompanies(q, signal)}
-            renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
-            showItemsOnFocus
-            initialTitle={company.name}
-            createAction={companyCreateAction}
           />
         </div>
 

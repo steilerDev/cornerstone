@@ -794,6 +794,88 @@ describe('child step (create from a picker)', () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
+  describe('focus after the child step when the field input is gone', () => {
+    function chipSchema(chip: (clear: () => void, id: string) => ReactNode): ObjectFormSchema {
+      return makeSchema({}, [
+        { name: 'title', label: 'Title', kind: 'text', essential: true, required: true },
+        {
+          name: 'helper',
+          label: 'Helper',
+          kind: 'custom',
+          essential: true,
+          render: (ctx) =>
+            ctx.value ? (
+              chip(() => ctx.setValue(''), ctx.id)
+            ) : (
+              <button
+                id={ctx.id}
+                type="button"
+                data-testid="create-helper"
+                onClick={() =>
+                  ctx.createChild({ schema: childSchema, onCreated: (r) => ctx.setValue(r.id) })
+                }
+              >
+                Create helper
+              </button>
+            ),
+        },
+      ]);
+    }
+
+    async function createChild(schema: ObjectFormSchema) {
+      const user = userEvent.setup();
+      setup({ schema });
+      await user.click(screen.getByTestId('create-helper'));
+      await user.type(screen.getByLabelText(/^Name/), 'H');
+      await user.click(save());
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'New thing' })).toBeInTheDocument(),
+      );
+    }
+
+    it('focuses the first enabled control of the field wrapper (the chip Clear button)', async () => {
+      await createChild(
+        chipSchema((clear) => (
+          <div>
+            <button type="button" disabled>
+              Disabled first
+            </button>
+            <button type="button" onClick={clear}>
+              Clear selection
+            </button>
+          </div>
+        )),
+      );
+
+      expect(screen.queryByTestId('create-helper')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toHaveFocus();
+    });
+
+    it('focuses the element with the field id when it still exists', async () => {
+      await createChild(
+        chipSchema((clear, id) => (
+          <div>
+            <button type="button">Other control</button>
+            <input id={id} aria-label="Helper value" defaultValue="kept" />
+            <button type="button" onClick={clear}>
+              Clear selection
+            </button>
+          </div>
+        )),
+      );
+
+      expect(screen.getByLabelText('Helper value')).toHaveFocus();
+    });
+
+    it('does not fail when the field has no focusable element left', async () => {
+      await createChild(chipSchema(() => <span data-testid="static-chip">Helper One</span>));
+
+      expect(screen.getByTestId('static-chip')).toBeInTheDocument();
+      // Nothing to focus in the field: focus stays where the child Save left it.
+      expect(save()).toHaveFocus();
+    });
+  });
+
   it('child validation errors stay on the child step', async () => {
     const user = userEvent.setup();
     setup({ schema: parentSchema() });

@@ -18,53 +18,47 @@ jest.unstable_mockModule('../../../lib/photoApi.js', () => ({
   updatePhotoTags: mockUpdatePhotoTags,
 }));
 
-// Light stand-ins for the pickers: they show the special options and the value, and let a
+// Light stand-in for the EntityPicker kinds: they show the special options and the value, and let a
 // test pick a concrete value or the "No area" / "No orientation" (empty) special.
-jest.unstable_mockModule('../../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: {
-    id?: string;
-    value: string;
-    disabled?: boolean;
-    specialOptions?: Array<{ id: string; label: string }>;
-    onChange: (id: string) => void;
-  }) => (
-    <div data-testid="area-picker" data-value={props.value}>
-      <input id={props.id} aria-label="area input" disabled={props.disabled} readOnly />
-      <span data-testid="area-specials">
-        {(props.specialOptions ?? []).map((o) => `${o.id}=${o.label}`).join('|')}
-      </span>
-      <button type="button" onClick={() => props.onChange('area-2')}>
-        pick area
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear area
-      </button>
-      <button type="button" onClick={() => props.onChange('__keep__')}>
-        keep area
-      </button>
-    </div>
-  ),
-}));
-jest.unstable_mockModule('../../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: {
-    id?: string;
-    value: string;
-    disabled?: boolean;
-    specialOptions?: Array<{ id: string; label: string }>;
-    onChange: (id: string) => void;
-  }) => (
-    <div data-testid="orientation-picker" data-value={props.value}>
-      <span data-testid="orientation-specials">
-        {(props.specialOptions ?? []).map((o) => `${o.id}=${o.label}`).join('|')}
-      </span>
-      <button type="button" onClick={() => props.onChange('ori-2')}>
-        pick orientation
-      </button>
-      <button type="button" onClick={() => props.onChange('')}>
-        clear orientation
-      </button>
-    </div>
-  ),
+type MockPickerProps = {
+  kind: 'area' | 'orientation';
+  id?: string;
+  value: string;
+  disabled?: boolean;
+  specialOptions?: Array<{ id: string; label: string }>;
+  onChange: (id: string, option: null) => void;
+};
+jest.unstable_mockModule('../../EntityPicker/EntityPicker.js', () => ({
+  EntityPicker: (props: MockPickerProps) =>
+    props.kind === 'area' ? (
+      <div data-testid="area-picker" data-value={props.value}>
+        <input id={props.id} aria-label="area input" disabled={props.disabled} readOnly />
+        <span data-testid="area-specials">
+          {(props.specialOptions ?? []).map((o) => `${o.id}=${o.label}`).join('|')}
+        </span>
+        <button type="button" onClick={() => props.onChange('area-2', null)}>
+          pick area
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear area
+        </button>
+        <button type="button" onClick={() => props.onChange('__keep__', null)}>
+          keep area
+        </button>
+      </div>
+    ) : (
+      <div data-testid="orientation-picker" data-value={props.value}>
+        <span data-testid="orientation-specials">
+          {(props.specialOptions ?? []).map((o) => `${o.id}=${o.label}`).join('|')}
+        </span>
+        <button type="button" onClick={() => props.onChange('ori-2', null)}>
+          pick orientation
+        </button>
+        <button type="button" onClick={() => props.onChange('', null)}>
+          clear orientation
+        </button>
+      </div>
+    ),
 }));
 
 describe('PhotoBulkTagSheet', () => {

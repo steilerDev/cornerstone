@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   MilestoneSummary,
   MilestoneDetail,
@@ -62,8 +63,11 @@ export function linkWorkItem(
 /**
  * Unlinks a work item from a milestone.
  */
-export function unlinkWorkItem(milestoneId: number, workItemId: string): Promise<void> {
-  return del<void>(`/milestones/${milestoneId}/work-items/${workItemId}`);
+export function unlinkWorkItem(
+  milestoneId: number,
+  workItemId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/milestones/${milestoneId}/work-items/${workItemId}`);
 }
 
 /**
@@ -83,8 +87,11 @@ export function addDependentWorkItem(
 /**
  * Removes a work item from the dependents of a milestone.
  */
-export function removeDependentWorkItem(milestoneId: number, workItemId: string): Promise<void> {
-  return del<void>(`/milestones/${milestoneId}/dependents/${workItemId}`);
+export function removeDependentWorkItem(
+  milestoneId: number,
+  workItemId: string,
+): Promise<UndoableDeleteResponse> {
+  return del<UndoableDeleteResponse>(`/milestones/${milestoneId}/dependents/${workItemId}`);
 }
 
 /**

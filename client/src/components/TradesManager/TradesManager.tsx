@@ -16,7 +16,7 @@ import { Sheet } from '../Modal/Sheet.js';
 import { OverflowMenu } from '../OverflowMenu/OverflowMenu.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { useToast } from '../Toast/ToastContext.js';
-import { TradePicker } from '../TradePicker/TradePicker.js';
+import { EntityPicker } from '../EntityPicker/EntityPicker.js';
 import styles from './TradesManager.module.css';
 
 const NAME_MAX_LENGTH = 200;
@@ -272,24 +272,25 @@ export function TradesManager({
   };
 
   const handleMerge = async () => {
-    if (!mergeState || mergeState.busy || !mergeState.targetId) return;
-    const { trade, targetId } = mergeState;
-    const target = trades.find((tr) => tr.id === targetId);
-    setMergeState({ ...mergeState, busy: true, error: null });
+    // The dialog's action is inert while busy or without a chosen target.
+    const state = mergeState!;
+    const { trade, targetId } = state;
+    const target = trades.find((tr) => tr.id === targetId)!;
+    setMergeState({ ...state, busy: true, error: null });
     try {
       await mergeTrade(trade.id, targetId);
       showToast(
         'success',
         t('tradesManager.merge.done', {
           name: displayName(trade),
-          target: target ? displayName(target) : '',
+          target: displayName(target),
         }),
       );
       requestFocus({ kind: 'row', ids: [targetId] });
       onChanged?.({ kind: 'merged', fromId: trade.id, intoId: targetId });
       setMergeState(null);
     } catch (err) {
-      setMergeState({ ...mergeState, busy: false, error: errorText(err) });
+      setMergeState({ ...state, busy: false, error: errorText(err) });
     }
   };
 
@@ -303,9 +304,10 @@ export function TradesManager({
   };
 
   const handleDelete = async () => {
-    if (!deleteState || deleteState.busy || deleteState.blockedCount !== null) return;
-    const { trade } = deleteState;
-    setDeleteState({ ...deleteState, busy: true, error: null });
+    // The dialog offers no action while busy or blocked.
+    const state = deleteState!;
+    const { trade } = state;
+    setDeleteState({ ...state, busy: true, error: null });
     try {
       await deleteTrade(trade.id);
       showToast('success', t('tradesManager.deleteDialog.done', { name: displayName(trade) }));
@@ -319,7 +321,7 @@ export function TradesManager({
         const count = typeof raw === 'number' && raw > 0 ? raw : Math.max(trade.vendorCount, 1);
         setDeleteState({ trade, blockedCount: count, busy: false, error: null });
       } else {
-        setDeleteState({ ...deleteState, busy: false, error: errorText(err) });
+        setDeleteState({ ...state, busy: false, error: errorText(err) });
       }
     }
   };
@@ -525,13 +527,15 @@ export function TradesManager({
             <label className={styles.label} htmlFor={mergePickerId}>
               {t('tradesManager.merge.keepLabel')}
             </label>
-            <TradePicker
+            <EntityPicker
+              kind="trade"
               id={mergePickerId}
-              trades={trades}
               excludeIds={[mergeState.trade.id]}
               value={mergeState.targetId}
-              onChange={(id) => setMergeState((s) => (s ? { ...s, targetId: id } : s))}
+              selectedLabel={mergeTarget ? displayName(mergeTarget) : undefined}
+              onChange={(id) => setMergeState({ ...mergeState, targetId: id })}
               disabled={mergeState.busy}
+              create="off"
             />
             <div role="status" className={styles.mergeStatus}>
               {mergeTarget

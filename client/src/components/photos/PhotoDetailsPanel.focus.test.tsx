@@ -12,7 +12,7 @@ import type {
   PhotoDetailsPanelPhoto,
 } from './PhotoDetailsPanel.js';
 
-// Real AreaPicker and SearchPicker here: this file checks what the user sees when Edit tags opens.
+// Real EntityPicker (area) and SearchPicker here: this file checks what the user sees when Edit tags opens.
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => makeLocaleContextMock());
 jest.unstable_mockModule('../../lib/photoApi.js', () => ({ updatePhotoDetails: jest.fn() }));
 
@@ -23,10 +23,9 @@ const AREAS: AreaResponse[] = [
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: () => ({ areas: AREAS, isLoading: false }),
 }));
-jest.unstable_mockModule('../OrientationPicker/OrientationPicker.js', () => ({
-  OrientationPicker: (props: { id?: string }) => (
-    <input id={props.id} aria-label="orientation input" readOnly />
-  ),
+// The orientation picker is real too; its list call is answered empty.
+jest.unstable_mockModule('../../lib/orientationApi.js', () => ({
+  fetchOrientations: jest.fn(() => Promise.resolve({ orientations: [] })),
 }));
 
 let PhotoDetailsPanel: typeof PanelType;

@@ -842,29 +842,23 @@ export class PhotoViewerPage {
   /**
    * Read all visible dropdown option rows from the currently-open picker dropdown.
    *
-   * Returns an array of `{ label: string, secondary: string | null }` objects.
-   * `label` is the primary option text (`.resultTitle` span content).
-   * `secondary` is the secondary line text (`.resultSecondary` span, or null if absent).
-   *
-   * NOTE: Only reads regular (non-special) options rendered as `role="option"`.
+   * Returns `{ label, secondary }` per `role="option"` row. Area rows are an EntityPicker path
+   * (#2236): the ancestors (muted `pathSegment` spans) followed by the last level (`pathLast`).
+   * `label` is the last level, `secondary` the ancestors joined with " › " (null for a top-level
+   * area). Other rows (orientations, "No area") keep their whole text as `label`.
    */
   async getDropdownOptions(): Promise<Array<{ label: string; secondary: string | null }>> {
-    const dropdown = this.pickerDropdown;
-    const options = dropdown.locator('[role="option"]');
-    const count = await options.count();
-    const results: Array<{ label: string; secondary: string | null }> = [];
-    for (let i = 0; i < count; i++) {
-      const option = options.nth(i);
-      const titleSpan = option.locator('[class*="resultTitle"]');
-      const secondarySpan = option.locator('[class*="resultSecondary"]');
-      const label = (await titleSpan.textContent())?.trim() ?? '';
-      const secondaryText =
-        (await secondarySpan.count()) > 0
-          ? ((await secondarySpan.first().textContent())?.trim() ?? null)
-          : null;
-      results.push({ label, secondary: secondaryText || null });
-    }
-    return results;
+    const options = this.pickerDropdown.locator('[role="option"]');
+    return options.evaluateAll((rows) =>
+      rows.map((row) => {
+        const last = row.querySelector('[class*="pathLast"]');
+        const ancestors = Array.from(row.querySelectorAll('[class*="pathSegment"]')).map(
+          (el) => el.textContent?.trim() ?? '',
+        );
+        const label = (last ?? row).textContent?.trim() ?? '';
+        return { label, secondary: ancestors.length > 0 ? ancestors.join(' › ') : null };
+      }),
+    );
   }
 
   /**

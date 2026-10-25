@@ -88,7 +88,9 @@ test.describe('Form fields visible (Scenario 3)', { tag: '@responsive' }, () => 
     await createPage.goto();
 
     await expect(createPage.nameInput).toBeVisible();
-    await expect(createPage.categorySelect).toBeVisible();
+    await expect(
+      createPage.categoryPicker.input.or(createPage.categoryPicker.clearButton),
+    ).toBeVisible();
     await expect(createPage.statusSelect).toBeVisible();
     await expect(createPage.quantityInput).toBeVisible();
     await expect(createPage.vendorSelect).toBeVisible();
@@ -155,7 +157,7 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
       await createPage.fillForm({
         name,
         description: 'A comfortable sofa for the living room',
-        category: 'hic-furniture',
+        category: 'Furniture',
         status: 'planned',
         quantity: '2',
         url: 'https://example.com/sofa',
@@ -221,9 +223,14 @@ test.describe('Category options (Scenario 7)', { tag: '@responsive' }, () => {
       'Other',
     ];
 
+    // The category is an EntityPicker: clear the preselected first category, then the focused
+    // input lists them all
+    const picker = createPage.categoryPicker;
+    if ((await picker.input.count()) === 0) await picker.clearButton.click();
+    await picker.input.click();
+    await picker.dropdown.waitFor({ state: 'visible' });
     for (const category of expectedCategories) {
-      const option = createPage.categorySelect.locator('option', { hasText: category });
-      await expect(option).toHaveCount(1);
+      await expect(picker.optionNamed(category)).toHaveCount(1);
     }
   });
 });
