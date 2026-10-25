@@ -52,6 +52,12 @@ Some words in the budget pages changed. The screens do the same job as before.
 | **Budget line** | **Cost line** | The **Cost lines** section on a task, purchase, offer or invoice. **Add cost line** adds one; **Add lines (grid)** enters several at once. |
 | **Confidence** | **Basis** | The setting on each cost line: **Own estimate**, **Professional estimate**, **Offer** or **Invoice**. |
 | **Itemize** | **Split** | The **Not yet split** row on an offer or invoice. The **Itemize** action on a linked document still opens **Split with AI**. |
+| **Remaining budget** | **Left to spend** | The headline on Money > Overview, and the **Left to spend** tile on Home. |
+| **Available funds** | **Funding total** | The **Funding total** fact on Money > Overview. Each funding source is listed under **Funding sources**, with its **Allocated** bar. |
+| **Cost basis** | **Payment** | The **Payment** setting on Money > Overview: **All**, **Paid** or **Not yet paid**. |
+| **Outstanding** | **Not yet paid** | The **Not yet paid** payment setting on Money > Overview. The **Still to pay** fact keeps its name and counts your open invoices. |
+| **Min**, **Avg** and **Max** | **Low**, **Expected** and **High** | The **Show estimates at** setting on Money > Overview. |
+| **Add** menu on the budget page | Removed | Create items from the **New** menu at the top of the page. |
 
 Two more words come up often:
 

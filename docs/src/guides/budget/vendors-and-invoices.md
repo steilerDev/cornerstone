@@ -99,7 +99,7 @@ Invoices have four statuses:
 | **Submitted** | Paid or due, and included in a draw-down request to the bank (a claim for reimbursement from the financing source) |
 
 :::tip
-Use the **Offer** status for company offers that you want to track alongside actual invoices. On **Money > Budget**, offer amounts carry a +/- 5% margin in budget projections, reflecting the typical variance from a formal offer. Cost lines linked to an offer count at face value on the task and purchase pages, and the **Expected cost** row on the offer page shows no range.
+Use the **Offer** status for company offers that you want to track alongside actual invoices. Cost lines linked to an offer count at their face value on the task and purchase pages and on **Money > Overview**. The offer's amount is not shown as a range.
 :::
 
 ### Converting an Offer to a Final Invoice
@@ -143,7 +143,7 @@ Each line shows:
 
 The heading shows how many lines there are, such as **Cost lines (4)**. Use **Add cost line** to add a single line, or **Add lines (grid)** to enter several at once.
 
-The **Total** of the lines is shown beneath them. For an offer, the **Expected cost** row on this page does not show a +/- 5% range. When grants apply to the lines, the row reads **After grants**.
+The **Total** of the lines is shown beneath them. For an offer, the **Expected cost** row on this page shows the offer's amount with no range. When grants apply to the lines, the row reads **After grants**.
 
 ### Splitting an Offer or Invoice into Cost Lines
 

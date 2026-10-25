@@ -1,32 +1,32 @@
+/**
+ * Route tests of `GET /api/budget/overview` (#2237, contract 25): `{ overview: { subsidySummary },
+ * money }`. The breakdown endpoint is in `budgetOverview.breakdown.test.ts`; the cross-consumer
+ * consistency in `services/moneyService.fixture.test.ts`.
+ *
+ * Mutations these tests catch:
+ *  - a legacy overview field coming back (the key list is pinned);
+ *  - the grant summary and `money` coming from two different computations;
+ *  - the endpoint answering without a session.
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import type { FastifyInstance } from 'fastify';
+import type { BudgetOverviewResponse } from '@cornerstone/shared';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
-import type { FastifyInstance } from 'fastify';
-import type { BudgetOverviewResponse } from '@cornerstone/shared';
+import { createMoneySeed } from '../test/moneyDb.js';
 import * as schema from '../db/schema.js';
 
-// Snapshot of the legacy overview key set: ADR-039 adds `money` next to it, no key changes.
-const EXPECTED_OVERVIEW_KEYS = [
-  'actualCost',
-  'actualCostClaimed',
-  'actualCostPaid',
-  'availableFunds',
-  'maxPlanned',
-  'minPlanned',
-  'remainingVsActualClaimed',
-  'remainingVsActualCost',
-  'remainingVsActualPaid',
-  'remainingVsMaxPlanned',
-  'remainingVsMaxPlannedWithPayback',
-  'remainingVsMinPlanned',
-  'remainingVsMinPlannedWithPayback',
-  'sourceCount',
-  'subsidySummary',
+const EXPECTED_SUMMARY_KEYS = [
+  'activeSubsidyCount',
+  'maxTotalPayback',
+  'minTotalPayback',
+  'oversubscribedSubsidies',
+  'totalReductions',
 ];
 const EXPECTED_MONEY_KEYS = [
   'activeSourceCount',
@@ -49,28 +49,22 @@ const EXPECTED_MONEY_KEYS = [
   'stillToPayCount',
 ];
 
-describe('Budget Overview Routes', () => {
+describe('GET /api/budget/overview', () => {
   let app: FastifyInstance;
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
-
     tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-budget-overview-test-'));
     process.env.DATABASE_URL = join(tempDir, 'test.db');
     process.env.SECURE_COOKIES = 'false';
-
     app = await buildApp();
   });
 
   afterEach(async () => {
-    if (app) {
-      await app.close();
-    }
-
+    if (app) await app.close();
     process.env = originalEnv;
-
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch {
@@ -78,361 +72,114 @@ describe('Budget Overview Routes', () => {
     }
   });
 
-  /**
-   * Helper: Create a user and return a session cookie.
-   */
-  async function createUserWithSession(
-    email: string,
-    displayName: string,
-    password: string,
-    role: 'admin' | 'member' = 'member',
-  ): Promise<{ userId: string; cookie: string }> {
-    const user = await userService.createLocalUser(app.db, email, displayName, password, role);
-    const sessionToken = sessionService.createSession(app.db, user.id, 3600);
-    return {
-      userId: user.id,
-      cookie: `cornerstone_session=${sessionToken}`,
-    };
+  async function cookieFor(role: 'admin' | 'member'): Promise<string> {
+    const user = await userService.createLocalUser(
+      app.db,
+      `${role}@example.test`,
+      `Test ${role}`,
+      'a-long-test-password-1',
+      role,
+    );
+    return `cornerstone_session=${sessionService.createSession(app.db, user.id, 3600)}`;
   }
 
-  /**
-   * Helpers to create test data in the route-level DB.
-   */
-  let idCounter = 0;
-
-  function insertWorkItem(
-    opts: {
-      plannedAmount?: number | null;
-      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-      budgetCategoryId?: string | null;
-      budgetSourceId?: string | null;
-      actualCost?: number | null;
-    } = {},
-  ): string {
-    const id = `wi-route-${idCounter++}`;
-    const now = new Date().toISOString();
-    app.db
-      .insert(schema.workItems)
-      .values({
-        id,
-        title: `Route Work Item ${id}`,
-        status: 'not_started',
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-
-    const hasBudgetData =
-      opts.plannedAmount != null || opts.budgetCategoryId != null || opts.budgetSourceId != null;
-    if (hasBudgetData) {
-      const budgetId = `bud-route-${idCounter++}`;
-      app.db
-        .insert(schema.workItemBudgets)
-        .values({
-          id: budgetId,
-          workItemId: id,
-          plannedAmount: opts.plannedAmount ?? 0,
-          confidence: opts.confidence ?? 'own_estimate',
-          budgetCategoryId: opts.budgetCategoryId ?? null,
-          budgetSourceId: opts.budgetSourceId ?? null,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      if (opts.actualCost != null && opts.actualCost > 0) {
-        const vendorId = `wi-route-vendor-${idCounter++}`;
-        app.db
-          .insert(schema.vendors)
-          .values({ id: vendorId, name: `Auto Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-          .run();
-
-        const invoiceId = `wi-route-inv-${idCounter++}`;
-        app.db
-          .insert(schema.invoices)
-          .values({
-            id: invoiceId,
-            vendorId,
-            amount: opts.actualCost,
-            date: '2026-01-01',
-            status: 'paid',
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        app.db
-          .insert(schema.invoiceBudgetLines)
-          .values({
-            id: randomUUID(),
-            invoiceId,
-            workItemBudgetId: budgetId,
-            itemizedAmount: opts.actualCost,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-      }
-    }
-
-    return id;
+  async function getOverview(cookie: string) {
+    return app.inject({ method: 'GET', url: '/api/budget/overview', headers: { cookie } });
   }
 
-  function insertBudgetSource(
-    totalAmount: number,
-    status: 'active' | 'exhausted' | 'closed' = 'active',
-  ): string {
-    const id = `src-route-${idCounter++}`;
-    const now = new Date().toISOString();
-    app.db
-      .insert(schema.budgetSources)
-      .values({
-        id,
-        name: `Route Source ${id}`,
-        sourceType: 'bank_loan',
-        totalAmount,
-        status,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-    return id;
-  }
+  describe('authentication', () => {
+    it('returns 401 UNAUTHORIZED without a session', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/budget/overview' });
+      expect(response.statusCode).toBe(401);
+      expect(response.json().error.code).toBe('UNAUTHORIZED');
+    });
 
-  // ─── GET /api/budget/overview ─────────────────────────────────────────────
-
-  describe('GET /api/budget/overview', () => {
-    it('returns 401 when not authenticated', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-      });
-
+    it('returns 401 with an invalid session cookie', async () => {
+      const response = await getOverview('cornerstone_session=not-a-session');
       expect(response.statusCode).toBe(401);
     });
 
-    it('returns 401 with invalid session cookie', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie: 'cornerstone_session=invalid-token' },
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('returns 200 with overview object for authenticated member', async () => {
-      const { cookie } = await createUserWithSession(
-        'member@example.com',
-        'Member User',
-        'password',
-        'member',
-      );
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
+    it.each(['member', 'admin'] as const)('returns 200 for a %s', async (role) => {
+      const response = await getOverview(await cookieFor(role));
       expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetOverviewResponse>();
-      expect(body).toHaveProperty('overview');
     });
+  });
 
-    it('returns 200 with overview object for authenticated admin', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@example.com',
-        'Admin User',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetOverviewResponse>();
-      expect(body).toHaveProperty('overview');
-    });
-
-    it('returns correct shape with all required fields', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetOverviewResponse>();
-      const overview = body.overview;
-
-      // Top-level numeric fields
-      expect(typeof overview.availableFunds).toBe('number');
-      expect(typeof overview.sourceCount).toBe('number');
-      expect(typeof overview.minPlanned).toBe('number');
-      expect(typeof overview.maxPlanned).toBe('number');
-      expect(typeof overview.actualCost).toBe('number');
-      expect(typeof overview.actualCostPaid).toBe('number');
-
-      // Remaining perspectives
-      expect(typeof overview.remainingVsMinPlanned).toBe('number');
-      expect(typeof overview.remainingVsMaxPlanned).toBe('number');
-      expect(typeof overview.remainingVsActualCost).toBe('number');
-      expect(typeof overview.remainingVsActualPaid).toBe('number');
-
-      // subsidySummary object
-      expect(typeof overview.subsidySummary.totalReductions).toBe('number');
-      expect(typeof overview.subsidySummary.activeSubsidyCount).toBe('number');
-    });
-
-    it('adds the money service object next to the unchanged overview key set (ADR-039)', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
+  describe('response shape', () => {
+    it('is { overview: { subsidySummary }, money } and nothing else', async () => {
+      const response = await getOverview(await cookieFor('member'));
       const body = response.json<BudgetOverviewResponse>();
       expect(Object.keys(body).sort()).toEqual(['money', 'overview']);
-      expect(Object.keys(body.overview).sort()).toEqual(EXPECTED_OVERVIEW_KEYS);
+      expect(Object.keys(body.overview)).toEqual(['subsidySummary']);
+      expect(Object.keys(body.overview.subsidySummary).sort()).toEqual(EXPECTED_SUMMARY_KEYS);
       expect(Object.keys(body.money).sort()).toEqual(EXPECTED_MONEY_KEYS);
-      expect(body.money.leftToSpend.verdict).toBeNull();
-      expect(body.money.sources.map((x) => x.id)).toEqual(['discretionary-system']);
     });
 
-    it('serves the legacy grant fields and money from one computation (they agree)', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-      const sourceId = insertBudgetSource(5000);
-      const workItemId = insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'own_estimate',
-        budgetSourceId: sourceId,
+    it('is all zero for an empty project', async () => {
+      const body = (await getOverview(await cookieFor('member'))).json<BudgetOverviewResponse>();
+      expect(body.overview.subsidySummary).toEqual({
+        totalReductions: 0,
+        activeSubsidyCount: 0,
+        minTotalPayback: 0,
+        maxTotalPayback: 0,
+        oversubscribedSubsidies: [],
       });
+      expect(body.money.expectedCost).toEqual({ expected: 0, best: 0, worst: 0 });
+      expect(body.money.paid).toBe(0);
+    });
+  });
+
+  describe('with data', () => {
+    beforeEach(() => {
       app.db
-        .insert(schema.subsidyPrograms)
+        .insert(schema.vendors)
         .values({
-          id: 'sp-route',
-          name: 'Route Grant',
-          reductionType: 'percentage',
-          reductionValue: 10,
-          applicationStatus: 'approved',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          id: 'vendor',
+          name: 'Company One',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
         })
         .run();
-      app.db
-        .insert(schema.workItemSubsidies)
-        .values({ workItemId, subsidyProgramId: 'sp-route' })
-        .run();
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      const body = response.json<BudgetOverviewResponse>();
-      expect(body.money.expectedGrants).toEqual({ expected: 100, best: 80, worst: 120 });
-      expect(body.overview.subsidySummary.totalReductions).toBe(body.money.expectedGrants.expected);
-      expect(body.overview.subsidySummary.minTotalPayback).toBe(body.money.expectedGrants.best);
-      expect(body.overview.subsidySummary.maxTotalPayback).toBe(body.money.expectedGrants.worst);
-      expect(body.overview.availableFunds).toBe(body.money.fundingTotal);
+      const seed = createMoneySeed(app.db);
+      seed.source('bs-a', 'bank_loan', 50000);
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 1000, confidence: 'own_estimate', source: 'bs-a' });
+      seed.invoice('inv-1', 400, 'paid');
+      seed.link('inv-1', 'l1', 'work_item', 400);
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10 });
     });
 
-    it('returns zeroes and seeded categories for empty project', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json<BudgetOverviewResponse>();
-      const { overview } = body;
-
-      expect(overview.availableFunds).toBe(0);
-      expect(overview.minPlanned).toBe(0);
-      expect(overview.maxPlanned).toBe(0);
-      expect(overview.actualCost).toBe(0);
-      expect(overview.actualCostPaid).toBe(0);
-      expect(overview.remainingVsMinPlanned).toBe(0);
-      expect(overview.remainingVsMaxPlanned).toBe(0);
-      expect(overview.remainingVsActualCost).toBe(0);
-      expect(overview.remainingVsActualPaid).toBe(0);
-      expect(overview.sourceCount).toBe(1); // seeded discretionary source
-      expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
+    it('serves the grant summary and money from one computation (they agree)', async () => {
+      const body = (await getOverview(await cookieFor('member'))).json<BudgetOverviewResponse>();
+      const s = body.overview.subsidySummary;
+      expect(s.totalReductions).toBe(body.money.expectedGrants.expected);
+      expect(s.minTotalPayback).toBe(body.money.expectedGrants.best);
+      expect(s.maxTotalPayback).toBe(body.money.expectedGrants.worst);
+      expect(s.activeSubsidyCount).toBe(1);
+      expect(body.money.paid).toBe(400);
+      expect(body.money.fundingTotal).toBe(50000);
     });
 
-    it('applies confidence margins to min/max planned', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      // invoice confidence = 0% margin → min=max=plannedAmount
-      insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
-      // own_estimate = 20% margin → min=40000, max=60000
-      insertWorkItem({ plannedAmount: 50000, confidence: 'own_estimate' });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      // sum: invoice(50000/50000) + own_estimate(40000/60000)
-      expect(overview.minPlanned).toBeCloseTo(90000, 5);
-      expect(overview.maxPlanned).toBeCloseTo(110000, 5);
+    it('does not carry the retired project fields on the overview', async () => {
+      const body = (await getOverview(await cookieFor('member'))).json<BudgetOverviewResponse>();
+      for (const retired of [
+        'availableFunds',
+        'sourceCount',
+        'minPlanned',
+        'maxPlanned',
+        'actualCost',
+        'actualCostPaid',
+        'actualCostClaimed',
+        'remainingVsMinPlanned',
+        'remainingVsMaxPlanned',
+        'remainingVsActualCost',
+        'remainingVsActualPaid',
+        'remainingVsActualClaimed',
+        'remainingVsMinPlannedWithPayback',
+        'remainingVsMaxPlannedWithPayback',
+      ]) {
+        expect(body.overview).not.toHaveProperty(retired);
+      }
     });
-
-    it('reflects available funds from active budget sources', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      insertBudgetSource(100000, 'active');
-      insertBudgetSource(50000, 'exhausted'); // should be excluded
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      expect(overview.availableFunds).toBe(100000);
-      expect(overview.sourceCount).toBe(2); // 1 user source + discretionary
-    });
-
-    it('reflects invoice data in actualCost and actualCostPaid', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      insertWorkItem({ plannedAmount: 50000, confidence: 'invoice', actualCost: 42000 });
-      insertWorkItem({ plannedAmount: 20000, confidence: 'invoice', actualCost: 18000 });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      expect(overview.actualCost).toBe(60000);
-      expect(overview.actualCostPaid).toBe(60000); // both are paid
-    });
-
-    // 'returns each category summary with required fields' test removed — categorySummaries dropped in #1243
   });
 });

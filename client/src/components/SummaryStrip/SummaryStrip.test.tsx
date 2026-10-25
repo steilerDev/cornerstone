@@ -172,4 +172,74 @@ describe('SummaryStrip', () => {
     renderStrip([{ ...link('area', 'Area', 'Kitchen'), testId: 'custom-fact' }]);
     expect(screen.getByTestId('custom-fact')).toBeInTheDocument();
   });
+
+  describe('columns', () => {
+    it('defaults to 4 columns', () => {
+      renderStrip([link('a', 'A', '1')]);
+      expect(document.querySelector('dl')).toHaveAttribute('data-columns', '4');
+    });
+
+    it('sets data-columns to 5 when asked', () => {
+      render(
+        <MemoryRouter>
+          <SummaryStrip typeLabel="Money" columns={5} facts={[link('a', 'A', '1')]} />
+        </MemoryRouter>,
+      );
+      expect(document.querySelector('dl')).toHaveAttribute('data-columns', '5');
+    });
+  });
+
+  describe('static fact', () => {
+    const staticFact = (
+      over: Partial<Extract<SummaryFact, { kind: 'static' }>> = {},
+    ): Extract<SummaryFact, { kind: 'static' }> => ({
+      kind: 'static',
+      id: 'cost',
+      label: 'Expected cost',
+      value: '€ 100',
+      ...over,
+    });
+
+    it('renders a plain span, not a link, button or anchor', () => {
+      renderStrip([staticFact(), link('a', 'A', 'x')]);
+      const target = screen.getByTestId('summary-fact-cost');
+      expect(target.tagName).toBe('SPAN');
+      expect(target).toHaveTextContent('€ 100');
+      expect(target.closest('a')).toBeNull();
+      expect(target.closest('button')).toBeNull();
+      expect(target).not.toHaveAttribute('aria-labelledby');
+    });
+
+    it('marks only the static wrapper with data-static', () => {
+      renderStrip([staticFact(), link('a', 'A', 'x')]);
+      const wrappers = Array.from(document.querySelectorAll('dl > div'));
+      expect(wrappers[0]).toHaveAttribute('data-static', 'true');
+      expect(wrappers[1]).not.toHaveAttribute('data-static');
+    });
+
+    it('puts the id on the inner value span only, so no id is duplicated', () => {
+      renderStrip([staticFact(), link('a', 'A', 'x')]);
+      const target = screen.getByTestId('summary-fact-cost');
+      expect(target).not.toHaveAttribute('id');
+      expect(target.querySelector('span[id]')).not.toBeNull();
+      const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('still marks the value with data-figure when it has a figureKind', () => {
+      renderStrip([staticFact({ figureKind: 'left-to-spend' })]);
+      expect(screen.getByText('€ 100')).toHaveAttribute('data-figure', 'left-to-spend');
+    });
+
+    it('renders an en dash with a Not set label when empty', () => {
+      renderStrip([staticFact({ value: null })]);
+      expect(screen.getByTestId('summary-fact-cost')).toHaveTextContent('–');
+      expect(screen.getByText('Not set')).toBeInTheDocument();
+    });
+
+    it('leaves existing kinds without data-static', () => {
+      renderStrip([link('a', 'A', 'x')]);
+      expect(document.querySelector('[data-static]')).toBeNull();
+    });
+  });
 });

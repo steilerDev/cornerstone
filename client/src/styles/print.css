@@ -31,6 +31,20 @@
     display: none !important;
   }
 
+  /* The page title is a button below 1024px (title menu): print it as plain h1 text */
+  button[data-print-title] {
+    display: inline !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    font: inherit !important;
+    color: inherit !important;
+  }
+
+  button[data-print-title] svg {
+    display: none !important;
+  }
+
   /* Optimize body layout */
   body {
     background-color: white;

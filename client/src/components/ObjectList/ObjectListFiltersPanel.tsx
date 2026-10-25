@@ -15,6 +15,8 @@ export interface ObjectListFiltersPanelLabels {
   readonly buttonActive: (count: number) => string;
   readonly done: string;
   readonly clear: string;
+  /** Panel / sheet name; defaults to `button`. */
+  readonly title?: string;
 }
 
 export interface ObjectListFiltersPanelProps {
@@ -28,6 +30,10 @@ export interface ObjectListFiltersPanelProps {
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
   /** Default `shared.btnSecondaryCompact`. */
   readonly buttonClassName?: string;
+  /** Rendered after the button label instead of the active-count bubble. */
+  readonly buttonSuffix?: ReactNode;
+  /** Clear and Done under the anchored panel's fields, as the sheet has. */
+  readonly panelFooter?: boolean;
   readonly children: ReactNode;
 }
 
@@ -43,6 +49,8 @@ export function ObjectListFiltersPanel({
   onClear,
   buttonRef,
   buttonClassName = shared.btnSecondaryCompact,
+  buttonSuffix,
+  panelFooter = false,
   children,
 }: ObjectListFiltersPanelProps) {
   const location = useLocation();
@@ -52,6 +60,7 @@ export function ObjectListFiltersPanel({
   const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
   const panelId = `${idPrefix}-panel`;
   const sheetId = `${idPrefix}-sheet`;
+  const title = labels.title ?? labels.button;
 
   const close = () => {
     setOpen(false);
@@ -78,7 +87,10 @@ export function ObjectListFiltersPanel({
         data-testid={`${testIdPrefix}-button`}
       >
         {labels.button}
-        {activeCount > 0 ? <span className={shared.filtersToggleCount}>{activeCount}</span> : null}
+        {buttonSuffix ??
+          (activeCount > 0 ? (
+            <span className={shared.filtersToggleCount}>{activeCount}</span>
+          ) : null)}
       </button>
 
       {isWide ? (
@@ -87,7 +99,7 @@ export function ObjectListFiltersPanel({
           anchorRef={buttonRef}
           role="dialog"
           id={panelId}
-          ariaLabel={labels.button}
+          ariaLabel={title}
           trapFocus
           closeSignal={location.pathname}
           onDismiss={(reason) => {
@@ -98,6 +110,26 @@ export function ObjectListFiltersPanel({
         >
           <div ref={setContentNode} className={styles.panel}>
             {children}
+            {panelFooter ? (
+              <div className={`${styles.sheetFooter} ${styles.panelFooter}`}>
+                <button
+                  type="button"
+                  className={shared.btnText}
+                  onClick={onClear}
+                  data-testid={`${testIdPrefix}-panel-clear`}
+                >
+                  {labels.clear}
+                </button>
+                <button
+                  type="button"
+                  className={shared.btnSecondary}
+                  onClick={close}
+                  data-testid={`${testIdPrefix}-panel-done`}
+                >
+                  {labels.done}
+                </button>
+              </div>
+            ) : null}
           </div>
         </AnchoredPanel>
       ) : (
@@ -105,7 +137,7 @@ export function ObjectListFiltersPanel({
           id={sheetId}
           open={open}
           onClose={close}
-          title={labels.button}
+          title={title}
           returnFocusRef={buttonRef}
           testId={`${testIdPrefix}-sheet`}
           footer={

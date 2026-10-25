@@ -23,6 +23,8 @@ export type SummaryFact =
   | (FactBase & { readonly kind: 'link'; readonly to: string; readonly state?: unknown })
   /** A same-page tab: a real anchor; a plain left click runs `onActivate` instead of navigating. */
   | (FactBase & { readonly kind: 'tab'; readonly href: string; readonly onActivate: () => void })
+  /** A plain value with no target (Expected cost on Money). */
+  | (FactBase & { readonly kind: 'static' })
   /** Opens a dialog (Documents). */
   | (FactBase & {
       readonly kind: 'button';
@@ -36,6 +38,8 @@ export interface SummaryStripProps {
   readonly typeLabel: string;
   /** 4 to 7 facts; facts after the 7th are not rendered. */
   readonly facts: readonly SummaryFact[];
+  /** Grid columns: 4 (default) or 5 (3 from 768px, 5 from 1024px, 2 below). */
+  readonly columns?: 4 | 5;
   readonly testId?: string;
 }
 
@@ -79,6 +83,13 @@ function Fact({ fact }: { readonly fact: SummaryFact }) {
         {content}
       </NavAnchor>
     );
+  } else if (fact.kind === 'static') {
+    // No aria-labelledby on a non-interactive span: the dt/dd pairing names it.
+    target = (
+      <span className={styles.staticTarget} data-testid={testId}>
+        {content}
+      </span>
+    );
   } else if (fact.kind === 'tab') {
     const { onActivate } = fact;
     target = (
@@ -114,7 +125,7 @@ function Fact({ fact }: { readonly fact: SummaryFact }) {
   }
 
   return (
-    <div className={styles.fact}>
+    <div className={styles.fact} data-static={fact.kind === 'static' ? 'true' : undefined}>
       <dt id={labelId} className={styles.label}>
         {fact.label}
       </dt>
@@ -125,12 +136,17 @@ function Fact({ fact }: { readonly fact: SummaryFact }) {
 
 /**
  * The fact strip under an object's header: 4 to 7 facts, each one a link (another page, a
- * same-page tab) or, for Documents, a button that opens a dialog. A `<section>` holding a `<dl>`;
+ * same-page tab), a dialog button (Documents) or a static value. A `<section>` holding a `<dl>`;
  * the interactive element sits in the `<dd>` and its name is the label followed by the value.
  * Values are one line with an ellipsis (the full text stays in the DOM), so never mark them as
  * user text for hyphenation.
  */
-export function SummaryStrip({ typeLabel, facts, testId = 'summary-strip' }: SummaryStripProps) {
+export function SummaryStrip({
+  typeLabel,
+  facts,
+  columns = 4,
+  testId = 'summary-strip',
+}: SummaryStripProps) {
   const { t } = useTranslation('common');
   return (
     <section
@@ -138,7 +154,7 @@ export function SummaryStrip({ typeLabel, facts, testId = 'summary-strip' }: Sum
       aria-label={t('summaryStrip.label', { type: typeLabel })}
       data-testid={testId}
     >
-      <dl className={styles.grid}>
+      <dl className={styles.grid} data-columns={columns}>
         {facts.slice(0, MAX_SUMMARY_FACTS).map((fact) => (
           <Fact key={fact.id} fact={fact} />
         ))}

@@ -121,12 +121,13 @@ describe('VAT_RATE is honored by budget routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const { overview } = response.json<Json>();
-      expect(overview.minPlanned).toBeCloseTo(min, 5);
-      expect(overview.maxPlanned).toBeCloseTo(max, 5);
+      const { money } = response.json<Json>();
+      expect(money.expectedCost.best).toBeCloseTo(min, 5);
+      expect(money.expectedCost.worst).toBeCloseTo(max, 5);
+      expect(money.expectedCost.expected).toBeCloseTo(gross, 5);
     });
 
-    it('GET /api/budget/breakdown grosses up item and per-source projections', async () => {
+    it('GET /api/budget/breakdown grosses up item and per-source cost', async () => {
       await startApp(vatRate);
       const cookie = await createCookie();
       const sourceId = insertNetLine('own_estimate');
@@ -139,12 +140,13 @@ describe('VAT_RATE is honored by budget routes', () => {
 
       expect(response.statusCode).toBe(200);
       const { breakdown } = response.json<Json>();
-      const item = breakdown.workItems.areas[0].items[0];
-      expect(item.projectedMin).toBeCloseTo(min, 5);
-      expect(item.projectedMax).toBeCloseTo(max, 5);
-      const src = breakdown.budgetSources.find((s: Json) => s.id === sourceId);
-      expect(src.projectedMin).toBeCloseTo(min, 5);
-      expect(src.projectedMax).toBeCloseTo(max, 5);
+      const item = breakdown.items[0];
+      expect(item.figures.expectedCost.best).toBeCloseTo(min, 5);
+      expect(item.figures.expectedCost.worst).toBeCloseTo(max, 5);
+      expect(item.figures.expectedCost.expected).toBeCloseTo(gross, 5);
+      const src = breakdown.bySource.find((r: Json) => r.budgetSourceId === sourceId);
+      expect(src.figures.expectedCost.best).toBeCloseTo(min, 5);
+      expect(src.figures.expectedCost.worst).toBeCloseTo(max, 5);
     });
 
     it('GET /api/budget-sources and /api/budget-sources/:id project the grossed-up amount', async () => {

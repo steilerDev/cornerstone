@@ -69,6 +69,7 @@ describe('PageTitle without a view menu', () => {
     expect(h1).not.toHaveAttribute('tabindex');
     expect(screen.queryByRole('button')).toBeNull();
     expect(h1.innerHTML).toBe('Tasks');
+    expect(h1.querySelector('[data-print-title]')).toBeNull();
   });
 
   it('makes the h1 programmatically focusable when given a headingRef', () => {
@@ -107,6 +108,11 @@ describe('PageTitle with a view menu', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(trigger).toBe(screen.getByTestId('view-menu-trigger'));
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('marks the menu button with data-print-title so the title prints below 1024px', () => {
+    renderTitle({ model: modelAt('/project/work-items') });
+    expect(screen.getByTestId('view-menu-trigger')).toHaveAttribute('data-print-title');
   });
 
   it('hides the chevron from assistive technology', () => {

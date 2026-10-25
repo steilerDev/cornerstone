@@ -42,14 +42,14 @@ After you save, the form stays open with **Add another** so you can enter the ne
 
 ## Basis
 
-The **Basis** of an estimate says what the amount rests on. On **Money > Budget**, the basis also sets the margin used in budget projections:
+The **Basis** of an estimate says what the amount rests on. On **Money > Overview**, the basis also sets the range (**Low** to **High**) for a line that is not yet linked to an offer or invoice:
 
-| Basis | Margin on Money > Budget | Meaning |
+| Basis | Range on Money > Overview | Meaning |
 |-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a contractor or professional |
 
-A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, such a line counts at its face value with no margin. **Money > Budget** still applies a +/- 5% spread to lines linked to an offer; that may change in a later release.
+A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, and on Money > Overview, such a line counts at its face value with no margin.
 
 As your project moves from early estimates to offers to invoices, the budget overview becomes more accurate.
 

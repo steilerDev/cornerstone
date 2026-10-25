@@ -40,7 +40,7 @@ export interface ProjectSurface {
   screen: ServedRouteId;
   /** Navigate and wait until the figures render */
   open(page: Page): Promise<void>;
-  /** False when the screen has no figures for the current data (e.g. Money's empty state). */
+  /** False when the screen has no figures for the current data. */
   isAvailable?(page: Page): Promise<boolean>;
   /** Cents for money figures, a plain number for counts; null = en dash / absent figure. */
   read: Partial<Record<ProjectFigure, (page: Page) => Promise<number | null>>>;
@@ -129,20 +129,30 @@ export const PROJECT_SURFACES: ProjectSurface[] = [
   },
   {
     id: 'money.overview',
-    story: '3.5',
+    story: '4.5',
     screen: 'budgetOverview',
     async open(page) {
       const overview = new BudgetOverviewPage(page);
       await overview.goto();
       await overview.waitForLoaded();
-    },
-    async isAvailable(page) {
-      return new BudgetOverviewPage(page).leftToSpendRow.isVisible();
+      await overview.leftToSpendFigure.waitFor({ state: 'visible' });
     },
     read: {
       async leftToSpend(page) {
         const overview = new BudgetOverviewPage(page);
-        return parseMoney(await figureText(overview.leftToSpendFigure));
+        return parseMoney(
+          await figureText(overview.headline.locator('[data-figure="left-to-spend"]')),
+        );
+      },
+      async paid(page) {
+        const overview = new BudgetOverviewPage(page);
+        return parseMoney(await figureText(overview.summary.locator('[data-figure="paid"]')));
+      },
+      async stillToPay(page) {
+        const overview = new BudgetOverviewPage(page);
+        return parseMoney(
+          await figureText(overview.summary.locator('[data-figure="still-to-pay"]')),
+        );
       },
     },
   },
@@ -243,12 +253,6 @@ export const SUBJECT_SURFACES = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PENDING_SURFACES: PendingSurface[] = [
-  {
-    story: '4.5',
-    screen: 'Money headline',
-    figures: ['leftToSpend', 'paid', 'stillToPay'],
-    note: 'Replaces the interim Left to spend row of the cost breakdown; first surface of Paid.',
-  },
   {
     story: '4.6',
     screen: 'Invoices To pay footer',

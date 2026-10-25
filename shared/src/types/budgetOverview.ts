@@ -1,7 +1,6 @@
 /**
- * Budget overview types for EPIC-05 Story 5.11 (rework).
- * Aggregated project-level budget data with confidence margins,
- * subsidy reductions, and four remaining-funds perspectives.
+ * Budget overview types. The project-level figures come from the money service (`money`, ADR-039);
+ * `overview` carries only the grant summary (#2237).
  */
 
 import type { MoneySummary } from './money.js';
@@ -18,30 +17,6 @@ export const BUDGET_VERDICTS = ['on_budget', 'over_budget'] as const;
 export type BudgetVerdict = (typeof BUDGET_VERDICTS)[number];
 
 export interface BudgetOverview {
-  availableFunds: number; // SUM(active budget_sources.total_amount)
-  sourceCount: number;
-
-  minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins + subsidy reductions
-  maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins + subsidy reductions
-
-  actualCost: number; // all invoices linked to budget lines
-  actualCostPaid: number; // paid + claimed invoices
-  actualCostClaimed: number; // claimed invoices only
-
-  remainingVsMinPlanned: number; // availableFunds - minPlanned
-  remainingVsMaxPlanned: number; // availableFunds - maxPlanned
-  remainingVsActualCost: number; // availableFunds - actualCost
-  remainingVsActualPaid: number; // availableFunds - actualCostPaid
-  remainingVsActualClaimed: number; // availableFunds - actualCostClaimed
-
-  /**
-   * Payback-adjusted remaining vs min planned: availableFunds + minTotalPayback - minPlanned.
-   * Grant-derived: payback comes from the money service (ADR-039).
-   */
-  remainingVsMinPlannedWithPayback: number;
-  /** Payback-adjusted remaining vs max planned: availableFunds + maxTotalPayback - maxPlanned */
-  remainingVsMaxPlannedWithPayback: number;
-
   subsidySummary: {
     /** Derived from the money service (ADR-039): counted (approved/received) grants, expected scenario. */
     totalReductions: number;

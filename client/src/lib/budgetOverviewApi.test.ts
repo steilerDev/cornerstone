@@ -1,77 +1,21 @@
-import type { BreakdownMoney, MoneyCostFigures, MoneySummary } from '@cornerstone/shared';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import {
-  fetchBudgetOverview,
-  fetchBudgetOverviewResponse,
-  fetchBudgetBreakdown,
-} from './budgetOverviewApi.js';
 import type {
   BudgetOverview,
   BudgetOverviewResponse,
   BudgetBreakdownResponse,
 } from '@cornerstone/shared';
-
-// Required by the extended BudgetBreakdown type (ADR-039 money service, #2228): an empty `money`.
-const zeroMoneyRange = { expected: 0, best: 0, worst: 0 };
-const zeroCostFigures = (): MoneyCostFigures => ({
-  expectedCost: { ...zeroMoneyRange },
-  expectedGrants: { ...zeroMoneyRange },
-  afterGrants: { ...zeroMoneyRange },
-});
-const emptyBreakdownMoney = (): BreakdownMoney => ({
-  workItems: {},
-  householdItems: {},
-  orphanLines: zeroCostFigures(),
-  notYetSplit: { amount: 0, recordCount: 0 },
-});
-
-// Required by the extended BudgetOverviewResponse type (ADR-039 money service, #2228): an empty `money`.
-const emptyMoneySummary = (): MoneySummary => {
-  const range = () => ({ expected: 0, best: 0, worst: 0 });
-  const figures = () => ({ expectedCost: range(), expectedGrants: range(), afterGrants: range() });
-  return {
-    leftToSpend: { ...range(), verdict: null },
-    fundingTotal: 0,
-    activeSourceCount: 0,
-    expectedCost: range(),
-    expectedGrants: range(),
-    possibleGrants: range(),
-    afterGrants: range(),
-    paid: 0,
-    stillToPay: 0,
-    stillToPayCount: 0,
-    notYetPaid: range(),
-    notYetSplit: { amount: 0, recordCount: 0 },
-    readyToSubmit: { count: 0, amount: 0 },
-    records: {
-      offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
-      invoices: { count: 0, amount: 0, paid: 0, stillToPay: 0 },
-    },
-    sources: [],
-    grants: [],
-    byType: { work_items: figures(), household_items: figures() },
-    byArea: [],
-  };
-};
+import {
+  fetchBudgetOverview,
+  fetchBudgetOverviewResponse,
+  fetchBudgetBreakdown,
+} from './budgetOverviewApi.js';
+import { makeBreakdown, makeMoney } from '../test/breakdownFixtures.js';
 
 describe('budgetOverviewApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
 
+  /** The trimmed overview (#2237): only the grant-derived summary is left. */
   const sampleOverview: BudgetOverview = {
-    availableFunds: 200000,
-    sourceCount: 2,
-    minPlanned: 90000,
-    maxPlanned: 110000,
-    actualCost: 80000,
-    actualCostPaid: 75000,
-    actualCostClaimed: 50000,
-    remainingVsMinPlanned: 110000,
-    remainingVsMaxPlanned: 90000,
-    remainingVsActualCost: 120000,
-    remainingVsActualPaid: 125000,
-    remainingVsActualClaimed: 150000,
-    remainingVsMinPlannedWithPayback: 110000,
-    remainingVsMaxPlannedWithPayback: 90000,
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
@@ -80,6 +24,9 @@ describe('budgetOverviewApi', () => {
       oversubscribedSubsidies: [],
     },
   };
+
+  const respond = (body: unknown) =>
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
 
   beforeEach(() => {
     mockFetch = jest.fn<typeof globalThis.fetch>();
@@ -90,135 +37,53 @@ describe('budgetOverviewApi', () => {
     jest.restoreAllMocks();
   });
 
-  // ─── fetchBudgetOverview ───────────────────────────────────────────────────
-
   describe('fetchBudgetOverview', () => {
     it('sends GET request to /api/budget/overview', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
+      respond({ money: makeMoney(), overview: sampleOverview } satisfies BudgetOverviewResponse);
 
       await fetchBudgetOverview();
 
+      expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith('/api/budget/overview', expect.any(Object));
     });
 
-    it('returns the overview object from the response', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
+    it('returns the overview object from the response, which holds only subsidySummary', async () => {
+      respond({ money: makeMoney(), overview: sampleOverview } satisfies BudgetOverviewResponse);
 
       const result = await fetchBudgetOverview();
 
       expect(result).toEqual(sampleOverview);
-    });
-
-    it('returns overview with all top-level numeric fields (Story 5.11 shape)', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.availableFunds).toBe(200000);
-      expect(result.sourceCount).toBe(2);
-      expect(result.minPlanned).toBe(90000);
-      expect(result.maxPlanned).toBe(110000);
-      expect(result.actualCost).toBe(80000);
-      expect(result.actualCostPaid).toBe(75000);
-    });
-
-    it('returns overview with four remaining perspectives', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.remainingVsMinPlanned).toBe(110000);
-      expect(result.remainingVsMaxPlanned).toBe(90000);
-      expect(result.remainingVsActualCost).toBe(120000);
-      expect(result.remainingVsActualPaid).toBe(125000);
-    });
-
-    it('returns overview with subsidySummary fields', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
+      expect(Object.keys(result)).toEqual(['subsidySummary']);
       expect(result.subsidySummary.totalReductions).toBe(10000);
       expect(result.subsidySummary.activeSubsidyCount).toBe(2);
     });
 
-    it('handles an all-zero overview (empty project)', async () => {
-      const zeroOverview: BudgetOverview = {
-        availableFunds: 0,
-        sourceCount: 0,
-        minPlanned: 0,
-        maxPlanned: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostClaimed: 0,
-        remainingVsMinPlanned: 0,
-        remainingVsMaxPlanned: 0,
-        remainingVsActualCost: 0,
-        remainingVsActualPaid: 0,
-        remainingVsActualClaimed: 0,
-        remainingVsMinPlannedWithPayback: 0,
-        remainingVsMaxPlannedWithPayback: 0,
+    it('keeps oversubscribed subsidies for the Subsidy programs page', async () => {
+      const overview: BudgetOverview = {
         subsidySummary: {
-          totalReductions: 0,
-          activeSubsidyCount: 0,
-          minTotalPayback: 0,
-          maxTotalPayback: 0,
-          oversubscribedSubsidies: [],
+          ...sampleOverview.subsidySummary,
+          oversubscribedSubsidies: [
+            {
+              subsidyProgramId: 'sub-1',
+              name: 'Sample grant',
+              maximumAmount: 1000,
+              maxPayout: 1000,
+              uncappedMinPayback: 1200,
+              uncappedMaxPayback: 1500,
+              minExcess: 200,
+              maxExcess: 500,
+            },
+          ],
         },
       };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ overview: zeroOverview }),
-      } as Response);
+      respond({ money: makeMoney(), overview });
 
       const result = await fetchBudgetOverview();
 
-      expect(result.minPlanned).toBe(0);
-      expect(result.sourceCount).toBe(0);
+      expect(result.subsidySummary.oversubscribedSubsidies).toHaveLength(1);
     });
 
-    it('throws ApiClientError when server returns 401', async () => {
+    it('rejects when the server returns 401', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -228,7 +93,7 @@ describe('budgetOverviewApi', () => {
       await expect(fetchBudgetOverview()).rejects.toThrow();
     });
 
-    it('throws ApiClientError when server returns 500', async () => {
+    it('rejects when the server returns 500', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -241,14 +106,12 @@ describe('budgetOverviewApi', () => {
     });
   });
 
-  // ─── fetchBudgetOverviewResponse (#2232) ───────────────────────────────────
-
   describe('fetchBudgetOverviewResponse', () => {
     it('returns the full response with the money summary next to the overview', async () => {
-      const money = emptyMoneySummary();
-      money.leftToSpend = { expected: 1200, best: 1500, worst: 900, verdict: 'on_budget' };
-      const mockResponse: BudgetOverviewResponse = { money, overview: sampleOverview };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse } as Response);
+      const money = makeMoney({
+        leftToSpend: { expected: 1200, best: 1500, worst: 900, verdict: 'on_budget' },
+      });
+      respond({ money, overview: sampleOverview } satisfies BudgetOverviewResponse);
 
       const result = await fetchBudgetOverviewResponse();
 
@@ -260,120 +123,77 @@ describe('budgetOverviewApi', () => {
         worst: 900,
         verdict: 'on_budget',
       });
+      expect(result.money.sources).toHaveLength(2);
     });
 
-    it('fetchBudgetOverview still resolves to just the overview via the same request', async () => {
-      const mockResponse: BudgetOverviewResponse = {
-        money: emptyMoneySummary(),
-        overview: sampleOverview,
-      };
-      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse } as Response);
+    it('fetchBudgetOverview resolves to just the overview via the same single request', async () => {
+      respond({ money: makeMoney(), overview: sampleOverview } satisfies BudgetOverviewResponse);
 
       expect(await fetchBudgetOverview()).toEqual(sampleOverview);
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
-  // ─── fetchBudgetBreakdown — query param encoding (Scenarios 16–19) ─────────
-
   describe('fetchBudgetBreakdown', () => {
-    const stubBreakdownResponse: BudgetBreakdownResponse = {
-      breakdown: {
-        money: emptyBreakdownMoney(),
-        workItems: {
-          areas: [],
-          totals: {
-            projectedMin: 0,
-            projectedMax: 0,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 0,
-            rawProjectedMax: 0,
-            minSubsidyPayback: 0,
-          },
-        },
-        householdItems: {
-          areas: [],
-          totals: {
-            projectedMin: 0,
-            projectedMax: 0,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 0,
-            rawProjectedMax: 0,
-            minSubsidyPayback: 0,
-          },
-        },
-        subsidyAdjustments: [],
-        budgetSources: [],
-      },
-    };
+    const response: BudgetBreakdownResponse = { breakdown: makeBreakdown() };
 
-    function mockSuccessResponse() {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => stubBreakdownResponse,
-      } as Response);
-    }
+    const requestedUrl = () => (mockFetch.mock.calls[0] as [string, RequestInit])[0];
 
-    // Scenario 16: No args → no query string
-    it('calls fetch with /api/budget/breakdown (no query string) when called with no args (Scenario 16)', async () => {
-      mockSuccessResponse();
+    it('returns the breakdown object out of the response', async () => {
+      respond(response);
+
+      const result = await fetchBudgetBreakdown();
+
+      expect(result).toEqual(response.breakdown);
+      expect(result.lines).toHaveLength(5);
+      expect(result.total.expectedCost.expected).toBe(2900);
+    });
+
+    it('calls /api/budget/breakdown without a query string when called with no args', async () => {
+      respond(response);
 
       await fetchBudgetBreakdown();
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
-      expect(url).toBe('/api/budget/breakdown');
+      expect(requestedUrl()).toBe('/api/budget/breakdown');
     });
 
-    // Scenario 17: Empty array → no query string
-    it('calls fetch with /api/budget/breakdown (no query string) when called with an empty array (Scenario 17)', async () => {
-      mockSuccessResponse();
+    it('calls /api/budget/breakdown without a query string for an empty list', async () => {
+      respond(response);
 
       await fetchBudgetBreakdown([]);
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
-      expect(url).toBe('/api/budget/breakdown');
+      expect(requestedUrl()).toBe('/api/budget/breakdown');
     });
 
-    // Scenario 18: Single source → correct query string
-    it('calls fetch with ?deselectedSources=src-a for a single source (Scenario 18)', async () => {
-      mockSuccessResponse();
+    it('sends ?deselectedSources=bs-a for a single source', async () => {
+      respond(response);
 
-      await fetchBudgetBreakdown(['src-a']);
+      await fetchBudgetBreakdown(['bs-a']);
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
-      expect(url).toContain('/api/budget/breakdown?deselectedSources=');
-      // Decoded or encoded: src-a has no special chars, so the URL may contain 'src-a' directly
-      expect(decodeURIComponent(url)).toContain('src-a');
+      expect(requestedUrl()).toBe('/api/budget/breakdown?deselectedSources=bs-a');
     });
 
-    // Scenario 19: Multiple sources → comma-separated (URI-encoded) in query string
-    it('encodes multiple sources as comma-separated list in ?deselectedSources (Scenario 19)', async () => {
-      mockSuccessResponse();
+    it('sends several sources comma-joined and URI-encoded in one param', async () => {
+      respond(response);
 
-      await fetchBudgetBreakdown(['src-a', 'src-b']);
+      await fetchBudgetBreakdown(['bs-a', 'bs-b', 'unassigned']);
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
-      expect(url).toContain('/api/budget/breakdown?deselectedSources=');
-      // The implementation uses encodeURIComponent('src-a,src-b') = 'src-a%2Csrc-b'
-      const decodedUrl = decodeURIComponent(url);
-      expect(decodedUrl).toContain('src-a');
-      expect(decodedUrl).toContain('src-b');
-      // Both IDs must be in the same query param value (comma-joined)
-      const qsStart = url.indexOf('?deselectedSources=') + '?deselectedSources='.length;
-      const rawQsValue = url.slice(qsStart);
-      const decodedQsValue = decodeURIComponent(rawQsValue);
-      expect(decodedQsValue).toContain('src-a');
-      expect(decodedQsValue).toContain('src-b');
+      const url = requestedUrl();
+      expect(url).toBe('/api/budget/breakdown?deselectedSources=bs-a%2Cbs-b%2Cunassigned');
+      expect(new URL(url, 'http://localhost').searchParams.get('deselectedSources')).toBe(
+        'bs-a,bs-b,unassigned',
+      );
+    });
+
+    it('rejects on a server error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Boom' } }),
+      } as Response);
+
+      await expect(fetchBudgetBreakdown()).rejects.toThrow();
     });
   });
 });

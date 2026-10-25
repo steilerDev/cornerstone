@@ -43,11 +43,11 @@ A subsidy program can target one or more [budget categories](categories) at once
 | **Received** | Subsidy funds have been received |
 | **Rejected** | Application was denied |
 
-Only subsidies with **Approved** or **Received** status are applied to budget calculations. Eligible, applied, and rejected subsidies are tracked but do not affect the budget overview.
+Only subsidies with **Approved** or **Received** status are applied to budget calculations. Eligible, applied, and rejected subsidies are tracked but do not affect the Money Overview.
 
 ## How Subsidies Affect the Budget
 
-Subsidies reduce the total cost shown in the [Budget Overview](budget-overview). A subsidy applies to every budget line that matches its applicable categories (see above), across all work items and [household items](/guides/household-items):
+Approved and received grants count as **Expected grants** on the [Money Overview](budget-overview). A subsidy applies to every budget line that matches its applicable categories (see above), across all work items and [household items](/guides/household-items):
 
 - **Percentage subsidy**: Reduces the total of matching lines by the specified percentage
 - **Fixed-amount subsidy**: Subtracts the flat amount from the total of matching lines
@@ -56,11 +56,11 @@ Multiple subsidies can apply to the same budget line, and their reductions stack
 
 ### Maximum Amount Cap
 
-For percentage-based subsidies, you can set a **maximum amount** to cap the payout. For example, a 15% rebate with a maximum of $5,000 will reduce costs by 15% up to $5,000 -- even if 15% of the category total exceeds that amount. The budget overview flags any subsidies that have hit their cap so you can see at a glance where the cap is limiting your savings.
+For percentage-based subsidies, you can set a **maximum amount** to cap the payout. For example, a 15% rebate with a maximum of $5,000 will reduce costs by 15% up to $5,000 -- even if 15% of the category total exceeds that amount. The **How is this calculated?** note on the [Money Overview](budget-overview) lists every grant that has hit its cap, so you can see where the cap is limiting your savings.
 
-### Cost Basis for Subsidy Calculations
+### Amount Used for Subsidy Calculations
 
-When a budget line is linked to an invoice with an itemized amount, the subsidy calculation uses the **itemized invoice amount** as the cost basis instead of the planned amount. This ensures subsidy reductions reflect the actual cost attribution from invoices, not the original estimate.
+When a budget line is linked to an invoice with an itemized amount, the subsidy calculation uses the **itemized invoice amount** instead of the planned amount. This ensures subsidy reductions reflect the actual cost attribution from invoices, not the original estimate.
 
 ## Linked Documents
 

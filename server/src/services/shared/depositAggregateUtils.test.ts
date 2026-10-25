@@ -1287,7 +1287,7 @@ describe('computeFinalPaymentAmounts', () => {
 // legacy functions above (splitByDeposits, computeStatusContribution,
 // computeStatusContributionByInvoice, aggregateInvoiceStatusBreakdown,
 // computeFinalPaymentAmount(s)) must remain byte-identical for their existing
-// consumers (budgetOverviewService, budgetBreakdownService, invoiceService,
+// consumers (budgetOverviewService, moneyService, invoiceService,
 // budgetServiceFactory — none of which have a reporting-source concept). The
 // tests above already exercise the legacy functions completely unmodified,
 // which is the primary regression proof (if this PR touched their logic, those

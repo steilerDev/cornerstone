@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-24",
+    "lastUpdated": "2026-10-25",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -709,6 +709,23 @@
       "definition": "No value is set yet, for example no area or no company.",
       "doNotUse": [],
       "formerly": []
+    },
+    "Estimate level": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Estimate level",
+        "plural": "Estimate levels",
+        "note": "The three values are Low, Expected and High."
+      },
+      "de": {
+        "singular": "Schätzstufe",
+        "plural": "Schätzstufen",
+        "note": "Die drei Werte sind Niedrig, Erwartet und Hoch."
+      },
+      "deSource": "approved",
+      "definition": "The level at which a breakdown figure is estimated: Low, Expected or High.",
+      "doNotUse": [],
+      "formerly": ["Min", "Avg", "Max", "Minimum", "Average", "Maximum", "Best case", "Worst case"]
     },
     "Draft": {
       "groups": ["general"],
@@ -1607,7 +1624,7 @@
       "deSource": "approved",
       "definition": "The sum of all active funding sources.",
       "doNotUse": [],
-      "formerly": []
+      "formerly": ["Available funds"]
     },
     "Expected cost": {
       "groups": ["figureWord"],

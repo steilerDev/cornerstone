@@ -167,7 +167,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['paymentStatus', 'deselectedSources', 'by'],
+    carries: ['paymentStatus', 'deselectedSources', 'by', 'estimate', 'grants'],
     stage: 'done',
   },
   {

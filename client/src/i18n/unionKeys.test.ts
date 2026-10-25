@@ -89,8 +89,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 65 registered sets', () => {
-    expect(SETS).toHaveLength(65);
+  it('iterates all 68 registered sets', () => {
+    expect(SETS).toHaveLength(68);
   });
 });
 
@@ -188,6 +188,9 @@ describe('I18N_UNION_KEYS registry', () => {
       'statusVocabularyInvoice',
       'statusVocabularyCostLine',
       'costLineBasis',
+      'breakdownView',
+      'breakdownPayment',
+      'breakdownEstimate',
       'costLineEmptyBodyDocument',
       'costLineRemoveFromDocument',
       'costLineSplitLabel',

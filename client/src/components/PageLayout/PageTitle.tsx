@@ -63,7 +63,7 @@ export function PageTitle({ title, className, headingRef, lang, suffix }: PageTi
       menuTestId="view-menu"
       renderTrigger={(props) => (
         <h1 className={className} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>
-          <button {...props} className={styles.titleTrigger}>
+          <button {...props} className={styles.titleTrigger} data-print-title>
             <span className={styles.titleText}>{title}</span>
             <svg
               className={styles.chevron}

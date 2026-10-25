@@ -234,6 +234,21 @@ describe('Areas index rollout (#2218)', () => {
   });
 });
 
+describe('Money > Budget route (#2237)', () => {
+  it('is served and carries the payment basis, source filter, grouping, estimate and grants params', () => {
+    const entry = ENTRIES.find((e) => e.id === 'budgetOverview');
+    expect(entry?.stage).toBe('done');
+    expect(entry).not.toHaveProperty('interim');
+    expect(entry?.carries).toEqual([
+      'paymentStatus',
+      'deselectedSources',
+      'by',
+      'estimate',
+      'grants',
+    ]);
+  });
+});
+
 describe('Site diary list route (#2225)', () => {
   it('carries the list search, type, date, area, company and status params', () => {
     const entry = ENTRIES.find((e) => e.id === 'diary');

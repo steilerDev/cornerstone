@@ -34,7 +34,7 @@ Click **Add cost line** and provide:
 - **Entered as** -- **Net** (the default, VAT is added) or **Gross** (VAT already included)
 - **Basis** -- How reliable the amount is:
 
-| Basis | Margin on Money > Budget | Meaning |
+| Basis | Range on Money > Overview | Meaning |
 |-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a professional |
@@ -72,4 +72,4 @@ See [Subsidies](/guides/budget/subsidies) for details on managing subsidy progra
 
 ## Budget Overview Integration
 
-Purchase costs are included in the project-wide [Budget Overview](/guides/budget/budget-overview) alongside task costs. The budget overview dashboard shows total planned costs, actual costs, and subsidy reductions across both work items and household items, with projections that account for confidence margins.
+Purchase costs are included in the project-wide [Budget Overview](/guides/budget/budget-overview) alongside task costs. The budget overview dashboard shows total planned costs, actual costs, and subsidy reductions across both work items and household items, A line that is not yet linked to an offer or invoice is shown as a range from **Low** to **High**.

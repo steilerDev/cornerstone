@@ -47,6 +47,7 @@ test.use({
 interface MoneyAnswer {
   leftToSpend: { expected: number; verdict: string | null };
   stillToPay: number;
+  paid: number;
   stillToPayCount: number;
   readyToSubmit: { amount: number; count: number };
 }
@@ -63,6 +64,7 @@ function expectedFigures(money: MoneyAnswer): Partial<Record<ProjectFigure, numb
   return {
     leftToSpend: money.leftToSpend.verdict === null ? null : cents(money.leftToSpend.expected),
     stillToPay: cents(money.stillToPay),
+    paid: cents(money.paid),
     stillToPayCount: money.stillToPayCount,
     readyToSubmit: cents(money.readyToSubmit.amount),
   };
@@ -299,12 +301,8 @@ test.describe('Figure consistency', () => {
             const figures = page.locator('[data-figure="left-to-spend"]').filter({ visible: true });
             const count = await figures.count();
             expect(count, `${screen}: Left to spend figures`).toBeLessThanOrEqual(1);
-            if (screen === 'home') expect(count).toBe(1);
-            if (screen === 'budgetOverview') {
-              // The empty state (no items, no sources) shows no breakdown and so no figure
-              const hasRow = await new BudgetOverviewPage(page).leftToSpendRow.count();
-              if (hasRow > 0) expect(count).toBe(1);
-            }
+            // The Money headline always renders (#2237): exactly one figure, no empty-state case
+            if (screen === 'home' || screen === 'budgetOverview') expect(count).toBe(1);
             for (const former of formerly) {
               const exact = new RegExp(
                 `^\\s*${former.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`,
