@@ -202,6 +202,7 @@ describe('BreakdownToolbar', () => {
       expect(last).toHaveAccessibleDescription('Keep at least one funding source selected');
       await user.click(last);
       expect(onSourceToggle).not.toHaveBeenCalled();
+      expect(last).toBeChecked();
       // The unchecked ones stay usable.
       await user.click(screen.getByTestId('breakdown-source-bs-b'));
       expect(onSourceToggle).toHaveBeenCalledWith('bs-b');

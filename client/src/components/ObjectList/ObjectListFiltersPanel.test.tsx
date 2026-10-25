@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 function Host({
-  activeCount = 0,
+  activeCount,
   onClear = jest.fn(),
   idPrefix = 'tasks-filters',
   testIdPrefix = 'tasks-filters',
@@ -60,7 +60,7 @@ function Host({
       <ObjectListFiltersPanel
         idPrefix={idPrefix}
         testIdPrefix={testIdPrefix}
-        activeCount={activeCount}
+        {...(activeCount === undefined ? {} : { activeCount })}
         labels={labels}
         onClear={onClear}
         buttonRef={buttonRef}
@@ -106,6 +106,21 @@ describe('ObjectListFiltersPanel button', () => {
     setup({ activeCount: 2 });
     expect(button()).toHaveAttribute('aria-label', 'Filters, 2 active');
     expect(button()).toHaveTextContent('2');
+  });
+
+  it('works without activeCount or buttonActive: no count, no aria-label', () => {
+    setup({ labels: { button: 'Filters', done: 'Done', clear: 'Select all' } });
+    expect(button()).toHaveTextContent('Filters');
+    expect(button()).not.toHaveAttribute('aria-label');
+    expect(button().querySelector('.filtersToggleCount')).toBeNull();
+  });
+
+  it('adds no aria-label when activeCount > 0 but buttonActive is omitted', () => {
+    setup({
+      activeCount: 2,
+      labels: { button: 'Filters', done: 'Done', clear: 'Select all' },
+    });
+    expect(button()).not.toHaveAttribute('aria-label');
   });
 
   it('applies a custom button class', () => {
@@ -277,6 +292,7 @@ describe('ObjectListFiltersPanel optional title, suffix and panel footer', () =>
     const onClear = jest.fn();
     const user = setup({ panelFooter: true, onClear });
     await user.click(button());
+    expect(screen.getByTestId('tasks-filters-panel-clear').className).toContain('btnSecondary');
     await user.click(screen.getByTestId('tasks-filters-panel-clear'));
     expect(onClear).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('tasks-filters-panel')).toBeInTheDocument();

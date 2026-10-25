@@ -229,6 +229,24 @@ describe('BudgetOverviewPage', () => {
       expect(screen.queryByTestId('money-headline')).toBeNull();
     });
 
+    it('is page-shaped: one named status, with every inner skeleton hidden from assistive tech', () => {
+      mockFetchOverview.mockReturnValue(new Promise(() => {}));
+      renderPage();
+      const status = screen.getByRole('status', { name: 'Loading Money' });
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+      expect(status).toHaveAttribute('aria-busy', 'true');
+      const hidden = status.querySelectorAll(':scope > [aria-hidden="true"]');
+      // headline card, 5 facts (one wrapper), funding card, breakdown card
+      expect(hidden).toHaveLength(4);
+      const factsWrap = hidden[1]!;
+      expect(factsWrap.children).toHaveLength(5);
+      expect(hidden[0]!.children).toHaveLength(1);
+      // every skeleton lives inside an aria-hidden wrapper
+      status.querySelectorAll('[role="status"]').forEach((el) => {
+        expect(el.closest('[aria-hidden="true"]')).not.toBeNull();
+      });
+    });
+
     it('shows a translated message for an API error and never the raw server text', async () => {
       mockFetchOverview.mockRejectedValue(
         new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),

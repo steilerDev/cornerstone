@@ -195,7 +195,7 @@ function LoadedBreakdown({
             view={view}
             total={breakdown.total}
             totalLabel={
-              isBreakdownFiltered(settings)
+              isBreakdownFiltered(settings, sourceKeys)
                 ? t('overview.breakdown.totalAdjusted')
                 : t('overview.breakdown.total')
             }

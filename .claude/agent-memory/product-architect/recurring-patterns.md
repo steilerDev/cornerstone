@@ -2179,3 +2179,11 @@ helper (`routes/undoResponseSchema.ts` `undoableDeleteResponse`) instead. Same P
 change that a fix sneaks into a route (the vendor-scope 404 on `/api/vendors/:vendorId/invoices/...`,
 reschedule-failure-now-200) also needs the wiki updated, even when the brief calls it "a
 pre-existing bug fix".
+
+## "Is filtered" predicates over URL id sets (PR #2335, #2237)
+
+A predicate such as `deselected.size > 0` treats a stale id as an active filter. Stale ids come from bookmarked
+`?deselectedSources=` values for deleted funding sources, and the server ignores them. The "adjusted" or
+"whole project" labels then disagree with an "n of N" count computed over the live option keys. Intersect the
+set with the live keys (`breakdownSourceKeys`) before deciding. Also on that PR: a `() => ''` stub that only
+satisfies a shared label interface is a finding. Make the member optional in the shared component instead.

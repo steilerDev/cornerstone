@@ -31,6 +31,7 @@ import { useBreakdownSettings } from './useBreakdownSettings.js';
 import styles from './BudgetOverviewPage.module.css';
 
 const DEBOUNCE_MS = 50;
+const SKELETON_FACTS = ['a', 'b', 'c', 'd', 'e'] as const;
 
 function deselectedKey(deselected: ReadonlySet<string>): string {
   return [...deselected].sort().join(',');
@@ -196,7 +197,32 @@ export function BudgetOverviewPage() {
   if (isLoading) {
     return (
       <PageLayout title={pageTitle} action={pageActions}>
-        <Skeleton lines={10} loadingLabel={t('overview.loading')} />
+        <div
+          className={styles.page}
+          role="status"
+          aria-busy="true"
+          aria-label={t('overview.loading')}
+        >
+          <div className={styles.skeletonHeadline} aria-hidden="true">
+            <Skeleton lines={2} widths={['40%', '25%']} loadingLabel={t('overview.loading')} />
+          </div>
+          <div className={styles.skeletonFacts} aria-hidden="true">
+            {SKELETON_FACTS.map((id) => (
+              <Skeleton
+                key={id}
+                lines={2}
+                widths={['60%', '80%']}
+                loadingLabel={t('overview.loading')}
+              />
+            ))}
+          </div>
+          <div className={styles.skeletonCard} aria-hidden="true">
+            <Skeleton lines={6} loadingLabel={t('overview.loading')} />
+          </div>
+          <div className={styles.skeletonCard} aria-hidden="true">
+            <Skeleton lines={8} loadingLabel={t('overview.loading')} />
+          </div>
+        </div>
       </PageLayout>
     );
   }
@@ -217,7 +243,8 @@ export function BudgetOverviewPage() {
 
   const lts = money.leftToSpend;
   const hasFigure = lts.verdict !== null;
-  const settingsActive = isBreakdownFiltered(settings);
+  const sourceKeys = breakdown ? breakdownSourceKeys(breakdown, settings.deselected) : [];
+  const settingsActive = isBreakdownFiltered(settings, sourceKeys);
   const cappedGrants = money.grants.filter((g) => g.counted && g.capped);
 
   const facts: SummaryFact[] = [
@@ -264,7 +291,6 @@ export function BudgetOverviewPage() {
     },
   ];
 
-  const sourceKeys = breakdown ? breakdownSourceKeys(breakdown, settings.deselected) : [];
   const printPairs = [
     [
       t('overview.breakdown.printSummary.view'),

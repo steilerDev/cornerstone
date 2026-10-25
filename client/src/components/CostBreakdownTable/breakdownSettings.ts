@@ -44,9 +44,17 @@ export function breakdownSourceKeys(
   return keys;
 }
 
-/** True while the total is not the whole project at expected estimates. */
-export function isBreakdownFiltered(settings: BreakdownSettings): boolean {
+/**
+ * True while the total is not the whole project at expected estimates. `sourceKeys` are the
+ * funding sources that exist (`breakdownSourceKeys`): a stale id in the URL filters nothing.
+ */
+export function isBreakdownFiltered(
+  settings: BreakdownSettings,
+  sourceKeys: readonly string[],
+): boolean {
   return (
-    settings.payment !== 'all' || settings.estimate !== 'expected' || settings.deselected.size > 0
+    settings.payment !== 'all' ||
+    settings.estimate !== 'expected' ||
+    sourceKeys.some((key) => settings.deselected.has(key))
   );
 }

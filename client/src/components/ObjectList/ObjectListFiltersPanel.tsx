@@ -11,8 +11,8 @@ import styles from './ObjectListFiltersPanel.module.css';
 export interface ObjectListFiltersPanelLabels {
   /** "Filters" */
   readonly button: string;
-  /** "Filters, 2 active" (the button's accessible name when count > 0) */
-  readonly buttonActive: (count: number) => string;
+  /** "Filters, 2 active" (the button's accessible name when count > 0); needed only with `activeCount`. */
+  readonly buttonActive?: (count: number) => string;
   readonly done: string;
   readonly clear: string;
   /** Panel / sheet name; defaults to `button`. */
@@ -24,7 +24,8 @@ export interface ObjectListFiltersPanelProps {
   readonly idPrefix: string;
   /** `${p}-button`, `${p}-panel`, `${p}-sheet`, `${p}-sheet-clear`, `${p}-done`. */
   readonly testIdPrefix: string;
-  readonly activeCount: number;
+  /** Active filters; default 0 (hosts with a `buttonSuffix` omit it). */
+  readonly activeCount?: number;
   readonly labels: ObjectListFiltersPanelLabels;
   readonly onClear: () => void;
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
@@ -44,7 +45,7 @@ export interface ObjectListFiltersPanelProps {
 export function ObjectListFiltersPanel({
   idPrefix,
   testIdPrefix,
-  activeCount,
+  activeCount = 0,
   labels,
   onClear,
   buttonRef,
@@ -82,7 +83,7 @@ export function ObjectListFiltersPanel({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={isWide ? panelId : sheetId}
-        aria-label={activeCount > 0 ? labels.buttonActive(activeCount) : undefined}
+        aria-label={activeCount > 0 ? labels.buttonActive?.(activeCount) : undefined}
         onClick={() => setOpen((prev) => !prev)}
         data-testid={`${testIdPrefix}-button`}
       >
@@ -114,7 +115,7 @@ export function ObjectListFiltersPanel({
               <div className={`${styles.sheetFooter} ${styles.panelFooter}`}>
                 <button
                   type="button"
-                  className={shared.btnText}
+                  className={shared.btnSecondary}
                   onClick={onClear}
                   data-testid={`${testIdPrefix}-panel-clear`}
                 >

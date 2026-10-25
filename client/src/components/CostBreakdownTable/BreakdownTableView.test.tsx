@@ -78,6 +78,18 @@ describe('BreakdownTableView', () => {
     ]);
   });
 
+  it('is a focusable region named by the table caption', () => {
+    renderTable({ view: 'type' });
+    const region = screen.getByRole('region', { name: 'Breakdown of the project by Type' });
+    expect(region).toBe(screen.getByTestId('breakdown-table'));
+    expect(region).toHaveAttribute('tabindex', '0');
+    const caption = region.querySelector('caption')!;
+    expect(region.getAttribute('aria-labelledby')).toBe(caption.id);
+    expect(caption.id).not.toBe('');
+    region.focus();
+    expect(region).toHaveFocus();
+  });
+
   it('follows the given columns, including Grants and After grants', () => {
     renderTable({ columns: breakdownColumns({ payment: 'all', grants: true }, columnLabels) });
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);

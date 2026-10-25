@@ -96,4 +96,4 @@ Each cost line has an **Entered as** setting:
 
 With unit pricing, the form shows the result as you type. For example, 10 units at a net unit price of 100 give "Gross 1,190.00 (net 1,000.00 + VAT 19%)".
 
-Amounts are stored gross, and the Cost lines table shows gross amounts with the net amount in the tooltip. Because every line is stored the same way, comparisons in the [Budget Overview](budget-overview) and the printed reports are like-for-like, whatever pricing mode you chose for each line.
+Amounts are stored gross, and the Cost lines table shows gross amounts with the net amount in the tooltip. Because every line is stored the same way, comparisons in the [Money Overview](budget-overview) and the printed reports are like-for-like, whatever pricing mode you chose for each line.

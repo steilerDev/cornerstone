@@ -65,3 +65,10 @@
     transition: none;
   }
 }
+
+/* The fills carry the numbers on paper. */
+@media print {
+  .segment {
+    print-color-adjust: exact;
+  }
+}

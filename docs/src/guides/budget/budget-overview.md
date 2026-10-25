@@ -68,10 +68,9 @@ Choose how the rows are grouped:
 
 Every view can be opened row by row, down to the single cost line. Each line shows its state (such as **Estimate**, **Offered**, **Invoiced** or **Paid**). Outside the funding-source view, the line also shows its funding source in muted text.
 
-Two rows can appear in any view:
+**Not yet split** appears in every view. It is money on an offer or invoice that you have not yet split into cost lines.
 
-- **Not yet split** -- money on an offer or invoice that you have not yet split into cost lines.
-- **Without a task** -- cost lines that are not linked to a task or purchase. They sit under **No area** in the area view, and under **Tasks** in the type view.
+**Without a task** is the group of cost lines that are not linked to a task or purchase. In the **Area** view it sits under **No area**, and in the **Type** view under **Tasks**. In the **Cost category** and **Funding source** views, those lines sit directly under their category or source, with no task row in between.
 
 Costs are always shown as positive amounts.
 
@@ -85,7 +84,7 @@ Choose which part of the cost you want to see:
 | **Paid** | Only the Paid column. Rows with nothing paid are hidden. |
 | **Not yet paid** | Only the Not yet paid column. Rows with nothing left to pay are hidden. |
 
-**Not yet paid** is the expected cost less what you have paid. For each row, Paid, Still to pay and Not yet paid add up to the row's expected cost.
+**Not yet paid** is the expected cost less what you have paid. For each row, Paid and Not yet paid add up to the row's expected cost. **Still to pay** counts only the open invoices, so it is not part of that sum. **Not yet paid** can be negative when a record is overpaid, for example when deposits exceed the final amount.
 
 ### Show estimates at
 

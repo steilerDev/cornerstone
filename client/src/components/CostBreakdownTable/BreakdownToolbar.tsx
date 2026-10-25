@@ -140,11 +140,9 @@ export function BreakdownToolbar({
         <ObjectListFiltersPanel
           idPrefix="breakdown-sources"
           testIdPrefix="breakdown-sources"
-          activeCount={0}
           labels={{
             button: t('overview.breakdown.sourceButton'),
             title: t('overview.breakdown.sourceTitle'),
-            buttonActive: () => '',
             done: t('overview.breakdown.done'),
             clear: t('overview.breakdown.selectAll'),
           }}
@@ -174,11 +172,8 @@ export function BreakdownToolbar({
                       checked={checked}
                       aria-disabled={locked ? 'true' : undefined}
                       aria-describedby={locked ? keepOneId : undefined}
-                      onChange={(event) => {
-                        if (locked) {
-                          event.preventDefault();
-                          return;
-                        }
+                      onChange={() => {
+                        if (locked) return;
                         onSourceToggle(key);
                       }}
                       data-testid={`breakdown-source-${key}`}

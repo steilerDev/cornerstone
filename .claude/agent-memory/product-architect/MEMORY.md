@@ -33,6 +33,7 @@
 - [Retired components vs defects.json](recurring-patterns.md) — deleted tests orphan D-ids; re-home + repoint in the same PR (#2235)
 - [Silent post-validation skips](recurring-patterns.md) — `continue`/`return ''` "validation ran first" guards drop data; `request.user!` vs guard (PR #2333)
 - ["As route X" contract refs](recurring-patterns.md) — open a cited model route before naming it; route fixes still need wiki (PR #2334)
+- ["Is filtered" over URL id sets](recurring-patterns.md) — `size > 0` counts stale ids; intersect with live keys; stub label members = make optional (PR #2335)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Per-line payment attribution](per-line-payment-attribution.md) — #2237 ADR-039 §5: sub-cent reconcile; tagged payments to the tagged source's lines (option B); residual gaps vs Rail A/B

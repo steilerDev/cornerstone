@@ -5,7 +5,7 @@ title: Budget
 
 # Budget
 
-The budget system in Cornerstone helps you track construction costs across your entire project. Organize expenses by category, manage multiple financing sources, track company invoices, and apply subsidies -- all with real-time projections that account for estimate confidence levels.
+The budget system in Cornerstone helps you track construction costs across your entire project. Organize expenses by category, manage multiple financing sources, track company invoices, and apply subsidies -- all with an expected cost for the whole project, shown as a range from the lowest to the highest estimate.
 
 ## Overview
 

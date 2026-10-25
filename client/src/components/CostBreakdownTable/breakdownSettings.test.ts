@@ -59,23 +59,33 @@ describe('breakdownSettings', () => {
   });
 
   describe('isBreakdownFiltered', () => {
+    const keys = ['bs-a', 'bs-b'];
+
     it('is false for the whole project at expected estimates (view and grants do not count)', () => {
-      expect(isBreakdownFiltered(base)).toBe(false);
-      expect(isBreakdownFiltered({ ...base, view: 'source', grants: true })).toBe(false);
+      expect(isBreakdownFiltered(base, keys)).toBe(false);
+      expect(isBreakdownFiltered({ ...base, view: 'source', grants: true }, keys)).toBe(false);
     });
 
     it('is true for a payment basis other than All', () => {
-      expect(isBreakdownFiltered({ ...base, payment: 'paid' })).toBe(true);
-      expect(isBreakdownFiltered({ ...base, payment: 'outstanding' })).toBe(true);
+      expect(isBreakdownFiltered({ ...base, payment: 'paid' }, keys)).toBe(true);
+      expect(isBreakdownFiltered({ ...base, payment: 'outstanding' }, keys)).toBe(true);
     });
 
     it('is true for an estimate other than Expected', () => {
-      expect(isBreakdownFiltered({ ...base, estimate: 'low' })).toBe(true);
-      expect(isBreakdownFiltered({ ...base, estimate: 'high' })).toBe(true);
+      expect(isBreakdownFiltered({ ...base, estimate: 'low' }, keys)).toBe(true);
+      expect(isBreakdownFiltered({ ...base, estimate: 'high' }, keys)).toBe(true);
     });
 
-    it('is true when any funding source is deselected', () => {
-      expect(isBreakdownFiltered({ ...base, deselected: new Set(['bs-a']) })).toBe(true);
+    it('is true when an existing funding source is deselected', () => {
+      expect(isBreakdownFiltered({ ...base, deselected: new Set(['bs-a']) }, keys)).toBe(true);
+    });
+
+    it('is false when only a stale (deleted) source id is deselected', () => {
+      expect(isBreakdownFiltered({ ...base, deselected: new Set(['bs-gone']) }, keys)).toBe(false);
+    });
+
+    it('is false for a deselected id while no source keys are known', () => {
+      expect(isBreakdownFiltered({ ...base, deselected: new Set(['bs-a']) }, [])).toBe(false);
     });
   });
 });

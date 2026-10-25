@@ -161,6 +161,12 @@
   overflow-x: auto;
 }
 
+.tableWrap:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -387,6 +393,12 @@
 .drillHeadingLink:hover,
 .drillHeadingLink:focus-visible {
   text-decoration: underline;
+}
+
+.drillHeadingLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
 .drillBack {

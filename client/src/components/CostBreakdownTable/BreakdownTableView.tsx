@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useId } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BreakdownFigures, BreakdownLine } from '@cornerstone/shared';
@@ -47,6 +47,7 @@ export function BreakdownTableView({
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   const userText = useUserText();
+  const captionId = useId();
   const originState = useOriginState();
 
   const renderName = (node: BreakdownNode): ReactNode => {
@@ -146,9 +147,15 @@ export function BreakdownTableView({
     });
 
   return (
-    <div className={styles.tableWrap} data-testid="breakdown-table">
+    <div
+      className={styles.tableWrap}
+      role="region"
+      aria-labelledby={captionId}
+      tabIndex={0}
+      data-testid="breakdown-table"
+    >
       <table className={styles.table}>
-        <caption className={shared.srOnly}>
+        <caption id={captionId} className={shared.srOnly}>
           {t('overview.breakdown.caption', {
             view: t(I18N_UNION_KEYS.breakdownView.key(view)),
           })}
