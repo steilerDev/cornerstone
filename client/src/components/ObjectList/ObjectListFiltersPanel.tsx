@@ -145,7 +145,7 @@ export function ObjectListFiltersPanel({
             <div className={styles.sheetFooter}>
               <button
                 type="button"
-                className={shared.btnText}
+                className={panelFooter ? shared.btnSecondary : shared.btnText}
                 onClick={onClear}
                 data-testid={`${testIdPrefix}-sheet-clear`}
               >

@@ -308,4 +308,22 @@ describe('ObjectListFiltersPanel optional title, suffix and panel footer', () =>
     expect(screen.getByTestId('tasks-filters-sheet-clear')).toBeInTheDocument();
     expect(screen.queryByTestId('tasks-filters-panel-clear')).toBeNull();
   });
+
+  it('styles the sheet Clear as a secondary button with panelFooter', async () => {
+    media.set(WIDE, false);
+    const user = setup({ panelFooter: true });
+    await user.click(button());
+    const clear = screen.getByTestId('tasks-filters-sheet-clear');
+    expect(clear.className).toContain('btnSecondary');
+    expect(clear.className).not.toContain('btnText');
+  });
+
+  it('keeps the sheet Clear as a text button without panelFooter', async () => {
+    media.set(WIDE, false);
+    const user = setup();
+    await user.click(button());
+    const clear = screen.getByTestId('tasks-filters-sheet-clear');
+    expect(clear.className).toContain('btnText');
+    expect(clear.className).not.toContain('btnSecondary');
+  });
 });
