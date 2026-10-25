@@ -907,7 +907,7 @@
     "to": "Money > Overview > Breakdown (By area / By type / By category / By funding source)",
     "change": "same",
     "gate": "none",
-    "note": "'By type' restores today's split between building work and purchases (R-m1); area rows still add both. #2203: h1 \"Money\" (never \"Budget\"); tab title \"Money · ‹house›\"."
+    "note": "'By type' restores today's split between building work and purchases (R-m1); area rows still add both. #2203: h1 \"Money\" (never \"Budget\"); tab title \"Money · ‹house›\". #2237: built: Money › Overview › Breakdown with views Area / Type / Cost category / Funding source (?by=); figures from the money service (breakdown, contract 25)."
   },
   "MNY-002": {
     "name": "Drill down the breakdown from section to area tree, item and individual budget line",
@@ -915,7 +915,7 @@
     "to": "Money > Overview > Breakdown tree (area > task/purchase > cost line); area rows sum tasks + purchases",
     "change": "same",
     "gate": "none",
-    "note": "Kitchen-style totals across tasks and purchases (DOM-05)."
+    "note": "Kitchen-style totals across tasks and purchases (DOM-05). #2237: built: area › task/purchase › cost line, with \"Without a task\" and \"Not yet split\" rows so the total equals the facts; below 768px of the card a drill-down list."
   },
   "MNY-003": {
     "name": "Switch the cost projection perspective between Min, Avg and Max",
@@ -925,7 +925,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Money > Overview > Breakdown 'Show estimates at' segment (1)",
-    "note": "The switch changes the breakdown rows, never the headline, so it sits on the Breakdown card (R-m3, SIM-19)."
+    "note": "The switch changes the breakdown rows, never the headline, so it sits on the Breakdown card (R-m3, SIM-19). #2237: built: Money › Overview › Breakdown › \"Show estimates at: Low · Expected · High\" (?estimate=); the headline does not change."
   },
   "MNY-004": {
     "name": "Re-frame all breakdown figures by cost basis: All, Paid or Outstanding",
@@ -933,7 +933,7 @@
     "to": "Money > Overview > Breakdown chips All / Paid / Not yet paid (today's Outstanding: Expected − Paid; ?paymentStatus kept)",
     "change": "same",
     "gate": "none",
-    "note": "Owner check 7 Oct: 'Still to pay' (invoices only) was narrower than Outstanding; 'Not yet paid' restores it (label 19, PLAN §7.2). #2203: filter changes use history replace."
+    "note": "Owner check 7 Oct: 'Still to pay' (invoices only) was narrower than Outstanding; 'Not yet paid' restores it (label 19, PLAN §7.2). #2203: filter changes use history replace. #2237: built: Money › Overview › Breakdown › Payment chips All / Paid / Not yet paid (?paymentStatus=paid|outstanding kept); columns per basis; Paid per cost line (ADR-039 §5 amended)."
   },
   "MNY-005": {
     "name": "See invoiced / quoted / confidence badges and the funding-source badge on each budget line",
@@ -941,7 +941,7 @@
     "to": "Money > Overview > Breakdown: item hint (Offered / Invoiced / Partly invoiced …) + cost-line state chips + funding source where it differs",
     "change": "same",
     "gate": "none",
-    "note": "One line-state vocabulary (VR-BM-11)."
+    "note": "One line-state vocabulary (VR-BM-11). #2237: built: cost-line rows carry the shared cost-line state chip and the funding source (not in the Funding source view)."
   },
   "MNY-006": {
     "name": "Open a work item or household item from its breakdown row",
@@ -949,7 +949,7 @@
     "to": "Money > Overview > breakdown row links to Task / Purchase page",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2237: built: item rows link to the Task / Purchase page with origin."
   },
   "MNY-007": {
     "name": "See expected subsidy payback and net cost per section, area and item",
@@ -957,7 +957,7 @@
     "to": "Money > Overview > Breakdown > 'Show grants' toggle (adds Grants and After grants columns; each grant's expected amount (rate × eligible costs, limited by its eligible-costs cap) is spread pro rata over its eligible items, so rows add up to Expected grants)",
     "change": "same",
     "gate": "none",
-    "note": "Replaces the uncapped grants column and the negative 'Grant cap adjustment' row (SIM-01)."
+    "note": "Replaces the uncapped grants column and the negative 'Grant cap adjustment' row (SIM-01). #2237: built: Money › Overview › Breakdown › \"Show: Grants\" toggle (Grants and After grants columns; ?grants=1); no correction row."
   },
   "MNY-008": {
     "name": "Review oversubscribed subsidy programs and the excess deducted from total payback",
@@ -965,7 +965,7 @@
     "to": "Money > Overview > headline figure 'Expected grants' (calculated from each grant's rate and eligible-costs cap); Money > Grant page > summary strip 'Expected grant' and the eligible costs above the cap",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2237: built: Money › Overview › Expected grants fact; \"How is this calculated?\" lists the capped grants."
   },
   "MNY-009": {
     "name": "See project totals: Sum, Available funds and Remaining budget (before and after payback)",
@@ -974,7 +974,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q4",
-    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used. #2228: Left to spend (expected/best/worst, strict verdict), Funding total, Expected cost, Expected grants, Paid, Still to pay served by the money service (`money` on GET /api/budget/overview); UI in 4.5 (Money › Overview) and 3.3 (Home › Pulse). #2232: interim Money › Overview › Breakdown summary › 'Left to spend' row (until the 4.5 headline) replaces the legacy 'Remaining Budget' pair (before and after payback, computed in the client over all sources): one figure, `money.leftToSpend` with the verdict chip, the same as Home › Pulse; it ignores perspective, cost basis and the source filter and reads 'Whole project' while a filter is active. The before/after-payback pair is merged into this one figure (its target); equality with Home is tested (figure registry)."
+    "note": "One definition (PLAN §7.1). The range is part of the figure, not two more amounts (SIM-01). Verdict (owner, 7 Oct, PLAN §2.0 #23): 'Over budget' whenever the figure is below zero; 'Tight' is not used. #2228: Left to spend (expected/best/worst, strict verdict), Funding total, Expected cost, Expected grants, Paid, Still to pay served by the money service (`money` on GET /api/budget/overview); UI in 4.5 (Money › Overview) and 3.3 (Home › Pulse). #2232: interim Money › Overview › Breakdown summary › 'Left to spend' row (until the 4.5 headline) replaces the legacy 'Remaining Budget' pair (before and after payback, computed in the client over all sources): one figure, `money.leftToSpend` with the verdict chip, the same as Home › Pulse; it ignores perspective, cost basis and the source filter and reads 'Whole project' while a filter is active. The before/after-payback pair is merged into this one figure (its target); equality with Home is tested (figure registry). #2237: built: Money › Overview › headline (MoneyFigure): Left to spend + verdict + range + \"How is this calculated?\"; facts Funding total · Expected cost · Expected grants · Paid · Still to pay; the interim row is deleted."
   },
   "MNY-010": {
     "name": "Expand Available funds into per-source allocated cost, payback and net headroom",
@@ -982,7 +982,7 @@
     "to": "Money > Overview > funding rows always visible ('Allocated €x of €y' with a bar; only an over-allocation gets its own amount); Money > Financing cards ('Unallocated' per source); Money > Overview > Breakdown 'By funding source'",
     "change": "promoted",
     "gate": "none",
-    "note": "Per-source headroom is called 'Unallocated' (Frei), never 'Left', so 'Left' names one figure (SIM-01). #2228: per-source allocated / unallocated / over-allocated in `money.sources`; UI in 4.5/4.10."
+    "note": "Per-source headroom is called 'Unallocated' (Frei), never 'Left', so 'Left' names one figure (SIM-01). #2228: per-source allocated / unallocated / over-allocated in `money.sources`; UI in 4.5/4.10. #2237: built: Money › Overview › Funding sources rows always visible (\"Allocated x of y\" + bar; over-allocation only); Breakdown › Funding source view rows equal Allocated."
   },
   "MNY-011": {
     "name": "Filter the whole breakdown by financing source",
@@ -990,7 +990,7 @@
     "to": "Money > Overview > Breakdown filter chip 'Funding source: n of N' (checkboxes, Show all; recomputes all views; ?deselectedSources kept)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2203: filter changes use history replace."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2203: filter changes use history replace. #2237: built: Money › Overview › Breakdown › \"Funding source n of N\" chip (ObjectListFiltersPanel: panel from 768px, sheet below; at least one stays selected; ?deselectedSources kept)."
   },
   "MNY-012": {
     "name": "Print the budget overview with every row expanded",
@@ -998,7 +998,7 @@
     "to": "Money > Overview > ⋯ > Print (every area, item and cost line expanded)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2237: built: Money › Overview › ⋯ › Print (expands every row; a settings summary line)."
   },
   "MNY-013": {
     "name": "Use the Budget Overview 'Add' menu (Add Invoice, Add Vendor)",
@@ -1006,7 +1006,7 @@
     "to": "Global > New menu > Invoice / Offer / Company (company pre-filled on a company page)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer; company pre-filled on a company page)."
+    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer; company pre-filled on a company page). #2237: the Money › Overview Add dropdown is deleted; placement is Global › New menu › Invoice / Offer (D-35 now tested in createEntries.test.ts)."
   },
   "MNY-022": {
     "name": "View all financing sources with type, status, total and interest rate",
@@ -1732,7 +1732,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served. #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served. #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2237: Money › Overview › ⋯ › \"Budget overview for the bank\" → /budget/reports?type=budget-overview (preset applied once)."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -3667,7 +3667,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not). #2228: Expected cost, Paid, Expected grants served by the money service. #2230: the Budget Summary card is retired; Expected cost, Paid and Expected grants are read on Money › Overview (today's overview and breakdown) until the 4.5 headline."
+    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not). #2228: Expected cost, Paid, Expected grants served by the money service. #2230: the Budget Summary card is retired; Expected cost, Paid and Expected grants are read on Money › Overview (today's overview and breakdown) until the 4.5 headline. #2237: built: Money › Overview facts (Expected cost, Paid, Expected grants)."
   },
   "PLT-057": {
     "name": "Be warned on the dashboard when subsidies are oversubscribed",
@@ -3676,7 +3676,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained. #2228: grants[].capped / uncappedPayout replace the oversubscription computation (the legacy `oversubscribedSubsidies` field is derived from it). #2230: the Budget Summary card and its warning line are retired; the cap note is on Money › Overview and the Grants page (/budget/subsidies) until Financing (4.10)."
+    "note": "Both real programmes are permanently over their cap; as a Home attention row this would be permanent noise, so it stays a note where the money is explained. #2228: grants[].capped / uncappedPayout replace the oversubscription computation (the legacy `oversubscribedSubsidies` field is derived from it). #2230: the Budget Summary card and its warning line are retired; the cap note is on Money › Overview and the Grants page (/budget/subsidies) until Financing (4.10). #2237: built: the cap note is in Money › Overview › \"How is this calculated?\" (capped grants listed)."
   },
   "PLT-058": {
     "name": "Jump from the dashboard to the budget overview",

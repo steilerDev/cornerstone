@@ -140,8 +140,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["paymentStatus", "deselectedSources", "by"],
-    "note": "Money (overview; h1 'Money'): Left to spend headline, funding rows, breakdown. ?paymentStatus= and ?deselectedSources= kept; new ?by=area|type|category|source."
+    "carries": ["paymentStatus", "deselectedSources", "by", "estimate", "grants"],
+    "note": "Money (h1 'Money'): headline, facts, funding rows, breakdown (#2237). ?paymentStatus=, ?deselectedSources= kept; ?by=area|type|category|source, ?estimate=low|high, ?grants=1."
   },
   {
     "from": "/budget/invoices",

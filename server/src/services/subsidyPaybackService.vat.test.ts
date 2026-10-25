@@ -15,7 +15,7 @@ import * as schema from '../db/schema.js';
 import { getWorkItemSubsidyPayback } from './subsidyPaybackService.js';
 import { getHouseholdItemSubsidyPayback } from './householdItemSubsidyPaybackService.js';
 import { getBudgetOverview } from './budgetOverviewService.js';
-import { getBudgetBreakdown } from './budgetBreakdownService.js';
+import { getBudgetBreakdown } from './moneyService.js';
 
 describe('subsidy payback services — configured VAT rate', () => {
   let sqlite: Database.Database;
@@ -147,12 +147,12 @@ describe('subsidy payback services — configured VAT rate', () => {
       const perItem = getWorkItemSubsidyPayback(db, workItemId, rate);
       const overview = getBudgetOverview(db, rate);
       const breakdown = getBudgetBreakdown(db, rate);
-      const item = breakdown.workItems.areas[0]!.items[0]!;
+      const item = breakdown.items.find((i) => i.kind === 'work_item')!;
 
       expect(overview.subsidySummary.minTotalPayback).toBeCloseTo(perItem.minTotalPayback, 5);
       expect(overview.subsidySummary.maxTotalPayback).toBeCloseTo(perItem.maxTotalPayback, 5);
-      expect(item.minSubsidyPayback).toBeCloseTo(perItem.minTotalPayback, 5);
-      expect(item.subsidyPayback).toBeCloseTo(perItem.maxTotalPayback, 5);
+      expect(item.figures.expectedGrants.best).toBeCloseTo(perItem.minTotalPayback, 5);
+      expect(item.figures.expectedGrants.worst).toBeCloseTo(perItem.maxTotalPayback, 5);
     });
 
     it('household item payback agrees with getBudgetOverview and getBudgetBreakdown', () => {
@@ -164,12 +164,12 @@ describe('subsidy payback services — configured VAT rate', () => {
       const perItem = getHouseholdItemSubsidyPayback(db, hiId, rate);
       const overview = getBudgetOverview(db, rate);
       const breakdown = getBudgetBreakdown(db, rate);
-      const item = breakdown.householdItems.areas[0]!.items[0]!;
+      const item = breakdown.items.find((i) => i.kind === 'household_item')!;
 
       expect(overview.subsidySummary.minTotalPayback).toBeCloseTo(perItem.minTotalPayback, 5);
       expect(overview.subsidySummary.maxTotalPayback).toBeCloseTo(perItem.maxTotalPayback, 5);
-      expect(item.minSubsidyPayback).toBeCloseTo(perItem.minTotalPayback, 5);
-      expect(item.subsidyPayback).toBeCloseTo(perItem.maxTotalPayback, 5);
+      expect(item.figures.expectedGrants.best).toBeCloseTo(perItem.minTotalPayback, 5);
+      expect(item.figures.expectedGrants.worst).toBeCloseTo(perItem.maxTotalPayback, 5);
     });
   });
 

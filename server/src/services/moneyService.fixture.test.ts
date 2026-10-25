@@ -15,7 +15,13 @@
  *  - a symmetric Tight verdict: breaks the verdict row (worst < 0 but expected >= 0 is on_budget)
  *    and step 2 (best > 0 but expected < 0 is over_budget);
  *  - a second Ready-to-submit predicate: breaks the bank-report consistency block;
- *  - a second Still-to-pay definition: breaks the invoice-summary and vendor consistency blocks.
+ *  - a second Still-to-pay definition: breaks the invoice-summary and vendor consistency blocks;
+ *  - a breakdown view that drops or double-counts a line, orphan or the Not yet split row: breaks
+ *    S-C2 (every view sums to the total, to the cent, for every field and scenario);
+ *  - a per-line Paid / Still to pay attribution that differs from the project figure: breaks the
+ *    S-P table and S-C1 (hand-checked splits of Q1, I1-I5);
+ *  - the source filter touching Not yet split or the source list: breaks S-C6;
+ *  - an offer line counted at +-5% again: breaks S-C5 (face value in all three scenarios).
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
@@ -28,7 +34,7 @@ import type {
   BudgetBreakdown,
   AttentionResponse,
   BudgetOverviewResponse,
-  BreakdownArea,
+  BreakdownFigures,
   HomePulseResponse,
   MoneyCostFigures,
   MoneyRange,
@@ -38,7 +44,8 @@ import { buildApp } from '../app.js';
 import * as schema from '../db/schema.js';
 import * as userService from './userService.js';
 import * as sessionService from './sessionService.js';
-import { computeProjectMoney, getBreakdownMoney } from './moneyService.js';
+import { computeProjectMoney, getBreakdownMoney, loadMoneyInput } from './moneyService.js';
+import { computeMoney, toMoneyRange } from './shared/moneyEngine.js';
 import { getSourceReport } from './sourceReportService.js';
 
 const VAT = 0.19;
@@ -264,8 +271,51 @@ function figures(f: MoneyCostFigures): {
   };
 }
 
-function flattenItems<T>(areas: BreakdownArea<T>[]): T[] {
-  return areas.flatMap((a) => [...a.items, ...flattenItems(a.children)]);
+const cents = (n: number): number => Math.round(n * 100);
+
+const SCENARIOS = ['expected', 'best', 'worst'] as const;
+const RANGE_FIELDS = ['expectedCost', 'expectedGrants', 'afterGrants', 'notYetPaid'] as const;
+
+/** Σ of figures in cents per field and scenario; paid / stillToPay as plain cents. */
+function sumFigures(rows: BreakdownFigures[]): Record<string, number> {
+  const out: Record<string, number> = { paid: 0, stillToPay: 0 };
+  for (const field of RANGE_FIELDS) for (const scen of SCENARIOS) out[`${field}.${scen}`] = 0;
+  for (const row of rows) {
+    out['paid'] = out['paid']! + cents(row.paid);
+    out['stillToPay'] = out['stillToPay']! + cents(row.stillToPay);
+    for (const field of RANGE_FIELDS) {
+      for (const scen of SCENARIOS) {
+        out[`${field}.${scen}`] = out[`${field}.${scen}`]! + cents(row[field][scen]);
+      }
+    }
+  }
+  return out;
+}
+
+async function getBreakdown(ctx: Ctx, query = ''): Promise<BudgetBreakdown> {
+  const body = await getJson<{ breakdown: BudgetBreakdown }>(ctx, `/api/budget/breakdown${query}`);
+  return body.breakdown;
+}
+
+/** Σ of every view's rows plus Not yet split, to compare with the breakdown total. */
+function viewSums(b: BudgetBreakdown): Record<string, Record<string, number>> {
+  const extra = b.notYetSplit ? [b.notYetSplit] : [];
+  return {
+    lines: sumFigures([...b.lines.map((l) => l.figures), ...extra]),
+    items: sumFigures([
+      ...b.items.map((i) => i.figures),
+      ...(b.orphanLines ? [b.orphanLines] : []),
+      ...extra,
+    ]),
+    area: sumFigures([
+      ...b.byArea.filter((a) => a.parentId === null).map((a) => a.figures),
+      ...(b.noArea ? [b.noArea] : []),
+      ...extra,
+    ]),
+    type: sumFigures([b.byType.work_items, b.byType.household_items, ...extra]),
+    category: sumFigures([...b.byCategory.map((c) => c.figures), ...extra]),
+    source: sumFigures([...b.bySource.map((s) => s.figures), ...extra]),
+  };
 }
 
 async function createCtx(): Promise<{ ctx: Ctx; tempDir: string; env: NodeJS.ProcessEnv }> {
@@ -290,88 +340,224 @@ async function createCtx(): Promise<{ ctx: Ctx; tempDir: string; env: NodeJS.Pro
 
 function describeConsistency(getCtx: () => Ctx): void {
   describe('consistency: the money service against every server consumer', () => {
-    it('1. GET /api/budget/overview: money equals the service; legacy grant fields derive from it', async () => {
+    it('1. GET /api/budget/overview: money equals the service; the overview is the grant summary only (S-C5)', async () => {
       const ctx = getCtx();
       const body = await getJson<BudgetOverviewResponse>(ctx, '/api/budget/overview');
       const money = computeProjectMoney(ctx.app.db, VAT).summary;
       expect(body.money).toEqual(money);
-      expect(body.overview.availableFunds).toBe(money.fundingTotal);
-      expect(body.overview.sourceCount).toBe(money.activeSourceCount);
+      expect(Object.keys(body.overview)).toEqual(['subsidySummary']);
       expect(body.overview.subsidySummary.totalReductions).toBe(money.expectedGrants.expected);
       expect(body.overview.subsidySummary.minTotalPayback).toBe(money.expectedGrants.best);
       expect(body.overview.subsidySummary.maxTotalPayback).toBe(money.expectedGrants.worst);
     });
 
-    it('2. GET /api/budget/breakdown: money equals the service; item sums equal the project figures', async () => {
-      const ctx = getCtx();
-      const body = await getJson<{ breakdown: BudgetBreakdown }>(ctx, '/api/budget/breakdown');
-      const project = computeProjectMoney(ctx.app.db, VAT);
-      const money = project.summary;
-      const bm = body.breakdown.money;
-      expect(bm).toEqual(getBreakdownMoney(project));
+    describe.each([
+      ['unfiltered', ''],
+      ['with bs-b deselected', '?deselectedSources=bs-b'],
+    ])('2. GET /api/budget/breakdown %s', (_name, query) => {
+      const filtered = query !== '';
 
-      const all = [...Object.values(bm.workItems), ...Object.values(bm.householdItems)].map(
-        figures,
-      );
-      const scenarios = [0, 1, 2] as const;
-      for (const i of scenarios) {
-        const cost =
-          all.reduce((s, f) => s + Math.round(f.cost[i] * 100), 0) +
-          Math.round(figures({ ...bm.orphanLines }).cost[i] * 100) +
-          Math.round(bm.notYetSplit.amount * 100);
-        expect(cost).toBe(Math.round(range(money.expectedCost)[i]! * 100));
-        const grants = all.reduce((s, f) => s + Math.round(f.grants[i] * 100), 0);
-        expect(grants).toBe(Math.round(range(money.expectedGrants)[i]! * 100));
+      /** The reference: the money service, or the engine run without the bs-b lines. */
+      function reference(ctx: Ctx) {
+        const money = computeProjectMoney(ctx.app.db, VAT).summary;
+        if (!filtered) {
+          return {
+            expectedCost: money.expectedCost,
+            expectedGrants: money.expectedGrants,
+            afterGrants: money.afterGrants,
+          };
+        }
+        const run = computeMoney(loadMoneyInput(ctx.app.db, VAT), {
+          includeLine: (l) => l.budgetSourceId !== 'bs-b',
+        });
+        return {
+          expectedCost: toMoneyRange(run.expectedCost),
+          expectedGrants: toMoneyRange(run.expectedGrants),
+          afterGrants: toMoneyRange(run.afterGrants),
+        };
       }
 
-      const wi = flattenItems(body.breakdown.workItems.areas);
-      const hi = flattenItems(body.breakdown.householdItems.areas);
-      const items = [...wi, ...hi];
-      const cents = (n: number) => Math.round(n * 100);
-      expect(items.reduce((s, i) => s + cents(i.subsidyPayback), 0)).toBe(
-        cents(money.expectedGrants.worst),
-      );
-      expect(items.reduce((s, i) => s + cents(i.minSubsidyPayback), 0)).toBe(
-        cents(money.expectedGrants.best),
-      );
-      expect(body.breakdown.budgetSources.reduce((s, b) => s + cents(b.subsidyPaybackMin), 0)).toBe(
-        cents(money.expectedGrants.best),
-      );
-      expect(body.breakdown.budgetSources.reduce((s, b) => s + cents(b.subsidyPaybackMax), 0)).toBe(
-        cents(money.expectedGrants.worst),
-      );
+      it('S-C1: the total equals the money service in every scenario (the filter removes the bs-b lines)', async () => {
+        const ctx = getCtx();
+        const b = await getBreakdown(ctx, query);
+        const money = computeProjectMoney(ctx.app.db, VAT).summary;
+        const ref = reference(ctx);
+        expect(b.total.expectedCost).toEqual(ref.expectedCost);
+        expect(b.total.expectedGrants).toEqual(ref.expectedGrants);
+        expect(b.total.afterGrants).toEqual(ref.afterGrants);
+        if (!filtered) {
+          expect(b.total.notYetPaid).toEqual(money.notYetPaid);
+          expect(b.total.paid).toBe(money.paid);
+          expect(b.total.stillToPay).toBe(money.stillToPay);
+          return;
+        }
+        // Paid and Still to pay of the surviving lines are what they are unfiltered
+        const all = await getBreakdown(ctx);
+        const gone = all.lines.filter((l) => l.budgetSourceId === 'bs-b');
+        expect(gone.length).toBeGreaterThan(0);
+        expect(cents(b.total.paid)).toBe(
+          cents(money.paid) - gone.reduce((sum, l) => sum + cents(l.figures.paid), 0),
+        );
+        expect(cents(b.total.stillToPay)).toBe(
+          cents(money.stillToPay) - gone.reduce((sum, l) => sum + cents(l.figures.stillToPay), 0),
+        );
+        for (const scen of SCENARIOS) {
+          expect(cents(b.total.notYetPaid[scen])).toBe(
+            cents(b.total.expectedCost[scen]) - cents(b.total.paid),
+          );
+        }
+      });
+
+      it('S-C2: every view, with Not yet split, sums to the total for every field and scenario', async () => {
+        const ctx = getCtx();
+        const b = await getBreakdown(ctx, query);
+        const total = sumFigures([b.total]);
+        const views = viewSums(b);
+        for (const [name, sums] of Object.entries(views)) {
+          expect([name, sums]).toEqual([name, total]);
+        }
+        if (!filtered) {
+          const money = computeProjectMoney(ctx.app.db, VAT).summary;
+          for (const sums of Object.values(views)) {
+            expect(sums['paid']).toBe(cents(money.paid));
+            expect(sums['stillToPay']).toBe(cents(money.stillToPay));
+          }
+        }
+      });
+
+      it('S-C6 / filter rule: the bs-b lines and row are gone, Not yet split and the options are unchanged', async () => {
+        const ctx = getCtx();
+        const all = await getBreakdown(ctx);
+        const b = await getBreakdown(ctx, query);
+        expect(b.notYetSplit).toEqual(all.notYetSplit);
+        expect(b.sourceOptions).toEqual(all.sourceOptions);
+        expect(b.hasUnassignedLines).toBe(all.hasUnassignedLines);
+        if (!filtered) {
+          expect(b).toEqual(all);
+          return;
+        }
+        const goneCost = all.lines
+          .filter((l) => l.budgetSourceId === 'bs-b')
+          .reduce((sum, l) => sum + cents(l.figures.expectedCost.expected), 0);
+        expect(goneCost).toBe(1800000); // l-4 4,000 + l-5 12,000 + l-9 2,000
+        expect(cents(b.total.expectedCost.expected)).toBe(
+          cents(all.total.expectedCost.expected) - goneCost,
+        );
+        expect(b.bySource.some((r) => r.budgetSourceId === 'bs-b')).toBe(false);
+        expect(b.lines.some((l) => l.budgetSourceId === 'bs-b')).toBe(false);
+        expect(b.lines.length).toBe(all.lines.length - 3);
+        // wi-3 had only a bs-b line: it drops out of the items
+        expect(b.items.some((i) => i.id === 'wi-3')).toBe(false);
+        expect(all.items.some((i) => i.id === 'wi-3')).toBe(true);
+      });
     });
 
-    it('3. every item subsidy-payback endpoint agrees with the breakdown and the money service', async () => {
+    it("S-C3: a source row's expected cost equals the source allocation; a source without lines has 0", async () => {
       const ctx = getCtx();
-      const bodyB = await getJson<{ breakdown: BudgetBreakdown }>(ctx, '/api/budget/breakdown');
-      const money = bodyB.breakdown.money;
-      const cents = (n: number) => Math.round(n * 100);
-      let expectedSum = 0;
-      for (const item of flattenItems(bodyB.breakdown.workItems.areas)) {
-        const p = await getJson<{
-          minTotalPayback: number;
-          maxTotalPayback: number;
-          expectedTotalPayback: number;
-        }>(ctx, `/api/work-items/${item.workItemId}/subsidy-payback`);
-        expect(p.maxTotalPayback).toBe(item.subsidyPayback);
-        expect(p.minTotalPayback).toBe(item.minSubsidyPayback);
-        expect(p.expectedTotalPayback).toBe(
-          money.workItems[item.workItemId]!.expectedGrants.expected,
-        );
-        expectedSum += cents(p.expectedTotalPayback);
+      const b = await getBreakdown(ctx);
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      for (const source of money.sources) {
+        const row = b.bySource.find((r) => r.budgetSourceId === source.id);
+        expect(row?.figures.expectedCost.expected ?? 0).toBe(source.allocated);
       }
-      for (const item of flattenItems(bodyB.breakdown.householdItems.areas)) {
+      expect(b.bySource.find((r) => r.budgetSourceId === 'bs-c')).toBeUndefined();
+      expect(money.sources.find((x) => x.id === 'bs-c')!.allocated).toBe(0);
+    });
+
+    it('S-C4: type rows equal money.byType and area rows equal money.byArea (same ids, same order)', async () => {
+      const ctx = getCtx();
+      const b = await getBreakdown(ctx);
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      for (const key of ['work_items', 'household_items'] as const) {
+        expect(figures(b.byType[key])).toEqual(figures(money.byType[key]));
+      }
+      const rows = [
+        ...b.byArea.map((a) => ({ areaId: a.areaId as string | null, f: a.figures })),
+        ...(b.noArea ? [{ areaId: null as string | null, f: b.noArea }] : []),
+      ];
+      expect(rows.map((r) => r.areaId)).toEqual(money.byArea.map((a) => a.areaId));
+      rows.forEach((row, i) => expect(figures(row.f)).toEqual(figures(money.byArea[i]!)));
+    });
+
+    it('S-C5 (AC9): an offer-linked line counts at face value, with no +-5%', async () => {
+      const ctx = getCtx();
+      const b = await getBreakdown(ctx);
+      const line = (id: string) => b.lines.find((l) => l.id === id)!;
+      expect(line('l-1').figures.expectedCost).toEqual({
+        expected: 23800,
+        best: 23800,
+        worst: 23800,
+      });
+      expect(line('l-1').linkStatus).toBe('quotation');
+      // l-3 is an estimate line linked to a pending record: also face value
+      expect(line('l-3').figures.expectedCost).toEqual({
+        expected: 11900,
+        best: 11900,
+        worst: 11900,
+      });
+      expect(line('l-3').linkStatus).toBe('pending');
+      // an unlinked estimate keeps its margin
+      expect(line('l-5').figures.expectedCost).toEqual({
+        expected: 12000,
+        best: 9600,
+        worst: 14400,
+      });
+      expect(line('l-5').linkStatus).toBeNull();
+    });
+
+    it('S-P: Paid and Still to pay are split over the lines as hand-checked (Q1, I1-I5)', async () => {
+      const ctx = getCtx();
+      const b = await getBreakdown(ctx);
+      const pay = (id: string) => {
+        const f = b.lines.find((l) => l.id === id)!.figures;
+        return [f.paid, f.stillToPay];
+      };
+      expect(pay('l-1')).toEqual([4760, 3808]); // Q1: 5,000 / 4,000 over 23,800 : 1,200
+      expect(pay('l-3')).toEqual([2000, 9900]); // I1 pending 11,900, D3 2,000 paid
+      expect(pay('l-6')).toEqual([3000.5, 0]); // I2: the 0.50 stays on the line
+      expect(pay('l-7')).toEqual([14500, 0]); // I3 claimed
+      expect(pay('l-9')).toEqual([0, 2000]); // I4 pending 2,600, 2,000 itemized
+      for (const id of ['l-2', 'l-4', 'l-5', 'l-8']) expect(pay(id)).toEqual([0, 0]);
+      expect(b.notYetSplit).toMatchObject({
+        expectedCost: { expected: 2600, best: 2600, worst: 2600 },
+        paid: 1040, // Q1 240 + I5 800
+        stillToPay: 792, // Q1 192 + I4 600
+        notYetPaid: { expected: 1560, best: 1560, worst: 1560 },
+      });
+      expect(b.total.paid).toBe(25300.5);
+      expect(b.total.stillToPay).toBe(16500);
+    });
+
+    it('a record paid more than its line costs shows a negative Not yet paid on the line, unclamped', async () => {
+      const ctx = getCtx();
+      const b = await getBreakdown(ctx);
+      const l6 = b.lines.find((l) => l.id === 'l-6')!.figures;
+      expect(l6.notYetPaid).toEqual({ expected: -0.5, best: -0.5, worst: -0.5 });
+      expect(Math.min(...b.lines.map((l) => l.figures.notYetPaid.expected))).toBe(-0.5);
+    });
+
+    it('3. every item subsidy-payback endpoint agrees with the breakdown items and the money service', async () => {
+      const ctx = getCtx();
+      const b = await getBreakdown(ctx);
+      const money = getBreakdownMoney(computeProjectMoney(ctx.app.db, VAT));
+      let expectedSum = 0;
+      for (const item of b.items) {
+        const url =
+          item.kind === 'work_item'
+            ? `/api/work-items/${item.id}/subsidy-payback`
+            : `/api/household-items/${item.id}/subsidy-payback`;
         const p = await getJson<{
           minTotalPayback: number;
           maxTotalPayback: number;
           expectedTotalPayback: number;
-        }>(ctx, `/api/household-items/${item.householdItemId}/subsidy-payback`);
-        expect(p.maxTotalPayback).toBe(item.subsidyPayback);
-        expect(p.minTotalPayback).toBe(item.minSubsidyPayback);
-        expect(p.expectedTotalPayback).toBe(
-          money.householdItems[item.householdItemId]!.expectedGrants.expected,
-        );
+        }>(ctx, url);
+        const grants = item.figures.expectedGrants;
+        expect(p.maxTotalPayback).toBe(grants.worst);
+        expect(p.minTotalPayback).toBe(grants.best);
+        expect(p.expectedTotalPayback).toBe(grants.expected);
+        const fromMoney =
+          item.kind === 'work_item' ? money.workItems[item.id] : money.householdItems[item.id];
+        expect(p.expectedTotalPayback).toBe(fromMoney!.expectedGrants.expected);
         expectedSum += cents(p.expectedTotalPayback);
       }
       const summary = computeProjectMoney(ctx.app.db, VAT).summary;
@@ -380,14 +566,14 @@ function describeConsistency(getCtx: () => Ctx): void {
 
     it('4. GET /api/household-items: budgetSummary.subsidyReduction is the counted expected share', async () => {
       const ctx = getCtx();
-      const bodyB = await getJson<{ breakdown: BudgetBreakdown }>(ctx, '/api/budget/breakdown');
+      const b = await getBreakdown(ctx);
       const list = await getJson<{
         items: Array<{ id: string; budgetSummary: { subsidyReduction: number } }>;
       }>(ctx, '/api/household-items');
       expect(list.items.length).toBe(2);
       for (const item of list.items) {
-        const share = bodyB.breakdown.money.householdItems[item.id]?.expectedGrants.expected ?? 0;
-        expect(item.budgetSummary.subsidyReduction).toBe(share);
+        const row = b.items.find((i) => i.kind === 'household_item' && i.id === item.id);
+        expect(item.budgetSummary.subsidyReduction).toBe(row?.figures.expectedGrants.expected ?? 0);
       }
     });
 
@@ -870,65 +1056,46 @@ describe('money service: AC8 synthetic fixture', () => {
       ]);
     });
 
-    it('breakdown (unfiltered): worst / best scenario shares per item and per source', async () => {
-      const { breakdown } = await getJson<{ breakdown: BudgetBreakdown }>(
-        ctx,
-        '/api/budget/breakdown',
-      );
-      const wi1 = flattenItems(breakdown.workItems.areas).find((i) => i.workItemId === 'wi-1')!;
-      expect(wi1.subsidyPayback).toBe(2625);
-      expect(wi1.minSubsidyPayback).toBe(2644.45);
-      const src = (id: string) => breakdown.budgetSources.find((b) => b.id === id)!;
-      expect([src('bs-a').subsidyPaybackMin, src('bs-a').subsidyPaybackMax]).toEqual([
-        5577.78, 5536.76,
-      ]);
-      expect([src('bs-b').subsidyPaybackMin, src('bs-b').subsidyPaybackMax]).toEqual([
-        1382.22, 1903.24,
-      ]);
-      expect([
-        src('discretionary-system').subsidyPaybackMin,
-        src('discretionary-system').subsidyPaybackMax,
-      ]).toEqual([0, 0]);
-      expect([src('unassigned').subsidyPaybackMin, src('unassigned').subsidyPaybackMax]).toEqual([
-        0, 0,
-      ]);
-      expect(breakdown.subsidyAdjustments).toEqual([
-        expect.objectContaining({
-          subsidyProgramId: 'sp-1',
-          maximumAmount: 30000,
-          maxPayout: 6000,
-        }),
-      ]);
+    it('breakdown (unfiltered): grant shares per item, per source and per line', async () => {
+      const breakdown = await getBreakdown(ctx);
+      const wi1 = breakdown.items.find((i) => i.id === 'wi-1')!;
+      expect(range(wi1.figures.expectedGrants)).toEqual([2634.69, 2644.45, 2625]);
+      const src = (id: string | null) => breakdown.bySource.find((r) => r.budgetSourceId === id)!;
+      const grants = (id: string | null) => {
+        const g = src(id).figures.expectedGrants;
+        return [g.best, g.worst];
+      };
+      expect(grants('bs-a')).toEqual([5577.78, 5536.76]);
+      expect(grants('bs-b')).toEqual([1382.22, 1903.24]);
+      expect(grants('discretionary-system')).toEqual([0, 0]);
+      expect(grants(null)).toEqual([0, 0]);
+      expect(breakdown.total.expectedGrants).toEqual({ expected: 7200, best: 6960, worst: 7440 });
     });
 
-    it('breakdown with bs-b deselected: grants recomputed on the surviving lines, money unchanged', async () => {
-      const { breakdown } = await getJson<{ breakdown: BudgetBreakdown }>(
-        ctx,
-        '/api/budget/breakdown?deselectedSources=bs-b',
-      );
+    it('breakdown with bs-b deselected: grants recomputed on the surviving lines', async () => {
+      const breakdown = await getBreakdown(ctx, '?deselectedSources=bs-b');
       // sp-1 eligible = l-1, l-3, l-7 = 50,200 in all scenarios: payout 10,040 below the 30,000 cap
       // on eligible costs, so nothing is capped and the three scenarios agree
-      const wi = (id: string) =>
-        flattenItems(breakdown.workItems.areas).find((i) => i.workItemId === id)!;
-      const hi1 = flattenItems(breakdown.householdItems.areas).find(
-        (i) => i.householdItemId === 'hi-1',
-      )!;
-      expect([wi('wi-1').subsidyPayback, wi('wi-1').minSubsidyPayback]).toEqual([2844.62, 2844.62]);
-      expect([wi('wi-2').subsidyPayback, wi('wi-2').minSubsidyPayback]).toEqual([1422.31, 1422.31]);
-      expect([hi1.subsidyPayback, hi1.minSubsidyPayback]).toEqual([1733.07, 1733.07]);
-      // wi-3 had only a bs-b line: it drops out of the filtered rows, and Grant Two pays nothing
-      expect(flattenItems(breakdown.workItems.areas).some((i) => i.workItemId === 'wi-3')).toBe(
-        false,
-      );
-      expect(breakdown.workItems.totals.subsidyPayback).toBe(
-        Math.round((2844.62 + 1422.31) * 100) / 100,
-      );
-      const src = (id: string) => breakdown.budgetSources.find((b) => b.id === id)!;
-      expect([src('bs-a').subsidyPaybackMin, src('bs-a').subsidyPaybackMax]).toEqual([6000, 6000]);
-      expect([src('bs-b').subsidyPaybackMin, src('bs-b').subsidyPaybackMax]).toEqual([0, 0]);
-      const unfiltered = getBreakdownMoney(computeProjectMoney(ctx.app.db, VAT));
-      expect(breakdown.money).toEqual(unfiltered);
-      expect(figures(breakdown.money.workItems['wi-1']!).grants).toEqual([2634.69, 2644.45, 2625]);
+      const item = (id: string, kind: 'work_item' | 'household_item' = 'work_item') =>
+        breakdown.items.find((i) => i.kind === kind && i.id === id)!;
+      expect(range(item('wi-1').figures.expectedGrants)).toEqual([2844.62, 2844.62, 2844.62]);
+      expect(range(item('wi-2').figures.expectedGrants)).toEqual([1422.31, 1422.31, 1422.31]);
+      expect(range(item('hi-1', 'household_item').figures.expectedGrants)).toEqual([
+        1733.07, 1733.07, 1733.07,
+      ]);
+      // wi-3 had only a bs-b line: it drops out, and Grant Two pays nothing
+      expect(breakdown.items.some((i) => i.id === 'wi-3')).toBe(false);
+      const wiGrants = breakdown.items
+        .filter((i) => i.kind === 'work_item')
+        .reduce((sum, i) => sum + cents(i.figures.expectedGrants.expected), 0);
+      expect(wiGrants).toBe(cents(2844.62 + 1422.31));
+      const src = (id: string) => breakdown.bySource.find((r) => r.budgetSourceId === id)!;
+      expect([
+        src('bs-a').figures.expectedGrants.best,
+        src('bs-a').figures.expectedGrants.worst,
+      ]).toEqual([6000, 6000]);
+      // the unfiltered money service is untouched by the filter
+      expect(computeProjectMoney(ctx.app.db, VAT).summary.expectedGrants.expected).toBe(7200);
     });
   });
 

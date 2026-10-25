@@ -11,10 +11,12 @@ import styles from './ObjectListFiltersPanel.module.css';
 export interface ObjectListFiltersPanelLabels {
   /** "Filters" */
   readonly button: string;
-  /** "Filters, 2 active" (the button's accessible name when count > 0) */
-  readonly buttonActive: (count: number) => string;
+  /** "Filters, 2 active" (the button's accessible name when count > 0); needed only with `activeCount`. */
+  readonly buttonActive?: (count: number) => string;
   readonly done: string;
   readonly clear: string;
+  /** Panel / sheet name; defaults to `button`. */
+  readonly title?: string;
 }
 
 export interface ObjectListFiltersPanelProps {
@@ -22,12 +24,17 @@ export interface ObjectListFiltersPanelProps {
   readonly idPrefix: string;
   /** `${p}-button`, `${p}-panel`, `${p}-sheet`, `${p}-sheet-clear`, `${p}-done`. */
   readonly testIdPrefix: string;
-  readonly activeCount: number;
+  /** Active filters; default 0 (hosts with a `buttonSuffix` omit it). */
+  readonly activeCount?: number;
   readonly labels: ObjectListFiltersPanelLabels;
   readonly onClear: () => void;
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
   /** Default `shared.btnSecondaryCompact`. */
   readonly buttonClassName?: string;
+  /** Rendered after the button label instead of the active-count bubble. */
+  readonly buttonSuffix?: ReactNode;
+  /** Clear and Done under the anchored panel's fields, as the sheet has. */
+  readonly panelFooter?: boolean;
   readonly children: ReactNode;
 }
 
@@ -38,11 +45,13 @@ export interface ObjectListFiltersPanelProps {
 export function ObjectListFiltersPanel({
   idPrefix,
   testIdPrefix,
-  activeCount,
+  activeCount = 0,
   labels,
   onClear,
   buttonRef,
   buttonClassName = shared.btnSecondaryCompact,
+  buttonSuffix,
+  panelFooter = false,
   children,
 }: ObjectListFiltersPanelProps) {
   const location = useLocation();
@@ -52,6 +61,7 @@ export function ObjectListFiltersPanel({
   const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
   const panelId = `${idPrefix}-panel`;
   const sheetId = `${idPrefix}-sheet`;
+  const title = labels.title ?? labels.button;
 
   const close = () => {
     setOpen(false);
@@ -73,12 +83,15 @@ export function ObjectListFiltersPanel({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={isWide ? panelId : sheetId}
-        aria-label={activeCount > 0 ? labels.buttonActive(activeCount) : undefined}
+        aria-label={activeCount > 0 ? labels.buttonActive?.(activeCount) : undefined}
         onClick={() => setOpen((prev) => !prev)}
         data-testid={`${testIdPrefix}-button`}
       >
         {labels.button}
-        {activeCount > 0 ? <span className={shared.filtersToggleCount}>{activeCount}</span> : null}
+        {buttonSuffix ??
+          (activeCount > 0 ? (
+            <span className={shared.filtersToggleCount}>{activeCount}</span>
+          ) : null)}
       </button>
 
       {isWide ? (
@@ -87,7 +100,7 @@ export function ObjectListFiltersPanel({
           anchorRef={buttonRef}
           role="dialog"
           id={panelId}
-          ariaLabel={labels.button}
+          ariaLabel={title}
           trapFocus
           closeSignal={location.pathname}
           onDismiss={(reason) => {
@@ -98,6 +111,26 @@ export function ObjectListFiltersPanel({
         >
           <div ref={setContentNode} className={styles.panel}>
             {children}
+            {panelFooter ? (
+              <div className={`${styles.sheetFooter} ${styles.panelFooter}`}>
+                <button
+                  type="button"
+                  className={shared.btnSecondary}
+                  onClick={onClear}
+                  data-testid={`${testIdPrefix}-panel-clear`}
+                >
+                  {labels.clear}
+                </button>
+                <button
+                  type="button"
+                  className={shared.btnSecondary}
+                  onClick={close}
+                  data-testid={`${testIdPrefix}-panel-done`}
+                >
+                  {labels.done}
+                </button>
+              </div>
+            ) : null}
           </div>
         </AnchoredPanel>
       ) : (
@@ -105,14 +138,14 @@ export function ObjectListFiltersPanel({
           id={sheetId}
           open={open}
           onClose={close}
-          title={labels.button}
+          title={title}
           returnFocusRef={buttonRef}
           testId={`${testIdPrefix}-sheet`}
           footer={
             <div className={styles.sheetFooter}>
               <button
                 type="button"
-                className={shared.btnText}
+                className={panelFooter ? shared.btnSecondary : shared.btnText}
                 onClick={onClear}
                 data-testid={`${testIdPrefix}-sheet-clear`}
               >

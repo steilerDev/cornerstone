@@ -1,83 +1,104 @@
 {
   "overview": {
-    "loading": "Budget-Übersicht wird geladen...",
+    "loading": "Finanzen werden geladen...",
     "error": "Fehler",
-    "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuche es später erneut.",
+    "errorMessage": "Finanzen konnten nicht geladen werden. Bitte versuche es erneut.",
     "retry": "Erneut versuchen",
-    "emptyStateTitle": "Noch keine Budgetdaten",
-    "emptyStateDescription": "Beginne mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Deine Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
-    "actions": {
-      "addButton": "Hinzufügen",
-      "addInvoice": "Rechnung hinzufügen",
-      "addVendor": "Auftragnehmer hinzufügen"
+    "bankOverview": "Budgetübersicht für die Bank",
+    "headline": {
+      "label": "Noch verfügbar",
+      "wholeProject": "Gesamtes Projekt",
+      "noFigure": "Noch keine Angabe",
+      "needsSetup": "Füge eine Finanzierungsquelle und Kosten hinzu, um dies zu sehen.",
+      "range": "Spanne {{from}} bis {{to}}",
+      "howCalculated": "Wie wird das berechnet?",
+      "formula": "Finanzierung gesamt plus erwartete Förderung minus erwartete Kosten.",
+      "rangeExplained": "Die Spanne reicht von der niedrigsten bis zur höchsten Schätzung.",
+      "cappedLead": "Diese Förderungen zählen nur bis zu ihrer Obergrenze für förderfähige Kosten:"
     },
-    "expectedPayback": "Erwartete Rückzahlung",
-    "costBreakdown": {
-      "tableCaption": "Kostenaufschlüsselung nach Bereich und Element",
-      "title": "Kostenaufschlüsselung",
-      "emptyState": "Keine Budgetdaten zum Anzeigen",
-      "workItems": "Arbeitspakete",
-      "householdItems": "Haushaltsartikel",
-      "sum": "Summe",
-      "availableFunds": "Verfügbare Mittel",
-      "availableFundsFilter": {
-        "activeFilterCaption": "({{selected}} von {{total}} ausgewählt)"
+    "facts": {
+      "fundingTotal": "Finanzierung gesamt",
+      "expectedCost": "Erwartete Kosten",
+      "expectedGrants": "Erwartete Förderung",
+      "paid": "Bezahlt",
+      "stillToPay": "Noch zu zahlen"
+    },
+    "funding": {
+      "heading": "Finanzierungsquellen",
+      "manage": "Finanzierungsquellen bearbeiten oder hinzufügen",
+      "allocatedLabel": "Zugeordnet",
+      "amountOf": "{{allocated}} von {{amount}}",
+      "overAllocated": "Überzogen um {{amount}}",
+      "empty": "Noch keine Finanzierungsquellen hinzugefügt",
+      "emptyAction": "Füge deine erste Finanzierungsquelle hinzu"
+    },
+    "breakdown": {
+      "heading": "Aufschlüsselung",
+      "viewLabel": "Aufschlüsseln nach",
+      "view": {
+        "area": "Bereich",
+        "type": "Typ",
+        "category": "Kostenkategorie",
+        "source": "Finanzierungsquelle"
       },
-      "leftToSpend": "Noch verfügbar",
-      "leftToSpendNoFigure": "Noch keine Angabe",
-      "leftToSpendWholeProject": "Gesamtes Projekt",
-      "quoted": "Angebot",
-      "tableHeaders": {
-        "name": "Name",
-        "cost": "Kosten",
-        "payback": "Rückzahlung",
-        "net": "Netto"
-      },
-      "subsidyAdjustments": "Förderprogramme",
-      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}",
-      "area": {
-        "expandArea": "{{name}} ausklappen",
-        "collapseArea": "{{name}} einklappen",
-        "unassigned": "Kein Bereich",
-        "expandWorkItemsLabel": "Arbeitspakete nach Bereich aufklappen",
-        "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
-      },
-      "sourceFilter": {
-        "unassigned": "Nicht zugewiesen",
-        "allSourcesAnnouncement": "Es werden alle Budgetpositionen angezeigt",
-        "statusAnnouncement": "{{selected}} von {{total}} Budgetquellen ausgewählt",
-        "empty": "Keine Budgetpositionen entsprechen dem ausgewählten Quellenfilter.",
-        "clear": "Filter löschen"
-      },
-      "costBasis": {
-        "label": "Kostenbasis",
+      "paymentLabel": "Zahlung",
+      "payment": {
         "all": "Alle",
         "paid": "Bezahlt",
-        "outstanding": "Ausstehend"
+        "outstanding": "Noch nicht bezahlt"
       },
-      "refetchError": "Aufschlüsselung konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+      "estimateLabel": "Schätzungen anzeigen bei",
+      "estimate": {
+        "low": "Niedrig",
+        "expected": "Erwartet",
+        "high": "Hoch"
+      },
+      "showLabel": "Anzeigen",
+      "sourceButton": "Finanzierungsquelle",
+      "sourceCount": "{{selected}} von {{total}}",
+      "sourceTitle": "Finanzierungsquelle",
+      "selectAll": "Alle auswählen",
+      "done": "Fertig",
+      "unassigned": "Nicht zugewiesen",
+      "keepOne": "Mindestens eine Finanzierungsquelle bleibt ausgewählt",
+      "announceSome": "{{selected}} von {{total}} Finanzierungsquellen werden angezeigt. Erwartete Kosten {{amount}}.",
+      "announceAll": "Alle Finanzierungsquellen werden angezeigt. Erwartete Kosten {{amount}}.",
+      "colName": "Name",
+      "colExpectedCost": "Erwartete Kosten",
+      "colGrants": "Förderung",
+      "colAfterGrants": "Nach Förderung",
+      "colPaid": "Bezahlt",
+      "colStillToPay": "Noch zu zahlen",
+      "colNotYetPaid": "Noch nicht bezahlt",
+      "total": "Gesamt",
+      "totalAdjusted": "Gesamt für die aktuellen Einstellungen",
+      "noArea": "Kein Bereich",
+      "noCategory": "Keine Kategorie",
+      "tasks": "Aufgaben",
+      "purchases": "Anschaffungen",
+      "notYetSplit": "Nicht aufgeschlüsselt",
+      "withoutTask": "Ohne Aufgabe",
+      "expand": "{{name}} anzeigen",
+      "collapse": "{{name}} ausblenden",
+      "back": "Zurück zu {{name}}",
+      "backToAll": "die Aufschlüsselung",
+      "drilledIn": "{{name}} wird angezeigt",
+      "caption": "Aufschlüsselung des Projekts nach {{view}}",
+      "emptyNoLines": "Kosten erscheinen hier, sobald Aufgaben oder Anschaffungen Kostenpositionen haben.",
+      "empty": "Nichts passt zu diesen Einstellungen.",
+      "resetSettings": "Aufschlüsselungseinstellungen zurücksetzen",
+      "refetchError": "Die Aufschlüsselung konnte nicht aktualisiert werden. Bitte versuche es erneut.",
       "dismissError": "Schließen",
-      "sourceRow": {
-        "selectedAriaLabel": "{{name}}, ausgewählt – zum Abwählen klicken",
-        "deselectedAriaLabel": "{{name}}, abgewählt – zum Auswählen klicken"
-      },
-      "sourceImpact": {
-        "allocated": "Zugeordnet",
-        "remaining": "Verbleibend"
-      },
-      "sourceBadge": {
-        "ariaLabel": "Budgetquelle: {{name}}",
-        "unassigned": "Nicht zugewiesen"
-      },
-      "perspectiveAriaLabel": "Kostenperspektive",
-      "perspective": {
-        "min": "Min",
-        "avg": "Ø",
-        "max": "Max"
-      },
-      "expandSubsidyAdjustments": "Förderprogramm-Anpassungen aufklappen",
-      "expandAvailableFunds": "Verfügbare Mittelquellen aufklappen"
-    }
+      "printSummary": {
+        "pair": "{{label}}: {{value}}",
+        "view": "Ansicht",
+        "payment": "Zahlung",
+        "estimates": "Schätzungen",
+        "columns": "Spalten",
+        "sources": "Finanzierungsquellen"
+      }
+    },
+    "expectedPayback": "Erwartete Rückzahlung"
   },
   "sources": {
     "sectionTitle": "Quellen",

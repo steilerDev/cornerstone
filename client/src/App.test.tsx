@@ -394,20 +394,6 @@ describe('App', () => {
 
     // Default: money page data sources
     mockFetchBudgetOverview.mockResolvedValue({
-      availableFunds: 0,
-      sourceCount: 0,
-      minPlanned: 0,
-      maxPlanned: 0,
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostClaimed: 0,
-      remainingVsMinPlanned: 0,
-      remainingVsMaxPlanned: 0,
-      remainingVsActualCost: 0,
-      remainingVsActualPaid: 0,
-      remainingVsActualClaimed: 0,
-      remainingVsMinPlannedWithPayback: 0,
-      remainingVsMaxPlannedWithPayback: 0,
       subsidySummary: {
         totalReductions: 0,
         activeSubsidyCount: 0,

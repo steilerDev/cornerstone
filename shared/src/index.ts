@@ -289,16 +289,16 @@ export { MONEY_ITEM_TYPES } from './types/money.js';
 
 // Budget Breakdown
 export type {
-  CostDisplay,
-  BreakdownBudgetLine,
-  BreakdownWorkItem,
-  BreakdownArea,
-  BreakdownHouseholdItem,
-  BreakdownTotals,
+  BreakdownItemKind,
+  BreakdownFigures,
+  BreakdownLine,
+  BreakdownItem,
+  BreakdownAreaRow,
+  BreakdownCategoryRow,
+  BreakdownSourceRow,
+  BreakdownSourceOption,
   BudgetBreakdown,
   BudgetBreakdownResponse,
-  SubsidyAdjustment,
-  BudgetSourceSummaryBreakdown,
 } from './types/budgetBreakdown.js';
 
 // Work Item Budgets

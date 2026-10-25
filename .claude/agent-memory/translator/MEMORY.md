@@ -12,6 +12,7 @@ Index only. Detail lives in the linked topic files.
 - [Abschlag short form](abschlag-glossary-shortform.md) — PO-approved short form recorded in glossary.json
 - [Diary type names canon](diary-type-names-canon.md) — Tagesbericht, Begehung, Mangel, Notiz
 - [History 2026 H1](history-2026-h1.md) — per-issue rationale before #1812
+- [Money overview #2237](money-overview-2237.md) — Money = Finanzen, Estimate level term, Available funds alias
 
 ## Terminology and labels
 

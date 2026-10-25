@@ -50,6 +50,7 @@ import { Step4SizingPhase } from './Step4SizingPhase.js';
 import { Step5Actions } from './Step5Actions.js';
 import { Step5Parts, type PartUploadStatus, type UploadSummary } from './Step5Parts.js';
 import { useReportParts } from './useReportParts.js';
+import { useReportTypePreset } from './useReportTypePreset.js';
 import {
   wizardReducer,
   createInitialWizardState,
@@ -244,6 +245,8 @@ export function ReportWizardPage() {
     [budgetSources, guardedUpdate],
   );
 
+  useReportTypePreset(sourcesStatus === 'ready', useCase, handleUseCaseChange);
+
   // Handle source selection
   const handleSourceChange = useCallback(
     (sid: string) => {
@@ -251,16 +254,15 @@ export function ReportWizardPage() {
         const requestId = nextRequestId();
         dispatch({ type: 'SELECT_SOURCE', payload: { sourceId: sid, requestId } });
 
-        if (useCase) {
-          void getSourceReport(useCase, sid)
-            .then((r) => {
-              dispatch({ type: 'REPORT_LOADED', payload: { requestId, report: r } });
-            })
-            .catch((err) => {
-              console.error(err);
-              dispatch({ type: 'REPORT_ERROR', payload: { requestId } });
-            });
-        }
+        // Source selection is only reachable after a use case is chosen (step 2 onwards).
+        void getSourceReport(useCase!, sid)
+          .then((r) => {
+            dispatch({ type: 'REPORT_LOADED', payload: { requestId, report: r } });
+          })
+          .catch((err) => {
+            console.error(err);
+            dispatch({ type: 'REPORT_ERROR', payload: { requestId } });
+          });
       });
     },
     [useCase, guardedUpdate],
@@ -400,10 +402,10 @@ export function ReportWizardPage() {
 
   // Generate PDF from effective content (used by preview, download, paperless)
   const generatePdfFromContent = useCallback(async () => {
-    if (!report || !useCase || !effectiveContent) return null;
-
+    // Only reachable from step 5 (and its preview modal), where the effective content exists and
+    // therefore the report does too.
     try {
-      const result = await generateReportPdf(report, includedInvoiceIds, effectiveContent, {
+      const result = await generateReportPdf(report!, includedInvoiceIds, effectiveContent!, {
         attachDocuments,
         hiddenColumns,
       });
@@ -414,7 +416,7 @@ export function ReportWizardPage() {
       console.error(err);
       return null;
     }
-  }, [report, useCase, effectiveContent, includedInvoiceIds, attachDocuments, hiddenColumns]);
+  }, [report, effectiveContent, includedInvoiceIds, attachDocuments, hiddenColumns]);
 
   // Handle preview PDF
   const showPreviewBlob = useCallback((blob: Blob) => {
@@ -543,9 +545,10 @@ export function ReportWizardPage() {
   // Download a single part of a multi-part report
   const handleDownloadPart = useCallback(
     (index: number) => {
-      const part = partsResult?.parts[index];
+      // Step5Parts renders the rows from `partsResult.parts`, so the part always exists. The file
+      // name is missing when the deep-linked source id matches no source (no base name).
       const name = partFileNames[index];
-      if (part && name) downloadPdf(part.blob, name);
+      if (name) downloadPdf(partsResult!.parts[index]!.blob, name);
     },
     [partsResult, partFileNames],
   );
@@ -558,6 +561,8 @@ export function ReportWizardPage() {
     setActionError('');
 
     if (partsMode && baseName) {
+      // Parts mode always builds the multi-PDF texts (the page passes includePartTexts).
+      const texts = effectiveContent!.partTexts!;
       try {
         const parts = await ensureParts();
         if (!parts || parts.parts.length === 0) {
@@ -571,30 +576,21 @@ export function ReportWizardPage() {
           return;
         }
 
-        const texts = effectiveContent?.partTexts;
-        if (!texts) {
-          showToast('error', t('sourceReports.uploadFailed'));
-          return;
-        }
-
-        const previous = uploadState && uploadState.result === parts ? uploadState.statuses : null;
-        const failedIndexes = previous
-          ? Array.from(previous.entries())
-              .filter(([, status]) => status.state === 'failed')
-              .map(([index]) => index)
-          : [];
+        const previous =
+          uploadState && uploadState.result === parts ? uploadState.statuses : NO_UPLOAD_STATUSES;
+        const failedIndexes = Array.from(previous.entries())
+          .filter(([, status]) => status.state === 'failed')
+          .map(([index]) => index);
         // Retry only failed parts when there are any; otherwise start a fresh round.
-        const targets =
-          failedIndexes.length > 0 ? failedIndexes : parts.parts.map((_, index) => index);
-        const statuses = new Map<number, PartUploadStatus>(
-          failedIndexes.length > 0 ? (previous ?? []) : [],
-        );
-        for (const index of targets) statuses.delete(index);
+        const retrying = failedIndexes.length > 0;
+        const targets = parts.parts
+          .map((part, index) => ({ part, index }))
+          .filter(({ index }) => !retrying || failedIndexes.includes(index));
+        const statuses = new Map<number, PartUploadStatus>(retrying ? previous : []);
+        for (const { index } of targets) statuses.delete(index);
         setUploadState({ result: parts, statuses: new Map(statuses), summary: null });
 
-        for (const [k, index] of targets.entries()) {
-          const part = parts.parts[index];
-          if (!part) continue;
+        for (const [k, { part, index }] of targets.entries()) {
           setTransferMessage(
             t('sourceReports.parts.uploading', { current: k + 1, total: targets.length }),
           );
@@ -674,11 +670,14 @@ export function ReportWizardPage() {
 
   // Handle mark claimed
   const handleMarkClaimed = async () => {
-    if (!report || !sourceId) return;
+    // The confirm modal is only open on step 5, where the report, use case and source exist.
+    const claimReport = report!;
+    const claimUseCase = useCase!;
+    const claimSourceId = sourceId!;
 
     // Invoice IDs that have no excluded budget lines
     // (an invoice with any excluded line must not flip status — the excluded portion stays claimable)
-    const invoiceIds = report.invoices
+    const invoiceIds = claimReport.invoices
       .filter(
         (inv) =>
           !excludedInvoiceIds.has(inv.invoiceId) &&
@@ -688,9 +687,9 @@ export function ReportWizardPage() {
 
     // All deposits with status !== 'claimed' from included invoices
     // (intentionally includes deposits of invoices omitted from invoiceIds)
-    const depositIds = report.invoices
+    const depositIds = claimReport.invoices
       .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-      .flatMap((inv) => inv.depositsVisibleToSource ?? [])
+      .flatMap((inv) => inv.depositsVisibleToSource)
       .filter((dep) => dep.status !== 'claimed')
       .map((dep) => dep.id);
 
@@ -703,7 +702,7 @@ export function ReportWizardPage() {
 
     setIsMarkingClaimed(true);
     try {
-      const response = await markInvoicesClaimed(sourceId, invoiceIds, depositIds);
+      const response = await markInvoicesClaimed(claimSourceId, invoiceIds, depositIds);
       setClaimedInvoiceCount(response.claimedInvoiceIds.length);
       setClaimedDepositCount(response.claimedDepositIds.length);
       setClaimSuccess(true);
@@ -715,7 +714,7 @@ export function ReportWizardPage() {
         if (failedInvoiceIds && failedInvoiceIds.length > 0) {
           const invoiceNumbers = failedInvoiceIds
             .map((id) => {
-              const inv = report.invoices.find((i) => i.invoiceId === id);
+              const inv = claimReport.invoices.find((i) => i.invoiceId === id);
               return inv?.invoiceNumber ?? id;
             })
             .filter(Boolean);
@@ -734,13 +733,11 @@ export function ReportWizardPage() {
         }
         setShowClaimConfirm(false);
         // Refetch silently
-        if (useCase && sourceId) {
-          try {
-            const updated = await getSourceReport(useCase, sourceId);
-            dispatch({ type: 'REPORT_REFRESHED', payload: { report: updated } });
-          } catch {
-            // Ignore refetch errors
-          }
+        try {
+          const updated = await getSourceReport(claimUseCase, claimSourceId);
+          dispatch({ type: 'REPORT_REFRESHED', payload: { report: updated } });
+        } catch {
+          // Ignore refetch errors
         }
       } else if (err instanceof ApiClientError) {
         setClaimError(translateApiError(err.error.code, tErrors));
@@ -794,25 +791,27 @@ export function ReportWizardPage() {
   // Focus the Retry button when attachment sizing fails
   useEffect(() => {
     if (sizing.phase === 'failed') {
-      retryFetchRef.current?.focus();
+      retryFetchRef.current!.focus();
     }
   }, [sizing.phase]);
 
   // Move focus to the active step panel's heading on step change
   useEffect(() => {
-    const heading = stepHeadingsRef.current[currentStep - 1];
-    if (heading) {
-      requestAnimationFrame(() => {
-        heading.focus();
-      });
-    }
+    // The active step's heading is always rendered (step 5 only shows with its content).
+    const heading = stepHeadingsRef.current[currentStep - 1]!;
+    requestAnimationFrame(() => {
+      heading.focus();
+    });
   }, [currentStep]);
 
   // Run AI generation
   const runAiGeneration = useCallback(async () => {
-    if (!report || !useCase || !sourceId) return;
+    // Only reachable from step 5, where the report, use case and source exist.
+    const aiReport = report!;
+    const aiUseCase = useCase!;
+    const aiSourceId = sourceId!;
 
-    const effectiveReport = applyLineExclusions(report, excludedLineIds);
+    const effectiveReport = applyLineExclusions(aiReport, excludedLineIds);
     const includedInvoiceIds = Array.from(
       new Set(
         effectiveReport.invoices
@@ -831,8 +830,8 @@ export function ReportWizardPage() {
 
     try {
       const result = await generateReportContent({
-        type: useCase,
-        sourceId,
+        type: aiUseCase,
+        sourceId: aiSourceId,
         language: reportLanguage,
         includedInvoiceIds,
         excludedLineIds: Array.from(excludedLineIds),
@@ -920,7 +919,7 @@ export function ReportWizardPage() {
               }}
               tabIndex={-1}
             >
-              {steps[0]?.label}
+              {steps[0]!.label}
             </h2>
             <Step1UseCase value={useCase} onChange={handleUseCaseChange} t={t} />
             {useCase && (
@@ -943,7 +942,7 @@ export function ReportWizardPage() {
               }}
               tabIndex={-1}
             >
-              {steps[1]?.label}
+              {steps[1]!.label}
             </h2>
             <Step2Source
               sources={budgetSources}
@@ -982,7 +981,7 @@ export function ReportWizardPage() {
               }}
               tabIndex={-1}
             >
-              {steps[2]?.label}
+              {steps[2]!.label}
             </h2>
             {reportStatus === 'loading' && <Skeleton lines={5} />}
             {reportStatus === 'error' && (
@@ -992,9 +991,7 @@ export function ReportWizardPage() {
                   type="button"
                   className={sharedStyles.btnSecondary}
                   onClick={() => {
-                    if (useCase && sourceId) {
-                      handleSourceChange(sourceId);
-                    }
+                    handleSourceChange(sourceId!);
                   }}
                 >
                   {t('common:button.retry')}
@@ -1067,7 +1064,7 @@ export function ReportWizardPage() {
               }}
               tabIndex={-1}
             >
-              {steps[3]?.label}
+              {steps[3]!.label}
             </h2>
             {sizing.phase !== 'idle' ? (
               <Step4SizingPhase
@@ -1141,7 +1138,7 @@ export function ReportWizardPage() {
               }}
               tabIndex={-1}
             >
-              {steps[4]?.label}
+              {steps[4]!.label}
             </h2>
 
             {/* AI Generation row (only when the LLM is configured) */}
@@ -1233,7 +1230,7 @@ export function ReportWizardPage() {
               claimedInvoiceCount={claimedInvoiceCount}
               claimedDepositCount={claimedDepositCount}
               finishedWithoutMarking={finishedWithoutMarking}
-              selectedInvoiceCount={report ? report.invoices.length - excludedInvoiceIds.size : 0}
+              selectedInvoiceCount={report!.invoices.length - excludedInvoiceIds.size}
               onPreviewPdf={handlePreviewPdf}
               onDownload={handleDownload}
               onMarkClaimed={() => setShowClaimConfirm(true)}
@@ -1281,7 +1278,7 @@ export function ReportWizardPage() {
                 type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={() => {
-                  pendingChangeRef.current?.();
+                  pendingChangeRef.current!();
                   setShowDiscardConfirm(false);
                   pendingChangeRef.current = null;
                 }}
@@ -1451,7 +1448,7 @@ export function ReportWizardPage() {
                 className={sharedStyles.btnPrimary}
                 onClick={() => {
                   setShowAiOverwriteConfirm(false);
-                  pendingAiGenerationRef.current?.();
+                  pendingAiGenerationRef.current!();
                   pendingAiGenerationRef.current = null;
                 }}
               >

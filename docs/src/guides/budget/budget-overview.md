@@ -1,138 +1,158 @@
 ---
 sidebar_position: 7
-title: Budget Overview
+title: Money Overview
 ---
 
-# Budget Overview
+# Money Overview
 
-The budget overview at **Money > Overview** is a single-page report of your project's costs, grouped by **area hierarchy** rather than by category. It rolls everything up from individual cost lines through tasks and purchases into a clean, printable view of where your money is going -- and which financing source is funding each line.
+**Money > Overview** shows where your project's money stands: how much you have, what it is expected to cost, how much you have paid, and what is still to pay. Under the headline it breaks the cost down by area, type, cost category or funding source, down to single cost lines.
 
-## Page Layout
+The page heading is **Money**. To add something, use the **New** menu at the top of the page. The page has no Add button.
 
-The page renders the **Cost Breakdown Table** as its primary view, with a per-source filter, a min / avg / max perspective toggle inside the table, a built-in **Available Funds** row that summarizes each financing source, and one **Left to spend** row with the whole project's remaining money.
+## The Headline
 
-If your project has no budget data yet, you see a short empty state inviting you to add tasks, purchases, or invoices. Once you have a few cost lines, the breakdown takes over the page.
+The headline is **Left to spend**. It is the money still free for the whole project:
 
-## Cost Breakdown by Area
+> Funding total plus Expected grants minus Expected cost.
 
-The cost breakdown table is grouped by your **area hierarchy** rather than by category. This makes it easy to see what each room, floor, or zone of the project actually costs.
+- The figure is shown in large type, with a verdict beside it. The verdict reads **On budget** when money is left, and **Over budget** when the figure is below zero.
+- Under the figure, a **range** runs from the lowest to the highest estimate. It reads "Range ... to ...".
+- Select **How is this calculated?** to see the formula again. If any grants count only up to their eligible-costs cap, the disclosure lists them under "These grants count only up to their eligible-costs cap."
 
-- Each **area** is a row. Its totals roll up every descendant area beneath it.
-- Clicking a row expands it to show child areas and, at the leaf level, the individual cost lines.
-- Nested rows are visually indented so the tree is easy to scan.
-- Cost lines whose task or purchase has no area assigned are collected in a dedicated **No Area** bucket at the bottom of the table.
+The headline is the same figure and verdict as the **Left to spend** tile on [Home](/guides/home), so the two pages always agree.
 
-Each row displays the projected cost, subsidy payback, and remaining amount for that slice of the project.
+The headline never changes with the breakdown settings below. As soon as you change one of them (the payment, the estimate, or a funding source filter), the label shows **Whole project** beside it. This makes clear that the headline still covers the whole project.
 
-### Cost Perspectives
+![Money overview dashboard](/img/screenshots/budget-overview-light.png)
 
-A **Min / Avg / Max** segmented control above the table switches the projected-cost calculation between three views:
+If no funding source or cost has been entered yet, the headline shows **No figure yet** with the note "Add a funding source and a cost to see this."
 
-| Perspective | What It Tells You |
-|------------|-------------------|
-| **Min** | Best-case cost assuming all estimates come in under their confidence margin |
-| **Avg** | Mid-point cost using the middle of each estimate's confidence range |
-| **Max** | Worst-case cost assuming all estimates come in over their confidence margin |
+## The Facts
 
-Switch between perspectives to understand your financial position from different angles. Early in a project, Min and Max bracket your exposure. As invoices arrive and confidence levels rise, the three views converge.
+A row of five facts sits under the headline:
 
-### Cost Basis
+| Fact | What it is |
+|------|------------|
+| **Funding total** | The total of your funding sources |
+| **Expected cost** | What the project is expected to cost, at the expected estimate |
+| **Expected grants** | Grants you expect to receive, counted up to their caps |
+| **Paid** | What you have paid so far. Select it to open [Invoices](/guides/budget/vendors-and-invoices). |
+| **Still to pay** | What is still open on your invoices. Select it to open the open invoices. |
 
-Next to the perspective toggle, a **Cost Basis** dropdown re-frames every number in the table around _where each cost stands in its payment lifecycle_. It answers two different questions that the default view blends together: how much have we actually spent, and how much is still to come.
+Paid and Still to pay come from your invoices, so they open the invoice list. Deposits count as they are paid, so a [staged deposit](invoice-deposits) adds to Paid once it has been paid.
 
-| Cost Basis | What It Tells You |
-|------------|-------------------|
-| **All** (default) | The full blended projection -- actuals where invoices exist, estimates everywhere else. This is the standard overview. |
-| **Paid** | Only money that has actually left your account. Counts paid invoices and, for invoices settled in instalments, only the deposits marked paid so far. Answers *"how much have we spent?"* |
-| **Outstanding** | Everything still to pay -- the unpaid portion of invoiced work plus the projected cost of work not yet invoiced. Answers *"how much is left?"* |
+## Funding Sources
 
-The Cost Basis filter is **deposit-aware**: for an invoice paid in [staged deposits](invoice-deposits), the **Paid** basis counts only the instalments already settled, and **Outstanding** counts the rest. This makes the two views add up to the whole -- Paid plus Outstanding reconciles to the full invoiced-and-projected cost.
+The **Funding sources** section lists each [funding source](financing-sources) with a bar:
 
-The **Paid** basis shows only real, settled amounts, so the Min / Avg / Max perspective has no effect on it. **Outstanding** still uses the active perspective for the not-yet-invoiced portion, since that part is still an estimate.
+- **Allocated x of y** -- the expected cost of the cost lines funded by that source, out of the source's amount.
+- The bar fills as the source is used. A source that is fully allocated shows a full bar.
+- Only an over-allocation shows its own amount, as **Over-allocated by ...**. The section never shows a separate "Available" line.
 
-Your Cost Basis choice is **persisted in the URL** as `?paymentStatus=paid` or `?paymentStatus=outstanding` (the default "All" adds no parameter), so you can bookmark or share a "what's left to pay" view exactly as you can with the source filter.
+Select **Edit or add funding sources** to open the list of funding sources. If you have none yet, the section says "No funding sources added yet" and offers **Add your first funding source**.
 
-### How Projections Work
+## The Breakdown
 
-The breakdown uses a **blended projection model** that combines estimates and actuals:
+The **Breakdown** section shows a table of costs. Its settings are at the top of the section.
 
-- **Cost lines linked to a paid, pending, or claimed invoice** use the itemized invoice amount (0% margin)
-- **Cost lines linked to an offer** use the itemized amount with a +/- 5% margin on this page. On the task and purchase pages they count at face value.
-- **Cost lines without an invoice link** use the planned amount with the confidence margin
+### Break down by
 
-The margin applied to non-invoiced cost lines depends on the confidence level:
+Choose how the rows are grouped:
 
-| Confidence Level | Margin |
-|-----------------|--------|
-| Own Estimate | +/- 20% |
-| Professional Estimate | +/- 10% |
-| Offer | +/- 5% |
-| Invoice | 0% (actual cost used) |
+| View | Rows |
+|------|------|
+| **Area** (default) | Your area hierarchy. Each area holds its tasks and purchases, and each task or purchase holds its cost lines. |
+| **Type** | Tasks and purchases, then their cost lines |
+| **Cost category** | Each cost category, then its cost lines |
+| **Funding source** | Each funding source, then its cost lines |
 
-This means projections automatically become more accurate as your project progresses and estimates are replaced by real invoices.
+Every view can be opened row by row, down to the single cost line. Each line shows its state (such as **Estimate**, **Offered**, **Invoiced** or **Paid**). Outside the funding-source view, the line also shows its funding source in muted text.
 
-### Source Attribution Badges
+**Not yet split** appears in every view. It is money on an offer or invoice that you have not yet split into cost lines.
 
-Every leaf-level cost line carries a **source attribution badge** so you can see at a glance which financing source funds each line:
+**Without a task** is the group of cost lines that are not linked to a task or purchase. In the **Area** view it sits under **No area**, and in the **Type** view under **Tasks**. In the **Cost category** and **Funding source** views, those lines sit directly under their category or source, with no task row in between.
 
-- Each source is assigned a deterministic color from a 10-slot palette -- the same source always gets the same color across the table, between sessions, and in both light and dark mode.
-- On **desktop**, the badge shows the full source name next to a colored dot (long names are truncated with the full name available on hover).
-- On **mobile**, only the colored dot is shown to keep the row compact; tapping the line still opens the full detail.
-- Lines without a source assignment are shown with a neutral "Unassigned" badge in a reserved color slot.
+Costs are always shown as positive amounts.
 
-### Available Funds Row
+### Payment
 
-The cost breakdown includes a dedicated **Available Funds** row at the top of the totals section. Click the row to expand it and see one line per financing source, with three columns:
+Choose which part of the cost you want to see:
 
-- **Cost** -- how much of that source has been allocated to cost lines (perspective-aware: switches between min, max, and average projection)
-- **Payback** -- the subsidy payback expected against cost lines funded from this source
-- **Net** -- the remaining headroom on that source after subtracting cost and adding back payback
+| Payment | What the table shows |
+|---------|----------------------|
+| **All** (default) | Expected cost, Paid and Still to pay. With **Show** set to Grants, also Grants and After grants. |
+| **Paid** | Only the Paid column. Rows with nothing paid are hidden. |
+| **Not yet paid** | Only the Not yet paid column. Rows with nothing left to pay are hidden. |
 
-This makes it easy to spot which source is most depleted, which one is being subsidized, and which one still has slack -- all in a single glance.
+**Not yet paid** is the expected cost less what you have paid. For each row, Paid and Not yet paid add up to the row's expected cost. **Still to pay** counts only the open invoices, so it is not part of that sum. **Not yet paid** can be negative when a record is overpaid, for example when deposits exceed the final amount.
 
-### Left to Spend
+### Show estimates at
 
-The **Left to spend** row shows how much of your money is still free for the whole project: the funding you have, plus expected grants, minus the expected cost. It carries a verdict badge, **On budget** when money is left and **Over budget** when the amount is below zero. It is the same figure and verdict as the **Left to spend** tile on [Home](/guides/home), so the two pages always agree.
+Choose the estimate the table uses:
 
-The row never changes with your other choices. Changing the Min / Avg / Max perspective, the Cost Basis, or the source filter leaves it as it is. When a source filter is active, the row shows the caption **Whole project** beside its label to make clear that it is not narrowed to the visible sources. The source filter still narrows the cost breakdown and the Available Funds row.
+- **Low** -- the lowest estimate.
+- **Expected** (default) -- the expected estimate.
+- **High** -- the highest estimate.
 
-### Filter by Source
+Lines that are linked to an offer or invoice count at their face value in all three. Only lines that are not yet linked use the margin of their estimate.
 
-Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the breakdown:
+### Show: Grants
 
-- The projected cost range, every nested area row, and the **Available Funds** totals all recalculate against the visible set in real time as you toggle. The **Left to spend** row does not change; it always reads for the whole project.
-- A small "X of N selected" caption appears next to **Available Funds** while a filter is active.
-- The selection is **persisted in the URL** as `?deselectedSources=<id>,<id>` so you can bookmark a filtered view, share it with your bank or partner, or refresh without losing state.
-- Press **Escape** while focused on a source row to clear all deselections in one go.
-- Source detail rows stay visible even when every source is deselected -- the filter is never a dead-end; you can always click your way back in.
-- When you print a filtered view, deselected source rows are hidden from the printed output so the report only shows the sources you actually have selected.
+The **Show** chip **Grants** adds two columns to the table, when Payment is **All**:
 
-Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying cost lines drop out cleanly instead of double-counting.
+- **Grants** -- the grants that apply to the row.
+- **After grants** -- the expected cost less those grants.
 
-## Subsidy Impact
+### Funding source filter
 
-Approved and disbursed [subsidies](subsidies) are factored into the breakdown calculations. The Available Funds row shows how much each subsidy reduces the net cost for its linked source. Pending and rejected subsidies are excluded from calculations.
+The **Funding source** button opens a list of your funding sources, with a count such as "3 of 4". Tick a source to show its rows, and untick it to hide them. Select **Select all** to show every source again, and **Done** to close the list.
+
+- At least one funding source must stay selected. The last one is kept on, and the list says "Keep at least one funding source selected."
+- While a filter is active, the total reads **Total for the current settings**.
+- Lines that have no funding source appear as **Unassigned**.
+- In the **Funding source** view, a payment counts toward the funding source of its cost line. Each source row shows the Paid and Still to pay of its own lines.
+
+### Totals
+
+The **Total** row sits at the bottom of the table. It adds up the top-level rows in the view you chose. When a setting is not the default, it reads **Total for the current settings**.
+
+If no cost lines exist yet, the breakdown says "Costs appear here once tasks or purchases have cost lines." If your filters hide everything, it says "Nothing matches these settings." and offers **Reset the breakdown settings**.
+
+## On a Phone
+
+On a phone the headline and facts stack as tiles. The breakdown shows a two-column list instead of a table:
+
+- Select a row to show what is inside it. The screen says "Showing ..." and offers "Back to ..." to go up one level.
+- The same settings are available above the list.
 
 ## Printing the Overview
 
-The Budget Overview has dedicated **print styling** so you can hand your bank, accountant, or partner a clean PDF or paper copy.
+Open the **⋯** menu (**Page actions**) and choose **Print**, or use your browser's Print command (`Cmd+P` on macOS, `Ctrl+P` on Windows and Linux).
 
-- Use your browser's Print command (`Cmd+P` on macOS, `Ctrl+P` on Windows/Linux) directly from the overview page.
-- The app chrome -- sidebar, navigation, floating buttons -- is suppressed in print.
-- Page margins, title spacing, and nested area group boxes are tuned for A4/Letter output.
-- Inner item separators keep individual cost lines readable when an area group contains many children.
-- Source attribution badges keep their **full source name** on the printed page, with a border-based color treatment so the source is legible even if your printer doesn't preserve background colors.
-- The browser's own print header/footer is suppressed; pick your target (printer or "Save as PDF") and go.
+- Every row is printed expanded, so the report shows every cost line.
+- Above the table, a one-line summary lists the settings in use, such as "View: Area", "Payment: All", "Estimates: Expected", "Columns: ..." and "Funding sources: 3 of 4".
+- The app's menus and buttons are left out of the printout.
 
 :::tip
-If the exported PDF does not match what you see on screen, make sure your browser's "Background graphics" option is enabled in the print dialog -- the nested group boxes rely on background color to stay legible.
+If the printed page does not match what you see on screen, turn on **Background graphics** in the print dialog.
 :::
 
-![Budget overview dashboard](/img/screenshots/budget-overview-light.png)
+## Budget Overview for the Bank
+
+Open the **⋯** menu and choose **Budget overview for the bank**. This opens the [Bank Reports](bank-reports) wizard with the **Budget Overview** report type already selected.
+
+## Offers
+
+Linked offers count at their face value on Money > Overview, the same as on the task and purchase pages. A cost line linked to an offer shows the offer's amount in every view, with no range added to it. For more, see [Invoices & Vendors](vendors-and-invoices).
+
+## Subsidies
+
+Only approved or received [subsidies](subsidies) count toward Expected grants and the headline. Eligible, applied and rejected subsidies are tracked but do not change the figures.
 
 ## Related Pages
 
-- [Work Items](../work-items/) — track progress and link cost lines to construction tasks
-- [Household Items](../household-items/) — manage furniture and appliance purchases with their own cost lines
-- [Financing Sources](financing-sources) — detailed view of each financing source and its allocated lines
-- [Subsidies](subsidies) — manage subsidy applications and their impact on your budget
+- [Budget](/guides/budget/) -- how the budget pieces fit together
+- [Work Items](../work-items/) -- track progress and link cost lines to construction tasks
+- [Household Items](../household-items/) -- manage furniture and appliance purchases with their own cost lines
+- [Financing Sources](financing-sources) -- detailed view of each funding source and its allocated lines
+- [Subsidies](subsidies) -- manage subsidy applications and their impact on your budget

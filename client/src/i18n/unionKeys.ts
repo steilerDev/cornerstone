@@ -56,6 +56,11 @@ import {
   TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import {
+  BREAKDOWN_ESTIMATES,
+  BREAKDOWN_PAYMENTS,
+  BREAKDOWN_VIEWS,
+} from '../components/CostBreakdownTable/breakdownSettings.js';
 import { COST_LINE_DOCUMENT_KINDS } from '../components/CostLineTable/costLineDocumentKind.js';
 import { COST_LINE_STATES } from '../components/CostLineTable/costLineState.js';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
@@ -162,6 +167,12 @@ export const I18N_UNION_KEYS = {
   statusVocabularyCostLine: unionKeySet('common', 'statusVocabulary.costLine', COST_LINE_STATES),
   /** costLines — Basis value of a cost line (Own estimate … Invoice) (#2235). */
   costLineBasis: unionKeySet('costLines', 'basis', CONFIDENCE_LEVELS),
+  /** budget — Money › Overview breakdown: the "Break down by" view chips. */
+  breakdownView: unionKeySet('budget', 'overview.breakdown.view', BREAKDOWN_VIEWS),
+  /** budget — Money › Overview breakdown: the Payment chips. */
+  breakdownPayment: unionKeySet('budget', 'overview.breakdown.payment', BREAKDOWN_PAYMENTS),
+  /** budget — Money › Overview breakdown: the "Show estimates at" chips. */
+  breakdownEstimate: unionKeySet('budget', 'overview.breakdown.estimate', BREAKDOWN_ESTIMATES),
   /** costLines — empty-state sentence per document kind (German articles differ) (#2235). */
   costLineEmptyBodyDocument: unionKeySet(
     'costLines',

@@ -1,693 +1,1171 @@
 /**
- * E2E tests for the Budget Overview page (Story #148 + feat/budget-hero-bar + fix/1276)
+ * E2E tests for the Money overview (route `budgetOverview`), rebuilt in #2237 (story 4.5,
+ * EPIC-21 P4.5). Replaces the Budget overview suite of the hero card / Add menu / cost
+ * perspective generation.
  *
- * UAT Scenarios covered:
- * - Page loads with the correct h1 "Money" heading
- * - Budget sub-navigation (tabs) is visible
- * - Empty state shown when no budget data exists
- * - Error state with Retry button when API returns 500
- * - Responsive layout: no horizontal scroll
- * - Dark mode rendering
- * - Cost Breakdown area grouping: rows visible after expanding Work Items section
- * - Cost Breakdown area grouping: expanding a root area reveals child areas
- * - Cost Breakdown area grouping: expanding a child area reveals items
- * - Cost Breakdown area grouping: collapsing a root hides children
- * - Cost Breakdown area grouping: No Area row appears when breakdown has null-area items
- * - Cost Breakdown area grouping: "No Area" label visible, "Unassigned" label absent
- * - Cost Breakdown area grouping: no No Area row when breakdown has none
- * - Cost Breakdown area grouping: nested-area indent increases with depth (bounding box)
- * - Cost Breakdown area grouping: no standalone Area Breakdown section renders (smoke)
+ * UAT scenarios (the AC numbers are those of issue #2237):
+ * - AC1  h1 "Money"; the Left to spend headline (figure alone in its `data-figure` element,
+ *        verdict, range line beneath, "How is this calculated?") and the five facts in order
+ * - AC2  funding rows with "Allocated x of y" and a bar; only an over-allocation gets its amount
+ * - AC3  By area / By type / By category / By funding source, each down to cost lines, all adding
+ *        up to the same total; Low · Expected · High; Show Grants adds Grants and After grants;
+ *        no correction row and no negative cost
+ * - AC7  phone: headline tiles and the two-column drill-down list
+ * - AC9  an offer-linked line counts at face value (real API, Low = Expected = High)
+ * - AC10 (c)/(d)/(f) are covered here and in budget-cost-basis.spec.ts (Payment chips),
+ *        budget-source-filter.spec.ts (Funding source) and budget-overview-print.spec.ts (Print)
+ * - States: error + Retry, breakdown failure, no cost lines, no figure yet, no horizontal scroll,
+ *   dark mode, URL params surviving a reload
  *
- * NOTE: Hero card ("Budget overview" section) was removed in issue #1389.
- * Hero card / BudgetBar tests have been removed. See budget-overview-no-hero-card.spec.ts.
+ * Mocked responses (fixtures/moneyMocks.ts) give exact, invented figures for the figure checks;
+ * the AC9 scenario and the smoke test run against the real server. The breakdown tree is a table
+ * from 768px of the card's own width and a drill-down list below, so table assertions run on the
+ * desktop project and the phone scenarios on the mobile project.
  */
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
+import type { BreakdownViewValue } from '../../pages/BudgetOverviewPage.js';
+import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { API } from '../../fixtures/testData.js';
-import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import {
+  createBudgetSourceViaApi,
+  createVendorViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteVendorViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+import {
+  MOCK_BREAKDOWN,
+  euro,
+  mockFundingSource,
+  mockMoneyOverview,
+  mockOverviewResponse,
+} from '../../fixtures/moneyMocks.js';
+import { parseMoney } from '../../fixtures/figureSurfaces.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+const B = MOCK_BREAKDOWN;
+const TOTAL_EXPECTED = 18800;
 
-/** Minimal BudgetOverview response representing an all-zero state (no data entered). */
-function emptyOverviewResponse() {
-  return {
-    availableFunds: 0,
-    sourceCount: 0,
-    minPlanned: 0,
-    maxPlanned: 0,
-    actualCost: 0,
-    actualCostPaid: 0,
-    projectedMin: 0,
-    projectedMax: 0,
-    actualCostClaimed: 0,
-    remainingVsMinPlanned: 0,
-    remainingVsMaxPlanned: 0,
-    remainingVsActualCost: 0,
-    remainingVsActualPaid: 0,
-    remainingVsProjectedMin: 0,
-    remainingVsProjectedMax: 0,
-    remainingVsActualClaimed: 0,
-    remainingVsMinPlannedWithPayback: 0,
-    remainingVsMaxPlannedWithPayback: 0,
-    subsidySummary: {
-      totalReductions: 0,
-      activeSubsidyCount: 0,
-    },
-  };
-}
+const isDesktop = (page: Page): boolean => (page.viewportSize()?.width ?? 0) >= 1024;
+const isPhone = (page: Page): boolean => (page.viewportSize()?.width ?? 0) < 768;
 
-/** BudgetOverview response with data populated across all hero card metrics and an area tree. */
-function populatedOverviewResponse() {
-  return {
-    availableFunds: 300000,
-    sourceCount: 2,
-    minPlanned: 250000,
-    maxPlanned: 275000,
-    actualCost: 185000,
-    actualCostPaid: 150000,
-    projectedMin: 260000,
-    projectedMax: 270000,
-    actualCostClaimed: 80000,
-    remainingVsMinPlanned: 50000,
-    remainingVsMaxPlanned: 25000,
-    remainingVsActualCost: 115000,
-    remainingVsActualPaid: 150000,
-    remainingVsProjectedMin: 40000,
-    remainingVsProjectedMax: 30000,
-    remainingVsActualClaimed: 220000,
-    remainingVsMinPlannedWithPayback: 50000,
-    remainingVsMaxPlannedWithPayback: 25000,
-    subsidySummary: {
-      totalReductions: 12500,
-      activeSubsidyCount: 2,
-    },
-  };
+/** Every top-level row's cell of `column` adds up to the total row's cell (cents). */
+async function expectTopLevelAddsUp(
+  overview: BudgetOverviewPage,
+  column: 'expectedCost' | 'paid' | 'stillToPay',
+): Promise<void> {
+  const keys = await overview.topLevelKeys();
+  expect(keys.length).toBeGreaterThan(0);
+  let sum = 0;
+  for (const key of keys) {
+    sum += parseMoney(await overview.cell(key, column).innerText()) ?? 0;
+  }
+  expect(sum).toBe(parseMoney(await overview.totalCell(column).innerText()));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Page heading and navigation
+// AC1: headline, facts, page actions
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
-  test('Page loads with h1 "Money" heading', { tag: '@smoke' }, async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
 
-    await overviewPage.goto();
-    await overviewPage.waitForLoaded();
+test.describe('Money overview — headline and facts (AC1)', { tag: '@responsive' }, () => {
+  test(
+    'The Money overview loads with its headline, facts, funding and breakdown, and no Add menu',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const overview = new BudgetOverviewPage(page);
 
-    // Then: The h1 heading shows "Money"
-    await expect(overviewPage.heading).toBeVisible();
-    await expect(overviewPage.heading).toHaveText('Money');
-  });
+      await overview.goto();
+      await overview.waitForLoaded();
+      await overview.waitForBreakdown();
 
-  test('Money views are listed in the sidebar and there is no in-page tab row', async ({
+      await expect(overview.heading).toHaveText('Money');
+      await expect(overview.headline).toBeVisible();
+      await expect(overview.leftToSpendFigure).toBeVisible();
+      await expect(overview.summary).toBeVisible();
+      await expect(overview.funding).toBeVisible();
+      await expect(overview.breakdownCard).toBeVisible();
+
+      // The Add dropdown is gone (MNY-013: the New menu creates things)
+      await expect(page.getByTestId('budget-overview-add-button')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Add', exact: true })).toHaveCount(0);
+      await expect(overview.pageActions).toBeVisible();
+    },
+  );
+
+  test('Left to spend shows the figure alone, a verdict, and the range as the line beneath it', async ({
     page,
   }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const appShell = new AppShellPage(page);
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
-    await overviewPage.goto();
-    await overviewPage.waitForLoaded();
+    await overview.goto();
+    await overview.waitForLoaded();
 
-    // Then: Money is the one highlighted entry and lists its views (#2205)
-    await expect(appShell.activeEntries).toHaveCount(1);
-    await expect(appShell.sectionLink('money')).toHaveAttribute('aria-current', 'page');
-    // Below 1024px the views live in the title menu: open it first (no-op on desktop)
-    await appShell.revealViews();
-    await expect(appShell.viewLinks).toHaveText([
-      'Invoices',
-      'Funding sources',
-      'Grants',
-      'Bank report',
-    ]);
-
-    // And: the page itself carries no tab row
-    await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
+    await expect(overview.headline.getByRole('heading', { name: /^Left to spend/ })).toBeVisible();
+    // The data-figure element holds only the formatted figure (#2232)
+    await expect(overview.leftToSpendFigure).toHaveAttribute('data-figure', 'left-to-spend');
+    await expect(overview.leftToSpendFigure).toHaveText(euro(7200));
+    await expect(overview.verdictBadge).toHaveText('On budget');
+    await expect(overview.range).toContainText('Range');
+    await expect(overview.range).toContainText(euro(6000));
+    await expect(overview.range).toContainText(euro(8400));
+    // The range is the line directly beneath the figure
+    const figureBox = await overview.leftToSpendFigure.boundingBox();
+    const rangeBox = await overview.range.boundingBox();
+    expect(figureBox).not.toBeNull();
+    expect(rangeBox).not.toBeNull();
+    expect(rangeBox!.y).toBeGreaterThanOrEqual(figureBox!.y + figureBox!.height - 2);
+    expect(rangeBox!.y - (figureBox!.y + figureBox!.height)).toBeLessThan(60);
+    await expect(overview.leftToSpendFigure).not.toHaveAttribute('data-negative', 'true');
   });
 
-  test('Page URL is /budget/overview', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
+  test('Below zero the verdict reads Over budget and the figure is marked negative', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page, {
+      leftToSpend: { expected: -1200, best: -400, worst: -2000, verdict: 'over_budget' },
+    });
 
-    await overviewPage.goto();
-    await page.waitForURL('/budget/overview');
-    expect(page.url()).toContain('/budget/overview');
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    await expect(overview.verdictBadge).toHaveText('Over budget');
+    await expect(overview.leftToSpendFigure).toHaveAttribute('data-negative', 'true');
+    await expect(overview.leftToSpendFigure).toHaveText(/^[-−]€1,200\.00$/);
   });
 
-  test('Navigating to /budget redirects to /budget/overview', async ({ page }) => {
-    await page.goto('/budget');
-    await page.waitForURL('/budget/overview');
-    expect(page.url()).toContain('/budget/overview');
+  test('Without a figure the headline shows an en dash named "No figure yet" and the rest renders', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page, {
+      leftToSpend: { expected: 0, best: 0, worst: 0, verdict: null },
+      money: { fundingTotal: 0, sources: [] },
+    });
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    // No page-level empty state: the headline and the sections always render (FC4: one figure)
+    await expect(page.locator('[data-figure="left-to-spend"]')).toHaveCount(1);
+    await expect(overview.leftToSpendFigure).toHaveAccessibleName('No figure yet');
+    await expect(overview.leftToSpendFigure).toHaveText('–');
+    await expect(overview.verdictBadge).toHaveCount(0);
+    await expect(overview.summary).toBeVisible();
+    await expect(overview.funding).toBeVisible();
+    await expect(overview.breakdownCard).toBeVisible();
+  });
+
+  test('"How is this calculated?" toggles a visible panel that names the capped grants', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page, { cappedGrants: ['Energy grant (mock)'] });
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    await expect(overview.explainToggle).toHaveText('How is this calculated?');
+    await expect(overview.explainToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(overview.explainPanel).toBeHidden();
+
+    await overview.explainToggle.click();
+    await expect(overview.explainToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(overview.explainPanel).toBeVisible();
+    await expect(overview.explainPanel).toContainText('Funding total plus Expected grants');
+    await expect(overview.explainPanel).toContainText(
+      'These grants count only up to their eligible-costs cap:',
+    );
+    await expect(overview.explainPanel.getByText('Energy grant (mock)')).toBeVisible();
+
+    await overview.explainToggle.click();
+    await expect(overview.explainPanel).toBeHidden();
+  });
+
+  test('The cap note is absent when no grant is capped', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.explainToggle.click();
+
+    await expect(overview.explainPanel).toBeVisible();
+    await expect(overview.explainPanel).not.toContainText('eligible-costs cap');
+  });
+
+  test('The facts read Funding total · Expected cost · Expected grants · Paid · Still to pay', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    const facts: Array<[string, string, string]> = [
+      ['funding-total', 'Funding total', euro(25000)],
+      ['expected-cost', 'Expected cost', euro(18800)],
+      ['expected-grants', 'Expected grants', euro(1000)],
+      ['paid', 'Paid', euro(2000)],
+      ['still-to-pay', 'Still to pay', euro(1100)],
+    ];
+    await expect(overview.summary.locator('dt')).toHaveText(facts.map(([, label]) => label));
+    for (const [id, , value] of facts) {
+      await expect(overview.fact(id)).toHaveText(value);
+    }
+    await expect(overview.fact('paid').locator('[data-figure]')).toHaveAttribute(
+      'data-figure',
+      'paid',
+    );
+    await expect(overview.fact('still-to-pay').locator('[data-figure]')).toHaveAttribute(
+      'data-figure',
+      'still-to-pay',
+    );
+  });
+
+  test('Paid and Still to pay link to Invoices; the first three facts are plain values', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    for (const id of ['funding-total', 'expected-cost', 'expected-grants']) {
+      await expect(overview.fact(id)).not.toHaveAttribute('href', /.+/);
+    }
+    await expect(overview.fact('paid')).toHaveAttribute('href', /\/budget\/invoices/);
+    await expect(overview.fact('still-to-pay')).toHaveAttribute('href', /openOnly=true/);
+
+    await overview.fact('still-to-pay').click();
+    await page.waitForURL((url) => url.pathname === '/budget/invoices');
+    expect(new URL(page.url()).searchParams.get('openOnly')).toBe('true');
+  });
+
+  test('On desktop the five facts share one row', async ({ page }) => {
+    test.skip(!isDesktop(page), 'five columns from 1024px');
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    const ys: number[] = [];
+    for (const id of [
+      'funding-total',
+      'expected-cost',
+      'expected-grants',
+      'paid',
+      'still-to-pay',
+    ]) {
+      const box = await overview.fact(id).boundingBox();
+      expect(box, id).not.toBeNull();
+      ys.push(Math.round(box!.y));
+    }
+    expect(new Set(ys).size).toBe(1);
+  });
+
+  test('The retired labels and controls are gone', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.waitForBreakdown();
+
+    const main = page.locator('main');
+    for (const retired of [
+      'Remaining Budget',
+      'Available funds',
+      'Available Funds',
+      'Outstanding',
+      'Cost basis',
+      'Subsidies',
+      'Min',
+      'Max',
+    ]) {
+      await expect(main.getByText(retired, { exact: true }), retired).toHaveCount(0);
+    }
+    await expect(page.locator('#cost-basis-select')).toHaveCount(0);
+    await expect(page.locator('section[aria-label="Budget overview"]')).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty state
+// ⋯ menu
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state', { tag: '@responsive' }, () => {
-  test('Empty state shown when no budget data exists', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
 
-    // Intercept API to return all-zero data — triggers the "no data" empty state
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: emptyOverviewResponse(), money: mockMoneySummary() }),
-        });
-      } else {
-        await route.continue();
-      }
+test.describe('Money overview — page actions (AC6)', { tag: '@responsive' }, () => {
+  test('⋯ lists Print and "Budget overview for the bank" and nothing else', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.openPageActions();
+
+    await expect(page.getByRole('menuitem')).toHaveText(['Print', 'Budget overview for the bank']);
+  });
+
+  test('"Budget overview for the bank" opens the bank report with the preset type', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.openPageActions();
+    await expect(overview.bankOverviewAction).toHaveAttribute(
+      'href',
+      /\/budget\/reports\?type=budget-overview/,
+    );
+    await overview.bankOverviewAction.click();
+
+    await page.waitForURL(
+      (url) =>
+        url.pathname === '/budget/reports' && url.searchParams.get('type') === 'budget-overview',
+    );
+  });
+
+  test('Print calls the browser print dialog', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+    await page.addInitScript(() => {
+      (window as unknown as { __printCalls: number }).__printCalls = 0;
+      window.print = () => {
+        (window as unknown as { __printCalls: number }).__printCalls += 1;
+      };
     });
 
-    try {
-      // Given: No budget data has been entered
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.openPageActions();
+    await overview.printAction.click();
 
-      // Then: The empty state block is visible
-      await expect(overviewPage.emptyState).toBeVisible({ timeout: 8000 });
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __printCalls: number }).__printCalls))
+      .toBe(1);
+  });
+});
 
-      // And: The empty state text mentions budget data
-      const emptyText = await overviewPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no budget data yet/);
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
+// ─────────────────────────────────────────────────────────────────────────────
+// AC2: funding rows
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Money overview — funding rows (AC2)', { tag: '@responsive' }, () => {
+  test('Every source is a row with "Allocated x of y" and a bar, always visible', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    await expect(overview.fundingRows).toHaveCount(2);
+    const loan = overview.fundingRow(B.sources.loan.id);
+    await expect(loan).toBeVisible();
+    await expect(loan).toContainText(B.sources.loan.name);
+    await expect(loan).toContainText(`Allocated ${euro(14000)} of ${euro(15000)}`);
+    await expect(loan.getByRole('img')).toBeVisible();
+    await expect(overview.fundingRow(B.sources.savings.id)).toContainText(
+      `Allocated ${euro(4800)} of ${euro(10000)}`,
+    );
+
+    // Normal rows carry no remaining / unallocated text and no disclosure button
+    await expect(loan).not.toContainText(/Unallocated|Remaining|Over-allocated/);
+    await expect(overview.fundingRows.getByRole('button')).toHaveCount(0);
+    await expect(overview.funding.getByRole('heading', { name: 'Funding sources' })).toBeVisible();
+    await expect(overview.fundingManageLink).toHaveAttribute('href', /\/budget\/sources/);
+  });
+
+  test('Only an over-allocation gets its own amount, shown as it is', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page, {
+      sources: [
+        mockFundingSource('mock-source-over', 'Bridge loan (mock)', 5000, 6000),
+        mockFundingSource('mock-source-ok', 'Savings (mock)', 10000, 4800),
+      ],
+    });
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    const over = overview.fundingRow('mock-source-over');
+    await expect(over).toContainText(`Allocated ${euro(6000)} of ${euro(5000)}`);
+    await expect(over).toContainText(`Over-allocated by ${euro(1000)}`);
+    await expect(overview.fundingRow('mock-source-ok')).not.toContainText('Over-allocated');
+  });
+
+  test('With no funding sources the section offers to add the first one', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page, { sources: [] });
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    await expect(overview.fundingRows).toHaveCount(0);
+    await expect(overview.funding).toContainText('No funding sources added yet');
+    await expect(
+      overview.funding.getByRole('link', { name: 'Add your first funding source' }),
+    ).toHaveAttribute('href', /\/budget\/sources/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AC3 / AC10 (d)(f): the four views, down to cost lines (table surface)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Money overview — breakdown views (AC3)', () => {
+  test.beforeEach(async ({ page }) => {
+    test.skip(!isDesktop(page), 'table surface assertions run on the desktop project');
+    await mockMoneyOverview(page);
+  });
+
+  test('By area is the default and ends with Not yet split', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    await expect(overview.viewChip('area')).toHaveAttribute('aria-pressed', 'true');
+    expect(new URL(page.url()).searchParams.has('by')).toBe(false);
+    await expect(overview.table).toBeVisible();
+    expect(await overview.topLevelKeys()).toEqual([
+      `area:${B.areas.ground}`,
+      `area:${B.areas.garden}`,
+      'area:none',
+      'not-yet-split',
+    ]);
+    await expect(overview.row('not-yet-split')).toContainText('Not yet split');
+    await expect(overview.cell('not-yet-split', 'stillToPay')).toHaveText(euro(300));
+    await expect(overview.columnHeaders()).toHaveText([
+      'Name',
+      'Expected cost',
+      'Paid',
+      'Still to pay',
+    ]);
+  });
+
+  const VIEW_TOP_LEVEL: Array<[BreakdownViewValue, string[]]> = [
+    ['area', [`area:${B.areas.ground}`, `area:${B.areas.garden}`, 'area:none', 'not-yet-split']],
+    ['type', ['type:work_items', 'type:household_items', 'not-yet-split']],
+    [
+      'category',
+      [
+        `category:${B.categories.materials.id}`,
+        `category:${B.categories.labour.id}`,
+        'category:none',
+        'not-yet-split',
+      ],
+    ],
+    [
+      'source',
+      [
+        `source:${B.sources.loan.id}`,
+        `source:${B.sources.savings.id}`,
+        'source:none',
+        'not-yet-split',
+      ],
+    ],
+  ];
+
+  for (const [view, keys] of VIEW_TOP_LEVEL) {
+    test(`By ${view}: the groups render and add up to the same total (AC3, AC10 f)`, async ({
+      page,
+    }) => {
+      const overview = new BudgetOverviewPage(page);
+
+      await overview.goto();
+      await overview.waitForBreakdown();
+      if (view !== 'area') {
+        await overview.viewChip(view).click();
+        await page.waitForURL((url) => url.searchParams.get('by') === view);
+      }
+      await expect(overview.viewChip(view)).toHaveAttribute('aria-pressed', 'true');
+
+      expect(await overview.topLevelKeys()).toEqual(keys);
+      // Every view adds up to the headline facts: Expected cost, Paid and Still to pay
+      await expect(overview.totalCell('expectedCost')).toHaveText(euro(TOTAL_EXPECTED));
+      await expect(overview.totalCell('paid')).toHaveText(euro(2000));
+      await expect(overview.totalCell('stillToPay')).toHaveText(euro(1100));
+      await expectTopLevelAddsUp(overview, 'expectedCost');
+      await expectTopLevelAddsUp(overview, 'paid');
+      await expectTopLevelAddsUp(overview, 'stillToPay');
+      await expect(overview.total).toContainText('Total');
+    });
+  }
+
+  test('The By chips are labelled Area, Type, Cost category and Funding source', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    await expect(
+      overview.breakdownCard.getByRole('group', { name: 'Break down by' }),
+    ).toBeVisible();
+    await expect(overview.viewChip('area')).toHaveText('Area');
+    await expect(overview.viewChip('type')).toHaveText('Type');
+    await expect(overview.viewChip('category')).toHaveText('Cost category');
+    await expect(overview.viewChip('source')).toHaveText('Funding source');
+  });
+
+  test('By area goes down to cost lines: area › area › task › cost line', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    const task = `item:work_item:${B.items.cabinets}`;
+    const units = `line:${B.lines.units}`;
+    const fitting = `line:${B.lines.fitting}`;
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    // Collapsed children stay in the DOM but are hidden
+    await expect(overview.row(`area:${B.areas.kitchen}`)).toBeHidden();
+    await overview.expand(`area:${B.areas.ground}`);
+    await expect(overview.row(`area:${B.areas.kitchen}`)).toContainText('Kitchen (mock)');
+    await overview.expand(`area:${B.areas.kitchen}`);
+    await expect(overview.row(task)).toContainText('Fit kitchen cabinets (mock)');
+    await expect(overview.row(task).getByRole('link')).toHaveAttribute(
+      'href',
+      new RegExp(`/work-items/${B.items.cabinets}`),
+    );
+    await overview.expand(task);
+
+    // The line rows carry the shared state chip and the funding source name
+    await expect(overview.row(units)).toContainText('Cabinet units (mock)');
+    await expect(overview.row(units)).toContainText('Estimate');
+    await expect(overview.row(units)).toContainText(B.sources.savings.name);
+    await expect(overview.row(fitting)).toContainText('Offered');
+    await expect(overview.cell(units, 'expectedCost')).toHaveText(euro(10000));
+    await expect(overview.cell(fitting, 'expectedCost')).toHaveText(euro(4000));
+
+    // Collapsing the root hides its whole subtree again
+    await overview.toggle(`area:${B.areas.ground}`).click();
+    await expect(overview.row(units)).toBeHidden();
+    await expect(overview.row(`area:${B.areas.kitchen}`)).toBeHidden();
+  });
+
+  test('Lines without a task sit under "Without a task" inside No area', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await expect(overview.row('area:none')).toContainText('No area');
+    await overview.expand('area:none');
+
+    await expect(overview.row('orphans')).toContainText('Without a task');
+    await expect(overview.row(`item:household_item:${B.items.table}`)).toContainText(
+      'Dining table (mock)',
+    );
+    await overview.expand('orphans');
+    await expect(overview.row(`line:${B.lines.loose}`)).toContainText('Loose line (mock)');
+    await expect(overview.cell('orphans', 'expectedCost')).toHaveText(euro(500));
+    await expect(overview.cell('area:none', 'expectedCost')).toHaveText(euro(2000));
+  });
+
+  test('By type lists Tasks and Purchases; By funding source hides the source name on lines', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto('?by=type');
+    await overview.waitForBreakdown();
+    await expect(overview.row('type:work_items')).toContainText('Tasks');
+    await expect(overview.row('type:household_items')).toContainText('Purchases');
+    await overview.expand('type:work_items');
+    await expect(overview.row('orphans')).toContainText('Without a task');
+
+    await overview.viewChip('source').click();
+    await page.waitForURL((url) => url.searchParams.get('by') === 'source');
+    await overview.expand(`source:${B.sources.savings.id}`);
+    await expect(overview.row(`line:${B.lines.units}`)).toBeVisible();
+    await expect(overview.row(`line:${B.lines.units}`)).not.toContainText(B.sources.savings.name);
+    await expect(overview.row('source:none')).toContainText('Unassigned');
+  });
+
+  test('Show estimates at Low and High move estimates but never an offer at face value', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    const units = `line:${B.lines.units}`;
+    const fitting = `line:${B.lines.fitting}`;
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await overview.expand(`area:${B.areas.ground}`);
+    await overview.expand(`area:${B.areas.kitchen}`);
+    await overview.expand(`item:work_item:${B.items.cabinets}`);
+
+    await expect(overview.estimateChip('expected')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.breakdownCard.getByText('Show estimates at')).toBeVisible();
+
+    await overview.estimateChip('low').click();
+    await page.waitForURL((url) => url.searchParams.get('estimate') === 'low');
+    await expect(overview.cell(units, 'expectedCost')).toHaveText(euro(9000));
+    await expect(overview.cell(fitting, 'expectedCost')).toHaveText(euro(4000));
+    await expect(overview.totalCell('expectedCost')).toHaveText(euro(17600));
+    await expect(overview.total).toContainText('Total for the current settings');
+    await expect(overview.headline).toContainText('Whole project');
+
+    await overview.estimateChip('high').click();
+    await page.waitForURL((url) => url.searchParams.get('estimate') === 'high');
+    await expect(overview.cell(units, 'expectedCost')).toHaveText(euro(11000));
+    await expect(overview.cell(fitting, 'expectedCost')).toHaveText(euro(4000));
+    await expect(overview.totalCell('expectedCost')).toHaveText(euro(20000));
+
+    await overview.estimateChip('expected').click();
+    await page.waitForURL((url) => !url.searchParams.has('estimate'));
+    await expect(overview.cell(units, 'expectedCost')).toHaveText(euro(10000));
+    await expect(overview.total).not.toContainText('for the current settings');
+    // The headline figure never moves with the breakdown settings
+    await expect(overview.leftToSpendFigure).toHaveText(euro(7200));
+  });
+
+  test('Show › Grants adds the Grants and After grants columns', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    const units = `line:${B.lines.units}`;
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await expect(overview.breakdownCard.getByText('Show', { exact: true })).toBeVisible();
+    await expect(overview.grantsChip).toHaveText('Grants');
+    await expect(overview.grantsChip).toHaveAttribute('aria-pressed', 'false');
+    await expect(
+      overview.breakdownCard.getByRole('group', { name: 'Show', exact: true }),
+    ).toBeVisible();
+    await expect(overview.columnHeaders()).toHaveCount(4);
+
+    await overview.grantsChip.click();
+    await page.waitForURL((url) => url.searchParams.get('grants') === '1');
+    await expect(overview.grantsChip).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.columnHeaders()).toHaveText([
+      'Name',
+      'Expected cost',
+      'Grants',
+      'After grants',
+      'Paid',
+      'Still to pay',
+    ]);
+    await overview.expand(`area:${B.areas.ground}`);
+    await overview.expand(`area:${B.areas.kitchen}`);
+    await overview.expand(`item:work_item:${B.items.cabinets}`);
+    await expect(overview.cell(units, 'grants')).toHaveText(euro(1000));
+    await expect(overview.cell(units, 'afterGrants')).toHaveText(euro(9000));
+    await expect(overview.totalCell('afterGrants')).toHaveText(euro(17800));
+
+    await overview.grantsChip.click();
+    await page.waitForURL((url) => !url.searchParams.has('grants'));
+    await expect(overview.columnHeaders()).toHaveCount(4);
+  });
+
+  test('Costs are always positive and there is no correction row', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto('?grants=1');
+    await overview.waitForBreakdown();
+
+    for (const view of ['area', 'type', 'category', 'source'] as const) {
+      await overview.viewChip(view).click();
+      await expect(overview.viewChip(view)).toHaveAttribute('aria-pressed', 'true');
+      const costCells = overview.table.locator('td[data-testid$="-expectedCost"]');
+      const texts = await costCells.allInnerTexts();
+      expect(texts.length).toBeGreaterThan(0);
+      for (const text of texts) expect(text.trim()).not.toMatch(/^[-−]/);
+      await expect(overview.table).not.toContainText(/Subsid(y|ies)|Correction/i);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Error state
+// URL state
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Error state', { tag: '@responsive' }, () => {
-  test('Error card with Retry button shown when API returns 500', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
 
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
+test.describe('Money overview — URL parameters (AC10 d)', { tag: '@responsive' }, () => {
+  test('?by, ?paymentStatus, ?estimate, ?grants and ?deselectedSources survive a reload', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await overview.viewChip('source').click();
+    await overview.estimateChip('high').click();
+    await overview.grantsChip.click();
+    await overview.openSources();
+    await overview.sourceCheckbox(B.sources.loan.id).click();
+    await overview.sourcesDone.click();
+    await page.waitForURL((url) => url.searchParams.has('deselectedSources'));
+
+    const before = new URL(page.url()).searchParams;
+    expect(before.get('by')).toBe('source');
+    expect(before.get('estimate')).toBe('high');
+    expect(before.get('grants')).toBe('1');
+    expect(before.get('deselectedSources')).toBe(B.sources.loan.id);
+
+    await page.reload();
+    await overview.waitForBreakdown();
+
+    const after = new URL(page.url()).searchParams;
+    expect(after.get('by')).toBe('source');
+    expect(after.get('estimate')).toBe('high');
+    expect(after.get('grants')).toBe('1');
+    expect(after.get('deselectedSources')).toBe(B.sources.loan.id);
+    await expect(overview.viewChip('source')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.estimateChip('high')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.grantsChip).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.sourcesButton).toContainText('2 of 3');
+  });
+
+  test('?paymentStatus=outstanding survives a reload', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await overview.paymentChip('outstanding').click();
+    await page.waitForURL((url) => url.searchParams.get('paymentStatus') === 'outstanding');
+    await page.reload();
+    await overview.waitForBreakdown();
+
+    await expect(overview.paymentChip('outstanding')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.paymentChip('all')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('Unknown values and explicit defaults are dropped from the URL', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto('?by=bogus&estimate=expected&paymentStatus=nonsense&grants=0');
+    await overview.waitForBreakdown();
+
+    await page.waitForURL((url) => url.search === '');
+    await expect(overview.viewChip('area')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.paymentChip('all')).toHaveAttribute('aria-pressed', 'true');
+    await expect(overview.estimateChip('expected')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Changing a setting replaces the history entry instead of pushing one', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    const lengthBefore = await page.evaluate(() => window.history.length);
+    await overview.viewChip('category').click();
+    await page.waitForURL((url) => url.searchParams.get('by') === 'category');
+    await overview.estimateChip('low').click();
+    await page.waitForURL((url) => url.searchParams.get('estimate') === 'low');
+
+    expect(await page.evaluate(() => window.history.length)).toBe(lengthBefore);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AC7: phone
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Money overview — phone (AC7)', { tag: '@responsive' }, () => {
+  test.beforeEach(async ({ page }) => {
+    test.skip(!isPhone(page), 'phone layout');
+    await mockMoneyOverview(page);
+  });
+
+  test('Headline tiles are full width and the facts sit in two columns', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    const viewport = page.viewportSize()!.width;
+    const headlineBox = await overview.headline.boundingBox();
+    expect(headlineBox!.width).toBeGreaterThan(viewport * 0.85);
+
+    const box = async (id: string) => (await overview.fact(id).boundingBox())!;
+    const [fundingTotal, expectedCost, expectedGrants, paid] = [
+      await box('funding-total'),
+      await box('expected-cost'),
+      await box('expected-grants'),
+      await box('paid'),
+    ];
+    // Two columns: the first two share a row, the third wraps beneath the first
+    expect(Math.abs(fundingTotal.y - expectedCost.y)).toBeLessThan(4);
+    expect(expectedCost.x).toBeGreaterThan(fundingTotal.x + 40);
+    expect(expectedGrants.y).toBeGreaterThan(fundingTotal.y + 20);
+    expect(Math.abs(expectedGrants.x - fundingTotal.x)).toBeLessThan(4);
+    expect(Math.abs(paid.y - expectedGrants.y)).toBeLessThan(4);
+  });
+
+  test('The breakdown is a drill-down list, not a table', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    await expect(overview.table).toBeHidden();
+    await expect(overview.list).toBeVisible();
+    const ground = overview.listRow(`area:${B.areas.ground}`);
+    await expect(ground).toContainText('Ground floor (mock)');
+    await expect(ground).toContainText(euro(14000));
+    await expect(ground).toContainText('Paid: €0.00');
+    await expect(ground).toContainText('Still to pay: €0.00');
+  });
+
+  test('Tapping a group shows its children under an h3 with focus; Back returns', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    await overview.listRow(`area:${B.areas.ground}`).click();
+    await expect(overview.listHeading).toHaveText('Ground floor (mock)');
+    await expect(overview.listHeading).toBeFocused();
+    await expect(overview.list.getByRole('heading', { level: 3 })).toHaveText(
+      'Ground floor (mock)',
+    );
+    await expect(overview.status).toHaveText('Showing Ground floor (mock)');
+    await expect(overview.listBack).toHaveText(/Back to the breakdown/);
+    await expect(overview.listRow(`area:${B.areas.kitchen}`)).toBeVisible();
+    await expect(overview.listRow(`area:${B.areas.garden}`)).toHaveCount(0);
+
+    // Down to a cost line: task rows link, line rows are plain
+    await overview.listRow(`area:${B.areas.kitchen}`).click();
+    await overview.listRow(`item:work_item:${B.items.cabinets}`).click();
+    await expect(overview.listHeading).toHaveText('Fit kitchen cabinets (mock)');
+    await expect(overview.listRow(`line:${B.lines.units}`)).toContainText('Cabinet units (mock)');
+    await expect(overview.listRow(`line:${B.lines.units}`)).toContainText(euro(10000));
+
+    await overview.listBack.click();
+    await expect(overview.listHeading).toHaveText('Kitchen (mock)');
+    await overview.listBack.click();
+    await expect(overview.listHeading).toHaveText('Ground floor (mock)');
+    await overview.listBack.click();
+    await expect(overview.listHeading).toHaveCount(0);
+    await expect(overview.listRow(`area:${B.areas.garden}`)).toBeVisible();
+    // Focus returns to the list
+    await expect(overview.list.locator('button').first()).toBeFocused();
+  });
+
+  test('Cost lines at the bottom of the list are plain rows, not links', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto('?by=type');
+    await overview.waitForBreakdown();
+    await overview.listRow('type:work_items').click();
+
+    await expect(overview.listRow(`item:work_item:${B.items.hedge}`)).toBeVisible();
+    // The task has cost lines, so it drills in like a group; the lines themselves are plain rows
+    await overview.listRow(`item:work_item:${B.items.hedge}`).click();
+    // The drilled-in heading links to that task's page
+    await expect(overview.listHeadingLink).toBeVisible();
+    await expect(overview.listHeadingLink).toHaveAttribute(
+      'href',
+      new RegExp(`${routeUrl('workItem', { id: B.items.hedge })}(\\?|$)`),
+    );
+    await expect(overview.listRow(`line:${B.lines.plants}`)).not.toHaveAttribute('href', /.+/);
+  });
+
+  test('The page does not scroll sideways', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+
+    await overview.goto('?grants=1');
+    await overview.waitForBreakdown();
+
+    const overflow = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      body: document.body.scrollWidth - document.body.clientWidth,
+    }));
+    expect(overflow.doc).toBeLessThanOrEqual(0);
+    expect(overflow.body).toBeLessThanOrEqual(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// States, layout and dark mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Money overview — states and layout', { tag: '@responsive' }, () => {
+  test('An overview failure shows the error card and Retry loads the page', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    let fail = true;
+    await mockMoneyOverview(page);
+    await page.route('**/api/budget/overview', async (route) => {
+      if (fail) {
         await route.fulfill({
           status: 500,
           contentType: 'application/json',
-          body: JSON.stringify({
-            error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
-          }),
+          body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'boom', details: {} } }),
         });
       } else {
-        await route.continue();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockOverviewResponse()),
+        });
       }
     });
 
-    try {
-      await overviewPage.goto();
+    await overview.goto();
+    await expect(overview.errorCard).toBeVisible();
+    await expect(overview.heading).toBeVisible();
+    await expect(overview.headline).toHaveCount(0);
 
-      // Loading indicator disappears
-      await overviewPage.loadingIndicator.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {
-        // May have already hidden
-      });
-
-      // Error card is displayed
-      await expect(overviewPage.errorCard).toBeVisible({ timeout: 8000 });
-
-      // Error card contains an h2 "Error"
-      await expect(
-        overviewPage.errorCard.getByRole('heading', { name: 'Error', exact: true }),
-      ).toBeVisible();
-
-      // Retry button is visible
-      await expect(overviewPage.retryButton).toBeVisible();
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
+    fail = false;
+    await overview.retryButton.click();
+    await expect(overview.headline).toBeVisible();
+    await expect(overview.errorCard).toHaveCount(0);
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Responsive layout
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive layout', { tag: '@responsive' }, () => {
-  test('Budget overview page renders without horizontal scroll on current viewport', async ({
+  test('A breakdown failure keeps the headline and offers Retry inside the card', async ({
     page,
   }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await overviewPage.goto();
-    await overviewPage.waitForLoaded();
-
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
+    const overview = new BudgetOverviewPage(page);
+    let fail = true;
+    await mockMoneyOverview(page);
+    await page.route('**/api/budget/breakdown**', async (route) => {
+      if (fail) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'boom', details: {} } }),
+        });
+      } else {
+        await route.fallback();
+      }
     });
-    expect(hasHorizontalScroll).toBe(false);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+
+    await expect(overview.leftToSpendFigure).toHaveText(euro(7200));
+    await expect(overview.breakdownCard).toContainText('could not be refreshed');
+    fail = false;
+    await overview.breakdownCard.getByRole('button', { name: 'Retry' }).click();
+    await overview.waitForBreakdown();
+    await expect(overview.breakdownCard.getByRole('alert')).toHaveCount(0);
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dark mode rendering
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
-  test('Budget overview page renders correctly in dark mode', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.goto('/budget/overview');
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
+  test('A project without cost lines shows the breakdown empty state', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+    await page.route('**/api/budget/breakdown**', async (route) => {
+      const empty = {
+        sourceOptions: [],
+        hasUnassignedLines: false,
+        lines: [],
+        items: [],
+        byArea: [],
+        noArea: null,
+        orphanLines: null,
+        byType: {
+          work_items: zeroFigures(),
+          household_items: zeroFigures(),
+        },
+        byCategory: [],
+        bySource: [],
+        notYetSplit: null,
+        total: zeroFigures(),
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ breakdown: empty }),
+      });
     });
 
-    await overviewPage.heading.waitFor({ state: 'visible', timeout: 8000 });
+    await overview.goto();
+    await overview.waitForBreakdown();
 
-    // Heading is visible in dark mode
-    await expect(overviewPage.heading).toBeVisible();
-
-    // The Money entry is still highlighted in dark mode
-    await expect(new AppShellPage(page).sectionLink('money')).toHaveAttribute(
-      'aria-current',
-      'page',
+    await expect(overview.breakdownCard).toContainText(
+      'Costs appear here once tasks or purchases have cost lines.',
     );
+    await expect(overview.table).toHaveCount(0);
+  });
 
-    // No horizontal scroll in dark mode
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
+  test('The page renders in dark mode without sideways scroll', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+
+    await expect(overview.heading).toBeVisible();
+    await expect(overview.headline).toBeVisible();
+    // The headline card paints a dark surface and the figure text stays readable (light on dark)
+    const colors = await overview.headline.evaluate((el) => {
+      const figure = el.querySelector('[data-figure]') as HTMLElement;
+      return {
+        background: getComputedStyle(el).backgroundColor,
+        text: getComputedStyle(figure).color,
+      };
     });
+    const luminance = (rgb: string): number => {
+      const [r = 0, g = 0, b = 0] = (rgb.match(/\d+(\.\d+)?/g) ?? []).map(Number);
+      return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    };
+    expect(luminance(colors.background)).toBeLessThan(0.5);
+    expect(luminance(colors.text)).toBeGreaterThan(luminance(colors.background));
+
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  // NOTE: Hero card was removed in issue #1389. Dark mode hero card test removed.
-  // See budget-overview-no-hero-card.spec.ts for post-cleanup smoke tests.
+  test('The page does not scroll sideways at this viewport', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    await overview.goto();
+    await overview.waitForBreakdown();
+
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(hasHorizontalScroll).toBe(false);
+  });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Cost Breakdown area grouping
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** BudgetBreakdown response with a nested area hierarchy and a No Area entry. */
-function populatedBreakdownResponse() {
+function zeroFigures() {
+  const zero = { expected: 0, best: 0, worst: 0 };
   return {
-    workItems: {
-      areas: [
-        {
-          areaId: null,
-          name: 'No Area',
-          parentId: null,
-          color: null,
-          projectedMin: 5000,
-          projectedMax: 6000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 6000,
-          minSubsidyPayback: 0,
-          items: [
-            {
-              workItemId: 'wi-unassigned-1',
-              title: 'No Area Work Item',
-              projectedMin: 5000,
-              projectedMax: 6000,
-              actualCost: 0,
-              actualCostPaid: 0,
-              actualCostPending: 0,
-              subsidyPayback: 0,
-              rawProjectedMin: 5000,
-              rawProjectedMax: 6000,
-              minSubsidyPayback: 0,
-              costDisplay: 'projected',
-              budgetLines: [],
-            },
-          ],
-          children: [],
-        },
-        {
-          areaId: 'area-rohbau',
-          name: 'Rohbau',
-          parentId: null,
-          color: '#3B82F6',
-          projectedMin: 100000,
-          projectedMax: 130000,
-          actualCost: 80000,
-          actualCostPaid: 80000,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 100000,
-          rawProjectedMax: 130000,
-          minSubsidyPayback: 0,
-          items: [],
-          children: [
-            {
-              areaId: 'area-keller',
-              name: 'Keller',
-              parentId: 'area-rohbau',
-              color: null,
-              projectedMin: 40000,
-              projectedMax: 50000,
-              actualCost: 38000,
-              actualCostPaid: 38000,
-              actualCostPending: 0,
-              subsidyPayback: 0,
-              rawProjectedMin: 40000,
-              rawProjectedMax: 50000,
-              minSubsidyPayback: 0,
-              items: [
-                {
-                  workItemId: 'wi-keller-1',
-                  title: 'Kellerbau',
-                  projectedMin: 40000,
-                  projectedMax: 50000,
-                  actualCost: 38000,
-                  actualCostPaid: 38000,
-                  actualCostPending: 0,
-                  subsidyPayback: 0,
-                  rawProjectedMin: 40000,
-                  rawProjectedMax: 50000,
-                  minSubsidyPayback: 0,
-                  costDisplay: 'mixed',
-                  budgetLines: [],
-                },
-              ],
-              children: [],
-            },
-          ],
-        },
-      ],
-      totals: {
-        projectedMin: 105000,
-        projectedMax: 136000,
-        actualCost: 80000,
-        actualCostPaid: 80000,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 105000,
-        rawProjectedMax: 136000,
-        minSubsidyPayback: 0,
-      },
-    },
-    householdItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    subsidyAdjustments: [],
+    expectedCost: zero,
+    expectedGrants: zero,
+    afterGrants: zero,
+    paid: 0,
+    stillToPay: 0,
+    notYetPaid: zero,
   };
 }
 
-test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
-  /**
-   * Mount route mocks for both GET /api/budget/overview and GET /api/budget/breakdown.
-   * Returns a teardown function that must be called in a finally block.
-   */
-  async function mountRoutes(page: Page, overviewBody: object, breakdownBody: object) {
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-    await page.route(`${API.budgetBreakdown}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ breakdown: breakdownBody }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-    return async () => {
-      await page.unroute(`${API.budgetOverview}`);
-      await page.unroute(`${API.budgetBreakdown}`);
-    };
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// AC9: an offer-linked line counts at face value (real API)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  test('Breakdown area rows visible after expanding Work Items section', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand the Level-0 Work Items section using its aria-label
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // Both root-level areas should now be visible
-      await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Expanding a root area reveals child areas', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items section first
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
-
-      // Now expand Rohbau — Keller should appear
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-
-      // Kellerbau (the item inside Keller) should NOT be visible — Keller is still collapsed
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Expanding a child area reveals items', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items → expand Rohbau → expand Keller
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-      await overviewPage.breakdownAreaToggle('Keller').click();
-
-      // Kellerbau (item inside Keller) should now be visible
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Collapsing a root area hides children', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items → expand Rohbau → verify Keller visible
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-
-      // Collapse Rohbau → Keller should disappear
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('"No Area" row appears when breakdown has null-area items', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand the Work Items section to reveal area rows
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // "No Area" row should be visible (populated response includes a null-area entry)
-      await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('"No Area" label visible and "Unassigned" label absent after expanding Work Items', async ({
+test.describe('Money overview — offers at face value (AC9)', () => {
+  test('An offer-linked cost line shows its amount at Low, Expected and High, as on the task page', async ({
     page,
+    testPrefix,
   }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
+    test.skip(!isDesktop(page), 'table surface assertions run on the desktop project');
+    test.slow();
+    const overview = new BudgetOverviewPage(page);
+    let workItemId = '';
+    let vendorId = '';
+    let sourceId = '';
     try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Offer Source`,
+        totalAmount: 5000,
+      });
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Offer Vendor` });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Offer Task` });
 
-      // Expand the Work Items section to reveal area rows
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
+      const offerLine = await createLine(page, workItemId, {
+        description: `${testPrefix} Offer line`,
+        plannedAmount: 1000,
+        budgetSourceId: sourceId,
+      });
+      const estimateLine = await createLine(page, workItemId, {
+        description: `${testPrefix} Estimate line`,
+        plannedAmount: 500,
+        budgetSourceId: sourceId,
+      });
+      const offer = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: {
+          invoiceNumber: `${testPrefix}-OFFER`,
+          amount: 1000,
+          date: '2026-03-01',
+          status: 'quotation',
+        },
+      });
+      expect(offer.ok(), `POST offer: ${offer.status()}`).toBeTruthy();
+      const offerId = ((await offer.json()) as { invoice: { id: string } }).invoice.id;
+      const link = await page.request.post(`/api/invoices/${offerId}/budget-lines`, {
+        data: { workItemBudgetId: offerLine, itemizedAmount: 1000 },
+      });
+      expect(link.ok(), `POST link: ${link.status()}`).toBeTruthy();
 
-      // "No Area" text should be visible in the cost breakdown card
-      await expect(
-        overviewPage.costBreakdownCard.getByText('No Area', { exact: true }),
-      ).toBeVisible();
+      // The API: face value in every scenario for the offer line, a spread for the estimate
+      const api = await page.request.get(API.budgetBreakdown);
+      expect(api.ok()).toBeTruthy();
+      const lines = (
+        (await api.json()) as {
+          breakdown: {
+            lines: Array<{
+              id: string;
+              figures: { expectedCost: { expected: number; best: number; worst: number } };
+            }>;
+          };
+        }
+      ).breakdown.lines;
+      const offerApi = lines.find((l) => l.id === offerLine)!.figures.expectedCost;
+      expect(offerApi).toEqual({ expected: 1000, best: 1000, worst: 1000 });
+      const estimateApi = lines.find((l) => l.id === estimateLine)!.figures.expectedCost;
+      expect(estimateApi.best).toBeLessThan(estimateApi.expected);
+      expect(estimateApi.worst).toBeGreaterThan(estimateApi.expected);
 
-      // "Unassigned" text must NOT appear anywhere in the cost breakdown card
-      await expect(
-        overviewPage.costBreakdownCard.getByText('Unassigned', { exact: true }),
-      ).not.toBeVisible();
+      // The page: the same amount at Low, Expected and High
+      await overview.goto();
+      await overview.waitForBreakdown();
+      await overview.expand('area:none');
+      await overview.expand(`item:work_item:${workItemId}`);
+      const offerCell = overview.cell(`line:${offerLine}`, 'expectedCost');
+      const estimateCell = overview.cell(`line:${estimateLine}`, 'expectedCost');
+      await expect(overview.row(`line:${offerLine}`)).toContainText('Offered');
+
+      await expect(offerCell).toHaveText(euro(1000));
+      const expectedText = await estimateCell.innerText();
+      await overview.estimateChip('low').click();
+      await page.waitForURL((url) => url.searchParams.get('estimate') === 'low');
+      await expect(offerCell).toHaveText(euro(1000));
+      await expect(estimateCell).not.toHaveText(expectedText);
+      await overview.estimateChip('high').click();
+      await page.waitForURL((url) => url.searchParams.get('estimate') === 'high');
+      await expect(offerCell).toHaveText(euro(1000));
+      await expect(estimateCell).not.toHaveText(expectedText);
+
+      // The task page shows the same line at the same amount
+      const task = new WorkItemDetailPage(page);
+      await task.goto(workItemId);
+      await task.costLines.waitForLoaded();
+      const row = task.costLines.row(`${testPrefix} Offer line`);
+      await expect(row).toBeVisible();
+      const gross = parseMoney(await task.costLines.gross(row).innerText());
+      expect(gross).toBe(100000);
     } finally {
-      await teardown();
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
     }
-  });
-
-  test('No "No Area" row when breakdown has no null-area items', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    // Custom breakdown with only named areas — no null-areaId entry
-    const namedOnlyBreakdown = {
-      ...populatedBreakdownResponse(),
-      workItems: {
-        ...populatedBreakdownResponse().workItems,
-        areas: populatedBreakdownResponse().workItems.areas.filter((a) => a.areaId !== null),
-      },
-    };
-
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), namedOnlyBreakdown);
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items section
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // "No Area" row should not be present
-      await expect(overviewPage.breakdownAreaRow('No Area')).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Nested area indent increases with depth (Keller item indented more than Keller area)', async ({
-    page,
-  }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items → Rohbau → Keller to reveal the Kellerbau item row
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-      await overviewPage.breakdownAreaToggle('Keller').click();
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).toBeVisible();
-
-      // Measure computed paddingLeft of the name cell (first td) for both rows.
-      // boundingBox().x is identical for both cells because <td> starts at the same
-      // left edge regardless of its padding — only the computed style reflects indent depth.
-      const kellerRow = overviewPage.breakdownAreaRow('Keller');
-      const kellerbauRow = page.getByRole('row').filter({ hasText: 'Kellerbau' });
-      const kellerCell = kellerRow.locator('td').first();
-      const kellerbauCell = kellerbauRow.locator('td').first();
-
-      const kellerPaddingLeft = await kellerCell.evaluate((el) =>
-        parseFloat(getComputedStyle(el as HTMLElement).paddingLeft),
-      );
-      const kellerbauPaddingLeft = await kellerbauCell.evaluate((el) =>
-        parseFloat(getComputedStyle(el as HTMLElement).paddingLeft),
-      );
-
-      // Kellerbau (depth-1 item inside a depth-1 area) must be indented further than Keller (depth-1 area)
-      expect(kellerbauPaddingLeft).toBeGreaterThan(kellerPaddingLeft);
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('No standalone Area Breakdown section renders', { tag: '@smoke' }, async ({ page }) => {
-    // Navigate without mocks — verifies the removed AreaTreeTable section is gone
-    await page.goto('/budget/overview');
-    await page.getByRole('heading', { level: 1, name: 'Money', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    // No treegrid (AreaTreeTable used role="treegrid") should be visible anywhere on the page
-    await expect(page.locator('[role="treegrid"]')).not.toBeVisible();
-
-    // No heading matching "Area Breakdown" should exist on the page
-    await expect(page.getByRole('heading', { name: /area breakdown/i })).not.toBeVisible();
   });
 });
+
+async function createLine(
+  page: Page,
+  workItemId: string,
+  data: { description: string; plannedAmount: number; budgetSourceId: string },
+): Promise<string> {
+  const response = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+    data: { confidence: 'own_estimate', ...data },
+  });
+  expect(
+    response.ok(),
+    `POST cost line: ${response.status()} ${await response.text()}`,
+  ).toBeTruthy();
+  return ((await response.json()) as { budget: { id: string } }).budget.id;
+}

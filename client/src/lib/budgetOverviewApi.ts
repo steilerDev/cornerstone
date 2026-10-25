@@ -7,7 +7,7 @@ import type {
 } from '@cornerstone/shared';
 
 /**
- * Fetches the aggregated budget overview for the project.
+ * Fetches the overview (the grant-derived `subsidySummary`) for the project.
  */
 export async function fetchBudgetOverview(): Promise<BudgetOverview> {
   const response = await fetchBudgetOverviewResponse();
@@ -23,10 +23,13 @@ export async function fetchBudgetOverviewResponse(): Promise<BudgetOverviewRespo
 }
 
 /**
- * Fetches the itemized budget breakdown with all nested work items, categories, and budget lines.
- * Pass deselectedSources to apply server-side source filtering.
+ * Fetches the breakdown (every view down to cost lines, with Paid and Still to pay per row).
+ * Pass deselectedSources (ids, plus `unassigned`) to apply server-side source filtering; payment
+ * basis, estimate, grants and view are selected client-side from the one response.
  */
-export async function fetchBudgetBreakdown(deselectedSources?: string[]): Promise<BudgetBreakdown> {
+export async function fetchBudgetBreakdown(
+  deselectedSources?: readonly string[],
+): Promise<BudgetBreakdown> {
   const path =
     deselectedSources && deselectedSources.length > 0
       ? `/budget/breakdown?deselectedSources=${encodeURIComponent(deselectedSources.join(','))}`

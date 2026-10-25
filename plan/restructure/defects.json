@@ -220,7 +220,7 @@
       "id": "D-35",
       "story": 2194,
       "tests": [
-        "client/src/pages/BudgetOverviewPage/BudgetOverviewPage.test.tsx",
+        "client/src/navigation/createEntries.test.ts",
         "e2e/tests/budget/money-truth.spec.ts"
       ]
     },

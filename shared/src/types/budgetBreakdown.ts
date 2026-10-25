@@ -1,185 +1,115 @@
 /**
- * Budget breakdown types for detailed cost breakdown by item and budget line.
- * Used by the expandable cost breakdown table on the budget dashboard.
- * EPIC-05 Story 5.13: New endpoint for itemized breakdown view.
+ * Money › Overview breakdown (#2237, story 4.5; ADR-039 §5 amended). Every figure comes from the
+ * money service (`moneyService.getBudgetBreakdown`), integer cents inside, major units here.
+ * The source filter (`deselectedSources`) applies to every row; `notYetSplit` is not tied to a
+ * source and is never filtered.
  */
+import type { ConfidenceLevel } from './budget.js';
+import type { InvoiceStatus } from './invoice.js';
+import type { BudgetSourceType } from './budgetSource.js';
+import type { MoneyItemType, MoneyRange } from './money.js';
 
-import type { ConfidenceLevel } from './workItemBudget.js';
-import type { BreakdownMoney } from './money.js';
+/** Kind of the item a cost line belongs to. */
+export type BreakdownItemKind = 'work_item' | 'household_item';
 
-/**
- * Cost display mode for an entity.
- * - 'actual': entity has all invoiced lines (display actualCost only)
- * - 'projected': entity has no invoiced lines (display projectedMin–projectedMax)
- * - 'mixed': entity has both invoiced and non-invoiced lines (display both)
- * - 'quoted': entity has quotation-status lines (display projectedMin–projectedMax separately)
- */
-export type CostDisplay = 'actual' | 'projected' | 'mixed' | 'quoted';
+/** The money of one breakdown row (a line, an item, a group or the total). */
+export interface BreakdownFigures {
+  expectedCost: MoneyRange;
+  /** Counted (approved / received) grant shares; `best > worst` is possible (ADR-039 §2). */
+  expectedGrants: MoneyRange;
+  /** expectedCost − expectedGrants, per scenario */
+  afterGrants: MoneyRange;
+  /** Attributed Paid (ADR-039 §5, #2237); same in every scenario */
+  paid: number;
+  /** Attributed Still to pay; same in every scenario */
+  stillToPay: number;
+  /**
+   * expectedCost − paid, per scenario. Never clamped: it can be below 0 (an overpaid record, or a
+   * remainder under 1.00; contract 25 rule 5).
+   */
+  notYetPaid: MoneyRange;
+}
 
-/**
- * A single budget line within a breakdown item.
- * Simplified shape: includes only fields needed for the breakdown table.
- */
-export interface BreakdownBudgetLine {
+export interface BreakdownLine {
   id: string;
+  kind: BreakdownItemKind;
+  /** null = a task line without a task (orphan, ADR-030) */
+  itemId: string | null;
   description: string | null;
-  plannedAmount: number;
   confidence: ConfidenceLevel;
-  actualCost: number;
-  /** Deposit-aware paid+claimed portion of actualCost. 0 for non-invoiced lines. */
-  actualCostPaid: number;
-  /** actualCost - actualCostPaid. Outstanding invoiced portion not yet paid. 0 for non-invoiced lines. */
-  actualCostPending: number;
-  hasInvoice: boolean;
-  isQuotation: boolean;
+  budgetCategoryId: string | null;
   budgetSourceId: string | null;
-  origin: 'manual' | 'auto';
+  /** Status of the linked offer or invoice; null = not linked (an estimate) */
+  linkStatus: InvoiceStatus | null;
+  figures: BreakdownFigures;
 }
 
-/**
- * A single work item within an area breakdown.
- */
-export interface BreakdownWorkItem {
-  workItemId: string;
-  title: string;
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostPending: number;
-  /** Worst-scenario counted grant share (money service, ADR-039). */
-  subsidyPayback: number;
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  /** Best-scenario counted grant share (money service, ADR-039). */
-  minSubsidyPayback: number;
-  costDisplay: CostDisplay;
-  budgetLines: BreakdownBudgetLine[];
-}
-
-/**
- * A hierarchical area node within the breakdown, containing work items and child areas.
- */
-export interface BreakdownArea<TItem> {
-  areaId: string | null; // null = synthetic "Unassigned" bucket
+export interface BreakdownItem {
+  kind: BreakdownItemKind;
+  id: string;
+  /** Task title or purchase name */
   name: string;
-  parentId: string | null; // null = root node
-  color: string | null;
-  projectedMin: number; // rolled-up across subtree
-  projectedMax: number;
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostPending: number;
-  subsidyPayback: number;
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  minSubsidyPayback: number;
-  items: TItem[]; // items directly assigned to this area
-  children: BreakdownArea<TItem>[]; // pre-pruned child nodes
+  /** null = no area, or an area that no longer exists */
+  areaId: string | null;
+  figures: BreakdownFigures;
 }
 
-/**
- * A single household item within an area breakdown.
- */
-export interface BreakdownHouseholdItem {
-  householdItemId: string;
+/** An area with at least one line in its subtree, rolled up (own items + all descendants). */
+export interface BreakdownAreaRow {
+  areaId: string;
+  parentId: string | null;
   name: string;
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostPending: number;
-  /** Worst-scenario counted grant share (money service, ADR-039). */
-  subsidyPayback: number;
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  /** Best-scenario counted grant share (money service, ADR-039). */
-  minSubsidyPayback: number;
-  costDisplay: CostDisplay;
-  budgetLines: BreakdownBudgetLine[];
+  figures: BreakdownFigures;
 }
 
-/**
- * Aggregated totals for a section (work items or household items).
- */
-export interface BreakdownTotals {
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostPending: number;
-  subsidyPayback: number;
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  minSubsidyPayback: number;
+export interface BreakdownCategoryRow {
+  /** null = lines without a cost category */
+  budgetCategoryId: string | null;
+  name: string | null;
+  translationKey: string | null;
+  figures: BreakdownFigures;
 }
 
-/**
- * A subsidy adjustment row for the cost breakdown table.
- * Displayed when a subsidy's uncapped payback exceeds its maximumAmount cap.
- */
-export interface SubsidyAdjustment {
-  subsidyProgramId: string;
-  name: string;
-  maximumAmount: number;
-  maxPayout: number;
-  minExcess: number;
-  maxExcess: number;
+export interface BreakdownSourceRow {
+  /** null = lines without a funding source ("Unassigned") */
+  budgetSourceId: string | null;
+  name: string | null;
+  figures: BreakdownFigures;
 }
 
-/**
- * Per-source aggregate for the budget breakdown response.
- *
- * - `id`: source UUID or the literal string 'unassigned' for null-source lines
- * - `name`: source name or 'Unassigned' for the synthetic entry
- * - `totalAmount`: configured funding amount (0 for unassigned)
- * - `projectedMin/Max`: UNFILTERED per-source projected min/max cost — always reflects
- *   the full contribution of all lines assigned to this source, regardless of the
- *   current filter state. Used by the client to display per-source chip values.
- * - `subsidyPaybackMin/Max`: pro-rata attributed payback from the filtered subsidy engine
- *   run. For deselected sources, both are 0 because their lines don't feed the filtered
- *   engine. For selected sources, reflects filter-aware payback computed by weighted
- *   attribution across surviving budget lines.
- *
- * The frontend computes allocatedCost at the active perspective and derives remaining.
- */
-export interface BudgetSourceSummaryBreakdown {
+/** One entry of the funding-source filter (independent of the filter itself). */
+export interface BreakdownSourceOption {
   id: string;
   name: string;
-  totalAmount: number;
-  projectedMin: number;
-  projectedMax: number;
-  /** Sum of invoiced amounts for lines assigned to this source (always unfiltered). */
-  actualCost: number;
-  /** Deposit-aware paid+claimed for lines assigned to this source (always unfiltered). */
-  actualCostPaid: number;
-  /** actualCost - actualCostPaid for this source (always unfiltered). */
-  actualCostPending: number;
-  subsidyPaybackMin: number;
-  subsidyPaybackMax: number;
+  sourceType: BudgetSourceType;
 }
 
-/**
- * Complete budget breakdown structure.
- */
 export interface BudgetBreakdown {
-  workItems: {
-    areas: BreakdownArea<BreakdownWorkItem>[];
-    totals: BreakdownTotals;
-  };
-  householdItems: {
-    areas: BreakdownArea<BreakdownHouseholdItem>[];
-    totals: BreakdownTotals;
-  };
-  subsidyAdjustments: SubsidyAdjustment[];
-  budgetSources: BudgetSourceSummaryBreakdown[];
-  /** Unfiltered per-item money from the money service (same run as the overview's `money`). */
-  money: BreakdownMoney;
+  /** Every funding source, name ASC, id ASC (all statuses) */
+  sourceOptions: BreakdownSourceOption[];
+  /** At least one line (unfiltered) has no funding source */
+  hasUnassignedLines: boolean;
+  /** Lines that took part (after the filter), in item order then description, id (§3.5) */
+  lines: BreakdownLine[];
+  /** Tasks (title, id) then purchases (name, id) with at least one included line */
+  items: BreakdownItem[];
+  /** Depth-first tree order by (sort_order, name, id); areas without lines omitted */
+  byArea: BreakdownAreaRow[];
+  /** Items without an area (or with an unknown one) plus orphan lines; null when none */
+  noArea: BreakdownFigures | null;
+  /** Orphan task lines (no task); null when none */
+  orphanLines: BreakdownFigures | null;
+  byType: Record<MoneyItemType, BreakdownFigures>;
+  /** Categories with lines (sort_order, name, id), then the null category last */
+  byCategory: BreakdownCategoryRow[];
+  /** Sources with lines (name, id), then the null source ("Unassigned") last */
+  bySource: BreakdownSourceRow[];
+  /** Records' unsplit remainders (≥ 1.00) and their payment shares; null when all zero */
+  notYetSplit: BreakdownFigures | null;
+  /** Σ of every view's top-level rows + notYetSplit */
+  total: BreakdownFigures;
 }
 
-/**
- * Response wrapper for GET /api/budget/breakdown.
- */
 export interface BudgetBreakdownResponse {
   breakdown: BudgetBreakdown;
 }

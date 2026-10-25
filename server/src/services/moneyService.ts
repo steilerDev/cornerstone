@@ -17,7 +17,9 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type {
   BreakdownMoney,
+  BudgetBreakdown,
   BudgetSourceStatus,
+  InvoiceStatus,
   BudgetSourceType,
   MoneyCostFigures,
   MoneyGrantFigures,
@@ -54,6 +56,7 @@ import {
   type MoneyResult,
   type Scen,
 } from './shared/moneyEngine.js';
+import { attributePayments, computeBreakdown, type LinkInput } from './shared/moneyBreakdown.js';
 import { getSourcePaidAndSubmitted } from './budgetSourceService.js';
 import { getDrawDownSet } from './sourceReportService.js';
 
@@ -67,35 +70,56 @@ export interface ProjectMoney {
 
 // ─── Input loading ───────────────────────────────────────────────────────────
 
+export interface InvoiceLink extends LinkInput {
+  invoiceStatus: InvoiceStatus;
+}
+
+/**
+ * Every invoice link (`invoice_budget_lines`) with the status of its record, one query. A line
+ * has at most one link (unique indexes), so `lineId` identifies the link.
+ */
+export function loadInvoiceLinks(db: Pick<DbType, 'all'>): InvoiceLink[] {
+  const rows = db.all<{
+    invoiceId: string;
+    lineId: string;
+    itemizedAmount: number;
+    invoiceStatus: InvoiceStatus;
+  }>(
+    sql`SELECT
+      ibl.invoice_id AS invoiceId,
+      COALESCE(ibl.work_item_budget_id, ibl.household_item_budget_id) AS lineId,
+      ibl.itemized_amount AS itemizedAmount,
+      i.status AS invoiceStatus
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id`,
+  );
+  return rows.map((row) => ({
+    invoiceId: row.invoiceId,
+    lineId: row.lineId,
+    itemizedCents: toCents(row.itemizedAmount),
+    invoiceStatus: row.invoiceStatus,
+  }));
+}
+
 /**
  * Reads everything the engine needs. One query per table: lines (work-item lines incl. orphans
  * plus household-item lines), invoice links, invoices, grants with categories and item links,
  * areas, items and the active funding total.
  */
-export function loadMoneyInput(db: DbType, vatRate: number): MoneyInput {
+export function loadMoneyInput(
+  db: DbType,
+  vatRate: number,
+  links: InvoiceLink[] = loadInvoiceLinks(db),
+): MoneyInput {
   // (ii) invoice links: per line itemized cents (at most one link row per line) and per invoice
-  const linkRows = db.all<{
-    invoiceId: string;
-    workItemBudgetId: string | null;
-    householdItemBudgetId: string | null;
-    itemizedAmount: number;
-  }>(
-    sql`SELECT
-      invoice_id               AS invoiceId,
-      work_item_budget_id      AS workItemBudgetId,
-      household_item_budget_id AS householdItemBudgetId,
-      itemized_amount          AS itemizedAmount
-    FROM invoice_budget_lines`,
-  );
   const itemizedByLine = new Map<string, number>();
   const itemizedByInvoice = new Map<string, number>();
-  for (const row of linkRows) {
-    const cents = toCents(row.itemizedAmount);
-    const lineId = row.workItemBudgetId ?? row.householdItemBudgetId;
-    if (lineId !== null) {
-      itemizedByLine.set(lineId, (itemizedByLine.get(lineId) ?? 0) + cents);
-    }
-    itemizedByInvoice.set(row.invoiceId, (itemizedByInvoice.get(row.invoiceId) ?? 0) + cents);
+  for (const link of links) {
+    itemizedByLine.set(link.lineId, link.itemizedCents);
+    itemizedByInvoice.set(
+      link.invoiceId,
+      (itemizedByInvoice.get(link.invoiceId) ?? 0) + link.itemizedCents,
+    );
   }
 
   // (i) lines
@@ -243,9 +267,14 @@ export function loadMoneyInput(db: DbType, vatRate: number): MoneyInput {
   };
 }
 
+/** A deposit row that also carries the funding source the progress payment is tagged to. */
+export interface TaggedDepositRow extends InvoiceDepositRow {
+  deposit_budget_source_id: string | null;
+}
+
 /** (vii) invoices LEFT JOIN invoice_deposits over ALL invoices, for the payment figures. */
-function loadDepositRows(db: DbType): InvoiceDepositRow[] {
-  return db.all<InvoiceDepositRow>(
+function loadDepositRows(db: DbType): TaggedDepositRow[] {
+  return db.all<TaggedDepositRow>(
     sql`SELECT
       i.id         AS invoice_id,
       i.amount     AS invoice_amount,
@@ -253,7 +282,8 @@ function loadDepositRows(db: DbType): InvoiceDepositRow[] {
       d.id         AS deposit_id,
       d.amount     AS deposit_amount,
       d.status     AS deposit_status,
-      d.entry_type AS deposit_entry_type
+      d.entry_type AS deposit_entry_type,
+      d.budget_source_id AS deposit_budget_source_id
     FROM invoices i
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id`,
   );
@@ -482,6 +512,92 @@ export function getBreakdownMoney(project: Pick<ProjectMoney, 'result'>): Breakd
       recordCount: result.notYetSplit.recordCount,
     },
   };
+}
+
+/**
+ * Money › Overview breakdown (#2237, contract 25). `deselectedSources` (source ids and/or
+ * 'unassigned') filters lines out of every row; not-yet-split is not tied to a source and stays.
+ * Paid / Still to pay are attributed per line from the unfiltered records, so a line's own figures
+ * never depend on the filter; the filter only drops the excluded lines' shares, so a filtered
+ * `total` follows the visible rows and is not the project Paid / Still to pay (the headline and
+ * facts come from the overview and are never filtered). Unknown ids in the set are ignored.
+ */
+export function getBudgetBreakdown(
+  db: DbType,
+  vatRate: number,
+  deselectedSources: ReadonlySet<string> = new Set(),
+): BudgetBreakdown {
+  const links = loadInvoiceLinks(db);
+  const input = loadMoneyInput(db, vatRate, links);
+  const unfiltered = computeMoney(input);
+  const filtered =
+    deselectedSources.size === 0
+      ? unfiltered
+      : computeMoney(input, {
+          includeLine: (line) =>
+            !(line.budgetSourceId === null
+              ? deselectedSources.has('unassigned')
+              : deselectedSources.has(line.budgetSourceId)),
+        });
+
+  const lineSources = new Map(input.lines.map((l) => [l.id, l.budgetSourceId]));
+  const payments = attributePayments(
+    input.invoices,
+    loadDepositRows(db),
+    links,
+    unfiltered.notYetSplitByInvoice,
+    lineSources,
+  );
+
+  const descriptions = db.all<{ id: string; description: string | null }>(
+    sql`SELECT id AS id, description AS description FROM work_item_budgets
+    UNION ALL
+    SELECT id AS id, description AS description FROM household_item_budgets`,
+  );
+  const lineMeta = new Map<
+    string,
+    { description: string | null; linkStatus: InvoiceStatus | null }
+  >(descriptions.map((row) => [row.id, { description: row.description, linkStatus: null }]));
+  for (const link of links) {
+    lineMeta.get(link.lineId)!.linkStatus = link.invoiceStatus;
+  }
+
+  const names = new Map(
+    db
+      .all<{ kind: MoneyItemKind; id: string; name: string }>(
+        sql`SELECT 'work_item' AS kind, id AS id, title AS name FROM work_items
+        UNION ALL
+        SELECT 'household_item' AS kind, id AS id, name AS name FROM household_items`,
+      )
+      .map((row) => [itemKey(row.kind, row.id), row.name]),
+  );
+  const categories = db.all<{
+    id: string;
+    name: string;
+    translationKey: string | null;
+    sortOrder: number;
+  }>(
+    sql`SELECT id AS id, name AS name, translation_key AS translationKey, sort_order AS sortOrder
+    FROM budget_categories`,
+  );
+  const sources = db.all<{ id: string; name: string; sourceType: BudgetSourceType }>(
+    sql`SELECT id AS id, name AS name, source_type AS sourceType
+    FROM budget_sources ORDER BY name ASC, id ASC`,
+  );
+
+  return computeBreakdown({
+    result: filtered,
+    payments,
+    items: input.items.map((item) => ({
+      ...item,
+      name: names.get(itemKey(item.kind, item.id))!,
+    })),
+    areas: input.areas,
+    categories,
+    sources,
+    lineMeta,
+    hasUnassignedLines: input.lines.some((line) => line.budgetSourceId === null),
+  });
 }
 
 // ─── Per item ────────────────────────────────────────────────────────────────

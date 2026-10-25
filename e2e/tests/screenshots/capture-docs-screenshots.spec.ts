@@ -563,6 +563,9 @@ test.describe('Documentation screenshots', () => {
     await page.goto(`${baseUrl}${ROUTES.budget}`);
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1, name: 'Money', exact: true })).toBeVisible();
+    // The headline, the facts and the breakdown tree (synthetic seed) are all on screen (#2237)
+    await expect(page.getByTestId('money-headline')).toBeVisible();
+    await expect(page.getByTestId('breakdown-toolbar')).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {

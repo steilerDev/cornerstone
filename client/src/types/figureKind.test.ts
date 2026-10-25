@@ -27,10 +27,11 @@ const FIGURE_KINDS = [
 /** The non-test client files that may carry a figure marker. */
 const FIGURE_FILES = [
   'client/src/components/AttentionList/AttentionRowView.tsx',
-  'client/src/components/CostBreakdownTable/CostBreakdownTable.tsx',
   'client/src/components/GanttChart/GanttTooltip.tsx',
+  'client/src/components/MoneyFigure/MoneyFigure.tsx',
   'client/src/components/StatTile/StatTile.tsx',
   'client/src/components/SummaryStrip/SummaryStrip.tsx',
+  'client/src/pages/BudgetOverviewPage/BudgetOverviewPage.tsx',
   'client/src/pages/HomePage/PulseSection.tsx',
   'client/src/pages/InvoicesPage/InvoicesPage.tsx',
   'client/src/pages/VendorDetailPage/VendorDetailPage.tsx',

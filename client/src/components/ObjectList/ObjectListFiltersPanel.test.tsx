@@ -30,12 +30,15 @@ afterEach(() => {
 });
 
 function Host({
-  activeCount = 0,
+  activeCount,
   onClear = jest.fn(),
   idPrefix = 'tasks-filters',
   testIdPrefix = 'tasks-filters',
   buttonClassName,
   noFields = false,
+  labels = LABELS,
+  buttonSuffix,
+  panelFooter,
 }: {
   activeCount?: number;
   onClear?: () => void;
@@ -43,6 +46,9 @@ function Host({
   testIdPrefix?: string;
   buttonClassName?: string;
   noFields?: boolean;
+  labels?: React.ComponentProps<typeof ObjectListFiltersPanel>['labels'];
+  buttonSuffix?: React.ReactNode;
+  panelFooter?: boolean;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
@@ -54,11 +60,13 @@ function Host({
       <ObjectListFiltersPanel
         idPrefix={idPrefix}
         testIdPrefix={testIdPrefix}
-        activeCount={activeCount}
-        labels={LABELS}
+        {...(activeCount === undefined ? {} : { activeCount })}
+        labels={labels}
         onClear={onClear}
         buttonRef={buttonRef}
         buttonClassName={buttonClassName}
+        buttonSuffix={buttonSuffix}
+        panelFooter={panelFooter}
       >
         {noFields ? (
           <p>Nothing to set</p>
@@ -98,6 +106,21 @@ describe('ObjectListFiltersPanel button', () => {
     setup({ activeCount: 2 });
     expect(button()).toHaveAttribute('aria-label', 'Filters, 2 active');
     expect(button()).toHaveTextContent('2');
+  });
+
+  it('works without activeCount or buttonActive: no count, no aria-label', () => {
+    setup({ labels: { button: 'Filters', done: 'Done', clear: 'Select all' } });
+    expect(button()).toHaveTextContent('Filters');
+    expect(button()).not.toHaveAttribute('aria-label');
+    expect(button().querySelector('.filtersToggleCount')).toBeNull();
+  });
+
+  it('adds no aria-label when activeCount > 0 but buttonActive is omitted', () => {
+    setup({
+      activeCount: 2,
+      labels: { button: 'Filters', done: 'Done', clear: 'Select all' },
+    });
+    expect(button()).not.toHaveAttribute('aria-label');
   });
 
   it('applies a custom button class', () => {
@@ -224,5 +247,83 @@ describe('ObjectListFiltersPanel narrow', () => {
       expect(screen.getByTestId('tasks-filters-sheet')).toHaveAttribute('data-open', 'false'),
     );
     expect(button()).toHaveFocus();
+  });
+});
+
+describe('ObjectListFiltersPanel optional title, suffix and panel footer', () => {
+  it('names the panel after labels.title when given, else after the button label', async () => {
+    const user = setup({ labels: { ...LABELS, title: 'Narrow the budget' } });
+    await user.click(button());
+    expect(screen.getByTestId('tasks-filters-panel')).toHaveAttribute(
+      'aria-label',
+      'Narrow the budget',
+    );
+  });
+
+  it('falls back to the button label for the panel name without a title', async () => {
+    const user = setup();
+    await user.click(button());
+    expect(screen.getByTestId('tasks-filters-panel')).toHaveAttribute('aria-label', 'Filters');
+  });
+
+  it('names the bottom sheet after labels.title on narrow screens', async () => {
+    media.set(WIDE, false);
+    const user = setup({ labels: { ...LABELS, title: 'Narrow the budget' } });
+    await user.click(button());
+    expect(screen.getByRole('dialog', { name: 'Narrow the budget' })).toBeInTheDocument();
+  });
+
+  it('renders buttonSuffix instead of the count bubble', () => {
+    setup({ activeCount: 3, buttonSuffix: <span data-testid="suffix"> (3 of 5)</span> });
+    expect(screen.getByTestId('suffix')).toBeInTheDocument();
+    expect(button()).not.toHaveTextContent(/^Filters3$/);
+    expect(button().querySelector('.filtersToggleCount')).toBeNull();
+    expect(button()).toHaveAttribute('aria-label', 'Filters, 3 active');
+  });
+
+  it('shows no panel footer by default (ObjectList and Diary DOM unchanged)', async () => {
+    const user = setup();
+    await user.click(button());
+    expect(screen.queryByTestId('tasks-filters-panel-clear')).toBeNull();
+    expect(screen.queryByTestId('tasks-filters-panel-done')).toBeNull();
+  });
+
+  it('renders Clear and Done under the anchored panel with panelFooter', async () => {
+    const onClear = jest.fn();
+    const user = setup({ panelFooter: true, onClear });
+    await user.click(button());
+    expect(screen.getByTestId('tasks-filters-panel-clear').className).toContain('btnSecondary');
+    await user.click(screen.getByTestId('tasks-filters-panel-clear'));
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('tasks-filters-panel')).toBeInTheDocument();
+    await user.click(screen.getByTestId('tasks-filters-panel-done'));
+    await waitFor(() => expect(screen.queryByTestId('tasks-filters-panel')).toBeNull());
+    expect(button()).toHaveFocus();
+  });
+
+  it('keeps the sheet footer ids when panelFooter is set on a narrow screen', async () => {
+    media.set(WIDE, false);
+    const user = setup({ panelFooter: true });
+    await user.click(button());
+    expect(screen.getByTestId('tasks-filters-sheet-clear')).toBeInTheDocument();
+    expect(screen.queryByTestId('tasks-filters-panel-clear')).toBeNull();
+  });
+
+  it('styles the sheet Clear as a secondary button with panelFooter', async () => {
+    media.set(WIDE, false);
+    const user = setup({ panelFooter: true });
+    await user.click(button());
+    const clear = screen.getByTestId('tasks-filters-sheet-clear');
+    expect(clear.className).toContain('btnSecondary');
+    expect(clear.className).not.toContain('btnText');
+  });
+
+  it('keeps the sheet Clear as a text button without panelFooter', async () => {
+    media.set(WIDE, false);
+    const user = setup();
+    await user.click(button());
+    const clear = screen.getByTestId('tasks-filters-sheet-clear');
+    expect(clear.className).toContain('btnText');
+    expect(clear.className).not.toContain('btnSecondary');
   });
 });

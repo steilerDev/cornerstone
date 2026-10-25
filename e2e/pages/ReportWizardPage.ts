@@ -729,6 +729,12 @@ export class ReportWizardPage {
     await this.heading.waitFor({ state: 'visible' });
   }
 
+  /** Open the wizard with the `?type=` preset (#2237: "Budget overview for the bank"). */
+  async gotoWithType(type: string): Promise<void> {
+    await this.page.goto(`${REPORT_WIZARD_ROUTE}?type=${encodeURIComponent(type)}`);
+    await this.heading.waitFor({ state: 'visible' });
+  }
+
   // ─── Step 1 ──────────────────────────────────────────────────────────────
 
   useCaseCard(useCase: SourceReportUseCase): Locator {

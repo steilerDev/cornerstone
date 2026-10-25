@@ -1,529 +1,213 @@
 /**
- * E2E tests for Budget Overview page print behaviour (Issue #1310 / fix/1310-print-budget-overview)
+ * E2E tests for printing the Money overview (AC6 of #2237).
  *
- * Tests covered:
- * 1. Print hides app chrome (sidebar, Add button) — hero card removed in #1389
- * 2. Print forces full expansion of collapsed breakdown rows (beforeprint event)
- * 3. Print hides expand chevron buttons
- * 4. Print shows page title (h1)
- * 5. Dark mode forces light background in print (CSS variable reset)
- * 6. On-screen state restored after afterprint
- * 7. Other pages unaffected — regression check (AC10)
+ * ⋯ › Print opens the browser print dialog. In print the breakdown is the full table with every
+ * row expanded (the `beforeprint` event expands all rows, `afterprint` restores the on-screen
+ * state), the app chrome and the settings toolbar are hidden, and a one-line summary of the
+ * settings ("View: Area · Payment: All · Estimates: Expected · Funding sources: 3 of 3") heads
+ * the page so a paper copy says which numbers it shows. The summary is invisible on screen.
  *
- * All tests use API route mocking (no testcontainers) for speed.
- * Print is not viewport-dependent — desktop only (no @responsive tag).
+ * Mocked responses (fixtures/moneyMocks.ts) with invented figures. Print emulation uses
+ * `page.emulateMedia({ media: 'print' })` plus a dispatched `beforeprint`, as the browser would.
  */
 
-import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
-import { API, ROUTES } from '../../fixtures/testData.js';
-import { mockMoneySummary } from '../../fixtures/moneyMocks.js';
+import { ROUTES } from '../../fixtures/testData.js';
+import { MOCK_BREAKDOWN, mockMoneyOverview } from '../../fixtures/moneyMocks.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared response factories (mirrored from budget-overview.spec.ts)
-// ─────────────────────────────────────────────────────────────────────────────
+const B = MOCK_BREAKDOWN;
 
-function populatedOverviewResponse() {
-  return {
-    availableFunds: 300000,
-    sourceCount: 2,
-    minPlanned: 250000,
-    maxPlanned: 275000,
-    actualCost: 185000,
-    actualCostPaid: 150000,
-    projectedMin: 260000,
-    projectedMax: 270000,
-    actualCostClaimed: 80000,
-    remainingVsMinPlanned: 50000,
-    remainingVsMaxPlanned: 25000,
-    remainingVsActualCost: 115000,
-    remainingVsActualPaid: 150000,
-    remainingVsProjectedMin: 40000,
-    remainingVsProjectedMax: 30000,
-    remainingVsActualClaimed: 220000,
-    remainingVsMinPlannedWithPayback: 50000,
-    remainingVsMaxPlannedWithPayback: 25000,
-    subsidySummary: {
-      totalReductions: 12500,
-      activeSubsidyCount: 2,
-    },
-  };
-}
-
-/**
- * BudgetBreakdown response with a nested area hierarchy (Rohbau → Keller → Kellerbau)
- * and a No Area entry, so all expand/collapse paths are exercisable.
- */
-function populatedBreakdownResponse() {
-  return {
-    workItems: {
-      areas: [
-        {
-          areaId: null,
-          name: 'No Area',
-          parentId: null,
-          color: null,
-          projectedMin: 5000,
-          projectedMax: 6000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 6000,
-          minSubsidyPayback: 0,
-          items: [
-            {
-              workItemId: 'wi-unassigned-1',
-              title: 'No Area Work Item',
-              projectedMin: 5000,
-              projectedMax: 6000,
-              actualCost: 0,
-              actualCostPaid: 0,
-              actualCostPending: 0,
-              subsidyPayback: 0,
-              rawProjectedMin: 5000,
-              rawProjectedMax: 6000,
-              minSubsidyPayback: 0,
-              costDisplay: 'projected',
-              budgetLines: [],
-            },
-          ],
-          children: [],
-        },
-        {
-          areaId: 'area-rohbau',
-          name: 'Rohbau',
-          parentId: null,
-          color: '#3B82F6',
-          projectedMin: 100000,
-          projectedMax: 130000,
-          actualCost: 80000,
-          actualCostPaid: 80000,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 100000,
-          rawProjectedMax: 130000,
-          minSubsidyPayback: 0,
-          items: [],
-          children: [
-            {
-              areaId: 'area-keller',
-              name: 'Keller',
-              parentId: 'area-rohbau',
-              color: null,
-              projectedMin: 40000,
-              projectedMax: 50000,
-              actualCost: 38000,
-              actualCostPaid: 38000,
-              actualCostPending: 0,
-              subsidyPayback: 0,
-              rawProjectedMin: 40000,
-              rawProjectedMax: 50000,
-              minSubsidyPayback: 0,
-              items: [
-                {
-                  workItemId: 'wi-keller-1',
-                  title: 'Kellerbau',
-                  projectedMin: 40000,
-                  projectedMax: 50000,
-                  actualCost: 38000,
-                  actualCostPaid: 38000,
-                  actualCostPending: 0,
-                  subsidyPayback: 0,
-                  rawProjectedMin: 40000,
-                  rawProjectedMax: 50000,
-                  minSubsidyPayback: 0,
-                  costDisplay: 'mixed',
-                  budgetLines: [],
-                },
-              ],
-              children: [],
-            },
-          ],
-        },
-      ],
-      totals: {
-        projectedMin: 105000,
-        projectedMax: 136000,
-        actualCost: 80000,
-        actualCostPaid: 80000,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 105000,
-        rawProjectedMax: 136000,
-        minSubsidyPayback: 0,
-      },
-    },
-    householdItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    subsidyAdjustments: [],
-  };
-}
-
-/**
- * Mount route mocks for both GET /api/budget/overview and GET /api/budget/breakdown.
- * Returns a teardown function that unregisters both routes.
- */
-async function mountRoutes(page: Page, overviewBody: object, breakdownBody: object) {
-  await page.route(`${API.budgetOverview}`, async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ overview: overviewBody, money: mockMoneySummary() }),
-      });
-    } else {
-      await route.continue();
-    }
-  });
-  await page.route(`${API.budgetBreakdown}`, async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ breakdown: breakdownBody }),
-      });
-    } else {
-      await route.continue();
-    }
-  });
-  return async () => {
-    await page.unroute(`${API.budgetOverview}`);
-    await page.unroute(`${API.budgetBreakdown}`);
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Print behaviour tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Budget Overview — print behaviour', () => {
-  // NOTE: Hero card ("Budget overview" section) was removed in issue #1389.
-  // The test name and heroCard assertions have been updated accordingly.
-  test('Print hides app chrome: sidebar and Add button', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
+test.describe('Money overview — print (AC6)', { tag: '@responsive' }, () => {
+  test('The print summary line is invisible on screen and visible in print', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
     try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+      await overview.goto();
+      await overview.waitForBreakdown();
+      await expect(overview.printSummary).toBeHidden();
 
-      // Verify chrome is visible on screen before switching to print
-      await expect(overviewPage.sidebar).toBeVisible();
-      await expect(overviewPage.addButton).toBeVisible();
+      await overview.startPrint();
 
-      // Switch to print media
-      await overviewPage.startPrint();
-
-      // Sidebar (aside element) must be hidden
-      await expect(overviewPage.sidebar).not.toBeVisible();
-
-      // Add dropdown button must be hidden
-      await expect(overviewPage.addButton).not.toBeVisible();
+      await expect(overview.printSummary).toBeVisible();
+      await expect(overview.printSummary).toHaveText(
+        'View: Area · Payment: All · Estimates: Expected · Funding sources: 3 of 3',
+      );
     } finally {
-      await overviewPage.endPrint();
-      await teardown();
+      await overview.endPrint();
     }
   });
 
-  test('Print forces full expansion of collapsed breakdown rows via beforeprint', async ({
+  test('The summary names the current settings', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    try {
+      await overview.goto(
+        `?by=type&paymentStatus=paid&estimate=high&deselectedSources=${B.sources.loan.id}`,
+      );
+      await overview.waitForBreakdown();
+      await overview.startPrint();
+
+      await expect(overview.printSummary).toHaveText(
+        'View: Type · Payment: Paid · Estimates: High · Funding sources: 2 of 3',
+      );
+    } finally {
+      await overview.endPrint();
+    }
+  });
+
+  test('With Grants on, the summary adds the Grants column', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    try {
+      await overview.goto('?by=source&estimate=low&grants=1');
+      await overview.waitForBreakdown();
+      await overview.startPrint();
+
+      await expect(overview.printSummary).toHaveText(
+        'View: Funding source · Payment: All · Estimates: Low · Columns: Grants · Funding sources: 3 of 3',
+      );
+    } finally {
+      await overview.endPrint();
+    }
+  });
+
+  test('Print shows the full table, expanded, on every viewport', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
+
+    try {
+      await overview.goto();
+      await overview.waitForBreakdown();
+
+      await overview.startPrint();
+
+      // The table (not the phone list) prints
+      await expect(overview.table).toBeVisible();
+      await expect(overview.list).toBeHidden();
+      // Every row is expanded: no hidden row remains, down to the cost lines
+      await expect(overview.table.locator('tbody tr[hidden]')).toHaveCount(0);
+      await expect(overview.row(`area:${B.areas.kitchen}`)).toBeVisible();
+      await expect(overview.row(`item:work_item:${B.items.cabinets}`)).toBeVisible();
+      await expect(overview.row(`line:${B.lines.units}`)).toBeVisible();
+      await expect(overview.row('orphans')).toBeVisible();
+      await expect(overview.row(`line:${B.lines.loose}`)).toBeVisible();
+    } finally {
+      await overview.endPrint();
+    }
+  });
+
+  test('Print hides the app chrome, the settings toolbar and the expand chevrons', async ({
     page,
   }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
     try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+      await overview.goto();
+      await overview.waitForBreakdown();
+      await expect(overview.toolbar).toBeVisible();
 
-      // Initially all rows are collapsed — Work Items section and its areas are not visible
-      await expect(overviewPage.breakdownAreaRow('Rohbau')).not.toBeVisible();
-      // "Kellerbau" is unique and doesn't clash with any other name
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
+      await overview.startPrint();
 
-      // Dispatch beforeprint to trigger usePrintExpansion + switch to print media
-      await overviewPage.startPrint();
-
-      // Allow React to re-render after the setState inside usePrintExpansion.
-      // The hook's setState is asynchronous — wait for the DOM to reflect expansion.
-      await page.waitForFunction(() => {
-        const section = document.querySelector('section[aria-labelledby="breakdown-heading"]');
-        return section !== null && section.querySelector('[aria-expanded="true"]') !== null;
-      });
-
-      // Root areas visible after forced expansion.
-      // "No Area" is also a substring of the work item "No Area Work Item" so use exact span
-      // matching (same pattern as Keller/Kellerbau fix) to avoid strict-mode violations.
-      await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
-      const noAreaRow = overviewPage.costBreakdownCard
-        .getByRole('row')
-        .filter({ has: page.locator('span', { hasText: /^No Area$/ }) });
-      await expect(noAreaRow).toBeVisible();
-
-      // Deeply nested rows visible — Kellerbau is a work item inside Keller inside Rohbau.
-      // Work-item rows render the title inside a <Link> (<a>), not a <span>.
-      // Use a link locator to avoid strict-mode conflicts with "Keller" vs "Kellerbau".
-      const kellerbauRow = overviewPage.costBreakdownCard
-        .getByRole('row')
-        .filter({ has: page.locator('a', { hasText: /^Kellerbau$/ }) });
-      await expect(kellerbauRow).toBeVisible();
-
-      // Keller area row: scope to span with exact text "Keller" to avoid matching "Kellerbau"
-      const kellerAreaRow = overviewPage.costBreakdownCard
-        .getByRole('row')
-        .filter({ has: page.locator('span', { hasText: /^Keller$/ }) });
-      await expect(kellerAreaRow).toBeVisible();
+      // The title prints at every width: below 1024px the h1 is the title-menu button, which
+      // print.css shows through its data-print-title exception (without the chevron)
+      await expect(overview.heading).toBeVisible();
+      await expect(overview.heading).toHaveText(/Money/);
+      await expect(
+        page.locator('h1 svg:visible, button[data-print-title] svg:visible'),
+      ).toHaveCount(0);
+      await expect(overview.headline).toBeVisible();
+      await expect(overview.toolbar).toBeHidden();
+      await expect(overview.toggle(`area:${B.areas.ground}`)).toBeHidden();
+      await expect(page.locator('aside')).toBeHidden();
     } finally {
-      await overviewPage.endPrint();
-      await teardown();
+      await overview.endPrint();
     }
   });
 
-  test('Print hides expand chevron buttons', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
+  test('The on-screen expansion is restored after printing', async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1024, 'the table is on screen from desktop');
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
     try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+      await overview.goto();
+      await overview.waitForBreakdown();
+      await overview.expand(`area:${B.areas.ground}`);
 
-      // Expand Work Items so there are expand buttons visible on-screen
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
+      await overview.startPrint();
+      await expect(overview.table.locator('tbody tr[hidden]')).toHaveCount(0);
 
-      // Rohbau expand toggle should be visible on screen
-      await expect(overviewPage.breakdownAreaToggle('Rohbau')).toBeVisible();
-
-      // Switch to print
-      await overviewPage.startPrint();
-
-      // All expand/collapse buttons inside the breakdown table must be hidden via CSS.
-      // The .expandBtn class has display: none !important in @media print.
-      const expandButtons = overviewPage.costBreakdownCard.locator('[class*="expandBtn"]');
-      const count = await expandButtons.count();
-      expect(count).toBeGreaterThan(0); // Sanity: there should be expand buttons in the DOM
-      for (let i = 0; i < count; i++) {
-        await expect(expandButtons.nth(i)).not.toBeVisible();
-      }
+      await overview.endPrint();
+      // Only the rows expanded on screen stay open
+      await expect(overview.row(`area:${B.areas.garden}`)).toBeVisible();
+      await expect(overview.row(`item:work_item:${B.items.hedge}`)).toBeHidden();
+      await expect(overview.printSummary).toBeHidden();
     } finally {
-      await overviewPage.endPrint();
-      await teardown();
+      await overview.endPrint();
     }
   });
 
-  test('Print shows the page h1 title', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
+  test('The ⋯ menu stays out of the printed page', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
     try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+      await overview.goto();
+      await overview.waitForBreakdown();
+      await expect(overview.pageActions).toBeVisible();
 
-      // Switch to print
-      await overviewPage.startPrint();
+      await overview.startPrint();
 
-      // h1 heading must remain visible in print
-      await expect(overviewPage.heading).toBeVisible();
-      await expect(overviewPage.heading).toHaveText('Money');
+      await expect(overview.pageActions).toBeHidden();
     } finally {
-      await overviewPage.endPrint();
-      await teardown();
+      await overview.endPrint();
     }
   });
 
-  test('Dark mode: print resets CSS variables to light values', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
+  test('Dark mode: print resets the surface variables to light values', async ({ page }) => {
+    const overview = new BudgetOverviewPage(page);
+    await mockMoneyOverview(page);
 
     try {
-      await overviewPage.goto();
+      await overview.goto();
+      await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+      await overview.waitForBreakdown();
 
-      // Apply dark theme
-      await page.evaluate(() => {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      });
-
-      await overviewPage.waitForLoaded();
-
-      // Confirm dark theme is active on-screen: --color-bg-primary should NOT be #ffffff
-      const darkBgVar = await page.evaluate(() =>
+      const darkBackground = await page.evaluate(() =>
         getComputedStyle(document.documentElement).getPropertyValue('--color-bg-primary').trim(),
       );
-      // In dark mode the primary background is a dark color, not white
-      expect(darkBgVar.toLowerCase()).not.toBe('#ffffff');
+      expect(darkBackground.toLowerCase()).not.toBe('#ffffff');
 
-      // Verify that the @media print CSS rule resetting --color-bg-primary to #ffffff
-      // exists in the loaded CSS bundle (client/src/styles/print.css, moved there by PR #1606
-      // from BudgetOverviewPage.module.css where :global(@media print) was silently dropped).
-      //
-      // We inspect document.styleSheets rather than reading getComputedStyle after
-      // emulateMedia('print'), because Playwright's emulateMedia does not trigger a cascade
-      // re-evaluation of CSS custom properties — getComputedStyle returns stale cached values.
-      // Stylesheet rule inspection directly validates that the production fix (PR #1606) shipped.
-      // Verify that the @media print CSS rule resetting --color-bg-primary to a light value
-      // exists in the loaded CSS bundle.
-      //
-      // Strategy: fetch() each external stylesheet's raw text and search for the pattern.
-      // This avoids CSSOM inspection limitations (custom properties may not be readable
-      // via getPropertyValue() from media rules, and cssText may be unreliable when the
-      // rule contains nested at-rules like @page).
-      //
-      // The CSS file (client/src/styles/print.css, moved there by PR #1606) defines:
-      //   @media print { :root, :root[data-theme='dark'] { --color-bg-primary: #ffffff; } }
-      // cssnano may minify #ffffff → #fff.
-      const hasPrintDarkModeReset = await page.evaluate(async () => {
-        // Regex: '--color-bg-primary' followed (loosely) by a white value within an @media print block.
-        // Uses a two-pass approach: check if the stylesheet has BOTH markers present.
-        const whiteValueRe =
+      // `emulateMedia` does not re-run the cascade for custom properties, so the shipped
+      // `@media print` rule (client/src/styles/print.css) is asserted in the loaded CSS.
+      const hasPrintReset = await page.evaluate(async () => {
+        const whiteValue =
           /--color-bg-primary\s*:\s*(?:#fff(?:fff)?|rgb\(255\s*,\s*255\s*,\s*255\s*\))/i;
-
-        const sheets = Array.from(document.styleSheets);
-        for (const sheet of sheets) {
-          // First try CSSOM cssText (fast, no network) — catches inline <style> tags too
-          let mediaRuleText: string | null = null;
-          try {
-            for (const rule of Array.from(sheet.cssRules)) {
-              if (
-                rule instanceof CSSMediaRule &&
-                (rule.conditionText === 'print' || rule.media.mediaText === 'print')
-              ) {
-                mediaRuleText = (mediaRuleText ?? '') + rule.cssText;
-              }
-            }
-          } catch {
-            /* cross-origin — fall through to fetch */
-          }
-
-          if (mediaRuleText && whiteValueRe.test(mediaRuleText)) {
-            return true;
-          }
-
-          // Fallback: fetch the raw CSS text (handles cases where cssText is incomplete)
+        for (const sheet of Array.from(document.styleSheets)) {
           if (!sheet.href) continue;
           try {
-            const resp = await fetch(sheet.href);
-            if (!resp.ok) continue;
-            const rawText = await resp.text();
-            if (rawText.includes('@media print') && whiteValueRe.test(rawText)) {
-              return true;
-            }
+            const response = await fetch(sheet.href);
+            if (!response.ok) continue;
+            const raw = await response.text();
+            if (raw.includes('@media print') && whiteValue.test(raw)) return true;
           } catch {
-            /* network error or CORS — skip */
+            /* skip an unreadable sheet */
           }
         }
         return false;
       });
-
-      // The @media print { :root, :root[data-theme='dark'] { --color-bg-primary: #ffffff } }
-      // rule must be present in the CSS bundle — regression guard for PR #1606 (fix #1451).
-      expect(hasPrintDarkModeReset).toBe(true);
+      expect(hasPrintReset).toBe(true);
     } finally {
-      await overviewPage.endPrint();
-      await teardown();
+      await overview.endPrint();
     }
   });
 
-  test('On-screen expansion state restored after afterprint', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(
-      page,
-      populatedOverviewResponse(),
-      populatedBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Establish a known pre-print state:
-      // Expand Work Items section and Rohbau — Keller area becomes visible.
-      // Leave Keller collapsed — Kellerbau work item should NOT be visible.
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await overviewPage.breakdownAreaToggle('Rohbau').click();
-
-      // Keller area row: scope to span with exact text "Keller" to avoid matching "Kellerbau"
-      const kellerAreaRow = overviewPage.costBreakdownCard
-        .getByRole('row')
-        .filter({ has: page.locator('span', { hasText: /^Keller$/ }) });
-      await expect(kellerAreaRow).toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
-
-      // Simulate print cycle
-      await overviewPage.startPrint();
-
-      // During print: wait for Kellerbau to become VISIBLE — this confirms that the
-      // usePrintExpansion hook has fully applied the forced-expansion state from beforeprint.
-      // We must wait for Kellerbau specifically (not just any aria-expanded="true", which
-      // already existed before print from the Rohbau expansion) to ensure the hook's setState
-      // has been fully processed before calling endPrint().
-      await overviewPage.breakdownAreaRow('Kellerbau').waitFor({ state: 'visible' });
-
-      // Restore screen — dispatches afterprint and sets media back to screen.
-      // The usePrintExpansion hook restores state asynchronously (React setState),
-      // so we need to wait for the DOM to converge after calling endPrint().
-      await overviewPage.endPrint();
-
-      // After afterprint: pre-print state must be restored.
-      // Rohbau was expanded — Keller area is still visible.
-      await kellerAreaRow.waitFor({ state: 'visible' });
-
-      // Keller was collapsed before print — Kellerbau should be hidden again.
-      // The hook restores state via React setState which is async.
-      // waitFor({ state: 'hidden' }) polls until the row is no longer visible.
-      await overviewPage.breakdownAreaRow('Kellerbau').waitFor({ state: 'hidden' });
-    } finally {
-      // Ensure print media is always restored even if the test throws early —
-      // otherwise print mode leaks to subsequent tests in the same worker.
-      await overviewPage.endPrint().catch(() => {});
-      await teardown();
-    }
-  });
-
-  test('Other pages are unaffected by Budget Overview print styles (regression AC10)', async ({
-    page,
-  }) => {
-    // Navigate to the Diary page — not a budget page, no print-specific budget styling.
-    // Mock the diary API to return an empty list so the page renders without real diary data.
-    // Use the '**/api/diary-entries*' pattern (leading **) to match the full URL including
-    // the http://localhost:PORT prefix that Playwright sees when doing the glob match.
+  test('Other pages are unaffected by the Money overview print styles', async ({ page }) => {
     await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -541,21 +225,10 @@ test.describe('Budget Overview — print behaviour', () => {
 
     try {
       await page.goto(ROUTES.diary);
-
-      // Use expect().toBeVisible() which uses the project's expect.timeout (7000ms for desktop)
-      // rather than waitFor() which uses actionTimeout (5000ms).
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-
-      // The diary heading text should be "Site diary"
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
 
-      // Switch to print media to simulate print on a non-budget page
       await page.emulateMedia({ media: 'print' });
 
-      // The diary page h1 heading should still be visible — Budget Overview print
-      // styles should not have hidden it.
-      // Note: the global print.css hides [role=navigation] and aside,
-      // but the diary h1 is in a <header> element, not a nav or aside.
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
     } finally {

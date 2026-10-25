@@ -1,232 +1,269 @@
 /**
- * Page Object Model for the Budget Overview page (/budget/overview)
+ * Page Object Model for the Money overview (route `budgetOverview`, /budget/overview).
+ * Rebuilt in #2237 (story 4.5, EPIC-21 P4.5).
  *
- * The page renders:
- * - An h1 "Money" page title (#2203)
- * - No in-page tab row (#2205): the Money view is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
- * - Loading indicator while data is fetched
- * - Error card with a Retry button if the API fails
- * - Empty state when no budget data has been entered (all-zero response)
- * - Cost Breakdown table (CostBreakdownTable) with area hierarchy expand/collapse
+ * The page renders (top to bottom):
+ * - h1 "Money" and a ⋯ "Page actions" menu (Print, Budget overview for the bank). No Add menu.
+ * - The Left to spend headline (`MoneyFigure`, `money-headline`): the figure alone in its
+ *   `data-figure="left-to-spend"` element, a verdict badge, the range line beneath, and a
+ *   "How is this calculated?" disclosure.
+ * - The facts strip (`money-summary`): Funding total · Expected cost · Expected grants · Paid ·
+ *   Still to pay (Paid and Still to pay link to Invoices and carry `data-figure`).
+ * - Funding rows (`money-funding-row-<id>`): "Allocated €x of €y" with a bar.
+ * - The Breakdown card (`breakdown-card`): view chips (`?by=`), Payment chips (`?paymentStatus`),
+ *   Show estimates at Low · Expected · High (`?estimate`), Show › Grants (`?grants=1`), the
+ *   Funding source filter chip (`?deselectedSources`), and the tree down to cost lines as a table
+ *   (card width ≥ 768px) or a two-column drill-down list (below). Both surfaces are mounted at the
+ *   same time and switched by CSS container queries, so every reader below filters on visibility
+ *   or targets one surface explicitly.
  *
- * NOTE: The "Budget overview" hero card (<section aria-label="Budget overview">) was removed
- * in issue #1389. The `heroCard` locator is retained for historical reference but will not
- * match any element on the current page.
+ * Row keys: `area:<id>` / `area:none`, `type:work_items` / `type:household_items`,
+ * `category:<id|none>`, `source:<id|none>`, `orphans` ("Without a task"), `item:<kind>:<id>`,
+ * `line:<id>`, `not-yet-split`.
  */
 
-import type { Page, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 
 export const BUDGET_OVERVIEW_ROUTE = routeUrl('budgetOverview');
 export const BUDGET_OVERVIEW_URL_PATTERN = /\/budget\/overview/;
 
+export type BreakdownViewValue = 'area' | 'type' | 'category' | 'source';
+export type BreakdownPaymentValue = 'all' | 'paid' | 'outstanding';
+export type BreakdownEstimateValue = 'low' | 'expected' | 'high';
+export type BreakdownColumnValue =
+  'expectedCost' | 'grants' | 'afterGrants' | 'paid' | 'stillToPay' | 'notYetPaid';
+
 export class BudgetOverviewPage {
   readonly page: Page;
 
-  // Page heading
   readonly heading: Locator;
-
-  // Loading indicator
   readonly loadingIndicator: Locator;
-
-  // Error state
   readonly errorCard: Locator;
   readonly retryButton: Locator;
 
-  // Empty state
-  readonly emptyState: Locator;
-
-  // Budget overview hero card
-  readonly heroCard: Locator;
-  readonly budgetBar: Locator;
-
-  // Cost Breakdown table (CostBreakdownTable, area hierarchy)
-  readonly costBreakdownCard: Locator;
-  /** The interim Left to spend row (#2232): one figure from the money service. */
-  readonly leftToSpendRow: Locator;
-  /** The Left to spend figure (`data-figure="left-to-spend"`), or the en dash when no figure yet. */
+  // Headline
+  readonly headline: Locator;
   readonly leftToSpendFigure: Locator;
+  readonly verdictBadge: Locator;
+  readonly range: Locator;
+  readonly explainToggle: Locator;
+  readonly explainPanel: Locator;
 
-  // Cost Basis dropdown (payment-status filter)
-  readonly costBasisSelect: Locator;
-  readonly costBasisLabel: Locator;
+  // Facts strip
+  readonly summary: Locator;
+
+  // Funding
+  readonly funding: Locator;
+  readonly fundingRows: Locator;
+  readonly fundingManageLink: Locator;
+
+  // Breakdown card
+  readonly breakdownCard: Locator;
+  readonly toolbar: Locator;
+  readonly grantsChip: Locator;
+  readonly sourcesButton: Locator;
+  readonly status: Locator;
+  readonly table: Locator;
+  readonly total: Locator;
+  readonly list: Locator;
+  readonly listHeading: Locator;
+  readonly listHeadingLink: Locator;
+  readonly listBack: Locator;
+
+  // Page actions
+  readonly pageActions: Locator;
+  readonly printAction: Locator;
+  readonly bankOverviewAction: Locator;
+  readonly printSummary: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     this.heading = page.getByRole('heading', { level: 1, name: 'Money', exact: true });
-
-    this.loadingIndicator = page.getByRole('status', { name: 'Loading budget overview' });
-
-    // Error card: role="alert" containing an h2 "Error"
+    this.loadingIndicator = page.getByRole('status', { name: 'Loading Money' });
     this.errorCard = page.locator('[role="alert"]').filter({
       has: page.getByRole('heading', { name: 'Error', exact: true }),
     });
     this.retryButton = this.errorCard.getByRole('button', { name: 'Retry', exact: true });
 
-    // Empty state: the outermost container with a CSS-module class beginning "emptyState".
-    // Use .first() to avoid strict mode: there can be a second div (e.g. chart empty state)
-    // whose class also starts with "emptyState", causing "resolved to 2 elements" errors.
-    this.emptyState = page.locator('div[class*="emptyState"]').first();
+    this.headline = page.getByTestId('money-headline');
+    this.leftToSpendFigure = page.getByTestId('money-headline-figure');
+    this.verdictBadge = page.getByTestId('money-headline-verdict-badge');
+    this.range = page.getByTestId('money-headline-range');
+    this.explainToggle = page.getByTestId('money-headline-explain-toggle');
+    this.explainPanel = page.getByTestId('money-headline-explain');
 
-    // Budget overview hero card: <section aria-label="Budget overview">
-    this.heroCard = page.locator('section[aria-label="Budget overview"]');
+    this.summary = page.getByTestId('money-summary');
 
-    // Budget bar: BudgetBar stacked bar chart with role="img"
-    this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });
+    this.funding = page.getByTestId('money-funding');
+    this.fundingRows = this.funding.locator('[data-testid^="money-funding-row-"]');
+    this.fundingManageLink = page.getByTestId('money-funding-manage');
 
-    // Cost Breakdown table: <section aria-labelledby="breakdown-heading">
-    this.costBreakdownCard = page.locator('section[aria-labelledby="breakdown-heading"]');
-    this.leftToSpendRow = page.getByTestId('cost-breakdown-left-to-spend');
-    this.leftToSpendFigure = this.leftToSpendRow.locator('[data-figure="left-to-spend"]');
+    this.breakdownCard = page.getByTestId('breakdown-card');
+    this.toolbar = page.getByTestId('breakdown-toolbar');
+    this.grantsChip = page.getByTestId('breakdown-show-grants');
+    this.sourcesButton = page.getByTestId('breakdown-sources-button');
+    this.status = page.getByTestId('breakdown-status');
+    this.table = page.getByTestId('breakdown-table');
+    this.total = page.getByTestId('breakdown-total');
+    this.list = page.getByTestId('breakdown-list');
+    this.listHeading = page.getByTestId('breakdown-list-heading');
+    this.listHeadingLink = page.getByTestId('breakdown-list-heading-link');
+    this.listBack = page.getByTestId('breakdown-list-back');
 
-    // Cost Basis dropdown: <select id="cost-basis-select"> + associated label
-    this.costBasisSelect = page.locator('#cost-basis-select');
-    this.costBasisLabel = page.locator('label[for="cost-basis-select"]');
+    this.pageActions = page.getByTestId('money-page-actions');
+    this.printAction = page.getByTestId('money-action-print');
+    this.bankOverviewAction = page.getByTestId('money-action-bank-overview');
+    this.printSummary = page.getByTestId('money-print-summary');
   }
 
-  /**
-   * Return the row inside the Cost Breakdown table that contains the given area name text.
-   */
-  breakdownAreaRow(name: string): Locator {
-    return this.costBreakdownCard.getByRole('row').filter({ hasText: name });
-  }
+  // ── Navigation ────────────────────────────────────────────────────────────
 
-  /**
-   * Return the expand/collapse toggle button for the given area name inside the Cost Breakdown table.
-   * The aria-label is either "Expand <name>" or "Collapse <name>" depending on state,
-   * so the regex matches both.
-   */
-  breakdownAreaToggle(name: string): Locator {
-    return this.costBreakdownCard.getByRole('button', {
-      name: new RegExp(`(?:expand|collapse) ${name}`, 'i'),
-    });
-  }
-
-  async goto(): Promise<void> {
-    await this.page.goto(BUDGET_OVERVIEW_ROUTE);
-    // Wait for either the heading or loading indicator to appear.
-    // No explicit timeout — uses the project-level actionTimeout (15s for WebKit).
+  /** Open the overview (optionally with a query string, e.g. `?by=type`). */
+  async goto(query = ''): Promise<void> {
+    await this.page.goto(`${BUDGET_OVERVIEW_ROUTE}${query}`);
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Wait until the page has finished loading data (loading indicator gone,
-   * either error card, empty state, or cost breakdown section is visible).
-   *
-   * NOTE: The hero card was removed in issue #1389. waitForLoaded() now races on
-   * errorCard, emptyState, and costBreakdownCard instead.
-   */
+  /** Wait until the loading skeleton is gone and the headline or the error card shows. */
   async waitForLoaded(): Promise<void> {
-    // Wait for the loading indicator to disappear
-    await this.loadingIndicator.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {
-      // Loading indicator may never appear if data loads fast — that's fine
-    });
+    await this.headline.or(this.errorCard).waitFor({ state: 'visible' });
+  }
 
-    await Promise.race([
-      this.errorCard.waitFor({ state: 'visible', timeout: 10000 }),
-      this.emptyState.waitFor({ state: 'visible', timeout: 10000 }),
-      this.costBreakdownCard.waitFor({ state: 'visible', timeout: 10000 }),
-    ]);
+  /** Wait until the breakdown card has rendered its toolbar (the breakdown response arrived). */
+  async waitForBreakdown(): Promise<void> {
+    await this.toolbar.waitFor({ state: 'visible' });
+  }
+
+  // ── Facts ─────────────────────────────────────────────────────────────────
+
+  /** A fact of the strip: funding-total, expected-cost, expected-grants, paid, still-to-pay. */
+  fact(id: string): Locator {
+    return this.page.getByTestId(`money-fact-${id}`);
+  }
+
+  // ── Funding ───────────────────────────────────────────────────────────────
+
+  fundingRow(sourceId: string): Locator {
+    return this.page.getByTestId(`money-funding-row-${sourceId}`);
+  }
+
+  // ── Breakdown settings ────────────────────────────────────────────────────
+
+  viewChip(view: BreakdownViewValue): Locator {
+    return this.page.getByTestId(`breakdown-view-${view}`);
+  }
+
+  paymentChip(payment: BreakdownPaymentValue): Locator {
+    return this.page.getByTestId(`breakdown-payment-${payment}`);
+  }
+
+  estimateChip(estimate: BreakdownEstimateValue): Locator {
+    return this.page.getByTestId(`breakdown-estimate-${estimate}`);
+  }
+
+  /** The "Funding source" filter panel: an anchored dialog (≥ 768px) or a bottom sheet. */
+  get sourcesPanel(): Locator {
+    return this.page.getByTestId('breakdown-sources-panel').or(this.sourcesSheet);
+  }
+
+  get sourcesSheet(): Locator {
+    return this.page.getByTestId('breakdown-sources-sheet');
+  }
+
+  sourceCheckbox(key: string): Locator {
+    return this.page.getByTestId(`breakdown-source-${key}`);
+  }
+
+  get sourcesSelectAll(): Locator {
+    return this.page
+      .getByTestId('breakdown-sources-panel-clear')
+      .or(this.page.getByTestId('breakdown-sources-sheet-clear'));
+  }
+
+  get sourcesDone(): Locator {
+    return this.page
+      .getByTestId('breakdown-sources-panel-done')
+      .or(this.page.getByTestId('breakdown-sources-done'));
+  }
+
+  async openSources(): Promise<void> {
+    await this.sourcesButton.click();
+    await this.sourcesPanel.waitFor({ state: 'visible' });
+  }
+
+  // ── Table surface ─────────────────────────────────────────────────────────
+
+  row(key: string): Locator {
+    return this.page.getByTestId(`breakdown-row-${key}`);
+  }
+
+  cell(key: string, column: BreakdownColumnValue): Locator {
+    return this.page.getByTestId(`breakdown-cell-${key}-${column}`);
+  }
+
+  toggle(key: string): Locator {
+    return this.page.getByTestId(`breakdown-toggle-${key}`);
+  }
+
+  totalCell(column: BreakdownColumnValue): Locator {
+    return this.page.getByTestId(`breakdown-total-${column}`);
+  }
+
+  /** The column header texts of the table, in order (first is "Name"). */
+  columnHeaders(): Locator {
+    return this.table.locator('thead th');
+  }
+
+  /** Every row of the table whose name cell is at depth 0, in DOM order. */
+  topLevelRows(): Locator {
+    return this.table.locator('tbody tr:has(th[data-depth="0"])');
+  }
+
+  /** The row keys of the top level rows (`breakdown-row-` stripped). */
+  async topLevelKeys(): Promise<string[]> {
+    const ids = await this.topLevelRows().evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute('data-testid') ?? ''),
+    );
+    return ids.map((id) => id.replace(/^breakdown-row-/, ''));
+  }
+
+  /** Expand a row of the table if it is collapsed. */
+  async expand(key: string): Promise<void> {
+    const toggle = this.toggle(key);
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+    await this.page.waitForFunction(
+      (id) =>
+        document.querySelector(`[data-testid="${id}"]`)?.getAttribute('aria-expanded') === 'true',
+      `breakdown-toggle-${key}`,
+    );
+  }
+
+  // ── Drill-down list surface (phone) ───────────────────────────────────────
+
+  listRow(key: string): Locator {
+    return this.page.getByTestId(`breakdown-list-row-${key}`);
   }
 
   // ── Print helpers ─────────────────────────────────────────────────────────
 
-  /**
-   * Dispatch the `beforeprint` window event and switch Playwright media to 'print'.
-   * Use this to simulate the browser print dialog opening.
-   */
+  /** Dispatch `beforeprint` and switch Playwright media to print. */
   async startPrint(): Promise<void> {
     await this.page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
     await this.page.emulateMedia({ media: 'print' });
   }
 
-  /**
-   * Dispatch the `afterprint` window event and restore Playwright media to 'screen'.
-   * Use this to simulate the browser print dialog closing.
-   */
+  /** Dispatch `afterprint` and restore screen media. */
   async endPrint(): Promise<void> {
     await this.page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
     await this.page.emulateMedia({ media: 'screen' });
   }
 
-  /**
-   * The sidebar `<aside>` element.
-   */
-  get sidebar(): Locator {
-    return this.page.locator('aside');
-  }
+  // ── Page actions ──────────────────────────────────────────────────────────
 
-  /**
-   * The Add dropdown button (budget-overview-add-button).
-   */
-  get addButton(): Locator {
-    return this.page.getByTestId('budget-overview-add-button');
-  }
-
-  /**
-   * The "Add Invoice" item of the Add dropdown (#2194: navigates to /budget/invoices?create=1,
-   * which opens the create-invoice modal).
-   */
-  get addInvoiceMenuItem(): Locator {
-    return this.page.getByTestId('budget-overview-add-invoice');
-  }
-
-  // ── Source filter helpers ─────────────────────────────────────────────────
-
-  /**
-   * The screen-reader live region for filter count announcements (role="status").
-   * Lives outside tableWrapper — always mounted, visually hidden (sr-only).
-   */
-  filterAnnouncement(): Locator {
-    return this.costBreakdownCard.locator('[role="status"]');
-  }
-
-  /**
-   * The Available Funds expand/collapse button.
-   * aria-label: "Expand available funds sources"
-   */
-  availableFundsButton(): Locator {
-    return this.costBreakdownCard.getByRole('button', {
-      name: /Expand available funds sources/i,
-    });
-  }
-
-  /**
-   * Source detail row for a given source name (expanded under Available Funds).
-   * These rows are `<tr role="button" aria-pressed>` toggles.
-   * Scoped to `tr[class*="rowSourceDetail"]`.
-   */
-  sourceRow(name: string): Locator {
-    return this.costBreakdownCard.locator('tr[class*="rowSourceDetail"]').filter({
-      has: this.page.getByText(name, { exact: true }),
-    });
-  }
-
-  /**
-   * @deprecated Use `sourceRow(name)` instead (renamed from #1354 → #1356 rework).
-   * Kept for any callers in other spec files that reference `sourceDetailRow`.
-   */
-  sourceDetailRow(name: string): Locator {
-    return this.sourceRow(name);
-  }
-
-  /**
-   * The Available Funds amount cell.
-   * The value lives in `td[colspan="3"]` inside the Available Funds header row.
-   */
-  availableFundsValue(): Locator {
-    return this.costBreakdownCard
-      .getByRole('row')
-      .filter({ hasText: /available funds/i })
-      .locator('td[colspan="3"]');
-  }
-
-  /**
-   * The filter caption "(X of Y selected)" shown below the Available Funds value.
-   * Rendered only when at least one source is deselected.
-   */
-  filterCaption(): Locator {
-    return this.availableFundsValue().locator('[class*="availableFundsFilterCaption"]');
+  async openPageActions(): Promise<void> {
+    await this.pageActions.click();
+    await this.page.getByRole('menu').waitFor({ state: 'visible' });
   }
 }

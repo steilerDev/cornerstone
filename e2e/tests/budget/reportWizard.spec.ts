@@ -41,6 +41,9 @@
  * - Scenario 16: Issue #1933 (AC 2.7) — the open-invoice affordance repeats at mobile viewport,
  *   proving the new-tab behavior holds regardless of viewport (there is no separate mobile card
  *   layout for the invoice row — the grid is unconditional).
+ * - Scenario 17: Story #2237 — `?type=budget-overview` preselects the "Budget overview" use case
+ *   (the Money overview's ⋯ › "Budget overview for the bank" lands there), Next reaches the
+ *   source step, and an unknown `?type=` does nothing.
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -60,6 +63,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
+import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
@@ -1419,5 +1423,50 @@ test.describe('Report wizard — mark-as-submitted button wording (Story #2195, 
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
+  });
+});
+
+test.describe('Report wizard — ?type= preset (Scenario 17)', { tag: '@responsive' }, () => {
+  test('?type=budget-overview preselects the Budget overview use case and Next reaches the source step', async ({
+    page,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    await wizard.gotoWithType('budget-overview');
+    await expect(wizard.useCaseRadioGroup).toBeVisible();
+    await expect(wizard.useCaseCard('budget-overview')).toBeChecked();
+    await expect(wizard.useCaseCard('claim')).not.toBeChecked();
+
+    await wizard.goNextFromStep1();
+    await expect(wizard.sourceRadioGroup).toBeVisible();
+  });
+
+  test('an unknown ?type= preselects nothing', async ({ page }) => {
+    const wizard = new ReportWizardPage(page);
+
+    await wizard.gotoWithType('not-a-report');
+    await expect(wizard.useCaseRadioGroup).toBeVisible();
+    await expect(wizard.useCaseCard('budget-overview')).not.toBeChecked();
+    await expect(wizard.useCaseCard('claim')).not.toBeChecked();
+    await expect(wizard.useCaseCard('proof-of-funds')).not.toBeChecked();
+  });
+
+  test('Money overview ⋯ › Budget overview for the bank opens the wizard with the preset', async ({
+    page,
+  }) => {
+    const overview = new BudgetOverviewPage(page);
+    const wizard = new ReportWizardPage(page);
+
+    await overview.goto();
+    await overview.waitForLoaded();
+    await overview.openPageActions();
+    await overview.bankOverviewAction.click();
+
+    await page.waitForURL(
+      (url) =>
+        url.pathname === '/budget/reports' && url.searchParams.get('type') === 'budget-overview',
+    );
+    await expect(wizard.heading).toBeVisible();
+    await expect(wizard.useCaseCard('budget-overview')).toBeChecked();
   });
 });

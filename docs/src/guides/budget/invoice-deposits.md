@@ -72,7 +72,7 @@ The **status breakdown summary** on each invoice list and the per-source budget 
 
 ## Offers and Deposits
 
-Offer invoices accept deposits the same way as regular invoices, but on **Money > Budget** offer amounts are treated with a ±5% projection margin ([ADR-029](https://github.com/steilerDev/cornerstone/wiki/ADR-029)). Deposits against an offer invoice contribute to `actualCost` but only contribute to `actualCostPaid` / `actualCostClaimed` if their own status is Paid or Claimed.
+Offer invoices accept deposits the same way as regular invoices. On **Money > Overview** an offer counts at its face value, with no range added. A deposit counts toward Paid only once its own status is Paid or Claimed.
 
 ## Cascade Behaviour
 
@@ -81,5 +81,5 @@ Deposits are owned by the parent invoice. Deleting an invoice cascades and remov
 ## Next Steps
 
 - [Invoices & Vendors](vendors-and-invoices) -- creating invoices and linking them to cost lines
-- [Budget Overview](budget-overview) -- how deposit-aware totals roll up across categories and sources
+- [Money Overview](budget-overview) -- how deposit-aware totals roll up across categories and sources
 - [Subsidies](subsidies) -- subsidy calculations also use itemized amounts and respect deposit status

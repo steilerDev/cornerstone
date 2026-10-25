@@ -69,3 +69,4 @@
 - [story-2236-entity-picker.md](story-2236-entity-picker.md) — #2236 EntityPicker/Undo POM facts, triage of 160 failures, Undo focus rule, child-step test ids, test.fail-pinned defects.
 - [feedback_cleanup_scope.md](feedback_cleanup_scope.md) — post-run cleanup: only git clean docs/static/img/screenshots; never revert docs/src or others' tracked files.
 - [story-2235-cost-lines.md](story-2235-cost-lines.md) — #2235 cost lines: CostLinesPanel/Form/Grid POMs, costLineSeed, old UI mapping, click-budget spec, live-run defects.
+- [story-2237-money-overview.md](story-2237-money-overview.md) — #2237 Money overview POM/test ids, mockMoneyOverview + buildMockBreakdown, table-vs-list container query, live-run traps.

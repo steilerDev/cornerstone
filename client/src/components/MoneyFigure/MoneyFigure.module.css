@@ -1,0 +1,114 @@
+.card {
+  padding: var(--spacing-5);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 479px) {
+  .card {
+    padding: var(--spacing-4);
+  }
+}
+
+.label {
+  margin: 0 0 var(--spacing-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.suffix {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.figureRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-3);
+}
+
+.figure {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 479px) {
+  .figure {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+.figure[data-negative='true'] {
+  color: var(--color-danger-text-on-light);
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+}
+
+.range,
+.detail {
+  margin: var(--spacing-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.explainToggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: color var(--transition-normal);
+}
+
+.explainToggle:hover {
+  text-decoration: underline;
+}
+
+.explainToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.explain {
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.explain[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explainToggle {
+    transition: none;
+  }
+}
+
+@media print {
+  .card {
+    box-shadow: none;
+  }
+
+  .explainToggle {
+    display: none;
+  }
+}

@@ -1,5301 +1,631 @@
 /**
  * @jest-environment jsdom
  */
-import type { BreakdownMoney, MoneyCostFigures } from '@cornerstone/shared';
-import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
-import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
-import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
-import type { BudgetSourceSummaryBreakdown } from '@cornerstone/shared';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { act, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import type { BudgetBreakdown } from '@cornerstone/shared';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+import { useBreakdownSettings } from '../../pages/BudgetOverviewPage/useBreakdownSettings.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { figures, makeBreakdown, makeEmptyBreakdown } from '../../test/breakdownFixtures.js';
+import { CostBreakdownTable } from './CostBreakdownTable.js';
+import type { CostBreakdownTableProps } from './CostBreakdownTable.js';
 
-// CSS modules mocked via identity-obj-proxy
+const WIDE = '(min-width: 768px)';
 
-// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+interface HarnessProps {
+  breakdown: BudgetBreakdown | null;
+  refetching?: boolean;
+  announcement?: CostBreakdownTableProps['announcement'];
+  loadError?: CostBreakdownTableProps['loadError'];
+}
 
-jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => {
-    if (!ts) return fallback;
-    try {
-      return new Date(ts).toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return fallback;
-    }
-  };
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
-    if (!ts) return fallback;
-    try {
-      const d = new Date(ts);
-      return (
-        d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
-        ', ' +
-        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-      );
-    } catch {
-      return fallback;
-    }
-  };
-  return {
-    formatCurrency: fmtCurrency,
-    formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
-  };
-});
-
-// Dynamic import — must happen after jest.unstable_mockModule calls.
-let CostBreakdownTable: typeof CostBreakdownTableType;
-
-beforeAll(async () => {
-  const module = await import('./CostBreakdownTable.js');
-  CostBreakdownTable = module.CostBreakdownTable;
-});
-
-afterEach(() => {
-  jest.clearAllMocks();
-});
-
-/**
- * Render CostBreakdownTable inside a MemoryRouter.
- * Required for tests that expand to item rows (which contain <Link> elements).
- */
-function renderWithRouter(
-  breakdown: BudgetBreakdown,
-  overview: BudgetOverview,
-  opts: {
-    deselectedSourceIds?: Set<string>;
-    onSourceToggle?: (sourceId: string | null) => void;
-    onSelectAllSources?: () => void;
-    paymentStatus?: 'all' | 'paid' | 'outstanding';
-    onPaymentStatusChange?: (v: 'all' | 'paid' | 'outstanding') => void;
-  } = {},
-) {
-  return render(
-    <MemoryRouter>
+/** The real URL settings hook feeding the card, as the Money page does. */
+function Harness({
+  breakdown,
+  refetching = false,
+  announcement = null,
+  loadError = null,
+}: HarnessProps) {
+  const api = useBreakdownSettings();
+  const location = useLocation();
+  return (
+    <>
+      <div data-testid="search">{location.search}</div>
       <CostBreakdownTable
         breakdown={breakdown}
-        overview={overview}
-        deselectedSourceIds={opts.deselectedSourceIds ?? new Set()}
-        onSourceToggle={opts.onSourceToggle ?? (() => {})}
-        onSelectAllSources={opts.onSelectAllSources ?? (() => {})}
-        paymentStatus={opts.paymentStatus ?? 'all'}
-        onPaymentStatusChange={opts.onPaymentStatusChange ?? (() => {})}
+        settings={api.settings}
+        onViewChange={api.setView}
+        onPaymentChange={api.setPayment}
+        onEstimateChange={api.setEstimate}
+        onGrantsChange={api.setGrants}
+        onSourceToggle={api.toggleSource}
+        onSelectAllSources={api.selectAllSources}
+        onResetSettings={api.reset}
+        refetching={refetching}
+        announcement={announcement}
+        loadError={loadError}
       />
-    </MemoryRouter>,
+    </>
   );
 }
 
-// ── Selector Helpers ──────────────────────────────────────────────────────
-
-/**
- * Find an expand button (collapsed initial state) by aria-label in the rendered output.
- * Maps logical keys to the aria-labels used by the new area-hierarchy CostBreakdownTable.
- * Both WI and HI area rows render with aria-label="Expand {name}" when collapsed (the
- * initial state), and aria-label="Collapse {name}" when expanded.
- *
- * This helper always resolves to the COLLAPSED-state label ("Expand {name}").
- * If you need to find a button that is already expanded (e.g. to collapse it again),
- * use getButtonByLabel('Collapse {name}') directly.
- *
- *   'wi-section'           → "Expand work item budget by area"
- *   'hi-section'           → "Expand household item budget by area"
- *   'area:{name}'          → "Expand {name}"  (WI area in collapsed state)
- *   'hi-area:{name}'       → "Expand {name}"  (HI area in collapsed state — same pattern as WI)
- *   'wi-item:{title}'      → "Expand {title}" (WI item row)
- *   'hi-item:{name}'       → "Expand {name}"  (HI item row)
- */
-function getButtonByControls(_container: HTMLElement, controlsId: string): HTMLElement {
-  let ariaLabel: string | null = null;
-
-  if (controlsId === 'wi-section-categories' || controlsId === 'wi-section') {
-    ariaLabel = 'Expand work item budget by area';
-  } else if (controlsId === 'hi-section-categories' || controlsId === 'hi-section') {
-    ariaLabel = 'Expand household item budget by area';
-  } else if (controlsId === 'avail-funds') {
-    ariaLabel = 'Expand available funds sources';
-  } else if (controlsId.startsWith('area:')) {
-    // area:{areaName} — WI area in collapsed state (aria-label = "Expand {name}")
-    ariaLabel = `Expand ${controlsId.slice('area:'.length)}`;
-  } else if (controlsId.startsWith('hi-area:')) {
-    // hi-area:{areaName} — HI area in collapsed state (aria-label = "Expand {name}")
-    // Both WorkItemAreaSection and HouseholdItemAreaSection now use the same toggle pattern:
-    // collapsed → "Expand {name}", expanded → "Collapse {name}". Initial state is collapsed.
-    ariaLabel = `Expand ${controlsId.slice('hi-area:'.length)}`;
-  } else if (controlsId.startsWith('wi-item:')) {
-    // wi-item:{title} — work item row expand button
-    ariaLabel = `Expand ${controlsId.slice('wi-item:'.length)}`;
-  } else if (controlsId.startsWith('hi-item:')) {
-    // hi-item:{name} — household item row expand button
-    ariaLabel = `Expand ${controlsId.slice('hi-item:'.length)}`;
-  } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
-    // Legacy format: the area name is the areaName passed to the test, which for null-area items
-    // is 'No Area'. Map "wi-cat-*-items" → "Expand No Area" (single area in most tests).
-    ariaLabel = 'Expand No Area';
-  } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
-    // Legacy HI category format: extract name from "hi-cat-{name}-items".
-    // HI area sections now use the same pattern as WI: initial collapsed state = "Expand {name}".
-    const inner = controlsId.slice('hi-cat-'.length, -'-items'.length);
-    ariaLabel = `Expand ${inner}`;
-  } else if (controlsId.startsWith('wi-item-') && controlsId.endsWith('-budget-lines')) {
-    // Legacy WI item format: "wi-item-{workItemId}-budget-lines" — not directly mappable to title.
-    // Fall through to throw below.
-  } else if (controlsId.startsWith('hi-item-') && controlsId.endsWith('-budget-lines')) {
-    // Legacy HI item format: similar issue.
-    // Fall through to throw below.
-  }
-
-  if (ariaLabel) {
-    const btn = screen.queryByRole('button', { name: ariaLabel });
-    if (btn) return btn as HTMLElement;
-  }
-
-  throw new Error(
-    `Button for controlsId="${controlsId}" not found (aria-label="${ariaLabel ?? 'unknown'}"). ` +
-      `Use getButtonByLabel() for item-level expand buttons by work item title or HI name.`,
+function renderCard(props: HarnessProps, url = '/budget/overview') {
+  const tree = (p: HarnessProps) => (
+    <LocaleProvider>
+      <MemoryRouter initialEntries={[url]}>
+        <Harness {...p} />
+      </MemoryRouter>
+    </LocaleProvider>
   );
+  const view = render(tree(props));
+  return { ...view, rerenderCard: (p: HarnessProps) => view.rerender(tree(p)) };
 }
 
-/**
- * Find an expand button by its exact aria-label text.
- * Used for item-level expand buttons whose aria-label is "Expand {title}".
- */
-function getButtonByLabel(ariaLabel: string): HTMLElement {
-  const btn = screen.getByRole('button', { name: ariaLabel });
-  return btn as HTMLElement;
-}
-
-// ── Test Data Helpers ──────────────────────────────────────────────────────
-
-/**
- * Build a minimal BudgetOverview for tests.
- */
-function buildOverview(
-  availableFunds = 100000,
-  opts: {
-    minTotalPayback?: number;
-    maxTotalPayback?: number;
-  } = {},
-): BudgetOverview {
-  return {
-    availableFunds,
-    sourceCount: 1,
-    minPlanned: 0,
-    maxPlanned: 0,
-    actualCost: 0,
-    actualCostPaid: 0,
-    actualCostClaimed: 0,
-    remainingVsMinPlanned: 0,
-    remainingVsMaxPlanned: 0,
-    remainingVsActualCost: 0,
-    remainingVsActualPaid: 0,
-    remainingVsActualClaimed: 0,
-    remainingVsMinPlannedWithPayback: 0,
-    remainingVsMaxPlannedWithPayback: 0,
-    subsidySummary: {
-      totalReductions: 0,
-      activeSubsidyCount: 0,
-      minTotalPayback: opts.minTotalPayback ?? 0,
-      maxTotalPayback: opts.maxTotalPayback ?? 0,
-      oversubscribedSubsidies: [],
-    },
-  };
-}
-
-/**
- * Build an empty BudgetBreakdown.
- */
-function buildEmptyBreakdown(): BudgetBreakdown {
-  return {
-    money: emptyBreakdownMoney(),
-    workItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    householdItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    subsidyAdjustments: [],
-    budgetSources: [],
-  };
-}
-
-/**
- * Build a breakdown with one WI area (No Area) containing one item.
- * All items have null areaId so they land in the synthetic "No Area" bucket.
- */
-function buildBreakdownWithWI(
-  opts: {
-    costDisplay?: 'actual' | 'projected' | 'mixed';
-    projectedMin?: number;
-    projectedMax?: number;
-    actualCost?: number;
-    subsidyPayback?: number;
-    minSubsidyPayback?: number;
-    rawProjectedMin?: number;
-    rawProjectedMax?: number;
-    itemTitle?: string;
-    workItemId?: string;
-    description?: string | null;
-    hasInvoice?: boolean;
-    budgetSources?: BudgetSourceSummaryBreakdown[];
-    // Legacy params — kept for backward compat but ignored (area is always No Area)
-    categoryId?: string | null;
-    categoryName?: string;
-  } = {},
-): BudgetBreakdown {
-  const costDisplay = opts.costDisplay ?? 'projected';
-  const projectedMin = opts.projectedMin ?? 800;
-  const projectedMax = opts.projectedMax ?? 1200;
-  const actualCost = opts.actualCost ?? 0;
-  const subsidyPayback = opts.subsidyPayback ?? 0;
-  const minSubsidyPayback = opts.minSubsidyPayback ?? 0;
-  const rawProjectedMin = opts.rawProjectedMin ?? projectedMin;
-  const rawProjectedMax = opts.rawProjectedMax ?? projectedMax;
-  const itemTitle = opts.itemTitle ?? 'Foundation Work';
-  const workItemId = opts.workItemId ?? 'wi-1';
-  const hasInvoice = opts.hasInvoice ?? actualCost > 0;
-
-  return {
-    money: emptyBreakdownMoney(),
-    workItems: {
-      areas: [
-        {
-          areaId: null,
-          name: 'Unassigned',
-          parentId: null,
-          color: null,
-          projectedMin,
-          projectedMax,
-          actualCost,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback,
-          rawProjectedMin,
-          rawProjectedMax,
-          minSubsidyPayback,
-          items: [
-            {
-              workItemId,
-              title: itemTitle,
-              projectedMin,
-              projectedMax,
-              actualCost,
-              actualCostPaid: 0,
-              actualCostPending: 0,
-              subsidyPayback,
-              rawProjectedMin,
-              rawProjectedMax,
-              minSubsidyPayback,
-              costDisplay,
-              budgetLines: [
-                {
-                  id: 'line-1',
-                  description: opts.description !== undefined ? opts.description : null,
-                  plannedAmount: 1000,
-                  confidence: 'own_estimate',
-                  actualCost,
-                  actualCostPaid: 0,
-                  actualCostPending: 0,
-                  hasInvoice,
-                  isQuotation: false,
-                  budgetSourceId: null,
-                  origin: 'manual' as const,
-                },
-              ],
-            },
-          ],
-          children: [],
-        },
-      ],
-      totals: {
-        projectedMin,
-        projectedMax,
-        actualCost,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback,
-        rawProjectedMin,
-        rawProjectedMax,
-        minSubsidyPayback,
-      },
-    },
-    householdItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    subsidyAdjustments: [],
-    budgetSources: opts.budgetSources ?? [],
-  };
-}
-
-/**
- * Build a breakdown with one HI area containing one item.
- * When hiCategory is provided, an area node with that name is created (non-null areaId).
- * When hiCategory is omitted, items land in the "No Area" bucket (null areaId).
- */
-function buildBreakdownWithHI(
-  opts: {
-    /** When provided, creates a named area node with this name (areaId='area-hi-1'). */
-    hiCategory?: string;
-    projectedMin?: number;
-    projectedMax?: number;
-    actualCost?: number;
-    subsidyPayback?: number;
-    minSubsidyPayback?: number;
-    rawProjectedMin?: number;
-    rawProjectedMax?: number;
-    costDisplay?: 'actual' | 'projected' | 'mixed';
-    itemName?: string;
-    householdItemId?: string;
-  } = {},
-): BudgetBreakdown {
-  const areaName = opts.hiCategory ?? 'Unassigned';
-  const areaId = opts.hiCategory ? 'area-hi-1' : null;
-  const projectedMin = opts.projectedMin ?? 400;
-  const projectedMax = opts.projectedMax ?? 600;
-  const actualCost = opts.actualCost ?? 0;
-  const subsidyPayback = opts.subsidyPayback ?? 0;
-  const minSubsidyPayback = opts.minSubsidyPayback ?? 0;
-  const rawProjectedMin = opts.rawProjectedMin ?? projectedMin;
-  const rawProjectedMax = opts.rawProjectedMax ?? projectedMax;
-  const costDisplay = opts.costDisplay ?? 'projected';
-  const householdItemId = opts.householdItemId ?? 'hi-1';
-
-  return {
-    money: emptyBreakdownMoney(),
-    workItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    householdItems: {
-      areas: [
-        {
-          areaId,
-          name: areaName,
-          parentId: null,
-          color: null,
-          projectedMin,
-          projectedMax,
-          actualCost,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback,
-          rawProjectedMin,
-          rawProjectedMax,
-          minSubsidyPayback,
-          items: [
-            {
-              householdItemId,
-              name: opts.itemName ?? 'Sofa',
-              projectedMin,
-              projectedMax,
-              actualCost,
-              actualCostPaid: 0,
-              actualCostPending: 0,
-              subsidyPayback,
-              rawProjectedMin,
-              rawProjectedMax,
-              minSubsidyPayback,
-              costDisplay,
-              budgetLines: [
-                {
-                  id: 'hi-line-1',
-                  description: null,
-                  plannedAmount: 500,
-                  confidence: 'own_estimate',
-                  actualCost,
-                  actualCostPaid: 0,
-                  actualCostPending: 0,
-                  hasInvoice: actualCost > 0,
-                  isQuotation: false,
-                  budgetSourceId: null,
-                  origin: 'manual' as const,
-                },
-              ],
-            },
-          ],
-          children: [],
-        },
-      ],
-      totals: {
-        projectedMin,
-        projectedMax,
-        actualCost,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback,
-        rawProjectedMin,
-        rawProjectedMax,
-        minSubsidyPayback,
-      },
-    },
-    subsidyAdjustments: [],
-    budgetSources: [],
-  };
-}
-
-/**
- * Build a BudgetSourceSummaryBreakdown for tests.
- */
-function buildSourceSummary(
-  opts: {
-    id?: string;
-    name?: string;
-    totalAmount?: number;
-    projectedMin?: number;
-    projectedMax?: number;
-    actualCost?: number;
-    actualCostPaid?: number;
-    actualCostPending?: number;
-    subsidyPaybackMin?: number;
-    subsidyPaybackMax?: number;
-  } = {},
-): BudgetSourceSummaryBreakdown {
-  return {
-    id: opts.id ?? 'src-1',
-    name: opts.name ?? 'Bank Loan',
-    totalAmount: opts.totalAmount ?? 100000,
-    projectedMin: opts.projectedMin ?? 5000,
-    projectedMax: opts.projectedMax ?? 8000,
-    actualCost: opts.actualCost ?? 0,
-    actualCostPaid: opts.actualCostPaid ?? 0,
-    actualCostPending: opts.actualCostPending ?? 0,
-    subsidyPaybackMin: opts.subsidyPaybackMin ?? 0,
-    subsidyPaybackMax: opts.subsidyPaybackMax ?? 0,
-  };
-}
-
-/**
- * Build a breakdown with one WI item whose budget line has a specific budgetSourceId.
- * Used for source badge and filter tests.
- */
-function buildBreakdownWithSourcedWI(opts: {
-  budgetSourceId: string | null;
-  lineId?: string;
-  budgetSources?: BudgetSourceSummaryBreakdown[];
-}): BudgetBreakdown {
-  return {
-    money: emptyBreakdownMoney(),
-    workItems: {
-      areas: [
-        {
-          areaId: null,
-          name: 'Unassigned',
-          parentId: null,
-          color: null,
-          projectedMin: 800,
-          projectedMax: 1200,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 800,
-          rawProjectedMax: 1200,
-          minSubsidyPayback: 0,
-          items: [
-            {
-              workItemId: 'wi-src-1',
-              title: 'Sourced Work Item',
-              projectedMin: 800,
-              projectedMax: 1200,
-              actualCost: 0,
-              actualCostPaid: 0,
-              actualCostPending: 0,
-              subsidyPayback: 0,
-              rawProjectedMin: 800,
-              rawProjectedMax: 1200,
-              minSubsidyPayback: 0,
-              costDisplay: 'projected',
-              budgetLines: [
-                {
-                  id: opts.lineId ?? 'sourced-line-1',
-                  description: 'Sourced budget line',
-                  plannedAmount: 1000,
-                  confidence: 'own_estimate',
-                  actualCost: 0,
-                  actualCostPaid: 0,
-                  actualCostPending: 0,
-                  hasInvoice: false,
-                  isQuotation: false,
-                  budgetSourceId: opts.budgetSourceId,
-                  origin: 'manual' as const,
-                },
-              ],
-            },
-          ],
-          children: [],
-        },
-      ],
-      totals: {
-        projectedMin: 800,
-        projectedMax: 1200,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 800,
-        rawProjectedMax: 1200,
-        minSubsidyPayback: 0,
-      },
-    },
-    householdItems: {
-      areas: [],
-      totals: {
-        projectedMin: 0,
-        projectedMax: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostPending: 0,
-        subsidyPayback: 0,
-        rawProjectedMin: 0,
-        rawProjectedMax: 0,
-        minSubsidyPayback: 0,
-      },
-    },
-    subsidyAdjustments: [],
-    budgetSources: opts.budgetSources ?? [],
-  };
-}
-
-// ── Tests ──────────────────────────────────────────────────────────────────
-
-// Required by the extended BudgetBreakdown type (ADR-039 money service, #2228): an empty `money`.
-const zeroMoneyRange = { expected: 0, best: 0, worst: 0 };
-const zeroCostFigures = (): MoneyCostFigures => ({
-  expectedCost: { ...zeroMoneyRange },
-  expectedGrants: { ...zeroMoneyRange },
-  afterGrants: { ...zeroMoneyRange },
+let media: MatchMediaControl;
+beforeEach(() => {
+  media = installMatchMedia({ [WIDE]: true });
 });
-const emptyBreakdownMoney = (): BreakdownMoney => ({
-  workItems: {},
-  householdItems: {},
-  orphanLines: zeroCostFigures(),
-  notYetSplit: { amount: 0, recordCount: 0 },
+afterEach(() => {
+  media.restore();
 });
+
+const row = (key: string) => screen.getByTestId(`breakdown-row-${key}`);
+const cell = (key: string, column: string) => screen.getByTestId(`breakdown-cell-${key}-${column}`);
+const hasRow = (key: string) => screen.queryByTestId(`breakdown-row-${key}`) !== null;
+const search = () => screen.getByTestId('search').textContent;
+const headers = () =>
+  within(screen.getByTestId('breakdown-table'))
+    .getAllByRole('columnheader')
+    .map((h) => h.textContent);
 
 describe('CostBreakdownTable', () => {
-  // ── 15. Renders section heading ──────────────────────────────────────────
+  describe('structure', () => {
+    it('is a region named Breakdown with the toolbar, a status region and both surfaces', () => {
+      renderCard({ breakdown: makeBreakdown() });
+      const card = screen.getByRole('region', { name: 'Breakdown' });
+      expect(card).toBe(screen.getByTestId('breakdown-card'));
+      expect(
+        within(card).getByRole('heading', { level: 2, name: 'Breakdown' }),
+      ).toBeInTheDocument();
+      expect(within(card).getByTestId('breakdown-toolbar')).toBeInTheDocument();
+      expect(within(card).getByTestId('breakdown-table')).toBeInTheDocument();
+      expect(within(card).getByTestId('breakdown-list')).toBeInTheDocument();
+    });
 
-  it('renders a Cost Breakdown heading', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
+    it('has exactly one always-mounted status region without aria-live or aria-atomic', () => {
+      renderCard({ breakdown: makeBreakdown() });
+      const regions = screen.getAllByRole('status');
+      expect(regions).toHaveLength(1);
+      expect(regions[0]).toBe(screen.getByTestId('breakdown-status'));
+      expect(regions[0]).not.toHaveAttribute('aria-live');
+      expect(regions[0]).not.toHaveAttribute('aria-atomic');
+      expect(regions[0]).toHaveTextContent('');
+    });
 
-    expect(screen.getByRole('heading', { name: /cost breakdown/i })).toBeInTheDocument();
+    it('has neither duplicate test ids nor a data-figure marker', () => {
+      const { container } = renderCard({ breakdown: makeBreakdown() });
+      expect(findDuplicateTestIds(container)).toEqual([]);
+      expect(container.querySelector('[data-figure]')).toBeNull();
+    });
+
+    it('is not busy while idle and busy while refetching', () => {
+      const idle = renderCard({ breakdown: makeBreakdown() });
+      expect(screen.getByTestId('breakdown-card')).toHaveAttribute('aria-busy', 'false');
+      idle.rerenderCard({ breakdown: makeBreakdown(), refetching: true });
+      expect(screen.getByTestId('breakdown-card')).toHaveAttribute('aria-busy', 'true');
+    });
   });
 
-  // ── 16. Summary rows show totals ──────────────────────────────────────────
+  describe('views', () => {
+    it('starts on By area with Expected cost, Paid and Still to pay', () => {
+      renderCard({ breakdown: makeBreakdown() });
+      expect(screen.getByTestId('breakdown-view-area')).toHaveAttribute('aria-pressed', 'true');
+      expect(headers()).toEqual(['Name', 'Expected cost', 'Paid', 'Still to pay']);
+      expect(hasRow('area:a-1')).toBe(true);
+      expect(cell('area:a-1', 'expectedCost')).toHaveTextContent('€2,300.00');
+    });
 
-  it('shows Available funds row with formatted currency value', () => {
-    // budgetSources must include a source with totalAmount=50000 so that
-    // filteredAvailableFunds (sum of non-deselected sources) equals €50,000.00.
-    const breakdown = {
-      ...buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 }),
-      budgetSources: [buildSourceSummary({ id: 'src-test', totalAmount: 50000 })],
-    };
-    render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview(50000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
+    it('switches to By type and writes ?by=type', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-view-type'));
+      expect(search()).toBe('?by=type');
+      expect(hasRow('type:work_items')).toBe(true);
+      expect(hasRow('type:household_items')).toBe(true);
+      expect(hasRow('area:a-1')).toBe(false);
+      expect(cell('type:work_items', 'expectedCost')).toHaveTextContent('€1,900.00');
+      expect(screen.getByRole('table')).toHaveAccessibleName('Breakdown of the project by Type');
+    });
 
-    expect(screen.getByText('Available funds')).toBeInTheDocument();
-    expect(screen.getByText('€50,000.00')).toBeInTheDocument();
+    it('switches to By cost category', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-view-category'));
+      expect(search()).toBe('?by=category');
+      expect(cell('category:cat-1', 'expectedCost')).toHaveTextContent('€1,800.00');
+      expect(hasRow('category:none')).toBe(true);
+    });
+
+    it('switches to By funding source and puts Unassigned last', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-view-source'));
+      expect(search()).toBe('?by=source');
+      const keys = screen
+        .getAllByTestId(/^breakdown-row-source:/)
+        .map((r) => r.getAttribute('data-testid'));
+      expect(keys).toEqual([
+        'breakdown-row-source:bs-a',
+        'breakdown-row-source:bs-b',
+        'breakdown-row-source:none',
+      ]);
+      expect(cell('source:bs-a', 'expectedCost')).toHaveTextContent('€1,400.00');
+    });
+
+    it('ends every view with the Not yet split row', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      for (const view of ['area', 'type', 'category', 'source']) {
+        await user.click(screen.getByTestId(`breakdown-view-${view}`));
+        const rows = screen.getAllByTestId(/^breakdown-row-/);
+        expect(rows[rows.length - 1]).toHaveAttribute('data-testid', 'breakdown-row-not-yet-split');
+      }
+      expect(cell('not-yet-split', 'expectedCost')).toHaveTextContent('€200.00');
+    });
+
+    it('goes down to cost lines and the Without a task group', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      expect(hasRow('line:l-1')).toBe(true);
+      expect(hasRow('orphans')).toBe(true);
+      expect(hasRow('line:l-5')).toBe(true);
+      await user.click(screen.getByTestId('breakdown-view-type'));
+      expect(hasRow('orphans')).toBe(true);
+    });
+
+    it('sums to the total in every view: the top-level rows plus Not yet split', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      const total = 2900;
+      for (const view of ['area', 'type', 'category', 'source']) {
+        await user.click(screen.getByTestId(`breakdown-view-${view}`));
+        const tops = screen
+          .getAllByTestId(/^breakdown-row-/)
+          .filter((r) => r.querySelector('th')?.getAttribute('data-depth') === '0');
+        const sum = tops
+          .map((r) => r.querySelector('td')!.textContent!)
+          .map((t) => Number(t.replace(/[^0-9.]/g, '')))
+          .reduce((a, b) => a + b, 0);
+        expect(sum).toBe(total);
+      }
+    });
   });
 
-  it('shows Sum label in bottom totals rows', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
+  describe('payment basis', () => {
+    it('shows only Paid under Paid and hides rows without Paid', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-payment-paid'));
+      expect(search()).toBe('?paymentStatus=paid');
+      expect(headers()).toEqual(['Name', 'Paid']);
+      expect(hasRow('line:l-1')).toBe(true);
+      expect(hasRow('line:l-2')).toBe(false);
+      expect(hasRow('line:l-4')).toBe(false);
+      expect(cell('area:a-1', 'paid')).toHaveTextContent('€1,200.00');
+    });
 
-    // The bottom totals section has a 'Sum' row and a 'Remaining Budget' row.
-    expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
-  });
+    it('shows only Not yet paid under Not yet paid and hides fully paid rows', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-payment-outstanding'));
+      expect(search()).toBe('?paymentStatus=outstanding');
+      expect(headers()).toEqual(['Name', 'Not yet paid']);
+      expect(hasRow('line:l-3')).toBe(false);
+      expect(hasRow('line:l-5')).toBe(false);
+      expect(cell('line:l-1', 'notYetPaid')).toHaveTextContent('€600.00');
+    });
 
-  it('shows Work Items label in summary', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByText('Work Items')).toBeInTheDocument();
-  });
-
-  it('shows Household Items label in summary', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithHI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByText('Household Items')).toBeInTheDocument();
-  });
-
-  // ── 17. WI section collapsed by default ─────────────────────────────────
-
-  it('does not show WI category rows when section is collapsed (default)', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Area name 'No Area' should not be visible yet (inside collapsed section)
-    expect(screen.queryByText('No Area')).not.toBeInTheDocument();
-  });
-
-  // ── 18. Click WI section toggle — area rows appear ───────────────────────
-
-  it('shows WI area rows after clicking the WI section toggle', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    // buildBreakdownWithWI places items in the "No Area" node
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-  });
-
-  it('sets aria-expanded=true on WI toggle button after clicking', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const wiToggle = getButtonByControls(container, 'wi-section-categories');
-    expect(wiToggle).toHaveAttribute('aria-expanded', 'false');
-
-    fireEvent.click(wiToggle);
-
-    expect(wiToggle).toHaveAttribute('aria-expanded', 'true');
-  });
-
-  // ── 19. Area row expand — item rows appear ───────────────────────────────
-
-  it('shows item rows after expanding the WI section then an area', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({ itemTitle: 'City Permit', workItemId: 'wi-permit' }),
-      buildOverview(),
-    );
-
-    // Expand WI section
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    // Expand No Area: aria-label="Expand No Area"
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-
-    expect(screen.getByText('City Permit')).toBeInTheDocument();
-  });
-
-  // ── 20. Item row expand — budget line rows appear ────────────────────────
-
-  it('shows budget line rows after expanding to item level', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        itemTitle: 'Crane Rental',
-        workItemId: 'wi-crane',
-        description: 'Tower crane for 3 weeks',
-      }),
-      buildOverview(),
-    );
-
-    // Expand WI section → area → item
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Crane Rental'));
-
-    expect(screen.getByText('Tower crane for 3 weeks')).toBeInTheDocument();
-  });
-
-  it('shows "Untitled" for budget lines without a description', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        itemTitle: 'Architect Fee',
-        workItemId: 'wi-arch',
-        description: null,
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Architect Fee'));
-
-    expect(screen.getByText('Untitled')).toBeInTheDocument();
-  });
-
-  // ── 21. costDisplay: 'actual' ──────────────────────────────────────────
-
-  it('shows formatted cost in item row for costDisplay=actual (no "Actual:" label)', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 950,
-        projectedMin: 950,
-        projectedMax: 950,
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-
-    // The item row Cost column shows "-€950.00" (formatCost) without "Actual:" label
-    expect(screen.getAllByText('-€950.00').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/Actual:/)).not.toBeInTheDocument();
-  });
-
-  // ── 22. costDisplay: 'projected' ─────────────────────────────────────────
-
-  it('shows projected cost in item row using default Avg perspective', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 800,
-        projectedMax: 1200,
-        rawProjectedMin: 800,
-        rawProjectedMax: 1200,
-        categoryName: 'Materials',
-        categoryId: 'cat-mat2',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-mat2-items'));
-
-    // Default perspective is "Avg": (800 + 1200) / 2 = 1000.
-    // The Cost column shows -€1,000.00 for the item row (raw cost with minus prefix).
-    expect(screen.getAllByText(/€1,000\.00/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  // ── 23. costDisplay: 'mixed' ─────────────────────────────────────────────
-  // For mixed mode, the item row shows the projected cost value (same column as projected),
-  // and the row has the rowMixed CSS class. The component does not show separate Actual/Projected
-  // labels in the Cost column for mixed items — only for actual mode shows 'Actual:' label.
-
-  it('shows projected cost value in item row for costDisplay=mixed (no rowMixed class)', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'mixed',
-        actualCost: 500,
-        projectedMin: 900,
-        projectedMax: 1300,
-        rawProjectedMin: 900,
-        rawProjectedMax: 1300,
-        categoryName: 'Labor',
-        categoryId: 'cat-labor2',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-labor2-items'));
-
-    // Default perspective is Avg: (900 + 1300) / 2 = 1100
-    const projectedAvg = screen.getAllByText(/€1,100\.00/);
-    expect(projectedAvg.length).toBeGreaterThanOrEqual(1);
-
-    // rowMixed class is no longer applied to item rows (green tinting removed)
-    const mixedRows = container.querySelectorAll('tr.rowMixed');
-    expect(mixedRows.length).toBe(0);
-  });
-
-  // ── 24. Zero subsidy payback → "—" ───────────────────────────────────────
-
-  it('renders "—" in Payback column for item with zero subsidyPayback', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        subsidyPayback: 0,
-        categoryName: 'Utilities',
-        categoryId: 'cat-util',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-util-items'));
-
-    // The item row payback column shows "—"
-    const dashElements = screen.getAllByText('—');
-    expect(dashElements.length).toBeGreaterThan(0);
-  });
-
-  // ── 25. Non-zero subsidy payback → currency value ────────────────────────
-
-  it('renders formatted currency value for non-zero subsidyPayback on item row', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        subsidyPayback: 120,
-        minSubsidyPayback: 120, // same as max → renders single value, not a range
-        categoryName: 'Landscaping',
-        categoryId: 'cat-land',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-land-items'));
-
-    // Payback column shows "€120.00" (no plus prefix) for both category row and item row
-    const currencyElements = screen.getAllByText('€120.00');
-    expect(currencyElements.length).toBeGreaterThanOrEqual(1);
-  });
-
-  // ── 26. Multiple WI areas render after expanding WI section ──────────────
-
-  it('renders both area nodes after expanding WI section', () => {
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
+    it('shows a negative Not yet paid as it is', () => {
+      const over = makeBreakdown({
+        lines: [{ ...makeBreakdown().lines[0]!, figures: figures(100, { paid: 150 }) }],
+        items: [],
+        byArea: [],
+        noArea: null,
+        orphanLines: null,
+        notYetSplit: null,
+        byCategory: [
           {
-            areaId: 'area-kitchen',
-            name: 'Kitchen',
-            parentId: null,
-            color: null,
-            projectedMin: 800,
-            projectedMax: 1200,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 800,
-            rawProjectedMax: 1200,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
-          },
-          {
-            areaId: 'area-bathroom',
-            name: 'Bathroom',
-            parentId: null,
-            color: null,
-            projectedMin: 500,
-            projectedMax: 700,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 500,
-            rawProjectedMax: 700,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
+            budgetCategoryId: 'cat-1',
+            name: 'Materials',
+            translationKey: null,
+            figures: figures(100, { paid: 150 }),
           },
         ],
-        totals: {
-          projectedMin: 1300,
-          projectedMax: 1900,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 1300,
-          rawProjectedMax: 1900,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
+        total: figures(100, { paid: 150 }),
+      });
+      renderCard({ breakdown: over }, '/budget/overview?by=category&paymentStatus=outstanding');
+      expect(cell('line:l-1', 'notYetPaid').textContent).toMatch(/^[-−]€50\.00$/);
+    });
+
+    it('opens on the basis from an old ?paymentStatus=outstanding link', () => {
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?paymentStatus=outstanding');
+      expect(screen.getByTestId('breakdown-payment-outstanding')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(headers()).toEqual(['Name', 'Not yet paid']);
+    });
+  });
+
+  describe('Show grants', () => {
+    it('adds Grants and After grants after Expected cost under All', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByRole('button', { name: 'Grants' }));
+      expect(search()).toBe('?grants=1');
+      expect(headers()).toEqual([
+        'Name',
+        'Expected cost',
+        'Grants',
+        'After grants',
+        'Paid',
+        'Still to pay',
+      ]);
+      expect(cell('line:l-1', 'grants')).toHaveTextContent('€100.00');
+      expect(cell('line:l-1', 'afterGrants')).toHaveTextContent('€900.00');
+      await user.click(screen.getByRole('button', { name: 'Grants' }));
+      expect(search()).toBe('');
+      expect(headers()).toEqual(['Name', 'Expected cost', 'Paid', 'Still to pay']);
+    });
+
+    it('hides the toggle and the columns under Paid but keeps ?grants=1 in the URL', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?grants=1');
+      expect(screen.getByRole('group', { name: 'Show' })).toBeInTheDocument();
+      await user.click(screen.getByTestId('breakdown-payment-paid'));
+      expect(screen.queryByTestId('breakdown-show-grants')).toBeNull();
+      expect(headers()).toEqual(['Name', 'Paid']);
+      expect(search()).toContain('grants=1');
+      await user.click(screen.getByTestId('breakdown-payment-all'));
+      expect(headers()).toContain('After grants');
+    });
+  });
+
+  describe('estimates', () => {
+    it('shows the best case under Low and the worst case under High', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      expect(cell('line:l-2', 'expectedCost')).toHaveTextContent('€500.00');
+      await user.click(screen.getByTestId('breakdown-estimate-low'));
+      expect(search()).toBe('?estimate=low');
+      expect(cell('line:l-2', 'expectedCost')).toHaveTextContent('€450.00');
+      await user.click(screen.getByTestId('breakdown-estimate-high'));
+      expect(search()).toBe('?estimate=high');
+      expect(cell('line:l-2', 'expectedCost')).toHaveTextContent('€600.00');
+      await user.click(screen.getByTestId('breakdown-estimate-expected'));
+      expect(search()).toBe('');
+    });
+
+    it('does not change Paid and Still to pay between estimates', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-estimate-high'));
+      expect(cell('line:l-1', 'paid')).toHaveTextContent('€400.00');
+      expect(cell('line:l-1', 'stillToPay')).toHaveTextContent('€600.00');
+    });
+  });
+
+  describe('total row', () => {
+    const totalLabel = () =>
+      within(screen.getByTestId('breakdown-total')).getAllByRole('rowheader')[0];
+
+    it('reads Total for the whole project at expected estimates', () => {
+      renderCard({ breakdown: makeBreakdown() });
+      expect(totalLabel()).toHaveTextContent(/^Total$/);
+      expect(screen.getByTestId('breakdown-total-expectedCost')).toHaveTextContent('€2,900.00');
+    });
+
+    it('reads "Total for the current settings" once the payment basis changes', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-payment-paid'));
+      expect(totalLabel()).toHaveTextContent('Total for the current settings');
+      await user.click(screen.getByTestId('breakdown-payment-all'));
+      expect(totalLabel()).toHaveTextContent(/^Total$/);
+    });
+
+    it('reads "Total for the current settings" for an estimate other than Expected', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-estimate-low'));
+      expect(totalLabel()).toHaveTextContent('Total for the current settings');
+      expect(screen.getByTestId('breakdown-total-expectedCost')).toHaveTextContent('€2,850.00');
+    });
+
+    it('reads "Total for the current settings" when a funding source is deselected', () => {
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?deselectedSources=bs-b');
+      expect(totalLabel()).toHaveTextContent('Total for the current settings');
+    });
+
+    it('does not change for the view or the Grants toggle', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-view-source'));
+      await user.click(screen.getByRole('button', { name: 'Grants' }));
+      expect(totalLabel()).toHaveTextContent(/^Total$/);
+    });
+  });
+
+  describe('funding source filter', () => {
+    it('shows "n of N" and writes the deselected source to the URL', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      const chip = screen.getByTestId('breakdown-sources-button');
+      expect(chip).toHaveTextContent('3 of 3');
+      await user.click(chip);
+      await user.click(screen.getByTestId('breakdown-source-bs-b'));
+      expect(search()).toBe('?deselectedSources=bs-b');
+      expect(chip).toHaveTextContent('2 of 3');
+    });
+
+    it('selects all again from the panel', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?deselectedSources=bs-b');
+      await user.click(screen.getByTestId('breakdown-sources-button'));
+      await user.click(screen.getByRole('button', { name: 'Select all' }));
+      expect(search()).toBe('');
+    });
+
+    it('cannot deselect the last selected source', async () => {
+      const user = userEvent.setup();
+      renderCard(
+        { breakdown: makeBreakdown() },
+        '/budget/overview?deselectedSources=bs-b,unassigned',
+      );
+      await user.click(screen.getByTestId('breakdown-sources-button'));
+      await user.click(screen.getByTestId('breakdown-source-bs-a'));
+      expect(search()).toBe('?deselectedSources=bs-b,unassigned');
+    });
+  });
+
+  describe('funding source of a line', () => {
+    const open = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-2'));
+      await user.click(screen.getByTestId('breakdown-toggle-item:work_item:wi-1'));
     };
 
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Expand WI section
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    expect(screen.getByText('Kitchen')).toBeInTheDocument();
-    expect(screen.getByText('Bathroom')).toBeInTheDocument();
-  });
-
-  it('renders "No Area" area node when items have no area', () => {
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            projectedMin: 400,
-            projectedMax: 600,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 400,
-            rawProjectedMax: 600,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 400,
-          projectedMax: 600,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 400,
-          rawProjectedMax: 600,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-  });
-
-  // ── 27. HI section shows alongside WI section ──────────────────────────────
-
-  it('shows HI section even when WI section has no areas', () => {
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [
-          {
-            areaId: 'area-hi-lr',
-            name: 'Living Room',
-            parentId: null,
-            color: null,
-            projectedMin: 300,
-            projectedMax: 500,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 300,
-            rawProjectedMax: 500,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 300,
-          projectedMax: 500,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 300,
-          rawProjectedMax: 500,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-
-    render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // HI section should still be visible
-    expect(screen.getByText('Household Items')).toBeInTheDocument();
-  });
-
-  // ── 28. Remaining value positive → valuePositive CSS class ───────────────
-
-  it('applies valuePositive CSS class when remaining is positive', () => {
-    // availableFunds=100000, projectedMax=1200 → remaining = 98800 > 0
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMax: 1200,
-          budgetSources: [buildSourceSummary({ totalAmount: 100000 })],
-        })}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        leftToSpend={{ expected: 98800, best: 99000, worst: 98000, verdict: 'on_budget' }}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const positiveElements = container.querySelectorAll('.valuePositive');
-    expect(positiveElements.length).toBeGreaterThan(0);
-    expect(
-      screen.getByTestId('cost-breakdown-left-to-spend').querySelector('[data-figure]'),
-    ).toHaveClass('valuePositive');
-  });
-
-  // ── 29. Remaining value negative → valueNegative CSS class ───────────────
-
-  it('applies valueNegative CSS class when remaining is negative', () => {
-    // availableFunds=100, projectedMax=50000 → remaining = -49900 < 0
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
-        overview={buildOverview(100)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const negativeElements = container.querySelectorAll('.valueNegative');
-    expect(negativeElements.length).toBeGreaterThan(0);
-  });
-
-  // ── 30. Empty state ───────────────────────────────────────────────────────
-
-  it('renders empty state message when there is no budget data', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildEmptyBreakdown()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByText(/no budget data to display/i)).toBeInTheDocument();
-  });
-
-  it('does not render the table when in empty state', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildEmptyBreakdown()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(container.querySelector('table')).not.toBeInTheDocument();
-  });
-
-  it('still renders the heading when in empty state', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildEmptyBreakdown()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('heading', { name: /cost breakdown/i })).toBeInTheDocument();
-  });
-
-  // ── 31. Accessibility — aria-expanded and aria-controls ──────────────────
-
-  it('WI section toggle button has aria-expanded', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const wiToggle = getButtonByControls(container, 'wi-section-categories');
-    expect(wiToggle).toHaveAttribute('aria-expanded');
-  });
-
-  it('HI section toggle button has aria-expanded', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithHI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const hiToggle = getButtonByControls(container, 'hi-section-categories');
-    expect(hiToggle).toHaveAttribute('aria-expanded');
-  });
-
-  it('WI section toggle button starts with aria-expanded=false', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const wiToggle = getButtonByControls(container, 'wi-section-categories');
-    expect(wiToggle).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('area toggle button has aria-expanded after WI section expanded', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    const areaToggle = getButtonByControls(container, 'area:No Area');
-    expect(areaToggle).toHaveAttribute('aria-expanded');
-  });
-
-  it('item toggle button has aria-expanded after expanding category', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        categoryName: 'Insurance',
-        categoryId: 'cat-ins',
-        itemTitle: 'Home Insurance',
-        workItemId: 'wi-ins',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-
-    const itemToggle = getButtonByLabel('Expand Home Insurance');
-    expect(itemToggle).toHaveAttribute('aria-expanded');
-  });
-
-  // ── HI section expansion ───────────────────────────────────────────────────
-
-  it('shows HI category label after expanding HI section', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-
-    // "Home Office" is the user-defined category name used directly as the display label
-    expect(screen.getByText('Home Office')).toBeInTheDocument();
-  });
-
-  it('shows HI item name after expanding HI section and HI area', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({
-        hiCategory: 'Kitchen',
-        itemName: 'Dishwasher',
-        householdItemId: 'hi-dishwasher',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    // HI area expand button is initially collapsed → aria-label="Expand {name}"
-    fireEvent.click(getButtonByControls(container, 'hi-area:Kitchen'));
-
-    expect(screen.getByText('Dishwasher')).toBeInTheDocument();
-  });
-
-  // ── Toggle collapse ────────────────────────────────────────────────────────
-
-  it('collapses WI area rows when toggle is clicked a second time', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const wiToggle = getButtonByControls(container, 'wi-section-categories');
-
-    // Expand
-    fireEvent.click(wiToggle);
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-
-    // Collapse
-    fireEvent.click(wiToggle);
-    expect(screen.queryByText('No Area')).not.toBeInTheDocument();
-  });
-
-  // ── Table structure — Column Headers ──────────────────────────────────────
-
-  // Scenario 7: Cost column header says "Cost" (not "Budget")
-  it('renders "Cost" as the cost column header (not "Budget")', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('columnheader', { name: /^cost$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: /^budget$/i })).not.toBeInTheDocument();
-  });
-
-  // Scenario 8: Net column header says "Net" (not "Remaining")
-  it('renders "Net" as the net column header (not "Remaining")', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('columnheader', { name: /^net$/i })).toBeInTheDocument();
-  });
-
-  it('renders table column headers: Name, Cost, Payback, Net', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /^cost$/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /payback/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /^net$/i })).toBeInTheDocument();
-  });
-
-  // ── Level-0 Row Names (Scenario 9) ────────────────────────────────────────
-
-  it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds" (and no "Remaining Budget")', () => {
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: 'area-1',
-            name: 'Kitchen',
-            parentId: null,
-            color: null,
-            projectedMin: 500,
-            projectedMax: 700,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 500,
-            rawProjectedMax: 700,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 500,
-          projectedMax: 700,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 500,
-          rawProjectedMax: 700,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [
-          {
-            areaId: 'area-hi-1',
-            name: 'Living Room',
-            parentId: null,
-            color: null,
-            projectedMin: 200,
-            projectedMax: 300,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 200,
-            rawProjectedMax: 300,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 200,
-          projectedMax: 300,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 200,
-          rawProjectedMax: 300,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-
-    render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByText('Work Items')).toBeInTheDocument();
-    expect(screen.getByText('Household Items')).toBeInTheDocument();
-    expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.getByText('Available funds')).toBeInTheDocument();
-    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
-  });
-
-  // ── Category sum row visibility — Bug #585 fix ────────────────────────────
-  // After Bug #585 was fixed, the "Total {category}" sum row no longer renders.
-  // The category header row still shows the category name with cost values.
-
-  it('does not show a "Total {area}" sum row after expanding a WI area (Bug #585)', () => {
-    const { container } = renderWithRouter(buildBreakdownWithWI(), buildOverview());
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-
-    // Area header row still shows the area name
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-    // But no "Total No Area" sum row should appear
-    expect(screen.queryByText('Total No Area')).not.toBeInTheDocument();
-  });
-
-  it('does not show a "Total {area}" sum row after expanding an HI area (Bug #585)', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({ hiCategory: 'Garage', householdItemId: 'hi-stor' }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-area:Garage'));
-
-    // Area header row still shows the area name
-    expect(screen.getByText('Garage')).toBeInTheDocument();
-    // But no "Total Garage" sum row should appear
-    expect(screen.queryByText('Total Garage')).not.toBeInTheDocument();
-  });
-
-  // ── "No Area" node for null-area WI items ────────────────────────────────
-
-  it('renders WI item with null areaId under "No Area" label', () => {
-    const { container } = render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-  });
-
-  // ── Perspective Toggle (Scenarios 1–6) ────────────────────────────────────
-
-  // Scenario 1: "Avg" is active by default
-  it('renders with "Avg" segment active by default (aria-checked="true")', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const avgButton = screen.getByRole('radio', { name: 'Avg' });
-    expect(avgButton).toHaveAttribute('aria-checked', 'true');
-
-    const minButton = screen.getByRole('radio', { name: 'Min' });
-    expect(minButton).toHaveAttribute('aria-checked', 'false');
-
-    const maxButton = screen.getByRole('radio', { name: 'Max' });
-    expect(maxButton).toHaveAttribute('aria-checked', 'false');
-  });
-
-  // Issue #1812: PerspectiveToggle's `t` is scoped to its own useTranslation('budget')
-  // call (separate top-level component from the main table), so the radiogroup
-  // aria-label must be asserted independently of the Min/Avg/Max segment labels.
-  it('renders the perspective toggle radiogroup with aria-label "Cost perspective"', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('radiogroup', { name: 'Cost perspective' })).toBeInTheDocument();
-  });
-
-  // Issue #1812: the subsidy-adjustments section expand button has no visible text
-  // (chevron icon only) — its accessible name comes entirely from aria-label.
-  it('renders the subsidy adjustments section expand button with aria-label "Expand subsidy adjustments"', () => {
-    const breakdown = {
-      ...buildBreakdownWithWI(),
-      subsidyAdjustments: [
-        {
-          subsidyProgramId: 'sub-1',
-          name: 'Energy Rebate',
-          maximumAmount: 5000,
-          maxPayout: 5000,
-          minExcess: 100,
-          maxExcess: 200,
-        },
-      ],
-    };
-
-    render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('button', { name: 'Expand subsidy adjustments' })).toBeInTheDocument();
-  });
-
-  // Scenario 2: Clicking "Min" activates Min, shows projectedMin value for projected items
-  it('clicking Min activates Min segment and shows projectedMin value for projected items', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 600,
-        projectedMax: 1000,
-        rawProjectedMin: 600,
-        rawProjectedMax: 1000,
-        categoryName: 'Labor',
-        categoryId: 'cat-lab-min',
-      }),
-      buildOverview(),
-    );
-
-    // Switch to Min
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-
-    expect(screen.getByRole('radio', { name: 'Min' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'false');
-
-    // Expand WI section and category to see item row
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-min-items'));
-
-    // projectedMin=600 should appear (not projectedMax=1000)
-    expect(screen.getAllByText(/€600\.00/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Scenario 3: Clicking "Avg" shows (projectedMin + projectedMax) / 2
-  it('clicking Avg shows average of projectedMin and projectedMax for projected items', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 800,
-        projectedMax: 1200,
-        categoryName: 'Permits',
-        categoryId: 'cat-perm-avg',
-      }),
-      buildOverview(),
-    );
-
-    // Switch to Avg — average of 800 and 1200 = 1000
-    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
-
-    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
-
-    // Expand WI section and category to see item row
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-perm-avg-items'));
-
-    // Average value €1,000.00
-    expect(screen.getAllByText(/€1,000\.00/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Scenario 4: ArrowRight from "Min" activates next option in order (Avg)
-  // Toggle order is: Min (0), Avg (1), Max (2)
-  it('ArrowRight keydown from Min activates Avg (next in order)', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // First set focus to Min by clicking it
-    const minButton = screen.getByRole('radio', { name: 'Min' });
-    fireEvent.click(minButton);
-    expect(minButton).toHaveAttribute('aria-checked', 'true');
-
-    // ArrowRight from Min (index 0) → Avg (index 1)
-    fireEvent.keyDown(minButton, { key: 'ArrowRight' });
-
-    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
-    expect(minButton).toHaveAttribute('aria-checked', 'false');
-  });
-
-  // Scenario 5: ArrowLeft from "Min" wraps around to last option (Max)
-  it('ArrowLeft keydown from Min wraps around to activate Max (last in order)', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const minButton = screen.getByRole('radio', { name: 'Min' });
-    fireEvent.click(minButton);
-    expect(minButton).toHaveAttribute('aria-checked', 'true');
-
-    // ArrowLeft from Min (index 0) wraps to Max (last, index 2)
-    fireEvent.keyDown(minButton, { key: 'ArrowLeft' });
-
-    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'true');
-    expect(minButton).toHaveAttribute('aria-checked', 'false');
-  });
-
-  // Scenario 6: Actual-cost items show actualCost regardless of perspective (no "Actual:" label)
-  it('actual-cost items show actualCost value regardless of which perspective is active', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 750,
-        projectedMin: 750,
-        projectedMax: 750,
-        categoryName: 'Equipment',
-        categoryId: 'cat-equip-actual',
-      }),
-      buildOverview(),
-    );
-
-    // Switch to Min perspective
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-equip-actual-items'));
-
-    // Actual cost shows "-€750.00" (formatCost), no "Actual:" label
-    expect(screen.getAllByText('-€750.00').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/Actual:/)).not.toBeInTheDocument();
-
-    // Switch to Avg — still shows same actual cost
-    fireEvent.click(screen.getByRole('radio', { name: 'Avg' }));
-    expect(screen.getAllByText('-€750.00').length).toBeGreaterThanOrEqual(1);
-  });
-
-  // ── Row Highlighting (Scenarios 10–13) ────────────────────────────────────
-
-  // Scenario 10: costDisplay === 'actual' → NO rowActual CSS class on <tr> (green tinting removed)
-  // Instead, an "invoiced" badge is shown next to the item title.
-  it('work item with costDisplay=actual does NOT have rowActual CSS class on its row', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 500,
-        projectedMin: 500,
-        projectedMax: 500,
-        categoryName: 'Insurance',
-        categoryId: 'cat-ins-actual',
-        workItemId: 'wi-actual-row',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-ins-actual-items'));
-
-    // rowActual class is no longer applied to work item rows (green tinting removed)
-    const level2Rows = container.querySelectorAll('.rowLevel2');
-    expect(level2Rows.length).toBeGreaterThan(0);
-    level2Rows.forEach((row) => {
-      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    it('shows the source name beside a line outside the source view', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await open(user);
+      expect(within(row('line:l-1')).getByText('Savings')).toBeInTheDocument();
+      expect(within(row('line:l-2')).getByText('Loan')).toBeInTheDocument();
+    });
+
+    it('shows Unassigned for a line without a source', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      await user.click(screen.getByTestId('breakdown-toggle-item:household_item:hi-1'));
+      expect(within(row('line:l-3')).getByText('Unassigned')).toBeInTheDocument();
+    });
+
+    it('shows no source name in the funding source view', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?by=source');
+      await user.click(screen.getByTestId('breakdown-toggle-source:bs-a'));
+      expect(within(row('line:l-1')).queryByText('Savings')).toBeNull();
+    });
+
+    it('shows no source name for a line whose source is not in the options', async () => {
+      const user = userEvent.setup();
+      const b = makeBreakdown();
+      renderCard({
+        breakdown: { ...b, lines: b.lines.map((l) => ({ ...l, budgetSourceId: 'gone' })) },
+      });
+      await open(user);
+      expect(within(row('line:l-1')).queryByText('Savings')).toBeNull();
+      expect(within(row('line:l-1')).queryByText('Unassigned')).toBeNull();
     });
   });
 
-  // Scenario 11: costDisplay === 'mixed' → NO rowMixed CSS class on <tr> (green tinting removed)
-  it('work item with costDisplay=mixed does NOT have rowMixed CSS class on its row', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'mixed',
-        actualCost: 300,
-        projectedMin: 600,
-        projectedMax: 900,
-        categoryName: 'Design',
-        categoryId: 'cat-des-mixed',
-        workItemId: 'wi-mixed-row',
-      }),
-      buildOverview(),
-    );
+  describe('expanding rows', () => {
+    it('opens and closes a group without unmounting its children', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      expect(row('area:a-2')).toHaveAttribute('hidden');
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      expect(row('area:a-2')).not.toHaveAttribute('hidden');
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      expect(row('area:a-2')).toHaveAttribute('hidden');
+      expect(hasRow('area:a-2')).toBe(true);
+    });
 
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-des-mixed-items'));
+    it('remembers open rows per view', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      await user.click(screen.getByTestId('breakdown-view-type'));
+      expect(row('item:work_item:wi-1')).toHaveAttribute('hidden');
+      await user.click(screen.getByTestId('breakdown-view-area'));
+      expect(row('area:a-2')).not.toHaveAttribute('hidden');
+    });
 
-    // rowMixed class is no longer applied (green tinting removed)
-    const mixedRows = container.querySelectorAll('.rowMixed');
-    expect(mixedRows.length).toBe(0);
-  });
+    it('expands every row on beforeprint and restores the open rows on afterprint', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-toggle-area:a-1'));
+      act(() => {
+        window.dispatchEvent(new Event('beforeprint'));
+      });
+      for (const key of ['area:a-2', 'item:work_item:wi-1', 'line:l-1', 'orphans', 'line:l-5']) {
+        expect(row(key)).not.toHaveAttribute('hidden');
+      }
+      act(() => {
+        window.dispatchEvent(new Event('afterprint'));
+      });
+      expect(row('area:a-2')).not.toHaveAttribute('hidden');
+      expect(row('line:l-1')).toHaveAttribute('hidden');
+    });
 
-  // Scenario 12: costDisplay === 'projected' → neither rowActual nor rowMixed
-  it('work item with costDisplay=projected has neither rowActual nor rowMixed', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 400,
-        projectedMax: 600,
-        categoryName: 'Utilities',
-        categoryId: 'cat-util-proj',
-        workItemId: 'wi-proj-row',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-util-proj-items'));
-
-    // The level-2 item rows should not have rowActual or rowMixed
-    const level2Rows = container.querySelectorAll('.rowLevel2');
-    expect(level2Rows.length).toBeGreaterThan(0);
-    level2Rows.forEach((row) => {
-      const cls = row.getAttribute('class') ?? '';
-      expect(cls).not.toContain('rowActual');
-      expect(cls).not.toContain('rowMixed');
+    it('expands only the rows that are visible under the payment basis for print', () => {
+      renderCard({ breakdown: makeBreakdown() }, '/budget/overview?paymentStatus=paid');
+      act(() => {
+        window.dispatchEvent(new Event('beforeprint'));
+      });
+      expect(row('line:l-1')).not.toHaveAttribute('hidden');
+      expect(hasRow('line:l-2')).toBe(false);
     });
   });
 
-  // Scenario 13: budget line with hasInvoice===true → "invoiced" badge shown, NO rowActual class
-  it('budget line with hasInvoice=true shows "invoiced" badge and does NOT have rowActual CSS class', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 400,
-        projectedMin: 400,
-        projectedMax: 400,
-        hasInvoice: true,
-        categoryName: 'Labor',
-        categoryId: 'cat-lab-inv',
-        workItemId: 'wi-inv',
-        description: 'Labour invoice',
-      }),
-      buildOverview(),
-    );
+  describe('announcements', () => {
+    it('writes an announcement into the status region when it arrives', () => {
+      const { rerenderCard } = renderCard({ breakdown: makeBreakdown() });
+      rerenderCard({
+        breakdown: makeBreakdown(),
+        announcement: { id: 1, text: '2 of 3 funding sources shown. Expected cost €2,400.00.' },
+      });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent(
+        '2 of 3 funding sources shown. Expected cost €2,400.00.',
+      );
+    });
 
-    // Expand to budget line level
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
+    it('does not announce a stale announcement that was already there when the card mounted', () => {
+      renderCard({ breakdown: makeBreakdown(), announcement: { id: 1, text: 'Old news' } });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('');
+    });
 
-    // Budget line row (level 3) with hasInvoice shows "invoiced" badge (not rowActual class)
-    const invoicedBadges = container.querySelectorAll('.invoicedBadge');
-    expect(invoicedBadges.length).toBeGreaterThan(0);
+    it('updates the region only when the announcement id changes', () => {
+      const { rerenderCard } = renderCard({ breakdown: makeBreakdown() });
+      rerenderCard({ breakdown: makeBreakdown(), announcement: { id: 1, text: 'First' } });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('First');
+      rerenderCard({ breakdown: makeBreakdown(), announcement: { id: 1, text: 'Edited text' } });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('First');
+      rerenderCard({ breakdown: makeBreakdown(), announcement: { id: 2, text: 'Second' } });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('Second');
+    });
 
-    // rowActual class is no longer applied to budget line rows (green tinting removed)
-    const level3Rows = container.querySelectorAll('.rowLevel3');
-    expect(level3Rows.length).toBeGreaterThan(0);
-    level3Rows.forEach((row) => {
-      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
+    it('clears the region when the announcement goes away', () => {
+      const { rerenderCard } = renderCard({ breakdown: makeBreakdown() });
+      rerenderCard({ breakdown: makeBreakdown(), announcement: { id: 1, text: 'First' } });
+      rerenderCard({ breakdown: makeBreakdown(), announcement: null });
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('');
+    });
+
+    it('announces a drill-down of the phone list in the same region', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-list-row-area:a-1'));
+      expect(screen.getByTestId('breakdown-status')).toHaveTextContent('Showing Ground floor');
+    });
+
+    it('starts the phone list at the root again after a view change', async () => {
+      const user = userEvent.setup();
+      renderCard({ breakdown: makeBreakdown() });
+      await user.click(screen.getByTestId('breakdown-list-row-area:a-1'));
+      expect(screen.getByTestId('breakdown-list-heading')).toBeInTheDocument();
+      await user.click(screen.getByTestId('breakdown-view-type'));
+      expect(screen.queryByTestId('breakdown-list-heading')).toBeNull();
+      expect(screen.getByTestId('breakdown-list-row-type:work_items')).toBeInTheDocument();
     });
   });
 
-  // ── Available Funds Expansion (Scenarios 14–17) ───────────────────────────
-
-  // Scenario 14: no budgetSources → no expand button on Available Funds
-  it('Available Funds row has no expand button when budgetSources is empty', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // The expand button for Available funds has a specific aria-label
-    expect(
-      screen.queryByRole('button', { name: /expand available funds/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  // Scenario 15: budgetSources has entries → expand button present, starts collapsed
-  it('Available Funds row has an expand button with aria-expanded=false when sources exist', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={{
-          ...buildBreakdownWithWI(),
-          budgetSources: [
-            buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 }),
-          ],
-        }}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
-    expect(expandBtn).toBeInTheDocument();
-    expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  // Scenario 16: clicking expand shows one sub-row per source with name and Net column
-  it('clicking Available Funds expand shows source sub-rows with name and Net value', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={{
-          ...buildBreakdownWithWI(),
-          budgetSources: [
-            // No allocated cost/payback for these sources → Net = totalAmount
-            buildSourceSummary({
-              id: 'src-1',
-              name: 'Savings Account',
-              totalAmount: 50000,
-              projectedMin: 0,
-              projectedMax: 0,
-            }),
-            buildSourceSummary({
-              id: 'src-2',
-              name: 'Bank Loan',
-              totalAmount: 80000,
-              projectedMin: 0,
-              projectedMax: 0,
-            }),
-          ],
-        }}
-        overview={buildOverview(130000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
-    fireEvent.click(expandBtn);
-
-    // Source names appear in source detail toggle rows (one per source)
-    expect(screen.getByText('Savings Account')).toBeInTheDocument();
-    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
-
-    // With zero cost/payback for these sources, Net = totalAmount, so the
-    // totalAmount values appear in the Net column of the source detail rows.
-    expect(screen.getByText('€50,000.00')).toBeInTheDocument();
-    expect(screen.getByText('€80,000.00')).toBeInTheDocument();
-  });
-
-  // Scenario 17: clicking expand again collapses source rows
-  it('clicking Available Funds expand again collapses source sub-rows', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={{
-          ...buildBreakdownWithWI(),
-          budgetSources: [
-            buildSourceSummary({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
-          ],
-        }}
-        overview={buildOverview(100000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
-
-    // Expand: source name appears in the source detail toggle row
-    fireEvent.click(expandBtn);
-    expect(screen.getByText('Credit Line')).toBeInTheDocument();
-
-    // Collapse: source detail rows unmount (gated by availFundsExpanded)
-    fireEvent.click(expandBtn);
-    expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
-  });
-
-  // ── New Scenarios (Issue #493) ─────────────────────────────────────────────
-
-  // Scenario 8: Toggle order — Min first, Avg second, Max third
-  it('perspective toggle renders buttons in order: Min, Avg, Max', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    const radioButtons = screen.getAllByRole('radio');
-    expect(radioButtons).toHaveLength(3);
-    expect(radioButtons[0]).toHaveAccessibleName('Min');
-    expect(radioButtons[1]).toHaveAccessibleName('Avg');
-    expect(radioButtons[2]).toHaveAccessibleName('Max');
-  });
-
-  // Scenario 9: Default perspective is "Avg" (aria-checked="true")
-  it('default perspective is Avg with aria-checked="true"', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Min' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('radio', { name: 'Max' })).toHaveAttribute('aria-checked', 'false');
-  });
-
-  // Scenario 10: Payback column IS affected by perspective switch (uses resolveProjected)
-  it('payback column changes with perspective when min !== max', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        subsidyPayback: 300,
-        minSubsidyPayback: 100,
-        projectedMin: 800,
-        projectedMax: 1200,
-        rawProjectedMin: 800,
-        rawProjectedMax: 1200,
-        categoryName: 'Materials',
-        categoryId: 'cat-payback-persp',
-      }),
-      buildOverview(),
-    );
-
-    // Expand to see item row
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-persp-items'));
-
-    // Avg (default): resolveProjected(100, 300, 'avg') = 200 → €200.00
-    const paybackAvg = screen.getAllByText('€200.00');
-    expect(paybackAvg.length).toBeGreaterThanOrEqual(1);
-
-    // Switch to Min: resolveProjected(100, 300, 'min') = 100 → €100.00
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-    const paybackMin = screen.getAllByText('€100.00');
-    expect(paybackMin.length).toBeGreaterThanOrEqual(1);
-
-    // Switch to Max: resolveProjected(100, 300, 'max') = 300 → €300.00
-    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
-    const paybackMax = screen.getAllByText('€300.00');
-    expect(paybackMax.length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Scenario 11: Work item name is a link with correct href
-  it('work item name in item row is an anchor link to /project/work-items/{workItemId}', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        workItemId: 'wi-link-test',
-        itemTitle: 'Plumbing Work',
-        categoryName: 'Materials',
-        categoryId: 'cat-wi-link',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-link-items'));
-
-    const link = screen.getByRole('link', { name: 'Plumbing Work' });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/project/work-items/wi-link-test');
-  });
-
-  // Scenario 12: Household item name is a link with correct href
-  it('household item name in item row is an anchor link to /project/household-items/{householdItemId}', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({
-        hiCategory: 'Bathroom',
-        householdItemId: 'hi-link-test',
-        itemName: 'Bathroom Sink',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Bathroom-items'));
-
-    const link = screen.getByRole('link', { name: 'Bathroom Sink' });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/project/household-items/hi-link-test');
-  });
-
-  // Scenario 13: Cost column shows "-€" prefix for projected items
-  it('Cost column shows negative "-€" prefix for projected work item', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 1000,
-        projectedMax: 1000,
-        rawProjectedMin: 1000,
-        rawProjectedMax: 1000,
-        categoryName: 'Materials',
-        categoryId: 'cat-cost-prefix',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-cost-prefix-items'));
-
-    // The cost column for item rows shows "-€1,000.00" with explicit minus sign
-    const costElements = screen.getAllByText('-€1,000.00');
-    expect(costElements.length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Scenario 14: Payback column shows currency value without "+" prefix
-  it('Payback column shows currency value without "+" prefix when min equals max', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        subsidyPayback: 150,
-        minSubsidyPayback: 150,
-        categoryName: 'Labor',
-        categoryId: 'cat-payback-single',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-single-items'));
-
-    // min === max → resolveProjected returns 150 regardless of perspective → "€150.00" (no "+" prefix)
-    const singlePayback = screen.getAllByText('€150.00');
-    expect(singlePayback.length).toBeGreaterThanOrEqual(1);
-    // No "+" prefix should appear
-    expect(screen.queryByText(/\+€/)).not.toBeInTheDocument();
-  });
-
-  // Scenario 15: Payback column shows perspective-resolved single value when min !== max
-  it('Payback column shows perspective-resolved single value when minSubsidyPayback differs from subsidyPayback', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        subsidyPayback: 120,
-        minSubsidyPayback: 80,
-        categoryName: 'Design',
-        categoryId: 'cat-payback-range',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-payback-range-items'));
-
-    // Avg (default): resolveProjected(80, 120, 'avg') = 100 → "€100.00"
-    const avgPayback = screen.getAllByText('€100.00');
-    expect(avgPayback.length).toBeGreaterThanOrEqual(1);
-    // No range separator "–" should appear in payback column
-    expect(container.textContent).not.toContain('+€80.00 – +€120.00');
-
-    // Switch to Min: resolveProjected(80, 120, 'min') = 80 → "€80.00"
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-    const minPayback = screen.getAllByText('€80.00');
-    expect(minPayback.length).toBeGreaterThanOrEqual(1);
-
-    // Switch to Max: resolveProjected(80, 120, 'max') = 120 → "€120.00"
-    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
-    const maxPayback = screen.getAllByText('€120.00');
-    expect(maxPayback.length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Regression: user-defined HI category name is used directly as the display label
-  it('shows user-defined HI category name after expanding HI section', () => {
-    const { container } = render(
-      <MemoryRouter>
-        <CostBreakdownTable
-          breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
-          overview={buildOverview()}
-          deselectedSourceIds={new Set()}
-          onSourceToggle={() => {}}
-          onSelectAllSources={() => {}}
-          paymentStatus="all"
-          onPaymentStatusChange={() => {}}
-        />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    expect(screen.getByText('Master Bedroom')).toBeInTheDocument();
-  });
-
-  // Scenario 16: Net column renders a single perspective-resolved value on item rows
-  it('Net column renders a single perspective-resolved value on item rows', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 800,
-        projectedMax: 1200,
-        rawProjectedMin: 800,
-        rawProjectedMax: 1200,
-        subsidyPayback: 100,
-        minSubsidyPayback: 80,
-        categoryName: 'Permits',
-        categoryId: 'cat-net-col',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-net-col-items'));
-
-    // The Net cell (colRemaining) for the item row must contain some currency value.
-    // Avg rawCost = resolveProjected(800, 1200, 'avg') = 1000
-    // Avg payback = resolveProjected(80, 100, 'avg') = 90
-    // Net (Avg) = payback - rawCost = 90 - 1000 = -910 → "-€910.00"
-    const netCells = container.querySelectorAll('td.colRemaining');
-    const nonEmptyNetCells = Array.from(netCells).filter((td) => td.textContent?.trim() !== '');
-    expect(nonEmptyNetCells.length).toBeGreaterThan(0);
-    // No range format — single value only
-    expect(container.textContent).not.toContain('€900.00 – €920.00');
-    expect(container.textContent).toContain('-€910.00');
-  });
-
-  // Scenario 17: "Sum" label appears AND "Remaining Budget" row also appears
-  it('"Sum" label appears in summary section and the retired "Remaining Budget" row is gone', () => {
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
-        overview={buildOverview()}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
-  });
-
-  // Scenario 18: Sum row Cost = -totalRawProjected (Avg default)
-  it('Sum row Cost column = negative totalRawProjected for Avg perspective', () => {
-    // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
-    // Avg raw = (3000+5000)/2 = 4000
-    // Sum Cost = -€4,000.00 (formatCost of totalRawProjected)
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 3000,
-          projectedMax: 5000,
-          rawProjectedMin: 3000,
-          rawProjectedMax: 5000,
-          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
-        })}
-        overview={buildOverview(10000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Sum row Cost column shows "-€4,000.00" (negative raw projected cost)
-    expect(screen.getAllByText('-€4,000.00').length).toBeGreaterThanOrEqual(1);
-  });
-
-  // Scenario 19: Sum Net and Remaining Net (perspective-aware)
-  it('Sum Net = resolvedPayback - totalRawProjected; Remaining Net = availableFunds - totalRawProjected + resolvedPayback', () => {
-    // availableFunds=10000, rawProjectedMin=3000, rawProjectedMax=5000
-    // Avg raw = resolveProjected(3000, 5000, 'avg') = 4000
-    // minSubsidyPayback=100, subsidyPayback=200 → avgPayback=resolveProjected(100,200,'avg')=150
-    // Sum Net = payback - rawCost = 150 - 4000 = -3850 → "-€3,850.00"
-    // Remaining Net = 10000 - 4000 + 150 = 6150 → "€6,150.00"
-    render(
-      <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({
-          projectedMin: 3000,
-          projectedMax: 5000,
-          rawProjectedMin: 3000,
-          rawProjectedMax: 5000,
-          subsidyPayback: 200,
-          minSubsidyPayback: 100,
-          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
-        })}
-        overview={buildOverview(10000)}
-        deselectedSourceIds={new Set()}
-        onSourceToggle={() => {}}
-        onSelectAllSources={() => {}}
-        paymentStatus="all"
-        onPaymentStatusChange={() => {}}
-      />,
-    );
-
-    // Sum Net = payback - rawCost = 150 - 4000 = -3850
-    // (may appear multiple times across section rows and Sum row)
-    expect(screen.getAllByText('-€3,850.00').length).toBeGreaterThanOrEqual(1);
-  });
-
-  // ── Invoiced Badge (Issue #575) ────────────────────────────────────────────
-
-  // Budget line: hasInvoice=true → "invoiced" badge; no confidence pill
-  it('budget line with hasInvoice=true shows "invoiced" badge text', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 600,
-        projectedMin: 600,
-        projectedMax: 600,
-        hasInvoice: true,
-        categoryName: 'Materials',
-        categoryId: 'cat-inv-badge',
-        workItemId: 'wi-inv-badge',
-        description: 'Concrete supply',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
-
-    // Both the work item row (costDisplay=actual) and the budget line row (hasInvoice=true)
-    // show "invoiced" badges — verify at least one is present.
-    const invoicedBadges = screen.getAllByText('invoiced');
-    expect(invoicedBadges.length).toBeGreaterThanOrEqual(1);
-
-    // Confirm at least one badge appears in a level-3 budget line row
-    const level3Rows = container.querySelectorAll('.rowLevel3');
-    expect(level3Rows.length).toBeGreaterThan(0);
-    const level3HasInvoicedBadge = Array.from(level3Rows).some((row) =>
-      row.textContent?.includes('invoiced'),
-    );
-    expect(level3HasInvoicedBadge).toBe(true);
-  });
-
-  // Budget line: hasInvoice=true → confidence text NOT shown in name cell
-  it('budget line with hasInvoice=true does not show confidence text (e.g., "own estimate")', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 700,
-        projectedMin: 700,
-        projectedMax: 700,
-        hasInvoice: true,
-        categoryName: 'Labor',
-        categoryId: 'cat-no-conf',
-        workItemId: 'wi-no-conf',
-        description: 'Electrician',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
-
-    // Confidence badge text "own estimate" must NOT appear when hasInvoice=true
-    expect(screen.queryByText('own estimate')).not.toBeInTheDocument();
-  });
-
-  // Budget line: hasInvoice=false → confidence pill is shown, no "invoiced" badge
-  it('budget line with hasInvoice=false shows confidence pill and no "invoiced" badge', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 800,
-        projectedMax: 1200,
-        hasInvoice: false,
-        categoryName: 'Design',
-        categoryId: 'cat-conf-pill',
-        workItemId: 'wi-conf-pill',
-        description: 'Architect plan',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
-
-    // Confidence level "own_estimate" renders as "own estimate" in ConfidenceBadge
-    expect(screen.getByText('own estimate')).toBeInTheDocument();
-    // "invoiced" badge must NOT appear
-    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
-  });
-
-  // Work item: costDisplay=actual → "invoiced" badge shown next to item title
-  it('work item with costDisplay=actual shows "invoiced" badge next to its title', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 1200,
-        projectedMin: 1200,
-        projectedMax: 1200,
-        categoryName: 'Permits',
-        categoryId: 'cat-wi-inv-badge',
-        workItemId: 'wi-wi-inv-badge',
-        itemTitle: 'Building Permit',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-inv-badge-items'));
-
-    // "invoiced" badge should appear in the work item row name cell
-    expect(screen.getByText('invoiced')).toBeInTheDocument();
-  });
-
-  // Work item: costDisplay=mixed → NO "invoiced" badge next to item title
-  it('work item with costDisplay=mixed does NOT show "invoiced" badge next to its title', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'mixed',
-        actualCost: 400,
-        projectedMin: 800,
-        projectedMax: 1200,
-        rawProjectedMin: 800,
-        rawProjectedMax: 1200,
-        categoryName: 'Utilities',
-        categoryId: 'cat-wi-mixed-badge',
-        workItemId: 'wi-mixed-badge',
-        itemTitle: 'Plumbing Rough-in',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-mixed-badge-items'));
-
-    // "invoiced" badge must NOT appear for partially invoiced (mixed) items
-    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
-  });
-
-  // Work item: costDisplay=projected → NO "invoiced" badge
-  it('work item with costDisplay=projected does NOT show "invoiced" badge', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'projected',
-        projectedMin: 500,
-        projectedMax: 900,
-        categoryName: 'Equipment',
-        categoryId: 'cat-wi-proj-badge',
-        workItemId: 'wi-proj-badge',
-        itemTitle: 'Scaffolding Rental',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-wi-proj-badge-items'));
-
-    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
-  });
-
-  // Household item: costDisplay=actual → "invoiced" badge shown next to item name
-  it('household item with costDisplay=actual shows "invoiced" badge next to its name', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({
-        hiCategory: 'Kitchen',
-        costDisplay: 'actual',
-        actualCost: 2500,
-        rawProjectedMin: 2500,
-        rawProjectedMax: 2500,
-        householdItemId: 'hi-inv-badge',
-        itemName: 'Refrigerator',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
-
-    // "invoiced" badge should appear in the household item row name cell
-    expect(screen.getByText('invoiced')).toBeInTheDocument();
-  });
-
-  // Household item: costDisplay=mixed → NO "invoiced" badge
-  it('household item with costDisplay=mixed does NOT show "invoiced" badge', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({
-        hiCategory: 'Bedroom',
-        costDisplay: 'mixed',
-        actualCost: 300,
-        projectedMin: 600,
-        projectedMax: 900,
-        rawProjectedMin: 600,
-        rawProjectedMax: 900,
-        householdItemId: 'hi-mixed-badge',
-        itemName: 'Wardrobe',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Bedroom-items'));
-
-    expect(screen.queryByText('invoiced')).not.toBeInTheDocument();
-  });
-
-  // No rowActual on level-3 rows regardless of hasInvoice (green tinting fully removed)
-  it('budget line rows never have rowActual class regardless of hasInvoice value', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        costDisplay: 'actual',
-        actualCost: 850,
-        projectedMin: 850,
-        projectedMax: 850,
-        hasInvoice: true,
-        categoryName: 'Landscaping',
-        categoryId: 'cat-no-actual-cls',
-        workItemId: 'wi-no-actual-cls',
-        description: 'Garden irrigation',
-      }),
-      buildOverview(),
-    );
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
-
-    const level3Rows = container.querySelectorAll('.rowLevel3');
-    expect(level3Rows.length).toBeGreaterThan(0);
-    level3Rows.forEach((row) => {
-      expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
-    });
-  });
-
-  // ── Depth-driven indent (Issue #1295) ─────────────────────────────────────
-
-  /**
-   * Build a breakdown where the work item lives under a child area at depth 1.
-   * Root area (depth 0, no items) → Child area (depth 1, one WI, optionally with budget lines).
-   */
-  function buildNestedBreakdownWithWI(opts: { budgetLines?: boolean } = {}): BudgetBreakdown {
-    const budgetLines = opts.budgetLines ?? false;
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: 'area-root',
-            name: 'Root Area',
-            parentId: null,
-            color: null,
-            projectedMin: 800,
-            projectedMax: 1200,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 800,
-            rawProjectedMax: 1200,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [
-              {
-                areaId: 'area-child',
-                name: 'Child Area',
-                parentId: 'area-root',
-                color: null,
-                projectedMin: 800,
-                projectedMax: 1200,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 0,
-                rawProjectedMin: 800,
-                rawProjectedMax: 1200,
-                minSubsidyPayback: 0,
-                items: [
-                  {
-                    workItemId: 'wi-nested',
-                    title: 'Nested Work Item',
-                    projectedMin: 800,
-                    projectedMax: 1200,
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    subsidyPayback: 0,
-                    rawProjectedMin: 800,
-                    rawProjectedMax: 1200,
-                    minSubsidyPayback: 0,
-                    costDisplay: 'projected',
-                    budgetLines: budgetLines
-                      ? [
-                          {
-                            id: 'line-nested-1',
-                            description: 'Nested budget line',
-                            plannedAmount: 1000,
-                            confidence: 'own_estimate',
-                            actualCost: 0,
-                            actualCostPaid: 0,
-                            actualCostPending: 0,
-                            hasInvoice: false,
-                            isQuotation: false,
-                            budgetSourceId: null,
-                            origin: 'manual' as const,
-                          },
-                        ]
-                      : [],
-                  },
-                ],
-                children: [],
-              },
-            ],
-          },
-        ],
-        totals: {
-          projectedMin: 800,
-          projectedMax: 1200,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 800,
-          rawProjectedMax: 1200,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-  }
-
-  /**
-   * Build a breakdown where the household item lives under a child HI area at depth 1.
-   */
-  function buildNestedBreakdownWithHI(): BudgetBreakdown {
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [
-          {
-            areaId: 'area-hi-root',
-            name: 'HI Root Area',
-            parentId: null,
-            color: null,
-            projectedMin: 400,
-            projectedMax: 600,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 400,
-            rawProjectedMax: 600,
-            minSubsidyPayback: 0,
-            items: [],
-            children: [
-              {
-                areaId: 'area-hi-child',
-                name: 'HI Child Area',
-                parentId: 'area-hi-root',
-                color: null,
-                projectedMin: 400,
-                projectedMax: 600,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 0,
-                rawProjectedMin: 400,
-                rawProjectedMax: 600,
-                minSubsidyPayback: 0,
-                items: [
-                  {
-                    householdItemId: 'hi-nested',
-                    name: 'Nested HI Item',
-                    projectedMin: 400,
-                    projectedMax: 600,
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    subsidyPayback: 0,
-                    rawProjectedMin: 400,
-                    rawProjectedMax: 600,
-                    minSubsidyPayback: 0,
-                    costDisplay: 'projected',
-                    budgetLines: [],
-                  },
-                ],
-                children: [],
-              },
-            ],
-          },
-        ],
-        totals: {
-          projectedMin: 400,
-          projectedMax: 600,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 400,
-          rawProjectedMax: 600,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-  }
-
-  // Scenario A — Work item at depth 0 has `--item-depth: 0`
-  it('Scenario A: work item at depth 0 renders name cell with --item-depth: 0', () => {
-    const { container } = renderWithRouter(buildBreakdownWithWI(), buildOverview());
-
-    // Expand WI section then the No Area node
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-
-    // The work item row name cell (cellLevel2Name) should have --item-depth: 0
-    const nameCell = container.querySelector('td.cellLevel2Name');
-    expect(nameCell).not.toBeNull();
-    expect(nameCell).toHaveStyle({ '--item-depth': '0' });
-  });
-
-  // Scenario B — Work item in a depth-1 (nested) area has `--item-depth: 1`
-  it('Scenario B: work item in a depth-1 child area renders name cell with --item-depth: 1', () => {
-    const { container } = renderWithRouter(buildNestedBreakdownWithWI(), buildOverview());
-
-    // Expand WI section → Root Area → Child Area
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByLabel('Expand Root Area'));
-    fireEvent.click(getButtonByLabel('Expand Child Area'));
-
-    // The work item row name cell should have --item-depth: 1 (child area depth)
-    const nameCell = container.querySelector('td.cellLevel2Name');
-    expect(nameCell).not.toBeNull();
-    expect(nameCell).toHaveStyle({ '--item-depth': '1' });
-  });
-
-  // Scenario C — Budget line inherits parent work item's depth
-  it('Scenario C: budget line in a depth-1 area renders name cell with --item-depth: 1', () => {
-    const { container } = renderWithRouter(
-      buildNestedBreakdownWithWI({ budgetLines: true }),
-      buildOverview(),
-    );
-
-    // Expand WI section → Root Area → Child Area → work item
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByLabel('Expand Root Area'));
-    fireEvent.click(getButtonByLabel('Expand Child Area'));
-    fireEvent.click(getButtonByLabel('Expand Nested Work Item'));
-
-    // The budget line row name cell (cellLevel3Name) should have --item-depth: 1
-    const budgetLineNameCell = container.querySelector('td.cellLevel3Name');
-    expect(budgetLineNameCell).not.toBeNull();
-    expect(budgetLineNameCell).toHaveStyle({ '--item-depth': '1' });
-  });
-
-  // Scenario D — Household item at depth 1 has `--item-depth: 1`
-  it('Scenario D: household item in a depth-1 child area renders name cell with --item-depth: 1', () => {
-    const { container } = renderWithRouter(buildNestedBreakdownWithHI(), buildOverview());
-
-    // Expand HI section → HI Root Area → HI Child Area
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByLabel('Expand HI Root Area'));
-    fireEvent.click(getButtonByLabel('Expand HI Child Area'));
-
-    // The household item row name cell should have --item-depth: 1
-    const nameCell = container.querySelector('td.cellLevel2Name');
-    expect(nameCell).not.toBeNull();
-    expect(nameCell).toHaveStyle({ '--item-depth': '1' });
-  });
-
-  // Scenario E — "No Area" label renders in WI section after expansion (AC2 regression)
-  it('Scenario E: "No Area" label renders in WI section after expansion and "Unassigned" is absent', () => {
-    renderWithRouter(buildBreakdownWithWI(), buildOverview());
-
-    // Expand WI section
-    fireEvent.click(screen.getByRole('button', { name: 'Expand work item budget by area' }));
-
-    // "No Area" should appear
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-    // "Unassigned" must NOT appear anywhere in the rendered output
-    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
-  });
-
-  // Scenario F — "No Area" label renders in HI section after expansion (AC2 regression)
-  it('Scenario F: "No Area" label renders in HI section after expansion', () => {
-    renderWithRouter(buildBreakdownWithHI(), buildOverview());
-
-    // Expand HI section
-    fireEvent.click(screen.getByRole('button', { name: 'Expand household item budget by area' }));
-
-    // "No Area" should appear
-    expect(screen.getByText('No Area')).toBeInTheDocument();
-  });
-});
-
-// ── Bug #585 — Sum row not rendered after category expansion ─────────────────
-
-describe('Bug #585 — no "Total {category}" sum row after expand', () => {
-  it('expanding WI section and a WI category does not render a "Total {category}" sum row', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        categoryName: 'Permits',
-        categoryId: 'cat-permits-585',
-        itemTitle: 'City Permit',
-        workItemId: 'wi-permit-585',
-      }),
-      buildOverview(),
-    );
-
-    // Expand WI section then the category
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-585-items'));
-
-    // The item row is rendered (area-based UI — category name param is ignored, area is always No Area)
-    expect(screen.getByText('City Permit')).toBeInTheDocument();
-
-    // After the bug fix, no "Total Permits" sum row should appear
-    expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
-  });
-
-  it('expanding HI section and an HI category does not render a "Total {hiCategory}" sum row', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithHI({
-        hiCategory: 'Appliances',
-        householdItemId: 'hi-appl-585',
-        itemName: 'Dishwasher',
-      }),
-      buildOverview(),
-    );
-
-    // Expand HI section then the category
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Appliances-items'));
-
-    // The category header row still shows the category name
-    expect(screen.getByText('Appliances')).toBeInTheDocument();
-
-    // After the bug fix, no "Total Appliances" sum row should appear
-    expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
-  });
-});
-
-// ── Bug #586 — Independent expand state per category ─────────────────────────
-
-describe('Bug #586 — item expand state is independent per category', () => {
-  /**
-   * Build a breakdown with two WI categories that both contain the same workItemId.
-   * This is the scenario that triggered Bug #586: shared expand state via plain item key.
-   */
-  function buildBreakdownTwoWICategories(): BudgetBreakdown {
-    const sharedItem = {
-      workItemId: 'wi-shared',
-      title: 'Shared Work Item',
-      projectedMin: 500,
-      projectedMax: 700,
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostPending: 0,
-      subsidyPayback: 0,
-      rawProjectedMin: 500,
-      rawProjectedMax: 700,
-      minSubsidyPayback: 0,
-      costDisplay: 'projected' as const,
-      budgetLines: [
-        {
-          id: 'line-shared',
-          description: 'Shared budget line',
-          plannedAmount: 600,
-          confidence: 'own_estimate' as const,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          hasInvoice: false,
-          isQuotation: false,
-          budgetSourceId: null,
-          origin: 'manual' as const,
-        },
-      ],
-    };
-
-    const areaBase = {
-      projectedMin: 500,
-      projectedMax: 700,
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostPending: 0,
-      subsidyPayback: 0,
-      rawProjectedMin: 500,
-      rawProjectedMax: 700,
-      minSubsidyPayback: 0,
-      parentId: null,
-      color: null,
-      children: [] as [],
-    };
-
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            ...areaBase,
-            areaId: 'area-alpha',
-            name: 'Alpha',
-            items: [{ ...sharedItem }],
-          },
-          {
-            ...areaBase,
-            areaId: 'area-beta',
-            name: 'Beta',
-            items: [{ ...sharedItem }],
-          },
-        ],
-        totals: {
-          projectedMin: 1000,
-          projectedMax: 1400,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 1000,
-          rawProjectedMax: 1400,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-  }
-
-  /**
-   * Build a breakdown with two HI categories that both contain the same householdItemId.
-   */
-  function buildBreakdownTwoHICategories(): BudgetBreakdown {
-    const sharedHIItem = {
-      householdItemId: 'hi-shared',
-      name: 'Shared HI Item',
-      projectedMin: 300,
-      projectedMax: 500,
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostPending: 0,
-      subsidyPayback: 0,
-      rawProjectedMin: 300,
-      rawProjectedMax: 500,
-      minSubsidyPayback: 0,
-      costDisplay: 'projected' as const,
-      budgetLines: [
-        {
-          id: 'hi-line-shared',
-          description: 'Shared HI budget line',
-          plannedAmount: 400,
-          confidence: 'own_estimate' as const,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          hasInvoice: false,
-          isQuotation: false,
-          budgetSourceId: null,
-          origin: 'manual' as const,
-        },
-      ],
-    };
-
-    const hiAreaBase = {
-      projectedMin: 300,
-      projectedMax: 500,
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostPending: 0,
-      subsidyPayback: 0,
-      rawProjectedMin: 300,
-      rawProjectedMax: 500,
-      minSubsidyPayback: 0,
-      parentId: null,
-      color: null,
-      children: [] as [],
-    };
-
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [
-          {
-            ...hiAreaBase,
-            areaId: 'area-furniture',
-            name: 'Furniture',
-            items: [{ ...sharedHIItem }],
-          },
-          {
-            ...hiAreaBase,
-            areaId: 'area-appliances',
-            name: 'Appliances',
-            items: [{ ...sharedHIItem }],
-          },
-        ],
-        totals: {
-          projectedMin: 600,
-          projectedMax: 1000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 600,
-          rawProjectedMax: 1000,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [],
-    };
-  }
-
-  it('expanding item in cat-alpha does not auto-expand the same item in cat-beta (WI)', () => {
-    const { container } = renderWithRouter(buildBreakdownTwoWICategories(), buildOverview());
-
-    // Expand WI section
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    // Expand cat-alpha by clicking the button whose sibling text is "Alpha"
-    const alphaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
-      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Alpha',
-    );
-    expect(alphaBtn).not.toBeNull();
-    fireEvent.click(alphaBtn!);
-
-    // The item "Shared Work Item" is now visible under Alpha; expand it
-    // The expand button has aria-label="Expand Shared Work Item"
-    const expandItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
-    // Only one item row visible (Alpha is open, Beta is closed)
-    expect(expandItemBtns.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(expandItemBtns[0]!);
-
-    // Budget line should be visible (item in alpha is expanded)
-    expect(screen.getByText('Shared budget line')).toBeInTheDocument();
-
-    // Now expand cat-beta
-    const betaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
-      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Beta',
-    );
-    expect(betaBtn).not.toBeNull();
-    fireEvent.click(betaBtn!);
-
-    // Beta is now expanded; the item row for "Shared Work Item" in Beta appears
-    // but the budget lines under Beta's item must NOT be auto-expanded
-    // There are now two expand buttons for "Shared Work Item" (one per category)
-    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
-    expect(allItemBtns.length).toBe(2);
-
-    // The second button (Beta's item) must not be expanded (aria-expanded="false")
-    expect(allItemBtns[1]).toHaveAttribute('aria-expanded', 'false');
-
-    // There must be exactly one budget line visible (from Alpha's expanded item, not Beta's)
-    const budgetLineCells = screen.getAllByText('Shared budget line');
-    expect(budgetLineCells).toHaveLength(1);
-  });
-
-  it('expanding item in Furniture does not auto-expand the same item in Appliances (HI)', () => {
-    const { container } = renderWithRouter(buildBreakdownTwoHICategories(), buildOverview());
-
-    // Expand HI section
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-
-    // Expand "Furniture" category
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Furniture-items'));
-
-    // Expand the item in Furniture
-    const itemBtnsAfterFurniture = screen.getAllByRole('button', { name: /Expand Shared HI Item/ });
-    expect(itemBtnsAfterFurniture.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(itemBtnsAfterFurniture[0]!);
-
-    // Budget line under Furniture's item is now visible
-    expect(screen.getByText('Shared HI budget line')).toBeInTheDocument();
-
-    // Expand "Appliances" category
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Appliances-items'));
-
-    // Now two item expand buttons exist (Furniture's and Appliances's)
-    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared HI Item/ });
-    expect(allItemBtns.length).toBe(2);
-
-    // The Appliances item (second button) must NOT be auto-expanded
-    expect(allItemBtns[1]).toHaveAttribute('aria-expanded', 'false');
-
-    // Only one budget line should be visible (from Furniture's expanded item)
-    const budgetLineCells = screen.getAllByText('Shared HI budget line');
-    expect(budgetLineCells).toHaveLength(1);
-  });
-
-  it('same item can be expanded independently in both categories simultaneously (WI)', () => {
-    const { container } = renderWithRouter(buildBreakdownTwoWICategories(), buildOverview());
-
-    // Expand WI section
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-
-    // Expand both categories
-    const alphaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
-      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Alpha',
-    );
-    fireEvent.click(alphaBtn!);
-    const betaBtn = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn')).find(
-      (btn) => btn.nextElementSibling?.textContent?.trim() === 'Beta',
-    );
-    fireEvent.click(betaBtn!);
-
-    // Both item rows are now visible; expand both
-    const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
-    expect(allItemBtns.length).toBe(2);
-    fireEvent.click(allItemBtns[0]!);
-    fireEvent.click(allItemBtns[1]!);
-
-    // Both items should now be expanded; budget lines appear twice (once per category)
-    const budgetLineCells = screen.getAllByText('Shared budget line');
-    expect(budgetLineCells).toHaveLength(2);
-
-    // Both expand buttons should report aria-expanded="true"
-    const expandedBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
-    expect(expandedBtns[0]).toHaveAttribute('aria-expanded', 'true');
-    expect(expandedBtns[1]).toHaveAttribute('aria-expanded', 'true');
-  });
-
-  // ── Source badge rendering (scenario 22) ─────────────────────────────────
-
-  it('renders a source badge on Level 3 budget line row when budgetSourceId is set', () => {
-    const sourceId = 'src-bank-1';
-    const sourceName = 'Bank Loan';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    // Expand WI section → area → item
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
-
-    // The source badge should render with the source name (or truncated version)
-    const badgeEl = screen.getByRole('generic', {
-      name: new RegExp(`Budget source: ${sourceName}`, 'i'),
-    });
-    expect(badgeEl).toBeInTheDocument();
-  });
-
-  it('renders source badge with aria-label containing source name', () => {
-    const sourceId = 'src-bank-1';
-    const sourceName = 'Bank Loan';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    // Expand to line level
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
-
-    // aria-label includes the full source name
-    const badgeEl = container.querySelector(`[aria-label*="${sourceName}"]`);
-    expect(badgeEl).toBeInTheDocument();
-  });
-
-  // ── Unassigned badge (scenario 23) ────────────────────────────────────────
-
-  it('renders unassigned badge text for budget line with null budgetSourceId', () => {
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: null,
-      budgetSources: [],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    // Expand to line level
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
-
-    // The badge for a null source should show "Unassigned" (from translation)
-    const unassignedBadge = container.querySelector('[aria-label*="Unassigned"]');
-    expect(unassignedBadge).toBeInTheDocument();
-  });
-
-  // ── Source row as toggle: basic rendering (scenario 24) ─────────────────
-
-  it('source row has role="button", tabIndex=0, aria-pressed="true" when not deselected', () => {
-    const sourceId = 'src-bank-1';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    // Expand Available Funds section to reveal source rows
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Source row should be a toggle button with aria-pressed="true" (not deselected)
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    expect(sourceRow).toHaveAttribute('role', 'button');
-    expect(sourceRow).toHaveAttribute('tabindex', '0');
-    expect(sourceRow).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  // ── Source row as toggle: deselected state (scenario 25) ─────────────────
-
-  it('source row has aria-pressed="false" when source is in deselectedSourceIds', () => {
-    const sourceId = 'src-bank-1';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), {
-      deselectedSourceIds: new Set([sourceId]),
-    });
-
-    // Expand Available Funds section
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Source row should be aria-pressed="false" (deselected)
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    expect(sourceRow).toHaveAttribute('aria-pressed', 'false');
-  });
-
-  // ── Toggle interaction calls onSourceToggle (scenario 26) ─────────────────
-
-  it('clicking a selected source row calls onSourceToggle with the source id', () => {
-    const sourceId = 'src-bank-1';
-    const onSourceToggle = jest.fn();
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { onSourceToggle });
-
-    // Expand Available Funds to reveal source rows
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Click the source row (aria-pressed="true" → toggling to deselect)
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    fireEvent.click(sourceRow!);
-
-    expect(onSourceToggle).toHaveBeenCalledTimes(1);
-    expect(onSourceToggle).toHaveBeenCalledWith(sourceId);
-  });
-
-  it('clicking a deselected source row calls onSourceToggle with the source id', () => {
-    const sourceId = 'src-bank-1';
-    const onSourceToggle = jest.fn();
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), {
-      onSourceToggle,
-      deselectedSourceIds: new Set([sourceId]),
-    });
-
-    // Expand Available Funds to reveal source rows
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Click the source row (aria-pressed="false" → toggling to select)
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    fireEvent.click(sourceRow!);
-
-    expect(onSourceToggle).toHaveBeenCalledTimes(1);
-    expect(onSourceToggle).toHaveBeenCalledWith(sourceId);
-  });
-
-  // ── Keyboard: Space key calls onSourceToggle (scenario 27) ───────────────
-
-  it('Space key on a source row calls onSourceToggle', () => {
-    const sourceId = 'src-bank-1';
-    const onSourceToggle = jest.fn();
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { onSourceToggle });
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    fireEvent.keyDown(sourceRow!, { key: ' ' });
-
-    expect(onSourceToggle).toHaveBeenCalledTimes(1);
-    expect(onSourceToggle).toHaveBeenCalledWith(sourceId);
-  });
-
-  // ── Keyboard: Enter key calls onSourceToggle (scenario 28) ───────────────
-
-  it('Enter key on a source row calls onSourceToggle', () => {
-    const sourceId = 'src-bank-1';
-    const onSourceToggle = jest.fn();
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { onSourceToggle });
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    fireEvent.keyDown(sourceRow!, { key: 'Enter' });
-
-    expect(onSourceToggle).toHaveBeenCalledTimes(1);
-    expect(onSourceToggle).toHaveBeenCalledWith(sourceId);
-  });
-
-  // ── Keyboard: Escape key calls onSelectAllSources (scenario 29) ──────────
-
-  it('Escape key on a source row calls onSelectAllSources', () => {
-    const sourceId = 'src-bank-1';
-    const onSelectAllSources = jest.fn();
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { onSelectAllSources });
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    fireEvent.keyDown(sourceRow!, { key: 'Escape' });
-
-    expect(onSelectAllSources).toHaveBeenCalledTimes(1);
-  });
-
-  // ── No chip toolbar rendered (scenario 30) ───────────────────────────────
-
-  it('no role="toolbar" is rendered after expanding Available Funds', () => {
-    const sourceId = 'src-bank-1';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
-  });
-
-  it('Available Funds shows overview.availableFunds when all sources are selected', () => {
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: 'src-1' }),
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Source One', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Source Two', totalAmount: 200000 }),
-      ],
-    };
-
-    // No deselection → shows full available funds from overview
-    renderWithRouter(breakdown, buildOverview(300000), {
-      deselectedSourceIds: new Set(),
-    });
-
-    expect(screen.getByText('€300,000.00')).toBeInTheDocument();
-  });
-
-  // ── Available Funds filter caption (scenario 34) ─────────────────────────
-
-  it('shows "(X of Y selected)" caption when deselectedSourceIds is non-empty', () => {
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: 'src-1' }),
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Source One', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Source Two', totalAmount: 200000 }),
-      ],
-    };
-
-    // Deselect src-1 → 1 of 2 selected
-    renderWithRouter(breakdown, buildOverview(300000), {
-      deselectedSourceIds: new Set(['src-1']),
-    });
-
-    // Caption "(1 of 2 selected)" should be present
-    expect(screen.getByText(/\(1 of 2 selected\)/i)).toBeInTheDocument();
-  });
-
-  it('does not show filter caption when deselectedSourceIds is empty', () => {
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: 'src-1' }),
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Source One', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Source Two', totalAmount: 200000 }),
-      ],
-    };
-
-    renderWithRouter(breakdown, buildOverview(300000), {
-      deselectedSourceIds: new Set(),
-    });
-
-    // No caption should be present when all sources selected
-    expect(screen.queryByText(/selected\)/i)).not.toBeInTheDocument();
-  });
-
-  // ── Live region announces source count (scenario 36) ─────────────────────
-
-  it('role="status" contains source-count announcement when filter is active', () => {
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: 'src-1' }),
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Source One', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Source Two', totalAmount: 200000 }),
-        buildSourceSummary({ id: 'src-3', name: 'Source Three', totalAmount: 50000 }),
-      ],
-    };
-
-    // Deselect src-1 → 2 of 3 selected
-    renderWithRouter(breakdown, buildOverview(350000), {
-      deselectedSourceIds: new Set(['src-1']),
-    });
-
-    const liveRegion = screen.getByRole('status');
-    expect(liveRegion).toBeInTheDocument();
-    expect(liveRegion.textContent).toContain('2');
-    expect(liveRegion.textContent).toContain('3');
-  });
-
-  // ── Live region is always mounted (scenario 37) ───────────────────────────
-
-  it('role="status" element is always in the DOM even when breakdown body is empty', () => {
-    // Even empty breakdown renders the status live region
-    renderWithRouter(buildBreakdownWithWI(), buildOverview(), {
-      deselectedSourceIds: new Set(),
-    });
-
-    expect(screen.getByRole('status')).toBeInTheDocument();
-  });
-
-  // ── computePerSourcePayback — basic attribution (scenario 38) ────────────
-
-  it('computePerSourcePayback: payback is distributed pro-rata by line cost', () => {
-    // Work item: two lines, src-1 has plannedAmount=8000, src-2 has plannedAmount=2000
-    // own_estimate margin = 0.2 → src-1 lineCostMax=9600, src-2 lineCostMax=2400 → total=12000
-    // Entity subsidyPayback=1000, perspective='avg' → entityPayback=1000
-    // src-1 weight = 9600/12000 = 0.8 → payback = 800
-    // src-2 weight = 2400/12000 = 0.2 → payback = 200
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            projectedMin: 10000,
-            projectedMax: 12000,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 1000,
-            rawProjectedMin: 10000,
-            rawProjectedMax: 12000,
-            minSubsidyPayback: 800,
-            items: [
-              {
-                workItemId: 'wi-payback-1',
-                title: 'Payback Test Item',
-                projectedMin: 10000,
-                projectedMax: 12000,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 1000,
-                rawProjectedMin: 10000,
-                rawProjectedMax: 12000,
-                minSubsidyPayback: 800,
-                costDisplay: 'projected',
-                budgetLines: [
-                  {
-                    id: 'pb-line-a',
-                    description: 'Line A',
-                    plannedAmount: 8000,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-1',
-                    origin: 'manual' as const,
-                  },
-                  {
-                    id: 'pb-line-b',
-                    description: 'Line B',
-                    plannedAmount: 2000,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-2',
-                    origin: 'manual' as const,
-                  },
-                ],
-              },
-            ],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 10000,
-          projectedMax: 12000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 1000,
-          rawProjectedMin: 10000,
-          rawProjectedMax: 12000,
-          minSubsidyPayback: 800,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Source 1', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Source 2', totalAmount: 50000 }),
-      ],
-    };
-
-    // Render with Avg perspective (default) and expand to see source detail rows
-    const { container } = renderWithRouter(breakdown, buildOverview(150000));
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Source detail rows appear; src-1 payback should be ~800 and src-2 ~200
-    // The source rows show payback in their payback column
-    // Since the values are per-source we verify the total payback is 1000 by checking
-    // the table renders without error and has two source rows
-    const sourceRows = container.querySelectorAll('tr[role="button"]');
-    expect(sourceRows.length).toBeGreaterThanOrEqual(2);
-  });
-
-  // ── computePerSourcePayback — zero cost edge case (scenario 39) ──────────
-
-  it('computePerSourcePayback distributes payback equally when all line costs are zero', () => {
-    // Two lines with plannedAmount=0 → totalCost=0 → equal weight 1/n
-    // Entity subsidyPayback=1000 → each source gets 500
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            projectedMin: 0,
-            projectedMax: 0,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 1000,
-            rawProjectedMin: 0,
-            rawProjectedMax: 0,
-            minSubsidyPayback: 1000,
-            items: [
-              {
-                workItemId: 'wi-zerocost',
-                title: 'Zero Cost Item',
-                projectedMin: 0,
-                projectedMax: 0,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 1000,
-                rawProjectedMin: 0,
-                rawProjectedMax: 0,
-                minSubsidyPayback: 1000,
-                costDisplay: 'projected',
-                budgetLines: [
-                  {
-                    id: 'zc-line-a',
-                    description: 'Zero line A',
-                    plannedAmount: 0,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-zc-1',
-                    origin: 'manual' as const,
-                  },
-                  {
-                    id: 'zc-line-b',
-                    description: 'Zero line B',
-                    plannedAmount: 0,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-zc-2',
-                    origin: 'manual' as const,
-                  },
-                ],
-              },
-            ],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 1000,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 1000,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        buildSourceSummary({ id: 'src-zc-1', name: 'ZC Source 1', totalAmount: 50000 }),
-        buildSourceSummary({ id: 'src-zc-2', name: 'ZC Source 2', totalAmount: 50000 }),
-      ],
-    };
-
-    // Just verify component renders without error (the payback math is covered by rendering)
-    const { container } = renderWithRouter(breakdown, buildOverview(100000));
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    const sourceRows = container.querySelectorAll('tr[role="button"]');
-    expect(sourceRows.length).toBeGreaterThanOrEqual(2);
-  });
-
-  // ── Source detail row columns (scenario 40) ───────────────────────────────
-
-  it('source detail row shows Cost column with negative sign and Payback column', () => {
-    const sourceId = 'src-detail-1';
-    // projectedMin=30000, projectedMax=40000 → avg cost = 35000 → Cost = -€35,000.00
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: sourceId }),
-      budgetSources: [
-        buildSourceSummary({
-          id: sourceId,
-          name: 'Detail Source',
-          totalAmount: 100000,
-          projectedMin: 30000,
-          projectedMax: 40000,
+  describe('empty states', () => {
+    it('says costs appear once there are cost lines, with no action', () => {
+      renderCard({ breakdown: makeEmptyBreakdown() });
+      expect(
+        screen.getByText('Costs appear here once tasks or purchases have cost lines.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('breakdown-table')).toBeNull();
+      expect(
+        within(screen.getByTestId('breakdown-card')).queryByRole('button', {
+          name: /Reset|Select all/,
         }),
-      ],
-    };
-
-    const { container } = renderWithRouter(breakdown, buildOverview(100000));
-
-    // Expand Available Funds
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Cost column for source row has negative sign (valueNegative class or starts with -)
-    const sourceRow = container.querySelector('tr[role="button"]');
-    expect(sourceRow).not.toBeNull();
-    // The cost cell is colBudget; it should contain a negative value
-    const costCell = sourceRow!.querySelector('td.colBudget');
-    expect(costCell).not.toBeNull();
-    expect(costCell!.textContent).toContain('-');
-  });
-
-  // ── Source row values independent of selection state (scenario 41 / AC-11) ─
-
-  it('source row Cost/Payback/Net values are the same regardless of selection state', () => {
-    const sourceId = 'src-ac11-1';
-    const breakdown = {
-      ...buildBreakdownWithSourcedWI({ budgetSourceId: sourceId }),
-      budgetSources: [
-        buildSourceSummary({
-          id: sourceId,
-          name: 'AC11 Source',
-          totalAmount: 100000,
-          projectedMin: 5000,
-          projectedMax: 8000,
-        }),
-      ],
-    };
-
-    // Render with source selected (deselectedSourceIds empty)
-    const { container: c1, unmount: unmount1 } = renderWithRouter(breakdown, buildOverview(100000));
-    fireEvent.click(getButtonByControls(c1, 'avail-funds'));
-    const row1 = c1.querySelector('tr[role="button"]');
-    expect(row1).not.toBeNull();
-    const row1Text = row1!.textContent ?? '';
-    unmount1();
-
-    // Render with source deselected
-    const { container: c2 } = renderWithRouter(breakdown, buildOverview(100000), {
-      deselectedSourceIds: new Set([sourceId]),
-    });
-    fireEvent.click(getButtonByControls(c2, 'avail-funds'));
-    const row2 = c2.querySelector('tr[role="button"]');
-    expect(row2).not.toBeNull();
-    const row2Text = row2!.textContent ?? '';
-
-    // The text content of the row (Cost/Payback/Net) must be identical regardless of selection
-    expect(row1Text).toBe(row2Text);
-  });
-});
-
-// ── Server-driven render path (#1360) ────────────────────────────────────────
-//
-// After story #1360, server-side filtering is complete. The component renders
-// unconditionally from server-provided fields — no client-side filteredAggregates.
-// Tests here validate that the component correctly reads server-supplied values.
-
-describe('Server-driven render path (#1360)', () => {
-  /**
-   * Builds a breakdown for server-driven render tests.
-   * Source A (src-1360-a) has subsidyPaybackMin=500, subsidyPaybackMax=1000.
-   * A synthetic unassigned source is also included.
-   * Server has already applied any active filter — component just renders what it receives.
-   */
-  function buildServerFilteredBreakdown(): BudgetBreakdown {
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            // Server already filtered — these are the post-filter aggregates
-            projectedMin: 40000,
-            projectedMax: 60000,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 1000,
-            rawProjectedMin: 40000,
-            rawProjectedMax: 60000,
-            minSubsidyPayback: 500,
-            items: [
-              {
-                workItemId: 'wi-1360-a',
-                title: 'Server Filtered WI',
-                projectedMin: 40000,
-                projectedMax: 60000,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 1000,
-                rawProjectedMin: 40000,
-                rawProjectedMax: 60000,
-                minSubsidyPayback: 500,
-                costDisplay: 'projected',
-                budgetLines: [
-                  {
-                    id: 'line-1360-a',
-                    description: null,
-                    plannedAmount: 50000,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-1360-a',
-                    origin: 'manual' as const,
-                  },
-                ],
-              },
-            ],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 40000,
-          projectedMax: 60000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 1000,
-          rawProjectedMin: 40000,
-          rawProjectedMax: 60000,
-          minSubsidyPayback: 500,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        // Source A: selected (not in deselectedSourceIds), has payback.
-        // totalAmount=200000 so that filteredAvailableFunds = 200000 (matching
-        // overview.availableFunds) — this keeps Scenario 23 internally consistent
-        // now that Available Funds uses sum-of-visible-sources rather than
-        // overview.availableFunds directly.
-        buildSourceSummary({
-          id: 'src-1360-a',
-          name: 'Green Fund',
-          totalAmount: 200000,
-          projectedMin: 40000,
-          projectedMax: 60000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 500,
-          subsidyPaybackMax: 1000,
-        }),
-        // Synthetic unassigned entry from server (AC #9)
-        buildSourceSummary({
-          id: 'unassigned',
-          name: 'Unassigned',
-          totalAmount: 0,
-          projectedMin: 5000,
-          projectedMax: 7000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 0,
-          subsidyPaybackMax: 0,
-        }),
-      ],
-    };
-  }
-
-  // ── Scenario 20: source row payback from server-provided subsidyPaybackMin/Max ─
-  // After #1360, the source row Payback column displays source.subsidyPaybackMin/Max
-  // (provided by the server) rather than a client-computed value.
-  it('source row payback column shows server-provided subsidyPaybackMin/Max (Scenario 20)', () => {
-    const breakdown = buildServerFilteredBreakdown();
-    const { container } = renderWithRouter(breakdown, buildOverview(200000));
-
-    // Expand Available Funds section to reveal source rows
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // Find the Green Fund source row (tr[role="button"])
-    const sourceRows = container.querySelectorAll('tr[role="button"]');
-    // First source row should be 'Green Fund' (src-1360-a)
-    const greenFundRow = Array.from(sourceRows).find((r) => r.textContent?.includes('Green Fund'));
-    expect(greenFundRow).toBeDefined();
-
-    // The Payback column in the source row should reflect the server-supplied
-    // subsidyPaybackMin=500 and subsidyPaybackMax=1000.
-    // On 'avg' perspective: (500 + 1000) / 2 = 750 → '€750.00'
-    const paybackCell = greenFundRow!.querySelector('td[class*="colPayback"]');
-    expect(paybackCell).not.toBeNull();
-    expect(paybackCell!.textContent?.replace(/\s+/g, '')).toBe('€750.00');
-  });
-
-  // ── Scenario 21: unassigned entry from server renders with i18n label ───────
-  // The server sends a synthetic entry { id: 'unassigned', name: 'Unassigned', ... }.
-  // The component overrides the name with the i18n key
-  // 'overview.costBreakdown.sourceFilter.unassigned'.
-  it('unassigned entry from server renders with i18n label override (Scenario 21)', () => {
-    const breakdown = buildServerFilteredBreakdown();
-    const { container } = renderWithRouter(breakdown, buildOverview(200000));
-
-    fireEvent.click(getButtonByControls(container, 'avail-funds'));
-
-    // The i18n mock passes through the key as-is in jsdom (react-i18next mock returns the key).
-    // In production the key resolves to the translated label, e.g. "Unassigned funds".
-    // We verify the row exists for the 'unassigned' source.
-    const sourceRows = container.querySelectorAll('tr[role="button"]');
-    expect(sourceRows.length).toBeGreaterThanOrEqual(2); // src-1360-a + unassigned
-  });
-
-  // ── Scenario 22: WI section header uses server rawProjectedMin/Max directly ──
-  // After #1360, the section Cost cell uses breakdown.workItems.totals.rawProjectedMin/Max
-  // (server-computed) — not any client-computed filtered aggregate.
-
-  it('WI section header uses server-provided rawProjectedMin/Max totals (Scenario 22)', () => {
-    // breakdown.workItems.totals: rawProjectedMin=40000, rawProjectedMax=60000
-    // avg perspective: (40000+60000)/2 = 50000 → '-€50,000.00'
-    const breakdown = buildServerFilteredBreakdown();
-    renderWithRouter(breakdown, buildOverview(200000));
-
-    const wiSectionRow = screen
-      .getByRole('button', { name: 'Expand work item budget by area' })
-      .closest('tr')!;
-    const costCell = wiSectionRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toBe('-€50,000.00');
-  });
-
-  // ── Scenario 24: All-deselected UX — full table renders when sources configured (#1360) ──
-  // Regression guard: when the server prunes all areas because all sources are deselected
-  // (wiAreas=[], hiAreas=[]) but budgetSources is non-empty, the early-return empty state
-  // must NOT fire. The full table (source rows, Available Funds, Sum, Remaining Budget)
-  // must remain visible so the user can re-select sources.
-  it('renders full table — source rows and totals — when all sources are deselected but sources are configured (Scenario 24)', () => {
-    const breakdown: BudgetBreakdown = {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 100000 }),
-        buildSourceSummary({ id: 'src-2', name: 'Equity', totalAmount: 50000 }),
-      ],
-    };
-
-    const { container } = renderWithRouter(breakdown, buildOverview(150000), {
-      deselectedSourceIds: new Set(['src-1', 'src-2']),
+      ).toBeNull();
     });
 
-    // The empty-state message must NOT appear — the table is fully rendered.
-    expect(screen.queryByText('No budget data to display')).not.toBeInTheDocument();
-
-    // Available Funds row must be present (full table rendered, not early-return).
-    expect(screen.getByText('Available funds')).toBeInTheDocument();
-
-    // Sum row must be present.
-    expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
-
-    // Expand the Available Funds section to reveal source detail toggle rows.
-    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
-    fireEvent.click(expandBtn);
-
-    // Source rows must be visible so the user can re-select them.
-    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
-    expect(screen.getByText('Equity')).toBeInTheDocument();
-
-    // The Sum row's Cost cell shows €0.00 (no items → zero projected cost).
-    const sumRow = screen.getByText('Sum').closest('tr')!;
-    const sumCostCell = sumRow.querySelector('td[class*="colBudget"]');
-    expect(sumCostCell?.textContent?.replace(/\s+/g, '')).toMatch(/€0\.00$/);
-
-    // The table element must be in the DOM (as opposed to the empty-state path which omits it).
-    expect(container.querySelector('table')).toBeInTheDocument();
-  });
-});
-
-// ── filteredAvailableFunds — Available Funds + Remaining Budget rows ──────────
-//
-// After the bug fix in #1362, the Available Funds row and Remaining Budget row
-// use filteredAvailableFunds = sum of totalAmount for sources NOT in deselectedSourceIds,
-// computed client-side from breakdown.budgetSources. These tests verify all three
-// filter states: all selected, partial deselection, and all deselected.
-
-describe('filteredAvailableFunds — Available Funds row and Remaining Budget row (#1362)', () => {
-  /**
-   * Builds a two-source breakdown fixture for filter-aware summary row tests.
-   *
-   * Source A: id='src-a', name='Bank Loan', totalAmount=150000
-   * Source B: id='src-b', name='Equity',    totalAmount=100000
-   * Total available funds (all selected): 250000
-   *
-   * rawProjectedMin = rawProjectedMax = 50000 (so avg perspective = 50000 exactly,
-   * making Remaining Budget Cost = filteredAvailableFunds - 50000, deterministic).
-   *
-   * No subsidies → adjustedTotalPayback = 0.
-   */
-  function buildTwoSourceBreakdown(): BudgetBreakdown {
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          {
-            areaId: null,
-            name: 'Unassigned',
-            parentId: null,
-            color: null,
-            projectedMin: 50000,
-            projectedMax: 50000,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostPending: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 50000,
-            rawProjectedMax: 50000,
-            minSubsidyPayback: 0,
-            items: [
-              {
-                workItemId: 'wi-filter-1',
-                title: 'Foundation Work',
-                projectedMin: 50000,
-                projectedMax: 50000,
-                actualCost: 0,
-                actualCostPaid: 0,
-                actualCostPending: 0,
-                subsidyPayback: 0,
-                rawProjectedMin: 50000,
-                rawProjectedMax: 50000,
-                minSubsidyPayback: 0,
-                costDisplay: 'projected',
-                budgetLines: [
-                  {
-                    id: 'line-filter-1',
-                    description: null,
-                    plannedAmount: 50000,
-                    confidence: 'own_estimate',
-                    actualCost: 0,
-                    actualCostPaid: 0,
-                    actualCostPending: 0,
-                    hasInvoice: false,
-                    isQuotation: false,
-                    budgetSourceId: 'src-a',
-                    origin: 'manual' as const,
-                  },
-                ],
-              },
-            ],
-            children: [],
-          },
-        ],
-        totals: {
-          projectedMin: 50000,
-          projectedMax: 50000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 50000,
-          rawProjectedMax: 50000,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        areas: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-      budgetSources: [
-        buildSourceSummary({
-          id: 'src-a',
-          name: 'Bank Loan',
-          totalAmount: 150000,
-          projectedMin: 40000,
-          projectedMax: 60000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 0,
-          subsidyPaybackMax: 0,
-        }),
-        buildSourceSummary({
-          id: 'src-b',
-          name: 'Equity',
-          totalAmount: 100000,
-          projectedMin: 10000,
-          projectedMax: 10000,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 0,
-          subsidyPaybackMax: 0,
-        }),
-      ],
-    };
-  }
-
-  // Helper: get the Available Funds row <tr>
-  function getAvailFundsRow(): HTMLElement {
-    return screen.getByText('Available funds').closest('tr') as HTMLElement;
-  }
-
-  // ── Scenario 1: All sources selected (deselectedSourceIds = empty set) ───────
-  // filteredAvailableFunds = 150000 + 100000 = 250000
-
-  it('Available Funds row displays full sum of all source totalAmounts when deselectedSourceIds is empty (Scenario 1)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(),
+    it('still shows the toolbar when there is nothing to list', () => {
+      renderCard({ breakdown: makeEmptyBreakdown() });
+      expect(screen.getByTestId('breakdown-toolbar')).toBeInTheDocument();
     });
 
-    const availFundsRow = getAvailFundsRow();
-    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // filteredAvailableFunds = 150000 + 100000 = 250000
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€250,000.00');
-  });
-
-  // ── Scenario 2: One source deselected ────────────────────────────────────────
-  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000 only
-
-  it('Available Funds row displays sum of selected sources only when one source is deselected (Scenario 2)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-b']),
+    it('offers Select all when every funding source is deselected (an old URL)', async () => {
+      const user = userEvent.setup();
+      renderCard(
+        { breakdown: makeBreakdown() },
+        '/budget/overview?deselectedSources=bs-a,bs-b,unassigned',
+      );
+      expect(screen.getByText('Nothing matches these settings.')).toBeInTheDocument();
+      expect(screen.queryByTestId('breakdown-table')).toBeNull();
+      const card = screen.getByTestId('breakdown-card');
+      await user.click(
+        within(card).getAllByRole('button', { name: 'Select all' }).at(-1) as HTMLElement,
+      );
+      expect(search()).toBe('');
     });
 
-    const availFundsRow = getAvailFundsRow();
-    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // filteredAvailableFunds = 150000 (src-b excluded)
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
-    // Must NOT contain the unfiltered total
-    expect(costCell!.textContent).not.toContain('€250,000.00');
-  });
-
-  // ── Scenario 3: All sources deselected ────────────────────────────────────────
-  // deselectedSourceIds = {'src-a', 'src-b'} → filteredAvailableFunds = 0
-
-  it('Available Funds row displays €0.00 when all sources are deselected (Scenario 3)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-    renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-a', 'src-b']),
+    it('offers to reset the settings when nothing matches the payment basis', async () => {
+      const user = userEvent.setup();
+      const unpaid = makeBreakdown({
+        lines: [makeBreakdown().lines[1]!],
+        items: [],
+        byArea: [],
+        noArea: null,
+        orphanLines: null,
+        notYetSplit: null,
+        byCategory: [],
+        bySource: [],
+        sourceOptions: [],
+        hasUnassignedLines: false,
+        total: figures(500),
+        byType: makeEmptyBreakdown().byType,
+      });
+      renderCard(
+        { breakdown: unpaid },
+        '/budget/overview?paymentStatus=paid&estimate=low&grants=1',
+      );
+      expect(screen.getByText('Nothing matches these settings.')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Reset the breakdown settings' }));
+      expect(search()).toBe('?grants=1');
     });
 
-    const availFundsRow = getAvailFundsRow();
-    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // filteredAvailableFunds = 0
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€0.00');
-    // Must NOT be NaN or undefined
-    expect(costCell!.textContent).not.toContain('NaN');
-    expect(costCell!.textContent).not.toContain('undefined');
-    // Must NOT show the unfiltered total
-    expect(costCell!.textContent).not.toContain('€250,000.00');
-  });
-
-  // ── Scenario 8: unassigned source deselected — totalAmount=0, no effect ──────
-  // The 'unassigned' source has totalAmount=0. Deselecting it changes filteredAvailableFunds
-  // by zero (subtracts 0 from the sum), so the totals stay the same as with it selected.
-
-  it('deselecting the unassigned source (totalAmount=0) does not change filteredAvailableFunds (Scenario 8)', () => {
-    const breakdown: BudgetBreakdown = {
-      ...buildTwoSourceBreakdown(),
-      budgetSources: [
-        buildSourceSummary({
-          id: 'src-a',
-          name: 'Bank Loan',
-          totalAmount: 150000,
-          projectedMin: 40000,
-          projectedMax: 60000,
-        }),
-        buildSourceSummary({
-          id: 'unassigned',
-          name: 'Unassigned',
-          totalAmount: 0,
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          actualCostPaid: 0,
-          actualCostPending: 0,
-          subsidyPaybackMin: 0,
-          subsidyPaybackMax: 0,
-        }),
-      ],
-    };
-
-    // Deselect unassigned (totalAmount=0) — Available Funds should still = 150000
-    renderWithRouter(breakdown, buildOverview(150000), {
-      deselectedSourceIds: new Set(['unassigned']),
-    });
-
-    const availFundsRow = getAvailFundsRow();
-    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
-    expect(costCell).not.toBeNull();
-    // unassigned contributes 0, so filteredAvailableFunds = 150000
-    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
-  });
-
-  // ── Scenario 9: toggling back to all-selected restores unfiltered values ──────
-  // First render with src-b deselected (filteredAvailableFunds=150000), then
-  // re-render with empty deselectedSourceIds (filteredAvailableFunds=250000).
-
-  it('Available Funds restores to unfiltered values when deselectedSourceIds becomes empty (Scenario 9)', () => {
-    const breakdown = buildTwoSourceBreakdown();
-
-    // Phase 1: src-b deselected → filteredAvailableFunds = 150000
-    const { rerender } = renderWithRouter(breakdown, buildOverview(250000), {
-      deselectedSourceIds: new Set(['src-b']),
-    });
-
-    const availFundsRow1 = getAvailFundsRow();
-    const costCell1 = availFundsRow1.querySelector('td[class*="colBudget"]');
-    expect(costCell1!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
-
-    // Phase 2: re-render with no deselection → filteredAvailableFunds = 250000
-    rerender(
-      <MemoryRouter>
-        <CostBreakdownTable
-          breakdown={breakdown}
-          overview={buildOverview(250000)}
-          deselectedSourceIds={new Set()}
-          onSourceToggle={() => {}}
-          onSelectAllSources={() => {}}
-          paymentStatus="all"
-          onPaymentStatusChange={() => {}}
-        />
-      </MemoryRouter>,
-    );
-
-    const availFundsRow2 = getAvailFundsRow();
-    const costCell2 = availFundsRow2.querySelector('td[class*="colBudget"]');
-    expect(costCell2!.textContent?.replace(/\s+/g, '')).toContain('€250,000.00');
-  });
-});
-
-// ── CostBasisSelect rendering and paymentStatus-aware cost display (#1786) ─────
-
-describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Scenarios 12-19, Issue #1786)', () => {
-  // Scenario 12: CostBasisSelect renders with label and 3 options
-  it('renders a "Cost Basis" label and three options: All, Paid, Outstanding (Scenario 12)', () => {
-    const breakdown = buildBreakdownWithWI();
-    renderWithRouter(breakdown, buildOverview());
-
-    // The label "Cost Basis" links to the select via htmlFor
-    expect(screen.getByText('Cost Basis')).toBeInTheDocument();
-
-    // The select has id="cost-basis-select" and three options
-    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
-    expect(select).not.toBeNull();
-    expect(select.options).toHaveLength(3);
-    expect(select.options[0]!.text).toBe('All');
-    expect(select.options[0]!.value).toBe('all');
-    expect(select.options[1]!.text).toBe('Paid');
-    expect(select.options[1]!.value).toBe('paid');
-    expect(select.options[2]!.text).toBe('Outstanding');
-    expect(select.options[2]!.value).toBe('outstanding');
-  });
-
-  // Scenario 13: Default state paymentStatus='all' — select value is 'all', no active class
-  it("select value is 'all' and no costBasisSelectActive class when paymentStatus='all' (Scenario 13)", () => {
-    const breakdown = buildBreakdownWithWI();
-    renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'all' });
-
-    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
-    expect(select).not.toBeNull();
-    expect(select.value).toBe('all');
-
-    // identity-obj-proxy returns property name as class string for CSS modules
-    // so styles.costBasisSelectActive becomes the literal string "costBasisSelectActive"
-    expect(select.className).not.toContain('costBasisSelectActive');
-  });
-
-  // Scenario 14: paymentStatus='paid' — active class is applied to the select
-  it("select has costBasisSelectActive class when paymentStatus='paid' (Scenario 14)", () => {
-    const breakdown = buildBreakdownWithWI();
-    renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
-
-    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
-    expect(select).not.toBeNull();
-    expect(select.value).toBe('paid');
-    expect(select.className).toContain('costBasisSelectActive');
-  });
-
-  // Scenario 15: selecting 'paid' calls onPaymentStatusChange('paid')
-  it("selecting 'paid' in the dropdown calls onPaymentStatusChange('paid') (Scenario 15)", () => {
-    const onPaymentStatusChange = jest.fn<(v: 'all' | 'paid' | 'outstanding') => void>();
-    const breakdown = buildBreakdownWithWI();
-    renderWithRouter(breakdown, buildOverview(), {
-      paymentStatus: 'all',
-      onPaymentStatusChange,
-    });
-
-    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
-    expect(select).not.toBeNull();
-
-    fireEvent.change(select, { target: { value: 'paid' } });
-
-    expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
-    expect(onPaymentStatusChange).toHaveBeenCalledWith('paid');
-  });
-
-  // Scenario 16: paid mode — invoiced budget line shows actualCostPaid, not actualCost
-  it('paid mode: invoiced budget line cost cell shows actualCostPaid (Scenario 16)', () => {
-    // actualCost=1000, actualCostPaid=800 (partial payment), actualCostPending=200
-    const breakdown: BudgetBreakdown = buildBreakdownWithWI({
-      actualCost: 1000,
-      itemTitle: 'Paid Invoice Item',
-    });
-    // Inject paid/pending into the budget line
-    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
-      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
-      actualCost: 1000,
-      actualCostPaid: 800,
-      actualCostPending: 200,
-      hasInvoice: true,
-      isQuotation: false,
-    };
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
-
-    // Expand down to budget line level
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Paid Invoice Item'));
-
-    // The budget line cost cell should show -€800.00 (actualCostPaid), not -€1,000.00 (actualCost)
-    const allCells = container.querySelectorAll('td[class*="colBudget"]');
-    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
-    const lineCost = cellTexts.find((t) => t.includes('800'));
-    expect(lineCost).toBeDefined();
-    expect(lineCost).toContain('€800.00');
-    // Should NOT show -€1,000.00 for the line
-    const wrongCost = cellTexts.find((t) => t === '-€1,000.00');
-    expect(wrongCost).toBeUndefined();
-  });
-
-  // Scenario 17: paid mode — non-invoiced budget line shows -€0.00 (actualCostPaid=0)
-  it('paid mode: non-invoiced budget line cost cell shows -€0.00 (Scenario 17)', () => {
-    // Non-invoiced line: hasInvoice=false, actualCostPaid=0
-    const breakdown = buildBreakdownWithWI({
-      projectedMin: 800,
-      projectedMax: 1200,
-      actualCost: 0,
-      itemTitle: 'Non-Invoiced Item',
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Non-Invoiced Item'));
-
-    // resolveBudgetLineCost returns line.actualCostPaid=0 for paid mode
-    const allCells = container.querySelectorAll('td[class*="colBudget"]');
-    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
-    const zeroCost = cellTexts.find((t) => t === '-€0.00');
-    expect(zeroCost).toBeDefined();
-  });
-
-  // Scenario 18: outstanding mode — invoiced line shows actualCostPending
-  it('outstanding mode: invoiced budget line cost cell shows actualCostPending (Scenario 18)', () => {
-    // actualCost=1000, actualCostPaid=800, actualCostPending=200
-    const breakdown: BudgetBreakdown = buildBreakdownWithWI({
-      actualCost: 1000,
-      itemTitle: 'Outstanding Invoice Item',
-    });
-    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
-      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
-      actualCost: 1000,
-      actualCostPaid: 800,
-      actualCostPending: 200,
-      hasInvoice: true,
-      isQuotation: false,
-    };
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), {
-      paymentStatus: 'outstanding',
-    });
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Outstanding Invoice Item'));
-
-    // Budget line should show -€200.00 (actualCostPending)
-    const allCells = container.querySelectorAll('td[class*="colBudget"]');
-    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
-    const pendingCost = cellTexts.find((t) => t.includes('200'));
-    expect(pendingCost).toBeDefined();
-    expect(pendingCost).toContain('€200.00');
-  });
-
-  // Scenario 19: outstanding mode — non-invoiced line shows projected cost (perspectiveValue)
-  it('outstanding mode: non-invoiced budget line cost cell shows projected cost (Scenario 19)', () => {
-    // plannedAmount=1000, confidence='own_estimate', no invoice
-    // outstanding + no invoice → resolveBudgetLineCost returns perspectiveValue
-    // avg perspective: own_estimate margin=0.3 → min=700, max=1300 → avg=1000
-    const breakdown = buildBreakdownWithWI({
-      projectedMin: 700,
-      projectedMax: 1300,
-      rawProjectedMin: 700,
-      rawProjectedMax: 1300,
-      actualCost: 0,
-      itemTitle: 'Non-Invoiced Outstanding Item',
-    });
-    // Ensure no invoice on the line
-    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
-      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
-      plannedAmount: 1000,
-      confidence: 'own_estimate',
-      actualCost: 0,
-      actualCostPaid: 0,
-      actualCostPending: 0,
-      hasInvoice: false,
-      isQuotation: false,
-    };
-
-    const { container } = renderWithRouter(breakdown, buildOverview(), {
-      paymentStatus: 'outstanding',
-    });
-
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Non-Invoiced Outstanding Item'));
-
-    // outstanding + no invoice → shows projected value (avg of 700+1300=1000 for 'avg' perspective)
-    const allCells = container.querySelectorAll('td[class*="colBudget"]');
-    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
-    // Should contain a cell with "1,000" (the projected avg cost)
-    const projectedCost = cellTexts.find((t) => t.includes('1,000') && t.includes('€'));
-    expect(projectedCost).toBeDefined();
-  });
-});
-
-// ── Source badge print visibility (#1390) ─────────────────────────────────────
-
-describe('source badge print visibility (#1390)', () => {
-  // Verifies the DOM structure that the print-mode CSS in CostBreakdownTable.module.css depends on.
-  // The CSS toggles .sourceBadgeDot off and .sourceBadgeLabel on inside @media print;
-  // jsdom does not evaluate @media, so this test asserts both elements are present in the DOM,
-  // which is the contract the CSS relies on.
-  it('renders both .sourceBadgeDot and .sourceBadgeLabel with the badge inside the label for each budget line', () => {
-    const sourceId = 'src-1';
-    const sourceName = 'Bank Loan';
-    const breakdown = buildBreakdownWithSourcedWI({
-      budgetSourceId: sourceId,
-      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
-    });
-
-    const { container } = renderWithRouter(breakdown, buildOverview());
-
-    // Expand WI section → area → item so BudgetLineRow renders in the DOM
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
-    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
-
-    // .sourceBadgeDot — screen-visible colored dot, hidden in print via CSS
-    const dot = container.querySelector('[class*="sourceBadgeDot"]');
-    expect(dot).not.toBeNull();
-    expect(dot!.getAttribute('aria-hidden')).toBe('true');
-
-    // .sourceBadgeLabel — wraps the Badge; hidden on screen, shown in print via CSS
-    const label = container.querySelector('[class*="sourceBadgeLabel"]');
-    expect(label).not.toBeNull();
-
-    // The Badge inside has aria-label set by the source-badge code path.
-    const badgeChild = label!.querySelector('[aria-label]');
-    expect(badgeChild).not.toBeNull();
-  });
-});
-
-describe('item links carry origin state (#2202)', () => {
-  function renderProbed(breakdown: BudgetBreakdown) {
-    return render(
-      <MemoryRouter initialEntries={['/budget/overview?tab=breakdown']}>
-        <CostBreakdownTable
-          breakdown={breakdown}
-          overview={buildOverview()}
-          deselectedSourceIds={new Set()}
-          onSourceToggle={() => {}}
-          onSelectAllSources={() => {}}
-          paymentStatus="all"
-          onPaymentStatusChange={() => {}}
-        />
-        <OriginProbe />
-      </MemoryRouter>,
-    );
-  }
-
-  it('opens a task with the current URL as origin, no name', () => {
-    const { container } = renderProbed(
-      buildBreakdownWithWI({
-        workItemId: 'wi-origin',
-        itemTitle: 'Origin task',
-        categoryName: 'Materials',
-        categoryId: 'cat-origin',
-      }),
-    );
-    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-origin-items'));
-
-    fireEvent.click(screen.getByRole('link', { name: 'Origin task' }));
-
-    expect(probedPath()).toBe('/project/work-items/wi-origin');
-    expect(probedOrigin()).toEqual({ to: '/budget/overview?tab=breakdown' });
-  });
-
-  it('opens a purchase with the current URL as origin, no name', () => {
-    const { container } = renderProbed(
-      buildBreakdownWithHI({
-        hiCategory: 'Bathroom',
-        householdItemId: 'hi-origin',
-        itemName: 'Origin sink',
-      }),
-    );
-    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Bathroom-items'));
-
-    fireEvent.click(screen.getByRole('link', { name: 'Origin sink' }));
-
-    expect(probedPath()).toBe('/project/household-items/hi-origin');
-    expect(probedOrigin()).toEqual({ to: '/budget/overview?tab=breakdown' });
-  });
-});
-
-// ── Left to spend row (#2232): the money service's one figure ─────────────────
-
-describe('Left to spend row (#2232)', () => {
-  const ON_BUDGET = { expected: 98800, best: 99000, worst: 98000, verdict: 'on_budget' } as const;
-
-  function renderRow(
-    leftToSpend: React.ComponentProps<typeof CostBreakdownTableType>['leftToSpend'],
-    opts: Parameters<typeof renderWithRouter>[2] = {},
-    breakdown: BudgetBreakdown = buildBreakdownWithWI({
-      projectedMin: 800,
-      projectedMax: 1200,
-      rawProjectedMin: 800,
-      rawProjectedMax: 1200,
-      budgetSources: [buildSourceSummary({ id: 'src-1', totalAmount: 100000 })],
-    }),
-  ) {
-    return render(
-      <MemoryRouter>
-        <CostBreakdownTable
-          breakdown={breakdown}
-          overview={buildOverview(100000)}
-          deselectedSourceIds={opts.deselectedSourceIds ?? new Set()}
-          onSourceToggle={() => {}}
-          onSelectAllSources={() => {}}
-          paymentStatus={opts.paymentStatus ?? 'all'}
-          onPaymentStatusChange={() => {}}
-          leftToSpend={leftToSpend}
-        />
-      </MemoryRouter>,
-    );
-  }
-
-  it('shows the formatted expected figure with the figure marker and the verdict chip', () => {
-    renderRow(ON_BUDGET);
-
-    const row = screen.getByTestId('cost-breakdown-left-to-spend');
-    expect(row).toHaveTextContent('Left to spend');
-    const figure = row.querySelector('[data-figure="left-to-spend"]')!;
-    expect(figure.textContent).toBe('€98,800.00');
-    expect(figure).toHaveClass('valuePositive');
-    expect(row).toHaveTextContent('On budget');
-  });
-
-  it('colours a negative figure red and shows the Over budget chip', () => {
-    renderRow({ expected: -250, best: -100, worst: -400, verdict: 'over_budget' });
-
-    const row = screen.getByTestId('cost-breakdown-left-to-spend');
-    const figure = row.querySelector('[data-figure="left-to-spend"]')!;
-    expect(figure.textContent).toBe('-€250.00');
-    expect(figure).toHaveClass('valueNegative');
-    expect(row).toHaveTextContent('Over budget');
-  });
-
-  it('renders an en dash named "No figure yet" and no chip when the verdict is null', () => {
-    renderRow({ expected: 0, best: 0, worst: 0, verdict: null });
-
-    const row = screen.getByTestId('cost-breakdown-left-to-spend');
-    const figure = within(row).getByRole('img', { name: 'No figure yet' });
-    expect(figure).toHaveAttribute('data-figure', 'left-to-spend');
-    expect(figure.textContent).toBe('–');
-    expect(row).not.toHaveTextContent('On budget');
-    expect(row).not.toHaveTextContent('Over budget');
-  });
-
-  it('renders no Left to spend row without the prop or with null', () => {
-    const { unmount } = renderRow(undefined);
-    expect(screen.queryByTestId('cost-breakdown-left-to-spend')).not.toBeInTheDocument();
-    unmount();
-    renderRow(null);
-    expect(screen.queryByTestId('cost-breakdown-left-to-spend')).not.toBeInTheDocument();
-    expect(screen.queryByText('Remaining Budget')).not.toBeInTheDocument();
-  });
-
-  it('shows exactly one left-to-spend figure', () => {
-    const { container } = renderRow(ON_BUDGET);
-    expect(container.querySelectorAll('[data-figure="left-to-spend"]')).toHaveLength(1);
-  });
-
-  it('does not show "Whole project" when no filter is active', () => {
-    renderRow(ON_BUDGET);
-    expect(screen.queryByText('Whole project')).not.toBeInTheDocument();
-  });
-
-  it('shows "Whole project" when a source is deselected', () => {
-    renderRow(ON_BUDGET, { deselectedSourceIds: new Set(['src-1']) });
-    expect(screen.getByText('Whole project')).toBeInTheDocument();
-  });
-
-  it.each(['paid', 'outstanding'] as const)(
-    'shows "Whole project" when payment status is %s',
-    (paymentStatus) => {
-      renderRow(ON_BUDGET, { paymentStatus });
-      expect(screen.getByText('Whole project')).toBeInTheDocument();
-    },
-  );
-
-  it('keeps the same figure when the source filter, payment status and perspective change', () => {
-    const { rerender } = renderRow(ON_BUDGET);
-    const read = () =>
-      screen
-        .getByTestId('cost-breakdown-left-to-spend')
-        .querySelector('[data-figure="left-to-spend"]')!.textContent;
-    expect(read()).toBe('€98,800.00');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Max' }));
-    expect(read()).toBe('€98,800.00');
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-    expect(read()).toBe('€98,800.00');
-
-    rerender(
-      <MemoryRouter>
-        <CostBreakdownTable
-          breakdown={buildBreakdownWithWI({
-            projectedMin: 800,
-            projectedMax: 1200,
-            rawProjectedMin: 800,
-            rawProjectedMax: 1200,
-            budgetSources: [buildSourceSummary({ id: 'src-1', totalAmount: 100000 })],
-          })}
-          overview={buildOverview(100000)}
-          deselectedSourceIds={new Set(['src-1'])}
-          onSourceToggle={() => {}}
-          onSelectAllSources={() => {}}
-          paymentStatus="paid"
-          onPaymentStatusChange={() => {}}
-          leftToSpend={ON_BUDGET}
-        />
-      </MemoryRouter>,
-    );
-    expect(read()).toBe('€98,800.00');
-  });
-});
-
-// ── Branch coverage: nested areas, quoted rows, payments, adjustments, keys (#2232) ──
-
-describe('CostBreakdownTable — nested areas, quotations and keyboard (#2232 coverage)', () => {
-  const zeroTotals = {
-    projectedMin: 0,
-    projectedMax: 0,
-    actualCost: 0,
-    actualCostPaid: 0,
-    actualCostPending: 0,
-    subsidyPayback: 0,
-    rawProjectedMin: 0,
-    rawProjectedMax: 0,
-    minSubsidyPayback: 0,
-  };
-
-  type Line = BudgetBreakdown['workItems']['areas'][number]['items'][number]['budgetLines'][number];
-
-  const line = (over: Partial<Line> = {}): Line => ({
-    id: 'l1',
-    description: 'Wall plaster',
-    plannedAmount: 1000,
-    confidence: 'own_estimate',
-    actualCost: 0,
-    actualCostPaid: 0,
-    actualCostPending: 0,
-    hasInvoice: false,
-    isQuotation: false,
-    budgetSourceId: null,
-    origin: 'manual',
-    ...over,
-  });
-
-  const wiItem = (
-    id: string,
-    title: string,
-    costDisplay: 'actual' | 'projected' | 'quoted' | 'mixed',
-    lines: Line[],
-    over: Record<string, number> = {},
-  ) => ({
-    workItemId: id,
-    title,
-    ...zeroTotals,
-    rawProjectedMin: 900,
-    rawProjectedMax: 1100,
-    costDisplay,
-    budgetLines: lines,
-    ...over,
-  });
-
-  const hiItem = (
-    id: string,
-    name: string,
-    costDisplay: 'actual' | 'projected' | 'quoted' | 'mixed',
-    over: Record<string, number> = {},
-  ) => ({
-    householdItemId: id,
-    name,
-    ...zeroTotals,
-    rawProjectedMin: 400,
-    rawProjectedMax: 600,
-    costDisplay,
-    budgetLines: [line({ id: `${id}-l`, description: 'Sofa line' })],
-    ...over,
-  });
-
-  const area = <T,>(
-    areaId: string | null,
-    name: string,
-    items: T[],
-    children: unknown[] = [],
-    over: Record<string, number> = {},
-  ) => ({
-    areaId,
-    name,
-    parentId: null,
-    color: null,
-    ...zeroTotals,
-    rawProjectedMin: 900,
-    rawProjectedMax: 1100,
-    items,
-    children,
-    ...over,
-  });
-
-  function richBreakdown(): BudgetBreakdown {
-    const wiLines = [
-      line({
-        id: 'q1',
-        description: 'Quoted plaster',
-        isQuotation: true,
-        hasInvoice: true,
-        actualCost: 1000,
-        actualCostPaid: 200,
-        actualCostPending: 800,
-        budgetSourceId: 'src-long',
-      }),
-      line({
-        id: 'i1',
-        description: 'Invoiced paint',
-        hasInvoice: true,
-        actualCost: 500,
-        actualCostPaid: 100,
-        actualCostPending: 400,
-        budgetSourceId: 'src-short',
-      }),
-      line({ id: 'p1', description: 'Planned tiles', plannedAmount: 600 }),
-      line({ id: 'u1', description: 'Odd level', confidence: 'mystery_level' as never }),
-    ];
-    return {
-      money: emptyBreakdownMoney(),
-      workItems: {
-        areas: [
-          area(
-            'a-ground',
-            'Ground floor',
-            [
-              wiItem('wi-q', 'Quoted walls', 'quoted', wiLines),
-              wiItem('wi-a', 'Actual floor', 'actual', [line({ id: 'a1' })]),
-            ],
-            [area('a-kitchen', 'Kitchen', [wiItem('wi-k', 'Cabinets', 'projected', [line()])])],
-          ),
-        ],
-        totals: { ...zeroTotals, rawProjectedMin: 1800, rawProjectedMax: 2200 },
-      },
-      householdItems: {
-        areas: [
-          area(
-            'a-living',
-            'Living room',
-            [
-              hiItem('hi-q', 'Quoted sofa', 'quoted', {
-                subsidyPayback: 80,
-                minSubsidyPayback: 40,
-              }),
-              hiItem('hi-a', 'Actual lamp', 'actual'),
-            ],
-            [area('a-nook', 'Reading nook', [hiItem('hi-n', 'Armchair', 'projected')])],
-            { subsidyPayback: 80, minSubsidyPayback: 40 },
-          ),
-        ],
-        totals: {
-          ...zeroTotals,
-          rawProjectedMin: 800,
-          rawProjectedMax: 1200,
-          subsidyPayback: 80,
-          minSubsidyPayback: 40,
-        },
-      },
-      subsidyAdjustments: [
-        {
-          subsidyProgramId: 'sp-1',
-          name: 'Synthetic energy grant',
-          maximumAmount: 5000,
-          maxPayout: 6000,
-          minExcess: 100,
-          maxExcess: 300,
-        },
-      ],
-      budgetSources: [
-        buildSourceSummary({ id: 'src-long', name: 'A very long synthetic source name' }),
-        buildSourceSummary({ id: 'src-short', name: 'Savings' }),
-        buildSourceSummary({ id: 'unassigned', name: 'Unassigned', totalAmount: 0 }),
-      ],
-    } as unknown as BudgetBreakdown;
-  }
-
-  function renderRich(
-    opts: {
-      paymentStatus?: 'all' | 'paid' | 'outstanding';
-      onSourceToggle?: (id: string | null) => void;
-      onSelectAllSources?: () => void;
-      breakdown?: BudgetBreakdown;
-    } = {},
-  ) {
-    return render(
-      <MemoryRouter>
-        <CostBreakdownTable
-          breakdown={opts.breakdown ?? richBreakdown()}
-          overview={buildOverview(100000)}
-          deselectedSourceIds={new Set()}
-          onSourceToggle={opts.onSourceToggle ?? (() => {})}
-          onSelectAllSources={opts.onSelectAllSources ?? (() => {})}
-          paymentStatus={opts.paymentStatus ?? 'all'}
-          onPaymentStatusChange={() => {}}
-        />
-      </MemoryRouter>,
-    );
-  }
-
-  const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
-
-  function expandWork() {
-    click('Expand work item budget by area');
-    click('Expand Ground floor');
-    click('Expand Kitchen');
-    click('Expand Quoted walls');
-  }
-
-  it('shows quoted and invoiced badges on work items and their child areas', () => {
-    renderRich();
-    expandWork();
-
-    const quotedRow = screen.getByText('Quoted walls').closest('tr')!;
-    expect(within(quotedRow).getByText('Quoted')).toBeInTheDocument();
-    const actualRow = screen.getByText('Actual floor').closest('tr')!;
-    expect(within(actualRow).getByText('invoiced')).toBeInTheDocument();
-    expect(screen.getByText('Cabinets')).toBeInTheDocument();
-  });
-
-  it('shows the Quoted badge on a quotation line, Invoiced on an invoiced line, and a confidence for the rest', () => {
-    renderRich();
-    expandWork();
-
-    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
-    expect(within(quoted).getByText('Quoted')).toBeInTheDocument();
-    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
-    expect(within(invoiced).getByText('invoiced')).toBeInTheDocument();
-    const planned = screen.getByText('Planned tiles').closest('tr')!;
-    expect(within(planned).getByText('own estimate')).toBeInTheDocument();
-  });
-
-  it('truncates a source name over 20 characters and keeps the full name in the title', () => {
-    renderRich();
-    expandWork();
-
-    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
-    const badge = within(quoted).getByTitle('A very long synthetic source name');
-    expect(badge).toHaveTextContent('A very long syntheti…');
-    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
-    expect(within(invoiced).getByText('Savings')).not.toHaveAttribute('title');
-  });
-
-  it('prices a line with an unknown confidence level without a margin', () => {
-    renderRich();
-    expandWork();
-
-    const odd = screen.getByText('Odd level').closest('tr')!;
-    // planned amount 1000, margin 0: the average is exactly the planned amount
-    expect(odd.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€1,000.00');
-  });
-
-  it('prices a quotation line at +-5% of the quote for All, and an invoiced line at its actual', () => {
-    renderRich();
-    expandWork();
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-
-    const quoted = screen.getByText('Quoted plaster').closest('tr')!;
-    expect(quoted.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€950.00');
-    const invoiced = screen.getByText('Invoiced paint').closest('tr')!;
-    expect(invoiced.querySelector('td[class*="colBudget"]')).toHaveTextContent('-€500.00');
-  });
-
-  it('prices lines for Outstanding: quote, pending invoice and uninvoiced plan', () => {
-    renderRich({ paymentStatus: 'outstanding' });
-    expandWork();
-    fireEvent.click(screen.getByRole('radio', { name: 'Min' }));
-
-    const cell = (title: string) =>
-      screen.getByText(title).closest('tr')!.querySelector('td[class*="colBudget"]');
-    expect(cell('Quoted plaster')).toHaveTextContent('-€950.00');
-    expect(cell('Invoiced paint')).toHaveTextContent('-€400.00');
-    expect(cell('Planned tiles')).toHaveTextContent('-€480.00');
-  });
-
-  it('prices lines for Paid with the paid portion only', () => {
-    renderRich({ paymentStatus: 'paid' });
-    expandWork();
-
-    const cell = (title: string) =>
-      screen.getByText(title).closest('tr')!.querySelector('td[class*="colBudget"]');
-    expect(cell('Quoted plaster')).toHaveTextContent('-€200.00');
-    expect(cell('Invoiced paint')).toHaveTextContent('-€100.00');
-    expect(cell('Planned tiles')).toHaveTextContent('-€0.00');
-  });
-
-  it('shows household areas, a child area, payback and badges when expanded', () => {
-    renderRich();
-    click('Expand household item budget by area');
-    click('Expand Living room');
-    click('Expand Reading nook');
-
-    const quoted = screen.getByText('Quoted sofa').closest('tr')!;
-    expect(within(quoted).getByText('Quoted')).toBeInTheDocument();
-    // payback shown (not an em dash) for the item and its area
-    expect(quoted.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
-    const area = screen.getByText('Living room').closest('tr')!;
-    expect(area.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
-    const actual = screen.getByText('Actual lamp').closest('tr')!;
-    expect(within(actual).getByText('invoiced')).toBeInTheDocument();
-    expect(actual.querySelector('td[class*="colPayback"]')).toHaveTextContent('—');
-    expect(screen.getByText('Armchair')).toBeInTheDocument();
-  });
-
-  it('shows the household section payback in its summary row', () => {
-    renderRich();
-    const row = screen
-      .getByRole('button', { name: 'Expand household item budget by area' })
-      .closest('tr')!;
-    expect(row.querySelector('td[class*="colPayback"]')).not.toHaveTextContent('—');
-  });
-
-  it('expands the subsidy adjustments and lists each program with its excess', () => {
-    renderRich();
-    const toggle = screen.getByRole('button', { name: 'Expand subsidy adjustments' });
-    expect(screen.queryByText('Synthetic energy grant')).not.toBeInTheDocument();
-    expect(toggle.querySelector('svg')).not.toHaveClass('chevronOpen');
-
-    fireEvent.click(toggle);
-
-    const row = screen.getByText('Synthetic energy grant').closest('tr')!;
-    // average of 100 and 300
-    expect(row).toHaveTextContent('-€200.00');
-    expect(toggle.querySelector('svg')).toHaveClass('chevronOpen');
-  });
-
-  it.each([
-    ['ArrowDown', 'Min', 'Avg'],
-    ['ArrowRight', 'Max', 'Min'],
-    ['ArrowUp', 'Avg', 'Min'],
-    ['ArrowLeft', 'Avg', 'Min'],
-  ])('%s on the %s segment selects %s and moves focus', (key, from, to) => {
-    renderRich();
-    fireEvent.keyDown(screen.getByRole('radio', { name: from }), { key });
-    expect(screen.getByRole('radio', { name: to })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: to })).toHaveFocus();
-  });
-
-  it('ignores other keys on a perspective segment', () => {
-    renderRich();
-    fireEvent.keyDown(screen.getByRole('radio', { name: 'Avg' }), { key: 'Home' });
-    expect(screen.getByRole('radio', { name: 'Avg' })).toHaveAttribute('aria-checked', 'true');
-  });
-
-  describe('Available funds rows', () => {
-    function openSources(over: Parameters<typeof renderRich>[0] = {}) {
-      const view = renderRich(over);
-      click('Expand available funds sources');
-      return view;
-    }
-
-    it('passes null for the Unassigned source on click and Enter, the id for others', () => {
-      const onSourceToggle = jest.fn<(id: string | null) => void>();
-      openSources({ onSourceToggle });
-
-      fireEvent.click(screen.getByRole('button', { name: /Unassigned/ }));
-      expect(onSourceToggle).toHaveBeenLastCalledWith(null);
-      fireEvent.keyDown(screen.getByRole('button', { name: /Unassigned/ }), { key: 'Enter' });
-      expect(onSourceToggle).toHaveBeenLastCalledWith(null);
-      fireEvent.keyDown(screen.getByRole('button', { name: /Savings/ }), { key: ' ' });
-      expect(onSourceToggle).toHaveBeenLastCalledWith('src-short');
-      expect(onSourceToggle).toHaveBeenCalledTimes(3);
-    });
-
-    it('selects all sources on Escape and ignores other keys', () => {
-      const onSourceToggle = jest.fn<(id: string | null) => void>();
-      const onSelectAllSources = jest.fn();
-      openSources({ onSourceToggle, onSelectAllSources });
-
-      const row = screen.getByRole('button', { name: /Savings/ });
-      fireEvent.keyDown(row, { key: 'a' });
-      expect(onSelectAllSources).not.toHaveBeenCalled();
-      expect(onSourceToggle).not.toHaveBeenCalled();
-
-      fireEvent.keyDown(row, { key: 'Escape' });
-      expect(onSelectAllSources).toHaveBeenCalledTimes(1);
-      expect(onSourceToggle).not.toHaveBeenCalled();
+    it('does not offer Select all for a project without funding sources', () => {
+      renderCard({ breakdown: makeEmptyBreakdown({ lines: [makeBreakdown().lines[3]!] }) });
+      expect(
+        screen.queryByText('Costs appear here once tasks or purchases have cost lines.'),
+      ).toBeNull();
+      expect(screen.getByText('Nothing matches these settings.')).toBeInTheDocument();
     });
   });
 
-  it('nests child areas under a parent without an area id (the No Area bucket)', () => {
-    const base = richBreakdown();
-    renderRich({
-      breakdown: {
-        ...base,
-        workItems: {
-          ...base.workItems,
-          areas: [
-            area(
-              null,
-              'x',
-              [wiItem('wi-top', 'Top task', 'projected', [line()])],
-              [area('a-sub', 'Sub area', [wiItem('wi-sub', 'Sub task', 'projected', [line()])])],
-            ),
-          ],
-        },
-        householdItems: {
-          ...base.householdItems,
-          areas: [
-            area(
-              null,
-              'x',
-              [hiItem('hi-top', 'Top buy', 'projected')],
-              [area('hi-sub', 'Sub buy area', [hiItem('hi-sub-i', 'Sub buy', 'projected')])],
-            ),
-          ],
-        },
-      } as unknown as BudgetBreakdown,
+  describe('load failure', () => {
+    it('shows only the heading when no breakdown and no error are given', () => {
+      renderCard({ breakdown: null });
+      const card = screen.getByRole('region', { name: 'Breakdown' });
+      expect(within(card).getByRole('heading', { name: 'Breakdown' })).toBeInTheDocument();
+      expect(screen.queryByTestId('breakdown-toolbar')).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    click('Expand work item budget by area');
-    click('Expand No Area');
-    click('Expand Sub area');
-    expect(screen.getByText('Top task')).toBeInTheDocument();
-    expect(screen.getByText('Sub task')).toBeInTheDocument();
-
-    click('Expand household item budget by area');
-    click('Expand No Area');
-    click('Expand Sub buy area');
-    expect(screen.getByText('Top buy')).toBeInTheDocument();
-    expect(screen.getByText('Sub buy')).toBeInTheDocument();
-  });
-
-  it('renders a breakdown without budgetSources and without subsidyAdjustments', () => {
-    const base = richBreakdown();
-    const { budgetSources: _s, subsidyAdjustments: _a, ...rest } = base;
-    renderRich({ breakdown: rest as unknown as BudgetBreakdown });
-
-    expect(screen.getByText('Sum')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Expand subsidy adjustments' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Expand available funds sources' })).toBeNull();
+    it('shows the error and a Retry button that calls back', async () => {
+      const user = userEvent.setup();
+      const onRetry = jest.fn();
+      renderCard({
+        breakdown: null,
+        loadError: { message: 'The breakdown could not be refreshed. Please try again.', onRetry },
+      });
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'The breakdown could not be refreshed. Please try again.',
+      );
+      expect(screen.queryByTestId('breakdown-table')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
   });
 });

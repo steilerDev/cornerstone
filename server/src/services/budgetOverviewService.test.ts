@@ -1,1972 +1,218 @@
+/**
+ * Tests of the grant summary behind `GET /api/budget/overview` (#2237, contract 25): the overview
+ * is `{ subsidySummary }` only; every other project figure comes from the money service. Fresh
+ * in-memory database per test with the real migrations. The AC8 fixture (capped grant, counted
+ * statuses, step 2) is in `moneyService.fixture.test.ts`.
+ *
+ * Mutations these tests catch:
+ *  - an eligible or applied grant counted in the payback range (only approved / received count);
+ *  - a rejected grant counted in activeSubsidyCount or paying back;
+ *  - a net line not grossed up with the configured VAT rate before the grant is applied;
+ *  - a linked line using its planned amount instead of the itemized amount as the grant base;
+ *  - the eligible-costs cap missing from the payout or from oversubscribedSubsidies;
+ *  - `project` ignored (a second engine run) or the legacy fields coming back on the overview.
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { randomUUID } from 'node:crypto';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { runMigrations } from '../db/migrate.js';
-import * as schema from '../db/schema.js';
+import type Database from 'better-sqlite3';
+import { openMoneyDb, type MoneySeed, type MoneyTestDb } from '../test/moneyDb.js';
 import { getBudgetOverview } from './budgetOverviewService.js';
 import { computeProjectMoney } from './moneyService.js';
+import * as schema from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+
+const VAT = 0.19;
 
 describe('getBudgetOverview', () => {
   let sqlite: Database.Database;
-  let db: BetterSQLite3Database<typeof schema>;
-
-  // Unique ID counter to avoid timestamp collisions
-  let idCounter = 0;
-
-  function createTestDb() {
-    const sqliteDb = new Database(':memory:');
-    sqliteDb.pragma('journal_mode = WAL');
-    sqliteDb.pragma('foreign_keys = ON');
-    runMigrations(sqliteDb);
-    return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
-  }
-
-  /**
-   * Insert a test user. Always include authProvider: 'local' (required by schema NOT NULL).
-   */
-  function insertTestUser(userId = 'user-test-001') {
-    const now = new Date().toISOString();
-    db.insert(schema.users)
-      .values({
-        id: userId,
-        email: `${userId}@example.com`,
-        displayName: 'Test User',
-        passwordHash: 'hashed',
-        role: 'member',
-        authProvider: 'local',
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-    return userId;
-  }
-
-  /**
-   * Insert a budget category and return its id.
-   * Migration seeds 10 default categories — use unique test names to avoid collisions.
-   */
-  function insertBudgetCategory(name?: string, color?: string | null): string {
-    const id = `cat-test-${idCounter++}`;
-    const now = new Date().toISOString();
-    db.insert(schema.budgetCategories)
-      .values({
-        id,
-        name: name ?? `TestCat-${id}`,
-        description: null,
-        color: color ?? null,
-        sortOrder: 200 + idCounter,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-    return id;
-  }
-
-  /**
-   * Insert a work item and optionally one or more budget lines.
-   *
-   * Returns { workItemId, budgetLineId }.
-   * If no budget fields are specified, only the work item is created (no budget line).
-   *
-   * When actualCost is provided, a vendor + paid invoice is inserted linked to the budget line.
-   * When actualCostPending is provided, a pending invoice is inserted.
-   *
-   * IMPORTANT (Story 15.1 — junction table model): Each budget line can link to AT MOST ONE
-   * invoice (partial UNIQUE index on work_item_budget_id in invoice_budget_lines). When both
-   * actualCost and actualCostPending are provided, the pending invoice is attached to a SEPARATE
-   * budget line (same work item, same category/source) so the UNIQUE constraint is not violated.
-   */
-  function insertWorkItem(
-    opts: {
-      title?: string;
-      plannedAmount?: number | null;
-      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-      budgetCategoryId?: string | null;
-      budgetSourceId?: string | null;
-      actualCost?: number | null; // creates a paid invoice on the primary budget line
-      actualCostPending?: number | null; // creates a pending invoice (on a separate budget line when actualCost is also set)
-    } = {},
-  ): { workItemId: string; budgetLineId: string | null } {
-    const id = `wi-test-${idCounter++}`;
-    const now = new Date().toISOString();
-    db.insert(schema.workItems)
-      .values({
-        id,
-        title: opts.title ?? `Work Item ${id}`,
-        status: 'not_started',
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-
-    const hasBudgetData =
-      opts.plannedAmount != null || opts.budgetCategoryId != null || opts.budgetSourceId != null;
-
-    if (!hasBudgetData) {
-      return { workItemId: id, budgetLineId: null };
-    }
-
-    const budgetId = `bud-test-${idCounter++}`;
-    db.insert(schema.workItemBudgets)
-      .values({
-        id: budgetId,
-        workItemId: id,
-        plannedAmount: opts.plannedAmount ?? 0,
-        confidence: opts.confidence ?? 'own_estimate',
-        budgetCategoryId: opts.budgetCategoryId ?? null,
-        budgetSourceId: opts.budgetSourceId ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-
-    // Insert paid invoice when actualCost is given
-    if (opts.actualCost != null && opts.actualCost > 0) {
-      const vendorId = `wi-vendor-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Auto Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-        .run();
-      const invoiceId = `wi-inv-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId,
-          amount: opts.actualCost,
-          date: '2026-01-01',
-          status: 'paid',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId,
-          workItemBudgetId: budgetId,
-          itemizedAmount: opts.actualCost,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-    }
-
-    // Insert pending invoice when actualCostPending is given.
-    // If actualCost was ALSO set, the primary budgetId is already taken by a paid invoice.
-    // In that case, create a second budget line for the pending invoice so the UNIQUE constraint
-    // on work_item_budget_id in invoice_budget_lines is not violated.
-    if (opts.actualCostPending != null && opts.actualCostPending > 0) {
-      const pendingBudgetId =
-        opts.actualCost != null && opts.actualCost > 0
-          ? (() => {
-              // Create a sibling budget line for the pending invoice
-              const siblingId = `bud-test-${idCounter++}`;
-              db.insert(schema.workItemBudgets)
-                .values({
-                  id: siblingId,
-                  workItemId: id,
-                  plannedAmount: opts.actualCostPending,
-                  confidence: opts.confidence ?? 'own_estimate',
-                  budgetCategoryId: opts.budgetCategoryId ?? null,
-                  budgetSourceId: opts.budgetSourceId ?? null,
-                  createdAt: now,
-                  updatedAt: now,
-                })
-                .run();
-              return siblingId;
-            })()
-          : budgetId;
-      const vendorId = `wi-vendor-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Auto Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-        .run();
-      const invoiceId = `wi-inv-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId,
-          amount: opts.actualCostPending,
-          date: '2026-01-01',
-          status: 'pending',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId,
-          workItemBudgetId: pendingBudgetId,
-          itemizedAmount: opts.actualCostPending,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-    }
-
-    return { workItemId: id, budgetLineId: budgetId };
-  }
-
-  /**
-   * Insert an active budget source and return its id.
-   */
-  function insertBudgetSource(opts: {
-    name?: string;
-    totalAmount: number;
-    status?: 'active' | 'exhausted' | 'closed';
-  }): string {
-    const id = `src-test-${idCounter++}`;
-    const now = new Date().toISOString();
-    db.insert(schema.budgetSources)
-      .values({
-        id,
-        name: opts.name ?? `Source ${id}`,
-        sourceType: 'bank_loan',
-        totalAmount: opts.totalAmount,
-        status: opts.status ?? 'active',
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-    return id;
-  }
-
-  /**
-   * Insert a subsidy program and return its id.
-   * Optionally link it to one or more budget categories (applicable categories).
-   */
-  function insertSubsidyProgram(opts: {
-    name?: string;
-    reductionType: 'percentage' | 'fixed';
-    reductionValue: number;
-    maximumAmount?: number | null;
-    applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
-    categoryIds?: string[];
-  }): string {
-    const id = `prog-test-${idCounter++}`;
-    const now = new Date().toISOString();
-    db.insert(schema.subsidyPrograms)
-      .values({
-        id,
-        name: opts.name ?? `Subsidy Program ${id}`,
-        reductionType: opts.reductionType,
-        reductionValue: opts.reductionValue,
-        maximumAmount: opts.maximumAmount ?? null,
-        applicationStatus: opts.applicationStatus ?? 'approved', // rule: only approved/received grants are counted (eligible/applied are not)
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-
-    // Link to applicable categories
-    if (opts.categoryIds && opts.categoryIds.length > 0) {
-      for (const catId of opts.categoryIds) {
-        db.insert(schema.subsidyProgramCategories)
-          .values({ subsidyProgramId: id, budgetCategoryId: catId })
-          .run();
-      }
-    }
-
-    return id;
-  }
-
-  /**
-   * Link a work item to a subsidy program.
-   */
-  function linkWorkItemSubsidy(workItemId: string, subsidyProgramId: string) {
-    db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId }).run();
-  }
+  let db: MoneyTestDb;
+  let seed: MoneySeed;
 
   beforeEach(() => {
-    const testDb = createTestDb();
-    sqlite = testDb.sqlite;
-    db = testDb.db;
-    idCounter = 0;
-    insertTestUser();
+    ({ sqlite, db, seed } = openMoneyDb());
   });
 
   afterEach(() => {
     sqlite.close();
   });
 
-  // ─── Empty database ───────────────────────────────────────────────────────
+  const summary = (rate = VAT) => getBudgetOverview(db, rate).subsidySummary;
+  const payback = (rate = VAT) => {
+    const s = summary(rate);
+    return [s.totalReductions, s.minTotalPayback, s.maxTotalPayback];
+  };
 
-  describe('empty database (only seeded categories)', () => {
-    it('returns zero for all numeric top-level fields', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(1); // Discretionary Funding source is always seeded
-      expect(result.minPlanned).toBe(0);
-      expect(result.maxPlanned).toBe(0);
-      expect(result.actualCost).toBe(0);
-      expect(result.actualCostPaid).toBe(0);
+  describe('shape', () => {
+    it('is the grant summary only, with every legacy project field gone', () => {
+      expect(Object.keys(getBudgetOverview(db, VAT))).toEqual(['subsidySummary']);
+      expect(Object.keys(getBudgetOverview(db, VAT).subsidySummary).sort()).toEqual([
+        'activeSubsidyCount',
+        'maxTotalPayback',
+        'minTotalPayback',
+        'oversubscribedSubsidies',
+        'totalReductions',
+      ]);
     });
 
-    it('returns zero for all remaining perspectives', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.remainingVsMinPlanned).toBe(0);
-      expect(result.remainingVsMaxPlanned).toBe(0);
-      expect(result.remainingVsActualCost).toBe(0);
-      expect(result.remainingVsActualPaid).toBe(0);
+    it('is all zero for an empty database', () => {
+      expect(summary()).toEqual({
+        totalReductions: 0,
+        activeSubsidyCount: 0,
+        minTotalPayback: 0,
+        maxTotalPayback: 0,
+        oversubscribedSubsidies: [],
+      });
     });
 
-    it('returns zero for subsidy summary', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBe(0);
-      expect(result.subsidySummary.activeSubsidyCount).toBe(0);
+    it('takes the figures from the given project run without computing a second one', () => {
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 1000, confidence: 'own_estimate' });
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10 });
+      const project = computeProjectMoney(db, VAT);
+      // the data changes after the run: the summary must still describe the given run
+      db.update(schema.workItemBudgets)
+        .set({ plannedAmount: 5000 })
+        .where(eq(schema.workItemBudgets.id, 'l1'))
+        .run();
+      const reused = getBudgetOverview(db, VAT, project).subsidySummary;
+      expect([reused.totalReductions, reused.minTotalPayback, reused.maxTotalPayback]).toEqual([
+        100, 80, 120,
+      ]);
+      expect(payback()).toEqual([500, 400, 600]);
     });
   });
 
-  // ─── Available funds from budget sources ──────────────────────────────────
-
-  describe('available funds', () => {
-    it('sums totalAmount from active budget sources', () => {
-      insertBudgetSource({ totalAmount: 100000, status: 'active' });
-      insertBudgetSource({ totalAmount: 50000, status: 'active' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.availableFunds).toBe(150000);
-      expect(result.sourceCount).toBe(3); // 2 user sources + discretionary
-    });
-
-    it('excludes exhausted and closed budget sources from availableFunds', () => {
-      insertBudgetSource({ totalAmount: 100000, status: 'active' });
-      insertBudgetSource({ totalAmount: 50000, status: 'exhausted' });
-      insertBudgetSource({ totalAmount: 30000, status: 'closed' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.availableFunds).toBe(100000);
-      expect(result.sourceCount).toBe(2); // 1 user source + discretionary
-    });
-
-    it('returns zero when no active sources exist', () => {
-      insertBudgetSource({ totalAmount: 50000, status: 'closed' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.availableFunds).toBe(0);
-      expect(result.sourceCount).toBe(1); // discretionary is always active
+  describe('activeSubsidyCount', () => {
+    it('counts every program that is not rejected, whatever its status or links', () => {
+      seed.grant('sp-1', { status: 'eligible' });
+      seed.grant('sp-2', { status: 'applied' });
+      seed.grant('sp-3', { status: 'approved' });
+      seed.grant('sp-4', { status: 'received' });
+      seed.grant('sp-5', { status: 'rejected' });
+      expect(summary().activeSubsidyCount).toBe(4);
     });
   });
 
-  // ─── Confidence margin calculations ───────────────────────────────────────
-
-  describe('confidence margin calculations', () => {
-    it('applies own_estimate margin of ±20% to min/max planned', () => {
-      // own_estimate margin = 0.20; no invoices → projected = planned range
-      insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // min = 10000 * (1 - 0.20) = 8000
-      // max = 10000 * (1 + 0.20) = 12000
-      expect(result.minPlanned).toBeCloseTo(8000, 5);
-      expect(result.maxPlanned).toBeCloseTo(12000, 5);
-    });
-
-    it('applies professional_estimate margin of ±10%', () => {
-      insertWorkItem({ plannedAmount: 10000, confidence: 'professional_estimate' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBeCloseTo(9000, 5);
-      expect(result.maxPlanned).toBeCloseTo(11000, 5);
-    });
-
-    it('applies quote margin of ±5%', () => {
-      insertWorkItem({ plannedAmount: 10000, confidence: 'quote' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBeCloseTo(9500, 5);
-      expect(result.maxPlanned).toBeCloseTo(10500, 5);
-    });
-
-    it('applies invoice margin of ±0% (no margin)', () => {
-      insertWorkItem({ plannedAmount: 10000, confidence: 'invoice' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBeCloseTo(10000, 5);
-      expect(result.maxPlanned).toBeCloseTo(10000, 5);
-    });
-
-    it('sums min/max planned across multiple budget lines with different confidences', () => {
-      insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate' }); // ±20%: 8000/12000
-      insertWorkItem({ plannedAmount: 5000, confidence: 'quote' }); // ±5%: 4750/5250
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBeCloseTo(12750, 5); // 8000 + 4750
-      expect(result.maxPlanned).toBeCloseTo(17250, 5); // 12000 + 5250
-    });
-  });
-
-  // ─── Actual costs (invoices) ──────────────────────────────────────────────
-
-  describe('actual costs', () => {
-    it('sums all invoice amounts linked to budget lines as actualCost', () => {
-      insertWorkItem({ plannedAmount: 10000, actualCost: 8000 });
-      insertWorkItem({ plannedAmount: 5000, actualCost: 4500 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBe(12500);
-    });
-
-    it('sums only paid invoice amounts as actualCostPaid', () => {
-      insertWorkItem({ plannedAmount: 10000, actualCost: 8000, actualCostPending: 2000 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBe(10000); // 8000 paid + 2000 pending
-      expect(result.actualCostPaid).toBe(8000); // only paid
-    });
-
-    it('quotation invoice contributes to actualCost but not actualCostPaid (ADR-029)', () => {
-      // Insert a budget line with a quotation invoice using raw DB inserts
-      const now = new Date().toISOString();
-      const workItemId = `wi-quotation-${idCounter++}`;
-      db.insert(schema.workItems)
-        .values({
-          id: workItemId,
-          title: 'Quotation WI',
-          status: 'not_started',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      const budgetId = `bud-quotation-${idCounter++}`;
-      db.insert(schema.workItemBudgets)
-        .values({
-          id: budgetId,
-          workItemId,
-          plannedAmount: 5000,
-          confidence: 'own_estimate',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      const vendorId = `v-quotation-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: 'Quotation Vendor', createdAt: now, updatedAt: now })
-        .run();
-      const quotationInvoiceId = `inv-quotation-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: quotationInvoiceId,
-          vendorId,
-          amount: 3000,
-          date: '2026-03-01',
-          status: 'quotation',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId: quotationInvoiceId,
-          workItemBudgetId: budgetId,
-          itemizedAmount: 3000,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // quotation invoice now counted in actualCost (ADR-029)
-      expect(result.actualCost).toBe(3000);
-      // quotation is not paid → actualCostPaid stays 0
-      expect(result.actualCostPaid).toBe(0);
-    });
-
-    it('mixed quotation + paid invoices: actualCost sums both, actualCostPaid counts only paid (ADR-029)', () => {
-      // paid invoice via helper
-      insertWorkItem({ plannedAmount: 8000, actualCost: 5000 }); // paid 5000
-      // quotation invoice via raw inserts
-      const now = new Date().toISOString();
-      const workItemId2 = `wi-qmix-${idCounter++}`;
-      db.insert(schema.workItems)
-        .values({
-          id: workItemId2,
-          title: 'Quotation WI 2',
-          status: 'not_started',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      const budgetId2 = `bud-qmix-${idCounter++}`;
-      db.insert(schema.workItemBudgets)
-        .values({
-          id: budgetId2,
-          workItemId: workItemId2,
-          plannedAmount: 4000,
-          confidence: 'own_estimate',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      const vendorId2 = `v-qmix-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({ id: vendorId2, name: 'Mix Vendor', createdAt: now, updatedAt: now })
-        .run();
-      const qInvId = `inv-qmix-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: qInvId,
-          vendorId: vendorId2,
-          amount: 4000,
-          date: '2026-03-01',
-          status: 'quotation',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId: qInvId,
-          workItemBudgetId: budgetId2,
-          itemizedAmount: 4000,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBe(9000); // 5000 paid + 4000 quotation
-      expect(result.actualCostPaid).toBe(5000); // only the paid invoice
-    });
-
-    it('returns zero actualCost when no invoices are linked to budget lines', () => {
-      insertWorkItem({ plannedAmount: 10000 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBe(0);
-      expect(result.actualCostPaid).toBe(0);
-    });
-
-    it('excludes invoices not linked to any budget line from actualCost', () => {
-      // A budget line with an invoice
-      insertWorkItem({ plannedAmount: 5000, actualCost: 4000 });
-
-      // A free-floating vendor invoice (no work_item_budget_id)
-      const vendorId = `vendor-free-${idCounter++}`;
-      const now = new Date().toISOString();
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Free Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-        .run();
-      db.insert(schema.invoices)
-        .values({
-          id: `inv-free-${idCounter++}`,
-          vendorId,
-          amount: 9999,
-          date: '2026-01-01',
-          status: 'paid',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Only the budget-linked invoice should be in actualCost
-      expect(result.actualCost).toBe(4000);
-      expect(result.actualCostPaid).toBe(4000);
-    });
-  });
-
-  // ─── Six remaining-funds perspectives ────────────────────────────────────
-
-  describe('remaining funds perspectives', () => {
-    it('computes all remaining perspectives correctly', () => {
-      insertBudgetSource({ totalAmount: 100000, status: 'active' });
-      // own_estimate (±20%): but line has invoice → min/max all = actualCost = 6000
-      insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 6000 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.availableFunds).toBe(100000);
-      // Line has invoices → min/max planned overridden by actualCost
-      expect(result.minPlanned).toBe(6000);
-      expect(result.maxPlanned).toBe(6000);
-      expect(result.actualCost).toBe(6000);
-      expect(result.actualCostPaid).toBe(6000);
-
-      expect(result.remainingVsMinPlanned).toBe(94000); // 100000 - 6000
-      expect(result.remainingVsMaxPlanned).toBe(94000); // 100000 - 6000
-      expect(result.remainingVsActualCost).toBe(94000); // 100000 - 6000
-      expect(result.remainingVsActualPaid).toBe(94000); // 100000 - 6000
-    });
-
-    it('returns negative remaining when costs exceed available funds', () => {
-      insertBudgetSource({ totalAmount: 5000, status: 'active' });
-      // invoice confidence = 0% margin; line has an invoice → all values = actualCost = 8000
-      insertWorkItem({ plannedAmount: 10000, confidence: 'invoice', actualCost: 8000 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // min/max planned now also overridden by actualCost = 8000
-      expect(result.remainingVsMinPlanned).toBe(-3000); // 5000 - 8000
-      expect(result.remainingVsMaxPlanned).toBe(-3000); // 5000 - 8000
-      expect(result.remainingVsActualCost).toBe(-3000); // 5000 - 8000
-      expect(result.remainingVsActualPaid).toBe(-3000); // 5000 - 8000
-    });
-
-    it('remaining perspectives are all zero when database is empty', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.remainingVsMinPlanned).toBe(0);
-      expect(result.remainingVsMaxPlanned).toBe(0);
-      expect(result.remainingVsActualCost).toBe(0);
-      expect(result.remainingVsActualPaid).toBe(0);
-    });
-  });
-
-  // categorySummaries describe removed — field dropped in story #1243
-
-  // ─── Subsidy summary ──────────────────────────────────────────────────────
-
-  describe('subsidy summary — activeSubsidyCount', () => {
-    it('counts non-rejected programs in activeSubsidyCount', () => {
-      insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'eligible',
-      });
-      insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 5000,
-        applicationStatus: 'applied',
-      });
-      insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'approved',
-      });
-      insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 3000,
-        applicationStatus: 'received',
-      });
-      // Rejected — must NOT be counted
-      insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 5,
-        applicationStatus: 'rejected',
-      });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.activeSubsidyCount).toBe(4);
-    });
-
-    it('excludes rejected programs from activeSubsidyCount', () => {
-      insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'rejected',
-      });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.activeSubsidyCount).toBe(0);
-    });
-  });
-
-  // ─── Subsidy reductions — category matching ───────────────────────────────
-
-  describe('subsidy reductions — category matching', () => {
-    it('applies universal subsidy (no applicable categories) to all budget lines', () => {
-      const catId = insertBudgetCategory('Cat No Subsidy Category Match');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      // Subsidy with NO applicable categories = universal subsidy
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'approved',
-        categoryIds: [], // no categories → universal
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Universal subsidy applies: 10000 * 20% = 2000 reduction
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): invoice confidence min=max=10000
-      expect(result.minPlanned).toBe(10000);
-      expect(result.maxPlanned).toBe(10000);
-      expect(result.subsidySummary.totalReductions).toBe(2000);
-    });
-
-    it('does NOT apply subsidy when budget line category does not match subsidy categories', () => {
-      const catA = insertBudgetCategory('Cat A (subsidy applies here)');
-      const catB = insertBudgetCategory('Cat B (budget line here)');
-
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catB, // budget line in catB
-      });
-
-      // Subsidy only applies to catA, not catB
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'approved',
-        categoryIds: [catA], // only catA
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // No reduction — line is in catB but subsidy only covers catA
-      expect(result.minPlanned).toBe(10000);
-      expect(result.subsidySummary.totalReductions).toBe(0);
-    });
-
-    it('does NOT apply subsidy when budget line has no category', () => {
-      const catId = insertBudgetCategory('Cat Subsidy');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: null, // no category on budget line
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBe(10000);
-      expect(result.subsidySummary.totalReductions).toBe(0);
-    });
-
-    it('does NOT apply rejected subsidy even when category matches', () => {
-      const catId = insertBudgetCategory('Cat Rejected Subsidy');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'rejected',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBe(10000);
-      expect(result.subsidySummary.totalReductions).toBe(0);
-    });
-
-    it('applies percentage subsidy reduction when all 3 conditions are met', () => {
-      const catId = insertBudgetCategory('Cat Percentage Match');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 15,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // reduction = 10000 * 0.15 = 1500
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000
-      expect(result.minPlanned).toBeCloseTo(10000, 5);
-      expect(result.maxPlanned).toBeCloseTo(10000, 5);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(1500, 5);
-    });
-
-    it('applies fixed subsidy reduction divided equally across matching lines', () => {
-      const catId = insertBudgetCategory('Cat Fixed Match');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      // A second budget line in same work item and same category
-      const budgetId2 = `bud-test-${idCounter++}`;
-      const now = new Date().toISOString();
-      db.insert(schema.workItemBudgets)
-        .values({
-          id: budgetId2,
-          workItemId,
-          plannedAmount: 5000,
-          confidence: 'invoice',
-          budgetCategoryId: catId,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const progId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 3000,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // 2 matching lines: 3000 / 2 = 1500 per line
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
-      expect(result.minPlanned).toBeCloseTo(15000, 5);
-      expect(result.maxPlanned).toBeCloseTo(15000, 5);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(3000, 5);
-    });
-
-    it('applies fixed subsidy to single matching line (no division)', () => {
-      const catId = insertBudgetCategory('Cat Fixed Single');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 8000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 2000,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Only 1 matching line: 2000 / 1 = 2000 reduction
-      // minPlanned = raw projected (no subsidy subtraction): 8000
-      expect(result.minPlanned).toBeCloseTo(8000, 5);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(2000, 5);
-    });
-
-    it('floors min/max planned at 0 when subsidy reduction exceeds planned amount', () => {
-      const catId = insertBudgetCategory('Cat Floor Test');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 500,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 10000, // exceeds planned amount
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 500
-      expect(result.minPlanned).toBe(500);
-      expect(result.maxPlanned).toBe(500);
-    });
-
-    it('subsidy only applies to lines whose category matches (not all lines of work item)', () => {
-      const catMatch = insertBudgetCategory('Cat Match');
-      const catNoMatch = insertBudgetCategory('Cat No Match');
-
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catMatch,
-      });
-
-      // Second budget line on same work item but different category
-      const now = new Date().toISOString();
-      db.insert(schema.workItemBudgets)
-        .values({
-          id: `bud-test-${idCounter++}`,
-          workItemId,
-          plannedAmount: 5000,
-          confidence: 'invoice',
-          budgetCategoryId: catNoMatch,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      // Subsidy only applies to catMatch
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'approved',
-        categoryIds: [catMatch],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Only line1 (10000) gets the 10% reduction = 1000
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
-      expect(result.minPlanned).toBeCloseTo(15000, 5);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(1000, 5);
-    });
-
-    // 'applies category-matched reductions in per-category summaries' test removed — categorySummaries dropped in #1243
-
-    it('sums reductions from multiple work item-subsidy category matches', () => {
-      const catA = insertBudgetCategory('Cat Reduce A');
-      const catB = insertBudgetCategory('Cat Reduce B');
-
-      const { workItemId: wi1 } = insertWorkItem({
-        plannedAmount: 20000,
-        confidence: 'invoice',
-        budgetCategoryId: catA,
-      });
-      const { workItemId: wi2 } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catB,
-      });
-
-      const prog1 = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'approved',
-        categoryIds: [catA],
-      });
-      const prog2 = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 1000,
-        // Rule (ADR-039): only approved/received grants are counted, so this fixed grant is
-        // 'received' (it was 'eligible' before the rule).
-        applicationStatus: 'received',
-        categoryIds: [catB],
-      });
-
-      linkWorkItemSubsidy(wi1, prog1); // 20000 * 10/100 = 2000
-      linkWorkItemSubsidy(wi2, prog2); // 1000 fixed
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(3000, 5);
-    });
-
-    it('returns totalReductions for universal subsidy (no category links) when work item linked', () => {
-      const catId = insertBudgetCategory('Cat With No Prog Category');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      // Program with no applicable categories = universal subsidy
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 25,
-        applicationStatus: 'approved',
-        categoryIds: [],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Universal subsidy applies: 10000 * 25% = 2500
-      expect(result.subsidySummary.totalReductions).toBe(2500);
-    });
-  });
-
-  // ─── Confidence margins interact with subsidy reductions ──────────────────
-
-  describe('confidence margins interacting with subsidy reductions', () => {
-    it('applies subsidy reduction after confidence margin expansion', () => {
-      // own_estimate (±20%), planned=10000
-      // raw_min = 8000, raw_max = 12000
-      // subsidy = 10% percentage on catId
-      // reduction = 10000 * 0.10 = 1000
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 8000 / 12000
-      const catId = insertBudgetCategory('Cat Margin + Subsidy');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.minPlanned).toBeCloseTo(8000, 5);
-      expect(result.maxPlanned).toBeCloseTo(12000, 5);
-    });
-  });
-
-  // ─── Full integration scenario ────────────────────────────────────────────
-
-  describe('full integration scenario', () => {
-    it('returns correct overview with all entities populated', () => {
-      // 1. Budget sources
-      insertBudgetSource({ totalAmount: 200000, status: 'active' });
-
-      // 2. Budget categories
-      const catA = insertBudgetCategory('Full Test Cat A', '#FF0000');
-      const catB = insertBudgetCategory('Full Test Cat B', '#00FF00');
-
-      // 3. Work items with budget lines
-      // wi1: catA, invoice confidence (0 margin), 50000 planned, 45000 paid
-      const { workItemId: wi1Id } = insertWorkItem({
-        plannedAmount: 50000,
-        confidence: 'invoice',
-        budgetCategoryId: catA,
-        actualCost: 45000,
-      });
-      // wi2: catB, own_estimate (±20%), 30000 planned, 32000 pending
-      insertWorkItem({
-        plannedAmount: 30000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catB,
-        actualCostPending: 32000,
-      });
-      // wi3: catA, quote (±5%), 20000 planned, no invoices
-      insertWorkItem({ plannedAmount: 20000, confidence: 'quote', budgetCategoryId: catA });
-
-      // 4. Subsidy: 10% on catA
-      const prog = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'approved',
-        categoryIds: [catA],
-      });
-      linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, invoice) => 45000 * 0.1 = 4500 (uses itemized amount, not plannedAmount)
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Available funds
-      expect(result.availableFunds).toBe(200000);
-      expect(result.sourceCount).toBe(2); // +1 for seeded discretionary source
-
-      // Min/max planned (invoiced lines use actualCost):
-      // wi1: has invoice (45000) → min=max=45000 (actualCost after subsidy reduction = 45000)
-      // wi2: has invoice (32000 pending) → min=max=32000 (actualCost overrides planned)
-      // wi3: NO invoices → raw_min=19000 (20000*0.95), raw_max=21000 (20000*1.05), no subsidy
-      //   Total min = 45000 + 32000 + 19000 = 96000
-      //   Total max = 45000 + 32000 + 21000 = 98000
-      expect(result.minPlanned).toBeCloseTo(96000, 5);
-      expect(result.maxPlanned).toBeCloseTo(98000, 5);
-
-      // Actual costs: 45000 paid (wi1), 32000 pending (wi2) → total=77000, paid=45000
-      expect(result.actualCost).toBe(77000);
-      expect(result.actualCostPaid).toBe(45000);
-
-      // Remaining perspectives
-      expect(result.remainingVsMinPlanned).toBeCloseTo(104000, 5); // 200000 - 96000
-      expect(result.remainingVsMaxPlanned).toBeCloseTo(102000, 5); // 200000 - 98000
-      expect(result.remainingVsActualCost).toBe(123000); // 200000 - 77000
-      expect(result.remainingVsActualPaid).toBe(155000); // 200000 - 45000
-
-      // Subsidy summary
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(4500, 5);
-      expect(result.subsidySummary.activeSubsidyCount).toBe(1);
-
-      // Per-category assertions removed — categorySummaries dropped in story #1243
-    });
-  });
-
-  // ─── actualCostClaimed (Story hero-bar: claimed invoices only) ───────────
-
-  describe('actualCostClaimed', () => {
-    /**
-     * Helper: insert a claimed invoice directly against a budget line.
-     * The insertWorkItem helper only supports paid/pending.
-     */
-    function insertClaimedInvoice(budgetLineId: string, amount: number) {
-      const now = new Date().toISOString();
-      const vendorId = `wi-vendor-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({
-          id: vendorId,
-          name: `Claimed Vendor ${vendorId}`,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      const invoiceId = `wi-inv-claimed-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId,
-          amount,
-          date: '2026-01-01',
-          status: 'claimed',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId,
-          workItemBudgetId: budgetLineId,
-          itemizedAmount: amount,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      return invoiceId;
-    }
-
-    it('returns zero actualCostClaimed when no claimed invoices exist', () => {
-      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid invoice only
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(0);
-    });
-
-    it('sums claimed invoice amounts as actualCostClaimed', () => {
-      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid → not claimed
-      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000 });
-      insertClaimedInvoice(bl2!, 3000);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(3000);
-    });
-
-    it('includes claimed invoices in actualCostPaid (claimed counts as paid)', () => {
-      const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
-      insertClaimedInvoice(budgetLineId!, 4000);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // claimed is part of actualCostPaid (status IN ('paid', 'claimed'))
-      expect(result.actualCostPaid).toBe(4000);
-      // and also part of actualCostClaimed (status = 'claimed')
-      expect(result.actualCostClaimed).toBe(4000);
-    });
-
-    it('sums multiple claimed invoices across different budget lines', () => {
-      const { budgetLineId: bl1 } = insertWorkItem({ plannedAmount: 10000 });
-      const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000 });
-      insertClaimedInvoice(bl1!, 2500);
-      insertClaimedInvoice(bl2!, 1500);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(4000); // 2500 + 1500
-    });
-
-    it('only counts claimed invoices — not paid or pending — in actualCostClaimed', () => {
-      insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid
-      insertWorkItem({ plannedAmount: 8000, actualCostPending: 2000 }); // pending
-      const { budgetLineId: bl3 } = insertWorkItem({ plannedAmount: 6000 });
-      insertClaimedInvoice(bl3!, 1200); // claimed
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // actualCost = 5000 (paid) + 2000 (pending) + 1200 (claimed) = 8200
-      expect(result.actualCost).toBe(8200);
-      // actualCostPaid = 5000 (paid) + 1200 (claimed) = 6200
-      expect(result.actualCostPaid).toBe(6200);
-      // actualCostClaimed = 1200 (claimed only)
-      expect(result.actualCostClaimed).toBe(1200);
-    });
-
-    it('computes remainingVsActualClaimed as availableFunds - actualCostClaimed', () => {
-      insertBudgetSource({ totalAmount: 100000, status: 'active' });
-      const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
-      insertClaimedInvoice(budgetLineId!, 7000);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(7000);
-      expect(result.remainingVsActualClaimed).toBe(93000); // 100000 - 7000
-    });
-
-    it('remainingVsActualClaimed is 0 when no claimed invoices and no funds', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(0);
-      expect(result.remainingVsActualClaimed).toBe(0);
-    });
-
-    it('excludes claimed invoices not linked to budget lines from actualCostClaimed', () => {
-      // Free-floating claimed invoice (no work_item_budget_id) must be excluded
-      const now = new Date().toISOString();
-      const vendorId = `vendor-free-claimed-${idCounter++}`;
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Free Claimed Vendor`, createdAt: now, updatedAt: now })
-        .run();
-      db.insert(schema.invoices)
-        .values({
-          id: `inv-free-claimed-${idCounter++}`,
-          vendorId,
-          amount: 9999,
-          date: '2026-01-01',
-          status: 'claimed',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBe(0);
-    });
-
-    // Per-category actualCostClaimed tests removed — categorySummaries dropped in story #1243
-  });
-
-  // ─── Subsidy payback aggregation (#346) ────────────────────────────────────
-
-  describe('subsidySummary.minTotalPayback / maxTotalPayback', () => {
-    it('returns 0 for minTotalPayback and maxTotalPayback when no subsidies exist', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBe(0);
-      expect(result.subsidySummary.maxTotalPayback).toBe(0);
-    });
-
-    it('returns 0 payback when subsidies exist but are not linked to work items', () => {
-      // A subsidy program exists but is not linked to any work item
-      insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 20 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBe(0);
-      expect(result.subsidySummary.maxTotalPayback).toBe(0);
-    });
-
-    it('returns 0 payback for rejected subsidy programs', () => {
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        applicationStatus: 'rejected',
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBe(0);
-      expect(result.subsidySummary.maxTotalPayback).toBe(0);
-    });
-
-    it('calculates payback for a percentage subsidy with invoice-confidence budget line (min === max)', () => {
-      // invoice confidence → margin = 0 → min/max = plannedAmount = 1000
-      // Percentage 10% → payback = 100 (no range)
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
-    });
-
-    it('calculates payback range for a percentage subsidy with own_estimate confidence (±20% margin)', () => {
-      // own_estimate confidence → margin = 0.2
-      // plannedAmount = 1000 → minAmount = 800, maxAmount = 1200
-      // Percentage 10% → minPayback = 80, maxPayback = 120
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(80);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(120);
-    });
-
-    it('calculates fixed payback as min === max === reductionValue', () => {
-      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'own_estimate' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 3000,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBe(3000);
-      expect(result.subsidySummary.maxTotalPayback).toBe(3000);
-    });
-
-    it('uses actual invoice cost for lines with invoices (min === max === actualCost)', () => {
-      // Budget line with invoice: actual cost overrides confidence margin
-      // Actual cost = 900 → min/max = 900
-      // Percentage 10% → payback = 90 (no range)
-      const { workItemId, budgetLineId } = insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'own_estimate', // would give range without invoice
-      });
-      // Manually add a paid invoice to set actual cost
-      const vendorId = `wi-vendor-payback-${idCounter++}`;
-      const now = new Date().toISOString();
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-        .run();
-      const invoiceId = `wi-inv-payback-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId,
-          amount: 900,
-          date: '2026-01-01',
-          status: 'paid',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId,
-          workItemBudgetId: budgetLineId!,
-          itemizedAmount: 900,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Actual cost = 900, 10% → payback = 90 (no range since actual cost is known)
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(90);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(90);
-    });
-
-    it('sums payback across multiple work items', () => {
-      // Work item 1: 10% of 1000 (invoice confidence) → payback = 100
-      // Work item 2: fixed 500 → payback = 500
-      // Total: min = 600, max = 600
-      const { workItemId: wi1 } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
-      const { workItemId: wi2 } = insertWorkItem({ plannedAmount: 2000 });
-
-      const subsidyPct = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-      });
-      const subsidyFixed = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 500,
-      });
-
-      linkWorkItemSubsidy(wi1, subsidyPct);
-      linkWorkItemSubsidy(wi2, subsidyFixed);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(600); // 100 + 500
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(600); // 100 + 500
-    });
-
-    it('category-scoped subsidy only applies to lines with matching category', () => {
-      const cat = insertBudgetCategory('Payback Cat');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'invoice',
-        budgetCategoryId: cat,
-      });
-      // Insert a second budget line without matching category
-      insertWorkItem({ plannedAmount: 2000, confidence: 'invoice' });
-
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        categoryIds: [cat],
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // Only the line with matching category contributes: 10% of 1000 = 100
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
-    });
-  });
-
-  // ─── subsidySummary.totalReductions respects maximumAmount caps (#1808) ───
-
-  describe('subsidy summary — totalReductions maximumAmount cap (#1808)', () => {
-    it('caps a percentage subsidy — totalReductions matches capped payback (issue scenario)', () => {
-      // Uncapped would be 50000 * 0.10 = 5000, but maximumAmount caps the payout
-      // at maxPayout = maximumAmount * (reductionValue / 100) = 1000 * 0.10 = 100
-      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        maximumAmount: 1000,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(100);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(
-        result.subsidySummary.minTotalPayback,
-      );
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(
-        result.subsidySummary.maxTotalPayback,
-      );
-    });
-
-    it('leaves an uncapped percentage subsidy unaffected (regression guard)', () => {
-      // maximumAmount: null → pass-through branch, unchanged from pre-fix behavior
-      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        maximumAmount: null,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(5000);
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(5000);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(5000);
-    });
-
-    it('leaves an uncapped fixed subsidy unaffected (regression guard)', () => {
-      // costBasis (5000) >= reductionValue (2000), so the pre-existing per-line
-      // Math.min(perLineAmount, costBasis) clamp does not engage — isolates the
-      // maximumAmount cap behavior under test.
-      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 2000,
-        maximumAmount: null,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(2000);
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(2000);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(2000);
-    });
-
-    it('caps a fixed subsidy at maximumAmount (no rate multiplication)', () => {
-      // Same setup as the uncapped-fixed test, but maximumAmount: 500 caps the
-      // payout directly (fixed subsidies: maxPayout = maximumAmount)
-      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 2000,
-        maximumAmount: 500,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(500);
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(500);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(500);
-    });
-
-    it('sums mixed capped and uncapped subsidies across different work items', () => {
-      // Subsidy A: percentage 10%, capped at 1000 → capped contribution 100
-      // Subsidy B: fixed 300, uncapped → uncapped contribution 300
-      const { workItemId: wi1 } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
-      const { workItemId: wi2 } = insertWorkItem({ plannedAmount: 10000, confidence: 'invoice' });
-
-      const subsidyA = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        maximumAmount: 1000,
-      });
-      const subsidyB = insertSubsidyProgram({
-        reductionType: 'fixed',
-        reductionValue: 300,
-        maximumAmount: null,
-      });
-
-      linkWorkItemSubsidy(wi1, subsidyA);
-      linkWorkItemSubsidy(wi2, subsidyB);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(400); // 100 + 300
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(400);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(400);
-    });
-
-    it('keeps totalReductions within [minTotalPayback, maxTotalPayback] when the cap sits between the confidence-margin range (consistency invariant)', () => {
-      // own_estimate confidence → ±20% margin
-      // Uncapped point estimate (old totalReductions behavior) = 50000 * 0.10 = 5000
-      // Uncapped minPayback = 50000 * 0.8 * 0.10 = 4000 (below cap, unaffected)
-      // Uncapped maxPayback = 50000 * 1.2 * 0.10 = 6000 (above cap, clamped)
-      // maxPayout = maximumAmount * (reductionValue / 100) = 45000 * 0.10 = 4500
-      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'own_estimate' });
-      const subsidyId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 10,
-        maximumAmount: 45000,
-      });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(4000);
-      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(4500);
-      expect(result.subsidySummary.totalReductions).toBeCloseTo(4500);
-
-      // The exact consistency invariant the issue is about: before the fix,
-      // totalReductions (5000) > maxTotalPayback (4500), which is the reported
-      // inconsistency. After the fix, totalReductions must sit within range.
-      expect(result.subsidySummary.totalReductions).toBeLessThanOrEqual(
-        result.subsidySummary.maxTotalPayback,
-      );
-      expect(result.subsidySummary.totalReductions).toBeGreaterThanOrEqual(
-        result.subsidySummary.minTotalPayback,
-      );
-    });
-  });
-
-  // ─── Payback-adjusted remaining perspectives (#346) ────────────────────────
-
-  describe('remainingVsMinPlannedWithPayback / remainingVsMaxPlannedWithPayback', () => {
-    it('returns 0 for both payback-adjusted remaining fields when empty database', () => {
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.remainingVsMinPlannedWithPayback).toBe(0);
-      expect(result.remainingVsMaxPlannedWithPayback).toBe(0);
-    });
-
-    it('computes remainingVsMinPlannedWithPayback = availableFunds + minPayback - minPlanned', () => {
-      // availableFunds = 10000
-      // Work item: plannedAmount = 1000, invoice confidence → min=max=1000
-      // Subsidy: fixed 200 → subsidyReduction=200
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 1000
-      // minPayback = maxPayback = 200
-      // remainingVsMinPlanned = 10000 - 1000 = 9000
-      // remainingVsMinPlannedWithPayback = 10000 + 200 - 1000 = 9200
-      insertBudgetSource({ totalAmount: 10000 });
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
-      const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 200 });
-      linkWorkItemSubsidy(workItemId, subsidyId);
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.remainingVsMinPlanned).toBeCloseTo(9000);
-      expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9200); // payback adds on top
-      expect(result.remainingVsMaxPlannedWithPayback).toBeCloseTo(9200); // fixed: min === max
-    });
-
-    it('equals non-adjusted remaining when no subsidies linked', () => {
-      insertBudgetSource({ totalAmount: 5000 });
-      insertWorkItem({ plannedAmount: 2000, confidence: 'invoice' });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // No subsidies → payback = 0 → adjusted === non-adjusted
-      expect(result.remainingVsMinPlannedWithPayback).toBe(result.remainingVsMinPlanned);
-      expect(result.remainingVsMaxPlannedWithPayback).toBe(result.remainingVsMaxPlanned);
-    });
-  });
-
-  // ─── #1405 deposit-aware actualCostPaid / actualCostClaimed (step 8) ─────
-
-  describe('deposit-aware invoice totals (#1405)', () => {
-    /**
-     * Helper: insert a deposit for a given invoice, directly into the DB.
-     */
-    function insertDeposit(
-      invoiceId: string,
-      opts: {
-        amount: number;
-        status: 'pending' | 'paid' | 'claimed';
-        entryType?: 'deposit' | 'refund';
-      },
-    ): void {
-      const id = `dep-ov-${idCounter++}`;
-      const now = new Date().toISOString();
-      db.insert(schema.invoiceDeposits)
-        .values({
-          id,
-          invoiceId,
-          amount: opts.amount,
-          dueDate: '2026-03-01',
-          status: opts.status,
-          entryType: opts.entryType ?? 'deposit',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-    }
-
-    /**
-     * Create a paid invoice for a work item budget line and return its id.
-     * The paid invoice uses the 'paid' status for insertion; allows deposit override.
-     */
-    function insertWorkItemWithPaidInvoiceAndDeposits(opts: {
-      plannedAmount: number;
-      invoiceAmount: number;
-      invoiceStatus: 'pending' | 'paid' | 'claimed';
-      deposits: Array<{ amount: number; status: 'pending' | 'paid' | 'claimed' }>;
-    }): string {
-      const { workItemId, budgetLineId } = insertWorkItem({
-        plannedAmount: opts.plannedAmount,
-        actualCost: opts.invoiceStatus !== 'pending' ? opts.invoiceAmount : undefined,
-      });
-
-      if (budgetLineId === null) return workItemId;
-
-      // The insertWorkItem helper already created the invoice when actualCost > 0 and invoiceStatus=paid.
-      // For cases where we need a specific invoice status, insert manually.
-      // Get the last invoice inserted (from actualCost helper) and update its status if needed.
-      // Simpler: create our own invoice directly.
-      const vendorId = `dep-ov-v-${idCounter++}`;
-      const now = new Date().toISOString();
-      db.insert(schema.vendors)
-        .values({ id: vendorId, name: `DepOv Vendor ${vendorId}`, createdAt: now, updatedAt: now })
-        .run();
-
-      // Create a sibling budget line (primary may already have an invoice from insertWorkItem helper)
-      const siblingBudgetId = `bud-dep-ov-${idCounter++}`;
-      db.insert(schema.workItemBudgets)
-        .values({
-          id: siblingBudgetId,
-          workItemId,
-          plannedAmount: opts.invoiceAmount,
-          confidence: 'own_estimate',
-          budgetSourceId: null,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      const invoiceId = `inv-dep-ov-${idCounter++}`;
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId,
-          amount: opts.invoiceAmount,
-          date: '2026-01-01',
-          status: opts.invoiceStatus,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: randomUUID(),
-          invoiceId,
-          workItemBudgetId: siblingBudgetId,
-          itemizedAmount: opts.invoiceAmount,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      // Insert deposits
-      for (const dep of opts.deposits) {
-        insertDeposit(invoiceId, dep);
-      }
-
-      return workItemId;
-    }
-
-    it('AC-25: actualCostPaid includes paid deposit fractions for pending invoice', () => {
-      // Invoice=1000 pending; deposit 300 paid → actualCostPaid += 300, actualCostClaimed += 0
-      insertWorkItemWithPaidInvoiceAndDeposits({
-        plannedAmount: 1000,
-        invoiceAmount: 1000,
-        invoiceStatus: 'pending',
-        deposits: [{ amount: 300, status: 'paid' }],
-      });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBeGreaterThanOrEqual(1000);
-      expect(result.actualCostPaid).toBeGreaterThanOrEqual(300);
-    });
-
-    it('AC-25: actualCostClaimed includes claimed deposit fraction', () => {
-      // Invoice=1000 pending; deposit 400 claimed → actualCostClaimed += 400
-      insertWorkItemWithPaidInvoiceAndDeposits({
-        plannedAmount: 1000,
-        invoiceAmount: 1000,
-        invoiceStatus: 'pending',
-        deposits: [{ amount: 400, status: 'claimed' }],
-      });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
-    });
-
-    it('AC-26 (AC-10 regression): zero-deposit paid invoice — actualCostPaid unchanged', () => {
-      // No deposits: full invoice amount goes to actualCostPaid
-      insertWorkItem({ plannedAmount: 500, actualCost: 500 });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCost).toBeGreaterThanOrEqual(500);
-      expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
-    });
-
-    it('mixed deposits: actualCostPaid includes both paid and claimed deposit contributions', () => {
-      // Invoice=1000 pending; deposit 200 paid + 300 claimed → actualCostPaid = 500
-      insertWorkItemWithPaidInvoiceAndDeposits({
-        plannedAmount: 1000,
-        invoiceAmount: 1000,
-        invoiceStatus: 'pending',
-        deposits: [
-          { amount: 200, status: 'paid' },
-          { amount: 300, status: 'claimed' },
-        ],
-      });
-
-      const result = getBudgetOverview(db, 0.19);
-
-      expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
-      expect(result.actualCostClaimed).toBeGreaterThanOrEqual(300);
-    });
-
-    it('quotation invoice with deposits: included in actualCost, paid deposits in actualCostPaid (ADR-029)', () => {
-      // ADR-029: Quotation invoices now count toward actualCost
-      // Deposits on a quotation invoice contribute proportionally to actualCostPaid
-      const { workItemId: _workItemId, budgetLineId } = insertWorkItem({ plannedAmount: 500 });
-      if (budgetLineId) {
-        const now = new Date().toISOString();
-        const vendorId = `dep-quot-v-${idCounter++}`;
-        db.insert(schema.vendors)
-          .values({
-            id: vendorId,
-            name: `Quot Vendor ${vendorId}`,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        const invoiceId = `inv-quot-${idCounter++}`;
-        db.insert(schema.invoices)
-          .values({
-            id: invoiceId,
-            vendorId,
-            amount: 500,
-            date: '2026-01-01',
-            status: 'quotation',
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        db.insert(schema.invoiceBudgetLines)
-          .values({
-            id: randomUUID(),
-            invoiceId,
-            workItemBudgetId: budgetLineId,
-            itemizedAmount: 500,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        insertDeposit(invoiceId, { amount: 200, status: 'paid' });
-      }
-
-      const result = getBudgetOverview(db, 0.19);
-
-      // ADR-029: quotation included in actualCost
-      expect(result.actualCost).toBe(500);
-      // Paid deposit of 200 on invoice of 500 → fraction 0.4 → actualCostPaid = 0.4 * 500 = 200
-      expect(result.actualCostPaid).toBe(200);
-    });
-
-    // ─── Story #1876: refund entries net out actualCostPaid/actualCostClaimed ─
-
-    describe('refund entries net out actualCostPaid/actualCostClaimed (Story #1876)', () => {
-      it('an isolated invoice with a claimed deposit + claimed refund nets to the expected actualCostClaimed (deposit_entry_type SQL wiring)', () => {
-        // Fresh, isolated work item / invoice: 1000 pending, deposit 600 claimed,
-        // refund 200 claimed. Net claimed contribution = 600 - 200 = 400.
-        const { budgetLineId } = insertWorkItem({ plannedAmount: 1000 });
-        if (budgetLineId === null) throw new Error('expected a budget line');
-        const now = new Date().toISOString();
-        const vendorId = `dep-ov-refund2-v-${idCounter++}`;
-        db.insert(schema.vendors)
-          .values({
-            id: vendorId,
-            name: `Refund2 Vendor ${vendorId}`,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        const invoiceId = `inv-ov-refund2-${idCounter++}`;
-        db.insert(schema.invoices)
-          .values({
-            id: invoiceId,
-            vendorId,
-            amount: 1000,
-            date: '2026-01-01',
-            status: 'pending',
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        db.insert(schema.invoiceBudgetLines)
-          .values({
-            id: randomUUID(),
-            invoiceId,
-            workItemBudgetId: budgetLineId,
-            itemizedAmount: 1000,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
-        insertDeposit(invoiceId, { amount: 600, status: 'claimed' });
-        insertDeposit(invoiceId, { amount: 200, status: 'claimed', entryType: 'refund' });
-
-        const result = getBudgetOverview(db, 0.19);
-        // This test's DB is fresh per-test (beforeEach creates a new in-memory
-        // SQLite instance), so the net contribution is exact.
-        expect(result.actualCostClaimed).toBeCloseTo(400);
-        expect(result.actualCostPaid).toBeCloseTo(400);
-      });
-
-      it('regression: zero refunds — actualCostPaid/actualCostClaimed unchanged from AC-25', () => {
-        insertWorkItemWithPaidInvoiceAndDeposits({
-          plannedAmount: 1000,
-          invoiceAmount: 1000,
-          invoiceStatus: 'pending',
-          deposits: [{ amount: 400, status: 'claimed' }],
-        });
-
-        const result = getBudgetOverview(db, 0.19);
-        expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
-      });
-    });
-  });
-  // ─── ADR-039 money service: grant-derived legacy fields ──────────────────
-
-  describe('grant-derived fields come from the money service (ADR-039, #2228)', () => {
-    it('does not count eligible or applied grants in totalReductions or the payback range', () => {
-      // Rule: only approved/received grants are counted.
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'invoice' });
-      for (const applicationStatus of ['eligible', 'applied'] as const) {
-        const progId = insertSubsidyProgram({
-          reductionType: 'percentage',
-          reductionValue: 10,
-          applicationStatus,
-        });
-        linkWorkItemSubsidy(workItemId, progId);
-      }
-
-      const { subsidySummary } = getBudgetOverview(db, 0.19);
-
-      expect(subsidySummary.totalReductions).toBe(0);
-      expect(subsidySummary.minTotalPayback).toBe(0);
-      expect(subsidySummary.maxTotalPayback).toBe(0);
-      // the grants still count as active programs
-      expect(subsidySummary.activeSubsidyCount).toBe(2);
+  describe('counted grants and scenarios', () => {
+    beforeEach(() => {
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 1000, confidence: 'own_estimate' });
     });
 
     it('counts approved and received grants: expected -> totalReductions, best -> min, worst -> max', () => {
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      for (const applicationStatus of ['approved', 'received'] as const) {
-        const progId = insertSubsidyProgram({
-          reductionType: 'percentage',
-          reductionValue: 10,
-          applicationStatus,
-        });
-        linkWorkItemSubsidy(workItemId, progId);
-      }
-
-      const { subsidySummary } = getBudgetOverview(db, 0.19);
-
-      expect(subsidySummary.totalReductions).toBe(200);
-      expect(subsidySummary.minTotalPayback).toBe(160);
-      expect(subsidySummary.maxTotalPayback).toBe(240);
+      seed.grant('sp-1', { status: 'approved', workItems: ['wi-1'], value: 10 });
+      expect(payback()).toEqual([100, 80, 120]);
+      seed.grant('sp-2', { status: 'received', workItems: ['wi-1'], value: 5 });
+      expect(payback()).toEqual([150, 120, 180]);
     });
 
-    it('reports a capped grant in oversubscribedSubsidies with the scenario excess', () => {
-      // Rule: the eligible-costs cap applies (rate x min(eligible cost, cap)).
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const progId = insertSubsidyProgram({
-        name: 'Capped Grant',
-        reductionType: 'percentage',
-        reductionValue: 10,
-        maximumAmount: 500,
-      });
-      linkWorkItemSubsidy(workItemId, progId);
+    it.each(['eligible', 'applied', 'rejected'] as const)('does not count a %s grant', (status) => {
+      seed.grant('sp-1', { status, workItems: ['wi-1'], value: 10 });
+      expect(payback()).toEqual([0, 0, 0]);
+    });
 
-      const { subsidySummary } = getBudgetOverview(db, 0.19);
+    it('pays nothing for a grant that is not linked to any item', () => {
+      seed.grant('sp-1', { status: 'approved', value: 10 });
+      expect(payback()).toEqual([0, 0, 0]);
+    });
 
-      expect(subsidySummary.totalReductions).toBe(50);
-      expect(subsidySummary.oversubscribedSubsidies).toEqual([
+    it('pays the flat value of a fixed grant in every scenario', () => {
+      seed.grant('sp-1', { type: 'fixed', value: 15, workItems: ['wi-1'] });
+      expect(payback()).toEqual([15, 15, 15]);
+    });
+
+    it('only applies a category-scoped grant to lines of that category', () => {
+      seed.category('bc-1', 'Category One');
+      seed.category('bc-2', 'Category Two');
+      seed.wiLine('l2', 'wi-1', { planned: 1000, confidence: 'invoice', category: 'bc-1' });
+      seed.wiLine('l3', 'wi-1', { planned: 1000, confidence: 'invoice', category: 'bc-2' });
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10, categories: ['bc-1'] });
+      // only l2 (1,000, no margin): 100
+      expect(payback()).toEqual([100, 100, 100]);
+    });
+
+    it('applies the grant of a household item', () => {
+      seed.householdItem('hi-1');
+      seed.hiLine('h1', 'hi-1', { planned: 200, confidence: 'invoice' });
+      seed.grant('sp-1', { householdItems: ['hi-1'], value: 50 });
+      expect(payback()).toEqual([100, 100, 100]);
+    });
+  });
+
+  describe('cost basis', () => {
+    it('grosses a net line up with the configured VAT rate before applying the grant', () => {
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 100, includesVat: false, confidence: 'own_estimate' });
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10 });
+      expect(payback(0.19)).toEqual([11.9, 9.52, 14.28]);
+      expect(payback(0.2)).toEqual([12, 9.6, 14.4]);
+    });
+
+    it('uses the itemized amount of a linked line (offers included), not the planned amount', () => {
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 1000, confidence: 'own_estimate' });
+      seed.invoice('inv-1', 800, 'pending');
+      seed.link('inv-1', 'l1', 'work_item', 800);
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10 });
+      expect(payback()).toEqual([80, 80, 80]);
+      seed.workItem('wi-2');
+      seed.wiLine('l2', 'wi-2', { planned: 1000, confidence: 'quote' });
+      seed.invoice('q1', 1200, 'quotation');
+      seed.link('q1', 'l2', 'work_item', 1100);
+      seed.grant('sp-2', { workItems: ['wi-2'], value: 10 });
+      expect(payback()).toEqual([190, 190, 190]);
+    });
+
+    it('averages nothing across items: the payback is the sum of the item shares', () => {
+      seed.workItem('wi-1');
+      seed.workItem('wi-2');
+      seed.wiLine('l1', 'wi-1', { planned: 100, confidence: 'invoice' });
+      seed.wiLine('l2', 'wi-2', { planned: 300, confidence: 'invoice' });
+      seed.grant('sp-1', { workItems: ['wi-1', 'wi-2'], value: 10 });
+      expect(payback()).toEqual([40, 40, 40]);
+    });
+  });
+
+  describe('oversubscribed grants (cap on eligible costs)', () => {
+    beforeEach(() => {
+      seed.workItem('wi-1');
+      seed.wiLine('l1', 'wi-1', { planned: 4000, confidence: 'invoice' });
+    });
+
+    it('caps the payout at the rate times the cap and reports the excess', () => {
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 20, cap: 1000 });
+      const s = summary();
+      expect([s.totalReductions, s.minTotalPayback, s.maxTotalPayback]).toEqual([200, 200, 200]);
+      expect(s.oversubscribedSubsidies).toEqual([
         {
-          subsidyProgramId: progId,
-          name: 'Capped Grant',
-          maximumAmount: 500,
-          maxPayout: 50,
-          uncappedMinPayback: 80,
-          uncappedMaxPayback: 120,
-          minExcess: 30,
-          maxExcess: 70,
+          subsidyProgramId: 'sp-1',
+          name: 'Grant sp-1',
+          maximumAmount: 1000,
+          maxPayout: 200,
+          uncappedMinPayback: 800,
+          uncappedMaxPayback: 800,
+          minExcess: 600,
+          maxExcess: 600,
         },
       ]);
     });
 
-    it('derives the payback-adjusted remaining figures from the same paybacks', () => {
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const o = getBudgetOverview(db, 0.19);
-
-      expect(o.remainingVsMinPlannedWithPayback).toBe(
-        o.availableFunds + o.subsidySummary.minTotalPayback - o.minPlanned,
-      );
-      expect(o.remainingVsMaxPlannedWithPayback).toBe(
-        o.availableFunds + o.subsidySummary.maxTotalPayback - o.maxPlanned,
-      );
+    it('does not list a grant whose cap is not reached, or one without a cap', () => {
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 20, cap: 100000 });
+      seed.grant('sp-2', { workItems: ['wi-1'], value: 5 });
+      expect(summary().oversubscribedSubsidies).toEqual([]);
+      expect(payback()).toEqual([1000, 1000, 1000]);
     });
 
-    it('reuses a project run handed in by the route (one computation per request)', () => {
-      const { workItemId } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
-      linkWorkItemSubsidy(workItemId, progId);
-      const project = computeProjectMoney(db, 0.19);
-
-      const withProject = getBudgetOverview(db, 0.19, project);
-
-      expect(withProject).toEqual(getBudgetOverview(db, 0.19));
-      expect(withProject.subsidySummary.totalReductions).toBe(
-        project.summary.expectedGrants.expected,
-      );
+    it('reports a different excess per scenario when the margin moves the cost across the cap', () => {
+      seed.wiLine('l2', 'wi-1', { planned: 1000, confidence: 'own_estimate' });
+      seed.grant('sp-1', { workItems: ['wi-1'], value: 10, cap: 4800 });
+      // eligible cost 5,000 / 4,800 / 5,200 -> only the expected and worst scenarios exceed 4,800
+      const s = summary();
+      expect(s.oversubscribedSubsidies).toHaveLength(1);
+      const o = s.oversubscribedSubsidies[0]!;
+      expect(o.maxExcess).toBeGreaterThan(o.minExcess);
+      expect(o.minExcess).toBe(0);
     });
   });
 });

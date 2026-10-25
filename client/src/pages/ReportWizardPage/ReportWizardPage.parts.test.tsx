@@ -514,6 +514,8 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       });
 
       expect(await screen.findByLabelText('Maximum file size (MB)')).toHaveValue('2');
+      // Cancelling returns focus to the Settings heading.
+      await settleStepFocus('Settings');
       expect(screen.queryByTestId('sizing-phase')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^Download all/ })).not.toBeInTheDocument();
     });
@@ -997,3 +999,59 @@ function deferredAcquire() {
   });
   return { promise, resolve };
 }
+
+describe('ReportWizardPage — multi-PDF edge cases (#2237 branch coverage)', () => {
+  it('leaves the user on step 3 when sizing is cancelled by clicking an earlier stepper step', async () => {
+    const gate = deferredAcquire();
+    mockCountUncached.mockReturnValue(3);
+    mockAcquire.mockReturnValueOnce(gate.promise);
+    renderPage();
+    const user = userEvent.setup();
+    await step4WithLimit(user, '2');
+    await clickNext(user);
+    await screen.findByTestId('sizing-phase');
+
+    await user.click(stepperButton('Select Invoices'));
+    await act(async () => {
+      gate.resolve(OK_ACQUIRE);
+    });
+    // The cancelled outcome schedules a focus on the (now unmounted) step 4 heading in a frame.
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+
+    expect(await screen.findByText('ACME')).toBeInTheDocument();
+    expect(screen.queryByTestId('sizing-phase')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Download all/ })).not.toBeInTheDocument();
+    expect(mockGenerateParts).not.toHaveBeenCalled();
+  });
+
+  it('downloads nothing for a part when the deep-linked source id matches no source (no file name)', async () => {
+    render(
+      <LocaleProvider>
+        <MemoryRouter initialEntries={['/money/reports?type=claim&sourceId=ghost-source']}>
+          <ReportWizardPage />
+        </MemoryRouter>
+      </LocaleProvider>,
+    );
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByRole('radio')[1]).toBeChecked());
+    await clickNext(user); // 1 -> 2
+    await clickNext(user); // 2 -> 3
+    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    await clickNext(user); // 3 -> 4
+    await screen.findByLabelText('Maximum file size (MB)');
+    await settleStepFocus('Settings');
+    await setLimit(user, '1');
+    await clickNext(user); // 4 -> 5
+    await screen.findByTestId('report-parts');
+
+    const buttons = within(screen.getByTestId('report-parts')).getAllByRole('button', {
+      name: /Download/,
+    });
+    await user.click(buttons[0]!);
+
+    expect(mockDownloadPdf).not.toHaveBeenCalled();
+  });
+});

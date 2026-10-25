@@ -36,6 +36,18 @@ describe('createEntries', () => {
     expect(visibleCreateEntries(true)).toEqual([...CREATE_MENU_ENTRY_IDS]);
   });
 
+  it('D-35: the New menu Invoice entry opens the invoice create flow (?create=1), on Money pages too', () => {
+    expect(createHref('invoice', {})).toBe('/budget/invoices?create=1');
+    expect(createHref('invoice', {})).toBe(routeUrl('invoices', undefined, { create: '1' }));
+    expect(visibleCreateEntries(false)).toContain('invoice');
+    expect(visibleCreateEntries(true)).toContain('invoice');
+    // The Money-only rows open their own ?create=1 surfaces the same way.
+    expect(createHref('fundingSource', {})).toBe(
+      routeUrl('budgetSources', undefined, { create: '1' }),
+    );
+    expect(createHref('grant', {})).toBe(routeUrl('budgetSubsidies', undefined, { create: '1' }));
+  });
+
   it('marks only the four ObjectForm targets as dialogs', () => {
     const dialogs = CREATE_MENU_ENTRY_IDS.filter((id) => CREATE_TARGETS[id].dialog);
     expect(dialogs).toEqual(['task', 'purchase', 'company', 'milestone']);

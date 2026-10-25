@@ -689,7 +689,7 @@ test.describe('Page identity: Money (#2203)', () => {
       expect(log.filter((entry) => entry.kind === 'replaceState').length).toBeGreaterThan(0);
     });
 
-    test('E5: changing the cost basis on the Money overview replaces and sets paymentStatus', async ({
+    test('E5: changing the payment basis on the Money overview replaces and sets paymentStatus', async ({
       page,
     }) => {
       const overviewPage = new BudgetOverviewPage(page);
@@ -697,7 +697,8 @@ test.describe('Page identity: Money (#2203)', () => {
 
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
-      await overviewPage.costBasisSelect.selectOption('paid');
+      await overviewPage.waitForBreakdown();
+      await overviewPage.paymentChip('paid').click();
       await expect(page).toHaveURL(/paymentStatus=paid/);
 
       const log = await readRouteLog(page);

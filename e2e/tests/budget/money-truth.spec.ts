@@ -14,7 +14,7 @@
  *   6. AC6 — what is left to split is the invoice amount minus the linked lines and the grid rows.
  *   7. AC7 — Link to offer or invoice form: compact rows with what is left, "Fully split", keyboard
  *      reachability, a refused link keeps the form open, an invoice beyond the first 50 is found.
- *   8. AC8 — Budget › Overview › Add › Add Invoice opens the create modal with status pending.
+ *   8. AC8 — Money › Overview › New › Invoice opens the create modal with status pending.
  *
  * Isolation: every entity is created with a unique synthetic name via the `testPrefix` fixture and
  * removed through the API in afterEach. All assertions are scoped to those entities because the
@@ -40,6 +40,7 @@ import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import { CostLineGridDialog } from '../../pages/components/CostLineGridDialog.js';
+import { CreateMenu } from '../../pages/components/CreateMenu.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { SearchPickerControl } from '../../pages/components/SearchPickerControl.js';
 
@@ -630,23 +631,26 @@ test.describe('Money truth — Link to offer or invoice (AC7)', { tag: '@respons
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8 (AC8): Budget › Overview › Add › Add Invoice
+// Scenario 8 (AC8): Money › Overview › New › Invoice
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Money truth — Add Invoice from Budget overview (AC8)',
+  'Money truth — New invoice from the Money overview (AC8)',
   { tag: '@responsive' },
   () => {
-    test('D-35: Add > Add Invoice opens the manual create modal with status pending', async ({
+    test('D-35: New › Invoice opens the manual create modal with status pending', async ({
       page,
     }) => {
-      // The test environment has no Paperless + AI, so the manual modal is expected
+      // The Money overview has no Add menu of its own (#2237): the global New menu creates
+      // the invoice. The test environment has no Paperless + AI, so the manual modal is expected
       await page.goto(ROUTES.budget);
       const overview = new BudgetOverviewPage(page);
-      await expect(overview.addButton).toBeVisible();
+      await expect(overview.heading).toBeVisible();
+      await overview.waitForLoaded();
+      await expect(page.getByTestId('budget-overview-add-button')).toHaveCount(0);
 
-      await overview.addButton.click();
-      await overview.addInvoiceMenuItem.click();
+      const createMenu = new CreateMenu(page);
+      await createMenu.choose('invoice');
 
       await page.waitForURL(/\/budget\/invoices/);
       const invoicesPage = new InvoicesPage(page);

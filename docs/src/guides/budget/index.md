@@ -5,7 +5,7 @@ title: Budget
 
 # Budget
 
-The budget system in Cornerstone helps you track construction costs across your entire project. Organize expenses by category, manage multiple financing sources, track company invoices, and apply subsidies -- all with real-time projections that account for estimate confidence levels.
+The budget system in Cornerstone helps you track construction costs across your entire project. Organize expenses by category, manage multiple financing sources, track company invoices, and apply subsidies -- all with an expected cost for the whole project, shown as a range from the lowest to the highest estimate.
 
 ## Overview
 
@@ -16,7 +16,7 @@ The budget system provides:
 - **Work Item Cost Lines** -- Link estimated costs to tasks with a basis that reflects how reliable each estimate is
 - **Invoices** -- Track offers and invoices from companies, split them into cost lines with a grid, and link the lines to tasks and purchases (vendor records now live under the Settings section -- see [Invoices & Vendors](vendors-and-invoices))
 - **Subsidy Programs** -- Manage percentage-based or fixed-amount subsidies that reduce your effective costs
-- **Budget Overview Dashboard** -- See your project's financial health grouped by **area hierarchy**, with clickable summary tiles, expandable nested rows, source attribution badges on every line, a per-source filter that updates the entire breakdown, and print-friendly styling
+- **Money Overview** -- See what is left to spend as one headline figure, with its verdict and range, and break the costs down by area, type, cost category or funding source, down to single cost lines, with a funding source filter and print-friendly styling
 - **Bank Reports** -- Generate a formatted PDF for a budget source -- a claim submission, a proof-of-funds statement, or a general overview -- with an editable cover letter, optional AI-drafted content, and configurable columns
 
 ## How It Fits Together
@@ -37,5 +37,5 @@ When a company submits an **offer** or **invoice**, you split it into cost lines
 - [Invoices](vendors-and-invoices) -- Track invoices and link them to cost lines (companies are managed from Settings)
 - [Auto-itemize Invoices](auto-itemize) -- Extract rows from invoice PDFs using your own LLM provider
 - [Subsidies](subsidies) -- Manage subsidy programs
-- [Budget Overview](budget-overview) -- Area-grouped cost breakdown, source attribution badges, per-source filter, clickable tiles, and print output
+- [Money Overview](budget-overview) -- Left to spend, the funding sources, the cost breakdown by view, and print output
 - [Bank Reports](bank-reports) -- Generate claim, proof-of-funds, and budget overview PDFs for a financing source

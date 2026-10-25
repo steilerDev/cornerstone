@@ -42,14 +42,14 @@ After you save, the form stays open with **Add another** so you can enter the ne
 
 ## Basis
 
-The **Basis** of an estimate says what the amount rests on. On **Money > Budget**, the basis also sets the margin used in budget projections:
+The **Basis** of an estimate says what the amount rests on. On **Money > Overview**, the basis also sets the range (**Low** to **High**) for a line that is not yet linked to an offer or invoice:
 
-| Basis | Margin on Money > Budget | Meaning |
+| Basis | Range on Money > Overview | Meaning |
 |-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a contractor or professional |
 
-A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, such a line counts at its face value with no margin. **Money > Budget** still applies a +/- 5% spread to lines linked to an offer; that may change in a later release.
+A line linked to an offer or invoice does not use the basis you pick. Its basis is **Offer** or **Invoice**, set by the linked document. On the task and purchase pages, and on Money > Overview, such a line counts at its face value with no margin.
 
 As your project moves from early estimates to offers to invoices, the budget overview becomes more accurate.
 
@@ -96,4 +96,4 @@ Each cost line has an **Entered as** setting:
 
 With unit pricing, the form shows the result as you type. For example, 10 units at a net unit price of 100 give "Gross 1,190.00 (net 1,000.00 + VAT 19%)".
 
-Amounts are stored gross, and the Cost lines table shows gross amounts with the net amount in the tooltip. Because every line is stored the same way, comparisons in the [Budget Overview](budget-overview) and the printed reports are like-for-like, whatever pricing mode you chose for each line.
+Amounts are stored gross, and the Cost lines table shows gross amounts with the net amount in the tooltip. Because every line is stored the same way, comparisons in the [Money Overview](budget-overview) and the printed reports are like-for-like, whatever pricing mode you chose for each line.

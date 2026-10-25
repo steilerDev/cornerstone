@@ -5,7 +5,7 @@ title: Budget & Invoices
 
 # Budget & Invoices
 
-Household items integrate with the project-wide budget system. Each item can have cost lines that track estimated and actual costs, and these costs appear alongside task costs in the [Budget Overview](/guides/budget/budget-overview).
+Household items integrate with the project-wide budget system. Each item can have cost lines that track estimated and actual costs, and these costs appear alongside task costs in the [Money Overview](/guides/budget/budget-overview).
 
 :::note Renamed from budget lines
 The lines on an item were called **budget lines** before. They are now called **cost lines**.
@@ -34,7 +34,7 @@ Click **Add cost line** and provide:
 - **Entered as** -- **Net** (the default, VAT is added) or **Gross** (VAT already included)
 - **Basis** -- How reliable the amount is:
 
-| Basis | Margin on Money > Budget | Meaning |
+| Basis | Range on Money > Overview | Meaning |
 |-------|--------------------------|---------|
 | **Own estimate** | +/- 20% | Your personal rough estimate |
 | **Professional estimate** | +/- 10% | An estimate from a professional |
@@ -70,6 +70,6 @@ Purchases can benefit from subsidy programs. On the detail page, you can link ap
 
 See [Subsidies](/guides/budget/subsidies) for details on managing subsidy programs.
 
-## Budget Overview Integration
+## Money Overview Integration
 
-Purchase costs are included in the project-wide [Budget Overview](/guides/budget/budget-overview) alongside task costs. The budget overview dashboard shows total planned costs, actual costs, and subsidy reductions across both work items and household items, with projections that account for confidence margins.
+Purchase costs are included in the project-wide [Money Overview](/guides/budget/budget-overview) alongside task costs. The Money Overview shows the expected cost, what you have paid, what is still to pay, and grants across both work items and household items. A line that is not yet linked to an offer or invoice is shown as a range from **Low** to **High**.
