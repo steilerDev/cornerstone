@@ -695,6 +695,53 @@ function describeConsistency(getCtx: () => Ctx): void {
       const cents = rows.reduce((acc, r) => acc + Math.round((r.amount ?? 0) * 100), 0);
       expect(cents).toBe(Math.round(money.readyToSubmit.amount * 100));
     });
+
+    it('12. GET /api/invoices (#2238): listTotals, per-record Paid and the Not yet split filter equal the money service', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      type ListBody = {
+        invoices: { id: string; paid: number; notYetSplit: boolean }[];
+        pagination: { totalItems: number };
+        listTotals: {
+          openPayable: { count: number; totalAmount: number };
+          offers: {
+            count: number;
+            amount: number;
+            paid: number;
+            stillToPay: number;
+            remainingOnOffer: number;
+          };
+        };
+      };
+      const stillToPay = { count: money.stillToPayCount, totalAmount: money.stillToPay };
+
+      // To pay chip: the footer is Still to pay (a page of one row changes nothing)
+      const open = await getJson<ListBody>(ctx, '/api/invoices?openOnly=true&pageSize=1');
+      expect(open.listTotals.openPayable).toEqual(stillToPay);
+      // unfiltered: the same figure
+      const all = await getJson<ListBody>(ctx, '/api/invoices?pageSize=1');
+      expect(all.listTotals.openPayable).toEqual(stillToPay);
+
+      // Offers summary equals money.records.offers, field by field
+      const offers = await getJson<ListBody>(ctx, '/api/invoices?status=quotation&pageSize=1');
+      expect(offers.listTotals.offers).toEqual(money.records.offers);
+      expect(all.listTotals.offers).toEqual(money.records.offers);
+
+      // Σ per-record Paid over every row is the project's Paid, to the cent
+      const everything = await getJson<ListBody>(ctx, '/api/invoices?pageSize=100');
+      expect(everything.invoices.length).toBe(everything.pagination.totalItems);
+      const paidCents = everything.invoices.reduce((acc, r) => acc + Math.round(r.paid * 100), 0);
+      expect(paidCents).toBe(Math.round(money.paid * 100));
+
+      // Not yet split: rows flagged, rows returned and the filter's total are the money service count
+      expect(everything.invoices.filter((r) => r.notYetSplit).length).toBe(
+        money.notYetSplit.recordCount,
+      );
+      const split = await getJson<ListBody>(ctx, '/api/invoices?notYetSplit=true&pageSize=100');
+      expect(split.pagination.totalItems).toBe(money.notYetSplit.recordCount);
+      expect(split.invoices.length).toBe(money.notYetSplit.recordCount);
+      expect(split.invoices.every((r) => r.notYetSplit)).toBe(true);
+    });
   });
 }
 

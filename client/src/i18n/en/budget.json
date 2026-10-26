@@ -381,58 +381,8 @@
     }
   },
   "invoices": {
-    "sectionTitle": "Invoices",
-    "addInvoice": "Add Invoice",
-    "addFirstInvoice": "Add First Invoice",
-    "loading": "Loading invoices...",
     "error": "Error",
     "errorMessage": "Failed to load invoices. Please try again.",
-    "retry": "Retry",
-    "noInvoicesTitle": "No invoices yet",
-    "noInvoicesDescription": "Add your first invoice to start tracking vendor payments.",
-    "searchPlaceholder": "Search by invoice number...",
-    "summaryPending": "To pay",
-    "summaryPaid": "Paid",
-    "summaryClaimed": "Submitted",
-    "summaryQuotation": "Offers",
-    "summaryQuotationCovered": "{{amount}} already deposited",
-    "summaryClaimable": "Ready to submit",
-    "summaryClaimableHint": "Loans and credit lines only",
-    "summaryOverdue": "Overdue",
-    "summaryOverdueWarning_one": "{{count}} invoice to pay is past due",
-    "summaryOverdueWarning_other": "{{count}} invoices to pay are past due",
-    "filterByStatus": "Filter by status",
-    "filterByVendor": "Filter by vendor",
-    "allStatuses": "All Statuses",
-    "allVendors": "All Vendors",
-    "sortLabel": "Sort:",
-    "sortDate": "Date",
-    "sortAmount": "Amount",
-    "sortStatus": "Status",
-    "sortVendor": "Vendor",
-    "sortDueDate": "Due Date",
-    "sortAsc": "↑ Asc",
-    "sortDesc": "↓ Desc",
-    "noFilterResults": "No invoices match your filters",
-    "tryDifferentFilters": "Try different filters or clear them to see all invoices.",
-    "clearFilters": "Clear Filters",
-    "pagination": "Showing {{from}} to {{to}} of {{total}} invoices",
-    "previous": "Previous",
-    "next": "Next",
-    "tableHeaders": {
-      "date": "Date",
-      "invoiceNumber": "Invoice #",
-      "vendor": "Vendor",
-      "amount": "Amount",
-      "allocated": "Allocated",
-      "dueDate": "Due Date",
-      "status": "Status",
-      "notes": "Notes",
-      "remainingAmount": "Remaining Amount",
-      "effectiveAmount": "Effective Amount",
-      "stillDue": "Still due",
-      "stillDueHint": "Unpaid final payment plus unpaid deposits. Deposit amounts on the rows below are already included in this figure, not additional to it."
-    },
     "form": {
       "vendor": "Vendor",
       "invoiceNumber": "Invoice #",
@@ -456,69 +406,127 @@
     "buttons": {
       "create": "Add Invoice",
       "creating": "Adding...",
-      "save": "Save Changes",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "view": "View"
-    },
-    "actions": {
-      "menuAriaLabel": "Actions for invoice {{number}}"
+      "cancel": "Cancel"
     },
     "modal": {
       "title": "Add Invoice",
-      "description": "Fill in the details below to add a new invoice.",
-      "deleteTitle": "Delete Invoice",
-      "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
-      "deleteWarning": "This action cannot be undone."
+      "description": "Fill in the details below to add a new invoice."
     },
     "messages": {
-      "createError": "Failed to create invoice. Please try again.",
-      "updateError": "Failed to update invoice. Please try again.",
-      "deleteError": "Failed to delete invoice. Please try again."
+      "createError": "Failed to create invoice. Please try again."
     },
-    "attribution": {
-      "none": "—",
-      "lines": "{{count}} lines",
-      "allocated": "{{pct}}% allocated"
-    },
-    "retryButton": "Retry",
-    "searchAriaLabel": "Search invoices",
-    "filterStatusAriaLabel": "Filter by status",
-    "filterVendorAriaLabel": "Filter by vendor",
-    "sortOrderAriaLabel": "Toggle sort order",
-    "actionsHeader": "Actions",
-    "noNumber": "No Number",
-    "duePrefix": "Due:",
-    "paginationPreviousAriaLabel": "Previous page",
-    "paginationNextAriaLabel": "Next page",
     "pickerModal": {
       "title": "Select Invoice Document",
       "manualEntry": "Enter invoice manually",
       "manualEntryAriaLabel": "Create invoice manually without selecting a document"
     },
-    "openItems": {
-      "toggleLabel": "Show only open items",
-      "toggleDisabledHint": "Not available while \"Show only open items\" is active",
-      "defaultSortHint": "Sorted by earliest due date",
-      "containerLabel": "Deposits only",
-      "overdueLabel": "Overdue",
-      "depositOverdueLabel": "Deposit overdue",
-      "depositOrdinal": "Deposit {{index}}/{{total}}",
-      "childOf": "Part of invoice {{invoiceNumber}}: ",
-      "childIncludedCaption": "Included in the invoice total above",
-      "childExcludedCaption": "Reported separately below",
-      "expandLabel_one": "Expand {{invoiceNumber}}, {{count}} open deposit",
-      "expandLabel_other": "Expand {{invoiceNumber}}, {{count}} open deposits",
-      "collapseLabel_one": "Collapse {{invoiceNumber}}, {{count}} open deposit",
-      "collapseLabel_other": "Collapse {{invoiceNumber}}, {{count}} open deposits",
-      "summaryOpenPayable": "Still to pay",
-      "summaryRefundsDue": "Refunds due to you",
-      "summaryRefundsDueHint": "Refunds not yet received, not netted against the open total",
-      "empty": {
-        "message": "Nothing open right now",
-        "description": "Every invoice and progress payment is paid, submitted or otherwise settled."
+    "list": {
+      "new": "New invoice",
+      "search": "Search invoices",
+      "resultCount_one": "{{count}} invoice",
+      "resultCount_other": "{{count}} invoices",
+      "selectAll": "Select all invoices",
+      "empty": "No invoices yet",
+      "emptyDescription": "Add an invoice or an offer to start tracking payments.",
+      "emptyToPay": "Nothing to pay right now",
+      "emptyToPayDescription": "Every invoice and progress payment is paid or submitted.",
+      "noMatch": "No invoices match.",
+      "loadFailed": "Invoices could not be loaded.",
+      "titleHeader": "Invoice",
+      "statusHeader": "Status",
+      "noNumber": "No number",
+      "chips": {
+        "pending": "To pay",
+        "quotation": "Offers",
+        "paid": "Paid",
+        "claimed": "Submitted",
+        "all": "All",
+        "withCount": "{{label}} ({{count}})"
       },
-      "dueSoonLabel": "Due soon"
+      "columns": {
+        "date": "Date",
+        "dueDate": "Due date",
+        "amount": "Amount",
+        "stillDue": "Still to pay",
+        "allocated": "Split",
+        "notes": "Notes",
+        "offered": "Offered",
+        "offerPaid": "Paid",
+        "remainingOnOffer": "Remaining on offer",
+        "progressPayments": "Progress payments"
+      },
+      "splitPercent": "{{pct}}% split",
+      "facts": {
+        "due": "Due {{date}}",
+        "noDueDate": "No due date",
+        "remainingOnOffer": "{{amount}} remaining on offer",
+        "offered": "{{amount}} offered"
+      },
+      "badges": {
+        "notYetSplit": "Not yet split",
+        "overdue": "Overdue",
+        "dueSoon": "Due soon",
+        "progressPaymentOverdue": "Progress payment overdue",
+        "progressPaymentsOnly": "Progress payments only"
+      },
+      "child": {
+        "ordinal": "Progress payment {{index}} of {{total}}",
+        "partOf": "Part of {{title}}: ",
+        "expand_one": "Show {{count}} progress payment of {{title}}",
+        "expand_other": "Show {{count}} progress payments of {{title}}",
+        "collapse_one": "Hide {{count}} progress payment of {{title}}",
+        "collapse_other": "Hide {{count}} progress payments of {{title}}"
+      },
+      "groupBy": {
+        "status": "Status",
+        "company": "Company"
+      },
+      "sort": {
+        "dueDate": "Due date",
+        "date": "Date",
+        "amount": "Amount",
+        "company": "Company",
+        "number": "Invoice number"
+      },
+      "footer": {
+        "stillToPay": "Still to pay",
+        "stillToPayFiltered": "Still to pay in this list"
+      },
+      "offers": {
+        "summaryType": "Offers",
+        "count": "Offers",
+        "offered": "Offered",
+        "paid": "Paid",
+        "remaining": "Remaining on offer"
+      },
+      "markPaid": {
+        "nameSuffix": "{{title}}, {{company}}",
+        "bulk": "{{action}} ({{count}})",
+        "bulkNone": "None of the selected rows can be marked paid",
+        "bulkSkipped_one": "{{count}} selected row can't be marked paid",
+        "bulkSkipped_other": "{{count}} selected rows can't be marked paid",
+        "bulkDone_one": "{{count}} invoice is now “{{status}}”.",
+        "bulkDone_other": "{{count}} invoices are now “{{status}}”.",
+        "bulkFailed_one": "{{count}} invoice could not be marked paid",
+        "bulkFailed_other": "{{count}} invoices could not be marked paid"
+      },
+      "filters": {
+        "showOnly": "Show only",
+        "notYetSplit": "Not yet split",
+        "withoutDocument": "Without document",
+        "refundsDue": "Refunds due ({{count}} · {{amount}})",
+        "refundsDueNone": "Refunds due",
+        "due": "Due or overdue",
+        "company": "Company",
+        "invoiceDate": "Invoice date",
+        "dueDate": "Due date",
+        "amount": "Amount",
+        "from": "From",
+        "to": "To",
+        "min": "Minimum",
+        "max": "Maximum",
+        "note": "Showing only: {{filters}}"
+      }
     }
   },
   "invoiceDetail": {

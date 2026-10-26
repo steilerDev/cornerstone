@@ -272,7 +272,7 @@ export function BudgetOverviewPage() {
     {
       id: 'paid',
       kind: 'link',
-      to: routeUrl('invoices'),
+      to: routeUrl('invoices', undefined, { status: 'paid' }),
       state: originState,
       label: t('overview.facts.paid'),
       value: formatCurrency(money.paid),
@@ -282,7 +282,7 @@ export function BudgetOverviewPage() {
     {
       id: 'still-to-pay',
       kind: 'link',
-      to: routeUrl('invoices', undefined, { openOnly: 'true' }),
+      to: routeUrl('invoices'),
       state: originState,
       label: t('overview.facts.stillToPay'),
       value: formatCurrency(money.stillToPay),

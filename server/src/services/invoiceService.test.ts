@@ -1549,7 +1549,7 @@ describe('Invoice Service', () => {
       expect(unfiltered.summary.openPayable).toEqual({ count: 1, totalAmount: 100 });
     });
 
-    it('list rows omit `openAmount` and keep `deposits: []` when openOnly is not requested (AC33 regression)', () => {
+    it('list rows always carry `openAmount` and `deposits`, with or without openOnly (P4.6)', () => {
       const vendorId = createTestVendor('Regression No OpenOnly Vendor');
       insertRawInvoice(vendorId, { status: 'pending', amount: 500 });
 
@@ -1557,7 +1557,7 @@ describe('Invoice Service', () => {
 
       expect(result.invoices).toHaveLength(1);
       expect(result.invoices[0]!.deposits).toEqual([]);
-      expect(result.invoices[0]!).not.toHaveProperty('openAmount');
+      expect(result.invoices[0]!.openAmount).toBe(500);
     });
   });
 
@@ -1801,7 +1801,7 @@ describe('Invoice Service', () => {
       return id;
     }
 
-    it('list response has deposits: [] (deposits are never embedded on list rows)', () => {
+    it('list response carries the full deposits list on every row (P4.6)', () => {
       const vendorId = createTestVendor('List Deposit Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 800 });
       insertRawDeposit(invoiceId, 200, 'paid');
@@ -1811,7 +1811,8 @@ describe('Invoice Service', () => {
 
       const listed = result.invoices.find((inv) => inv.id === invoiceId);
       expect(listed).toBeDefined();
-      expect(listed!.deposits).toHaveLength(0);
+      expect(listed!.deposits).toHaveLength(2);
+      expect(listed!.deposits.map((d) => d.status).sort()).toEqual(['claimed', 'paid']);
     });
 
     // Story #1876: previously finalPaymentAmount on list rows was hardcoded to

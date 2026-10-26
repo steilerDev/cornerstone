@@ -185,9 +185,7 @@ test.describe('Sidebar Navigation', () => {
   }) => {
     const appShell = new AppShellPage(page);
     await page.goto(routeUrl('invoices'));
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Invoices', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Invoices\b/ })).toBeVisible();
 
     await expect(appShell.viewLinks).toHaveText([
       'Invoices',
@@ -235,7 +233,7 @@ test.describe('Sidebar Navigation', () => {
 
       // A view switch inside Money adds no further push
       await appShell.openView('invoices');
-      await expect(h1('Invoices')).toBeVisible();
+      await expect(fresh.getByRole('heading', { level: 1, name: /^Invoices\b/ })).toBeVisible();
       expect(await pushes()).toEqual([['pushState', routeUrl('budgetOverview')]]);
     } finally {
       await fresh.close();

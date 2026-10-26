@@ -4,6 +4,7 @@ import type {
   Invoice,
   InvoiceDetailResponse,
   InvoiceListPaginatedResponse,
+  InvoiceListSort,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   ConvertQuotationRequest,
@@ -44,37 +45,73 @@ export function deleteInvoice(vendorId: string, invoiceId: string): Promise<void
 }
 
 /**
+ * Query of GET /api/invoices. Only the names the server accepts: it strips unknown params, so a
+ * raw `amount` / `date` / `dueDate` filter would silently do nothing.
+ */
+export interface InvoiceListParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: 'pending' | 'paid' | 'claimed' | 'quotation';
+  openOnly?: boolean;
+  vendorId?: string;
+  amountMin?: number;
+  amountMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  notYetSplit?: boolean;
+  withoutDocument?: boolean;
+  refundsDue?: boolean;
+  due?: boolean;
+  /** Only these rows (at most 100): fresh rows after a change, without a reload. */
+  ids?: readonly string[];
+  sortBy?: InvoiceListSort;
+  sortOrder?: 'asc' | 'desc';
+}
+
+const INVOICE_LIST_STRING_PARAMS = [
+  'q',
+  'status',
+  'vendorId',
+  'dateFrom',
+  'dateTo',
+  'dueDateFrom',
+  'dueDateTo',
+  'sortBy',
+  'sortOrder',
+] as const;
+const INVOICE_LIST_NUMBER_PARAMS = ['page', 'pageSize', 'amountMin', 'amountMax'] as const;
+// Fastify/AJV coerces "true"/"false" to boolean but "1" does not: send the literal 'true', only when true.
+const INVOICE_LIST_FLAG_PARAMS = [
+  'openOnly',
+  'notYetSplit',
+  'withoutDocument',
+  'refundsDue',
+  'due',
+] as const;
+
+/**
  * Fetches all invoices across all vendors (paginated, filterable).
  */
 export function fetchAllInvoices(
-  params?: {
-    page?: number;
-    pageSize?: number;
-    q?: string;
-    status?: 'pending' | 'paid' | 'claimed' | 'quotation';
-    vendorId?: string;
-    amount?: string;
-    date?: string;
-    dueDate?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    openOnly?: boolean;
-  },
+  params?: InvoiceListParams,
   options?: RequestOptions,
 ): Promise<InvoiceListPaginatedResponse> {
   const queryParams = new URLSearchParams();
-  if (params?.page !== undefined) queryParams.set('page', params.page.toString());
-  if (params?.pageSize !== undefined) queryParams.set('pageSize', params.pageSize.toString());
-  if (params?.q) queryParams.set('q', params.q);
-  if (params?.status) queryParams.set('status', params.status);
-  if (params?.vendorId) queryParams.set('vendorId', params.vendorId);
-  if (params?.amount) queryParams.set('amount', params.amount);
-  if (params?.date) queryParams.set('date', params.date);
-  if (params?.dueDate) queryParams.set('dueDate', params.dueDate);
-  if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
-  if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
-  // Send the literal 'true' — Fastify/AJV coerces "true"/"false" to boolean, but "1" does not.
-  if (params?.openOnly) queryParams.set('openOnly', 'true');
+  for (const key of INVOICE_LIST_NUMBER_PARAMS) {
+    const value = params?.[key];
+    if (value !== undefined) queryParams.set(key, String(value));
+  }
+  for (const key of INVOICE_LIST_STRING_PARAMS) {
+    const value = params?.[key];
+    if (value) queryParams.set(key, value);
+  }
+  for (const key of INVOICE_LIST_FLAG_PARAMS) {
+    if (params?.[key]) queryParams.set(key, 'true');
+  }
+  if (params?.ids && params.ids.length > 0) queryParams.set('ids', params.ids.join(','));
   const queryString = queryParams.toString();
   const path = queryString ? `/invoices?${queryString}` : '/invoices';
   return get<InvoiceListPaginatedResponse>(path, options);

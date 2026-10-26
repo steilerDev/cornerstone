@@ -130,7 +130,7 @@ export interface AttentionInput {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const OFFER_DUE_WINDOW_DAYS = 7;
-const PAYMENT_DUE_WINDOW_DAYS = 7;
+export const PAYMENT_DUE_WINDOW_DAYS = 7;
 const LONG_UNPAID_DAYS = 30;
 const DELIVERY_WINDOW_DAYS = 7;
 const GRANT_WINDOW_DAYS = 14;

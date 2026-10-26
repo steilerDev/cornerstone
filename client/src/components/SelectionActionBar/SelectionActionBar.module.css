@@ -1,12 +1,24 @@
+.spacer {
+  width: 100%;
+  margin-top: var(--spacing-3);
+}
+.spacerInline {
+  margin-top: var(--spacing-3);
+}
+
 .bar {
-  position: sticky;
-  bottom: 0;
+  position: fixed;
+  bottom: var(--shell-bottom-height, 0);
   z-index: var(--z-dropdown);
+}
+
+.bar,
+.barInline {
+  box-sizing: border-box;
   background-color: var(--color-bg-primary);
   border-top: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
   padding: var(--spacing-4);
-  margin-top: var(--spacing-3);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -32,7 +44,8 @@
 /* .clearButton is now styled via sharedStyles.btnSecondaryCompact in SelectionActionBar.tsx */
 
 @media (prefers-reduced-motion: no-preference) {
-  .bar {
+  .bar,
+  .barInline {
     animation: slideUp var(--transition-normal);
   }
 }
@@ -49,7 +62,8 @@
 }
 
 @media (max-width: 767px) {
-  .bar {
+  .bar,
+  .barInline {
     flex-direction: column;
     align-items: stretch;
   }
@@ -61,5 +75,12 @@
   .actions > button {
     width: 100%;
     min-height: 44px;
+  }
+}
+
+/* The fixed bar would repeat on every printed page */
+@media print {
+  .spacer {
+    display: none;
   }
 }

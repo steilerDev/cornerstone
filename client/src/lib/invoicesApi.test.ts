@@ -472,10 +472,21 @@ describe('invoicesApi', () => {
   // ─── fetchAllInvoices ──────────────────────────────────────────────────────
 
   describe('fetchAllInvoices', () => {
+    const sampleRow = {
+      ...sampleInvoice,
+      openAmount: 2500.0,
+      paid: 0,
+      remainingOnOffer: null,
+      notYetSplit: false,
+    };
     const samplePaginatedResponse: InvoiceListPaginatedResponse = {
-      invoices: [sampleInvoice],
+      invoices: [sampleRow],
       pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
       chipCounts: EMPTY_CHIP_COUNTS,
+      listTotals: {
+        openPayable: { count: 0, totalAmount: 0 },
+        offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+      },
       summary: {
         pending: { count: 1, totalAmount: 2500.0 },
         paid: { count: 0, totalAmount: 0 },
@@ -551,7 +562,7 @@ describe('invoicesApi', () => {
       const result = await fetchAllInvoices();
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0]).toEqual(sampleInvoice);
+      expect(result.invoices[0]).toEqual(sampleRow);
       expect(result.pagination.page).toBe(1);
       expect(result.pagination.totalItems).toBe(1);
       expect(result.summary.pending.count).toBe(1);
@@ -661,6 +672,122 @@ describe('invoicesApi', () => {
       const url = call[0] as string;
       expect(url).toContain('openOnly=true');
       expect(url).toContain('vendorId=vendor-1');
+    });
+
+    function lastParams(): URLSearchParams {
+      const url = mockFetch.mock.calls.at(-1)![0] as string;
+      return new URL(url, 'http://localhost').searchParams;
+    }
+
+    it('serialises every param under the name the server accepts', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({
+        page: 2,
+        pageSize: 50,
+        q: 'roof',
+        status: 'quotation',
+        vendorId: 'vendor-1',
+        amountMin: 10,
+        amountMax: 250.5,
+        dateFrom: '2026-01-01',
+        dateTo: '2026-02-01',
+        dueDateFrom: '2026-03-01',
+        dueDateTo: '2026-04-01',
+        sortBy: 'invoice_number',
+        sortOrder: 'desc',
+      });
+
+      expect(Object.fromEntries(lastParams())).toEqual({
+        page: '2',
+        pageSize: '50',
+        q: 'roof',
+        status: 'quotation',
+        vendorId: 'vendor-1',
+        amountMin: '10',
+        amountMax: '250.5',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-02-01',
+        dueDateFrom: '2026-03-01',
+        dueDateTo: '2026-04-01',
+        sortBy: 'invoice_number',
+        sortOrder: 'desc',
+      });
+    });
+
+    it('sends a zero amount bound and the literal true for each flag only when true', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({
+        amountMin: 0,
+        openOnly: true,
+        notYetSplit: true,
+        withoutDocument: true,
+        refundsDue: true,
+        due: true,
+      });
+      expect(Object.fromEntries(lastParams())).toEqual({
+        amountMin: '0',
+        openOnly: 'true',
+        notYetSplit: 'true',
+        withoutDocument: 'true',
+        refundsDue: 'true',
+        due: 'true',
+      });
+
+      await fetchAllInvoices({
+        openOnly: false,
+        notYetSplit: false,
+        withoutDocument: false,
+        refundsDue: false,
+        due: false,
+      });
+      expect([...lastParams().keys()]).toEqual([]);
+    });
+
+    it('joins ids with commas and sends none for an empty list', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ ids: ['a', 'b', 'c'] });
+      expect(lastParams().get('ids')).toBe('a,b,c');
+
+      await fetchAllInvoices({ ids: [] });
+      expect(lastParams().has('ids')).toBe(false);
+    });
+
+    it('no longer sends the raw amount, date or dueDate params', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({
+        amount: 'min:1',
+        date: 'from:2026-01-01',
+        dueDate: 'to:2026-01-01',
+      } as never);
+
+      expect([...lastParams().keys()]).toEqual([]);
+    });
+
+    it('returns listTotals with the response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      const result = await fetchAllInvoices();
+
+      expect(result.listTotals.offers.remainingOnOffer).toBe(0);
     });
   });
 

@@ -495,9 +495,10 @@ test.describe('Legacy URL walk (route map)', () => {
     const queryMaps = ENTRIES.filter(
       (entry) => entry.stage === 'planned' && entry.match?.query !== undefined,
     );
-    // 10 before #2215; the six Project setup tabs are served by that page now (E1c), and the
-    // two Site diary ?filterMode maps by the diary page (#2224, E1d)
-    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(2);
+    // 10 before #2215; the six Project setup tabs are served by that page now (E1c), the
+    // two Site diary ?filterMode maps by the diary page (#2224, E1d) and the Invoices
+    // ?openOnly=true map by the Invoices page (#2238, E1e)
+    expect(queryMaps.length, 'planned query-map entries in the route map').toBe(1);
 
     for (const entry of queryMaps) {
       const query = entry.match?.query ?? {};
@@ -631,6 +632,51 @@ test.describe('Legacy URL walk (route map)', () => {
         !url.searchParams.has('filterMode'),
     );
     await expectSingleHop(page, routeUrl('history'), true);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // E1e — the ?openOnly=true link the Invoices page serves itself (#2238)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  test('E1e: the route map marks /budget/invoices?openOnly=true as served by the Invoices page', () => {
+    const served = ENTRIES.filter(
+      (entry) =>
+        entry.from === '/budget/invoices?openOnly=true' &&
+        entry.stage === 'interim' &&
+        entry.interim === 'page',
+    );
+    expect(served.map((entry) => entry.from)).toEqual(['/budget/invoices?openOnly=true']);
+  });
+
+  test('E1e: ?openOnly=true&page=2&pageSize=50&q=walk lands on ?status=pending&q=walk with one replaceState', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    await page.goto(`${routeUrl('invoices')}?openOnly=true&page=2&pageSize=50&q=walk`);
+    await waitForShell(page);
+
+    await expect(page).toHaveURL((url) => {
+      const params = url.searchParams;
+      return (
+        url.pathname === routeUrl('invoices') &&
+        params.get('status') === 'pending' &&
+        params.get('q') === 'walk' &&
+        !params.has('openOnly') &&
+        !params.has('page') &&
+        !params.has('pageSize')
+      );
+    });
+    await expectSingleHop(page, routeUrl('invoices'), true);
+    await new InvoicesPage(page).waitForLoaded();
+    const log = await readRouteLog(page);
+    expect(log.filter((entry) => entry.kind === 'replaceState')).toHaveLength(1);
+  });
+
+  test('E1e: an old offers link /budget/invoices?status=quotation lands on the Offers chip', async ({
+    page,
+  }) => {
+    await page.goto(`${routeUrl('invoices')}?status=quotation`);
+    await expect(new InvoicesPage(page).chip('quotation')).toHaveAttribute('aria-pressed', 'true');
   });
 
   // ───────────────────────────────────────────────────────────────────────────

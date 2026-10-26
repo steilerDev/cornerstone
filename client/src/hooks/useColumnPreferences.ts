@@ -23,6 +23,7 @@ export interface UseColumnPreferencesResult {
  * Persists column preferences to user preferences under key `table.${pageKey}.columns`.
  * Value is JSON-encoded object: { visible: string[], order: string[] }
  * For backwards compatibility, if stored value is a plain array, it's treated as visible list.
+ * Columns missing from a stored order (added later) follow their defaultVisible and are appended.
  *
  * @param pageKey Unique key for this table (e.g. "work-items", "invoices")
  * @param columns Column definitions
@@ -89,18 +90,37 @@ export function useColumnPreferences(
           setColumnOrder(defaultColumnOrder);
         } else if (saved && typeof saved === 'object') {
           // New format: { visible: string[], order: string[] }
+          // A column absent from the stored order was added after the user saved: it follows
+          // its defaultVisible and is appended to the order, in columns order. (The legacy plain
+          // array above, and an empty stored order, have no order to compare against, so a new
+          // key cannot be told from a hidden one: the visible list stays authoritative.)
+          const storedOrder: string[] | null =
+            Array.isArray(saved.order) && saved.order.length > 0 ? saved.order : null;
+          const added = storedOrder ? columns.filter((col) => !storedOrder.includes(col.key)) : [];
           if (Array.isArray(saved.visible)) {
-            setVisibleColumns(new Set(saved.visible));
+            const visible = new Set<string>(saved.visible);
+            for (const col of added) {
+              if (col.defaultVisible !== false) visible.add(col.key);
+            }
+            setVisibleColumns(visible);
+          } else if (added.length > 0) {
+            setVisibleColumns((prev) => {
+              const visible = new Set(prev);
+              for (const col of added) {
+                if (col.defaultVisible !== false) visible.add(col.key);
+              }
+              return visible;
+            });
           }
-          if (Array.isArray(saved.order)) {
-            setColumnOrder(saved.order);
+          if (storedOrder) {
+            setColumnOrder([...storedOrder, ...added.map((col) => col.key)]);
           }
         }
       } catch {
         // If JSON parse fails, use defaults
       }
     }
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- defaultColumnOrder is derived from columns each render; the load effect runs on preferences change only
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- defaultColumnOrder and columns are derived each render; the load effect runs on preferences change only
   }, [preferences, preferenceKey]);
 
   // Drains the pending payload, keeping at most ONE write in flight for this key.

@@ -741,6 +741,26 @@ describe('ReportInvoiceList', () => {
       expect(clearBtn?.textContent).toBe('sourceReports.resetSelection');
     });
 
+    it('places the selection bar in the flow: no fixed bar and no sticky bar height', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      const { container } = renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(container.querySelector('[class*="barInline"]')).not.toBeNull();
+      expect(container.querySelector('[class~="bar"]')).toBeNull();
+      expect(document.documentElement.style.getPropertyValue('--sticky-action-bar-height')).toBe(
+        '',
+      );
+    });
+
     it('clicking the "clear" button calls onToggleAll(false)', () => {
       const onToggleAll = jest.fn();
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);

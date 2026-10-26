@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import type { RefObject } from 'react';
+import { Fragment, useRef } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FilterChipGroup } from '../FilterChipGroup/FilterChipGroup.js';
 import { SearchEverywhereRow } from '../CommandSearch/SearchEverywhereRow.js';
@@ -12,7 +12,7 @@ import { NO_GROUP } from './objectListUrl.js';
 import { ObjectListFiltersPanel } from './ObjectListFiltersPanel.js';
 import type { ObjectListController } from './useObjectList.js';
 import type { SearchDraft } from './useSearchDraft.js';
-import type { ObjectListConfig } from './types.js';
+import type { ObjectListConfig, ObjectListFilterDef } from './types.js';
 import styles from './ObjectListToolbar.module.css';
 
 export interface ObjectListToolbarSelectAll {
@@ -36,6 +36,8 @@ export interface ObjectListToolbarProps<T, M> {
   readonly groupingUnavailableText: string | null;
   /** Select-all of the card surface (the table surface has it in its header cell). */
   readonly selectAll: ObjectListToolbarSelectAll | null;
+  /** Host text for the note row (e.g. the active "Show only" filters). */
+  readonly note?: ReactNode;
   /** Clear filters: the host also resets the search draft and moves focus to the search field. */
   readonly onClear: () => void;
 }
@@ -55,12 +57,33 @@ export function ObjectListToolbar<T, M>({
   searchingAllText,
   groupingUnavailableText,
   selectAll,
+  note,
   onClear,
 }: ObjectListToolbarProps<T, M>) {
   const { t } = useTranslation('common');
   const p = config.testIdPrefix;
   const filtersButtonRef = useRef<HTMLButtonElement>(null);
   const filters = config.filters ?? [];
+
+  const renderFilterControl = (def: ObjectListFilterDef) => (
+    <Fragment key={def.param}>
+      {def.render({
+        value: list.query.filters[def.param] ?? null,
+        onChange: (value) => list.setFilter(def.param, value),
+        id: `${p}-filter-${def.param}`,
+      })}
+    </Fragment>
+  );
+  // Consecutive defs of one fieldset id render in a single <fieldset>.
+  const filterBlocks: {
+    fieldset: ObjectListFilterDef['fieldset'];
+    defs: [ObjectListFilterDef, ...ObjectListFilterDef[]];
+  }[] = [];
+  for (const def of filters) {
+    const last = filterBlocks[filterBlocks.length - 1];
+    if (def.fieldset && last?.fieldset?.id === def.fieldset.id) last.defs.push(def);
+    else filterBlocks.push({ fieldset: def.fieldset, defs: [def] });
+  }
 
   const chips = config.chips;
   const chipValue = list.query.searchingAll
@@ -131,6 +154,7 @@ export function ObjectListToolbar<T, M>({
     selectAll !== null ||
     searchingAllText !== null ||
     groupingUnavailableText !== null ||
+    (note !== undefined && note !== null && note !== false) ||
     list.clearable;
 
   return (
@@ -158,7 +182,11 @@ export function ObjectListToolbar<T, M>({
         <FilterChipGroup
           options={[
             ...chips.options,
-            { value: 'all', label: t('objectList.chips.all'), testId: `${p}-chip-all` },
+            {
+              value: 'all',
+              label: chips.allLabel ?? t('objectList.chips.all'),
+              testId: `${p}-chip-all`,
+            },
           ]}
           value={chipValue}
           onChange={list.setChip}
@@ -183,19 +211,19 @@ export function ObjectListToolbar<T, M>({
             onClear={list.clearSheetFilters}
             buttonRef={filtersButtonRef}
           >
-            {filters.map((def) => {
-              const id = `${p}-filter-${def.param}`;
-              return (
-                <fieldset key={def.param} className={styles.filterField}>
-                  <legend className={styles.filterLegend}>{def.label}</legend>
-                  {def.render({
-                    value: list.query.filters[def.param] ?? null,
-                    onChange: (value) => list.setFilter(def.param, value),
-                    id,
-                  })}
+            {filterBlocks.map((block) =>
+              block.fieldset ? (
+                <fieldset key={`fieldset-${block.fieldset.id}`} className={styles.filterField}>
+                  <legend className={styles.filterLegend}>{block.fieldset.legend}</legend>
+                  <div className={styles.filterGroup}>{block.defs.map(renderFilterControl)}</div>
                 </fieldset>
-              );
-            })}
+              ) : (
+                <fieldset key={block.defs[0].param} className={styles.filterField}>
+                  <legend className={styles.filterLegend}>{block.defs[0].label}</legend>
+                  {block.defs.map(renderFilterControl)}
+                </fieldset>
+              ),
+            )}
           </ObjectListFiltersPanel>
         ) : null}
 
@@ -243,6 +271,7 @@ export function ObjectListToolbar<T, M>({
           {groupingUnavailableText ? (
             <span data-testid={`${p}-group-unavailable`}>{groupingUnavailableText}</span>
           ) : null}
+          {note ? <span data-testid={`${p}-note`}>{note}</span> : null}
           {list.clearable ? (
             <button
               type="button"

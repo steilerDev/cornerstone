@@ -23,6 +23,7 @@
  * desktop project and the phone scenarios on the mobile project.
  */
 
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
@@ -241,12 +242,14 @@ test.describe('Money overview — headline and facts (AC1)', { tag: '@responsive
     for (const id of ['funding-total', 'expected-cost', 'expected-grants']) {
       await expect(overview.fact(id)).not.toHaveAttribute('href', /.+/);
     }
-    await expect(overview.fact('paid')).toHaveAttribute('href', /\/budget\/invoices/);
-    await expect(overview.fact('still-to-pay')).toHaveAttribute('href', /openOnly=true/);
+    // Paid opens the Paid chip; Still to pay opens the list as it is by default (the To pay chip)
+    await expect(overview.fact('paid')).toHaveAttribute('href', /\/budget\/invoices\?status=paid/);
+    await expect(overview.fact('still-to-pay')).toHaveAttribute('href', /\/budget\/invoices$/);
 
     await overview.fact('still-to-pay').click();
     await page.waitForURL((url) => url.pathname === '/budget/invoices');
-    expect(new URL(page.url()).searchParams.get('openOnly')).toBe('true');
+    expect(new URL(page.url()).search).toBe('');
+    await expect(new InvoicesPage(page).chip('pending')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('On desktop the five facts share one row', async ({ page }) => {

@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-25",
+    "lastUpdated": "2026-10-26",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -386,6 +386,21 @@
       },
       "deSource": "shipped",
       "definition": "Money a company pays back, recorded against an offer or invoice.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Refund due": {
+      "groups": ["supportingNoun", "statusWord"],
+      "en": {
+        "singular": "Refund due",
+        "plural": "Refunds due"
+      },
+      "de": {
+        "singular": "Ausstehende Rückerstattung",
+        "plural": "Ausstehende Rückerstattungen"
+      },
+      "deSource": "approved",
+      "definition": "A refund a company still owes you on an invoice.",
       "doNotUse": [],
       "formerly": []
     },

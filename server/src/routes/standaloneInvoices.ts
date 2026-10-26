@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
-import type { ConvertQuotationRequest } from '@cornerstone/shared';
+import { INVOICE_LIST_SORTS } from '@cornerstone/shared';
+import type { ConvertQuotationRequest, InvoiceListSort } from '@cornerstone/shared';
 import * as invoiceService from '../services/invoiceService.js';
 import { convertQuotation } from '../services/quotationConversionService.js';
 
@@ -19,9 +20,14 @@ const listAllInvoicesSchema = {
       dateTo: { type: 'string' },
       dueDateFrom: { type: 'string' },
       dueDateTo: { type: 'string' },
-      sortBy: { type: 'string', enum: ['date', 'amount', 'status', 'vendor_name', 'due_date'] },
+      sortBy: { type: 'string', enum: [...INVOICE_LIST_SORTS] },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
       openOnly: { type: 'boolean' },
+      notYetSplit: { type: 'boolean' },
+      withoutDocument: { type: 'boolean' },
+      refundsDue: { type: 'boolean' },
+      due: { type: 'boolean' },
+      ids: { type: 'string', maxLength: 4000 },
     },
     additionalProperties: false,
   },
@@ -85,9 +91,14 @@ interface ListAllInvoicesQuery {
   dateTo?: string;
   dueDateFrom?: string;
   dueDateTo?: string;
-  sortBy?: string;
+  sortBy?: InvoiceListSort;
   sortOrder?: 'asc' | 'desc';
   openOnly?: boolean;
+  notYetSplit?: boolean;
+  withoutDocument?: boolean;
+  refundsDue?: boolean;
+  due?: boolean;
+  ids?: string;
 }
 
 export default async function standaloneInvoiceRoutes(fastify: FastifyInstance) {

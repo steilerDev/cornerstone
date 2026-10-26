@@ -1,14 +1,15 @@
 /**
- * E2E tests for the Overdue Invoice Summary Card (Issue #1421)
+ * E2E tests for the Overdue flag of the Invoices list (Issue #1421, rebuilt by #2238).
  *
- * A conditional 5th summary card with data-testid="summary-card-overdue" appears
- * on the Invoices list page when at least one PENDING invoice has a dueDate in the
- * past (i.e., dueDate < today).
+ * The retired conditional "Overdue" summary card is now a flag on the row: a PENDING invoice with
+ * a due date in the past carries an "Overdue" badge (`invoices-badge-flag-<id>`), next to its
+ * status. "Overdue" is a flag, never a status or a chip. A paid invoice with a past due date is
+ * not flagged.
  *
  * Scenarios covered:
- *   1. Overdue card visible — pending invoice with dueDate in the past
- *   2. Overdue card absent — no overdue invoices exist
- *   3. Overdue card absent — paid invoice with dueDate in the past (only pending counts)
+ *   1. Overdue flag visible — pending invoice with dueDate in the past
+ *   2. Overdue flag absent — paid invoice with dueDate in the past (only pending counts)
+ *   3. The Offers summary keeps a clear gap above the list (replaces the old summary-grid gap)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -27,8 +28,15 @@ async function createVendorViaApi(page: Page, name: string): Promise<string> {
   return body.vendor.id;
 }
 
-async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`${API.vendors}/${id}`);
+async function deleteVendorWithInvoices(page: Page, vendorId: string): Promise<void> {
+  const list = await page.request.get(`${API.vendors}/${vendorId}/invoices`);
+  if (list.ok()) {
+    const { invoices } = (await list.json()) as { invoices: Array<{ id: string }> };
+    for (const invoice of invoices) {
+      await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoice.id}`);
+    }
+  }
+  await page.request.delete(`${API.vendors}/${vendorId}`);
 }
 
 async function createInvoiceViaApi(
@@ -49,10 +57,6 @@ async function createInvoiceViaApi(
   return body.invoice.id;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: get a dueDate that is N days in the past
-// ─────────────────────────────────────────────────────────────────────────────
-
 function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -60,12 +64,12 @@ function daysAgo(n: number): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Overdue card visible when at least one pending invoice is overdue
+// Scenarios 1 and 2: the Overdue flag
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@responsive' }, () => {
+test.describe('Invoices overdue flag (Scenarios 1 and 2)', { tag: '@responsive' }, () => {
   test(
-    'Overdue summary card appears when a pending invoice has dueDate in the past',
+    'The Overdue flag appears on a pending invoice with a due date in the past, beside its To pay status',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const invoicesPage = new InvoicesPage(page);
@@ -74,31 +78,25 @@ test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@respons
       try {
         vendorId = await createVendorViaApi(page, `${testPrefix} Overdue Vendor`);
 
-        // Create a pending invoice with dueDate 30 days ago.
         // The API validates dueDate >= date, so both must be in the past.
-        // Overdue status is computed server-side across ALL pending invoices
-        // (not just the current page), so this invoice triggers the card
-        // regardless of sort order or pagination.
-        await createInvoiceViaApi(page, vendorId, {
+        const invoiceId = await createInvoiceViaApi(page, vendorId, {
           amount: 500,
           date: daysAgo(60),
           dueDate: daysAgo(30),
           status: 'pending',
         });
 
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+        await invoicesPage.gotoChip('pending', `vendorId=${vendorId}`);
 
-        // The overdue summary card must be present
-        const overdueCard = page.getByTestId('summary-card-overdue');
-        await expect(overdueCard).toBeVisible();
+        await expect(invoicesPage.flagBadge(invoiceId)).toHaveText('Overdue');
+        await expect(invoicesPage.statusBadge(invoiceId)).toHaveText('To pay');
       } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (vendorId) await deleteVendorWithInvoices(page, vendorId);
       }
     },
   );
 
-  test('Overdue card renders within the summary grid and not outside it', async ({
+  test('A paid invoice with a due date in the past is not flagged', async ({
     page,
     testPrefix,
   }) => {
@@ -106,46 +104,31 @@ test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@respons
     let vendorId = '';
 
     try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} OvGrid Vendor`);
-      // Overdue status is computed server-side from all pending invoices.
-      await createInvoiceViaApi(page, vendorId, {
+      vendorId = await createVendorViaApi(page, `${testPrefix} OvPaid Vendor`);
+      const invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 300,
         date: daysAgo(30),
         dueDate: daysAgo(10),
-        status: 'pending',
+        status: 'paid',
       });
 
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
+      await invoicesPage.gotoChip('paid', `vendorId=${vendorId}`);
 
-      // The overdue card is inside the summaryGrid container
-      const overdueCard = invoicesPage.summaryGrid.getByTestId('summary-card-overdue');
-      await expect(overdueCard).toBeVisible();
-
-      // Standard 4 cards are still present alongside the overdue card
-      await expect(invoicesPage.pendingSummary).toBeVisible();
-      await expect(invoicesPage.claimableSummary).toBeVisible();
-      await expect(invoicesPage.quotationSummary).toBeVisible();
+      await expect(invoicesPage.statusBadge(invoiceId)).toHaveText('Paid');
+      await expect(invoicesPage.flagBadge(invoiceId)).toHaveCount(0);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7 (from spec): Visual spacing between summary grid and DataTable
-// toolbar (Issue #1422)
-// The summaryGrid now has margin-bottom: var(--spacing-6). Verify there is at
-// least 20px vertical gap between the bottom edge of the grid and the top edge
-// of the DataTable search/toolbar.
+// Scenario 3: spacing between the Offers summary and the list (was Issue #1422)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoices summary grid spacing (Issue #1422)', () => {
-  test('Summary grid has at least 20px vertical gap above the DataTable toolbar', async ({
-    page,
-  }) => {
-    // Desktop only: the DataTable toolbar is only visible on desktop viewports.
-    // On mobile the DataTable renders a different layout.
+test.describe('Offers summary spacing (Issue #1422, #2238)', () => {
+  test('The Offers summary has at least 12px vertical gap above the list', async ({ page }) => {
+    // Desktop only: the table surface is where the gap is measured.
     const viewportWidth = page.viewportSize()?.width ?? 1440;
     if (viewportWidth < 1024) {
       test.skip(true, 'Spacing test — desktop viewport only');
@@ -153,32 +136,16 @@ test.describe('Invoices summary grid spacing (Issue #1422)', () => {
     }
 
     const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await expect(invoicesPage.heading).toBeVisible();
+    await invoicesPage.gotoChip('quotation');
+    await expect(invoicesPage.offersSummary).toBeVisible();
+    await expect(invoicesPage.tableSurface).toBeVisible();
 
-    // Wait for the summary grid to be visible
-    await expect(invoicesPage.summaryGrid).toBeVisible();
+    const summaryBox = await invoicesPage.offersSummary.boundingBox();
+    const tableBox = await invoicesPage.tableSurface.boundingBox();
+    expect(summaryBox, 'offers summary bounding box must be non-null').not.toBeNull();
+    expect(tableBox, 'table bounding box must be non-null').not.toBeNull();
 
-    // The DataTable search input is inside the toolbar row
-    // aria-label="Search items" is set by DataTable
-    const searchInput = page.getByLabel('Search items');
-    await expect(searchInput).toBeVisible();
-
-    // Measure bounding boxes
-    const gridBox = await invoicesPage.summaryGrid.boundingBox();
-    const searchBox = await searchInput.boundingBox();
-
-    expect(gridBox, 'summaryGrid bounding box must be non-null').not.toBeNull();
-    expect(searchBox, 'search input bounding box must be non-null').not.toBeNull();
-
-    const gridBottom = gridBox!.y + gridBox!.height;
-    const searchTop = searchBox!.y;
-
-    // The gap between the bottom of the grid and the top of the search area
-    // must be at least 20px (--spacing-6 = 24px at the default token scale,
-    // so 20px is a conservative lower bound that passes even if the search bar
-    // has top margin of its own).
-    const gap = searchTop - gridBottom;
-    expect(gap).toBeGreaterThanOrEqual(20);
+    const gap = tableBox!.y - (summaryBox!.y + summaryBox!.height);
+    expect(gap).toBeGreaterThanOrEqual(12);
   });
 });

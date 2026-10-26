@@ -945,3 +945,36 @@ describe('ObjectList surfaces', () => {
     expect(screen.getByTestId('tasks-page-menu')).toBeInTheDocument();
   });
 });
+
+describe('ObjectList host slots (#2238)', () => {
+  it('renders aboveList between the toolbar and the results', async () => {
+    renderList({ aboveList: <p data-testid="above">Offers summary</p> });
+    await loaded();
+    const above = screen.getByTestId('above');
+    const results = screen.getByRole('region', { name: 'Tasks' });
+    expect(above.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      screen.getByTestId('tasks-chip-todo').compareDocumentPosition(above) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('renders nothing for aboveList when the host passes none', async () => {
+    renderList();
+    await loaded();
+    expect(screen.queryByTestId('above')).toBeNull();
+  });
+
+  it('shows the host note in the toolbar note row', async () => {
+    renderList({ note: 'Showing only: Due or overdue' });
+    await loaded();
+    expect(screen.getByTestId('tasks-note')).toHaveTextContent('Showing only: Due or overdue');
+  });
+
+  it('uses the config allLabel on the All chip', async () => {
+    activeConfig = { ...CONFIG, chips: { ...CONFIG.chips!, allLabel: 'All (3)' } };
+    renderList();
+    await loaded();
+    expect(screen.getByTestId('tasks-chip-all')).toHaveTextContent('All (3)');
+  });
+});

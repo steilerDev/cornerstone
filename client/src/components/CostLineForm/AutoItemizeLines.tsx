@@ -126,6 +126,7 @@ export function AutoItemizeLines({
         <SelectionActionBar
           countLabel={t('autoItemize.mergeSelectedCount', { count: selectedRowIds.size })}
           onClear={state.onClearSelection}
+          placement="inline"
           clearLabel={t('autoItemize.clearSelection')}
         >
           <button

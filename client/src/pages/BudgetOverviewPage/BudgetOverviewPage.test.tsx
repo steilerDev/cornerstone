@@ -466,26 +466,26 @@ describe('BudgetOverviewPage', () => {
       }
     });
 
-    it('links Paid to the invoices page and marks it as a Paid figure', async () => {
+    it('links Paid to the Paid chip of the invoices page and marks it as a Paid figure', async () => {
       const user = userEvent.setup();
       await renderLoaded();
       const strip = screen.getByTestId('money-summary');
       expect(strip.querySelector('[data-figure="paid"]')).toHaveTextContent('€1,350.00');
       const link = screen.getByTestId('money-fact-paid');
-      expect(link).toHaveAttribute('href', '/budget/invoices');
+      expect(link).toHaveAttribute('href', '/budget/invoices?status=paid');
       await user.click(link);
-      expect(currentUrl()).toBe('/budget/invoices');
+      expect(currentUrl()).toBe('/budget/invoices?status=paid');
     });
 
-    it('links Still to pay to the open invoices and marks it as a Still to pay figure', async () => {
+    it('links Still to pay to the invoices page (the To pay chip is its start) and marks it as a Still to pay figure', async () => {
       const user = userEvent.setup();
       await renderLoaded();
       const strip = screen.getByTestId('money-summary');
       expect(strip.querySelector('[data-figure="still-to-pay"]')).toHaveTextContent('€700.00');
       const link = screen.getByTestId('money-fact-still-to-pay');
-      expect(link).toHaveAttribute('href', '/budget/invoices?openOnly=true');
+      expect(link).toHaveAttribute('href', '/budget/invoices');
       await user.click(link);
-      expect(currentUrl()).toBe('/budget/invoices?openOnly=true');
+      expect(currentUrl()).toBe('/budget/invoices');
     });
 
     it('carries the page as the origin of a fact link', async () => {

@@ -149,14 +149,14 @@ describe('invoiceService.listAllInvoices() filters, sorts and lookups', () => {
       expect(asc).toEqual(['claimed', 'paid', 'pending']);
     });
 
-    it('sorts by due date, undated invoices first when ascending', () => {
+    it('sorts by due date, undated invoices last when ascending', () => {
       invoice('late', { dueDate: '2026-05-01' });
       invoice('early', { dueDate: '2026-03-01' });
       invoice('none', { dueDate: null });
       const asc = invoiceService
         .listAllInvoices(db, { sortBy: 'due_date', sortOrder: 'asc' })
         .invoices.map((i) => i.id);
-      expect(asc).toEqual(['inv-none', 'inv-early', 'inv-late']);
+      expect(asc).toEqual(['inv-early', 'inv-late', 'inv-none']);
     });
 
     it('sorts by company name', () => {

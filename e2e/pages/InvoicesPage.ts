@@ -1,80 +1,42 @@
 /**
- * Page Object Model for the Invoices list page (/budget/invoices)
+ * Page Object Model for Money › Invoices and offers (/budget/invoices), the first ObjectList
+ * adopter (#2238, EPIC-21 P4.6).
  *
  * The page renders:
- * - No in-page tab row (#2205): the Money view is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
- * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
- * - Summary cards: To pay, Ready to submit, Submitted, Offers, Still to pay — always rendered —
- *   plus two conditional cards: Refunds due to you (data-testid="summary-card-refunds-due",
- *   rendered only when summary.refundsDue.count > 0) and Overdue
- *   (data-testid="summary-card-overdue", rendered only when summary.overdue.count > 0).
- *   The "Still to pay" and "Refunds due to you" cards (Story #2046) are GLOBAL/filter-
- *   independent figures — they do not change when the open-items toggle or any column
- *   filter is applied.
- * - A DataTable with search and per-column filters:
- *   - Filterable columns: Vendor (company search), Date (date), Amount (number), Due Date (date), Status (enum)
- *   - The Status column filter trigger is disabled (aria-disabled) while the open-items
- *     toggle is ON (mutual exclusivity, Story #2046 AC7).
- * - A "Show only open items" toggle (data-testid="open-items-toggle") rendered via the
- *   DataTable's customFilters slot. When ON:
- *   - The URL gains `openOnly=true`.
- *   - The table renders one `<tbody id="row-group-{invoiceId}">` PER INVOICE ROW instead of
- *     a single shared `<tbody>` — each group holds the parent `<tr>` plus its pending-deposit
- *     child `<tr class*="childRow">` rows (present in the DOM at all times, toggled via the
- *     `hidden` attribute, not conditional unmounting). A parent with pending deposits renders
- *     an expand/collapse `<button aria-expanded aria-controls="row-group-{invoiceId}">`
- *     inside a 44px leading cell; a parent with none gets an empty leading cell (no button).
- *   - A "Still due" column appears (only in this mode).
- *   - Overdue invoices/deposits get a `[data-testid="invoice-overdue-{id}"]` /
- *     `[data-testid="deposit-overdue-{id}"]` badge (in addition to their normal status badge —
- *     "Overdue" is a flag, never a replacement status). Invoices listed only because of a
- *     pending deposit (their own status isn't 'pending') get a
- *     `[data-testid="invoice-container-{id}"]` "container" badge instead.
- *   - Mobile (cards): the same expand/collapse affordance renders in the card header; both the
- *     parent invoice's own badges and deposit rows use `-mobile-` suffixed test ids, distinct
- *     from their desktop-table counterparts, since both the table and card DOM trees are always
- *     mounted (CSS hides whichever doesn't match viewport) — `invoice-status-mobile-{id}`,
- *     `invoice-overdue-mobile-{id}`, `invoice-container-mobile-{id}` (vs. the desktop table's
- *     `invoice-status-{id}`, `invoice-overdue-{id}`, `invoice-container-{id}`), and
- *     `deposit-status-mobile-{id}` / `deposit-overdue-mobile-{id}` (vs. `deposit-status-{id}` /
- *     `deposit-overdue-{id}`).
- * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
- * - Pagination controls when totalPages > 1
- * - An empty state (EmptyState component) when no invoices exist or no items match filters
- * - An actions menu per row (⋮ button, data-testid="invoice-menu-button-{id}")
- *   - "View" action navigates to /budget/invoices/:id
- * - A Create Invoice modal (Modal component) with:
- *   - Select: #invoice-vendor (required)
- *   - Input: #invoice-number (optional)
- *   - Input: #invoice-amount (required)
- *   - Date input: #invoice-date (required)
- *   - Date input: #invoice-due-date (optional)
- *   - Select: #invoice-status
- *   - Textarea: #invoice-notes (optional)
- *   - Submit: "Add Invoice" / "Adding..." button
- *   - Cancel: button
- *   - Error banner: role="alert" inside the modal
- *
- * Key DOM observations from source code:
- * - Page h1 is "Budget" (rendered by PageLayout with title={t('invoices.title')})
- * - "Add Invoice" button uses data-testid="new-invoice-button"
- * - Invoice row in table: click row navigates to /budget/invoices/:id
- * - Status badges use data-testid="invoice-status-{id}" (desktop table) /
- *   "invoice-status-mobile-{id}" (mobile card) — same dual-DOM pattern as the
- *   invoice-overdue/invoice-container flag badges and the deposit-status/deposit-overdue badges
- * - Actions menu button: data-testid="invoice-menu-button-{id}" (desktop table) /
- *   "invoice-menu-button-mobile-{id}" (mobile card)
- * - View button in dropdown: data-testid="invoice-view-{id}" (desktop table) /
- *   "invoice-view-mobile-{id}" (mobile card)
- * - Dual-DOM testid convention: DataTable builds surface-scoped ids via
- *   dataTableTestId(prefix, id, surface) — desktop keeps `<prefix>-<id>`, mobile cards
- *   insert `mobile` (`<prefix>-mobile-<id>`). See wiki Architecture > Frontend Conventions.
- * - Create form is in a Modal component (uses the shared Modal component)
+ * - h1 "Invoices (n)" (`n of m` while a search or filter is active), the one primary "New invoice"
+ *   (`new-invoice-button`) and the page ⋯ menu (`invoices-page-menu`: Columns… `invoices-columns`
+ *   from 768 px of list width, Print `invoices-print`).
+ * - The toolbar (`invoices-toolbar`): search (`invoices-search`), the status chips
+ *   `invoices-chip-<pending|quotation|paid|claimed|all>` (To pay · Offers · Paid · Submitted · All,
+ *   label "‹word› (n)" once the first batch applied, `aria-pressed`), Filters
+ *   (`invoices-filters-button`; an anchored panel `invoices-filters-panel` from 768 px, a Sheet
+ *   `invoices-filters-sheet` below), Group by (`invoices-group-menu`), Sort (`invoices-sort-menu`)
+ *   and the note row (`invoices-searching-all`, `invoices-note`, `invoices-clear-filters`).
+ * - Filters › "Show only" checkboxes `invoices-filter-<notYetSplit|withoutDocument|refundsDue|due>`
+ *   (each its own `?param=1`), then Company (`#invoices-filter-vendorId`), Invoice date
+ *   (`invoices-filter-date-from|to`), Due date (`invoices-filter-dueDate-from|to`) and Amount
+ *   (`invoices-filter-amount-min|max`).
+ * - The list (`invoices-list`): a table surface and a two-line card surface are BOTH mounted and
+ *   switched by the list's own width (768 px container query), so every row locator here is
+ *   `.visible()`-filtered and works on either surface. Table ids are `invoices-<part>-<id>`, card
+ *   ids `invoices-<part>-mobile-<id>` (`dataTableTestId`).
+ *   Row parts: `row`, `select`, `expand`, `title` (the link), `company` (the company link above
+ *   the title), `status` (badge), `mark-paid` (command; on cards the first ⋯ item), `row-menu`;
+ *   badges `badge-not-yet-split`, `badge-flag` (Overdue / Due soon), `badge-progress-overdue`,
+ *   `badge-progress-only` (the last three on the table only). Child rows (progress payments and
+ *   refunds) are `child-<depositId>` (table) with `child-status|child-flag|child-command`.
+ * - Above the list on the Offers chip: the Offers summary (`invoices-offers-summary`, facts
+ *   `summary-fact-offers-<count|offered|paid|remaining>`). Below it on To pay: the footer
+ *   (`invoices-footer`, figure `invoices-footer-figure`, `data-figure="still-to-pay"` only while no
+ *   search or filter is active). Selecting rows shows the bar (`invoices-selection-bar`) with the one
+ *   bulk action "Mark paid (n)" (`invoices-bulk-mark-paid`).
+ * - The create dialogs (`useInvoiceCreate`): unchanged from before the rebuild.
  */
 
-import { expect, type Page, type Locator } from '@playwright/test';
-import { CompanyFilterControl } from './components/CompanyFilterControl.js';
+import type { Page, Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
 import { PaperlessPickerModal } from './PaperlessPickerModal.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 
@@ -84,6 +46,12 @@ const API_INVOICES_URL = /\/api\/(?:.*\/)?invoices/;
 export const INVOICES_ROUTE = routeUrl('invoices');
 
 export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
+
+/** The chip values of the `status` URL param ('pending' is the default and is not written). */
+export type InvoiceChip = 'pending' | 'quotation' | 'paid' | 'claimed' | 'all';
+
+/** The four "Show only" flags of the Filters panel. */
+export type InvoiceFlag = 'notYetSplit' | 'withoutDocument' | 'refundsDue' | 'due';
 
 export interface CreateInvoiceData {
   vendorName: string;
@@ -99,59 +67,51 @@ export class InvoicesPage {
   readonly page: Page;
 
   // Page header
+  /** The h1: "Invoices (n)" or "Invoices (n of m)". */
   readonly heading: Locator;
   readonly newInvoiceButton: Locator;
+  readonly pageMenuButton: Locator;
+  readonly columnsItem: Locator;
 
-  // Summary cards
-  readonly summaryGrid: Locator;
-  readonly pendingSummary: Locator;
-  readonly claimableSummary: Locator;
-  readonly quotationSummary: Locator;
-  /**
-   * Conditional 5th summary card — only rendered when at least one PENDING
-   * invoice has dueDate < today (Issue #1421).
-   * data-testid="summary-card-overdue"
-   */
-  readonly overdueCard: Locator;
-
-  /**
-   * Story #2046 — global/filter-independent "open items" summary cards.
-   * openPayableCard is always rendered; refundsDueCard only when
-   * summary.refundsDue.count > 0.
-   */
-  readonly openPayableCard: Locator;
-  readonly refundsDueCard: Locator;
-  /** The Ready to submit card (#2232). */
-  readonly readyToSubmitCard: Locator;
-  /** The count line of the Still to pay card (`summaryCount`). */
-  readonly openPayableCount: Locator;
-
-  /**
-   * Story #2046 — "Show only open items" toggle (native checkbox inside a
-   * <label>, rendered via DataTable's customFilters slot).
-   */
-  readonly openItemsToggle: Locator;
-
-  // Search
+  // Toolbar
   readonly searchInput: Locator;
+  readonly filtersButton: Locator;
+  readonly filtersSheet: Locator;
+  readonly filtersPanel: Locator;
+  /** Whichever Filters surface the viewport shows. */
+  readonly filtersSurface: Locator;
+  readonly filtersDoneButton: Locator;
+  readonly groupMenuButton: Locator;
+  readonly sortMenuButton: Locator;
+  /** The note row's "Searching all · n more in …" line. */
+  readonly searchingAllNote: Locator;
+  /** The note row's "Showing only: …" line (names the active Show-only flags). */
+  readonly note: Locator;
+  readonly clearFiltersButton: Locator;
 
-  // Table (desktop view)
-  readonly tableContainer: Locator;
-  readonly tableBody: Locator;
+  /** The Company filter (an EntityPicker inside the Filters surface). */
+  readonly companyFilter: EntityPickerControl;
+  /** The chosen company's chip inside the open Filters surface. */
+  readonly companyFilterSelected: Locator;
 
-  // Cards (mobile view)
-  readonly cardsContainer: Locator;
-
-  // Pagination
-  readonly pagination: Locator;
-  readonly prevPageButton: Locator;
-  readonly nextPageButton: Locator;
-
-  // Empty state
+  // List
+  readonly list: Locator;
+  readonly listSection: Locator;
+  /** The title links of the visible surface (one per row). */
+  readonly titleLinks: Locator;
   readonly emptyState: Locator;
+  readonly retryButton: Locator;
+  readonly tableSurface: Locator;
 
-  // Error banner
-  readonly errorBanner: Locator;
+  // Offers summary and footer
+  readonly offersSummary: Locator;
+  readonly footer: Locator;
+  readonly footerLabel: Locator;
+  readonly footerFigure: Locator;
+
+  // Selection
+  readonly selectionBar: Locator;
+  readonly bulkMarkPaid: Locator;
 
   // Create invoice modal
   readonly createModal: Locator;
@@ -159,8 +119,6 @@ export class InvoicesPage {
   readonly createVendorSelect: Locator;
   /** The company picker control (input, dropdown, "New company ‹text›" row, clear button). */
   readonly createVendorPicker: CompanyPickerControl;
-  /** The Vendor column's company filter (entity filter, search the server). */
-  readonly companyFilter: CompanyFilterControl;
   /** The picker's selected-company chip, shown once a company is chosen (or pre-filled). */
   readonly createVendorSelected: Locator;
   readonly createNumberInput: Locator;
@@ -173,75 +131,48 @@ export class InvoicesPage {
   readonly createCancelButton: Locator;
   readonly createErrorBanner: Locator;
 
-  /**
-   * DataTable column-settings gear button (Issue #1876 "Effective Amount" column,
-   * hidden by default). Desktop-only — hidden via CSS on viewports ≤767px.
-   */
-  readonly columnSettingsButton: Locator;
-
   constructor(page: Page) {
     this.page = page;
 
-    // Page header — h1 from PageLayout is "Budget" (invoices.title translation)
-    this.heading = page.getByRole('heading', { level: 1, name: 'Invoices', exact: true });
-
-    // "Add Invoice" button — data-testid="new-invoice-button"
+    this.heading = page.getByRole('heading', { level: 1, name: /^Invoices(\s|$)/ });
     this.newInvoiceButton = page.getByTestId('new-invoice-button');
+    this.pageMenuButton = page.getByTestId('invoices-page-menu');
+    this.columnsItem = page.getByTestId('invoices-columns');
 
-    // Summary cards grid
-    this.summaryGrid = page.locator('[class*="summaryGrid"]');
-    // Exclude the overdue card from the standard summary cards — its pluralized
-    // label text contains "invoices to pay are past due" which would otherwise match
-    // the Pending locator and cause strict-mode violations.
-    // Use the summaryLabel child to match only the card title, not hint text.
-    this.pendingSummary = this.summaryGrid
-      .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^To pay$/i }) });
-    this.claimableSummary = this.summaryGrid
-      .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({
-        has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Ready to submit$/i }),
-      });
-    this.quotationSummary = this.summaryGrid
-      .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Offers$/i }) });
-    // Overdue card (conditional) — rendered only when hasOverdue===true (Issue #1421)
-    this.overdueCard = page.getByTestId('summary-card-overdue');
+    this.searchInput = page.getByTestId('invoices-search');
+    this.filtersButton = page.getByTestId('invoices-filters-button');
+    this.filtersSheet = page.getByTestId('invoices-filters-sheet');
+    this.filtersPanel = page.getByTestId('invoices-filters-panel');
+    this.filtersSurface = this.filtersSheet.or(this.filtersPanel);
+    this.filtersDoneButton = page.getByTestId('invoices-filters-done');
+    this.groupMenuButton = page.getByTestId('invoices-group-menu');
+    this.sortMenuButton = page.getByTestId('invoices-sort-menu');
+    this.searchingAllNote = page.getByTestId('invoices-searching-all');
+    this.note = page.getByTestId('invoices-note');
+    this.clearFiltersButton = page.getByTestId('invoices-clear-filters');
 
-    // Story #2046 — open items summary cards (global/filter-independent)
-    this.openPayableCard = page.getByTestId('summary-card-open-payable');
-    this.refundsDueCard = page.getByTestId('summary-card-refunds-due');
-    this.readyToSubmitCard = page.getByTestId('summary-card-ready-to-submit');
-    this.openPayableCount = this.openPayableCard.locator('[class*="summaryCount"]');
+    this.companyFilter = new EntityPickerControl(page, 'invoices-filter-vendorId');
+    this.companyFilterSelected = this.filtersSurface.locator('[class*="selectedDisplay"]');
 
-    // Story #2046 — "Show only open items" toggle
-    this.openItemsToggle = page.getByTestId('open-items-toggle');
-
-    // DataTable search — aria-label="Search items" (generic DataTable search label)
-    this.searchInput = page.getByLabel('Search items');
-
-    // Table (desktop)
-    this.tableContainer = page.locator('[class*="tableContainer"]');
-    this.tableBody = this.tableContainer.locator('tbody');
-
-    // Mobile cards
-    this.cardsContainer = page.locator('[class*="cardsContainer"]');
-
-    // Pagination — use .first() because [class*="pagination"] matches child elements too
-    this.pagination = page.locator('[class*="pagination"]').first();
-    this.prevPageButton = page.getByLabel('Previous');
-    this.nextPageButton = page.getByLabel('Next');
-
-    // Empty state — .first() avoids strict mode violations from child emptyState elements
+    this.list = page.getByTestId('invoices-list');
+    // The list section only: the Offers summary strip is a <section> too
+    this.listSection = this.list.locator('section[aria-label="Invoices"]');
+    this.titleLinks = page.locator('[data-testid^="invoices-title-"]').visible();
+    // .first(): the EmptyState wrapper holds child elements whose class also contains the name.
     this.emptyState = page.locator('[class*="emptyState"]').first();
+    this.retryButton = page.getByTestId('invoices-retry');
+    this.tableSurface = this.list.locator('table');
 
-    // Error banner (outside modal)
-    this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
+    this.offersSummary = page.getByTestId('invoices-offers-summary');
+    this.footer = page.getByTestId('invoices-footer');
+    this.footerLabel = this.footer.locator('span').first();
+    this.footerFigure = page.getByTestId('invoices-footer-figure');
+
+    this.selectionBar = page.getByTestId('invoices-selection-bar');
+    this.bulkMarkPaid = page.getByTestId('invoices-bulk-mark-paid');
 
     // Create invoice modal — Modal component renders with role="dialog" and a title heading
     this.createModal = page.getByRole('dialog', { name: /Invoice/i });
-    // A company SearchPicker since #2213: the text input (until a company is chosen)
-    this.companyFilter = new CompanyFilterControl(page, 'vendorId');
     this.createVendorSelect = page.locator('#invoice-vendor');
     this.createVendorPicker = new CompanyPickerControl(page, 'invoice-vendor', this.createModal);
     this.createVendorSelected = this.createModal
@@ -262,19 +193,147 @@ export class InvoicesPage {
       name: 'Cancel',
       exact: true,
     });
-    // Error banner inside the modal (role="alert" inside the modal's form area)
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
+  }
 
-    // Column settings gear — aria-label "Column settings" (common:dataTable.columnSettings.ariaLabel)
-    this.columnSettingsButton = page.getByRole('button', { name: 'Column settings', exact: true });
+  // ───────────────────────────────────────────────────────────────────────────
+  // Surface-agnostic row locators (both surfaces are mounted; the visible one is returned)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private part(prefix: string, id: string): Locator {
+    return this.page
+      .locator(`[data-testid="${prefix}-${id}"], [data-testid="${prefix}-mobile-${id}"]`)
+      .visible();
+  }
+
+  /** The row (table `tr` or card `li`) of an invoice. */
+  row(invoiceId: string): Locator {
+    return this.part('invoices-row', invoiceId);
+  }
+
+  /** The title link of an invoice (the invoice number, or "No number"). */
+  title(invoiceId: string): Locator {
+    return this.part('invoices-title', invoiceId);
+  }
+
+  /** The company link above the title (table) / in the facts line (card). */
+  company(invoiceId: string): Locator {
+    return this.part('invoices-company', invoiceId);
+  }
+
+  /** The status Badge of an invoice row. */
+  statusBadge(invoiceId: string): Locator {
+    return this.part('invoices-status', invoiceId);
+  }
+
+  /** The row's Overdue / Due soon badge (table: in the secondary line; card: after the status). */
+  flagBadge(invoiceId: string): Locator {
+    return this.part('invoices-badge-flag', invoiceId);
+  }
+
+  /** Table only: the "Not yet split" badge. */
+  notYetSplitBadge(invoiceId: string): Locator {
+    return this.part('invoices-badge-not-yet-split', invoiceId);
+  }
+
+  /** Table only: "Progress payment overdue". */
+  progressOverdueBadge(invoiceId: string): Locator {
+    return this.part('invoices-badge-progress-overdue', invoiceId);
+  }
+
+  /** Table only: "Progress payments only" (To pay chip, own status not To pay). */
+  progressOnlyBadge(invoiceId: string): Locator {
+    return this.part('invoices-badge-progress-only', invoiceId);
+  }
+
+  /** The checkbox of a row. */
+  rowCheckbox(invoiceId: string): Locator {
+    return this.part('invoices-select', invoiceId);
+  }
+
+  /** The expand / collapse toggle of a row with progress payments. */
+  expandToggle(invoiceId: string): Locator {
+    return this.part('invoices-expand', invoiceId);
+  }
+
+  /** The table child row of a progress payment / refund (table surface only). */
+  childRow(entryId: string): Locator {
+    return this.part('invoices-child', entryId);
+  }
+
+  /** Status badge of a progress payment (both surfaces). */
+  childStatus(entryId: string): Locator {
+    return this.part('invoices-child-status', entryId);
+  }
+
+  /** Overdue / Due soon badge of a progress payment (both surfaces). */
+  childFlag(entryId: string): Locator {
+    return this.part('invoices-child-flag', entryId);
+  }
+
+  /** The Mark paid command of a progress payment (both surfaces). */
+  childCommand(entryId: string): Locator {
+    return this.part('invoices-child-command', entryId);
+  }
+
+  /** The row ⋯ trigger (cards only; shown for rows that can be marked paid). */
+  rowMenuTrigger(invoiceId: string): Locator {
+    return this.part('invoices-row-menu', invoiceId);
+  }
+
+  /** Whether the table surface (list width of 768 px or more) is the visible one. */
+  async isTableSurface(): Promise<boolean> {
+    return this.tableSurface.isVisible();
   }
 
   /**
-   * Click the "New Invoice" button.
-   * When Paperless+LLM are configured, this opens the PaperlessPickerModal.
-   * Otherwise it opens the manual create modal.
-   * Note: the button may be briefly disabled (aria-disabled) while config/status loads.
+   * The Mark paid control of an invoice: the table command (`StatusMenu action`, accessible name
+   * "Mark paid, ‹title›, ‹company›"), or the card's first ⋯ item. Not shown for rows that cannot be
+   * marked paid.
    */
+  async markPaid(invoiceId: string): Promise<void> {
+    if (await this.isTableSurface()) {
+      await this.page.getByTestId(`invoices-mark-paid-${invoiceId}`).click();
+      return;
+    }
+    await this.rowMenuTrigger(invoiceId).click();
+    await this.page.getByTestId(`invoices-mark-paid-mobile-${invoiceId}`).click();
+  }
+
+  /** The table's Mark paid command (table surface only). */
+  markPaidCommand(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoices-mark-paid-${invoiceId}`);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Navigation and loading
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Open the list (To pay chip) or `route` with its query string. */
+  async goto(query = ''): Promise<void> {
+    await this.page.goto(query ? `${INVOICES_ROUTE}?${query.replace(/^\?/, '')}` : INVOICES_ROUTE);
+    await this.heading.waitFor({ state: 'visible' });
+  }
+
+  /** Open the list on a chip (`pending` is the default and is opened without a param). */
+  async gotoChip(chip: InvoiceChip, extraQuery = ''): Promise<void> {
+    const parts = [chip === 'pending' ? '' : `status=${chip}`, extraQuery.replace(/^\?/, '')];
+    await this.goto(parts.filter(Boolean).join('&'));
+    await this.waitForLoaded();
+  }
+
+  /** Wait until the first batch rendered: rows, the empty state or the load failure. */
+  async waitForLoaded(): Promise<void> {
+    await this.listSection.waitFor({ state: 'attached' });
+    await expect(this.listSection).not.toHaveAttribute('aria-busy', 'true');
+    await expect(this.titleLinks.first().or(this.emptyState).or(this.retryButton)).toBeVisible();
+  }
+
+  async openCreateModal(): Promise<void> {
+    await this.newInvoiceButton.click();
+    await this.createModal.waitFor({ state: 'visible' });
+  }
+
   async clickNewInvoice(): Promise<void> {
     // Wait for the button to become enabled (config+status fetch resolves)
     await this.newInvoiceButton.waitFor({ state: 'visible' });
@@ -285,69 +344,22 @@ export class InvoicesPage {
     await this.newInvoiceButton.click();
   }
 
-  /**
-   * Wait for the Paperless picker modal to open and return a PaperlessPickerModal instance.
-   * Use after clickNewInvoice() when Paperless+LLM are configured.
-   */
   async waitForPickerModal(): Promise<PaperlessPickerModal> {
     const pickerModal = new PaperlessPickerModal(this.page);
     await pickerModal.waitForVisible();
     return pickerModal;
   }
 
-  /**
-   * Wait for the manual create modal to open and return its Locator.
-   * Use after clickNewInvoice() when Paperless is not configured, or after manual escape.
-   */
   async waitForManualModal(): Promise<Locator> {
     await this.createModal.waitFor({ state: 'visible' });
     return this.createModal;
   }
 
-  /** A marked figure of the summary cards (`data-figure`, #2232). */
-  figure(kind: 'still-to-pay' | 'ready-to-submit'): Locator {
-    return this.page.locator(`[data-figure="${kind}"]`);
-  }
-
-  /**
-   * Navigate to the invoices list page.
-   */
-  async goto(): Promise<void> {
-    await this.page.goto(INVOICES_ROUTE);
-    await this.heading.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Wait for invoices to finish loading.
-   * Uses Promise.any() so that whichever condition resolves first wins without
-   * leaving the other two waitFor() promises as dangling unhandled rejections
-   * (which Promise.race() causes when the losers eventually time out).
-   */
-  async waitForLoaded(): Promise<void> {
-    await Promise.any([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
-      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
-      this.emptyState.waitFor({ state: 'visible' }),
-    ]);
-  }
-
-  /**
-   * Open the Create Invoice modal by clicking "Add Invoice".
-   */
-  async openCreateModal(): Promise<void> {
-    await this.newInvoiceButton.click();
-    await this.createModal.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Close the Create Invoice modal by clicking Cancel.
-   */
   async closeCreateModal(): Promise<void> {
     await this.createCancelButton.click();
     await this.createModal.waitFor({ state: 'hidden' });
   }
 
-  /** Pick an existing company by its exact name in the create modal's company picker. */
   async selectCreateVendor(vendorName: string): Promise<void> {
     await this.createVendorSelect.fill(vendorName);
     await this.createVendorPicker.dropdown
@@ -356,15 +368,7 @@ export class InvoicesPage {
     await expect(this.createVendorSelect).toBeHidden();
   }
 
-  /**
-   * Fill the create invoice form and submit.
-   * Vendor must be selected by visible name from the dropdown options.
-   * Amount, date are required. Other fields are optional.
-   *
-   * Registers waitForResponse for the POST /api/vendors/.../invoices before clicking submit.
-   */
   async createInvoice(data: CreateInvoiceData): Promise<void> {
-    // Select vendor by visible label text
     await this.selectCreateVendor(data.vendorName);
 
     if (data.invoiceNumber !== undefined) {
@@ -394,96 +398,129 @@ export class InvoicesPage {
     await this.createModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Get the invoice number or "—" text for all invoice rows in the table (desktop)
-   * or cards (mobile).
-   * Uses [class*="invoiceLink"] — the CSS Modules class from InvoicesPage.module.css.
-   */
+  // ───────────────────────────────────────────────────────────────────────────
+  // Reading the list
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** The visible titles, in order ("No number" for an invoice without one). */
   async getInvoiceNumbers(): Promise<string[]> {
-    const tableVisible = await this.tableContainer.isVisible();
-    const linkClass = '[class*="invoiceLink"]';
-
     // One atomic read: the list re-renders while shared data changes, so no .all() snapshots.
-    if (tableVisible) {
-      const numbers = (await this.tableBody.locator(linkClass).allTextContents())
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (numbers.length > 0) return numbers;
-    }
-
-    // Mobile fallback: same invoiceLink class inside cardsContainer
-    return (await this.cardsContainer.locator(linkClass).allTextContents())
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return (await this.titleLinks.allTextContents()).map((s) => s.trim()).filter(Boolean);
   }
 
-  /**
-   * Type into the search box key by key (no delay), like a user. Does not wait for the
-   * debounced commit; callers assert on URL / results.
-   */
+  /** The heading's numbers: "Invoices (5)" is `{ shown: 5 }`, "(2 of 9)" is `{ shown: 2, total: 9 }`. */
+  async headingCounts(): Promise<{ shown: number; total: number | null } | null> {
+    const text = (await this.heading.innerText()).replace(/\s+/g, ' ');
+    const match = /\((\d+)(?: of (\d+))?\)/.exec(text);
+    if (!match) return null;
+    return { shown: Number(match[1]), total: match[2] ? Number(match[2]) : null };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Chips
+  // ───────────────────────────────────────────────────────────────────────────
+
+  chip(value: InvoiceChip): Locator {
+    return this.page.getByTestId(`invoices-chip-${value}`);
+  }
+
+  /** The chip's number from its "‹word› (n)" label; null before the first batch applied. */
+  async chipCount(value: InvoiceChip): Promise<number | null> {
+    const text = (await this.chip(value).innerText()).replace(/\s+/g, ' ');
+    const match = /\((\d+)\)/.exec(text);
+    return match ? Number(match[1]) : null;
+  }
+
+  /** Press a chip and wait for the chip to be pressed. */
+  async selectChip(value: InvoiceChip): Promise<void> {
+    await this.chip(value).click();
+    await expect(this.chip(value)).toHaveAttribute('aria-pressed', 'true');
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Search
+  // ───────────────────────────────────────────────────────────────────────────
+
   async typeSearch(text: string): Promise<void> {
     await this.searchInput.click();
     await this.searchInput.pressSequentially(text);
   }
 
-  /** Clear the search box with the keyboard (select all + Backspace). */
   async clearSearchWithKeys(): Promise<void> {
     await this.searchInput.press('ControlOrMeta+a');
     await this.searchInput.press('Backspace');
   }
 
-  /**
-   * Navigate to the invoice list with a search query applied via URL.
-   * Direct URL navigation avoids React debounce timing issues.
-   */
+  /** Open the list with `?q=` (a search covers every status: "Searching all"). */
   async search(query: string): Promise<void> {
-    await this.page.goto(`${INVOICES_ROUTE}?q=${encodeURIComponent(query)}`);
-    await this.heading.waitFor({ state: 'visible' });
+    await this.goto(`q=${encodeURIComponent(query)}`);
     await this.waitForLoaded();
   }
 
-  /**
-   * Get the summary card count value for the given status type.
-   */
-  async getSummaryCount(type: 'pending' | 'claimable' | 'quotation'): Promise<number> {
-    let card: Locator;
-    if (type === 'pending') card = this.pendingSummary;
-    else if (type === 'claimable') card = this.claimableSummary;
-    else card = this.quotationSummary;
-    const countEl = card.locator('[class*="summaryCount"]');
-    const text = await countEl.textContent();
-    return parseInt(text ?? '0', 10);
+  // ───────────────────────────────────────────────────────────────────────────
+  // Filters panel
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async openFilters(): Promise<void> {
+    if (await this.filtersSurface.isVisible()) return;
+    await this.filtersButton.click();
+    await this.filtersSurface.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Enables a hidden-by-default DataTable column via the column settings gear icon
-   * (Issue #1876 "Effective Amount" column). No-ops if already visible.
-   * Desktop-only — the gear button is hidden on viewports ≤767px.
-   *
-   * Toggling a column triggers a debounced (500ms) PATCH to persist
-   * `table.invoices.columns`, followed by an optimistic re-sync effect in
-   * useColumnPreferences that re-applies the saved value and re-renders the
-   * header row. If a second enableColumn() call's toggle-click lands while the
-   * first one's debounced save is still in flight, the two saves' responses can
-   * resolve out of order — the later-resolving one's re-sync wins and can
-   * transiently (or, if it's the first toggle's stale single-column payload,
-   * durably) overwrite the newer visibility state. Awaiting the PATCH here,
-   * the same way the preference-writing page objects do for this endpoint, makes
-   * each toggle's persistence+re-sync cycle fully settle before the next
-   * enableColumn() call (or any header read) can start, closing that race at
-   * the source instead of retrying the read against it.
-   */
+  /** Close the Filters surface: "Done" in the sheet, Escape in the anchored panel. */
+  async closeFilters(): Promise<void> {
+    if (!(await this.filtersSurface.isVisible())) return;
+    if (await this.filtersSheet.isVisible()) {
+      await this.filtersDoneButton.click();
+    } else {
+      await this.page.keyboard.press('Escape');
+    }
+    await expect(this.filtersSurface).toBeHidden();
+  }
+
+  /** A "Show only" checkbox inside the open Filters surface. */
+  showOnly(flag: InvoiceFlag): Locator {
+    return this.page.getByTestId(`invoices-filter-${flag}`);
+  }
+
+  /** Open Filters, set one Show-only flag and leave the surface open. */
+  async setShowOnly(flag: InvoiceFlag, on: boolean): Promise<void> {
+    await this.openFilters();
+    const checkbox = this.showOnly(flag);
+    await checkbox.setChecked(on);
+    await expect(checkbox).toBeChecked({ checked: on });
+  }
+
+  /** The `<from|to|min|max>` input of a range filter (`date`, `dueDate`, `amount`). */
+  rangeInput(param: 'date' | 'dueDate' | 'amount', side: 'from' | 'to' | 'min' | 'max'): Locator {
+    return this.page.getByTestId(`invoices-filter-${param}-${side}`);
+  }
+
+  /** Pick a company in the open Filters surface (types its name, picks by keyboard). */
+  async pickCompanyFilter(name: string): Promise<void> {
+    await this.openFilters();
+    await this.companyFilter.pick(name);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Columns (table surface only)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Open the Columns… dialog from the page ⋯ menu. */
+  async openColumnsDialog(): Promise<Locator> {
+    await this.pageMenuButton.click();
+    await this.columnsItem.click();
+    const dialog = this.page.getByRole('dialog', { name: 'Columns' });
+    await dialog.waitFor({ state: 'visible' });
+    return dialog;
+  }
+
+  /** Show a hidden-by-default column (e.g. "Split", "Notes") and wait for the preference save. */
   async enableColumn(columnLabel: string): Promise<void> {
-    await this.columnSettingsButton.waitFor({ state: 'visible' });
-    await this.columnSettingsButton.click();
-    const checkbox = this.page.getByRole('checkbox', { name: columnLabel, exact: true });
+    const dialog = await this.openColumnsDialog();
+    const checkbox = dialog.getByRole('checkbox', { name: columnLabel, exact: true });
     await checkbox.waitFor({ state: 'visible' });
-    const checked = await checkbox.isChecked();
-    if (!checked) {
-      // Register the preferences PATCH listener BEFORE clicking — the debounced
-      // save fires ~500ms later, so registering after the click would still be
-      // safe here, but doing it first matches the established convention (see
-      // the other preference-writing page objects) and avoids any risk of missing the response.
+    if (!(await checkbox.isChecked())) {
       const preferencesSaved = this.page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/users/me/preferences') &&
@@ -493,193 +530,46 @@ export class InvoicesPage {
       await checkbox.click();
       await preferencesSaved;
     }
-    // Close the popover so it doesn't obscure the table.
-    await this.page.keyboard.press('Escape');
-    await checkbox.waitFor({ state: 'hidden' });
+    await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Reads the text content of a specific column's cell in the desktop table row that
-   * contains `rowMatchText` (e.g. an invoice number). The column must currently be
-   * visible — use enableColumn() first for hidden-by-default columns. The column's
-   * position is resolved dynamically from the header row (matched by label prefix,
-   * since sortable headers append a " ↑"/" ↓" sort-direction suffix), so this stays
-   * correct regardless of column order or how many columns are visible.
-   *
-   * The match is case-insensitive because `.tableHeader` applies
-   * `text-transform: uppercase` (DataTable.module.css) — `innerText()` reflects the
-   * browser's RENDERED text, so it returns "REMAINING AMOUNT", not the DOM's
-   * "Remaining Amount". A case-sensitive comparison against the mixed-case label
-   * therefore never matches, deterministically, regardless of timing — confirmed via
-   * a CI trace showing every header-scan attempt across the full retry window
-   * returning the same uppercase value. This is not a race: `toPass()` is kept only
-   * as a defensive backstop for genuine transient re-renders, not because the
-   * original miss was ever transient.
-   */
-  async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
-    const columnIndex = await this.resolveColumnIndex(columnLabel);
-    const row = this.tableBody.locator('tr').filter({ hasText: rowMatchText }).first();
-    const cell = row.locator('td').nth(columnIndex);
-    return ((await cell.textContent()) ?? '').trim();
+  /** A column header of the table surface. */
+  columnHeader(label: string | RegExp): Locator {
+    return this.tableSurface.getByRole('columnheader', { name: label });
   }
 
-  /**
-   * Resolves a column's 0-based index among the CURRENT visible table headers
-   * (shared by getColumnCellText/stillDueCell/amountCell). See getColumnCellText's
-   * docblock for why the match is case-insensitive and prefix-based.
-   *
-   * When expandable rows are active (Story #2046 open-items mode), DataTableHeader
-   * renders an extra leading `<th class="expandCell">` (no text) at index 0 — this
-   * is harmless here since it never matches any label and DataTableRow emits a
-   * matching leading `<td>` at index 0 too, so header/cell indices stay aligned.
-   */
-  private async resolveColumnIndex(columnLabel: string): Promise<number> {
-    const headers = this.tableContainer.locator('thead th');
-    const normalizedLabel = columnLabel.toUpperCase();
-    let columnIndex = -1;
+  /** The text of one cell: the row of `invoiceId`, the column whose header starts with the label. */
+  async cellText(invoiceId: string, columnLabel: string): Promise<string> {
+    const headers = this.tableSurface.locator('thead th');
+    const wanted = columnLabel.toUpperCase();
+    let index = -1;
     await expect(async () => {
-      const headerCount = await headers.count();
-      columnIndex = -1;
-      for (let i = 0; i < headerCount; i++) {
+      const count = await headers.count();
+      index = -1;
+      for (let i = 0; i < count; i++) {
         const text = (await headers.nth(i).innerText()).trim().toUpperCase();
-        if (text === normalizedLabel || text.startsWith(`${normalizedLabel} `)) {
-          columnIndex = i;
+        if (text === wanted || text.startsWith(`${wanted} `)) {
+          index = i;
           break;
         }
       }
-      if (columnIndex === -1) {
-        throw new Error(`Column "${columnLabel}" not found among visible table headers`);
-      }
+      if (index === -1) throw new Error(`Column "${columnLabel}" not found among table headers`);
     }).toPass({ timeout: 3_000 });
-    return columnIndex;
-  }
-
-  /**
-   * Story #2046 — the "Still due" column's cell for the given invoice's PARENT row
-   * (only meaningful when the open-items toggle is ON; the column doesn't exist
-   * otherwise). Resolves the column position dynamically, same as getColumnCellText.
-   */
-  async stillDueCell(invoiceId: string): Promise<Locator> {
-    const columnIndex = await this.resolveColumnIndex('Still due');
-    return this.rowGroup(invoiceId).locator('tr').first().locator('td').nth(columnIndex);
-  }
-
-  /**
-   * Story #2046 — the "Amount" column's cell for the given invoice's PARENT row
-   * (the full, unchanged invoice total — always present, regardless of toggle state).
-   */
-  async amountCell(invoiceId: string): Promise<Locator> {
-    const columnIndex = await this.resolveColumnIndex('Amount');
-    return this.rowGroup(invoiceId).locator('tr').first().locator('td').nth(columnIndex);
+    const cell = this.page.getByTestId(`invoices-row-${invoiceId}`).locator('td').nth(index);
+    return ((await cell.textContent()) ?? '').trim();
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Story #2046 — "Show only open items" toggle, expandable parent/child rows
+  // Figures
   // ───────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Checks/unchecks the "Show only open items" toggle (no-op if already in the
-   * requested state) and waits for the resulting GET /api/invoices list response,
-   * so callers never race the re-render against a synchronous read.
-   */
-  async setOpenItemsOnly(on: boolean): Promise<void> {
-    const checked = await this.openItemsToggle.isChecked();
-    if (checked === on) return;
-    const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/invoices') &&
-        resp.request().method() === 'GET' &&
-        resp.status() === 200,
-    );
-    try {
-      // This is a controlled checkbox (checked={openOnly}); Playwright's setChecked()
-      // clicks and then verifies input.checked exactly once, immediately. That single
-      // read can land in the window between the native click and React's re-render off
-      // the resulting URL update, seeing the stale value and failing spuriously. Click
-      // and then retry the checked-state assertion instead of a one-shot check.
-      await this.openItemsToggle.click();
-      await expect(this.openItemsToggle).toBeChecked({ checked: on });
-    } finally {
-      // Don't let the response wait dangle (or surface as an unhandled rejection) if
-      // the click/assertion above throws before we get to await it below.
-      responsePromise.catch(() => {});
-    }
-    await responsePromise;
+  figure(kind: 'still-to-pay'): Locator {
+    return this.page.locator(`[data-figure="${kind}"]`);
   }
 
-  /**
-   * The `<tbody id="row-group-{invoiceId}">` wrapping an invoice's parent row and
-   * (when it has pending deposits) its child rows. Only rendered when the
-   * open-items toggle is ON.
-   */
-  rowGroup(invoiceId: string): Locator {
-    return this.page.locator(`#row-group-${invoiceId}`);
-  }
-
-  /**
-   * The parent row's expand/collapse `<button aria-expanded>` within an invoice's
-   * row group. Absent (zero elements) for a parent with no pending deposits.
-   */
-  expandButton(invoiceId: string): Locator {
-    return this.rowGroup(invoiceId).locator('button[aria-expanded]');
-  }
-
-  /**
-   * Currently-VISIBLE child `<tr>` elements inside an invoice's row group,
-   * excluding the parent row itself. Child rows stay in the DOM at all times and
-   * toggle via the `hidden` attribute (never unmounted) — `locator.visible()` reflects
-   * that correctly since nothing overrides the browser's default `[hidden] { display:
-   * none }` behavior in this codebase's CSS.
-   */
-  childRows(invoiceId: string): Locator {
-    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]').visible();
-  }
-
-  /** Desktop table-row "Overdue"/"Deposit overdue" flag badge on an invoice's parent row. */
-  overdueChip(invoiceId: string): Locator {
-    return this.page.getByTestId(`invoice-overdue-${invoiceId}`);
-  }
-
-  /** Desktop table-row "Due soon" flag badge on an open-items invoice row (Story #2195). */
-  dueSoonChip(invoiceId: string): Locator {
-    return this.page.getByTestId(`invoice-due-soon-${invoiceId}`);
-  }
-
-  /** Desktop child-row "Due soon" flag badge on a deposit's due-date cell (Story #2195). */
-  depositDueSoonChip(depositId: string): Locator {
-    return this.page.getByTestId(`deposit-due-soon-${depositId}`);
-  }
-
-  /** Invoice status chip (To pay / Paid / Submitted / Offer) in the list row, desktop surface. */
-  invoiceStatusBadge(invoiceId: string): Locator {
-    return this.page.getByTestId(`invoice-status-${invoiceId}`);
-  }
-
-  /** "Deposits only" container badge — invoice listed only because of a pending deposit. */
-  containerChip(invoiceId: string): Locator {
-    return this.page.getByTestId(`invoice-container-${invoiceId}`);
-  }
-
-  /** Desktop child-row "Overdue" flag badge on a deposit's due-date cell. */
-  depositOverdueChip(depositId: string): Locator {
-    return this.page.getByTestId(`deposit-overdue-${depositId}`);
-  }
-
-  /** Desktop child-row status badge (To pay/Paid/Submitted) for a single deposit. */
-  depositStatusBadge(depositId: string): Locator {
-    return this.page.getByTestId(`deposit-status-${depositId}`);
-  }
-
-  /**
-   * Get pagination info text, or null if not visible.
-   */
-  async getPaginationInfoText(): Promise<string | null> {
-    try {
-      const info = this.page.locator('[class*="paginationInfo"]');
-      await info.waitFor({ state: 'visible' });
-      return await info.textContent();
-    } catch {
-      return null;
-    }
+  /** The offers summary's value for one fact: `count`, `offered`, `paid` or `remaining`. */
+  offersFact(fact: 'count' | 'offered' | 'paid' | 'remaining'): Locator {
+    return this.offersSummary.getByTestId(`summary-fact-offers-${fact}`);
   }
 }

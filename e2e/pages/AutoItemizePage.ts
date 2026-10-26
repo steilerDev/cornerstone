@@ -311,7 +311,7 @@ export class AutoItemizePage {
   // ─── Merge multiple extracted lines ────────────────────────────────────────
 
   /** Selects the row for merging (adds it to the merge selection). */
-  /** The sticky SelectionActionBar (present while at least one row is selected). */
+  /** The inline SelectionActionBar (present while at least one row is selected). */
   selectionActionBar(): Locator {
     return this.mergeButton.locator('xpath=ancestor::div[contains(@class,"bar")][1]');
   }

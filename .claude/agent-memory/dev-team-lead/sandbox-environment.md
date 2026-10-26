@@ -128,3 +128,7 @@ Then `git add wiki` in the main repo to stage the submodule pointer bump alongsi
 ## Borrowed node_modules resolve `@cornerstone/*` to the donor's stale source
 
 Symlinking a throwaway worktree's `node_modules` to a donor install (e.g. `/tmp/cs-deps/node_modules`) makes `@cornerstone/shared` resolve, via realpath, to the **donor's** `shared/dist`. tsc then reports phantom errors, such as missing fields that exist on the branch under test. Fix: make `node_modules` a real dir that symlinks every donor entry except `@cornerstone`, then add `node_modules/@cornerstone/<ws> -> ../../<ws>` and `npx tsc` in `shared/` first. Plain lint rules are unaffected. Typed results (tsc, typed ESLint) are not trustworthy until this is done (Package Q, 2026-10-01).
+
+## Two coverage Jest runs at once OOM the sandbox
+
+Running the client and server targeted coverage runs in parallel crashed workers with "ran out of memory" (and one run's log overwrote the other's). Run them one after the other, server with `--maxWorkers=1` and `NODE_OPTIONS=--max-old-space-size=4096` (#2238).

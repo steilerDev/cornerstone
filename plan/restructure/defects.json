@@ -122,7 +122,7 @@
     {
       "id": "D-17",
       "story": 2194,
-      "tests": ["client/src/pages/InvoicesPage/InvoicesPage.test.tsx"]
+      "tests": ["client/src/pages/InvoicesPage/useInvoiceCreate.test.tsx"]
     },
     {
       "id": "D-18",
@@ -250,12 +250,15 @@
         "client/src/pages/PhotoSpotViewerPage/PhotoSpotViewerPage.test.tsx",
         "e2e/tests/photos/photo-browser.spec.ts"
       ]
-    }
-  ],
-  "later": [
+    },
     {
       "id": "D-30",
-      "story": "4.6"
+      "story": 2238,
+      "tests": [
+        "client/src/pages/InvoicesPage/InvoicesPage.test.tsx",
+        "e2e/tests/invoices/invoices-list.spec.ts"
+      ]
     }
-  ]
+  ],
+  "later": []
 }

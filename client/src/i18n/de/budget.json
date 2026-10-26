@@ -717,58 +717,9 @@
     "ariaNoData": "Budgetaufschlüsselung: keine Daten"
   },
   "invoices": {
-    "sectionTitle": "Rechnungen",
-    "addInvoice": "Rechnung hinzufügen",
-    "addFirstInvoice": "Erste Rechnung hinzufügen",
-    "loading": "Rechnungen werden geladen...",
     "error": "Fehler",
     "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
-    "retry": "Erneut versuchen",
-    "noInvoicesTitle": "Noch keine Rechnungen",
-    "noInvoicesDescription": "Füge deine erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
-    "searchPlaceholder": "Nach Rechnungsnummer suchen...",
-    "summaryPending": "Zu zahlen",
-    "summaryPaid": "Bezahlt",
-    "summaryClaimed": "Eingereicht",
-    "summaryQuotation": "Angebote",
-    "summaryQuotationCovered": "{{amount}} bereits hinterlegt",
-    "summaryClaimable": "Einreichbar",
-    "summaryClaimableHint": "Nur Darlehen und Kreditlinien",
-    "summaryOverdue": "Überfällig",
-    "summaryOverdueWarning_one": "{{count}} Rechnung zu zahlen ist überfällig",
-    "summaryOverdueWarning_other": "{{count}} Rechnungen zu zahlen sind überfällig",
-    "filterByStatus": "Nach Status filtern",
-    "filterByVendor": "Nach Auftragnehmer filtern",
-    "allStatuses": "Alle Status",
-    "allVendors": "Alle Auftragnehmer",
-    "sortLabel": "Sortieren:",
-    "sortDate": "Datum",
-    "sortAmount": "Betrag",
-    "sortStatus": "Status",
-    "sortVendor": "Auftragnehmer",
-    "sortDueDate": "Fälligkeitsdatum",
-    "sortAsc": "↑ Aufsteigend",
-    "sortDesc": "↓ Absteigend",
-    "noFilterResults": "Keine Rechnungen entsprechen deinen Filtern",
-    "tryDifferentFilters": "Versuche unterschiedliche Filter oder lösche sie, um alle Rechnungen zu sehen.",
-    "clearFilters": "Filter löschen",
-    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
-    "previous": "Zurück",
-    "next": "Weiter",
-    "tableHeaders": {
-      "date": "Datum",
-      "invoiceNumber": "Rechnung #",
-      "vendor": "Auftragnehmer",
-      "amount": "Betrag",
-      "allocated": "Zugeordnet",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "remainingAmount": "Verbleibender Betrag",
-      "effectiveAmount": "Effektivbetrag",
-      "stillDue": "Noch fällig",
-      "stillDueHint": "Unbezahlte Schlusszahlung plus unbezahlte Abschlagszahlungen. Die Abschlagszahlungsbeträge in den nachstehenden Zeilen sind bereits in diesem Betrag enthalten, nicht zusätzlich."
-    },
+    "tableHeaders": {},
     "form": {
       "vendor": "Auftragnehmer",
       "invoiceNumber": "Rechnung #",
@@ -792,69 +743,132 @@
     "buttons": {
       "create": "Rechnung hinzufügen",
       "creating": "Wird hinzugefügt...",
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "view": "Anzeigen"
+      "cancel": "Abbrechen"
     },
     "modal": {
       "title": "Rechnung hinzufügen",
-      "description": "Fülle die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
-      "deleteTitle": "Rechnung löschen",
-      "deleteConfirm": "Bist du sicher, dass du die Rechnung {{number}} für {{amount}} löschen möchtest?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+      "description": "Fülle die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen."
     },
-    "actions": {
-      "menuAriaLabel": "Aktionen für Rechnung {{number}}"
-    },
+    "actions": {},
     "messages": {
-      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut.",
-      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
+      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut."
     },
-    "attribution": {
-      "none": "—",
-      "lines": "{{count}} Positionen",
-      "allocated": "{{pct}}% zugeordnet"
-    },
-    "retryButton": "Erneut versuchen",
-    "searchAriaLabel": "Rechnungen durchsuchen",
-    "filterStatusAriaLabel": "Nach Status filtern",
-    "filterVendorAriaLabel": "Nach Auftragnehmer filtern",
-    "sortOrderAriaLabel": "Sortierreihenfolge umschalten",
-    "actionsHeader": "Aktionen",
-    "noNumber": "Keine Nummer",
-    "duePrefix": "Fällig:",
-    "paginationPreviousAriaLabel": "Vorherige Seite",
-    "paginationNextAriaLabel": "Nächste Seite",
+    "attribution": {},
     "pickerModal": {
       "title": "Rechnungsdokument auswählen",
       "manualEntry": "Rechnung manuell erfassen",
       "manualEntryAriaLabel": "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
     },
     "openItems": {
-      "toggleLabel": "Nur offene Positionen anzeigen",
-      "toggleDisabledHint": "Nicht verfügbar, während „Nur offene Positionen anzeigen“ aktiv ist",
-      "defaultSortHint": "Sortiert nach frühestem Fälligkeitsdatum",
-      "containerLabel": "Nur Abschlagszahlungen",
-      "overdueLabel": "Überfällig",
-      "depositOverdueLabel": "Abschlag überfällig",
-      "depositOrdinal": "Abschlag {{index}}/{{total}}",
-      "childOf": "Teil der Rechnung {{invoiceNumber}}: ",
-      "childIncludedCaption": "Im Rechnungstotal oben enthalten",
-      "childExcludedCaption": "Wird unten separat aufgeführt",
-      "expandLabel_one": "{{invoiceNumber}} aufklappen, {{count}} offene Abschlagszahlung",
-      "expandLabel_other": "{{invoiceNumber}} aufklappen, {{count}} offene Abschlagszahlungen",
-      "collapseLabel_one": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlung",
-      "collapseLabel_other": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlungen",
-      "summaryOpenPayable": "Noch zu zahlen",
-      "summaryRefundsDue": "dir zustehende Rückerstattungen",
-      "summaryRefundsDueHint": "Noch nicht erhaltene Rückerstattungen, nicht mit der offenen Summe verrechnet",
-      "empty": {
-        "message": "Derzeit nichts offen",
-        "description": "Jede Rechnung und Abschlagszahlung ist bezahlt, eingereicht oder anderweitig beglichen."
+      "empty": {}
+    },
+    "list": {
+      "new": "Neue Rechnung",
+      "search": "Rechnungen durchsuchen",
+      "resultCount_one": "{{count}} Rechnung",
+      "resultCount_other": "{{count}} Rechnungen",
+      "selectAll": "Alle Rechnungen auswählen",
+      "empty": "Noch keine Rechnungen",
+      "emptyDescription": "Füge eine Rechnung oder ein Angebot hinzu, um Zahlungen zu verfolgen.",
+      "emptyToPay": "Im Moment ist nichts zu zahlen",
+      "emptyToPayDescription": "Jede Rechnung und jede Abschlagszahlung ist bezahlt oder eingereicht.",
+      "noMatch": "Keine Rechnungen passen dazu.",
+      "loadFailed": "Rechnungen konnten nicht geladen werden.",
+      "titleHeader": "Rechnung",
+      "statusHeader": "Status",
+      "noNumber": "Ohne Nummer",
+      "chips": {
+        "pending": "Zu zahlen",
+        "quotation": "Angebote",
+        "paid": "Bezahlt",
+        "claimed": "Eingereicht",
+        "all": "Alle",
+        "withCount": "{{label}} ({{count}})"
       },
-      "dueSoonLabel": "Bald fällig"
+      "columns": {
+        "date": "Datum",
+        "dueDate": "Fälligkeitsdatum",
+        "amount": "Betrag",
+        "stillDue": "Noch zu zahlen",
+        "allocated": "Aufgeschlüsselt",
+        "notes": "Notizen",
+        "offered": "Angeboten",
+        "offerPaid": "Bezahlt",
+        "remainingOnOffer": "Restbetrag",
+        "progressPayments": "Abschlagszahlungen"
+      },
+      "splitPercent": "{{pct}}% aufgeschlüsselt",
+      "facts": {
+        "due": "Fällig {{date}}",
+        "noDueDate": "Kein Fälligkeitsdatum",
+        "remainingOnOffer": "{{amount}} Restbetrag im Angebot",
+        "offered": "{{amount}} angeboten"
+      },
+      "badges": {
+        "notYetSplit": "Nicht aufgeschlüsselt",
+        "overdue": "Überfällig",
+        "dueSoon": "Bald fällig",
+        "progressPaymentOverdue": "Abschlagszahlung überfällig",
+        "progressPaymentsOnly": "Nur Abschlagszahlungen"
+      },
+      "child": {
+        "ordinal": "Abschlagszahlung {{index}} von {{total}}",
+        "partOf": "Teil von {{title}}: ",
+        "expand_one": "{{count}} Abschlagszahlung von {{title}} anzeigen",
+        "expand_other": "{{count}} Abschlagszahlungen von {{title}} anzeigen",
+        "collapse_one": "{{count}} Abschlagszahlung von {{title}} ausblenden",
+        "collapse_other": "{{count}} Abschlagszahlungen von {{title}} ausblenden"
+      },
+      "groupBy": {
+        "status": "Status",
+        "company": "Firma"
+      },
+      "sort": {
+        "dueDate": "Fälligkeitsdatum",
+        "date": "Datum",
+        "amount": "Betrag",
+        "company": "Firma",
+        "number": "Rechnungsnummer"
+      },
+      "footer": {
+        "stillToPay": "Noch zu zahlen",
+        "stillToPayFiltered": "Noch zu zahlen in dieser Liste"
+      },
+      "offers": {
+        "summaryType": "Angebote",
+        "count": "Angebote",
+        "offered": "Angeboten",
+        "paid": "Bezahlt",
+        "remaining": "Restbetrag"
+      },
+      "markPaid": {
+        "nameSuffix": "{{title}}, {{company}}",
+        "bulk": "{{action}} ({{count}})",
+        "bulkNone": "Keine der ausgewählten Zeilen kann als bezahlt markiert werden",
+        "bulkSkipped_one": "{{count}} ausgewählte Zeile kann nicht als bezahlt markiert werden",
+        "bulkSkipped_other": "{{count}} ausgewählte Zeilen können nicht als bezahlt markiert werden",
+        "bulkDone_one": "{{count}} Rechnung ist jetzt „{{status}}“.",
+        "bulkDone_other": "{{count}} Rechnungen sind jetzt „{{status}}“.",
+        "bulkFailed_one": "{{count}} Rechnung konnte nicht als bezahlt markiert werden",
+        "bulkFailed_other": "{{count}} Rechnungen konnten nicht als bezahlt markiert werden"
+      },
+      "filters": {
+        "showOnly": "Nur anzeigen",
+        "notYetSplit": "Nicht aufgeschlüsselt",
+        "withoutDocument": "Ohne Dokument",
+        "refundsDue": "Ausstehende Rückerstattungen ({{count}} · {{amount}})",
+        "refundsDueNone": "Ausstehende Rückerstattungen",
+        "due": "Fällig oder überfällig",
+        "company": "Firma",
+        "invoiceDate": "Rechnungsdatum",
+        "dueDate": "Fälligkeitsdatum",
+        "amount": "Betrag",
+        "from": "Von",
+        "to": "Bis",
+        "min": "Minimum",
+        "max": "Maximum",
+        "note": "Angezeigt wird nur: {{filters}}"
+      }
     }
   },
   "autoItemize": {

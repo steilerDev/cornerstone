@@ -125,6 +125,99 @@ describe('useColumnPreferences', () => {
     });
   });
 
+  describe('a column added after the user saved (#2238)', () => {
+    const WITH_NEW: typeof COLUMNS = [
+      ...COLUMNS,
+      { key: 'stillDue', label: 'Still due', render: () => '' },
+      { key: 'notes', label: 'Notes', defaultVisible: false, render: () => '' },
+    ];
+    const stored = (value: unknown) =>
+      makeUsePreferencesResult([makePreference('table.test-page.columns', JSON.stringify(value))]);
+
+    it('shows a new key by default and appends it to the order', () => {
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['title'], order: ['id', 'amount', 'title'] }),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns].sort()).toEqual(['stillDue', 'title']);
+      expect(result.current.columnOrder).toEqual(['id', 'amount', 'title', 'stillDue', 'notes']);
+    });
+
+    it('keeps a new key hidden when it is defaultVisible: false', () => {
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['title'], order: ['title', 'amount', 'id', 'stillDue'] }),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect(result.current.visibleColumns.has('notes')).toBe(false);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
+    it('keeps a stored key the user hid hidden (it is in the order)', () => {
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['title'], order: ['title', 'amount', 'id', 'stillDue', 'notes'] }),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns]).toEqual(['title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
+    it('applies the new-key rule to the defaults when the payload has an order but no visible list', () => {
+      mockUsePreferences.mockReturnValue(stored({ order: ['title', 'amount', 'id'] }));
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns].sort()).toEqual(['amount', 'stillDue', 'title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
+    it('leaves the visible set alone when the order has no visible list and nothing was added', () => {
+      mockUsePreferences.mockReturnValue(stored({ order: ['title', 'amount', 'id'] }));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
+
+      expect([...result.current.visibleColumns]).toEqual(['title', 'amount']);
+    });
+
+    it('with an empty stored order the visible list is authoritative and the order stays default', () => {
+      mockUsePreferences.mockReturnValue(stored({ visible: ['title'], order: [] }));
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns]).toEqual(['title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
+    it('treats the legacy array form as before: no appended keys', () => {
+      mockUsePreferences.mockReturnValue(stored(['title']));
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns]).toEqual(['title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
+    it('the next save includes the appended keys', async () => {
+      jest.useFakeTimers();
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['title'], order: ['title', 'amount', 'id'] }),
+      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      act(() => {
+        result.current.toggleColumn('notes');
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(500);
+      });
+
+      const saved = JSON.parse((mockUpsert.mock.calls[0]! as [string, string])[1]) as {
+        visible: string[];
+        order: string[];
+      };
+      expect(saved.order).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+      expect(saved.visible.sort()).toEqual(['notes', 'stillDue', 'title']);
+    });
+  });
+
   describe('loading from preferences', () => {
     it('loads visible columns from stored preferences when key matches', async () => {
       mockUsePreferences.mockReturnValue(

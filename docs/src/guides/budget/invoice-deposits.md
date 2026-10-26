@@ -14,7 +14,7 @@ A deposit is a partial payment recorded against an invoice. Each deposit has its
 The math is:
 
 - `final payment = max(0, invoice total − deposits − refunds already received)`
-- When net deposits exceed the invoice total, the final payment displays as 0. If the company will pay back the excess, record a refund entry -- pending refunds then show under **Refunds due to you** on the Invoices page.
+- When net deposits exceed the invoice total, the final payment displays as 0. If the company will pay back the excess, record a refund entry -- pending refunds then show under the **Refunds due** filter on the Invoices page.
 
 Each deposit is one of three statuses, mirroring the parent invoice status model:
 
@@ -68,7 +68,7 @@ Deposits change the **timing** of cost recognition, not the total. Cornerstone s
 
 In practice: if you have a €10,000 invoice linked to a cost line at its full €10,000, and you record a €3,000 Paid deposit while the invoice itself is still Pending, the cost line shows €10,000 actual cost but only €3,000 paid. The remaining €7,000 stays as a pending obligation until either the parent invoice transitions to Paid or you add more Paid deposits to cover it.
 
-The **status breakdown summary** on each invoice list and the per-source budget overview both use this deposit-aware math, so paid and claimed amounts always reflect real cash flow rather than waiting for the entire invoice to settle.
+The **Still to pay** footer on the Invoices list and the per-source budget overview both use this deposit-aware math, so paid and claimed amounts always reflect real cash flow rather than waiting for the entire invoice to settle.
 
 ## Offers and Deposits
 

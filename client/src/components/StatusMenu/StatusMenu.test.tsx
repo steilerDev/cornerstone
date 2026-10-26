@@ -687,6 +687,41 @@ describe('StatusMenu', () => {
     });
   });
 
+  describe('nameSuffix prop (#2238)', () => {
+    it('names an action trigger with the visible label first, then the suffix', () => {
+      renderMenu({
+        appearance: 'action',
+        actionTo: 'b',
+        nameSuffix: 'INV-T-001, Example Roofing Ltd',
+      });
+      const trigger = screen.getByRole('button', {
+        name: 'Mark beta, INV-T-001, Example Roofing Ltd',
+      });
+      expect(trigger).toBe(screen.getByTestId('sm'));
+      expect(screen.getByRole('button', { name: /^Mark beta/ })).toBe(trigger);
+      expect(trigger).toHaveTextContent(/^Mark beta$/);
+    });
+
+    it('names a button trigger the same way', () => {
+      renderMenu({ appearance: 'button', nameSuffix: 'INV-T-001' });
+      const trigger = screen.getByTestId('sm');
+      expect(trigger).toHaveAccessibleName(/^.+, INV-T-001$/);
+      expect(trigger.getAttribute('aria-label')).toBe(`${trigger.textContent}, INV-T-001`);
+    });
+
+    it('is ignored by the chip appearance', () => {
+      renderMenu({ nameSuffix: 'INV-T-001' });
+      const trigger = screen.getByTestId('sm');
+      expect(trigger).not.toHaveAttribute('aria-label');
+      expect(trigger).not.toHaveAccessibleName(/INV-T-001/);
+    });
+
+    it('sets no aria-label without a suffix', () => {
+      renderMenu({ appearance: 'action', actionTo: 'b' });
+      expect(screen.getByTestId('sm')).not.toHaveAttribute('aria-label');
+    });
+  });
+
   describe('className prop (#2233)', () => {
     it('replaces the default plain-button class on an action trigger and keeps the trigger hook', () => {
       renderMenu({ appearance: 'action', actionTo: 'b', className: 'hostPrimary' });

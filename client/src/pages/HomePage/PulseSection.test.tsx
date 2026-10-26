@@ -145,13 +145,13 @@ describe('PulseSection', () => {
     expect(screen.getByTestId('home-pulse-progress-figure')).not.toHaveAttribute('data-figure');
   });
 
-  it('links the three tiles to Money overview, open invoices and the Tasks list', async () => {
+  it('links the three tiles to Money overview, the invoices page (To pay chip) and the Tasks list', async () => {
     mockGetHomePulse.mockResolvedValue(makePulse());
     renderWithRouter(<PulseSection />);
 
     await waitFor(() => tile('home-pulse-progress'));
     expect(hrefOf('home-pulse-left-to-spend')).toBe('/budget/overview');
-    expect(hrefOf('home-pulse-still-to-pay')).toBe('/budget/invoices?openOnly=true');
+    expect(hrefOf('home-pulse-still-to-pay')).toBe('/budget/invoices');
     expect(hrefOf('home-pulse-progress')).toBe('/project/work-items');
   });
 

@@ -87,7 +87,7 @@
     "to": "All lists (Tasks, Purchases, Invoices, Milestones, Companies) > list body > load-all up to 100, then 'Showing n of m' footer with Load more / Retry",
     "change": "merged",
     "gate": "none",
-    "note": "#2200: hover shows a primary border, not only a fill. The page-size choice (10/25/50/100) and the numbered pages are retired: they only existed to bound a table, which scrolling does. Nothing replaces the select. Old `?page=` and `?pageSize=` in bookmarks are ignored, not an error, and are no longer written. #2234: built in the shared ObjectList template (page size 100, InfiniteScrollFooter beyond 100 rows); each list adopts it and drops page/pageSize from its route's carries in its own story (Invoices P4.6, Tasks P5.1, Purchases/Companies/Milestones P5.2).",
+    "note": "#2200: hover shows a primary border, not only a fill. The page-size choice (10/25/50/100) and the numbered pages are retired: they only existed to bound a table, which scrolling does. Nothing replaces the select. Old `?page=` and `?pageSize=` in bookmarks are ignored, not an error, and are no longer written. #2234: built in the shared ObjectList template (page size 100, InfiniteScrollFooter beyond 100 rows); each list adopts it and drops page/pageSize from its route's carries in its own story (Invoices P4.6, Tasks P5.1, Purchases/Companies/Milestones P5.2). #2238: Invoices adopted (page/pageSize dropped from the `invoices` route's carries).",
     "acceptance": "Every row of a list over 100 rows is reachable by scrolling or Load more; a failed batch shows Retry."
   },
   "WRK-013": {
@@ -1200,19 +1200,19 @@
   "MNY-046": {
     "name": "Browse all invoices across vendors",
     "from": "/budget/invoices > table (Invoice #, Vendor, Date, Amount, Allocated, Due Date, Status, Actions); mobile card list",
-    "to": "Money > Invoices (offers and invoices in one list: Status chips To pay · Offers · Paid · Submitted · All with paging, 'To pay' preselected; 'To pay' includes offers with a progress payment to pay)",
+    "to": "Money > Invoices (offers and invoices in one list: Status chips To pay · Offers · Paid · Submitted · All with counts, 'To pay' preselected; 'To pay' includes offers with a progress payment to pay; all rows up to 100, then batches)",
     "change": "same",
     "gate": "none",
-    "note": "Offers live inside the one Invoices list (owner, 7 Oct, PLAN §2.0 #3): the Offers chip shows them; both record kinds and the detail template stay, no schema change."
+    "note": "Offers live inside the one Invoices list (owner, 7 Oct, PLAN §2.0 #3): the Offers chip shows them; both record kinds and the detail template stay, no schema change. #2238: Money › Invoices › list built on the ObjectList template: chips To pay · Offers · Paid · Submitted · All with counts; the chip value in ?status= is the stored status (pending, quotation, paid, claimed). Paging retired: load-all up to 100, then batches (WRK-011); page/pageSize dropped from the route's carries."
   },
   "MNY-047": {
     "name": "See invoice status summary tiles (Pending, Claimable, Claimed, Quotation, Open payable, Refunds due, Overdue)",
     "from": "/budget/invoices > header tiles",
-    "to": "Money > Invoices > Status chip counts (To pay · Offers · Paid · Submitted · All) + chip 'Refunds due (n · €x)' shown only when > 0; Money > Overview headline 'Still to pay'; Money > Financing 'Ready to submit'",
+    "to": "Money > Invoices > Status chip counts (To pay · Offers · Paid · Submitted · All) + Filters > Show only 'Refunds due (n · €x)'; Money > Invoices > To pay chip > footer 'Still to pay'; Money > Overview headline 'Still to pay'; Money > Financing 'Ready to submit'",
     "change": "merged",
     "gate": "none",
-    "acceptance": "Invoices > Status chip counts per status incl. To pay; 'Refunds due' chip when > 0; Overview headline Still to pay; Financing Ready to submit; Offers count on the Offers chip.",
-    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Money › Invoices › summary tiles: 'Ready to submit' now comes from the money service (`getReadyToSubmit`, the bank report's draw-down set over loans and credit lines, the same figure as Home's ready-to-submit rows); hint 'Loans and credit lines only'. 'Still to pay' and 'Ready to submit' carry `data-figure` and are tested equal to the money service."
+    "acceptance": "Invoices > Status chip counts per status incl. To pay; Filters > Show only 'Refunds due' with count and sum; To pay footer Still to pay; Overview Still to pay; Financing Ready to submit (4.10); Offers count on the Offers chip.",
+    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2232: Money › Invoices › summary tiles: 'Ready to submit' now comes from the money service (`getReadyToSubmit`, the bank report's draw-down set over loans and credit lines, the same figure as Home's ready-to-submit rows); hint 'Loans and credit lines only'. 'Still to pay' and 'Ready to submit' carry `data-figure` and are tested equal to the money service. #2238: the stat cards are retired (D-30). Chip counts carry the status counts; Refunds due is Money › Invoices › Filters › Show only › 'Refunds due (n · €x)'; Overdue is a row badge and Filters › Show only › 'Due or overdue'; Still to pay is the To pay chip's footer. Ready to submit is shown nowhere in the UI until Money › Financing (4.10) builds it (interim gap; the API keeps `summary.claimable`)."
   },
   "MNY-048": {
     "name": "Search invoices by invoice number",
@@ -1220,39 +1220,39 @@
     "to": "Money > Invoices > list search (number, company, description) that searches every status chip, offers included; Global > Search",
     "change": "promoted",
     "gate": "none",
-    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8). #2197: search also matches the company name and description (D-21). #2210: GET /api/search (German-aware folding) covers this object for the global search. #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text."
+    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8). #2197: search also matches the company name and description (D-21). #2210: GET /api/search (German-aware folding) covers this object for the global search. #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2238: the list search (data-page-search) on the preselected To pay chip searches All, with the note 'Searching all · n more in ‹chip›'; an explicitly chosen chip keeps its scope."
   },
   "MNY-049": {
     "name": "Filter invoices by vendor, status, invoice date range, due-date range and amount range",
     "from": "/budget/invoices > column header filter buttons (Vendor, Date, Amount, Due Date, Status); toolbar 'Clear filters'",
-    "to": "Money > Invoices > filter chips Company, Status + Filters sheet (dates, due date, amount)",
+    "to": "Money > Invoices > Status chips + Filters panel (Company, Invoice date, Due date, Amount)",
     "change": "same",
     "gate": "none",
-    "note": "Company filter is searchable. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Company filter is searchable. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2238: Money › Invoices › Filters panel (ObjectListFiltersPanel): Company (?vendorId=), Invoice date (?date=), Due date (?dueDate=), Amount (?amount=); status is the chip row. The date and amount filters, which the old page showed but never sent, now reach the server."
   },
   "MNY-050": {
     "name": "Filter invoices by unallocated remaining amount",
     "from": "/budget/invoices > column settings: enable 'Remaining Amount' > header filter",
-    "to": "Money > Invoices > filter chip 'Not fully split (n)' (with any status chip, offers included); Home > Tidy up 'not fully split'",
+    "to": "Money > Invoices > Filters > Show only 'Not yet split' (with any status chip, offers included); Home > Tidy up 'not fully split'",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (rare use)."
+    "note": "Made more visible in Money because it serves a frequent job (rare use). #2238: Money › Invoices › Filters › Show only › 'Not yet split' (?notYetSplit=1; server flag over the money service's Not yet split set, any chip); rows carry a 'Not yet split' badge."
   },
   "MNY-051": {
     "name": "Sort invoices by vendor, date, amount, due date or status",
     "from": "/budget/invoices > sortable column headers (URL ?sortBy=&sortOrder=)",
-    "to": "Money > Invoices > Sort menu / column headers",
+    "to": "Money > Invoices > Sort menu (Due date, Date, Amount, Company, Invoice number) / column headers; Group by Status or Company",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2238: Money › Invoices › Sort: Due date, Date, Amount, Company, Invoice number (new server sort `invoice_number`, NULLs last, id tiebreaker). Sorting by status became Group by › Status (also Group by › Company)."
   },
   "MNY-054": {
     "name": "See how much of each invoice is allocated to budget lines and what remains",
     "from": "/budget/invoices > 'Allocated' column ('n% allocated' / 'n lines'); optional 'Remaining Amount' and 'Effective Amount' (final payment after deposits) columns",
-    "to": "Money > Invoices > columns 'Split %' and 'Still to pay'",
+    "to": "Money > Invoices > ⋯ > Columns… 'Split' column + 'Not yet split' badge; column 'Still to pay'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2238: the Split column ('n% split') is shown through ⋯ › Columns…; rows not fully split carry the 'Not yet split' badge; 'Still to pay' column from the row's `openAmount`."
   },
   "MNY-055": {
     "name": "Show only open items (pending invoices and invoices with pending deposits)",
@@ -1260,23 +1260,23 @@
     "to": "Money > Invoices > Status 'To pay' (preselected; oldest first, overdue first; includes progress payments to pay on offers; footer sum 'Still to pay')",
     "change": "promoted",
     "gate": "none",
-    "note": "Open items first; archive is a segment (VR-BM-07). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Open items first; archive is a segment (VR-BM-07). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2238: built. The To pay chip (default, no ?status=) lists pending records and offers with a progress payment to pay, earliest open due first; footer 'Still to pay' (data-figure only with no search and no filter). The old ?openOnly=true URL is served by the page: one replace to ?status=pending."
   },
   "MNY-056": {
     "name": "See pending deposits as nested rows under their invoice",
     "from": "/budget/invoices?openOnly=true > row expand > child rows 'Deposit n/N' or 'Refund' with due date, amount, status, description",
-    "to": "Money > Invoices > 'To pay' and 'Offers' chips > progress-payment rows nested under their invoice or offer",
+    "to": "Money > Invoices > every status chip > progress-payment rows nested under their invoice or offer",
     "change": "same",
     "gate": "none",
-    "note": "Deposits renamed progress payments (Abschlagszahlungen)."
+    "note": "Deposits renamed progress payments (Abschlagszahlungen). #2238: progress payments are nested child rows under their invoice or offer on every chip (the API always returns `deposits`), with ordinal, due date, amount and status."
   },
   "MNY-057": {
     "name": "Spot overdue invoices and overdue deposits",
     "from": "/budget/invoices > 'Overdue' tile | /budget/invoices?openOnly=true > 'Overdue' / 'Deposit overdue' / 'Deposits only' row badges",
-    "to": "Money > Invoices > Overdue badges; Home > Needs attention",
+    "to": "Money > Invoices > Overdue / Due soon badges + Filters > Show only 'Due or overdue'; Home > Needs attention",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Made more visible in Money because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2238: rows carry Overdue / Due soon / Progress payment overdue badges; Money › Invoices › Filters › Show only › 'Due or overdue' (?due=1: pending with due date ≤ today + 7, or a pending progress payment due by then)."
   },
   "MNY-058": {
     "name": "Open an invoice from the list",
@@ -1284,7 +1284,7 @@
     "to": "Money > Invoices > row link",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Invoices\"; list filters use history replace; an invoice opened from the list shows no Back (the list is its parent)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Invoices\"; list filters use history replace; an invoice opened from the list shows no Back (the list is its parent). #2238: each row's title is its one stretched link to the invoice or offer page (ObjectList row), with status changes through the row's StatusMenu (Mark paid with Undo, also for a selection)."
   },
   "MNY-059": {
     "name": "Open the vendor of an invoice",
@@ -1292,7 +1292,7 @@
     "to": "Money > Invoices / Money > Invoice / Offer page > company link -> Companies > Company page",
     "change": "same",
     "gate": "none",
-    "note": "Opens Companies instead of jumping into Settings. #2203: the company page opened from Money shows Back to its origin and the breadcrumb \"Companies\"; \"Back to Vendors\" retired."
+    "note": "Opens Companies instead of jumping into Settings. #2203: the company page opened from Money shows Back to its origin and the breadcrumb \"Companies\"; \"Back to Vendors\" retired. #2238: the company name in each Invoices row is a link to the company page."
   },
   "MNY-060": {
     "name": "Create an invoice manually",
@@ -3751,11 +3751,11 @@
   "PLT-066": {
     "name": "See open (pending) invoices, oldest first, with overdue flags and the pending total",
     "from": "/project/overview > \"Invoice Pipeline\" card > up to 5 pending rows (vendor, number, amount, date, \"Overdue\") + \"Pending total\" | /project/overview > Invoice Pipeline card > 5 oldest pending invoices with 'Overdue' badge, 5 newest quotes, pending/quoted totals, 'View all invoices'",
-    "to": "Home > Pulse > 'Still to pay €x · n invoices' -> Money > Invoices > To pay (oldest first, overdue first, footer sum); Home > Needs attention (N4–N6 for overdue, due-soon and long-unpaid items)",
+    "to": "Home > Pulse > 'Still to pay €x · n invoices' -> Money > Invoices > To pay chip (earliest due first, overdue badges, footer 'Still to pay'); Home > Needs attention (N4–N6 for overdue, due-soon and long-unpaid items)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Still to pay' (sum, count) -> Invoices To pay sorted oldest first with Overdue chips and footer sum; N4–N6 rows on Home.",
-    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3. #2230: Pulse 'Still to pay' tile (sum and count of open records = the Invoices \"Open payable\" card, `stillToPayCount`) links to `invoices?openOnly=true` (interim until the 4.6 To pay chip); N4–N6 rows on Home with Mark paid (`params.companyId`) and Undo. #2232: equality with the Invoices 'Still to pay' card (sum and count) is tested (figure registry, server consistency block); the tile carries `data-figure=\"still-to-pay\"`."
+    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2229: N4–N6 rows (overdue, due within 7 days, unpaid 30+ days without a due date; progress payments on offers included) from the money service's open payments; UI in 3.3. #2230: Pulse 'Still to pay' tile (sum and count of open records = the Invoices \"Open payable\" card, `stillToPayCount`) links to `invoices?openOnly=true` (interim until the 4.6 To pay chip); N4–N6 rows on Home with Mark paid (`params.companyId`) and Undo. #2232: equality with the Invoices 'Still to pay' card (sum and count) is tested (figure registry, server consistency block); the tile carries `data-figure=\"still-to-pay\"`. #2238: the Pulse tile and Money's Still to pay fact link to routeUrl('invoices') (default chip To pay); equality now holds with the To pay footer (`listTotals.openPayable`, sum; the footer shows no count), which carries data-figure=\"still-to-pay\" on the unfiltered To pay chip. The Invoices 'Still to pay' card is retired."
   },
   "PLT-067": {
     "name": "See the newest quotations and the quotes total on the dashboard",
@@ -3764,7 +3764,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Offers summary: Offers total, Paid, Remaining on offer.",
-    "note": "Quotes get their own list instead of a 5-row Home sample. Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2230: the Invoice Pipeline card is retired; offers and their totals are on Money › Invoices (summary cards; the Offers chip and summary arrive in 4.6)."
+    "note": "Quotes get their own list instead of a 5-row Home sample. Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02). #2230: the Invoice Pipeline card is retired; offers and their totals are on Money › Invoices (summary cards; the Offers chip and summary arrive in 4.6). #2238: built. Money › Invoices › Offers chip › summary strip: Offers · Offered · Paid · Remaining on offer (`listTotals.offers`, the money service's offer figures over the matching rows; parts of a figure, no data-figure)."
   },
   "PLT-068": {
     "name": "Open an invoice, or the full invoice list, from the dashboard",
@@ -4142,7 +4142,7 @@
     "to": "All lists > ⋯ > Columns (show/hide, reorder, reset; per user)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ⋯ › Columns… on the table layout (ObjectList, a Columns dialog with the shared ColumnSettingsList; same per-user preference key as the page's DataTable)."
+    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ⋯ › Columns… on the table layout (ObjectList, a Columns dialog with the shared ColumnSettingsList; same per-user preference key as the page's DataTable). #2238: Invoices adopts ⋯ › Columns… on the ObjectList template; a column added after a user saved a layout follows its default visibility and is appended to the stored order (useColumnPreferences new-key rule)."
   },
   "PLT-116": {
     "name": "Get short toast notifications for completed or failed actions",

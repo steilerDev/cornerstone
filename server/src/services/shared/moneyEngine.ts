@@ -398,6 +398,9 @@ export interface ComputeMoneyOptions {
   includeLine?: (line: MoneyLineInput) => boolean;
 }
 
+/** A record is "Not yet split" when toCents(amount) minus its itemized cents is at least this. */
+export const NOT_YET_SPLIT_MIN_CENTS = 100;
+
 /**
  * Formulas 1-7 and 10 of ADR-039: line costs, not-yet-split, expected cost, grants (capped,
  * pro rata, largest remainder), left to spend and the strict verdict, by type and by area.
@@ -425,7 +428,7 @@ export function computeMoney(input: MoneyInput, options: ComputeMoneyOptions = {
   const notYetSplitByInvoice = new Map<string, number>();
   for (const invoice of input.invoices) {
     const remainder = toCents(invoice.amount) - invoice.itemizedCents;
-    if (remainder >= 100) {
+    if (remainder >= NOT_YET_SPLIT_MIN_CENTS) {
       notYetSplitByInvoice.set(invoice.id, remainder);
       notYetSplitCents += remainder;
       notYetSplitRecords += 1;

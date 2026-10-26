@@ -54,6 +54,12 @@ export interface StatusMenuProps<S extends string> {
    * class itself.
    */
   readonly className?: string;
+  /**
+   * `action` / `button` appearances: screen-reader-only context after the visible label (", ‹title›,
+   * ‹company›"), so the accessible name starts with the visible text. `chip` ignores it. E2E
+   * matches the name with `^Mark paid`, never exactly.
+   */
+  readonly nameSuffix?: string;
   readonly testId: string;
 }
 
@@ -95,6 +101,7 @@ export function StatusMenu<S extends string>({
   buttonLabel,
   focusFallbackRef,
   className,
+  nameSuffix,
   testId,
 }: StatusMenuProps<S>) {
   const { t } = useTranslation('common');
@@ -486,6 +493,9 @@ export function StatusMenu<S extends string>({
         }
         aria-expanded={open}
         aria-controls={open ? (step === 'list' ? menuId : panelId) : undefined}
+        aria-label={
+          appearance !== 'chip' && nameSuffix ? `${triggerLabel}, ${nameSuffix}` : undefined
+        }
         aria-describedby={describeId}
         aria-disabled={busy ? 'true' : undefined}
         aria-busy={busy ? 'true' : undefined}

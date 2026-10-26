@@ -93,8 +93,7 @@ function PulseTiles({ data }: { data: HomePulseResponse }) {
         figureKind="still-to-pay"
         figure={formatCurrency(stillToPay)}
         detail={t('pulse.stillToPay.count', { count: stillToPayCount })}
-        // Interim until the To pay chip of the Invoices page (4.6).
-        to={routeUrl('invoices', undefined, { openOnly: 'true' })}
+        to={routeUrl('invoices')}
         state={originState}
         testId="home-pulse-still-to-pay"
       />

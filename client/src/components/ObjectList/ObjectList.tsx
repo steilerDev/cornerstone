@@ -81,6 +81,12 @@ export interface ObjectListProps<T, M = undefined, C = never> {
   readonly scopeTotal?: number | null;
   /** Footer sum row under the list. */
   readonly summary?: ReactNode;
+  /** A host summary above the results (Invoices' Offers summary). */
+  readonly aboveList?: ReactNode;
+  /** Host text in the toolbar's note row (e.g. the active "Show only" filters). */
+  readonly note?: ReactNode;
+  /** Column keys not shown on this view: not rendered and not listed in Columns…; their preferences are kept. */
+  readonly hiddenColumnKeys?: readonly string[];
   /** Host dialogs (ConfirmDialog, sheets). */
   readonly children?: ReactNode;
   readonly headingRef?: RefObject<HTMLHeadingElement | null>;
@@ -119,6 +125,9 @@ export function ObjectList<T, M = undefined, C = never>({
   searchingAll,
   scopeTotal,
   summary,
+  aboveList,
+  note,
+  hiddenColumnKeys,
   children,
   headingRef: headingRefProp,
 }: ObjectListProps<T, M, C>) {
@@ -151,15 +160,24 @@ export function ObjectList<T, M = undefined, C = never>({
     }
     return ordered;
   }, [columns, prefs.columnOrder]);
-  const visibleColumns = useMemo(
-    () => orderedColumns.filter((column) => prefs.visibleColumns.has(column.key)),
-    [orderedColumns, prefs.visibleColumns],
+  // Hidden columns are neither rendered nor listed in the dialog, but keep their preferences.
+  const dialogColumns = useMemo(
+    () =>
+      hiddenColumnKeys
+        ? orderedColumns.filter((column) => !hiddenColumnKeys.includes(column.key))
+        : orderedColumns,
+    [orderedColumns, hiddenColumnKeys],
   );
-  // The dialog emits indexes into the ordered columns; the stored order may hold stale keys.
+  const visibleColumns = useMemo(
+    () => dialogColumns.filter((column) => prefs.visibleColumns.has(column.key)),
+    [dialogColumns, prefs.visibleColumns],
+  );
+  // The dialog emits indexes into the list it was given (dialogColumns); the stored order may
+  // hold stale keys and hidden columns, so both indexes are resolved against that same list.
   const moveColumn = (from: number, to: number) => {
     // The dialog only emits indexes of the columns it was given.
-    const fromKey = (orderedColumns[from] as ObjectListColumn<T>).key;
-    const toKey = (orderedColumns[to] as ObjectListColumn<T>).key;
+    const fromKey = (dialogColumns[from] as ObjectListColumn<T>).key;
+    const toKey = (dialogColumns[to] as ObjectListColumn<T>).key;
     const fromIndex = prefs.columnOrder.indexOf(fromKey);
     const toIndex = prefs.columnOrder.indexOf(toKey);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -470,7 +488,7 @@ export function ObjectList<T, M = undefined, C = never>({
           count={count}
           primary={primary}
           menuItems={menuItems}
-          onColumns={wide && columns.length > 0 ? () => setColumnsOpen(true) : undefined}
+          onColumns={wide && dialogColumns.length > 0 ? () => setColumnsOpen(true) : undefined}
           headingRef={headingRef}
           menuTriggerRef={menuTriggerRef}
           testIdPrefix={p}
@@ -496,6 +514,7 @@ export function ObjectList<T, M = undefined, C = never>({
           searchInputRef={searchInputRef}
           searchingAllText={searchingAllText}
           groupingUnavailableText={groupingUnavailableText}
+          note={note}
           selectAll={
             selectable && !wide
               ? {
@@ -508,6 +527,8 @@ export function ObjectList<T, M = undefined, C = never>({
         />
 
         <div ref={regionRef} role="status" aria-atomic="true" className={shared.srOnly} />
+
+        {aboveList}
 
         <section
           aria-label={labels.title}
@@ -674,7 +695,7 @@ export function ObjectList<T, M = undefined, C = never>({
       {columnsOpen ? (
         <ObjectListColumnsDialog
           listKey={config.listKey}
-          columns={orderedColumns.map(({ key, label }) => ({ key, label }))}
+          columns={dialogColumns.map(({ key, label }) => ({ key, label }))}
           visibleColumns={prefs.visibleColumns}
           onToggleColumn={prefs.toggleColumn}
           onMoveColumn={moveColumn}

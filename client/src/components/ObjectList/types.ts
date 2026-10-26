@@ -16,8 +16,10 @@ export interface ObjectListChipsConfig {
   readonly param?: string;
   /** 2–4 chips; "All" is added by ObjectList (value 'all'). */
   readonly options: readonly ObjectListChipOption[];
-  /** Preselected chip (Invoices 'toPay'). Omitted: All is the start. */
+  /** Preselected chip (Invoices 'pending'). Omitted: All is the start. */
   readonly defaultValue?: string;
+  /** Label of the template's All chip (default common objectList.chips.all); a host adds the count here. */
+  readonly allLabel?: string;
   /** Accessible name of the chip group (default common objectList.chips.label "Filter by status"). */
   readonly ariaLabel?: string;
 }
@@ -67,6 +69,11 @@ export interface ObjectListFilterDef {
   /** URL parameter, written verbatim (existing serialisations keep working). */
   readonly param: string;
   readonly label: string;
+  /**
+   * Consecutive defs with the same fieldset id share one fieldset with this legend; the def's own
+   * `label` is then not rendered and its control carries its own visible label.
+   */
+  readonly fieldset?: { readonly id: string; readonly legend: string };
   readonly render: (ctx: ObjectListFilterRenderContext) => ReactNode;
 }
 
@@ -126,13 +133,19 @@ export interface ObjectListColumn<T> {
 export interface ObjectListExpandable<T, C> {
   readonly getChildren: (item: T) => readonly C[];
   readonly getChildKey: (child: C, parent: T) => string;
-  /** One <td> per visible column key, in order (ObjectList renders the leading cells and the trailing status/command/⋯ cells empty). */
+  /** One <td> per visible column key, in order (ObjectList renders the leading cells; the title, status and command cells come from the optional renderers, ⋯ stays empty). */
   readonly renderChildCells: (
     child: C,
     parent: T,
     visibleColumnKeys: readonly string[],
   ) => ReactNode;
   readonly renderChildCard: (child: C, parent: T) => ReactNode;
+  /** The child's title cell (table surface); empty when absent. */
+  readonly renderChildTitle?: (child: C, parent: T) => ReactNode;
+  /** The child's status cell (table surface); empty when absent. */
+  readonly renderChildStatus?: (child: C, parent: T) => ReactNode;
+  /** The child's command cell (table surface); empty when absent. */
+  readonly renderChildCommand?: (child: C, parent: T) => ReactNode;
   readonly isDefaultExpanded?: (item: T) => boolean;
   /** Translated, includes the child count. */
   readonly getExpandLabel: (item: T, expanded: boolean, childCount: number) => string;

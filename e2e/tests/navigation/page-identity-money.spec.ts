@@ -271,7 +271,7 @@ test.describe('Page identity: Money (#2203)', () => {
     interface IdentityCase {
       name: string;
       path: () => string;
-      h1: (() => string) | string;
+      h1: (() => string) | string | RegExp;
       title: (() => string) | string;
     }
 
@@ -292,7 +292,8 @@ test.describe('Page identity: Money (#2203)', () => {
       {
         name: 'Invoices list',
         path: () => routeUrl('invoices'),
-        h1: 'Invoices',
+        // "Invoices (n)": the list's count follows the title (#2238)
+        h1: /^Invoices\b/,
         title: `Invoices · Money · ${HOUSE}`,
       },
       {
@@ -518,7 +519,7 @@ test.describe('Page identity: Money (#2203)', () => {
       await bc.expectNoBack();
 
       await page.goto(routeUrl('invoices'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoices');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Invoices\b/);
       await expect(bc.row).toHaveCount(0);
       await bc.expectNoTrail();
     });
@@ -532,7 +533,7 @@ test.describe('Page identity: Money (#2203)', () => {
       await detail.breadcrumbs.trailLink('Invoices').click();
 
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoices'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoices');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Invoices\b/);
     });
 
     test('E2: the "Money" trail link of Funding sources leads to the Money overview', async ({
@@ -639,7 +640,7 @@ test.describe('Page identity: Money (#2203)', () => {
       const detail = new InvoiceDetailPage(page);
 
       await invoicesPage.search(NAMES.invoiceNumber);
-      await invoicesPage.tableBody.getByRole('link', { name: NAMES.invoiceNumber }).click();
+      await invoicesPage.title(seed.invoiceId).click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('invoice', { id: seed.invoiceId }),
@@ -656,9 +657,8 @@ test.describe('Page identity: Money (#2203)', () => {
       const vendorPage = new VendorDetailPage(page);
 
       await invoicesPage.search(NAMES.invoiceNumber);
-      const row = invoicesPage.tableBody.getByRole('row').filter({ hasText: NAMES.invoiceNumber });
-      // Scoped to the row: the link is resolved relative to it
-      await row.getByRole('link', { name: NAMES.company, exact: true }).click();
+      // The company link sits above the title (table) / in the facts line (cards)
+      await invoicesPage.company(seed.invoiceId).click();
 
       await expect(page).toHaveURL(new RegExp(`/companies/${seed.vendorId}$`));
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
@@ -679,8 +679,8 @@ test.describe('Page identity: Money (#2203)', () => {
 
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
-      await expect(page).toHaveURL(/openOnly=true/);
+      await invoicesPage.selectChip('quotation');
+      await expect(page).toHaveURL(/status=quotation/);
       await invoicesPage.typeSearch(NAMES.invoiceNumber);
       await expect(page).toHaveURL(/q=/);
 
@@ -721,7 +721,7 @@ test.describe('Page identity: Money (#2203)', () => {
       await expect(overviewPage.heading).toBeVisible();
       await appShell.openView('invoices');
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoices'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoices');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Invoices\b/);
 
       // Switching views inside the section replaces (ADR-038 rule 8): nothing is pushed
       const log = await readRouteLog(page);
@@ -838,7 +838,7 @@ test.describe('Page identity: Money (#2203)', () => {
 
       // list -> invoice -> Split with AI
       await invoicesPage.search(NAMES.invoiceNumber);
-      await invoicesPage.tableBody.getByRole('link', { name: NAMES.invoiceNumber }).click();
+      await invoicesPage.title(seed.invoiceId).click();
       await expect(page).toHaveURL((url) => url.pathname === invoiceUrl);
       await expect(detail.heading).toHaveText(INVOICE_H1);
 
@@ -877,7 +877,7 @@ test.describe('Page identity: Money (#2203)', () => {
 
       // Direct visit: no origin, so Cancel replaces the page by the invoice
       await page.goto(routeUrl('invoices'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoices');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Invoices\b/);
       await splitPage.goto(seed.invoiceId, SPLIT_DOC_ID);
       await splitPage.waitForAnalyzingDone();
 

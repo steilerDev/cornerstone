@@ -40,6 +40,7 @@
  * sequentially-executed tests, so locale state must not carry over between them.
  */
 
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { ROUTES } from '../../fixtures/testData.js';
@@ -620,13 +621,9 @@ test.describe('i18n: German status words (Story #2195)', () => {
       await setLanguage(page, 'de');
       await page.goto(`/budget/invoices?vendorId=${vendorId}`);
 
-      const chip = page
-        .locator(
-          `[data-testid="invoice-status-${invoiceId}"], [data-testid="invoice-status-mobile-${invoiceId}"]`,
-        )
-        .visible();
+      const chip = new InvoicesPage(page).statusBadge(invoiceId);
       await expect(chip).toHaveText('Zu zahlen');
-      await expect(page.locator('[class*="summaryGrid"]')).not.toContainText(/Ausstehend/i);
+      await expect(page.getByTestId('invoices-chip-pending')).not.toContainText(/Ausstehend/i);
       await expect(page.locator('main')).not.toContainText(/Ausstehend/i);
     } finally {
       if (invoiceId) await page.request.delete(`/api/vendors/${vendorId}/invoices/${invoiceId}`);

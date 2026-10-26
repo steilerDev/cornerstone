@@ -307,6 +307,40 @@ describe('History page rollout (#2224)', () => {
       expect(invoices?.carries).toContain('openOnly');
     });
 
+    it('lets the invoices page carry its list state and flags, but not page, pageSize or filters (#2238)', () => {
+      const invoices = ROUTE_MAP.find((e) => 'id' in e && e.id === 'invoices');
+      for (const key of [
+        'q',
+        'status',
+        'group',
+        'sortBy',
+        'sortOrder',
+        'vendorId',
+        'date',
+        'dueDate',
+        'amount',
+        'notYetSplit',
+        'withoutDocument',
+        'refundsDue',
+        'due',
+      ]) {
+        expect(invoices?.carries).toContain(key);
+      }
+      for (const key of ['page', 'pageSize', 'filters']) {
+        expect(invoices?.carries).not.toContain(key);
+      }
+    });
+
+    it('serves the retired open-items URL through the Invoices page as an interim replace, not a live redirect (#2238)', () => {
+      const entry = ROUTE_MAP.find(
+        (e) => e.from === '/budget/invoices?openOnly=true',
+      ) as unknown as Record<string, unknown>;
+      expect(entry).toMatchObject({ stage: 'interim', interim: 'page', permanent: false });
+      expect(LIVE_REDIRECT_ROUTES.some((r) => r.from === '/budget/invoices?openOnly=true')).toBe(
+        false,
+      );
+    });
+
     it('resolves / as the home page and the retired overview URLs to /', () => {
       expect(resolveLocation('/', ADMIN_CTX)).toMatchObject({ kind: 'page' });
       expect(resolveLocation('/project/overview', ADMIN_CTX)).toMatchObject({

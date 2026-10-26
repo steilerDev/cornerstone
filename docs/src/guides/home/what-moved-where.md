@@ -15,7 +15,7 @@ Use this page as a reference. You can open it any time from **Page actions** (`â
 |----------|-----------------|-------|
 | **Budget Summary** | **Pulse**, tile **Left to spend** | Select the tile to open Money > Overview. |
 | **Work Item Progress** | **Pulse**, tile **Progress** | Select the tile to open the task list. |
-| **Invoice Pipeline** | **Needs attention** (rows for invoices and payments that are due or overdue) and **Pulse**, tile **Still to pay** | Invoices that need action appear as rows. The tile counts every open invoice. |
+| **Invoice Pipeline** | **Money > Invoices**, the **To pay** chip and its **Still to pay** footer | The chip lists every open invoice and progress payment. Invoices that need action also appear as rows in **Needs attention**, and the **Still to pay** tile in **Pulse** opens the **To pay** chip. |
 | **Upcoming Milestones** | **Needs attention** (late milestones) and **This week** (milestones on their target date) | |
 | **Critical Path** | **This week**, the first line | The line names the task that decides the finish date. |
 | **Mini Gantt** | **This week**, plus **Open schedule** under the list | For the full picture, open the schedule. |
@@ -25,6 +25,8 @@ Use this page as a reference. You can open it any time from **Page actions** (`â
 | **Quick Actions** | The **New** menu at the top of the page | Creating a task, an invoice, a diary entry, or any other item starts there. |
 
 Some old cards are split across two places on purpose. A payment that needs you appears as a row in **Needs attention**, and the total you still owe appears in **Pulse**.
+
+The old invoice summary cards are gone too. Their counts now sit on the status chips of **Money > Invoices** (for example **To pay (12)**), and the total you still owe sits in the **Still to pay** footer under the list. The Offers summary appears when you select the **Offers** chip. Filtered totals show **Still to pay in this list**, and the **Ready to submit** amount is not shown on any page yet.
 
 ## Assigned To
 

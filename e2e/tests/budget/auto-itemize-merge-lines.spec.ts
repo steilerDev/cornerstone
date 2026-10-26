@@ -940,14 +940,14 @@ test.describe('Scenario 7 — Parity smoke: merge on PaperlessInvoiceReviewPage'
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8 — @responsive: selection + merge bar at mobile viewport, sticky on scroll
+// Scenario 8 — @responsive: selection + inline merge bar at mobile viewport
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Scenario 8 — Mobile: selection + sticky merge bar after scrolling',
+  'Scenario 8 — Mobile: selection + inline merge bar after scrolling',
   { tag: '@responsive' },
   () => {
-    test('At mobile viewport, selecting 2 lines shows an enabled Merge button that stays in view after scrolling', async ({
+    test('At mobile viewport, selecting 2 lines shows an enabled Merge button that is reachable after scrolling', async ({
       page,
       testPrefix,
     }) => {
@@ -985,10 +985,13 @@ test.describe(
         await autoItemizePage.selectLineForMerge(1);
         expect(await autoItemizePage.getMergeButtonState()).toBe('enabled');
 
-        // ── Scroll the line list down; the sticky action bar stays in view ────
+        // ── The bar is inline (in the flow, not fixed): it does not cover the wizard's own
+        // buttons, and after scrolling the list it is reached by scrolling back to it ────
         await autoItemizePage.lineRow(3).scrollIntoViewIfNeeded();
+        await autoItemizePage.mergeButton.scrollIntoViewIfNeeded();
         await expect(autoItemizePage.selectionActionBar()).toBeInViewport();
         await expect(autoItemizePage.mergeButton).toBeInViewport();
+        expect(await autoItemizePage.getMergeButtonState()).toBe('enabled');
       } finally {
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);

@@ -190,7 +190,6 @@ function TableRow<T, C>(props: ObjectListRowProps<T, C>) {
   const children = expandable?.getChildren(item) ?? [];
   const childIds = children.map((_, index) => `${baseId}-c${index}`);
   const visibleKeys = columns.map((column) => column.key);
-  const trailingCount = (hasStatus ? 1 : 0) + (hasCommand ? 1 : 0) + (hasMenu ? 1 : 0);
   const leadingCount = (selection ? 1 : 0) + (expandable ? 1 : 0);
 
   return (
@@ -248,13 +247,18 @@ function TableRow<T, C>(props: ObjectListRowProps<T, C>) {
                 'table',
               )}
             >
-              {Array.from({ length: leadingCount + 1 }, (_, i) => (
+              {Array.from({ length: leadingCount }, (_, i) => (
                 <td key={i} className={styles.childLead} />
               ))}
+              <td className={styles.childLead}>{expandable.renderChildTitle?.(child, item)}</td>
               {expandable.renderChildCells(child, item, visibleKeys)}
-              {Array.from({ length: trailingCount }, (_, i) => (
-                <td key={i} className={styles.childLead} />
-              ))}
+              {hasStatus ? (
+                <td className={styles.childLead}>{expandable.renderChildStatus?.(child, item)}</td>
+              ) : null}
+              {hasCommand ? (
+                <td className={styles.childLead}>{expandable.renderChildCommand?.(child, item)}</td>
+              ) : null}
+              {hasMenu ? <td className={styles.childLead} /> : null}
             </tr>
           ))
         : null}

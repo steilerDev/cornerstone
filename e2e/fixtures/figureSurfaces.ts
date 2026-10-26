@@ -157,27 +157,24 @@ export const PROJECT_SURFACES: ProjectSurface[] = [
     },
   },
   {
-    id: 'invoices.summary',
-    story: '3.5',
+    id: 'invoices.toPay',
+    story: '4.6',
     screen: 'invoices',
     async open(page) {
       const invoices = new InvoicesPage(page);
       await invoices.goto();
       await invoices.waitForLoaded();
-      await invoices.openPayableCard.waitFor({ state: 'visible' });
+      await invoices.footer.waitFor({ state: 'visible' });
     },
+    // The To pay chip footer: "Still to pay" while no search or filter is active. There is no
+    // Paid footer (a Paid-chip sum is not the money service's Paid) and the Ready to submit card
+    // is retired (D-30); Financing (4.10) brings it back.
     read: {
       async stillToPay(page) {
         const invoices = new InvoicesPage(page);
-        return parseMoney(await figureText(invoices.figure('still-to-pay')));
-      },
-      async stillToPayCount(page) {
-        const invoices = new InvoicesPage(page);
-        return firstInteger(await figureText(invoices.openPayableCount));
-      },
-      async readyToSubmit(page) {
-        const invoices = new InvoicesPage(page);
-        return parseMoney(await figureText(invoices.figure('ready-to-submit')));
+        return parseMoney(
+          await figureText(invoices.footer.locator('[data-figure="still-to-pay"]')),
+        );
       },
     },
   },
@@ -253,12 +250,6 @@ export const SUBJECT_SURFACES = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PENDING_SURFACES: PendingSurface[] = [
-  {
-    story: '4.6',
-    screen: 'Invoices To pay footer',
-    figures: ['stillToPay', 'paid'],
-    note: 'The To pay chip footer of the Invoices page.',
-  },
   {
     story: '4.10',
     screen: 'financing',

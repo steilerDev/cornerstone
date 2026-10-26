@@ -16,6 +16,9 @@ import type {
   InvoiceChipCounts,
   InvoiceChipTally,
   InvoiceChipsOutsideToPay,
+  InvoiceListRow,
+  InvoiceListSort,
+  InvoiceListTotals,
   FilterMeta,
 } from '@cornerstone/shared';
 import {
@@ -28,7 +31,14 @@ import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
-import { getReadyToSubmit } from './moneyService.js';
+import { getReadyToSubmit, loadInvoiceLinks } from './moneyService.js';
+import {
+  NOT_YET_SPLIT_MIN_CENTS,
+  computePayments,
+  toMajor,
+  toOfferTotals,
+} from './shared/moneyEngine.js';
+import { PAYMENT_DUE_WINDOW_DAYS } from './shared/attentionRules.js';
 import {
   onInvoiceStatusChanged,
   SYSTEM_CONTEXT,
@@ -224,6 +234,31 @@ function countInvoiceChips(
 }
 
 /**
+ * Ids of the records that are "Not yet split" (ADR-039): toCents(amount) minus the sum of
+ * toCents(itemized) over its links is at least NOT_YET_SPLIT_MIN_CENTS. The same rule as the
+ * money engine; feeds the `notYetSplit` filter and row field.
+ */
+export function notYetSplitInvoiceIds(db: DbType): Set<string> {
+  const itemizedByInvoice = new Map<string, number>();
+  for (const link of loadInvoiceLinks(db)) {
+    itemizedByInvoice.set(
+      link.invoiceId,
+      (itemizedByInvoice.get(link.invoiceId) ?? 0) + link.itemizedCents,
+    );
+  }
+  const ids = new Set<string>();
+  for (const row of db.select({ id: invoices.id, amount: invoices.amount }).from(invoices).all()) {
+    if (toCents(row.amount) - (itemizedByInvoice.get(row.id) ?? 0) >= NOT_YET_SPLIT_MIN_CENTS) {
+      ids.add(row.id);
+    }
+  }
+  return ids;
+}
+
+/** Most ids one `ids` request may name (and the page size of an `ids` response). */
+const MAX_LIST_IDS = 100;
+
+/**
  * List all invoices across all vendors with pagination, filtering, sorting, and a status summary.
  * `q` matches the invoice number, the company (vendor) name, or the invoice description (notes).
  */
@@ -241,21 +276,38 @@ export function listAllInvoices(
     dateTo?: string;
     dueDateFrom?: string;
     dueDateTo?: string;
-    sortBy?: string;
+    sortBy?: InvoiceListSort;
     sortOrder?: 'asc' | 'desc';
     openOnly?: boolean;
+    notYetSplit?: boolean;
+    withoutDocument?: boolean;
+    refundsDue?: boolean;
+    due?: boolean;
+    ids?: string;
   },
 ): {
-  invoices: Invoice[];
+  invoices: InvoiceListRow[];
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
   filterMeta: FilterMeta;
   chipCounts: InvoiceChipCounts;
+  listTotals: InvoiceListTotals;
 } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
   const openOnly = query.openOnly === true;
+
+  // `ids`: usable ids only (trimmed, non-empty); narrows just the rows and the pagination.
+  const idList = (query.ids ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  if (idList.length > MAX_LIST_IDS) {
+    throw new ValidationError(`ids accepts at most ${MAX_LIST_IDS} ids`);
+  }
+  const byIds = idList.length > 0;
+  const notYetSplitSet = notYetSplitInvoiceIds(db);
 
   // Filter conditions shared by the rows and the chip counts (everything except status,
   // openOnly and the numeric amount range).
@@ -280,6 +332,28 @@ export function listAllInvoices(
   }
   if (query.dueDateTo) {
     filterConditions.push(lte(invoices.dueDate, query.dueDateTo));
+  }
+  if (query.notYetSplit) {
+    filterConditions.push(
+      sql`${invoices.id} IN (SELECT value FROM json_each(${JSON.stringify([...notYetSplitSet])}))`,
+    );
+  }
+  if (query.withoutDocument) {
+    filterConditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM document_links dl WHERE dl.entity_type = 'invoice' AND dl.entity_id = ${invoices.id})`,
+    );
+  }
+  if (query.refundsDue) {
+    filterConditions.push(
+      sql`EXISTS (SELECT 1 FROM invoice_deposits d WHERE d.invoice_id = ${invoices.id} AND d.entry_type = 'refund' AND d.status = 'pending')`,
+    );
+  }
+  if (query.due) {
+    // No lower bound: overdue items count. Refunds never match.
+    const dueLimit = sql`date('now', 'localtime', ${`+${PAYMENT_DUE_WINDOW_DAYS} days`})`;
+    filterConditions.push(
+      sql`((${invoices.status} = 'pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} <= ${dueLimit}) OR EXISTS (SELECT 1 FROM invoice_deposits d WHERE d.invoice_id = ${invoices.id} AND d.status = 'pending' AND d.entry_type = 'deposit' AND d.due_date <= ${dueLimit}))`,
+    );
   }
   // Base conditions = filters + status + openOnly (excluding the numeric amount range).
   // openOnly (story #2046 AC1/AC2) sits in baseConditions, not just `conditions`, so
@@ -317,15 +391,19 @@ export function listAllInvoices(
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+  // Rows and pagination are additionally narrowed by `ids`; nothing else is.
+  const rowWhereClause = byIds ? and(whereClause, inArray(invoices.id, idList)) : whereClause;
+
   // Count total
   const countResult = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(invoices)
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
-    .where(whereClause)
+    .where(rowWhereClause)
     .get();
   const totalItems = countResult!.count;
-  const totalPages = Math.ceil(totalItems / pageSize);
+  const effectivePageSize = byIds ? MAX_LIST_IDS : pageSize;
+  const totalPages = byIds ? (totalItems > 0 ? 1 : 0) : Math.ceil(totalItems / pageSize);
 
   // ORDER BY
   const sortColumn =
@@ -337,8 +415,15 @@ export function listAllInvoices(
           ? vendors.name
           : query.sortBy === 'due_date'
             ? invoices.dueDate
-            : invoices.date; // default: date
-  const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+            : query.sortBy === 'invoice_number'
+              ? invoices.invoiceNumber
+              : invoices.date; // default: date
+  const direction = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+  // Empty due dates and invoice numbers sort last in both directions; id is the unique tiebreaker.
+  const nullsLast = query.sortBy === 'due_date' || query.sortBy === 'invoice_number';
+  const orderBy = nullsLast
+    ? [asc(sql`${sortColumn} IS NULL`), direction, asc(invoices.id)]
+    : [direction, asc(invoices.id)];
 
   // Story #2046 (AC22/AC23): earliest-open-due ordering, used as the default order
   // when openOnly=true and no explicit sortBy is given. SQLite's scalar MIN(a, b)
@@ -363,10 +448,10 @@ export function listAllInvoices(
     })
     .from(invoices)
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
-    .where(whereClause)
-    .orderBy(...(useOpenDefaultOrder ? [asc(earliestOpenDue), asc(invoices.id)] : [orderBy]))
-    .limit(pageSize)
-    .offset(offset)
+    .where(rowWhereClause)
+    .orderBy(...(useOpenDefaultOrder ? [asc(earliestOpenDue), asc(invoices.id)] : orderBy))
+    .limit(effectivePageSize)
+    .offset(byIds ? 0 : offset)
     .all();
 
   // Compute deposit-aware GLOBAL summary across ALL invoices (filter-independent).
@@ -428,13 +513,12 @@ export function listAllInvoices(
     refundsDue: openAmounts.refundsDue,
   };
 
-  // Story #2046 (AC3/AC9): when openOnly, bulk-fetch full deposit rows for the
-  // invoices on the current page so the response can render pending deposits as
-  // child rows. Mapped exactly as toInvoice() does (ordering + createdBy resolution),
+  // Bulk-fetch full deposit rows for the invoices on the current page (every request), so the
+  // response can render deposits as child rows. Mapped exactly as toInvoice() does (ordering + createdBy resolution),
   // since the client derives the "Deposit n/N" ordinal from this order.
   const pageInvoiceIds = rows.map((r) => r.invoice.id);
   const depositsByInvoice = new Map<string, InvoiceDeposit[]>();
-  if (openOnly && pageInvoiceIds.length > 0) {
+  if (pageInvoiceIds.length > 0) {
     const depositRows = db
       .select()
       .from(invoiceDeposits)
@@ -476,10 +560,18 @@ export function listAllInvoices(
   }
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
-  // NOTE: List endpoints set deposits: [] but finalPaymentAmount is now refund-aware (still computed from summary query).
+  // NOTE: List rows carry the full deposits list, openAmount, paid, remainingOnOffer and
+  // notYetSplit; finalPaymentAmount is refund-aware (computed from the summary query).
   // If new Invoice fields are added, ensure they are updated in BOTH toInvoice() (for detail endpoints)
   // AND here (for list endpoints).
-  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName: vName }) => {
+  // Per-record figures are the money service's own (computePayments on the record's rows).
+  const rawRowsByInvoice = new Map<string, typeof summaryRawRows>();
+  for (const raw of summaryRawRows) {
+    const list = rawRowsByInvoice.get(raw.invoice_id) ?? [];
+    list.push(raw);
+    rawRowsByInvoice.set(raw.invoice_id, list);
+  }
+  const invoiceList: InvoiceListRow[] = rows.map(({ invoice: row, vendorName: vName }) => {
     const createdByUser = row.createdBy
       ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
       : null;
@@ -489,6 +581,8 @@ export function listAllInvoices(
       row.id,
       row.amount,
     );
+
+    const payments = computePayments(rawRowsByInvoice.get(row.id)!);
 
     return {
       id: row.id,
@@ -502,9 +596,13 @@ export function listAllInvoices(
       notes: row.notes,
       budgetLines,
       remainingAmount,
-      deposits: openOnly ? (depositsByInvoice.get(row.id) ?? []) : [],
+      deposits: depositsByInvoice.get(row.id) ?? [],
       finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id)!,
-      ...(openOnly ? { openAmount: openAmounts.byInvoice.get(row.id)! } : {}),
+      openAmount: openAmounts.byInvoice.get(row.id)!,
+      paid: toMajor(payments.paidCents),
+      remainingOnOffer:
+        row.status === 'quotation' ? toMajor(payments.offers.remainingOnOfferCents) : null,
+      notYetSplit: notYetSplitSet.has(row.id),
       createdBy: toUserSummary(createdByUser),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -528,12 +626,29 @@ export function listAllInvoices(
     totals: totals.tally,
   };
 
+  // List totals over every matching row on all pages (`ids` is ignored).
+  const matchingIds = new Set(
+    db
+      .select({ id: invoices.id })
+      .from(invoices)
+      .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+      .where(whereClause)
+      .all()
+      .map((r) => r.id),
+  );
+  const matchingRawRows = summaryRawRows.filter((r) => matchingIds.has(r.invoice_id));
+  const listTotals: InvoiceListTotals = {
+    openPayable: computeOpenAmounts(matchingRawRows).openPayable,
+    offers: toOfferTotals(computePayments(matchingRawRows).offers),
+  };
+
   return {
     invoices: invoiceList,
-    pagination: { page, pageSize, totalItems, totalPages },
+    pagination: { page: byIds ? 1 : page, pageSize: effectivePageSize, totalItems, totalPages },
     summary,
     filterMeta,
     chipCounts,
+    listTotals,
   };
 }
 
