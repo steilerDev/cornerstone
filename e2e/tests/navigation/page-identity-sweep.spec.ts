@@ -94,6 +94,8 @@ interface SweepRow {
   h1: string | null;
   /** Source of a regular expression for an h1 that carries a date ("New entry · Mon, Oct 19"). */
   h1Pattern?: string;
+  /** Object-list pages (ObjectList template): the h1 carries a count, "Invoices (6)" / "(2 of 9)". The tab title stays plain. */
+  h1Count?: boolean;
   /** Title override for the exempt rows; otherwise `<h1> · [<section> · ]<house>`. */
   title?: RegExp;
   /** Breadcrumb row expected (non-view pages). The 404 page renders none. */
@@ -217,6 +219,7 @@ const ROWS: SweepRow[] = [
     id: 'invoices',
     path: () => routeUrl('invoices'),
     h1: 'Invoices',
+    h1Count: true,
     crumbs: false,
     active: 'sidebar-view-invoices',
   },
@@ -539,7 +542,9 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
         await expect(headings).toHaveText(new RegExp(`^${row.h1Pattern}$`));
       } else if (row.h1 !== null) {
         await expect(headings).toHaveCount(1);
-        await expect(headings).toHaveText(row.h1);
+        await expect(headings).toHaveText(
+          row.h1Count ? new RegExp(`^${escapeRegExp(row.h1)}( \\(\\d+( of \\d+)?\\))?$`) : row.h1,
+        );
       }
       if (row.dialog !== undefined) {
         await expect(page.getByRole('dialog', { name: row.dialog, exact: true })).toBeVisible();
