@@ -68,3 +68,10 @@
     min-height: 44px;
   }
 }
+
+/* The fixed bar would repeat on every printed page */
+@media print {
+  .spacer {
+    display: none;
+  }
+}

@@ -11,6 +11,11 @@
 html {
   height: 100%;
   -webkit-text-size-adjust: 100%;
+  /* Keep focus and scrollIntoView clear of the fixed bottom bars (WCAG 2.2 SC 2.4.11): the shell
+     bottom bar plus a mounted StickyActionBar / SelectionActionBar, which publish their height */
+  scroll-padding-bottom: calc(
+    var(--shell-bottom-height, 0rem) + var(--sticky-action-bar-height, 0rem)
+  );
 }
 
 /* Space the phone/tablet bottom bar occupies; 0 on desktop and while the on-screen keyboard is open */

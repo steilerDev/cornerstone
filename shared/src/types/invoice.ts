@@ -107,8 +107,9 @@ export interface Invoice {
   /** Remaining amount: invoice total minus sum of itemized amounts across budget lines. */
   remainingAmount: number;
   /**
-   * Deposits: staged partial payments for this invoice.
-   * Always populated, on GET /api/invoices (list) too.
+   * Deposits: staged partial payments for this invoice, refunds included, every status,
+   * ordered by dueDate then createdAt. Always populated on every endpoint (detail,
+   * GET /api/vendors/:vendorId/invoices, and GET /api/invoices on every chip since #2238).
    */
   deposits: InvoiceDeposit[];
   /** Final payment amount: invoice total minus sum of all deposit amounts (any status). */
