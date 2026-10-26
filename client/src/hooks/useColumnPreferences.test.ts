@@ -179,6 +179,14 @@ describe('useColumnPreferences', () => {
       expect([...result.current.visibleColumns]).toEqual(['title', 'amount']);
     });
 
+    it('with an empty stored order the visible list is authoritative and the order stays default', () => {
+      mockUsePreferences.mockReturnValue(stored({ visible: ['title'], order: [] }));
+      const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));
+
+      expect([...result.current.visibleColumns]).toEqual(['title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id', 'stillDue', 'notes']);
+    });
+
     it('treats the legacy array form as before: no appended keys', () => {
       mockUsePreferences.mockReturnValue(stored(['title']));
       const { result } = renderHook(() => useColumnPreferences('test-page', WITH_NEW));

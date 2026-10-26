@@ -209,6 +209,15 @@ describe('merge bar', () => {
     expect(screen.queryByTestId('auto-itemize-merge')).not.toBeInTheDocument();
   });
 
+  it('places the selection bar in the flow: it publishes no sticky bar height', () => {
+    setup(makeState({ selectedRowIds: new Set(['a']) }));
+    const merge = screen.getByTestId('auto-itemize-merge');
+    const bar = merge.parentElement?.parentElement as HTMLElement;
+    expect(bar.className).toContain('barInline');
+    expect(bar.style.left).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--sticky-action-bar-height')).toBe('');
+  });
+
   it('keeps Merge aria-disabled with its hint while fewer than two rows are selected', async () => {
     const state = makeState({ selectedRowIds: new Set(['a']) });
     const { user } = setup(state);

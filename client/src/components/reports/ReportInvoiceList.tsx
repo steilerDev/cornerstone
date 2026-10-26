@@ -708,6 +708,7 @@ export function ReportInvoiceList({
         })}
         clearLabel={t('sourceReports.resetSelection')}
         onClear={() => onToggleAll(false)}
+        placement="inline"
       >
         {null}
       </SelectionActionBar>

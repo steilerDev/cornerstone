@@ -773,21 +773,43 @@ describe('invoiceDepositService', () => {
     });
   });
 
-  // ─── listAllInvoices does NOT embed deposits ─────────────────────────────────
+  // ─── listAllInvoices embeds deposits (since #2238) ───────────────────────────
 
-  describe('listAllInvoices does not embed deposits', () => {
-    it('scenario 30: invoice in list response has empty deposits array (regardless of finalPaymentAmount)', () => {
+  describe('listAllInvoices embeds deposits', () => {
+    it('scenario 30: invoice in list response carries its deposits, ordered by dueDate then createdAt', () => {
       const { userId, vendorId } = setup();
       const invoiceId = createTestInvoice(vendorId, 800);
 
-      createDeposit(db, invoiceId, { amount: 200, dueDate: '2026-02-01', status: 'paid' }, userId);
-      createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-02' }, userId);
+      // Created out of due-date order, to prove the list orders them.
+      const late = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-03-01' }, userId);
+      const early = createDeposit(
+        db,
+        invoiceId,
+        { amount: 200, dueDate: '2026-02-01', status: 'paid' },
+        userId,
+      );
+      const middle = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-15' }, userId);
 
       const result = invoiceService.listAllInvoices(db, {});
 
       const listed = result.invoices.find((inv) => inv.id === invoiceId);
       expect(listed).toBeDefined();
-      expect(listed!.deposits).toHaveLength(0);
+      expect(listed!.deposits.map((d) => d.id)).toEqual([early.id, middle.id, late.id]);
+      expect(listed!.deposits.map((d) => d.amount)).toEqual([200, 100, 300]);
+      expect(listed!.deposits[0]!.status).toBe('paid');
+      // The same rows and order as the detail endpoint.
+      expect(listed!.deposits).toEqual(invoiceService.getInvoiceById(db, invoiceId)!.deposits);
+    });
+
+    it('scenario 30a: an invoice without deposits has an empty array', () => {
+      const { vendorId } = setup();
+      const invoiceId = createTestInvoice(vendorId, 800);
+
+      const listed = invoiceService
+        .listAllInvoices(db, {})
+        .invoices.find((i) => i.id === invoiceId);
+
+      expect(listed!.deposits).toEqual([]);
     });
 
     // Story #1876: finalPaymentAmount on list endpoints was previously hardcoded to

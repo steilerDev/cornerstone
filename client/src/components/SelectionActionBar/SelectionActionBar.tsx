@@ -17,6 +17,12 @@ export interface SelectionActionBarProps {
   /** Announce the count through this bar's own live region (default true); false when the host announces. */
   announce?: boolean;
   testId?: string;
+  /**
+   * `fixed` (default): pinned to the viewport above the shell bottom bar. `inline`: stays in the
+   * flow where it is rendered, for a host with its own action row after the list (the report
+   * wizard's Next row, Split with AI's totals and Save).
+   */
+  placement?: 'fixed' | 'inline';
 }
 
 const HEIGHT_VAR = '--sticky-action-bar-height';
@@ -36,11 +42,15 @@ export function SelectionActionBar({
   className,
   announce = true,
   testId,
+  placement = 'fixed',
 }: SelectionActionBarProps) {
   const spacerRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
+  const fixed = placement === 'fixed';
+
   useEffect(() => {
+    if (!fixed) return undefined;
     const spacer = spacerRef.current!;
     const bar = barRef.current!;
     const root = document.documentElement;
@@ -65,11 +75,15 @@ export function SelectionActionBar({
       window.removeEventListener('resize', sync);
       root.style.removeProperty(HEIGHT_VAR);
     };
-  }, []);
+  }, [fixed]);
 
   return (
-    <div ref={spacerRef} className={styles.spacer}>
-      <div ref={barRef} className={`${styles.bar} ${className ?? ''}`} data-testid={testId}>
+    <div ref={spacerRef} className={fixed ? styles.spacer : styles.spacerInline}>
+      <div
+        ref={barRef}
+        className={`${fixed ? styles.bar : styles.barInline} ${className ?? ''}`}
+        data-testid={testId}
+      >
         <span
           className={styles.count}
           aria-live={announce ? 'polite' : undefined}

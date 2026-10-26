@@ -282,4 +282,74 @@ describe('SelectionActionBar fixed bar with an in-flow spacer (#2238)', () => {
     expect(() => renderBar()).not.toThrow();
     expect(screen.getByTestId('bar').style.width).toBe('2px');
   });
+
+  describe('placement="inline"', () => {
+    function renderInline() {
+      return render(
+        <SelectionActionBar
+          countLabel="2 selected"
+          onClear={jest.fn()}
+          clearLabel="Clear selection"
+          placement="inline"
+          testId="bar"
+        >
+          <button type="button">Merge</button>
+        </SelectionActionBar>,
+      );
+    }
+
+    it('uses the in-flow classes and never the fixed ones', () => {
+      const { container } = renderInline();
+      expect(container.firstElementChild?.getAttribute('class')).toBe('spacerInline');
+      const bar = screen.getByTestId('bar');
+      expect(bar.className).toContain('barInline');
+      expect(bar.className).not.toMatch(/(^|\s)bar(\s|$)/);
+    });
+
+    it('does not size, position or publish anything and observes nothing', () => {
+      const observe = jest.fn();
+      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+        observe = observe;
+        disconnect() {}
+      };
+      stubGeometry(64, { left: 240, width: 800 });
+      const { container } = renderInline();
+      const bar = screen.getByTestId('bar');
+      expect((container.firstElementChild as HTMLElement).style.height).toBe('');
+      expect(bar.style.left).toBe('');
+      expect(bar.style.width).toBe('');
+      expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('');
+      expect(observe).not.toHaveBeenCalled();
+      fireEvent(window, new Event('resize'));
+      expect(bar.style.left).toBe('');
+    });
+
+    it('stays interactive: the clear button and the children render', () => {
+      renderInline();
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Merge' })).toBeInTheDocument();
+    });
+
+    it('switching from fixed to inline withdraws the published height', () => {
+      stubGeometry(64, { left: 1, width: 2 });
+      const { rerender } = render(
+        <SelectionActionBar countLabel="1" onClear={jest.fn()} clearLabel="Clear" testId="bar">
+          {null}
+        </SelectionActionBar>,
+      );
+      expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('64px');
+      rerender(
+        <SelectionActionBar
+          countLabel="1"
+          onClear={jest.fn()}
+          clearLabel="Clear"
+          testId="bar"
+          placement="inline"
+        >
+          {null}
+        </SelectionActionBar>,
+      );
+      expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('');
+    });
+  });
 });

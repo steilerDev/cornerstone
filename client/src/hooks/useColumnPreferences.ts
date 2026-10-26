@@ -92,8 +92,10 @@ export function useColumnPreferences(
           // New format: { visible: string[], order: string[] }
           // A column absent from the stored order was added after the user saved: it follows
           // its defaultVisible and is appended to the order, in columns order. (The legacy plain
-          // array above has no order, so a new key cannot be told from a hidden one.)
-          const storedOrder: string[] | null = Array.isArray(saved.order) ? saved.order : null;
+          // array above, and an empty stored order, have no order to compare against, so a new
+          // key cannot be told from a hidden one: the visible list stays authoritative.)
+          const storedOrder: string[] | null =
+            Array.isArray(saved.order) && saved.order.length > 0 ? saved.order : null;
           const added = storedOrder ? columns.filter((col) => !storedOrder.includes(col.key)) : [];
           if (Array.isArray(saved.visible)) {
             const visible = new Set<string>(saved.visible);

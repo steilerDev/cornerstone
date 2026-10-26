@@ -1105,6 +1105,8 @@ test.describe('Invoices list — range filters', { tag: '@responsive' }, () => {
       await expect(list.titleLinks).toHaveCount(2);
       await expect(list.title(late)).toHaveCount(0);
       await list.rangeInput('dueDate', 'to').fill('');
+      await expect(page).toHaveURL((url) => !url.searchParams.has('dueDate'));
+      await expect(list.titleLinks).toHaveCount(3);
 
       // Amount: at least 400 (committed on Enter)
       await list.rangeInput('amount', 'min').fill('400');
