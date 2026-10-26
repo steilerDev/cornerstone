@@ -4,7 +4,7 @@
  * Covers the interactive UX improvements shipped in this PR:
  * - Date filter auto-chaining: selecting a "from" date auto-focuses the "to" input
  * - Date filter confirmed state: "from" input renders with confirmed visual style once set
- * - Invoice due-date filter: the dueDate column is filterable end-to-end
+ * - End Date filter on the Work items list (moved from the Invoices page by #2238: that list is an ObjectList now, its date filters are in the Filters panel and covered by invoices-list.spec.ts)
  * - Column settings SVG icon: gear emoji removed, replaced with inline SVG bars icon
  * - Toolbar height alignment: search input, clear-filters button, and column settings button
  *   all render at 36px height
@@ -31,20 +31,21 @@
  */
 
 import { test, expect } from '../fixtures/auth.js';
+import { routeUrl } from '../../shared/src/routes/index.js';
 import type { Page } from '@playwright/test';
 
-const INVOICES_URL = '/budget/invoices';
+const LIST_URL = routeUrl('workItems');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Navigate to the Invoices page and wait for the DataTable to finish loading.
+ * Navigate to the Work items page and wait for the DataTable to finish loading.
  * "Loaded" is defined as the skeleton disappearing and the table header appearing.
  */
-async function gotoInvoicesAndWait(page: Page) {
-  await page.goto(INVOICES_URL);
+async function gotoListAndWait(page: Page) {
+  await page.goto(LIST_URL);
   // Wait for the table header row — the table is always rendered (even when empty)
   await expect(page.getByRole('table')).toBeVisible();
   // Wait for all network requests to settle so React doesn't re-render the DataTable
@@ -62,18 +63,18 @@ test.describe('Date filter auto-chaining', () => {
   });
 
   test('opening the date filter shows "Select start date" phase label', async ({ page }) => {
-    // Given: Invoices page is loaded with the DataTable visible
-    await gotoInvoicesAndWait(page);
+    // Given: Work items page is loaded with the DataTable visible
+    await gotoListAndWait(page);
 
     // When: I open the filter popover on the "Due Date" column header
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by due date/i,
+      name: /filter by end date/i,
     });
     await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
     await dueDateFilterButton.click();
 
     // Then: The date filter popover appears with the calendar in "Select start date" phase
-    const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
+    const filterPopover = page.getByRole('dialog', { name: /filter by end date/i });
     await expect(filterPopover).toBeVisible();
 
     // And: The phase label reads "Select start date"
@@ -87,16 +88,16 @@ test.describe('Date filter auto-chaining', () => {
   test('selecting a start date auto-advances the phase label to "Select end date"', async ({
     page,
   }) => {
-    // Given: The date filter popover is open on the Due Date column
-    await gotoInvoicesAndWait(page);
+    // Given: The date filter popover is open on the End Date column
+    await gotoListAndWait(page);
 
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by due date/i,
+      name: /filter by end date/i,
     });
     await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
     await dueDateFilterButton.click();
 
-    const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
+    const filterPopover = page.getByRole('dialog', { name: /filter by end date/i });
     await expect(filterPopover).toBeVisible();
     await expect(filterPopover).toContainText('Select start date');
 
@@ -120,19 +121,19 @@ test.describe('Invoice due-date filter — apply and clear', () => {
     if ((page.viewportSize()?.width ?? 1280) < 768) test.skip();
   });
 
-  test('can open, apply, and clear the dueDate date filter', async ({ page }) => {
-    // Given: Invoices page is loaded
-    await gotoInvoicesAndWait(page);
+  test('can open, apply, and clear the End Date filter', async ({ page }) => {
+    // Given: Work items page is loaded
+    await gotoListAndWait(page);
 
     // Then: The "Due Date" column header has a filter button
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by due date/i,
+      name: /filter by end date/i,
     });
     await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
 
     // When: I click it, a date filter popover with a calendar grid appears
     await dueDateFilterButton.click();
-    const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
+    const filterPopover = page.getByRole('dialog', { name: /filter by end date/i });
     await expect(filterPopover).toBeVisible();
 
     // And: The popover shows the calendar in "Select start date" phase
@@ -189,8 +190,8 @@ test.describe('Column settings SVG icon', () => {
   });
 
   test('column settings button contains an SVG element and no gear emoji', async ({ page }) => {
-    // Given: Invoices page is loaded (any DataTable page works)
-    await gotoInvoicesAndWait(page);
+    // Given: Work items page is loaded (any DataTable page works)
+    await gotoListAndWait(page);
 
     // When: I locate the column settings trigger button
     const columnSettingsButton = page.getByRole('button', {
@@ -221,8 +222,8 @@ test.describe('Toolbar height alignment', () => {
   test('search input, column settings button, and clear-filters button are all 36px tall', async ({
     page,
   }) => {
-    // Given: Invoices page is loaded with an active filter (to show the clear-filters button)
-    await page.goto(`${INVOICES_URL}?q=test`);
+    // Given: Work items page is loaded with an active filter (to show the clear-filters button)
+    await page.goto(`${LIST_URL}?q=test`);
     await expect(page.getByRole('table')).toBeVisible();
 
     // Then: The search input is 36px tall
@@ -261,8 +262,8 @@ test.describe('Column drag-and-drop insertion line', () => {
   test('dragging a column item over another shows an insertion line indicator', async ({
     page,
   }) => {
-    // Given: Invoices page is loaded and column settings popover is open
-    await gotoInvoicesAndWait(page);
+    // Given: Work items page is loaded and column settings popover is open
+    await gotoListAndWait(page);
 
     const columnSettingsButton = page.getByRole('button', { name: /column settings/i });
     await columnSettingsButton.click();
@@ -343,7 +344,7 @@ test.describe('Column drag uses move semantics', () => {
     page,
   }) => {
     // Given: Column settings popover is open
-    await gotoInvoicesAndWait(page);
+    await gotoListAndWait(page);
 
     const columnSettingsButton = page.getByRole('button', { name: /column settings/i });
     await columnSettingsButton.click();

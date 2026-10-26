@@ -5,7 +5,7 @@
  *
  * F1  Tasks    "Filter by Vendor" (hidden-by-default column, enabled first), param `assignedVendorId`
  * F2  Purchases "Filter by Vendor", param `vendorId`
- * F3  Invoices "Filter by Vendor", param `vendorId`; a deep link `?vendorId=` shows the name
+ * F3  Invoices Filters panel › Company (an EntityPicker), param `vendorId`; a deep link shows the name
  *
  * Each scenario: choose a company (the list narrows, the URL carries the param), reopen (the name
  * shows), clear (the param is gone), Escape returns focus to the header button. Table headers are
@@ -158,8 +158,10 @@ test.describe('Company filter - Invoices (F3)', { tag: '@responsive' }, () => {
     return ((await response.json()) as { invoice: { id: string } }).invoice.id;
   }
 
-  test('F3: filter invoices by company, reopen, clear, Escape', async ({ page, testPrefix }) => {
-    skipOnPhone(page);
+  test('F3: filter invoices by company in the Filters panel, reopen, clear', async ({
+    page,
+    testPrefix,
+  }) => {
     const nameA = `${testPrefix} Filter Invoice Co A`;
     const nameB = `${testPrefix} Filter Invoice Co B`;
     const numberA = `${testPrefix}-FIA`;
@@ -168,22 +170,29 @@ test.describe('Company filter - Invoices (F3)', { tag: '@responsive' }, () => {
     const idB = await createVendorViaApi(page, { name: nameB });
     const invoiceA = await createInvoice(page, idA, numberA);
     const invoiceB = await createInvoice(page, idB, numberB);
+    const vendorIdParam = () => new URL(page.url()).searchParams.get('vendorId');
     try {
       const list = new InvoicesPage(page);
       await list.goto();
       await list.waitForLoaded();
 
-      await list.companyFilter.choose(nameA);
-      await list.companyFilter.expectParam(idA);
-      await expect.poll(() => list.getInvoiceNumbers()).toContain(numberA);
-      await expect.poll(() => list.getInvoiceNumbers()).not.toContain(numberB);
+      // Choose: the URL carries the param and the list narrows to that company
+      await list.pickCompanyFilter(nameA);
+      await expect.poll(vendorIdParam).toBe(idA);
+      await expect.poll(() => list.getInvoiceNumbers()).toEqual([numberA]);
 
-      await exerciseFilter(page, list.companyFilter, nameB, idB);
-      // exerciseFilter ends with the filter cleared; the shared E2E database holds many invoices,
-      // so filter again before looking for B (an unfiltered first page may not contain it)
-      await list.companyFilter.choose(nameB);
-      await list.companyFilter.expectParam(idB);
-      await expect.poll(() => list.getInvoiceNumbers()).toContain(numberB);
+      // Reopen: the selected name shows
+      await list.closeFilters();
+      await list.openFilters();
+      await expect(list.companyFilterSelected).toContainText(nameA);
+
+      // Clear: the param is gone, the input is back, and another company can be chosen
+      await list.companyFilter.clearButton.click();
+      await expect.poll(vendorIdParam).toBeNull();
+      await expect(list.companyFilter.input).toBeVisible();
+      await list.companyFilter.pick(nameB);
+      await expect.poll(vendorIdParam).toBe(idB);
+      await expect.poll(() => list.getInvoiceNumbers()).toEqual([numberB]);
     } finally {
       await page.request.delete(`${API.vendors}/${idA}/invoices/${invoiceA}`);
       await page.request.delete(`${API.vendors}/${idB}/invoices/${invoiceB}`);
@@ -196,7 +205,6 @@ test.describe('Company filter - Invoices (F3)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    skipOnPhone(page);
     const name = `${testPrefix} Filter Deep Co`;
     const number = `${testPrefix}-FID`;
     const id = await createVendorViaApi(page, { name });
@@ -208,8 +216,8 @@ test.describe('Company filter - Invoices (F3)', { tag: '@responsive' }, () => {
       await list.waitForLoaded();
       await expect.poll(() => list.getInvoiceNumbers()).toEqual([number]);
 
-      await list.companyFilter.open();
-      await expect(list.companyFilter.selectedChip).toContainText(name);
+      await list.openFilters();
+      await expect(list.companyFilterSelected).toContainText(name);
     } finally {
       await page.request.delete(`${API.vendors}/${id}/invoices/${invoice}`);
       await deleteVendorViaApi(page, id);

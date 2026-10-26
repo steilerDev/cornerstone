@@ -71,13 +71,7 @@ test.describe('Split an offer - click budget (AC7)', { tag: '@responsive' }, () 
     // Start: the Invoices list, narrowed to the offer by the URL (not a click)
     await invoices.search(number);
     // 1 - the offer
-    await clicks.click(
-      invoices.tableBody
-        .getByRole('link', { name: number })
-        .or(invoices.cardsContainer.getByRole('link', { name: number }))
-        .filter({ visible: true })
-        .first(),
-    );
+    await clicks.click(invoices.titleLinks.filter({ hasText: number }).first());
     await panel.waitForLoaded();
 
     // 2 - Split (the offer has no lines yet: the empty state offers it)

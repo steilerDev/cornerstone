@@ -1,391 +1,105 @@
-/* ---- Section title (below sub-nav) ---- */
+/* ---- Offers summary (Offers chip) ---- */
 
-/* ---- Error banner ---- */
-
-.errorBanner {
-  background-color: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-md);
-  color: var(--color-danger-active);
-  padding: var(--spacing-3);
-  font-size: var(--font-size-sm);
+.offersSummary {
+  margin-block-end: var(--spacing-4);
 }
 
-/* ---- Summary cards grid ---- */
+/* ---- Footer: Still to pay (To pay chip) ---- */
 
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--spacing-4);
-  margin-bottom: var(--spacing-6);
+.footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-body);
+  font-size: var(--font-size-base);
 }
 
-@media (max-width: 767px) {
-  .summaryGrid {
-    grid-template-columns: repeat(2, 1fr);
+.footerLabel {
+  color: var(--color-text-secondary);
+}
+
+.footerFigure {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 479px) {
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-1);
   }
 }
 
-.summaryCard {
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
+/* ---- Company link (row secondary line and card fact) ---- */
 
-.summaryLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.summaryCount {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-}
-
-.summaryAmount {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.summaryAmountPaid {
-  color: var(--color-success-badge-text);
-}
-
-/* Money still owed (Story #2046) — deliberately NOT summaryAmountPaid: green would
-   read as money received, this is still outstanding. */
-.summaryAmountOpen {
-  color: var(--color-text-primary);
-}
-
-.summaryHint {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  margin-top: var(--spacing-1);
-}
-
-.summaryCardOverdue {
-  background: var(--color-warning-bg);
-  border: 1px solid var(--color-warning);
-}
-
-.summaryLabelOverdue {
-  color: var(--color-warning-text-on-light);
-}
-
-.summaryCountOverdue {
-  color: var(--color-warning-text-on-light);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-/* ---- Amount cell (right-aligned) ---- */
-
-.amountCell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-}
-
-/* ---- Invoice links ---- */
-
-.invoiceLink {
-  color: var(--color-primary);
-  text-decoration: none;
-  font-weight: var(--font-weight-medium);
-}
-
-.invoiceLink:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.invoiceLink:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm);
-}
-
-.invoiceLinkNoNumber {
-  color: var(--color-text-muted);
-}
-
-/* Invoice # cell wrapper (Story #2046) — link plus overdue/container flag badges. */
-.invoiceNumberCell {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  flex-wrap: wrap;
-}
-
-.vendorLink {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.vendorLink:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.vendorLink:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm);
-}
-
-/* ---- Form (in modal) ---- */
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
-}
-
-.formRow {
-  display: flex;
-  gap: var(--spacing-4);
-  align-items: flex-start;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.fieldGrow {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-}
-
-.required {
-  color: var(--color-danger);
-  margin-left: var(--spacing-0-5);
-}
-
-.input,
-.select,
-.textarea {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition: var(--transition-input);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.input:focus-visible,
-.select:focus-visible,
-.textarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.input:disabled,
-.select:disabled,
-.textarea:disabled {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
-.select {
-  cursor: pointer;
-}
-
-.textarea {
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.5;
-}
-
-/* ---- Actions menu ---- */
-
-.actionsMenu {
+/* Above the title's stretched link; a 44px target below 1024px. */
+.companyLink {
   position: relative;
-  display: inline-block;
-}
-
-.menuButton {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-button);
-}
-
-.menuButton:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.menuButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.menuDropdown {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: var(--spacing-1);
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 120px;
-  z-index: var(--z-dropdown);
-}
-
-.menuItem {
-  display: block;
-  width: 100%;
-  padding: var(--spacing-2-5) var(--spacing-4);
-  text-align: left;
-  background: none;
-  border: none;
+  z-index: var(--z-raised);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: var(--transition-normal);
+  text-decoration: none;
 }
 
-.menuItem:hover {
-  background-color: var(--color-bg-tertiary);
+.companyLink:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
 }
 
-.menuItem:focus-visible {
+.companyLink:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-primary);
-}
-
-.menuItem:first-child {
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.menuItem:last-child {
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-/* ---- "Show only open items" toggle (Story #2046) ---- */
-
-.openItemsToggleRow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  flex-wrap: wrap;
-}
-
-.openItemsToggle {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  min-height: 44px;
-  padding: var(--spacing-1) 0;
-  cursor: pointer;
-}
-
-.openItemsCheckbox {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-.openItemsCheckbox:focus-visible {
-  outline: none;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-focus);
 }
 
-.openItemsLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
+@media (max-width: 1023px) {
+  .companyLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+  }
 }
 
-.defaultSortHint {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
+/* ---- Notes column: one line, cut by CSS ---- */
 
-/* ---- Open-deposit child rows (Story #2046) ---- */
-
-.childAmount {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-}
-
-.childAmountNegative {
-  color: var(--color-danger-text-on-light);
-}
-
-.childCaption {
+.notes {
   display: block;
-  font-size: var(--font-size-2xs);
-  color: var(--color-text-muted);
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Progress payments (child rows) ---- */
+
+.childCell,
+.childCellEnd,
+.childCellMuted {
+  padding: var(--spacing-2) var(--spacing-3);
+  vertical-align: middle;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+}
+
+.childCellEnd {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 
 .childCellMuted {
   color: var(--color-text-muted);
 }
 
-/* ============================================================
- * RESPONSIVE — Mobile (max 767px)
- * ============================================================ */
-
-@media (max-width: 767px) {
-  .summaryGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .summaryCard {
-    padding: var(--spacing-3);
-  }
-
-  .summaryLabel {
-    font-size: var(--font-size-2xs);
-  }
-
-  .summaryCount {
-    font-size: var(--font-size-xl);
-  }
-
-  .summaryAmount {
-    font-size: var(--font-size-xs);
-  }
-
-  /* Form rows stack */
-  .formRow {
-    flex-direction: column;
-  }
+.childCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
 }
-
-/* ============================================================
- * RESPONSIVE — Tablet (768px – 1024px)
- * ============================================================ */

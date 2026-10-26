@@ -1,12 +1,17 @@
+.spacer {
+  width: 100%;
+  margin-top: var(--spacing-3);
+}
+
 .bar {
-  position: sticky;
-  bottom: 0;
+  position: fixed;
+  box-sizing: border-box;
+  bottom: var(--shell-bottom-height, 0);
   z-index: var(--z-dropdown);
   background-color: var(--color-bg-primary);
   border-top: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
   padding: var(--spacing-4);
-  margin-top: var(--spacing-3);
   display: flex;
   align-items: center;
   justify-content: space-between;

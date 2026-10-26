@@ -223,7 +223,7 @@ describe('invoiceService.listAllInvoices() — openOnly (Story #2046)', () => {
     expect(returnedIds.has(ids.D)).toBe(false);
   });
 
-  it('scenario 14: openOnly omitted is unchanged from pre-story behavior — deposits:[], no openAmount property', () => {
+  it('scenario 14: openOnly omitted still lists every record, with deposits and openAmount present (P4.6)', () => {
     const vendorId = createTestVendor('Regression Vendor');
     insertFixtureSet(vendorId);
 
@@ -233,8 +233,8 @@ describe('invoiceService.listAllInvoices() — openOnly (Story #2046)', () => {
     expect(withFlagOmitted.pagination.totalItems).toBe(withFlagUndefined.pagination.totalItems);
     expect(withFlagOmitted.invoices).toHaveLength(6); // all 6 invoices, unfiltered
     for (const inv of withFlagOmitted.invoices) {
-      expect(inv.deposits).toEqual([]);
-      expect(inv).not.toHaveProperty('openAmount');
+      expect(Array.isArray(inv.deposits)).toBe(true);
+      expect(typeof inv.openAmount).toBe('number');
     }
   });
 

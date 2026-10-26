@@ -2187,3 +2187,14 @@ A predicate such as `deselected.size > 0` treats a stale id as an active filter.
 "whole project" labels then disagree with an "n of N" count computed over the live option keys. Intersect the
 set with the live keys (`breakdownSourceKeys`) before deciding. Also on that PR: a `() => ''` stub that only
 satisfies a shared label interface is a finding. Make the member optional in the shared component instead.
+
+## List totals must reuse the money helpers on the subset (#2238 phase 0)
+
+Dev specs for filtered list totals tend to invent a near-copy of a money-service figure: #2238 proposed
+`progressPaid` (paid/claimed progress payments, refunds excluded) and `remaining = offered − paid`
+(unclamped), while the money service's offer Paid nets refunds and Remaining on offer is
+`Σ max(0, amount − Σ deposit-type entries of any status)`. Same label, different number = principle 5.
+Fix at contract time: totals = the money helper (`computeOpenAmounts`, `computePayments`) run on the
+matching records' `InvoiceDepositRow`s, row fields = the same helper on one record, and the fixture
+consistency block asserts the unfiltered call equals `money.*`. Also: a refresh-by-`ids` param must
+ignore `page`/`pageSize` and 400 above its cap; silent truncation reads as "row removed".

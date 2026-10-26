@@ -154,18 +154,24 @@
     "permanent": false,
     "carries": [
       "q",
+      "status",
+      "group",
       "sortBy",
       "sortOrder",
-      "page",
-      "pageSize",
-      "filters",
-      "status",
+      "vendorId",
+      "date",
+      "dueDate",
+      "amount",
+      "notYetSplit",
+      "withoutDocument",
+      "refundsDue",
+      "due",
       "create",
       "kind",
       "companyId",
       "openOnly"
     ],
-    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog. #2212 (interim until P4.9): ?create=1 opens today's create modal (or the Paperless picker); kind=offer presets status Offer (quotation); ?companyId= pre-fills the company. The page then removes these keys (replace). #2230: openOnly=true (open-items mode, oldest due first) is carried; Home's Still to pay tile links to routeUrl('invoices', undefined, { openOnly: 'true' }) until P4.6 serves the ?openOnly=true -> ?status=pending query map (the To pay chip)."
+    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) on the ObjectList template (#2238): status chips To pay · Offers · Paid · Submitted · All with counts; ?status= keeps the stored values (pending, quotation, paid, claimed) plus the template's all, absent = To pay. Paging retired (page/pageSize no longer carried): load-all up to 100, then batches. Filters panel: ?vendorId= (Company), ?date= / ?dueDate= (Invoice date, Due date ranges), ?amount= (range), Show only ?notYetSplit=1 · ?withoutDocument=1 · ?refundsDue=1 · ?due=1 (written only when on). ?group= Group by, ?sortBy= due_date|date|amount|vendor_name|invoice_number with ?sortOrder=. ?create=1 opens the New invoice dialog (kind=offer presets Offer; ?companyId= pre-fills the company); the page then removes these keys (replace). ?openOnly=true is served by the page: one replace to ?status=pending (the To pay chip); Home's Still to pay tile and Money's Still to pay fact link to routeUrl('invoices'), whose default chip is To pay."
   },
   {
     "from": "/budget/invoices/new/paperless",
@@ -933,7 +939,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Query map: the old open-items view = the To pay status (the default), which also lists offers with a progress payment to pay."
+    "note": "Query map: the old open-items view = the To pay status (the default), which also lists offers with a progress payment to pay. Served by the Invoices page (interim: page, #2238): a replace navigation."
   },
   {
     "from": "/settings/manage?tab=areas",

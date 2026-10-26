@@ -37,7 +37,7 @@ A row of five facts sits under the headline:
 | **Expected cost** | What the project is expected to cost, at the expected estimate |
 | **Expected grants** | Grants you expect to receive, counted up to their caps |
 | **Paid** | What you have paid so far. Select it to open [Invoices](/guides/budget/vendors-and-invoices). |
-| **Still to pay** | What is still open on your invoices. Select it to open the open invoices. |
+| **Still to pay** | What is still open on your invoices. Select it to open the **To pay** list of invoices. |
 
 Paid and Still to pay come from your invoices, so they open the invoice list. Deposits count as they are paid, so a [staged deposit](invoice-deposits) adds to Paid once it has been paid.
 

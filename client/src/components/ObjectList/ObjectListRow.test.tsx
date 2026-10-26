@@ -227,6 +227,44 @@ describe('ObjectListRow', () => {
     expect(screen.getByTestId('tasks-expand-t1')).toHaveAccessibleName('Hide 2 steps');
   });
 
+  it('child rows: title, status and command cells come from the renderers, the menu cell stays empty (#2238)', () => {
+    const { container } = renderRow({
+      hasStatus: true,
+      hasCommand: true,
+      hasMenu: true,
+      rowMenu: () => [],
+      expandable: {
+        ...expandable,
+        renderChildTitle: (child, parent) => <b>{`title ${child} of ${parent.id}`}</b>,
+        renderChildStatus: (child) => <i>{`status ${child}`}</i>,
+        renderChildCommand: (child) => <u>{`command ${child}`}</u>,
+      },
+    });
+    const child = screen.getByTestId('tasks-child-Buy tiles');
+    expect(within(child).getByText('title Buy tiles of t1')).toBeInTheDocument();
+    expect(within(child).getByText('status Buy tiles')).toBeInTheDocument();
+    expect(within(child).getByText('command Buy tiles')).toBeInTheDocument();
+    // leading (expand) + title + 2 columns + status + command + menu
+    expect(child.querySelectorAll('td')).toHaveLength(7);
+    expect(child.querySelectorAll('td')[6]).toBeEmptyDOMElement();
+    expect(container).toBeTruthy();
+  });
+
+  it('child rows: without the renderers the title, status and command cells are empty (#2238)', () => {
+    renderRow({ hasStatus: true, hasCommand: true, expandable });
+    const cells = screen.getByTestId('tasks-child-Buy tiles').querySelectorAll('td');
+    // leading + title + 2 columns + status + command
+    expect(cells).toHaveLength(6);
+    expect(cells[1]).toBeEmptyDOMElement();
+    expect(cells[4]).toBeEmptyDOMElement();
+    expect(cells[5]).toBeEmptyDOMElement();
+  });
+
+  it('child rows: no status, command or menu cell when the row has none (#2238)', () => {
+    renderRow({ expandable });
+    expect(screen.getByTestId('tasks-child-Buy tiles').querySelectorAll('td')).toHaveLength(4);
+  });
+
   it('table: expandable with no children has no toggle and no child rows', () => {
     renderRow({ expandable: { ...expandable, getChildren: () => [] } });
     expect(screen.queryByTestId('tasks-expand-t1')).not.toBeInTheDocument();

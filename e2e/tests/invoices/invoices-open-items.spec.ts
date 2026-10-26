@@ -1,41 +1,42 @@
 /**
- * E2E tests for Issue #2046 — Invoices "Show only open items" view with open
- * deposits as expandable child rows.
+ * E2E tests for Issue #2046 — open items with progress payments as expandable child rows —
+ * rebuilt on the Invoices list of #2238 (ObjectList, EPIC-21 P4.6).
  *
- * "Open" (fixed, not open for re-litigation): status === 'pending', applied
- * independently to invoices and deposits. Overdue (pending + dueDate in the past)
- * is a FLAG, not a status/bucket.
+ * The retired "Show only open items" toggle and `?openOnly=true` are now the To pay chip (the
+ * default, no URL param). Open means: status 'pending', applied independently to invoices and
+ * progress payments (deposit-type entries); refunds are listed but never counted as still to pay.
+ * Overdue (pending + due date in the past) is a FLAG, not a status or a chip.
  *
- * UAT scenarios covered (S20 — DataTable inertness on other pages — and S18's
- * colour judgement are QA/visual-inspection concerns out of scope here; S18's
- * viewport/theme visibility requirement IS covered below):
- *   S1  (AC1)      — toggle on lists A, B, C, E, F; excludes D
- *   S2  (AC6)      — toggle state persists across reload and Back/Forward
- *   S3  (AC2, AC10)— quotation invoice with a pending deposit is a container
- *   S4  (AC9)      — child rows are pending deposits only; no expand w/o deposits
+ *   S1  (AC1)      — To pay lists A, B, C, E, F; excludes the paid D
+ *   S2  (AC6)      — the chip persists across reload and Back (it is the URL)
+ *   S3  (AC2, AC10)— an offer with a pending progress payment is listed on To pay
+ *   S4  (AC9)      — child rows are pending entries only; no expand w/o entries
  *   S5  (AC11)     — expanded by default; collapse is local, not URL state
- *   S6  (AC13-15)  — Still due vs Amount; per-invoice sum equals the open total
- *   S7  (AC16)     — Still to pay tile is global/filter-independent
- *   S8  (AC18-20)  — refunds: signed, badged, excluded from Still due/payable
- *   S9  (AC21,25)  — overdue deposit flag; status unchanged; no "Overdue" filter option
+ *   S6  (AC13-15)  — Still to pay vs Amount; per-invoice sum equals the footer
+ *   S7  (AC16)     — the footer figure: global when unfiltered, "in this list" when filtered
+ *   S8  (AC18-20)  — refunds: signed, badged, excluded from Still to pay
+ *   S9  (AC21,25)  — overdue progress payment flag; status unchanged; no "Overdue" chip
  *   S10 (AC22-23)  — default order: earliest open due date asc, undated last
  *   S11 (AC24)     — an explicit sort overrides the default order
- *   S12 (AC7)      — toggle vs. Status filter mutual exclusivity
- *   S13 (AC8)      — composes with a vendor filter
- *   S14 (AC26)     — positive "nothing open" empty state
+ *   S12 (AC7)      — chips are exclusive and the default chip writes no param
+ *   S13 (AC8)      — composes with a company filter
+ *   S14 (AC26)     — positive "nothing to pay" empty state
  *   S15 (AC27)     — filtered-to-nothing uses the generic empty state
- *   S16 (AC28)     — mobile (320px): card-nested deposits, no overflow
+ *   S16 (AC28)     — mobile (320px): card-nested progress payments, no overflow
  *   S17 (AC30-31)  — keyboard operability + accessible names
  *   S18 (AC29)     — tablet/desktop, light/dark: rows remain visible
- *   S19 (AC12,33)  — toggle off regresses to exactly today's behaviour
- *   S21 (AC4)      — pagination counts invoices only, not deposit rows
+ *   S19 (AC12,33)  — other chips are collapsed by default and list every entry
+ *   S21 (AC4)      — the count and rows are invoices only, not progress payment rows
+ *
+ * S20 (DataTable inertness on other pages) and S18's colour judgement are QA/visual concerns.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import type { Page, Locator, Response as PwResponse } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import { emptyInvoiceListResponse } from '../../fixtures/invoiceListMocks.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createVendorViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -130,28 +131,28 @@ async function createDepositViaApi(
   return body.deposit;
 }
 
-/** The Status column's filter trigger button, located via its header (name-independent
- * of the aria-label's disabled-hint text, which changes while the open-items toggle is on). */
-function statusFilterButton(page: Page): Locator {
-  return page.getByRole('columnheader', { name: /^Status\b/ }).locator('button');
+/** Open the To pay chip (the default) scoped to one company, and wait for the rows. */
+async function openToPay(page: Page, vendorId: string, extra = ''): Promise<InvoicesPage> {
+  const invoicesPage = new InvoicesPage(page);
+  await invoicesPage.gotoChip('pending', `vendorId=${vendorId}${extra ? `&${extra}` : ''}`);
+  return invoicesPage;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S1/AC1 — toggle on lists A, B, C, E, F; excludes D
+// S1/AC1 — To pay lists A, B, C, E, F; excludes the paid D
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — toggle shows only open invoices/deposits (Scenario 1, AC1)', () => {
-  test('Toggling "Show only open items" lists A, B, C, E, F and excludes D', async ({
+test.describe('Open items — the To pay chip shows only open invoices and entries (Scenario 1, AC1)', () => {
+  test('The To pay chip lists A, B, C, E, F and excludes the paid D', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
       vendorId = await createVendorViaApi(page, { name: `${testPrefix} Open Vendor` });
 
-      // A: pending, 2 pending deposits + 1 paid deposit
+      // A: pending, 2 pending progress payments + 1 paid
       const a = await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-A`,
         amount: 1000,
@@ -166,7 +167,7 @@ test.describe('Open items — toggle shows only open invoices/deposits (Scenario
         status: 'paid',
       });
 
-      // B: pending, no deposits
+      // B: pending, no progress payments
       await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-B`,
         amount: 500,
@@ -174,7 +175,7 @@ test.describe('Open items — toggle shows only open invoices/deposits (Scenario
         status: 'pending',
       });
 
-      // C: quotation, 1 pending deposit
+      // C: offer, 1 pending progress payment
       const c = await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-C`,
         amount: 300,
@@ -212,21 +213,20 @@ test.describe('Open items — toggle shows only open invoices/deposits (Scenario
         entryType: 'refund',
       });
 
-      // Scope to our own vendor via URL (a real, existing filter — AC8) so parallel
-      // workers' invoices never dilute this page's contents, then exercise the
-      // toggle itself via the UI.
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      // Scope to our own company via its filter param so parallel workers' invoices never
+      // dilute this page's contents.
+      const invoicesPage = await openToPay(page, vendorId);
+      await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'true');
 
-      const numbers = await invoicesPage.getInvoiceNumbers();
-      expect(numbers).toContain(`${testPrefix}-A`);
-      expect(numbers).toContain(`${testPrefix}-B`);
-      expect(numbers).toContain(`${testPrefix}-C`);
-      expect(numbers).toContain(`${testPrefix}-E`);
-      expect(numbers).toContain(`${testPrefix}-F`);
-      expect(numbers).not.toContain(`${testPrefix}-D`);
+      await expect
+        .poll(async () => (await invoicesPage.getInvoiceNumbers()).sort())
+        .toEqual([
+          `${testPrefix}-A`,
+          `${testPrefix}-B`,
+          `${testPrefix}-C`,
+          `${testPrefix}-E`,
+          `${testPrefix}-F`,
+        ]);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -234,11 +234,11 @@ test.describe('Open items — toggle shows only open invoices/deposits (Scenario
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S2/AC6 — toggle state persists across reload and Back/Forward
+// S2/AC6 — the chip persists across reload and Back
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — toggle persists across reload and back navigation (Scenario 2, AC6)', () => {
-  test('Toggle stays ON after a full reload and after Back from another page', async ({
+test.describe('Open items — the chip persists across reload and back navigation (Scenario 2, AC6)', () => {
+  test('The Offers chip stays pressed after a full reload and after Back from another page', async ({
     page,
     testPrefix,
   }) => {
@@ -251,28 +251,25 @@ test.describe('Open items — toggle persists across reload and back navigation 
         invoiceNumber: `${testPrefix}-PERSIST`,
         amount: 100,
         date: daysAgo(30),
-        status: 'pending',
+        status: 'quotation',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
-
+      await invoicesPage.gotoChip('quotation', `vendorId=${vendorId}`);
+      await expect(invoicesPage.chip('quotation')).toHaveAttribute('aria-pressed', 'true');
       const numbersBefore = await invoicesPage.getInvoiceNumbers();
       expect(numbersBefore).toContain(`${testPrefix}-PERSIST`);
 
-      // Full page reload — the toggle is restored from the URL, not from memory.
+      // Full page reload — the chip is restored from the URL, not from memory.
       await page.reload();
       await invoicesPage.heading.waitFor({ state: 'visible' });
-      await expect(invoicesPage.openItemsToggle).toBeChecked();
+      await expect(invoicesPage.chip('quotation')).toHaveAttribute('aria-pressed', 'true');
       await expect.poll(() => invoicesPage.getInvoiceNumbers()).toEqual(numbersBefore);
 
       // Navigate away and back via Back — same restoration.
       await page.goto(routeUrl('companies'));
       await page.goBack();
       await invoicesPage.heading.waitFor({ state: 'visible' });
-      await expect(invoicesPage.openItemsToggle).toBeChecked();
+      await expect(invoicesPage.chip('quotation')).toHaveAttribute('aria-pressed', 'true');
       await expect.poll(() => invoicesPage.getInvoiceNumbers()).toEqual(numbersBefore);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
@@ -281,15 +278,14 @@ test.describe('Open items — toggle persists across reload and back navigation 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S3/AC2, AC10 — quotation invoice with a pending deposit is a container
+// S3/AC2, AC10 — an offer with a pending progress payment is on To pay
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — quotation invoice as a deposit container (Scenario 3, AC2, AC10)', () => {
-  test('A quotation invoice with a pending deposit is listed as a container; its own face value is excluded from the open total', async ({
+test.describe('Open items — an offer with a progress payment to pay (Scenario 3, AC2, AC10)', () => {
+  test('An offer with a pending progress payment is listed on To pay; its own face value is excluded from what is still to pay', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -305,16 +301,15 @@ test.describe('Open items — quotation invoice as a deposit container (Scenario
         dueDate: daysFromNow(10),
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      // Real status badge unchanged, plus the container flag
-      await expect(page.getByTestId(`invoice-status-${c.id}`)).toContainText('Offer');
-      await expect(invoicesPage.containerChip(c.id)).toBeVisible();
+      // Real status badge unchanged (Offer); the table adds "Progress payments only"
+      await expect(invoicesPage.statusBadge(c.id)).toContainText('Offer');
+      if (await invoicesPage.isTableSurface()) {
+        await expect(invoicesPage.progressOnlyBadge(c.id)).toBeVisible();
+      }
 
-      // The invoice's 5000 face value contributes nothing — only the 75 deposit does.
+      // The offer's 5000 face value contributes nothing — only the 75 progress payment does.
       const resp = await page.request.get(`/api/invoices?openOnly=true&vendorId=${vendorId}`);
       expect(resp.ok()).toBeTruthy();
       const body = (await resp.json()) as {
@@ -329,15 +324,14 @@ test.describe('Open items — quotation invoice as a deposit container (Scenario
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S4/AC9 — child rows are pending deposits only; no expand control without them
+// S4/AC9 — child rows are pending entries only; no expand control without them
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — expandable rows show only pending deposits (Scenario 4, AC9)', () => {
-  test('A parent with 2 pending + 1 paid deposit shows exactly 2 child rows; a parent with no deposits has no expand control', async ({
+test.describe('Open items — expandable rows show only pending entries (Scenario 4, AC9)', () => {
+  test('A parent with 2 pending + 1 paid progress payment shows exactly the 2 pending; a parent with none has no expand control', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -348,9 +342,9 @@ test.describe('Open items — expandable rows show only pending deposits (Scenar
         date: daysAgo(30),
         status: 'pending',
       });
-      await createDepositViaApi(page, a.id, { amount: 100, dueDate: daysFromNow(5) });
-      await createDepositViaApi(page, a.id, { amount: 100, dueDate: daysFromNow(15) });
-      await createDepositViaApi(page, a.id, {
+      const d1 = await createDepositViaApi(page, a.id, { amount: 100, dueDate: daysFromNow(5) });
+      const d2 = await createDepositViaApi(page, a.id, { amount: 100, dueDate: daysFromNow(15) });
+      const dPaid = await createDepositViaApi(page, a.id, {
         amount: 300,
         dueDate: daysAgo(5),
         status: 'paid',
@@ -363,13 +357,13 @@ test.describe('Open items — expandable rows show only pending deposits (Scenar
         status: 'pending',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      await expect(invoicesPage.childRows(a.id)).toHaveCount(2);
-      await expect(invoicesPage.expandButton(b.id)).toHaveCount(0);
+      await expect(invoicesPage.childStatus(d1.id)).toBeVisible();
+      await expect(invoicesPage.childStatus(d2.id)).toBeVisible();
+      await expect(invoicesPage.childStatus(dPaid.id)).toHaveCount(0);
+      await expect(invoicesPage.expandToggle(a.id)).toBeVisible();
+      await expect(invoicesPage.expandToggle(b.id)).toHaveCount(0);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -381,11 +375,10 @@ test.describe('Open items — expandable rows show only pending deposits (Scenar
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Open items — default expansion is local, not URL state (Scenario 5, AC11)', () => {
-  test('A parent with pending deposits is expanded by default; collapsing hides children without changing the URL; reload re-expands', async ({
+  test('A parent with pending entries is expanded by default; collapsing hides children without changing the URL; reload re-expands', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -396,27 +389,24 @@ test.describe('Open items — default expansion is local, not URL state (Scenari
         date: daysAgo(30),
         status: 'pending',
       });
-      await createDepositViaApi(page, a.id, { amount: 50, dueDate: daysFromNow(5) });
+      const dep = await createDepositViaApi(page, a.id, { amount: 50, dueDate: daysFromNow(5) });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
       // Expanded by default
-      await expect(invoicesPage.childRows(a.id)).toHaveCount(1);
-      await expect(invoicesPage.expandButton(a.id)).toHaveAttribute('aria-expanded', 'true');
+      await expect(invoicesPage.childStatus(dep.id)).toBeVisible();
+      await expect(invoicesPage.expandToggle(a.id)).toHaveAttribute('aria-expanded', 'true');
 
       const urlBefore = page.url();
-      await invoicesPage.expandButton(a.id).click();
-      await expect(invoicesPage.expandButton(a.id)).toHaveAttribute('aria-expanded', 'false');
-      await expect(invoicesPage.childRows(a.id)).toHaveCount(0);
+      await invoicesPage.expandToggle(a.id).click();
+      await expect(invoicesPage.expandToggle(a.id)).toHaveAttribute('aria-expanded', 'false');
+      await expect(invoicesPage.childStatus(dep.id)).toHaveCount(0);
       expect(page.url()).toBe(urlBefore);
 
       await page.reload();
       await invoicesPage.heading.waitFor({ state: 'visible' });
-      await expect(invoicesPage.expandButton(a.id)).toHaveAttribute('aria-expanded', 'true');
-      await expect(invoicesPage.childRows(a.id)).toHaveCount(1);
+      await expect(invoicesPage.expandToggle(a.id)).toHaveAttribute('aria-expanded', 'true');
+      await expect(invoicesPage.childStatus(dep.id)).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -424,15 +414,14 @@ test.describe('Open items — default expansion is local, not URL state (Scenari
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S6/AC13-15 — Still due vs Amount; per-invoice sum equals the open total
+// S6/AC13-15 — Still to pay vs Amount; per-invoice sum equals the open total
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — Still due vs Amount, and the anti-double-counting sum (Scenario 6, AC13-15)', () => {
-  test('The Still due cell reflects paid/pending deposits, the Amount cell stays the full total, and per-invoice open amounts sum to the open payable total', async ({
+test.describe('Open items — Still to pay vs Amount, and the anti-double-counting sum (Scenario 6, AC13-15)', () => {
+  test('The Still to pay cell reflects paid/pending entries, the Amount cell stays the full total, and per-invoice open amounts sum to the open payable total', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -449,41 +438,26 @@ test.describe('Open items — Still due vs Amount, and the anti-double-counting 
         status: 'paid',
       });
       await createDepositViaApi(page, a.id, { amount: 150, dueDate: daysFromNow(10) });
-      // still due = max(0, 1000 - (200+150)) + 150 = 650 + 150 = 800
+      // still to pay = max(0, 1000 - (200+150)) + 150 = 650 + 150 = 800
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      const stillDue = await invoicesPage.stillDueCell(a.id);
-      await expect(stillDue).toHaveText(/800/);
-      const amount = await invoicesPage.amountCell(a.id);
-      await expect(amount).toHaveText(/1,000/);
+      expect(await invoicesPage.cellText(a.id, 'Still to pay')).toMatch(/800/);
+      expect(await invoicesPage.cellText(a.id, 'Amount')).toMatch(/1,000/);
 
-      // AC15 cross-check: Σ per-invoice openAmount across the FULL result set (all
-      // pages, unfiltered) equals summary.openPayable.totalAmount EXACTLY, computed
-      // within one API snapshot — immune to other workers' concurrent data since both
-      // figures are derived from the exact same request/response.
-      let pageNum = 1;
-      let sum = 0;
-      let openPayableTotal = 0;
-      for (;;) {
-        const resp = await page.request.get(
-          `/api/invoices?openOnly=true&page=${pageNum}&pageSize=100`,
-        );
-        expect(resp.ok()).toBeTruthy();
-        const body = (await resp.json()) as {
-          invoices: Array<{ openAmount?: number }>;
-          pagination: { totalPages: number };
-          summary: { openPayable: { totalAmount: number } };
-        };
-        sum += body.invoices.reduce((s, inv) => s + (inv.openAmount ?? 0), 0);
-        openPayableTotal = body.summary.openPayable.totalAmount;
-        if (pageNum >= body.pagination.totalPages) break;
-        pageNum++;
-      }
-      expect(sum).toBeCloseTo(openPayableTotal, 2);
+      // AC15 cross-check inside one API snapshot of this company: Σ per-invoice openAmount
+      // equals listTotals.openPayable.totalAmount EXACTLY.
+      const scoped = await page.request.get(
+        `/api/invoices?openOnly=true&vendorId=${vendorId}&pageSize=100`,
+      );
+      expect(scoped.ok()).toBeTruthy();
+      const scopedBody = (await scoped.json()) as {
+        invoices: Array<{ openAmount: number }>;
+        listTotals: { openPayable: { totalAmount: number } };
+      };
+      const scopedSum = scopedBody.invoices.reduce((s, inv) => s + inv.openAmount, 0);
+      expect(scopedSum).toBeCloseTo(scopedBody.listTotals.openPayable.totalAmount, 2);
+      expect(scopedSum).toBeCloseTo(800, 2);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -491,46 +465,17 @@ test.describe('Open items — Still due vs Amount, and the anti-double-counting 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S7/AC16 — Still to pay tile is global/filter-independent
+// S7/AC16 — the To pay footer: global when unfiltered, "in this list" when filtered
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC16)', () => {
-  test('The tile value is identical with the toggle off, on, and with a vendor filter applied', async ({
+test.describe('Open items — the "Still to pay" footer (Scenario 7, AC16)', () => {
+  test('Unfiltered, the footer figure is the server open payable total; with a company filter it is labelled "in this list" and carries no figure marker', async ({
     page,
     testPrefix,
   }) => {
     const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
     let otherVendorId = '';
-
-    // Other workers create/delete invoices concurrently, so the global total is a moving
-    // target across page loads. Instead of comparing three separate DOM reads, each view's
-    // tile is checked against the summary.openPayable.totalAmount of the very response
-    // that rendered it, and globality is proven with a lower bound only this test controls.
-    const isInvoiceList = (resp: PwResponse) =>
-      new URL(resp.url()).pathname === '/api/invoices' && resp.request().method() === 'GET';
-    const readTotal = async (resp: PwResponse): Promise<number> => {
-      const body = (await resp.json()) as { summary: { openPayable: { totalAmount: number } } };
-      return body.summary.openPayable.totalAmount;
-    };
-    const tileValue = async (): Promise<number> => {
-      const text = await invoicesPage.openPayableCard
-        .locator('[class*="summaryAmount"]')
-        .textContent();
-      return Number((text ?? '').replace(/[^0-9.]/g, ''));
-    };
-
-    // A page load can issue more than one list request and other workers keep changing the total,
-    // so the tile may show the answer of a later request than the one a test waited for. It must
-    // match a total the server actually sent for this view.
-    const seenTotals: number[] = [];
-    page.on('response', (resp) => {
-      if (isInvoiceList(resp)) void readTotal(resp).then((total) => seenTotals.push(total));
-    });
-    const tileShowsServedTotal = async (): Promise<boolean> => {
-      const value = await tileValue();
-      return seenTotals.some((total) => Math.abs(total - value) < 0.005);
-    };
 
     try {
       vendorId = await createVendorViaApi(page, { name: `${testPrefix} GlobalTile Vendor` });
@@ -547,39 +492,43 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
         date: daysAgo(10),
         status: 'pending',
       });
-      // Both invoices stay open for the whole test, so any global total must include them.
+      // Both invoices stay open for the whole test, so the global total includes them.
       const ownMinimum = 250 + 777;
 
-      // 1. Toggle off
-      const offResponse = page.waitForResponse(isInvoiceList);
+      // Other workers change the total concurrently, so the figure shown is compared with the
+      // totals the responses that rendered it carried.
+      const served: number[] = [];
+      page.on('response', (resp) => {
+        if (new URL(resp.url()).pathname === '/api/invoices' && resp.request().method() === 'GET') {
+          void resp
+            .json()
+            .then((body: { listTotals?: { openPayable: { totalAmount: number } } }) => {
+              if (body.listTotals) served.push(body.listTotals.openPayable.totalAmount);
+            })
+            .catch(() => undefined);
+        }
+      });
+      const shown = async (): Promise<number> =>
+        Number(((await invoicesPage.footerFigure.textContent()) ?? '').replace(/[^0-9.]/g, ''));
+
+      // Unfiltered: the labelled, marked figure
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
-      const totalOff = await readTotal(await offResponse);
-      await expect.poll(tileShowsServedTotal).toBe(true);
-      expect(totalOff).toBeGreaterThanOrEqual(ownMinimum);
+      await expect(invoicesPage.footerFigure).toHaveAttribute('data-figure', 'still-to-pay');
+      await expect(invoicesPage.footerLabel).toHaveText('Still to pay');
+      await expect
+        .poll(async () => {
+          const value = await shown();
+          return served.some((t) => Math.abs(t - value) < 0.005);
+        })
+        .toBe(true);
+      expect(await shown()).toBeGreaterThanOrEqual(ownMinimum);
 
-      // 2. Toggle on
-      const onResponse = page.waitForResponse(
-        (resp) =>
-          isInvoiceList(resp) && new URL(resp.url()).searchParams.get('openOnly') === 'true',
-      );
-      await invoicesPage.setOpenItemsOnly(true);
-      const totalOn = await readTotal(await onResponse);
-      await expect.poll(tileShowsServedTotal).toBe(true);
-      expect(totalOn).toBeGreaterThanOrEqual(ownMinimum);
-
-      // 3. Vendor filter: the tile still reflects the global total (includes the OTHER
-      // vendor's invoice), not just the filtered vendor's 250.
-      const filteredResponse = page.waitForResponse(
-        (resp) =>
-          isInvoiceList(resp) && new URL(resp.url()).searchParams.get('vendorId') === vendorId,
-      );
-      await page.goto(`${INVOICES_ROUTE}?openOnly=true&vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      const totalFiltered = await readTotal(await filteredResponse);
-      await expect.poll(tileShowsServedTotal).toBe(true);
-      expect(totalFiltered).toBeGreaterThanOrEqual(ownMinimum);
+      // Filtered to one company: the figure is that company's only, and is not the project figure
+      await invoicesPage.gotoChip('pending', `vendorId=${vendorId}`);
+      await expect(invoicesPage.footerLabel).toHaveText('Still to pay in this list');
+      await expect(invoicesPage.footerFigure).not.toHaveAttribute('data-figure', /.+/);
+      await expect(invoicesPage.footerFigure).toHaveText(/250\.00/);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
       if (otherVendorId) await deleteVendorWithInvoices(page, otherVendorId);
@@ -588,15 +537,14 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S8/AC18-20 — refunds: signed, badged, excluded from Still due/payable
+// S8/AC18-20 — refunds: signed, badged, excluded from Still to pay / payable
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Open items — refunds render distinctly and are excluded from the payable total (Scenario 8, AC18-19)', () => {
-  test('A pending refund renders as a signed, badged child row excluded from Still due; the refunds tile reflects it', async ({
+  test('A pending refund renders as a signed, badged child row excluded from Still to pay; Filters offers "Refunds due"', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -613,34 +561,24 @@ test.describe('Open items — refunds render distinctly and are excluded from th
         entryType: 'refund',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      const childRow = invoicesPage.rowGroup(f.id).locator('tr[class*="childRow"]');
-      await expect(childRow.getByText('Refund', { exact: true })).toBeVisible();
-      await expect(childRow.locator('[class*="childCaption"]')).toHaveText(
-        'Reported separately below',
-      );
-      const amountText =
-        (await childRow.locator('[class*="childAmount"]').textContent())?.trim() ?? '';
-      expect(amountText.startsWith('-')).toBe(true);
-      expect(amountText).toContain('150');
+      // The refund child: a Refund badge and a signed amount, in the table row or the card
+      await expect(invoicesPage.childStatus(refund.id)).toBeVisible();
+      await expect(invoicesPage.expandToggle(f.id)).toHaveAttribute('aria-expanded', 'true');
+      if (await invoicesPage.isTableSurface()) {
+        const childRow = invoicesPage.childRow(refund.id);
+        await expect(childRow.getByText('Refund', { exact: true })).toBeVisible();
+        await expect(childRow).toContainText('-');
+        await expect(childRow).toContainText('150');
+        // Still to pay excludes the refund entirely: the full invoice amount
+        expect(await invoicesPage.cellText(f.id, 'Still to pay')).toMatch(/800/);
+      }
 
-      // Still due excludes the refund entirely: with no deposit-type entries, still
-      // due equals the full invoice amount.
-      const stillDue = await invoicesPage.stillDueCell(f.id);
-      await expect(stillDue).toHaveText(/800/);
-
-      // Refunds tile surfaces the refund total. This is a GLOBAL figure (like AC16's
-      // open payable tile), so assert presence + a floor rather than exact equality —
-      // other concurrent test data may also contribute pending refunds.
-      await expect(invoicesPage.refundsDueCard).toBeVisible();
-      const refundsText =
-        (await invoicesPage.refundsDueCard.locator('[class*="summaryAmount"]').textContent()) ?? '';
-      const refundsAmount = parseFloat(refundsText.replace(/[^0-9.]/g, ''));
-      expect(refundsAmount).toBeGreaterThanOrEqual(refund.amount);
+      // Refunds due is offered in Filters with a count and an amount (a global figure: floor only)
+      await invoicesPage.openFilters();
+      await expect(invoicesPage.showOnly('refundsDue')).toBeVisible();
+      await expect(invoicesPage.filtersSurface).toContainText(/Refunds due \(\d+ · /);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -648,11 +586,10 @@ test.describe('Open items — refunds render distinctly and are excluded from th
 });
 
 test.describe('Open items — a refund-only open item has zero open payable amount (Scenario 8, AC20)', () => {
-  test('An invoice whose only open entry is a pending refund appears with openAmount 0', async ({
+  test('A paid invoice whose only open entry is a pending refund is listed with openAmount 0', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -669,13 +606,14 @@ test.describe('Open items — a refund-only open item has zero open payable amou
         entryType: 'refund',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
       // Listed (via its pending refund) even though its own status is 'paid'
-      await expect(invoicesPage.containerChip(g.id)).toBeVisible();
+      await expect(invoicesPage.title(g.id)).toBeVisible();
+      await expect(invoicesPage.statusBadge(g.id)).toContainText('Paid');
+      if (await invoicesPage.isTableSurface()) {
+        await expect(invoicesPage.progressOnlyBadge(g.id)).toBeVisible();
+      }
 
       const resp = await page.request.get(`/api/invoices?openOnly=true&vendorId=${vendorId}`);
       expect(resp.ok()).toBeTruthy();
@@ -691,15 +629,14 @@ test.describe('Open items — a refund-only open item has zero open payable amou
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S9/AC21, AC25 — overdue deposit flag; status unchanged; no "Overdue" filter option
+// S9/AC21, AC25 — overdue flag; status unchanged; no "Overdue" chip
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — overdue deposits are flagged without changing status; discoverable when collapsed (Scenario 9, AC21, AC25)', () => {
-  test('An overdue pending deposit shows the overdue chip and keeps its To pay status; the parent shows a flag chip even when collapsed', async ({
+test.describe('Open items — overdue progress payments are flagged without changing status; discoverable when collapsed (Scenario 9, AC21, AC25)', () => {
+  test('An overdue pending progress payment shows the flag and keeps its To pay status; the parent flags it even when collapsed', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -713,38 +650,38 @@ test.describe('Open items — overdue deposits are flagged without changing stat
       });
       const dep = await createDepositViaApi(page, h.id, { amount: 100, dueDate: daysAgo(5) });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      await expect(invoicesPage.depositOverdueChip(dep.id)).toBeVisible();
-      await expect(invoicesPage.depositStatusBadge(dep.id)).toContainText('To pay');
+      await expect(invoicesPage.childFlag(dep.id)).toHaveText('Overdue');
+      await expect(invoicesPage.childStatus(dep.id)).toContainText('To pay');
 
-      // Collapse the parent — the overdue flag remains discoverable on the parent row
-      await invoicesPage.expandButton(h.id).click();
-      await expect(invoicesPage.childRows(h.id)).toHaveCount(0);
-      await expect(invoicesPage.overdueChip(h.id)).toBeVisible();
-      // The invoice itself is not overdue (its own dueDate is in the future) — its own
-      // status badge stays "To pay", never replaced by a new status.
-      await expect(page.getByTestId(`invoice-status-${h.id}`)).toContainText('To pay');
+      // Collapse the parent — "Progress payment overdue" stays discoverable on the parent row
+      // (table). The invoice itself is not overdue (its due date is in the future).
+      await invoicesPage.expandToggle(h.id).click();
+      await expect(invoicesPage.childStatus(dep.id)).toHaveCount(0);
+      if (await invoicesPage.isTableSurface()) {
+        await expect(invoicesPage.progressOverdueBadge(h.id)).toHaveText(
+          'Progress payment overdue',
+        );
+      }
+      await expect(invoicesPage.flagBadge(h.id)).toHaveCount(0);
+      await expect(invoicesPage.statusBadge(h.id)).toContainText('To pay');
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 
-  test('The Status column filter never offers an "Overdue" option', async ({ page }) => {
+  test('There is no "Overdue" chip: the chips are To pay, Offers, Paid, Submitted and All', async ({
+    page,
+  }) => {
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
     await invoicesPage.waitForLoaded();
 
-    await statusFilterButton(page).click();
-
-    await expect(page.getByRole('checkbox', { name: 'To pay' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Paid' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Submitted' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Offer' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Overdue' })).toHaveCount(0);
+    await expect(
+      page.getByRole('group', { name: 'Filter by status' }).getByRole('button'),
+    ).toHaveCount(5);
+    await expect(page.getByRole('button', { name: /^Overdue/ })).toHaveCount(0);
   });
 });
 
@@ -757,7 +694,6 @@ test.describe('Open items — default ordering is earliest open due date ascendi
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -777,14 +713,14 @@ test.describe('Open items — default ordering is earliest open due date ascendi
         dueDate: daysFromNow(2),
         status: 'pending',
       });
-      // P3: pending, no dueDate at all, no deposits — no open due date anywhere
+      // P3: pending, no dueDate at all, no progress payments — no open due date anywhere
       await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-P3`,
         amount: 200,
         date: daysAgo(30),
         status: 'pending',
       });
-      // P4: quotation container — only its pending deposit's due date counts
+      // P4: offer — only its pending progress payment's due date counts
       const p4 = await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-P4`,
         amount: 300,
@@ -793,16 +729,13 @@ test.describe('Open items — default ordering is earliest open due date ascendi
       });
       await createDepositViaApi(page, p4.id, { amount: 50, dueDate: daysFromNow(5) });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
       await expect
         .poll(() => invoicesPage.getInvoiceNumbers())
         .toEqual([
           `${testPrefix}-P2`, // due in 2 days
-          `${testPrefix}-P4`, // deposit due in 5 days
+          `${testPrefix}-P4`, // progress payment due in 5 days
           `${testPrefix}-P1`, // due in 10 days
           `${testPrefix}-P3`, // no due date anywhere — sorts last
         ]);
@@ -817,11 +750,10 @@ test.describe('Open items — default ordering is earliest open due date ascendi
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Open items — an explicit sort overrides the default ordering (Scenario 11, AC24)', () => {
-  test('Sorting by Amount overrides the earliest-due-date default; the toggle and openOnly stay on', async ({
+  test('Sorting by Amount overrides the earliest-due-date default; the To pay chip stays pressed', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -850,28 +782,23 @@ test.describe('Open items — an explicit sort overrides the default ordering (S
         status: 'pending',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
       // Default (no explicit sort): ascending by earliest open due date
       await expect
         .poll(() => invoicesPage.getInvoiceNumbers())
         .toEqual([`${testPrefix}-S2`, `${testPrefix}-S3`, `${testPrefix}-S1`]);
 
-      // Explicit sort: click the Amount header's label twice (none -> asc -> desc)
-      const amountHeader = page.getByRole('columnheader', { name: 'Amount' });
-      const amountLabel = amountHeader.locator('[class*="tableHeaderLabel"]');
-      await amountLabel.click();
-      await amountLabel.click();
+      // Explicit sort: the Amount header (table) cycles none -> asc -> desc
+      await page.getByTestId('invoices-sort-header-amount').click();
+      await page.getByTestId('invoices-sort-header-amount').click();
 
       await expect
         .poll(() => invoicesPage.getInvoiceNumbers())
         .toEqual([`${testPrefix}-S1`, `${testPrefix}-S3`, `${testPrefix}-S2`]); // 300, 200, 100 desc
 
-      await expect(invoicesPage.openItemsToggle).toBeChecked();
-      expect(page.url()).toContain('openOnly=true');
+      await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'true');
+      expect(page.url()).toContain('sortBy=amount');
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -879,41 +806,38 @@ test.describe('Open items — an explicit sort overrides the default ordering (S
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S12/AC7 — toggle vs. Status filter mutual exclusivity
+// S12/AC7 — chips are exclusive; the default chip writes no param
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — toggle and Status filter are mutually exclusive (Scenario 12, AC7)', () => {
-  test('Checking the toggle while status=paid is active clears the status filter and disables its control; unchecking re-enables it', async ({
+test.describe('Open items — status chips are exclusive and follow the status param (Scenario 12, AC7)', () => {
+  test('Pressing Paid unpresses To pay and writes status=paid; pressing To pay again removes the param', async ({
     page,
   }) => {
     const invoicesPage = new InvoicesPage(page);
-    await page.goto(`${INVOICES_ROUTE}?status=paid`);
-    await invoicesPage.heading.waitFor({ state: 'visible' });
+    await invoicesPage.goto();
     await invoicesPage.waitForLoaded();
+    await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'true');
 
-    await expect(statusFilterButton(page)).toBeEnabled();
+    await invoicesPage.selectChip('paid');
+    await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'false');
+    expect(new URL(page.url()).searchParams.get('status')).toBe('paid');
 
-    await invoicesPage.setOpenItemsOnly(true);
-
-    expect(page.url()).not.toContain('status=paid');
-    expect(page.url()).toContain('openOnly=true');
-    await expect(statusFilterButton(page)).toBeDisabled();
-
-    await invoicesPage.setOpenItemsOnly(false);
-    await expect(statusFilterButton(page)).toBeEnabled();
+    await invoicesPage.selectChip('pending');
+    await expect(invoicesPage.chip('paid')).toHaveAttribute('aria-pressed', 'false');
+    // The default chip is the absence of the param
+    expect(new URL(page.url()).searchParams.has('status')).toBe(false);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S13/AC8 — composes with a vendor filter
+// S13/AC8 — composes with a company filter
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — composes with a vendor filter (Scenario 13, AC8)', () => {
-  test("Toggle on + a vendor filter shows only that vendor's open invoice", async ({
+test.describe('Open items — composes with a company filter (Scenario 13, AC8)', () => {
+  test("To pay + a company filter shows only that company's open invoice", async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorAId = '';
     let vendorBId = '';
 
@@ -933,9 +857,7 @@ test.describe('Open items — composes with a vendor filter (Scenario 13, AC8)',
         status: 'pending',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?openOnly=true&vendorId=${vendorAId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
+      const invoicesPage = await openToPay(page, vendorAId);
 
       const numbers = await invoicesPage.getInvoiceNumbers();
       expect(numbers).toContain(`${testPrefix}-COMPA`);
@@ -948,56 +870,37 @@ test.describe('Open items — composes with a vendor filter (Scenario 13, AC8)',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S14/AC26 — positive "nothing open" empty state
+// S14/AC26 — positive "nothing to pay" empty state
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — positive "nothing open" empty state (Scenario 14, AC26)', () => {
-  test('When no open items exist, a positive empty state renders without the "add first invoice" CTA', async ({
+test.describe('Open items — positive "nothing to pay" empty state (Scenario 14, AC26)', () => {
+  test('When nothing is to pay, a positive empty state renders without the "add first invoice" CTA', async ({
     page,
   }) => {
     const invoicesPage = new InvoicesPage(page);
 
-    // A genuinely empty "nothing open across the whole system" state cannot be
-    // guaranteed in a shared, parallel-worker database — mock the response for
-    // this one deterministic assertion (matches the existing empty-state test's
-    // pattern in invoices.spec.ts).
+    // A genuinely empty "nothing to pay across the whole system" state cannot be guaranteed in a
+    // shared, parallel-worker database — mock the response for this one deterministic assertion.
     await page.route('/api/invoices*', async (route) => {
-      const request = route.request();
-      if (request.method() !== 'GET') {
-        await route.continue();
-        return;
-      }
-      const url = new URL(request.url());
-      if (url.searchParams.get('openOnly') !== 'true') {
+      if (route.request().method() !== 'GET') {
         await route.continue();
         return;
       }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          invoices: [],
-          pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
-          summary: {
-            pending: { count: 0, totalAmount: 0 },
-            paid: { count: 0, totalAmount: 0 },
-            claimed: { count: 0, totalAmount: 0 },
-            quotation: { count: 0, totalAmount: 0 },
-            overdue: { count: 0, totalAmount: 0 },
-            claimable: { count: 0, totalAmount: 0 },
-            quotationCoveredByDeposits: 0,
-            openPayable: { count: 0, totalAmount: 0 },
-            refundsDue: { count: 0, totalAmount: 0 },
-          },
-        }),
+        body: JSON.stringify(emptyInvoiceListResponse()),
       });
     });
 
-    await page.goto(`${INVOICES_ROUTE}?openOnly=true`);
+    await page.goto(INVOICES_ROUTE);
     await invoicesPage.heading.waitFor({ state: 'visible' });
 
     await expect(invoicesPage.emptyState).toBeVisible();
-    await expect(invoicesPage.emptyState).toContainText('Nothing open right now');
+    await expect(invoicesPage.emptyState).toContainText('Nothing to pay right now');
+    await expect(invoicesPage.emptyState).toContainText(
+      'Every invoice and progress payment is paid or submitted.',
+    );
     await expect(invoicesPage.emptyState.getByRole('button', { name: /add/i })).toHaveCount(0);
   });
 });
@@ -1007,25 +910,24 @@ test.describe('Open items — positive "nothing open" empty state (Scenario 14, 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Open items — filtered-to-nothing shows the generic empty state (Scenario 15, AC27)', () => {
-  test('Toggle on + a vendor filter matching nothing shows the standard "no results for filters" empty state', async ({
+  test('To pay + a company filter matching nothing shows "No invoices match." with Clear filters', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
       vendorId = await createVendorViaApi(page, { name: `${testPrefix} EmptyFilter Vendor` });
-      // Deliberately no invoices under this vendor.
+      // Deliberately no invoices under this company.
 
-      await page.goto(`${INVOICES_ROUTE}?openOnly=true&vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
+      const invoicesPage = await openToPay(page, vendorId);
 
       await expect(invoicesPage.emptyState).toBeVisible();
+      await expect(invoicesPage.emptyState).toContainText('No invoices match.');
       await expect(
         invoicesPage.emptyState.getByRole('button', { name: /clear filters/i }),
       ).toBeVisible();
-      await expect(invoicesPage.emptyState).not.toContainText('Nothing open right now');
+      await expect(invoicesPage.emptyState).not.toContainText('Nothing to pay right now');
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -1033,18 +935,17 @@ test.describe('Open items — filtered-to-nothing shows the generic empty state 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S16/AC28 — mobile (320px): card-nested deposits, no overflow
+// S16/AC28 — mobile (320px): card-nested progress payments, no overflow
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Open items — mobile card deposits (Scenario 16, AC28)',
+  'Open items — mobile card progress payments (Scenario 16, AC28)',
   { tag: '@responsive' },
   () => {
-    test('At 320px, a card contains its deposit entries, its own expand button toggles them, and there is no horizontal overflow', async ({
+    test('At 320px, a card contains its progress payments, its own expand button toggles them, and there is no horizontal overflow', async ({
       page,
       testPrefix,
     }) => {
-      const invoicesPage = new InvoicesPage(page);
       let vendorId = '';
 
       try {
@@ -1062,29 +963,21 @@ test.describe(
         });
 
         await page.setViewportSize({ width: 320, height: 800 });
-        await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-        await invoicesPage.heading.waitFor({ state: 'visible' });
-        await invoicesPage.waitForLoaded();
-        await invoicesPage.setOpenItemsOnly(true);
+        const invoicesPage = await openToPay(page, vendorId);
 
-        // `[class*="card_"]` (trailing underscore) matches only the production-build
-        // .card class, not its many card* descendants (cardHeader, cardContent, ...).
-        const card = invoicesPage.cardsContainer
-          .locator('[class*="card_"]')
-          .filter({ hasText: `${testPrefix}-MOB` })
-          .first();
+        const card = invoicesPage.row(a.id);
         await expect(card).toBeVisible();
 
-        // Both deposits render as descendants of the SAME card (containment)
-        await expect(card.getByTestId(`deposit-status-mobile-${d1.id}`)).toBeVisible();
-        await expect(card.getByTestId(`deposit-status-mobile-${d2.id}`)).toBeVisible();
+        // Both progress payments render as descendants of the SAME card (containment)
+        await expect(card.getByTestId(`invoices-child-status-mobile-${d1.id}`)).toBeVisible();
+        await expect(card.getByTestId(`invoices-child-status-mobile-${d2.id}`)).toBeVisible();
 
         // The card's own expand button toggles them
-        const expandButton = card.locator('button[aria-expanded]');
+        const expandButton = invoicesPage.expandToggle(a.id);
         await expandButton.click();
-        await expect(card.getByTestId(`deposit-status-mobile-${d1.id}`)).not.toBeVisible();
+        await expect(card.getByTestId(`invoices-child-status-mobile-${d1.id}`)).not.toBeVisible();
         await expandButton.click();
-        await expect(card.getByTestId(`deposit-status-mobile-${d1.id}`)).toBeVisible();
+        await expect(card.getByTestId(`invoices-child-status-mobile-${d1.id}`)).toBeVisible();
 
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -1101,12 +994,11 @@ test.describe(
 // S17/AC30-31 — keyboard operability + accessible names
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — keyboard operability of the expand control and toggle (Scenario 17, AC30-31)', () => {
-  test('The expand button is focusable with a visible focus ring and toggles via Space and Enter; the toggle has an accessible name and checked state', async ({
+test.describe('Open items — keyboard operability of the expand control and chips (Scenario 17, AC30-31)', () => {
+  test('The expand button is focusable with a visible focus ring and toggles via Space and Enter; it and the chips have accessible names and states', async ({
     page,
     testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -1119,20 +1011,15 @@ test.describe('Open items — keyboard operability of the expand control and tog
       });
       await createDepositViaApi(page, a.id, { amount: 50, dueDate: daysFromNow(5) });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      const invoicesPage = await openToPay(page, vendorId);
 
-      const button = invoicesPage.expandButton(a.id);
+      const button = invoicesPage.expandToggle(a.id);
       // Real keyboard Tab navigation, not a programmatic `.focus()` call: Chromium's
       // `:focus-visible` heuristic doesn't treat a script-triggered focus() as
-      // keyboard-originated, so the CSS `:focus-visible` focus-ring rule never
-      // applies in that case — the box-shadow assertion below needs the actual
-      // keyboard-focus code path to be meaningful. Bounded so an unreachable
-      // element fails fast instead of hanging.
+      // keyboard-originated, so the CSS focus-ring rule never applies in that case.
+      // Bounded so an unreachable element fails fast instead of hanging.
       let tabs = 0;
-      while (!(await button.evaluate((el) => el === document.activeElement)) && tabs < 40) {
+      while (!(await button.evaluate((el) => el === document.activeElement)) && tabs < 60) {
         await page.keyboard.press('Tab');
         tabs++;
       }
@@ -1143,14 +1030,16 @@ test.describe('Open items — keyboard operability of the expand control and tog
 
       // Default expanded — Space collapses, Enter expands again
       await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await expect(button).toHaveAccessibleName(`Hide 1 progress payment of ${testPrefix}-KBD`);
       await page.keyboard.press('Space');
       await expect(button).toHaveAttribute('aria-expanded', 'false');
+      await expect(button).toHaveAccessibleName(`Show 1 progress payment of ${testPrefix}-KBD`);
       await page.keyboard.press('Enter');
       await expect(button).toHaveAttribute('aria-expanded', 'true');
 
-      // Toggle: accessible name + checked state
-      await expect(invoicesPage.openItemsToggle).toHaveAccessibleName('Show only open items');
-      await expect(invoicesPage.openItemsToggle).toBeChecked();
+      // The chips: a pressed state and a name that starts with the word
+      await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'true');
+      await expect(invoicesPage.chip('pending')).toHaveAccessibleName(/^To pay/);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -1173,7 +1062,7 @@ test.describe(
 
     for (const viewport of viewports) {
       for (const colorScheme of themes) {
-        test(`${viewport.name} @ ${colorScheme}: child row and overdue chip render visibly with a non-transparent background`, async ({
+        test(`${viewport.name} @ ${colorScheme}: child row and overdue flag render visibly with a non-transparent background`, async ({
           browser,
           testPrefix,
         }) => {
@@ -1184,7 +1073,6 @@ test.describe(
             storageState: 'test-results/.auth/admin.json',
           });
           const page = await context.newPage();
-          const invoicesPage = new InvoicesPage(page);
 
           try {
             vendorId = await createVendorViaApi(page, {
@@ -1201,20 +1089,19 @@ test.describe(
               dueDate: daysAgo(2), // overdue
             });
 
-            await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-            await invoicesPage.heading.waitFor({ state: 'visible' });
-            await invoicesPage.waitForLoaded();
-            await invoicesPage.setOpenItemsOnly(true);
+            const invoicesPage = await openToPay(page, vendorId);
 
-            const childRow = invoicesPage.rowGroup(a.id).locator('tr[class*="childRow"]');
-            await expect(childRow).toBeVisible();
-            const bg = await childRow.evaluate((el) => getComputedStyle(el).backgroundColor);
-            expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-            expect(bg).not.toBe('transparent');
+            await expect(invoicesPage.childStatus(dep.id)).toBeVisible();
+            if (await invoicesPage.isTableSurface()) {
+              const bg = await invoicesPage
+                .childRow(dep.id)
+                .evaluate((el) => getComputedStyle(el).backgroundColor);
+              expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+              expect(bg).not.toBe('transparent');
+            }
 
-            // Overdue flag is legible in both themes — checked for presence/visibility,
-            // not colour (colour judgement is a UX-designer/screenshot concern).
-            await expect(invoicesPage.depositOverdueChip(dep.id)).toBeVisible();
+            // The overdue flag shows its word in both themes (colour is a visual concern)
+            await expect(invoicesPage.childFlag(dep.id)).toHaveText('Overdue');
           } finally {
             if (vendorId) await deleteVendorWithInvoices(page, vendorId);
             await context.close();
@@ -1226,40 +1113,59 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S19/AC12, AC33 — toggle off regresses to exactly today's behaviour
+// S19/AC12, AC33 — the other chips are collapsed by default and list every entry
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — toggle off behaves exactly as before (Scenario 19, AC12, AC33)', () => {
-  test('With the toggle off, there are no expand controls, no Still due column, and filters behave as before', async ({
+test.describe('Open items — other chips collapse the entries and list all of them (Scenario 19, AC12, AC33)', () => {
+  test('On the All chip a row with a paid and a pending progress payment is collapsed; expanding shows both', async ({
     page,
+    testPrefix,
   }) => {
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
+    let vendorId = '';
 
-    await expect(invoicesPage.openItemsToggle).not.toBeChecked();
-    // Scoped to the table (not a bare page-wide locator): DataTableColumnSettings'
-    // column-settings gear button also carries its own unrelated `aria-expanded`
-    // for its popover state and is always present regardless of this toggle — the
-    // same collision the Jest suite works around in DataTable.test.tsx by querying
-    // within `table` rather than the whole rendered output.
-    await expect(invoicesPage.tableContainer.locator('[aria-expanded]')).toHaveCount(0);
-    await expect(page.getByRole('columnheader', { name: 'Still due' })).toHaveCount(0);
-    await expect(statusFilterButton(page)).toBeEnabled();
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} AllChip Vendor` });
+      const a = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-ALL`,
+        amount: 600,
+        date: daysAgo(30),
+        status: 'pending',
+      });
+      const paid = await createDepositViaApi(page, a.id, {
+        amount: 100,
+        dueDate: daysAgo(5),
+        status: 'paid',
+      });
+      const pending = await createDepositViaApi(page, a.id, {
+        amount: 100,
+        dueDate: daysFromNow(5),
+      });
+
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.gotoChip('all', `vendorId=${vendorId}`);
+
+      await expect(invoicesPage.expandToggle(a.id)).toHaveAttribute('aria-expanded', 'false');
+      await expect(invoicesPage.childStatus(paid.id)).toHaveCount(0);
+
+      await invoicesPage.expandToggle(a.id).click();
+      await expect(invoicesPage.childStatus(paid.id)).toBeVisible();
+      await expect(invoicesPage.childStatus(pending.id)).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+    }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S21/AC4 — pagination counts invoices only, not deposit rows
+// S21/AC4 — the count and rows are invoices only, not progress payment rows
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — pagination counts invoices only, not deposit child rows (Scenario 21, AC4)', () => {
-  test('26 open invoices at page size 25 shows 25 parent rows on page 1 and reports 26 total', async ({
+test.describe('Open items — the count and rows are invoices only, not progress payment rows (Scenario 21, AC4)', () => {
+  test('26 open invoices each with a progress payment: the heading counts 26 and 26 title rows show (no paging)', async ({
     page,
     testPrefix,
   }) => {
     test.slow();
-    const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
 
     try {
@@ -1275,15 +1181,17 @@ test.describe('Open items — pagination counts invoices only, not deposit child
         await createDepositViaApi(page, inv.id, { amount: 10, dueDate: daysFromNow(i + 1) });
       }
 
-      await page.goto(`${INVOICES_ROUTE}?openOnly=true&vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
+      const invoicesPage = await openToPay(page, vendorId);
 
-      // Scoped to the desktop table body — the mobile card DOM tree is also mounted
-      // (hidden via CSS at this viewport) and would otherwise double the count.
-      await expect(invoicesPage.tableBody.locator('[class*="invoiceLink"]')).toHaveCount(25);
-      const paginationText = await invoicesPage.getPaginationInfoText();
-      expect(paginationText).toContain('26');
+      // The list loads up to 100 rows at once; progress payments are children, not rows
+      await expect(invoicesPage.titleLinks).toHaveCount(26);
+      const counts = await invoicesPage.headingCounts();
+      expect(counts?.shown).toBe(26);
+      // The company filter is active, so the heading reads "26 of m" with the global total m
+      expect(counts?.total).toBeGreaterThanOrEqual(26);
+      // No pagination controls exist any more
+      await expect(page.getByLabel('Previous')).toHaveCount(0);
+      await expect(page.getByLabel('Next')).toHaveCount(0);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -1349,17 +1257,10 @@ test.describe(
           status: 'claimed',
         });
 
-        await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-        await invoicesPage.heading.waitFor({ state: 'visible' });
-        await invoicesPage.waitForLoaded();
+        await invoicesPage.gotoChip('all', `vendorId=${vendorId}`);
 
         // Table (desktop) and card (mobile) testids differ; exactly one surface is visible.
-        const chip = (id: string): Locator =>
-          page
-            .locator(
-              `[data-testid="invoice-status-${id}"], [data-testid="invoice-status-mobile-${id}"]`,
-            )
-            .visible();
+        const chip = (id: string): Locator => invoicesPage.statusBadge(id);
         const background = (loc: Locator): Promise<string> =>
           loc.evaluate((el) => getComputedStyle(el).backgroundColor);
 
@@ -1421,7 +1322,7 @@ test.describe(
   },
 );
 
-test.describe('Status chips — Due soon flag in open items (Story #2195)', () => {
+test.describe('Status chips — Due soon flag on To pay (Story #2195)', () => {
   test('An invoice and a progress payment due within 7 days show "Due soon"; one due later does not', async ({
     page,
     testPrefix,
@@ -1450,16 +1351,12 @@ test.describe('Status chips — Due soon flag in open items (Story #2195)', () =
         status: 'pending',
       });
 
-      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
-      await invoicesPage.setOpenItemsOnly(true);
+      await openToPay(page, vendorId);
 
-      await expect(invoicesPage.dueSoonChip(soon.id)).toHaveText('Due soon');
-      await expect(invoicesPage.depositDueSoonChip(soonDeposit.id)).toHaveText('Due soon');
-      await expect(invoicesPage.overdueChip(soon.id)).toHaveCount(0);
-      await expect(invoicesPage.invoiceStatusBadge(soon.id)).toHaveText('To pay');
-      await expect(invoicesPage.dueSoonChip(later.id)).toHaveCount(0);
+      await expect(invoicesPage.flagBadge(soon.id)).toHaveText('Due soon');
+      await expect(invoicesPage.childFlag(soonDeposit.id)).toHaveText('Due soon');
+      await expect(invoicesPage.statusBadge(soon.id)).toHaveText('To pay');
+      await expect(invoicesPage.flagBadge(later.id)).toHaveCount(0);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }

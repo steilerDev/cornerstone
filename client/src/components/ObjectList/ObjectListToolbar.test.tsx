@@ -221,6 +221,74 @@ describe('ObjectListToolbar', () => {
     expect(list.clearSheetFilters).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the host allLabel for the All chip, the template default otherwise (#2238)', () => {
+    setup({ config: { ...config, chips: { ...config.chips!, allLabel: 'All (12)' } } });
+    expect(screen.getByTestId('tasks-chip-all')).toHaveTextContent('All (12)');
+  });
+
+  it('keeps the default All label without allLabel', () => {
+    setup();
+    expect(screen.getByTestId('tasks-chip-all')).toHaveTextContent('All');
+    expect(screen.getByTestId('tasks-chip-all')).not.toHaveTextContent('(');
+  });
+
+  it('shows the host note in the note row, and nothing without one (#2238)', () => {
+    setup({ note: 'Showing only: Not yet split' });
+    expect(screen.getByTestId('tasks-note')).toHaveTextContent('Showing only: Not yet split');
+  });
+
+  it.each([[undefined], [null], [false]])('renders no note row for note=%s', (note) => {
+    setup({ note: note as never });
+    expect(screen.queryByTestId('tasks-note')).toBeNull();
+  });
+
+  it('groups consecutive defs of one fieldset id into a single fieldset with one legend (#2238)', () => {
+    const grouped: ObjectListConfig<Task> = {
+      ...config,
+      filters: [
+        {
+          param: 'one',
+          label: 'One label',
+          fieldset: { id: 'show', legend: 'Show only' },
+          render: ({ id }) => <input id={id} aria-label="First box" type="checkbox" />,
+        },
+        {
+          param: 'two',
+          label: 'Two label',
+          fieldset: { id: 'show', legend: 'Show only' },
+          render: () => null,
+        },
+        {
+          param: 'three',
+          label: 'Three label',
+          fieldset: { id: 'show', legend: 'Show only' },
+          render: ({ id }) => <input id={id} aria-label="Third box" type="checkbox" />,
+        },
+        {
+          param: 'plain',
+          label: 'Plain label',
+          render: ({ id }) => <input id={id} aria-label="Plain box" />,
+        },
+        {
+          param: 'other',
+          label: 'Other label',
+          fieldset: { id: 'second', legend: 'Second group' },
+          render: ({ id }) => <input id={id} aria-label="Other box" />,
+        },
+      ],
+    };
+    setup({ config: grouped });
+    fireEvent.click(screen.getByTestId('tasks-filters-button'));
+    const legends = Array.from(document.querySelectorAll('legend')).map((l) => l.textContent);
+    expect(legends).toEqual(['Show only', 'Plain label', 'Second group']);
+    const group = screen.getByLabelText('First box').closest('fieldset') as HTMLElement;
+    expect(group).toContainElement(screen.getByLabelText('Third box'));
+    expect(screen.queryByText('One label')).toBeNull();
+    expect(screen.queryByText('Two label')).toBeNull();
+    expect((screen.getByLabelText('First box') as HTMLInputElement).id).toBe('tasks-filter-one');
+    expect(screen.getByLabelText('Plain box').closest('fieldset')).not.toBe(group);
+  });
+
   it('T5: Group by lists None and the options, with the current choice in the trigger', () => {
     setup({}, { group: 'area' });
     const trigger = screen.getByRole('button', { name: 'Group: Area' });

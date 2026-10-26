@@ -7,7 +7,6 @@ import {
   DUE_SOON_DAYS,
   getOpenDeposits,
   isContainerOnly,
-  isInvoiceOverdue,
   hasOverdueOpenDeposit,
   getDepositOrdinal,
 } from './openItemsUtils.js';
@@ -115,25 +114,6 @@ describe('openItemsUtils', () => {
 
     it('false for a pending invoice', () => {
       expect(isContainerOnly(makeInvoice({ status: 'pending' }))).toBe(false);
-    });
-  });
-
-  // ─── isInvoiceOverdue ───────────────────────────────────────────────────────
-
-  describe('isInvoiceOverdue', () => {
-    it('true when the invoice is pending and its dueDate is in the past', () => {
-      const invoice = makeInvoice({ status: 'pending', dueDate: '2026-01-01' });
-      expect(isInvoiceOverdue(invoice, '2026-01-02')).toBe(true);
-    });
-
-    it('false when the invoice is pending but not yet due', () => {
-      const invoice = makeInvoice({ status: 'pending', dueDate: '2026-02-01' });
-      expect(isInvoiceOverdue(invoice, '2026-01-02')).toBe(false);
-    });
-
-    it('false when the invoice is past due but not pending (e.g. paid)', () => {
-      const invoice = makeInvoice({ status: 'paid', dueDate: '2026-01-01' });
-      expect(isInvoiceOverdue(invoice, '2026-01-02')).toBe(false);
     });
   });
 

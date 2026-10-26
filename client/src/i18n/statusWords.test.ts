@@ -2,13 +2,14 @@ import { describe, it, expect } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { GLOSSARY } from './glossary.js';
 
 /**
  * AC5 + AC7 (#2195): one word per status concept, in both locales.
  * Locale files are read from disk (not imported) so the walk covers every namespace file.
  *
  * Mutation per assertion (revert and the named test must fail):
- *  - en `invoices.summaryPending` back to "Pending"        -> "no en value contains a legacy status word"
+ *  - en `invoices.list.chips.pending` back to "Pending"   -> "no en value contains a legacy status word"
  *  - de `statusVocabulary.purchase.scheduled` = "Geplant"   -> "planned and scheduled differ (de)"
  *  - en `statusVocabulary.invoice.claimed` = "Claimed"      -> "canonical invoice words"
  *  - re-add `householdItems:status` to de                   -> "deleted legacy keys are gone"
@@ -78,10 +79,9 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
   });
 
   it('the specific rewritten summary labels and banners use the new words', () => {
-    expect(en.get('budget.invoices.summaryPending')).toBe('To pay');
-    expect(en.get('budget.invoices.summaryClaimed')).toBe('Submitted');
-    expect(en.get('budget.invoices.summaryClaimable')).toBe('Ready to submit');
-    expect(en.get('budget.invoices.summaryQuotation')).toBe('Offers');
+    expect(en.get('budget.invoices.list.chips.pending')).toBe('To pay');
+    expect(en.get('budget.invoices.list.chips.claimed')).toBe('Submitted');
+    expect(en.get('budget.invoices.list.chips.quotation')).toBe('Offers');
     expect(en.get('budget.sources.barChart.claimed')).toBe('Submitted');
     expect(en.get('budget.sourceReports.confirmClaimTitle')).toBe('Mark invoices as submitted?');
     expect(en.get('common.statusAction.progressPayment.markSubmitted')).toBe('Mark submitted');
@@ -98,17 +98,49 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
 describe('no "ausstehend" status word in de values (AC7)', () => {
   const BANNED_DE = /\bausstehend\w*\b/i;
 
-  it('only keys whose en value says "Outstanding" may keep it', () => {
+  /**
+   * The approved glossary forms (#2238: "Refund due" = "Ausstehende Rückerstattung(en)") are
+   * allowed to contain the word: every de form of a glossary term that contains it is removed
+   * from the value before the ban is applied.
+   */
+  const APPROVED_FORMS = GLOSSARY.terms
+    .flatMap((term) => Object.values(term.de))
+    .filter((form): form is string => typeof form === 'string' && BANNED_DE.test(form))
+    .sort((a, b) => b.length - a.length);
+
+  function bannedOutsideGlossary(value: string): boolean {
+    let rest = value;
+    for (const form of APPROVED_FORMS) {
+      rest = rest.split(form).join(' ');
+    }
+    return BANNED_DE.test(rest);
+  }
+
+  it('the approved forms come from the glossary and include the Refund due term', () => {
+    expect(APPROVED_FORMS).toEqual(
+      expect.arrayContaining(['Ausstehende Rückerstattung', 'Ausstehende Rückerstattungen']),
+    );
+  });
+
+  it('only keys whose en value says "Outstanding" or that use an approved glossary form may keep it', () => {
     const offenders = [...de]
-      .filter(([, value]) => BANNED_DE.test(value))
+      .filter(([, value]) => bannedOutsideGlossary(value))
       .filter(([key]) => !/\boutstanding\b/i.test(en.get(key) ?? ''))
       .map(([key]) => key);
     expect(offenders).toEqual([]);
   });
 
-  it('the Outstanding exception list is the three company-figure keys, not a loophole', () => {
+  it('the ban still bites: other uses of the word are caught, approved forms are not', () => {
+    expect(bannedOutsideGlossary('Ausstehende Zahlungen')).toBe(true);
+    expect(bannedOutsideGlossary('Ausstehender Betrag')).toBe(true);
+    expect(bannedOutsideGlossary('Ausstehende Rückerstattungen (3 · 10,00 €)')).toBe(false);
+    expect(bannedOutsideGlossary('Ausstehende Rückerstattung')).toBe(false);
+    expect(bannedOutsideGlossary('Ausstehende Rückerstattungen und ausstehende Posten')).toBe(true);
+  });
+
+  it('the Outstanding exception list is small, not a loophole', () => {
     const exempt = [...de]
-      .filter(([, value]) => BANNED_DE.test(value))
+      .filter(([, value]) => bannedOutsideGlossary(value))
       .map(([key]) => key)
       .sort();
     for (const key of exempt) {

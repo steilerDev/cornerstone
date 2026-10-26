@@ -11,7 +11,7 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import { SelectionActionBar } from './SelectionActionBar.js';
 
 describe('SelectionActionBar announce and testId (#2234)', () => {
@@ -120,8 +120,10 @@ describe('SelectionActionBar', () => {
         <button type="button">Merge</button>
       </SelectionActionBar>,
     );
-    const bar = container.firstElementChild;
+    // The root is the in-flow spacer; the fixed bar is its child and carries the class.
+    const bar = container.firstElementChild?.firstElementChild;
     expect(bar?.getAttribute('class') ?? '').toContain('extra-class');
+    expect(container.firstElementChild?.getAttribute('class') ?? '').not.toContain('extra-class');
   });
 
   it('does not throw when className is omitted', () => {
@@ -160,5 +162,124 @@ describe('SelectionActionBar', () => {
     );
     const countSpan = screen.getByText('5 selected');
     expect(countSpan).toHaveAttribute('aria-live', 'polite');
+  });
+});
+
+describe('SelectionActionBar fixed bar with an in-flow spacer (#2238)', () => {
+  const HEIGHT_VAR = '--sticky-action-bar-height';
+
+  // The test setup defines a writable, non-configurable no-op ResizeObserver: assign, never delete.
+  const originalObserver = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+
+  afterEach(() => {
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = originalObserver;
+    jest.restoreAllMocks();
+    document.documentElement.style.removeProperty(HEIGHT_VAR);
+  });
+
+  function stubGeometry(height: number, rect: { left: number; width: number }) {
+    jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(height);
+    const spy = jest
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(() => ({ ...rect, top: 0, right: 0, bottom: 0, height: 0 }) as DOMRect);
+    return {
+      set(next: { left: number; width: number }) {
+        spy.mockImplementation(
+          () => ({ ...next, top: 0, right: 0, bottom: 0, height: 0 }) as DOMRect,
+        );
+      },
+    };
+  }
+
+  function renderBar() {
+    return render(
+      <SelectionActionBar
+        countLabel="2 selected"
+        onClear={jest.fn()}
+        clearLabel="Clear selection"
+        testId="bar"
+      >
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+  }
+
+  it('renders the bar inside an in-flow spacer', () => {
+    const { container } = renderBar();
+    const spacer = container.firstElementChild as HTMLElement;
+    expect(spacer).toContainElement(screen.getByTestId('bar'));
+    expect(screen.getByTestId('bar').parentElement).toBe(spacer);
+  });
+
+  it('sizes the spacer to the bar, aligns the bar to the spacer and publishes the height', () => {
+    stubGeometry(64, { left: 240, width: 800 });
+    const { container } = renderBar();
+    const spacer = container.firstElementChild as HTMLElement;
+    const bar = screen.getByTestId('bar');
+    expect(spacer.style.height).toBe('64px');
+    expect(bar.style.left).toBe('240px');
+    expect(bar.style.width).toBe('800px');
+    expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('64px');
+  });
+
+  it('removes the published height on unmount', () => {
+    stubGeometry(64, { left: 0, width: 100 });
+    const { unmount } = renderBar();
+    expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('64px');
+    unmount();
+    expect(document.documentElement.style.getPropertyValue(HEIGHT_VAR)).toBe('');
+  });
+
+  it('re-syncs on window resize and stops listening after unmount', () => {
+    const geometry = stubGeometry(64, { left: 240, width: 800 });
+    const { unmount } = renderBar();
+    const bar = screen.getByTestId('bar');
+
+    geometry.set({ left: 0, width: 390 });
+    fireEvent(window, new Event('resize'));
+    expect(bar.style.left).toBe('0px');
+    expect(bar.style.width).toBe('390px');
+
+    unmount();
+    geometry.set({ left: 5, width: 5 });
+    fireEvent(window, new Event('resize'));
+    expect(bar.style.left).toBe('0px');
+  });
+
+  it('observes the bar and the spacer, re-syncs on a resize callback and disconnects on unmount', () => {
+    let callback: () => void = () => undefined;
+    const observed: Element[] = [];
+    const disconnect = jest.fn();
+    class FakeResizeObserver {
+      constructor(cb: () => void) {
+        callback = cb;
+      }
+      observe(el: Element) {
+        observed.push(el);
+      }
+      disconnect = disconnect;
+    }
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
+    const geometry = stubGeometry(48, { left: 10, width: 300 });
+
+    const { container, unmount } = renderBar();
+    const bar = screen.getByTestId('bar');
+    expect(observed).toEqual([bar, container.firstElementChild]);
+
+    geometry.set({ left: 20, width: 500 });
+    callback();
+    expect(bar.style.left).toBe('20px');
+    expect(bar.style.width).toBe('500px');
+
+    unmount();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('works without a ResizeObserver (window resize only)', () => {
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = undefined;
+    expect(typeof ResizeObserver).toBe('undefined');
+    stubGeometry(40, { left: 1, width: 2 });
+    expect(() => renderBar()).not.toThrow();
+    expect(screen.getByTestId('bar').style.width).toBe('2px');
   });
 });

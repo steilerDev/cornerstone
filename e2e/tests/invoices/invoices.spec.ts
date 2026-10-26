@@ -2,7 +2,7 @@
  * E2E tests for Invoice Management
  *
  * UAT Scenarios covered:
- * - Scenario 1: Invoices list page loads and shows summary cards
+ * - Scenario 1: Invoices list page loads and shows the status chips
  * - Scenario 2: Create invoice — happy path (all required fields)
  * - Scenario 3: Create invoice with optional fields (invoice number, due date, notes)
  * - Scenario 4: Create invoice fails — missing required vendor
@@ -14,7 +14,7 @@
  * - Scenario 10: Delete invoice — happy path
  * - Scenario 11: Invoice detail page back button navigates to list
  * - Scenario 12: Empty state shown when no invoices exist
- * - Scenario 13: Status filter changes visible invoices
+ * - Scenario 13: Status chip / URL param changes visible invoices
  * - Responsive layout (@responsive tag)
  * - Dark mode
  */
@@ -25,6 +25,8 @@ import type { Page } from '@playwright/test';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import { emptyInvoiceListResponse } from '../../fixtures/invoiceListMocks.js';
+import { parseMoney } from '../../fixtures/figureSurfaces.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -32,10 +34,10 @@ import {
   deleteBudgetSourceViaApi,
 } from '../../fixtures/apiHelpers.js';
 
-// Issue #1876: "Effective Amount" column — hidden by default (defaultVisible: false),
-// toggled via the DataTable column settings gear, same as "Remaining Amount". Bound to
-// invoice.finalPaymentAmount (deposit/refund-aware), which is a DIFFERENT figure from
-// "Remaining Amount" (itemization-based: amount − Σ budgetLines[].itemizedAmount).
+// Issue #1876 (reshaped by #2238): the hidden-by-default columns of the Invoices table are
+// "Split" (the itemized share of the amount) and "Notes", toggled in ⋯ › Columns…; "Still to pay"
+// is a default column and shows the deposit/refund-aware open amount that replaced the retired
+// "Effective Amount" / "Remaining Amount" pair.
 // Note: this file already has its own "Scenario 7" (row click navigation, above) —
 // this addition is labeled by Issue number to avoid colliding with that numbering.
 
@@ -117,32 +119,41 @@ test.describe('Invoices list — empty state (Scenario 12)', { tag: '@responsive
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            invoices: [],
-            pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
-            summary: {
-              pending: { count: 0, totalAmount: 0 },
-              paid: { count: 0, totalAmount: 0 },
-              claimed: { count: 0, totalAmount: 0 },
-              quotation: { count: 0, totalAmount: 0 },
-              overdue: { count: 0, totalAmount: 0 },
-              claimable: { count: 0, totalAmount: 0 },
-              quotationCoveredByDeposits: 0,
-              openPayable: { count: 0, totalAmount: 0 },
-              refundsDue: { count: 0, totalAmount: 0 },
-            },
-          }),
+          body: JSON.stringify(emptyInvoiceListResponse()),
         });
       } else {
         await route.continue();
       }
     });
 
+    // To pay is the default chip: nothing to pay, said positively, with no "add" call to action
     await invoicesPage.goto();
+    await invoicesPage.waitForLoaded();
 
-    // Empty state renders with message
     await expect(invoicesPage.emptyState).toBeVisible();
-    await expect(invoicesPage.emptyState).toContainText('No invoices yet');
+    await expect(invoicesPage.emptyState).toContainText('Nothing to pay right now');
+  });
+
+  test('Empty state on the All chip says "No invoices match." with Clear filters', async ({
+    page,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    await page.route('/api/invoices*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(emptyInvoiceListResponse()),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    await invoicesPage.gotoChip('all');
+    await expect(invoicesPage.emptyState).toContainText('No invoices match.');
+    await expect(
+      invoicesPage.emptyState.getByRole('button', { name: /clear filters/i }),
+    ).toBeVisible();
   });
 });
 
@@ -152,7 +163,7 @@ test.describe('Invoices list — empty state (Scenario 12)', { tag: '@responsive
 
 test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    'Invoices list page loads with heading, summary cards, and Add Invoice button',
+    'Invoices list page loads with heading, status chips, and the New invoice button',
     { tag: '@smoke' },
     async ({ page }) => {
       const invoicesPage = new InvoicesPage(page);
@@ -161,16 +172,17 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
 
       // Page heading
       await expect(invoicesPage.heading).toBeVisible();
-      await expect(invoicesPage.heading).toHaveText('Invoices');
+      await expect(invoicesPage.heading).toContainText('Invoices');
 
-      // Summary cards render (at least the containers)
-      await expect(invoicesPage.summaryGrid).toBeVisible();
-      await expect(invoicesPage.pendingSummary).toBeVisible();
-      await expect(invoicesPage.claimableSummary).toBeVisible();
-      await expect(invoicesPage.quotationSummary).toBeVisible();
+      // The status chips render; To pay is pressed by default (#2238)
+      for (const chip of ['pending', 'quotation', 'paid', 'claimed', 'all'] as const) {
+        await expect(invoicesPage.chip(chip)).toBeVisible();
+      }
+      await expect(invoicesPage.chip('pending')).toHaveAttribute('aria-pressed', 'true');
 
-      // Add Invoice button is visible
+      // The New invoice button is visible
       await expect(invoicesPage.newInvoiceButton).toBeVisible();
+      await expect(invoicesPage.newInvoiceButton).toHaveText('New invoice');
     },
   );
 
@@ -238,12 +250,11 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       // Wait for list to reload and show data
       await invoicesPage.waitForLoaded();
 
-      // Verify summary cards update (pending count increased since the new invoice is pending).
-      // Summary and list share one API response but the list render can show stale rows during
-      // the re-fetch; poll the count so the retry covers the brief interleaving window.
+      // The To pay chip counts the new pending invoice. The counts and the rows share one API
+      // response, but the list can show the previous batch during the re-fetch; poll the count.
       await expect
-        .poll(() => invoicesPage.getSummaryCount('pending'), {
-          message: 'pending summary count did not update after invoice creation',
+        .poll(() => invoicesPage.chipCount('pending'), {
+          message: 'To pay chip count did not update after invoice creation',
           timeout: 10_000,
         })
         .toBeGreaterThanOrEqual(1);
@@ -421,24 +432,12 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
         date: '2026-01-10',
       });
 
-      // Search by this test's own unique invoice number rather than an unfiltered
-      // goto(). With 8 parallel workers all creating invoices concurrently, the
-      // default date-desc sort can easily push this test's row past page 1 (25/page)
-      // before its own invoice gets there, making the row unclickable/not-found. The
-      // server-side search matches invoiceNumber, so this scopes the table to (at
-      // most) this test's own row regardless of how many other invoices exist.
+      // Search by this test's own unique invoice number: the shared database holds more
+      // invoices than the first batch, and a search covers every status.
       await invoicesPage.search(`${testPrefix}-ROW-001`);
 
-      // Click the invoice number link — on both desktop table and mobile cards.
-      // DataTable renders both the table AND the mobile cards simultaneously and uses
-      // CSS media queries to toggle visibility, so we must pick the visible one.
-      const invoiceLink = page
-        .locator('[class*="invoiceLink"]', {
-          hasText: `${testPrefix}-ROW-001`,
-        })
-        .visible()
-        .first();
-      await invoiceLink.click();
+      // The title link navigates in place on both surfaces (table and cards)
+      await invoicesPage.title(invoice.id).click();
 
       // Should navigate to the detail page
       await page.waitForURL(`**/budget/invoices/${invoice.id}`);
@@ -768,8 +767,8 @@ test.describe('Delete invoice (Scenario 10)', { tag: '@responsive' }, () => {
 // Scenario 13: Status filter
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Invoice status filter (Scenario 13)', { tag: '@responsive' }, () => {
-  test('Filter by status URL param shows only invoices with matching status', async ({
+test.describe('Invoice status chips (Scenario 13)', { tag: '@responsive' }, () => {
+  test('The status URL param presses its chip and shows only invoices with matching status', async ({
     page,
     testPrefix,
   }) => {
@@ -795,10 +794,9 @@ test.describe('Invoice status filter (Scenario 13)', { tag: '@responsive' }, () 
         status: 'paid',
       });
 
-      // Navigate with status=paid filter via URL
-      await page.goto('/budget/invoices?status=paid');
-      await invoicesPage.heading.waitFor({ state: 'visible' });
-      await invoicesPage.waitForLoaded();
+      // Navigate with the Paid chip via URL, scoped to this test's company
+      await invoicesPage.gotoChip('paid', `vendorId=${vendorId}`);
+      await expect(invoicesPage.chip('paid')).toHaveAttribute('aria-pressed', 'true');
 
       // Only paid invoice should appear
       const numbers = await invoicesPage.getInvoiceNumbers();
@@ -873,10 +871,10 @@ test.describe('Dark mode', () => {
 
       await expect(invoicesPage.heading).toBeVisible();
       await expect(invoicesPage.newInvoiceButton).toBeVisible();
-      await expect(invoicesPage.summaryGrid).toBeVisible();
+      await expect(invoicesPage.chip('pending')).toBeVisible();
 
       // No error banners visible
-      await expect(invoicesPage.errorBanner).not.toBeVisible();
+      await expect(invoicesPage.retryButton).not.toBeVisible();
     } finally {
       await context.close();
     }
@@ -919,7 +917,7 @@ test.describe('Dark mode', () => {
 // "Effective Amount" column (Issue #1876)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' }, () => {
+test.describe('Split and Still to pay columns (Issue #1876, #2238)', { tag: '@responsive' }, () => {
   // This is the only test in the suite that asserts against `table.invoices.columns`,
   // a per-user singleton preference that `useColumnPreferences` writes (debounced) for
   // every visitor of the invoices table. On the shared admin, any concurrently running
@@ -933,7 +931,7 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
     isolatedUserPerTest: { emailPrefix: 'inv-columns', displayName: 'E2E Invoices User' },
   });
 
-  test('Toggling "Effective Amount" shows a deposit/refund-aware value distinct from "Remaining Amount"', async ({
+  test('The hidden Split column can be shown, and Still to pay is the deposit/refund-aware open amount', async ({
     page,
     testPrefix,
   }) => {
@@ -962,9 +960,8 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
         date: '2026-01-01',
       });
 
-      // Itemize part of the invoice via a budget line — this drives "Remaining Amount"
-      // (calculateRemaining = amount − Σ budgetLines[].itemizedAmount), which is
-      // UNRELATED to deposits/refunds.
+      // Itemize part of the invoice via a budget line — this drives the "Split" column
+      // (itemized share of the amount: 300 of 1000 = 30%).
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} EffAmt WI` });
       budgetSourceId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} EffAmt Source`,
@@ -984,11 +981,8 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
         data: { workItemBudgetId: budgetBody.budget.id, itemizedAmount: 300 },
       });
       expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
-      // Remaining Amount = 1000 − 300 = 700
 
-      // Add a refund and mark it paid — this drives "Effective Amount"
-      // (finalPaymentAmount = amount − deposits − received refunds), independent of
-      // itemization.
+      // Add a refund and mark it paid — this drives the deposit/refund-aware open amount
       const depositResp = await page.request.post(`/api/invoices/${invoice.id}/deposits`, {
         data: { entryType: 'refund', amount: 150, dueDate: '2026-02-01', status: 'pending' },
       });
@@ -1000,63 +994,43 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
         { data: { status: 'paid', paidDate: today } },
       );
       expect(paidResp.ok(), `PATCH deposit pending→paid failed: ${paidResp.status()}`).toBeTruthy();
-      // Effective Amount = 1000 − 150 (paid refund) = 850
 
-      // Reset the "table.invoices.columns" preference before asserting the
-      // hidden-by-default baseline. Since this test now runs as a freshly created
-      // dedicated user (see test.use above), the row cannot pre-exist — not even on a
-      // retry, which provisions a new user. Kept as an explicit precondition so the
-      // baseline assertion below cannot silently depend on account history.
+      // The server's open amount for this record is the truth the Still to pay cell must show
+      const listResp = await page.request.get(
+        `/api/invoices?q=${encodeURIComponent(invoiceNumber)}&pageSize=10`,
+      );
+      expect(listResp.ok()).toBeTruthy();
+      const listed = (
+        (await listResp.json()) as { invoices: Array<{ id: string; openAmount: number }> }
+      ).invoices.find((row) => row.id === invoice.id);
+      expect(listed, 'the seeded invoice is in the list response').toBeDefined();
+      const openCents = Math.round((listed?.openAmount ?? -1) * 100);
+
+      // Reset the "table.invoices.columns" preference before asserting the hidden-by-default
+      // baseline. Since this test runs as a freshly created dedicated user (see test.use above),
+      // the row cannot pre-exist; kept as an explicit precondition.
       await page.request.delete('/api/users/me/preferences/table.invoices.columns');
 
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
-
-      // Positive control before the two not.toBeVisible() checks below: prove the table
-      // itself actually rendered (via a known always-visible column) first. Otherwise
-      // `getByRole('columnheader', {name}).not.toBeVisible()` against a zero-element
-      // locator passes vacuously — indistinguishable from "the column exists but is
-      // hidden" if the table never rendered at all.
-      await expect(page.getByRole('columnheader', { name: 'Invoice #' })).toBeVisible();
-
-      // Before enabling: neither hidden-by-default column header is rendered
-      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).not.toBeVisible();
-      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).not.toBeVisible();
-
-      // Both "Remaining Amount" and "Effective Amount" are hidden by default
-      // (defaultVisible: false) — enable both so we can compare their values.
-      await invoicesPage.enableColumn('Remaining Amount');
-      await invoicesPage.enableColumn('Effective Amount');
-      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
-      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
-
-      // Read this test's own row deterministically instead of assuming it's on page 1:
-      // the invoice is created with a fixed 2026-01-01 date, and with 25 invoices/page
-      // and every worker creating invoices concurrently, an older-dated invoice can
-      // easily be pushed past page 1 by the time this runs. `search()` does a full
-      // page.goto() to a filtered URL, which re-mounts the table and re-fetches column
-      // preferences from the server — since `table.invoices.columns` is a server-
-      // persisted preference (not client/session-only state), it should survive that
-      // navigation. Re-assert rather than assume: confirm both columns are still
-      // visible on the freshly-mounted, filtered page before reading cells off it.
+      // Search by the number: a search covers every status, so the row is found wherever it is
       await invoicesPage.search(invoiceNumber);
-      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
-      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
 
-      const remainingText = await invoicesPage.getColumnCellText(invoiceNumber, 'Remaining Amount');
-      const effectiveText = await invoicesPage.getColumnCellText(invoiceNumber, 'Effective Amount');
+      // Positive control before the not.toBeVisible() checks: the table rendered, with its
+      // default Still to pay column and no Split column yet
+      await expect(invoicesPage.columnHeader(/^Still to pay/)).toBeVisible();
+      await expect(invoicesPage.columnHeader(/^Split/)).toHaveCount(0);
+      await expect(invoicesPage.columnHeader(/^Notes/)).toHaveCount(0);
 
-      // Remaining Amount = 1000 (invoice total) − 300 (itemized budget line) = 700, per
-      // remainingAmount = invoice.amount − Σ budgetLines[].itemizedAmount
-      // (invoiceBudgetLineService.ts) — confirmed against current code, unrelated to
-      // deposits/refunds.
-      expect(remainingText).toContain('700');
-      // Effective Amount = 1000 (invoice total) − 150 (received refund) = 850, per
-      // computeFinalPaymentAmount() (depositAggregateUtils.ts): invoiceAmount minus
-      // deposit-type entries minus refund-type entries whose status is 'paid'/'claimed'
-      // — confirmed against current code (post the #1922 claim/deposit-scope split).
-      expect(effectiveText).toContain('850');
-      expect(effectiveText).not.toBe(remainingText);
+      await invoicesPage.enableColumn('Split');
+      await expect(invoicesPage.columnHeader(/^Split/)).toBeVisible();
+
+      // The column choice is a server-saved preference: it survives a reload
+      await page.reload();
+      await invoicesPage.waitForLoaded();
+      await expect(invoicesPage.columnHeader(/^Split/)).toBeVisible();
+
+      expect(await invoicesPage.cellText(invoice.id, 'Split')).toBe('30% split');
+      const stillToPay = parseMoney(await invoicesPage.cellText(invoice.id, 'Still to pay'));
+      expect(stillToPay).toBe(openCents);
     } finally {
       // Column visibility/order is a per-user server-side SINGLETON preference
       // (`table.invoices.columns`, see useColumnPreferences), not a per-test entity.

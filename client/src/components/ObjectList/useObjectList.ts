@@ -38,7 +38,10 @@ export interface ObjectListController<T, M = undefined> {
   /** filtersActive || explicit chip ≠ default. */
   readonly clearable: boolean;
   readonly setSearch: (q: string) => void;
-  /** Chip value or 'all'; always written explicitly, also the default chip. */
+  /**
+   * Chip value or 'all'. The default chip removes the param (absent = default) unless a search
+   * is active, where an absent param means 'all' and the default must be written explicitly.
+   */
   readonly setChip: (value: string) => void;
   /** Every configured filter param removed in one write. */
   readonly clearSheetFilters: () => void;
@@ -174,7 +177,11 @@ export function useObjectList<T, M = undefined>(
     filtersActive || (state.explicitChip !== null && state.explicitChip !== defaultChip);
 
   const setSearch = useCallback((q: string) => write({ q }), [write]);
-  const setChip = useCallback((value: string) => write({ chip: value }), [write]);
+  const setChip = useCallback(
+    (value: string) =>
+      write({ chip: value === defaultChip && state.q === '' && value !== ALL_CHIP ? null : value }),
+    [write, defaultChip, state.q],
+  );
   const setGroup = useCallback((value: string) => write({ group: value }), [write]);
   const setSort = useCallback(
     (value: string, order: SortOrder | null) =>

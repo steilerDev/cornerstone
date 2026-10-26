@@ -225,6 +225,36 @@ describe('useObjectList', () => {
     expect(h.get().clearable).toBe(true);
   });
 
+  it('selecting the default chip without a search removes the status param', async () => {
+    const h = setup(() => ok(rows(1)), '/tasks?status=done&vendorId=v1');
+    await waitFor(() => expect(h.get().totalItems).toBe(1));
+    await act(async () => {
+      h.get().setChip('open');
+    });
+    expect(h.search()).toBe('?vendorId=v1');
+    expect(h.get().query.chip).toBe('open');
+    expect(h.get().clearable).toBe(true);
+  });
+
+  it('selecting the default chip with a search active writes it explicitly', async () => {
+    const h = setup(() => ok(rows(1)), '/tasks?q=tile&status=done');
+    await waitFor(() => expect(h.get().totalItems).toBe(1));
+    await act(async () => {
+      h.get().setChip('open');
+    });
+    expect(h.search()).toBe('?q=tile&status=open');
+    expect(h.get().query.searchingAll).toBe(false);
+  });
+
+  it('selecting All without a search still writes status=all', async () => {
+    const h = setup(() => ok(rows(1)), '/tasks');
+    await waitFor(() => expect(h.get().totalItems).toBe(1));
+    await act(async () => {
+      h.get().setChip('all');
+    });
+    expect(h.search()).toBe('?status=all');
+  });
+
   it('U4 resets and refetches on query change; a superseded batch never lands', async () => {
     const resolvers: Array<(p: ObjectListPage<Row>) => void> = [];
     const fetchPage = jest.fn<FetchPage>(

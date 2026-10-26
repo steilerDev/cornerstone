@@ -104,3 +104,4 @@ removing it will fail typecheck. Flag it so QA updates the import in-session.
 - `story-1035-summary.md` — ManagePage unified tags/categories story notes
 - `ISSUE-415-STATUS.md` — household item timeline dependency status notes
 - [Restructure gotchas](restructure-gotchas.md) — EPIC-21 plan:check component counting, cost line family location, Bash guard workarounds
+- [ObjectList adopter patterns](objectlist-adopter-patterns.md) — Invoices #2238: chip-count config split, ids row refresh, ref cycle for create flow

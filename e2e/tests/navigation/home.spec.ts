@@ -31,6 +31,7 @@
  * H19  Section failures are isolated (retry)
  */
 
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
@@ -694,7 +695,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
     const toPay = home.pulseTile('still-to-pay');
     await expect(toPay).toContainText('3,400.50');
     await expect(toPay).toContainText('4 open invoices');
-    await expect(toPay).toHaveAttribute('href', `${routeUrl('invoices')}?openOnly=true`);
+    await expect(toPay).toHaveAttribute('href', routeUrl('invoices'));
 
     const progress = home.pulseTile('progress');
     await expect(progress).toContainText('8 of 20 tasks done');
@@ -703,7 +704,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
 
     await toPay.click();
     await expect(page).toHaveURL(
-      (url) => url.pathname === routeUrl('invoices') && url.searchParams.get('openOnly') === 'true',
+      (url) => url.pathname === routeUrl('invoices') && url.search === '',
     );
   });
 
@@ -760,13 +761,11 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
       const progressText = (await home.pulseTile('progress').innerText()).replace(/\s+/g, ' ');
 
       await home.pulseTile('still-to-pay').click();
-      const card = page.getByTestId('summary-card-open-payable');
-      await expect(card).toBeVisible();
-      const cardText = (await card.innerText()).replace(/\s+/g, ' ');
-      const count = cardText.match(/\b(\d+)\b/)?.[1];
+      // The To pay footer carries the same Still to pay figure as the tile
+      const footer = new InvoicesPage(page).footerFigure;
+      await expect(footer).toBeVisible();
+      const cardText = (await footer.innerText()).replace(/\s+/g, ' ');
       const amount = cardText.match(/[\d,]+\.\d{2}/)?.[0];
-      if (!toPayText.includes(` ${count} open invoice`))
-        out.push(`count: ${toPayText} vs ${cardText}`);
       if (!toPayText.includes(amount ?? '?')) out.push(`amount: ${toPayText} vs ${cardText}`);
 
       const tasks = await page.request.get('/api/work-items?pageSize=1');

@@ -9,6 +9,7 @@ import type { PaginationMeta } from './pagination.js';
 import type { UserSummary } from './workItem.js';
 import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
 import type { FilterMeta } from './filterMeta.js';
+import type { MoneyOfferTotals } from './money.js';
 
 /**
  * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
@@ -107,8 +108,7 @@ export interface Invoice {
   remainingAmount: number;
   /**
    * Deposits: staged partial payments for this invoice.
-   * On GET /api/invoices (list): populated only when `openOnly=true`, otherwise always `[]`.
-   * On all other endpoints (detail, vendor-scoped list): always populated.
+   * Always populated, on GET /api/invoices (list) too.
    */
   deposits: InvoiceDeposit[];
   /** Final payment amount: invoice total minus sum of all deposit amounts (any status). */
@@ -119,7 +119,7 @@ export interface Invoice {
    *   + Σ (pending deposit-type entries)
    * Pending refunds are EXCLUDED (reported separately via summary.refundsDue).
    * Additive to — never a replacement for — finalPaymentAmount.
-   * Only populated by GET /api/invoices when openOnly=true; undefined everywhere else.
+   * Always present on GET /api/invoices rows (`InvoiceListRow`); undefined on detail responses.
    */
   openAmount?: number;
   createdBy: UserSummary | null;
@@ -255,15 +255,47 @@ export interface InvoiceChipCounts {
   readonly totals: InvoiceChipTally;
 }
 
+/** Sort keys of GET /api/invoices. `status` is accepted but the Invoices page does not offer it. */
+export const INVOICE_LIST_SORTS = [
+  'date',
+  'amount',
+  'status',
+  'vendor_name',
+  'due_date',
+  'invoice_number',
+] as const;
+export type InvoiceListSort = (typeof INVOICE_LIST_SORTS)[number];
+
+/** A row of GET /api/invoices: every list-only figure is always present. */
+export interface InvoiceListRow extends Invoice {
+  /** Still to pay on this record (refunds excluded). */
+  openAmount: number;
+  /** The money service's Paid for this one record (paid + claimed, refunds netted). */
+  paid: number;
+  /** Offers only (status quotation): max(0, amount - non-refund progress payments); else null. */
+  remainingOnOffer: number | null;
+  /** The money service's Not yet split rule for this record. */
+  notYetSplit: boolean;
+}
+
+/** Totals over every row matching the request (all pages); `ids` is ignored. */
+export interface InvoiceListTotals {
+  /** Same rule as summary.openPayable, over the matching rows. */
+  readonly openPayable: InvoiceStatusSummary;
+  /** The money service's offer totals over the matching offers. */
+  readonly offers: MoneyOfferTotals;
+}
+
 /**
  * Response for GET /api/invoices (paginated, cross-vendor listing).
  */
 export interface InvoiceListPaginatedResponse {
-  invoices: Invoice[];
+  invoices: InvoiceListRow[];
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
   filterMeta?: FilterMeta;
   chipCounts: InvoiceChipCounts;
+  listTotals: InvoiceListTotals;
 }
 
 /**

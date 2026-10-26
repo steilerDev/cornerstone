@@ -178,22 +178,15 @@ test.describe(
 
         // Invoice no longer shows up when filtered to the old vendor on the invoices list
         // (filter by vendorId via the URL query)
-        await page.goto(`/budget/invoices?vendorId=${originalVendorId}`);
-        await invoicesPage.heading.waitFor({ state: 'visible' });
-        // The invoice number should NOT appear under the original vendor.
-        // DataTable renders both a desktop <table> and mobile cards container in the DOM
-        // simultaneously (one is CSS-hidden per viewport). Scoping to [class*="invoiceLink"]
-        // with { hasText } and then filtering to visible ensures strict-mode safety regardless
-        // of viewport: when the invoice is absent the locator resolves to 0 visible elements.
+        await invoicesPage.gotoChip('all', `vendorId=${originalVendorId}`);
+        // The invoice number should NOT appear under the original company. The list mounts both
+        // surfaces; titleLinks is the visible one, so the locator resolves to 0 when it is absent.
         const invoiceNumber = `${testPrefix}-VCHG-001`;
-        const visibleInvoiceLink = page
-          .locator('[class*="invoiceLink"]', { hasText: invoiceNumber })
-          .visible();
+        const visibleInvoiceLink = invoicesPage.titleLinks.filter({ hasText: invoiceNumber });
         await expect(visibleInvoiceLink).toHaveCount(0);
 
-        // It DOES appear when filtered to the new vendor — exactly 1 visible link.
-        await page.goto(`/budget/invoices?vendorId=${newVendorId}`);
-        await invoicesPage.heading.waitFor({ state: 'visible' });
+        // It DOES appear when filtered to the new company — exactly 1 visible link.
+        await invoicesPage.gotoChip('all', `vendorId=${newVendorId}`);
         await expect(visibleInvoiceLink).toHaveCount(1);
         await expect(visibleInvoiceLink).toBeVisible();
       } finally {

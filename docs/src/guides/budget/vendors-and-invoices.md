@@ -35,24 +35,88 @@ Click a company to see their detail page, which shows the company's information,
 
 ### Invoice List
 
-Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. (Invoices remain in the Budget section; only the vendor records themselves moved to Settings.) The list supports:
+Navigate to **Budget > Invoices** in the sidebar to see every invoice and offer across all companies. The page heading shows how many rows there are, such as **Invoices (24)**. Invoices remain in the Budget section; only the company records themselves moved to Settings.
 
-- **Search** -- Find invoices by number or company name
-- **Status Filter** -- Filter by Offer, To pay, Paid, or Submitted (disabled while "Show only open items" is on)
-- **Sorting** -- Sort by date, amount, or status
-- **Pagination** -- Browse through large invoice lists
+The list loads more rows as you scroll down, so there are no pages to step through.
 
-#### Show Only Open Items
+#### Status Chips
 
-Click the **"Show only open items"** toggle at the top of the invoice list to focus on work-in-progress invoices. This view shows:
+Chips across the top of the list show one status each. Each chip carries its row count, such as **To pay (12)**. Select a chip to show only its rows. The pressed chip is the one you are looking at.
 
-- **Invoices with the status To pay**, and invoices with deposits that are still To pay, sorted by earliest due date so your most urgent payments surface first
-- **Expandable deposit rows** -- Each invoice that has deposits still to pay shows a child row for each one, so you can see at a glance which deposits are still to pay
-- **Open totals** in the header:
-  - **Still to pay** -- The total amount you still owe across all visible invoices and open deposits
-  - **Refunds due to you** -- The total amount you are expecting back (when deposits exceed the final invoice amount)
+| Chip | Shows |
+|------|-------|
+| **To pay** | Invoices that are not paid yet, and progress payments still to pay. The list opens here. |
+| **Offers** | Company offers. Opens the [Offers summary](#offers). |
+| **Paid** | Paid invoices. |
+| **Submitted** | Invoices included in a draw-down request to the bank. |
+| **All** | Every invoice and offer, whatever its status. |
 
-The "Show only open items" toggle is mutually exclusive with the Status filter (status filtering is disabled while the toggle is on) and persists in the URL as `?openOnly=true`, so you can bookmark or share the focused view.
+On the **To pay** chip, an invoice with progress payments still to pay expands to show those payments and any refunds due. On the other chips, the expanded row shows all of its progress payments.
+
+Search looks across every status. If a match sits on another chip, no chip is pressed and a note such as **Searching all · 1 more in Offers** names the chips that hold matches.
+
+#### Filters
+
+Select **Filters** to narrow the list by company, invoice date, due date and amount. The **Show only** group holds four checkboxes. Each one applies only while it is ticked:
+
+- **Not yet split** -- invoices and offers not yet divided into cost lines.
+- **Without document** -- no Paperless-ngx document is linked yet.
+- **Refunds due** -- a refund is still expected from the company. The option shows its count and amount, such as **Refunds due (1 · 250 EUR)**, and appears only while a refund is due or while it is ticked.
+- **Due or overdue** -- overdue, or due within the next 7 days. It counts the invoice itself and its pending progress payments. Refunds are not counted.
+
+A note above the list names the active checkboxes, such as **Showing only: Not yet split, Due**, so an empty list is explained. **Clear filters** resets everything at once.
+
+#### Totals
+
+The **To pay** chip shows a **Still to pay** footer: the total you still owe across all open invoices and progress payments. While a search or filter is active, the footer reads **Still to pay in this list** and totals only the rows shown. The other chips have no footer.
+
+#### Sort and Group
+
+Sort by **Due date** (the default), **Date**, **Amount**, **Company** or **Invoice number**. On the **To pay** chip with the default sort, the list puts the earliest open due dates first, so overdue items come at the top.
+
+**Group by** sorts the rows under headings: **None** (the default), **Status**, or **Company**.
+
+#### Rows and Badges
+
+Each row shows the invoice number (or **No number**), the company, the due date, the amount and the **Still to pay** amount. Select the invoice number to open the invoice. Select the company name to open the company.
+
+Badges appear next to the status:
+
+- **Not yet split** -- the invoice is not fully divided into cost lines.
+- **Overdue** or **Due soon** -- the due date has passed, or is within 7 days.
+- **Progress payment overdue** -- one of its progress payments is overdue.
+- **Progress payments only** -- on the To pay chip, the invoice is already paid or submitted, but some progress payments are still open.
+
+Select **Columns...** to show or hide columns such as **Split** and **Notes**. On a phone, each row is a card with the company, the due date and the amount.
+
+#### Mark Paid
+
+Select **Mark paid** on a To pay invoice to mark it paid at once. The row leaves the To pay chip, and a message with an **Undo** button appears. Select **Undo** to put it back.
+
+To mark several invoices at once, tick their checkboxes. The selection bar shows **Mark paid (n)**, where n counts the selected invoices that are To pay. Offers and progress payments in the selection are skipped, and the bar says how many were skipped. One **Undo** reverses the whole batch.
+
+Offers cannot be marked paid. Progress payments have their own **Mark paid** action on the progress payment row, which asks for the payment date.
+
+#### Offers
+
+Select the **Offers** chip to see company offers. Above the list, the **Offers summary** shows four facts for the rows in the list, with any filters applied:
+
+- **Offers** -- how many offers there are
+- **Offered** -- the total of the offers
+- **Paid** -- the progress payments made so far
+- **Remaining on offer** -- the offered total minus those progress payments
+
+On the offer rows, the columns show each offer's **Offered**, **Paid**, **Remaining on offer** and **Progress payments**. The summary appears only on the Offers chip. To turn an offer into a final invoice, open the offer and use **Convert to final invoice** (see [Converting an Offer to a Final Invoice](#converting-an-offer-to-a-final-invoice)).
+
+#### Empty Lists
+
+- On **To pay**, with nothing filtered: **Nothing to pay right now**. Every invoice and progress payment is paid or submitted.
+- On the other chips with no rows: **No invoices yet**. Add an invoice or an offer to start tracking payments.
+- When filters hide every row: **No invoices match.** with a **Clear filters** button.
+
+#### Old Links
+
+Links from before this list was redesigned still work. `?status=quotation` opens the **Offers** chip, and `?openOnly=true` opens the **To pay** chip. The **Still to pay** figure on [Money Overview](budget-overview) and on the Home page links to the **To pay** chip.
 
 ### Creating an Invoice
 

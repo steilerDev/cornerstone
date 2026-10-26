@@ -143,8 +143,10 @@ describe('figure marker guard (#2232)', () => {
 
   it('uses every kind in the list that the UI can produce today', () => {
     const used = new Set(scanned.flatMap((f) => markerKinds(f.source)));
-    // `paid` is reserved for the Paid surfaces rebuilt by 4.5/4.6/4.10/4.12; the rest are live.
-    for (const kind of FIGURE_KINDS.filter((k) => k !== 'paid')) {
+    // Reserved until their surfaces are rebuilt: `paid` (4.5/4.10/4.12) and `ready-to-submit`
+    // (4.10; the Invoices stat cards that showed it were retired by 4.6, D-30). The rest are live.
+    const RESERVED = ['paid', 'ready-to-submit'];
+    for (const kind of FIGURE_KINDS.filter((k) => !RESERVED.includes(k))) {
       expect(used).toContain(kind);
     }
   });

@@ -1,7 +1,7 @@
 import type { Invoice, InvoiceDeposit } from '@cornerstone/shared';
 
 /**
- * Pure helpers for the "Show only open items" view (Story #2046).
+ * Pure helpers for the Invoices list: due flags, open progress payments and ordinals.
  * No React imports — safe to unit test in isolation.
  */
 
@@ -49,11 +49,6 @@ export function getOpenDeposits(invoice: Invoice): InvoiceDeposit[] {
 /** Listed only because of a pending deposit — its own status is not 'pending'. */
 export function isContainerOnly(invoice: Invoice): boolean {
   return invoice.status !== 'pending';
-}
-
-/** The invoice itself is overdue. */
-export function isInvoiceOverdue(invoice: Invoice, today: string): boolean {
-  return invoice.status === 'pending' && isOverdue(invoice.dueDate, today);
 }
 
 /** Any pending deposit is overdue (used for the collapsed-parent chip). */

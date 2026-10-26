@@ -468,6 +468,10 @@ describe('App', () => {
         openPayable: { count: 0, totalAmount: 0 },
         refundsDue: { count: 0, totalAmount: 0 },
       },
+      listTotals: {
+        openPayable: { count: 0, totalAmount: 0 },
+        offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+      },
     });
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockFetchHouseholdItemBudgets.mockResolvedValue([]);
@@ -607,6 +611,48 @@ describe('App', () => {
     await waitFor(() =>
       expect(document.title).toBe('Invoices \u00B7 Money \u00B7 Synthetic House'),
     );
+  }, 15000);
+
+  it('serves the Offers chip at /budget/invoices?status=quotation', async () => {
+    window.history.pushState({}, 'Offers', '/budget/invoices?status=quotation');
+    render(<App />);
+
+    const chip = await screen.findByTestId('invoices-chip-quotation', undefined, {
+      timeout: 5000,
+    });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.search).toBe('?status=quotation');
+  }, 15000);
+
+  it('redirects /invoices?status=quotation to the Offers chip of /budget/invoices', async () => {
+    window.history.pushState({}, 'Offers', '/invoices?status=quotation');
+    render(<App />);
+
+    const chip = await screen.findByTestId('invoices-chip-quotation', undefined, {
+      timeout: 5000,
+    });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.pathname).toBe('/budget/invoices');
+    expect(window.location.search).toBe('?status=quotation');
+  }, 15000);
+
+  it('rewrites the old /budget/invoices?openOnly=true link to the To pay chip in one replace', async () => {
+    window.history.pushState({}, 'Open items', '/budget/invoices?openOnly=true&page=2&q=roof');
+    const replace = jest.spyOn(window.history, 'replaceState');
+    render(<App />);
+
+    const chip = await screen.findByTestId('invoices-chip-pending', undefined, { timeout: 5000 });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.pathname).toBe('/budget/invoices');
+    expect(new URLSearchParams(window.location.search).get('status')).toBe('pending');
+    expect(new URLSearchParams(window.location.search).get('q')).toBe('roof');
+    expect(window.location.search).not.toContain('openOnly');
+    expect(window.location.search).not.toContain('page=');
+    const toInvoices = replace.mock.calls.filter(([, , url]) =>
+      String(url).includes('status=pending'),
+    );
+    expect(toInvoices).toHaveLength(1);
+    replace.mockRestore();
   }, 15000);
 
   it('serves /diary/new with the capture screen (Story #2221)', async () => {
