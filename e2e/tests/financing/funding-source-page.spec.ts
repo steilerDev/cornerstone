@@ -54,7 +54,7 @@ test.describe('Funding source page: overview', { tag: '@responsive' }, () => {
       // A loan's one primary is Prepare bank report, scoped to the source
       await expect(source.bankReportPrimary).toHaveAttribute(
         'href',
-        routeUrl('bankReport', undefined, { sourceId }),
+        routeUrl('bankReport', undefined, { type: 'claim', sourceId }),
       );
 
       await expect

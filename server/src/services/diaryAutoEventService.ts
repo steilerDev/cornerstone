@@ -106,6 +106,8 @@ interface StatusEventSpec {
   depositId?: string;
   batchId?: string;
   budgetSourceId?: string;
+  /** Revert submission (#2243): the submission batchId this event reverts. */
+  revertOf?: string;
   /** false = run W1/W3 but never insert (progress payments moving to pending). */
   writeRow?: boolean;
 }
@@ -123,6 +125,7 @@ function statusMetadata(spec: StatusEventSpec): StatusChangedMetadataV1 {
     ...(spec.depositId !== undefined && { depositId: spec.depositId }),
     ...(spec.batchId !== undefined && { batchId: spec.batchId }),
     ...(spec.budgetSourceId !== undefined && { budgetSourceId: spec.budgetSourceId }),
+    ...(spec.revertOf !== undefined && { revertOf: spec.revertOf }),
   };
 }
 
@@ -244,6 +247,7 @@ export function onWorkItemStatusChanged(
  * @param extra.amount - Invoice amount after the change (major units)
  * @param extra.batchId - Bank-report batch (W5)
  * @param extra.budgetSourceId - Funding source of the bank-report batch (#2224)
+ * @param extra.revertOf - Submission batchId this event reverts (#2243)
  */
 export function onInvoiceStatusChanged(
   db: DbType,
@@ -252,7 +256,7 @@ export function onInvoiceStatusChanged(
   previousStatus: string,
   newStatus: string,
   ctx: EventContext = SYSTEM_CONTEXT,
-  extra: { amount?: number; batchId?: string; budgetSourceId?: string } = {},
+  extra: { amount?: number; batchId?: string; budgetSourceId?: string; revertOf?: string } = {},
 ): void {
   recordStatusEvent(
     db,
@@ -268,6 +272,7 @@ export function onInvoiceStatusChanged(
       amount: extra.amount,
       batchId: extra.batchId,
       budgetSourceId: extra.budgetSourceId,
+      revertOf: extra.revertOf,
     },
     ctx,
   );
@@ -284,10 +289,11 @@ export function onDepositStatusChanged(
   previousStatus: string,
   newStatus: string,
   ctx: EventContext = SYSTEM_CONTEXT,
-  extra: { batchId?: string; budgetSourceId?: string } = {},
+  extra: { batchId?: string; budgetSourceId?: string; revertOf?: string } = {},
 ): void {
-  // A row is written only for paid / claimed targets (AC-17); a move back to pending still
-  // runs W1/W3 so it can retract the event it reverses.
+  // A row is written only for paid / claimed targets (AC-17), or when it is a submission revert
+  // (#2243, ADR-040 deviation); any other move back to pending still runs W1/W3 so it can
+  // retract the event it reverses.
   recordStatusEvent(
     db,
     {
@@ -304,7 +310,8 @@ export function onDepositStatusChanged(
       depositId: deposit.id,
       batchId: extra.batchId,
       budgetSourceId: extra.budgetSourceId,
-      writeRow: newStatus === 'paid' || newStatus === 'claimed',
+      revertOf: extra.revertOf,
+      writeRow: newStatus === 'paid' || newStatus === 'claimed' || extra.revertOf !== undefined,
     },
     ctx,
   );

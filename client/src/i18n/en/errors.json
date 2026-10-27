@@ -55,5 +55,7 @@
   "STALE_OWNERSHIP": "One or more budget lines no longer belong to this source. Refresh and try again.",
   "INVALID_DEPOSIT_STATUS_TRANSITION": "This deposit status change is not allowed.",
   "INVALID_DEPOSIT_DATE_FOR_STATUS": "This date cannot be set for the deposit's current status.",
-  "OIDC_MISSING_EMAIL": "Your identity provider did not supply an email address."
+  "OIDC_MISSING_EMAIL": "Your identity provider did not supply an email address.",
+  "SUBMISSION_ALREADY_REVERTED": "This submission was already reverted.",
+  "SUBMISSION_CHANGED": "Some invoices changed since the submission, so it can't be reverted."
 }

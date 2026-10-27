@@ -13,6 +13,7 @@
  * The PDF cells are also covered by realRender.test.ts (#1959, #1911 AC5.3); this file adds the
  * cross-surface comparison and the preview cells that file cannot reach.
  */
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, jest, beforeAll } from '@jest/globals';
 import i18next from 'i18next';
@@ -213,6 +214,7 @@ function renderPreview(content: ReportContent, t: TFunction) {
       attachDocuments={false}
       t={t}
     />,
+    { wrapper: MemoryRouter },
   );
 }
 
@@ -368,7 +370,7 @@ describe.each([
       label: 'Anrede',
       opening: 'Sehr geehrte Damen und Herren,',
       subjectLabel: 'Betreff',
-      subject: 'Abruf Kreditmittel',
+      subject: 'Mittelabruf',
     },
   ] as const,
   [
@@ -379,7 +381,7 @@ describe.each([
       label: 'Opening',
       opening: 'Dear Sir or Madam,',
       subjectLabel: 'Subject',
-      subject: 'Claim Documentation',
+      subject: 'Draw-down request',
     },
   ] as const,
 ])('#2159 cover-letter opening parity — %s', (lang, localeStr, getT, e) => {
@@ -415,6 +417,7 @@ describe.each([
         t={getT()}
         lang={lang}
       />,
+      { wrapper: MemoryRouter },
     );
 
     expect(screen.getByText(e.label)).toBeInTheDocument();

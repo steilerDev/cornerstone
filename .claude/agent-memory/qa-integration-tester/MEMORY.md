@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2243 bank report server tests](story-2243-bank-report-server-tests.md) (2026-10-27) — Fastify 414 on long params, dead auth guards, AppError default-arg coverage
 - [Story #2242 Financing/source/grant tests](story-2242-financing-tests.md) (2026-10-27) — node24 recipe, dead-branch ceilings, partial-mock ripples, LocaleProvider double-fetch
 - [Story #2241 new invoice dialog tests](story-2241-new-invoice-dialog-tests.md) (2026-10-27) — EntityPicker->LocaleContext suite ripple, status-cache mock, atomic server cases, it.failing pin
 - [Story #2240 Convert page tests](story-2240-convert-page-tests.md) (2026-10-27) — barrel-import mock ripple, makeConvert fixture, getClientRects stub, App.tsx baseline gap

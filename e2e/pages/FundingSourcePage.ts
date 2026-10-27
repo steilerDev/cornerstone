@@ -138,6 +138,16 @@ export class FundingSourcePage {
     this.moveModalFormError = this.moveModal.locator('[class*="banner"]');
   }
 
+  /** The "Revert submission" button of an unreverted submission batch row on the History tab. */
+  revertButton(batchId: string): Locator {
+    return this.page.getByTestId(`revert-submission-${batchId}`);
+  }
+
+  /** The "Reverted" badges of the History tab (one per reverted submission row). */
+  revertedBadges(): Locator {
+    return this.history.locator('[data-testid^="system-event-"][data-testid$="-reverted"]');
+  }
+
   async goto(id: string, query?: Record<string, string>): Promise<void> {
     await this.page.goto(routeUrl('fundingSource', { id }, query));
     await this.heading.waitFor({ state: 'visible' });

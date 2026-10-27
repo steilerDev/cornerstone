@@ -4,7 +4,11 @@
  */
 
 import { useId, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import { Trans } from 'react-i18next';
+import { useHref } from 'react-router-dom';
 import type { TFunction } from 'i18next';
+import { routeUrl } from '@cornerstone/shared';
 import type { InvoiceStatus } from '@cornerstone/shared';
 import type {
   ReportColumnKey,
@@ -258,6 +262,20 @@ const BODY_MAX_LENGTH = 4000;
 // tracked in #1950.
 const USAGE_TEXT_MAX_LENGTH = 500;
 
+/**
+ * Link to Project setup > House. Opens a new tab: the wizard state lives in memory only, so an
+ * in-app navigation would lose the report (#2243 D4). Deliberately a plain anchor, not NavAnchor.
+ */
+function HouseLink({ t, children }: { t: TFunction; children?: ReactNode }) {
+  const href = useHref(`${routeUrl('settingsManage')}#house`);
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={styles.senderLink}>
+      {children}
+      <span className={sharedStyles.srOnly}>{t('sourceReports.editable.opensNewTab')}</span>
+    </a>
+  );
+}
+
 export function ReportContentEditor({
   content,
   overrides,
@@ -309,6 +327,8 @@ export function ReportContentEditor({
     usage: content.labels.usage,
   };
 
+  const senderEmpty = content.coverLetter?.sender.trim() === '';
+
   return (
     <div className={styles.container}>
       {/* Cover Letter */}
@@ -334,6 +354,20 @@ export function ReportContentEditor({
               uiLang={uiLang}
               lengthLimit={lengthLimit(SENDER_MAX_LENGTH)}
             />
+            <p
+              className={`${styles.senderHelp} ${senderEmpty ? styles.senderHelpEmpty : ''}`}
+              data-testid="report-sender-help"
+            >
+              <Trans
+                t={t}
+                i18nKey={
+                  senderEmpty
+                    ? 'sourceReports.editable.senderEmpty'
+                    : 'sourceReports.editable.senderHelp'
+                }
+                components={{ houseLink: <HouseLink t={t} /> }}
+              />
+            </p>
 
             {content.coverLetter.recipient && (
               <OverrideField

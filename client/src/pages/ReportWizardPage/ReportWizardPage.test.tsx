@@ -302,7 +302,7 @@ function desktopTable(): HTMLElement {
   return document.querySelector('table.table') as HTMLElement;
 }
 
-async function goToStep3(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
+async function goToStep3(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 0) {
   await waitFor(() => screen.getByRole('radiogroup'));
   await user.click(screen.getAllByRole('radio')[useCaseIndex]!); // use case
   await clickNext(user); // step 1 -> 2
@@ -315,15 +315,15 @@ async function goToStep3(user: ReturnType<typeof userEvent.setup>, useCaseIndex 
     expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
   });
   await clickNext(user); // step 2 -> 3
-  await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
 }
 
-async function goToStep4(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
+async function goToStep4(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 0) {
   await goToStep3(user, useCaseIndex);
   await clickNext(user); // step 3 -> 4 (Settings: language + document options)
 }
 
-async function goToStep5(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
+async function goToStep5(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 0) {
   await goToStep4(user, useCaseIndex);
   await clickNext(user); // step 4 -> 5
 }
@@ -359,7 +359,7 @@ describe('ReportWizardPage', () => {
     await waitFor(() => screen.getByRole('radiogroup'));
 
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
@@ -375,7 +375,7 @@ describe('ReportWizardPage', () => {
     await waitFor(() => screen.getByRole('radiogroup'));
     const user = userEvent.setup();
     const radios = screen.getAllByRole('radio');
-    await user.click(radios[1]!); // "claim"
+    await user.click(radios[0]!); // "claim"
 
     await waitFor(() => {
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-1');
@@ -392,7 +392,7 @@ describe('ReportWizardPage', () => {
 
     await waitFor(() => screen.getByRole('radiogroup'));
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     await clickNext(user);
 
     await waitFor(() => {
@@ -403,7 +403,7 @@ describe('ReportWizardPage', () => {
     await waitFor(() => {
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-42');
     });
-    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
   });
 
   it('fetches the report when a source is selected on step 2', async () => {
@@ -413,7 +413,7 @@ describe('ReportWizardPage', () => {
 
     const user = userEvent.setup();
     await waitFor(() => screen.getByRole('radiogroup'));
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     await clickNext(user);
     await waitFor(() => screen.getAllByRole('radio').length > 0);
     await user.click(screen.getAllByRole('radio')[0]!);
@@ -429,7 +429,7 @@ describe('ReportWizardPage', () => {
     renderPage();
     const user = userEvent.setup();
     await goToStep3(user);
-    expect(screen.getByText('ACME')).toBeInTheDocument();
+    expect(screen.getAllByText('ACME')[0]).toBeInTheDocument();
   });
 
   it('shows an error banner when the initial data load fails', async () => {
@@ -453,7 +453,7 @@ describe('ReportWizardPage', () => {
 
     const user = userEvent.setup();
     await waitFor(() => screen.getByRole('radiogroup'));
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     await waitFor(() => {
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-1');
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-2');
@@ -476,7 +476,7 @@ describe('ReportWizardPage', () => {
 
     const user = userEvent.setup();
     await waitFor(() => screen.getByRole('radiogroup'));
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     await clickNext(user);
     await waitFor(() => screen.getAllByRole('radio').length > 0);
     await user.click(screen.getAllByRole('radio')[0]!);
@@ -496,7 +496,7 @@ describe('ReportWizardPage', () => {
       .find((b) => b.className.includes('btnSecondary'));
     await user.click(retryBtn!);
     await waitFor(() => {
-      expect(screen.getByText('ACME')).toBeInTheDocument();
+      expect(screen.getAllByText('ACME')[0]).toBeInTheDocument();
     });
   });
 
@@ -511,7 +511,7 @@ describe('ReportWizardPage', () => {
       expect(within(stepperNav).getAllByRole('listitem')).toHaveLength(5);
     });
 
-    it('shows "Step 5 of 5" in the mobile stepper on the Preview & Export step', async () => {
+    it('shows "Step 5 of 5" in the mobile stepper on the Preview and export step', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
@@ -627,8 +627,8 @@ describe('ReportWizardPage', () => {
       // Back to step 3, toggle exclusion — no prior edits exist, so no discard modal.
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
     });
@@ -645,8 +645,8 @@ describe('ReportWizardPage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
     });
@@ -662,14 +662,14 @@ describe('ReportWizardPage', () => {
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
       // The exclusion checkbox itself: still checked, since the guarded change never committed.
-      expect(screen.getByRole('checkbox', { name: /ACME/ })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /ACME.*INV-/ })).toBeChecked();
     });
 
     it('"Discard and Continue" clears overrides and applies the pending change', async () => {
@@ -683,17 +683,17 @@ describe('ReportWizardPage', () => {
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /ACME/ })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /ACME.*INV-/ })).not.toBeChecked();
 
       // Re-include the invoice (the discarded change excluded the report's only invoice, which
       // disables step 3's Next button) so navigation back to step 5 is possible again.
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       // Overrides were cleared: navigating back to step 5 shows the baseline value again, not the
       // discarded edit.
@@ -715,9 +715,9 @@ describe('ReportWizardPage', () => {
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
 
       // Jump back to step 1 via the stepper nav.
-      await user.click(screen.getByRole('button', { name: 'Report Type' }));
+      await user.click(screen.getByRole('button', { name: 'Report type' }));
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // pick a different use case
+      await user.click(screen.getAllByRole('radio')[1]!); // pick a different use case
 
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
     });
@@ -794,13 +794,13 @@ describe('ReportWizardPage', () => {
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
       await user.keyboard('{Escape}');
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /ACME/ })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /ACME.*INV-/ })).toBeChecked();
     });
 
     it("re-including a previously-excluded budget line reverts excludedLineIds (onToggleLine's else branch)", async () => {
@@ -926,7 +926,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
 
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
       await user.click(screen.getAllByRole('radio')[0]!); // pick the first source
@@ -941,7 +941,7 @@ describe('ReportWizardPage', () => {
       // dirty — the discard modal must not appear; this is the direct (non-guarded-dialog) route.
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[1]!); // claim
+      await user.click(screen.getAllByRole('radio')[0]!); // claim
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
 
       await clickNext(user); // step 1 -> 2 again
@@ -968,9 +968,9 @@ describe('ReportWizardPage', () => {
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
 
-      await user.click(screen.getByRole('button', { name: 'Report Type' })); // jump to step 1
+      await user.click(screen.getByRole('button', { name: 'Report type' })); // jump to step 1
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // pick a different use case
+      await user.click(screen.getAllByRole('radio')[1]!); // pick a different use case
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
@@ -996,18 +996,18 @@ describe('ReportWizardPage', () => {
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
 
-      await user.click(screen.getByRole('button', { name: 'Report Type' })); // jump to step 1
+      await user.click(screen.getByRole('button', { name: 'Report type' })); // jump to step 1
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // attempt a different use case
+      await user.click(screen.getAllByRole('radio')[1]!); // attempt a different use case
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
 
-      // The pending use-case change never applied: the original ('claim', index 1) radio is still
+      // The pending use-case change never applied: the original ('claim', index 0) radio is still
       // checked.
       const useCaseRadios = screen.getAllByRole('radio') as HTMLInputElement[];
-      expect(useCaseRadios[1]!.checked).toBe(true);
+      expect(useCaseRadios[0]!.checked).toBe(true);
 
       // The original source selection and report survive too — step 2's Next is still enabled and
       // the source is still checked, with no re-fetch required.
@@ -1022,7 +1022,7 @@ describe('ReportWizardPage', () => {
 
       // And the override edit survives, undisturbed by any discarded baseline.
       await clickNext(user); // step 2 -> 3
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
       expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
@@ -1037,7 +1037,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
 
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
       await clickNext(user); // step 1 -> 2
 
       await waitFor(() => {
@@ -1055,7 +1055,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await waitFor(() => screen.getByRole('radiogroup'));
       mockGetSourceReport.mockClear();
-      await user.click(screen.getAllByRole('radio')[1]!); // claim
+      await user.click(screen.getAllByRole('radio')[0]!); // claim
 
       await clickNext(user); // step 1 -> 2 again
       await waitFor(() => screen.getAllByRole('radio').length > 0);
@@ -1085,7 +1085,7 @@ describe('ReportWizardPage', () => {
       });
       renderPage();
       const user = userEvent.setup();
-      await goToStep3(user, 1); // use case A ('claim'), full pass to a loaded step 3
+      await goToStep3(user, 0); // use case A ('claim'), full pass to a loaded step 3
 
       await user.click(screen.getByRole('button', { name: 'Back' })); // step 3 -> 2
       await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
@@ -1107,7 +1107,7 @@ describe('ReportWizardPage', () => {
         .find((b) => b.className.includes('btnSecondary'));
       await user.click(retryBtn!);
       await waitFor(() => {
-        expect(screen.getByText('ACME')).toBeInTheDocument();
+        expect(screen.getAllByText('ACME')[0]).toBeInTheDocument();
       });
     });
 
@@ -1201,14 +1201,14 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
 
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
       await user.click(screen.getAllByRole('radio')[0]!); // pick source — starts call #2 (A), left pending
 
       await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[1]!); // claim — resets, bumps the token, starts call #3
+      await user.click(screen.getAllByRole('radio')[0]!); // claim — resets, bumps the token, starts call #3
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
       await user.click(screen.getAllByRole('radio')[0]!); // re-pick same source — starts call #4 (B), pending
@@ -1218,7 +1218,7 @@ describe('ReportWizardPage', () => {
       await act(async () => {
         deferredB.resolve(freshReportB);
       });
-      await waitFor(() => expect(screen.getByText('FRESH-B-VENDOR')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getAllByText('FRESH-B-VENDOR')[0]).toBeInTheDocument());
 
       // Now resolve the OLDER request (A / budget-overview) — it settles LAST. Pre-fix (no
       // request token), this overwrites `report`/`reportStatus` with the stale A payload: the
@@ -1229,7 +1229,7 @@ describe('ReportWizardPage', () => {
       });
 
       // The stale A payload must never land — B's report must still be the one rendered.
-      expect(screen.getByText('FRESH-B-VENDOR')).toBeInTheDocument();
+      expect(screen.getAllByText('FRESH-B-VENDOR')[0]).toBeInTheDocument();
       expect(screen.queryByText('STALE-A-VENDOR')).not.toBeInTheDocument();
     });
 
@@ -1274,14 +1274,14 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
 
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
       await user.click(screen.getAllByRole('radio')[0]!); // pick source — starts call #2 (A), left pending
 
       await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[1]!); // claim
+      await user.click(screen.getAllByRole('radio')[0]!); // claim
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
       await user.click(screen.getAllByRole('radio')[0]!); // re-pick same source — starts call #4 (B), pending
@@ -1290,7 +1290,7 @@ describe('ReportWizardPage', () => {
       await act(async () => {
         deferredB.resolve(freshReportB);
       });
-      await waitFor(() => expect(screen.getByText('FRESH-B-VENDOR-2')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getAllByText('FRESH-B-VENDOR-2')[0]).toBeInTheDocument());
 
       // The OLDER request (A) now rejects, AFTER the newer one already succeeded. Pre-fix, this
       // unconditionally flips reportStatus to 'error' and blows away the just-rendered B content.
@@ -1299,7 +1299,7 @@ describe('ReportWizardPage', () => {
       });
 
       expect(screen.queryByText('Failed to load report')).not.toBeInTheDocument();
-      expect(screen.getByText('FRESH-B-VENDOR-2')).toBeInTheDocument();
+      expect(screen.getAllByText('FRESH-B-VENDOR-2')[0]).toBeInTheDocument();
     });
   });
 
@@ -1503,7 +1503,7 @@ describe('ReportWizardPage', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user); // useCaseIndex=1 -> 'claim'
+      await goToStep5(user); // default useCase -> 'claim'
 
       await user.click(within(columnToggleGroup()).getByLabelText('Vendor'));
       await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
@@ -1554,18 +1554,18 @@ describe('ReportWizardPage', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, 1); // 'claim'
+      await goToStep5(user, 0); // 'claim'
 
       const vendorBox = within(columnToggleGroup()).getByLabelText('Vendor') as HTMLInputElement;
       await user.click(vendorBox);
       expect(vendorBox).not.toBeChecked();
 
       // Navigate back to step 1 via the desktop stepper nav (clickable up to maxReachedStep=5).
-      await user.click(screen.getByRole('button', { name: 'Report Type' }));
+      await user.click(screen.getByRole('button', { name: 'Report type' }));
       await waitFor(() => screen.getByRole('radiogroup'));
 
       // Select a DIFFERENT use case ('budget-overview', index 0) and walk forward to step 5 again.
-      await goToStep5(user, 0);
+      await goToStep5(user, 1);
 
       const group = within(columnToggleGroup());
       for (const box of group.getAllByRole('checkbox')) {
@@ -1889,6 +1889,7 @@ describe('ReportWizardPage', () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       mockMarkInvoicesClaimed.mockResolvedValue({
+        batchId: 'batch-1',
         claimedInvoiceIds: ['inv-1'],
         claimedDepositIds: [],
       });
@@ -1898,8 +1899,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', ['inv-1'], []);
@@ -1950,16 +1951,16 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep3(user);
 
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('report-mark-confirm')).not.toBeInTheDocument();
       });
       await waitFor(() => {
         expect(mockGetSourceReport).toHaveBeenCalledTimes(3);
@@ -2004,8 +2005,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       // INV-002 also appears as a plain table cell in the invoice list, so the full banner
       // sentence is asserted (not a bare /INV-002/ regex) to uniquely target the error banner.
@@ -2035,8 +2036,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(
@@ -2064,8 +2065,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(
@@ -2119,6 +2120,7 @@ describe('ReportWizardPage', () => {
         }),
       );
       mockMarkInvoicesClaimed.mockResolvedValue({
+        batchId: 'batch-1',
         claimedInvoiceIds: [],
         claimedDepositIds: ['dep-1'],
       });
@@ -2139,8 +2141,8 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 4 -> 5
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         // The invoice has an excluded line, so it must not flip status (invoiceIds: []) — but its
@@ -2172,8 +2174,8 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 4 -> 5
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(
@@ -2183,7 +2185,7 @@ describe('ReportWizardPage', () => {
         ).toBeInTheDocument();
       });
       // The modal closes as part of the guard.
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('report-mark-confirm')).not.toBeInTheDocument();
       expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
     });
 
@@ -2230,6 +2232,7 @@ describe('ReportWizardPage', () => {
         }),
       );
       mockMarkInvoicesClaimed.mockResolvedValue({
+        batchId: 'batch-1',
         claimedInvoiceIds: [],
         claimedDepositIds: ['dep-1'],
       });
@@ -2250,8 +2253,8 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 4 -> 5
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', [], ['dep-1']);
@@ -2296,8 +2299,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(screen.getByText('Totally Unknown Code')).toBeInTheDocument();
@@ -2314,8 +2317,8 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-confirm'));
 
       await waitFor(() => {
         expect(
@@ -2332,11 +2335,11 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
       await user.keyboard('{Escape}');
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('report-mark-confirm')).not.toBeInTheDocument();
       });
       expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
     });
@@ -2349,11 +2352,11 @@ describe('ReportWizardPage', () => {
       await goToStep5(user);
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
+      await user.click(screen.getByTestId('report-mark-cancel'));
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('report-mark-confirm')).not.toBeInTheDocument();
       });
       expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
     });
@@ -2444,12 +2447,13 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => screen.getByTestId('report-mark-confirm'));
 
-      const warning = screen.getByRole('alert');
-      expect(warning).toHaveTextContent(
-        '1 invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.',
-      );
+      expect(
+        screen.getByText(
+          '1 invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.',
+        ),
+      ).toBeInTheDocument();
     });
 
     it('excluding the sole invoice at the invoice level disables the step-3 Next button (cannot reach step 5)', async () => {
@@ -2460,12 +2464,13 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep3(user);
 
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
-      const nextButtons = screen
-        .getAllByRole('button')
-        .filter((b) => b.className.includes('btnPrimary'));
-      expect(nextButtons[nextButtons.length - 1]).toBeDisabled();
+      // aria-disabled (not disabled) with the reason as its description (#2243)
+      const next = screen.getByRole('button', { name: 'Next' });
+      expect(next).toHaveAttribute('aria-disabled', 'true');
+      expect(next.className).toContain('inertPrimary');
+      expect(next).toHaveAccessibleDescription('Select at least one invoice to proceed');
     });
 
     it('selects and deselects all invoices via the list header checkbox', async () => {
@@ -2475,8 +2480,8 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep3(user);
 
-      const selectAll = screen.getByRole('checkbox', { name: 'Select all invoices' });
-      const invoiceCheckbox = screen.getByRole('checkbox', { name: /ACME/ });
+      const selectAll = screen.getByRole('checkbox', { name: /^Select all invoices/ });
+      const invoiceCheckbox = screen.getByRole('checkbox', { name: /ACME.*INV-/ });
       expect(invoiceCheckbox).toBeChecked();
 
       await user.click(selectAll);
@@ -2498,16 +2503,16 @@ describe('ReportWizardPage', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await waitFor(() => expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
 
-    await user.click(screen.getAllByRole('radio')[1]!);
+    await user.click(screen.getAllByRole('radio')[0]!);
     await clickNext(user);
     await waitFor(() => screen.getAllByRole('radio').length > 0);
-    await user.click(screen.getByRole('button', { name: 'Report Type' }));
+    await user.click(screen.getByRole('button', { name: 'Report type' }));
     await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
   });
   // ─── Page identity (#2203) ─────────────────────────────────────────────────

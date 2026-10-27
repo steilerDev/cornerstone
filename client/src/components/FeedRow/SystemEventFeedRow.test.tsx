@@ -237,6 +237,10 @@ describe('SystemEventFeedRow', () => {
               budgetSourceId: 'src-1',
               budgetSourceName: 'Bank A',
               budgetSourceExists: true,
+              kind: 'submission',
+              reverted: false,
+              invoicesFrom: { pending: 2, paid: 0 },
+              progressPaymentCount: 0,
             },
           },
         ),
@@ -246,8 +250,47 @@ describe('SystemEventFeedRow', () => {
       expect(row).toHaveTextContent('Invoices T-001, T-002');
       expect(screen.getByTestId('system-event-ev-1-link')).toHaveAttribute(
         'href',
-        '/budget/reports?sourceId=src-1',
+        '/budget/financing/sources/src-1',
       );
+    });
+
+    function batchEntry(batchOver: Record<string, unknown>) {
+      return invoiceEntry(
+        { batchId: 'b-1' },
+        {
+          batch: {
+            batchId: 'b-1',
+            invoiceCount: 2,
+            amount: 300,
+            invoiceLabels: ['T-001', 'T-002'],
+            budgetSourceId: 'src-1',
+            budgetSourceName: 'Bank A',
+            budgetSourceExists: true,
+            kind: 'submission',
+            reverted: false,
+            invoicesFrom: { pending: 2, paid: 0 },
+            progressPaymentCount: 0,
+            ...batchOver,
+          },
+        },
+      );
+    }
+
+    it('a reverted submission shows the Reverted badge next to the Submission badge', () => {
+      setup(batchEntry({ reverted: true }));
+      expect(screen.getByTestId('system-event-ev-1-reverted')).toHaveTextContent('Reverted');
+      expect(screen.getByTestId('system-event-ev-1-extra')).toHaveTextContent('Submission');
+    });
+
+    it('an unreverted submission has no Reverted badge', () => {
+      setup(batchEntry({}));
+      expect(screen.queryByTestId('system-event-ev-1-reverted')).toBeNull();
+    });
+
+    it('a revert batch row reads as a reversal and has no Reverted badge', () => {
+      const { row } = setup(batchEntry({ kind: 'revert' }));
+      expect(screen.queryByTestId('system-event-ev-1-reverted')).toBeNull();
+      expect(row).toHaveTextContent('Submission of 2 invoices reverted, EUR 300.00');
     });
 
     it('a plain event has no extra badge', () => {

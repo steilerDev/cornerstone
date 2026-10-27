@@ -334,7 +334,7 @@ export type {
 export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
 
 // Runtime union tuples (#2029)
-export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
+export { SOURCE_REPORT_TYPES, REPORT_TYPE_INVOICE_STATUSES } from './types/sourceReport.js';
 export { BUDGET_SOURCE_TYPES, BUDGET_SOURCE_STATUSES } from './types/budgetSource.js';
 export {
   INVOICE_STATUSES,
@@ -631,6 +631,8 @@ export type {
   SourceReportResponse,
   MarkClaimedRequest,
   MarkClaimedResponse,
+  RevertSubmissionResponse,
+  SubmissionChangedItem,
   GenerateReportContentRequest,
   GenerateReportContentResponse,
 } from './types/sourceReport.js';

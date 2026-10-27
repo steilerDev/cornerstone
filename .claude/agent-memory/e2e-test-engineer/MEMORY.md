@@ -40,6 +40,7 @@
 - [story-2211-command-search.md](story-2211-command-search.md) — #2211 palette POM/spec, Back-reopens-palette defect, list-search text collision, sandbox run notes.
 - [story-2215-project-setup.md](story-2215-project-setup.md) — #2215 Project setup POM (ReferenceListControl), mocked global-list reorder, anchors, live-run traps.
 - [story-2238-invoices-list.md](story-2238-invoices-list.md) — #2238 Invoices ObjectList POM (surface-agnostic locators), chip/URL rules, footer-vs-server comparison, empty-state and chip-URL rules.
+- [story-2243-bank-report.md](story-2243-bank-report.md) — #2243 Draw-down request wizard: landing rule needs mocked sources, aria-disabled click needs force, paging sentinel race, revert dialog/N8 link patterns.
 
 ## Open follow-ups to flag to orchestrator
 

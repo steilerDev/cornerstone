@@ -32,6 +32,31 @@
   gap: var(--spacing-4);
 }
 
+/* Sender helper (AC6): where the sender comes from, with a new-tab link to Project setup > House */
+.senderHelp {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.senderHelpEmpty {
+  composes: bannerWarning from '../../styles/shared.module.css';
+  color: var(--color-text-primary);
+}
+
+.senderLink {
+  display: inline-block;
+  padding-block: var(--spacing-3);
+  margin-block: calc(-1 * var(--spacing-3));
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.senderLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 /* Read-only chrome row (date, closing) — label above value, matching EditableField's <label> recipe */
 .readOnlyField {
   display: flex;

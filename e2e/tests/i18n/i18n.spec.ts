@@ -693,7 +693,7 @@ test.describe('i18n: German report wizard submit wording (Story #2195, AC6)', ()
       await expect(markButton).toBeEnabled();
       await markButton.click();
 
-      await page.getByRole('dialog').locator('[class*="btnPrimary"]').click();
+      await page.getByTestId('report-mark-confirm').click();
       await expect(wizard.claimSuccessBanner).toContainText(
         '1 Rechnung und 0 Abschlagszahlungen als eingereicht markiert',
       );

@@ -17,7 +17,7 @@ The budget system provides:
 - **Invoices** -- Track offers and invoices from companies, split them into cost lines with a grid, and link the lines to tasks and purchases (companies have their own page -- see [Invoices & Companies](vendors-and-invoices))
 - **Grants** -- Track grants that pay back part of the cost of the tasks and purchases you link to them
 - **Money Overview** -- See what is left to spend as one headline figure, with its verdict and range, and break the costs down by area, type, cost category or funding source, down to single cost lines, with a funding source filter and print-friendly styling
-- **Bank Reports** -- Generate a formatted PDF for a funding source -- a claim submission, a proof-of-funds statement, or a general overview -- with an editable cover letter, optional AI-drafted content, and configurable columns
+- **Bank Reports** -- Generate a formatted PDF for a funding source -- a draw-down request, a proof-of-funds statement, or a general budget overview -- with an editable cover letter, optional AI-drafted content, and configurable columns
 
 ## How It Fits Together
 
@@ -38,4 +38,4 @@ When a company submits an **offer** or **invoice**, you split it into cost lines
 - [Auto-itemize Invoices](auto-itemize) -- Extract rows from invoice PDFs using your own LLM provider
 - [Grants](subsidies) -- Manage grants and the tasks and purchases they cover
 - [Money Overview](budget-overview) -- Left to spend, the funding sources, the cost breakdown by view, and print output
-- [Bank Reports](bank-reports) -- Generate claim, proof-of-funds, and budget overview PDFs for a financing source
+- [Bank Reports](bank-reports) -- Generate draw-down request, proof-of-funds, and budget overview PDFs for a financing source, and revert a submission if it was recorded by mistake

@@ -11,7 +11,7 @@
  * #1931 removed the step-4 "Enable AI assistance" toggle (double opt-in defect — the toggle
  * carried no state of its own, it only gated whether a second button existed). The step-5 action
  * now depends purely on `llmEnabled` (from `GET /api/config`), and its accessible name changed
- * from "Generate with AI" to "Enhance with AI". `goToStep4`/`goToStep5` below no longer take an
+ * from "Generate with AI" to "Draft with AI". `goToStep4`/`goToStep5` below no longer take an
  * `enableAi` parameter — there is nothing to opt into on step 4 anymore.
  *
  * Covers: the button's dependence on llmEnabled alone; the button only being offered when
@@ -272,7 +272,7 @@ function desktopTable(): HTMLElement {
 
 async function goToStep3(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => screen.getByRole('radiogroup'));
-  await user.click(screen.getAllByRole('radio')[1]!); // "claim"
+  await user.click(screen.getAllByRole('radio')[0]!); // "claim"
   await clickNext(user); // step 1 -> 2
   await waitFor(() => screen.getAllByRole('radio').length > 0);
   await user.click(screen.getAllByRole('radio')[0]!); // source
@@ -283,7 +283,7 @@ async function goToStep3(user: ReturnType<typeof userEvent.setup>) {
     expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
   });
   await clickNext(user); // step 2 -> 3
-  await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
 }
 
 /** Navigate to step 4. There is no AI toggle to opt into anymore (#1931) — step 5's action button
@@ -315,21 +315,21 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      expect(screen.queryByRole('button', { name: 'Enhance with AI' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Draft with AI' })).not.toBeInTheDocument();
       expect(screen.queryByText(/generating…/i)).not.toBeInTheDocument();
       expect(
         screen.queryByText('Content generated with AI — review before submitting.'),
       ).not.toBeInTheDocument();
     });
 
-    it('offers "Enhance with AI" on step 5 when llmEnabled is true, with no step-4 interaction required', async () => {
+    it('offers "Draft with AI" on step 5 when llmEnabled is true, with no step-4 interaction required', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
       await goToStep5(user);
 
-      expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeInTheDocument();
     });
 
     it('renders no AI-related control at all on step 4 (the old toggle is gone, #1931)', async () => {
@@ -364,7 +364,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      const button = screen.getByRole('button', { name: 'Enhance with AI' });
+      const button = screen.getByRole('button', { name: 'Draft with AI' });
       const describedById = button.getAttribute('aria-describedby');
       expect(describedById).toBeTruthy();
       const descriptionEl = document.getElementById(describedById!);
@@ -421,7 +421,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       const call = mockGenerateReportContent.mock.calls[0]![0];
@@ -461,11 +461,11 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
 
       await goToStep3(user);
-      await user.click(screen.getByRole('checkbox', { name: /Beta Supplies/ }));
+      await user.click(screen.getByRole('checkbox', { name: /Beta Supplies.*INV-/ }));
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       const call = mockGenerateReportContent.mock.calls[0]![0];
@@ -476,7 +476,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
   // ─── Progress feedback ──────────────────────────────────────────────────────
 
   describe('progress feedback', () => {
-    it('disables the "Enhance with AI" button while a generation is pending', async () => {
+    it('disables the "Draft with AI" button while a generation is pending', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       mockGenerateReportContent.mockReturnValue(new Promise(() => {}));
@@ -484,10 +484,10 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled();
       });
     });
 
@@ -503,7 +503,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       // BEFORE the click that starts the elapsed-seconds setInterval, so the interval itself is a
       // fake one that advanceTimersByTime can drive deterministically.
       jest.useFakeTimers();
-      fireEvent.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       act(() => {
         jest.advanceTimersByTime(3000);
@@ -524,7 +524,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => {
         expect(
@@ -544,7 +544,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -564,7 +564,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -600,7 +600,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
@@ -610,7 +610,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
   // ─── Overwrite confirmation ─────────────────────────────────────────────────
 
   describe('overwrite confirmation', () => {
-    it('shows the overwrite-confirmation modal when manual overrides exist and "Enhance with AI" is clicked again', async () => {
+    it('shows the overwrite-confirmation modal when manual overrides exist and "Draft with AI" is clicked again', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
@@ -620,7 +620,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit before any AI run' } });
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument();
       // Generation must not have started yet — it is gated behind the confirmation.
@@ -635,7 +635,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       expect(screen.queryByText('Overwrite your edits?')).not.toBeInTheDocument();
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
@@ -649,10 +649,10 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       expect(screen.queryByText('Overwrite your edits?')).not.toBeInTheDocument();
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(2));
@@ -667,7 +667,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit to keep' } });
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
@@ -686,7 +686,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit survives Escape' } });
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.keyboard('{Escape}');
@@ -708,7 +708,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit to discard' } });
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.click(screen.getByRole('button', { name: 'Overwrite and Generate' }));
@@ -733,7 +733,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -744,15 +744,15 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       // discard-confirmation modal must appear even though there are no manual `overrides`.
       await user.click(screen.getByRole('button', { name: 'Back' }));
       await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
 
       // Re-include the invoice, then navigate back to step 5: the AI content is gone, and the
       // original derived baseline text is shown again.
-      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
       await clickNext(user); // 3 -> 4
       await clickNext(user); // 4 -> 5
       expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
@@ -773,7 +773,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => {
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument();
@@ -792,12 +792,12 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => {
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => {
         expect(
@@ -821,7 +821,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() => {
         expect(
@@ -840,12 +840,12 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument(),
       );
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
 
       await waitFor(() =>
         expect(
@@ -868,9 +868,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Navigate to step 4 and trigger a guarded setting change.
@@ -894,9 +894,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Navigate to step 4 and trigger the discard modal.
@@ -942,9 +942,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Trigger modal, then cancel.
@@ -987,9 +987,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Create a manual override while generation is in-flight.
@@ -1031,9 +1031,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
@@ -1060,7 +1060,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -1092,9 +1092,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Navigate back to step 2.
@@ -1119,7 +1119,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument(),
       );
@@ -1134,7 +1134,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       // which runs setAiError('') inside its guarded callback (isDirty is false
       // since the error path left isGeneratingAi=false, overrides={}, aiContent=null).
       await waitFor(() => screen.getByRole('radiogroup'));
-      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
 
       // Re-navigate to step 5 under the new use case.
       await clickNext(user); // 1 -> 2
@@ -1147,7 +1147,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
         expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
       });
       await clickNext(user); // 2 -> 3
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
       await clickNext(user); // 3 -> 4
       await clickNext(user); // 4 -> 5
 
@@ -1208,7 +1208,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
         expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
       });
       await clickNext(user); // 2 -> 3
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
       await clickNext(user); // 3 -> 4
       await clickNext(user); // 4 -> 5
 
@@ -1235,9 +1235,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await goToStep5(user);
 
       // Start generation A.
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Navigate to step 4 and trigger the discard modal (title is the generating variant).
@@ -1250,9 +1250,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       // Navigate back to step 5 and start generation B.
       await clickNext(user); // 4 -> 5
-      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled(),
       );
 
       // Resolve A — its token is stale so the finally block must NOT clear
@@ -1262,7 +1262,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       });
 
       // B is still in-flight: button must still be disabled.
-      expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Draft with AI' })).toBeDisabled();
 
       // Resolve B — this generation is live, so its result applies.
       await act(async () => {
@@ -1271,7 +1271,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       // Button re-enables and AI content appears.
       await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Enhance with AI' })).not.toBeDisabled(),
+        expect(screen.getByRole('button', { name: 'Draft with AI' })).not.toBeDisabled(),
       );
       expect(
         within(desktopTable()).getByDisplayValue('AI-generated usage description'),

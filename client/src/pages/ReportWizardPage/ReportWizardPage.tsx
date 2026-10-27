@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, useReducer } from 'react';
+import { useState, useEffect, useId, useMemo, useCallback, useRef, useReducer } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetSource, SourceReportType, HouseholdSettings } from '@cornerstone/shared';
@@ -14,8 +14,14 @@ import {
   generateReportContent,
 } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
-import { createFormatters, formatFileSizeDecimal, toBcp47Locale } from '../../lib/formatters.js';
+import {
+  createFormatters,
+  formatFileSizeDecimal,
+  toBcp47Locale,
+  useFormatters,
+} from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
+import { reportSelection } from '../../lib/reportSelection.js';
 import {
   buildReportContent,
   applyOverrides,
@@ -37,6 +43,7 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { WizardStepper, type WizardStep } from '../../components/WizardStepper/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
@@ -50,7 +57,8 @@ import { Step4SizingPhase } from './Step4SizingPhase.js';
 import { Step5Actions } from './Step5Actions.js';
 import { Step5Parts, type PartUploadStatus, type UploadSummary } from './Step5Parts.js';
 import { useReportParts } from './useReportParts.js';
-import { useReportTypePreset } from './useReportTypePreset.js';
+import { useReportPreset } from './useReportPreset.js';
+import type { ReportPreset } from './reportPreset.js';
 import {
   wizardReducer,
   createInitialWizardState,
@@ -89,6 +97,7 @@ export function ReportWizardPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const { resolvedLocale, currency } = useLocale();
+  const { formatCurrency } = useFormatters();
   const [searchParams] = useSearchParams();
 
   const sourceIdFromQuery = searchParams.get('sourceId');
@@ -125,6 +134,12 @@ export function ReportWizardPage() {
 
   // Focus management for step headings
   const stepHeadingsRef = useRef<(HTMLHeadingElement | null)[]>([]);
+  // The step 5 heading again as a RefObject: the mark dialog returns focus to it.
+  const step5HeadingRef = useRef<HTMLHeadingElement | null>(null);
+  // True while the next step change must not move focus (page mount, preset landing; #2243 D19).
+  const skipHeadingFocusRef = useRef(true);
+  const [presetSourceMissing, setPresetSourceMissing] = useState(false);
+  const selectAtLeastOneId = useId();
 
   // Report language selection (derived default: override takes precedence, falls back to resolvedLocale)
   const reportLanguage = reportLanguageOverride ?? resolvedLocale;
@@ -172,6 +187,7 @@ export function ReportWizardPage() {
   const [showClaimConfirm, setShowClaimConfirm] = useState(false);
   const [isMarkingClaimed, setIsMarkingClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string>('');
+  const [claimBlocked, setClaimBlocked] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [claimedInvoiceCount, setClaimedInvoiceCount] = useState(0);
   const [claimedDepositCount, setClaimedDepositCount] = useState(0);
@@ -220,52 +236,87 @@ export function ReportWizardPage() {
     [isDirtyValue],
   );
 
+  // The step 2 amount of every source for a report type (one fetch path for pick and preset).
+  const loadStep2Amounts = useCallback(
+    (type: SourceReportType, requestId: string) => {
+      void Promise.all(
+        budgetSources.map((source) =>
+          getSourceReport(type, source.id)
+            .then((r) => ({ sourceId: source.id, amount: r.totalAmount }))
+            .catch(() => ({ sourceId: source.id, amount: 0 })),
+        ),
+      ).then((results) => {
+        const amounts = new Map(results.map((r) => [r.sourceId, r.amount]));
+        dispatch({ type: 'STEP2_AMOUNTS_LOADED', payload: { requestId, amounts } });
+      });
+    },
+    [budgetSources],
+  );
+
+  const loadReport = useCallback((type: SourceReportType, sid: string, requestId: string) => {
+    void getSourceReport(type, sid)
+      .then((r) => {
+        dispatch({ type: 'REPORT_LOADED', payload: { requestId, report: r } });
+      })
+      .catch((err) => {
+        console.error(err);
+        dispatch({ type: 'REPORT_ERROR', payload: { requestId } });
+      });
+  }, []);
+
   // Handle use case selection
   const handleUseCaseChange = useCallback(
     (uc: SourceReportType) => {
       guardedUpdate(() => {
         const step2RequestId = nextRequestId();
         dispatch({ type: 'SELECT_USE_CASE', payload: { useCase: uc, step2RequestId } });
-
-        void Promise.all(
-          budgetSources.map((source) =>
-            getSourceReport(uc, source.id)
-              .then((r) => ({ sourceId: source.id, amount: r.totalAmount }))
-              .catch(() => ({ sourceId: source.id, amount: 0 })),
-          ),
-        ).then((results) => {
-          const amounts = new Map(results.map((r) => [r.sourceId, r.amount]));
-          dispatch({
-            type: 'STEP2_AMOUNTS_LOADED',
-            payload: { requestId: step2RequestId, amounts },
-          });
-        });
+        loadStep2Amounts(uc, step2RequestId);
       });
     },
-    [budgetSources, guardedUpdate],
+    [guardedUpdate, loadStep2Amounts],
   );
 
-  useReportTypePreset(sourcesStatus === 'ready', useCase, handleUseCaseChange);
+  // A deep link (?type=, ?sourceId=) lands on step 2 or 3 with its fetches started (#2243 D1).
+  const applyPreset = useCallback(
+    (preset: ReportPreset) => {
+      deepLinkAppliedRef.current = sourceIdFromQuery;
+      skipHeadingFocusRef.current = true;
+      const step2RequestId = nextRequestId();
+      const reportRequestId = preset.sourceId ? nextRequestId() : null;
+      dispatch({
+        type: 'APPLY_PRESET',
+        payload: {
+          useCase: preset.type,
+          sourceId: preset.sourceId,
+          step2RequestId,
+          reportRequestId,
+        },
+      });
+      loadStep2Amounts(preset.type, step2RequestId);
+      if (preset.sourceId && reportRequestId)
+        loadReport(preset.type, preset.sourceId, reportRequestId);
+      setPresetSourceMissing(preset.sourceMissing);
+    },
+    [sourceIdFromQuery, loadStep2Amounts, loadReport],
+  );
+
+  useReportPreset(sourcesStatus === 'ready', budgetSources, applyPreset, useCase);
 
   // Handle source selection
   const handleSourceChange = useCallback(
     (sid: string) => {
       guardedUpdate(() => {
         const requestId = nextRequestId();
+        // Also reached from the deep-link effect; the flag must clear in the same batch as SELECT_SOURCE.
+        // eslint-disable-next-line @eslint-react/set-state-in-effect
+        setPresetSourceMissing(false);
         dispatch({ type: 'SELECT_SOURCE', payload: { sourceId: sid, requestId } });
 
         // Source selection is only reachable after a use case is chosen (step 2 onwards).
-        void getSourceReport(useCase!, sid)
-          .then((r) => {
-            dispatch({ type: 'REPORT_LOADED', payload: { requestId, report: r } });
-          })
-          .catch((err) => {
-            console.error(err);
-            dispatch({ type: 'REPORT_ERROR', payload: { requestId } });
-          });
+        loadReport(useCase!, sid, requestId);
       });
     },
-    [useCase, guardedUpdate],
+    [useCase, guardedUpdate, loadReport],
   );
 
   // Handle ?sourceId= query parameter deep link
@@ -284,16 +335,31 @@ export function ReportWizardPage() {
     [reportLanguage, currency],
   );
 
+  // The one definition of what is selected: count, total and the ids that go into the report.
+  const selection = useMemo(
+    () => (report ? reportSelection(report, excludedInvoiceIds, excludedLineIds) : null),
+    [report, excludedInvoiceIds, excludedLineIds],
+  );
+  const includedInvoiceIds = useMemo(() => new Set(selection?.includedInvoiceIds), [selection]);
+
+  // Included invoices with an excluded budget line: the mark dialog warns about them.
+  const invoicesWithExcludedItems = useMemo(
+    () =>
+      report
+        ? report.invoices.filter(
+            (inv) =>
+              !excludedInvoiceIds.has(inv.invoiceId) &&
+              inv.budgetLinesForSource.some((line) => excludedLineIds.has(line.id)),
+          ).length
+        : 0,
+    [report, excludedInvoiceIds, excludedLineIds],
+  );
+
   // Baseline content (with AI content applied, no manual overrides applied)
   const baselineContent = useMemo<ReportContent | null>(() => {
     if (!report || !useCase) return null;
 
     const effectiveReport = applyLineExclusions(report, excludedLineIds);
-    const includedInvoiceIds = new Set(
-      effectiveReport.invoices
-        .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-        .map((inv) => inv.invoiceId),
-    );
 
     const derived = buildReportContent(
       effectiveReport,
@@ -309,13 +375,13 @@ export function ReportWizardPage() {
     report,
     useCase,
     excludedLineIds,
-    excludedInvoiceIds,
     reportT,
     reportFormatters,
     includeCoverLetter,
     household,
     user,
     aiContent,
+    includedInvoiceIds,
   ]);
 
   // Effective content (with overrides applied)
@@ -329,16 +395,6 @@ export function ReportWizardPage() {
   const partsMode = attachDocuments && limitParse.status === 'valid';
   const limitInvalid = attachDocuments && limitParse.status === 'invalid';
   const limitBytes = limitParse.status === 'valid' ? limitParse.bytes : null;
-
-  const includedInvoiceIds = useMemo<ReadonlySet<string>>(() => {
-    if (!report) return new Set<string>();
-    const effectiveReport = applyLineExclusions(report, excludedLineIds);
-    return new Set(
-      effectiveReport.invoices
-        .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-        .map((inv) => inv.invoiceId),
-    );
-  }, [report, excludedLineIds, excludedInvoiceIds]);
 
   const handlePartsSkipped = useCallback(
     (skipped: SkippedDocument[]) =>
@@ -693,13 +749,14 @@ export function ReportWizardPage() {
       .filter((dep) => dep.status !== 'claimed')
       .map((dep) => dep.id);
 
-    // Guard: if both are empty, show error and close modal
+    // Guard: if both are empty, the dialog says so and offers no action
     if (invoiceIds.length === 0 && depositIds.length === 0) {
       setClaimError(t('sourceReports.claimNothingClaimable'));
-      setShowClaimConfirm(false);
+      setClaimBlocked(true);
       return;
     }
 
+    setClaimError('');
     setIsMarkingClaimed(true);
     try {
       const response = await markInvoicesClaimed(claimSourceId, invoiceIds, depositIds);
@@ -731,7 +788,7 @@ export function ReportWizardPage() {
         } else {
           setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
         }
-        setShowClaimConfirm(false);
+        setClaimBlocked(true);
         // Refetch silently
         try {
           const updated = await getSourceReport(claimUseCase, claimSourceId);
@@ -741,10 +798,8 @@ export function ReportWizardPage() {
         }
       } else if (err instanceof ApiClientError) {
         setClaimError(translateApiError(err.error.code, tErrors));
-        setShowClaimConfirm(false);
       } else {
         setClaimError(t('sourceReports.claimFailed'));
-        setShowClaimConfirm(false);
       }
     } finally {
       setIsMarkingClaimed(false);
@@ -797,6 +852,11 @@ export function ReportWizardPage() {
 
   // Move focus to the active step panel's heading on step change
   useEffect(() => {
+    // Page mount and preset landings leave focus alone (#2243 D19).
+    if (skipHeadingFocusRef.current) {
+      skipHeadingFocusRef.current = false;
+      return;
+    }
     // The active step's heading is always rendered (step 5 only shows with its content).
     const heading = stepHeadingsRef.current[currentStep - 1]!;
     requestAnimationFrame(() => {
@@ -944,6 +1004,7 @@ export function ReportWizardPage() {
             >
               {steps[1]!.label}
             </h2>
+            {presetSourceMissing && <FormError message={t('sourceReports.presetSourceMissing')} />}
             <Step2Source
               sources={budgetSources}
               amounts={step2Amounts}
@@ -998,61 +1059,78 @@ export function ReportWizardPage() {
                 </button>
               </div>
             )}
-            {reportStatus === 'ready' &&
-              report &&
-              (() => {
-                const effectiveReport = applyLineExclusions(report, excludedLineIds);
-                return (
-                  <>
-                    <ReportInvoiceList
-                      report={effectiveReport}
-                      excludedInvoiceIds={excludedInvoiceIds}
-                      excludedLineIds={excludedLineIds}
-                      onToggle={(id, excluded) =>
-                        guardedUpdate(() =>
-                          dispatch({
-                            type: 'TOGGLE_INVOICE',
-                            payload: { invoiceId: id, excluded },
-                          }),
-                        )
-                      }
-                      onToggleAll={(excludeAll) =>
-                        guardedUpdate(() =>
-                          dispatch({ type: 'TOGGLE_ALL_INVOICES', payload: { excludeAll } }),
-                        )
-                      }
-                      onToggleLine={(lineId, excluded) =>
-                        guardedUpdate(() =>
-                          dispatch({ type: 'TOGGLE_LINE', payload: { lineId, excluded } }),
-                        )
-                      }
-                      t={t}
-                    />
-                    <div className={styles.buttonRow}>
-                      <button
-                        type="button"
-                        className={sharedStyles.btnSecondary}
-                        onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 2 } })}
-                      >
-                        {t('common:button.back')}
-                      </button>
-                      <button
-                        type="button"
-                        className={sharedStyles.btnPrimary}
-                        onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } })}
-                        disabled={excludedInvoiceIds.size === report.invoices.length}
-                        title={
-                          excludedInvoiceIds.size === report.invoices.length
-                            ? t('sourceReports.selectAtLeastOne')
-                            : undefined
-                        }
-                      >
-                        {t('common:button.next')}
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
+            {reportStatus === 'ready' && report && selection && (
+              <>
+                <p className={styles.stepHelper}>
+                  {t('sourceReports.invoicesHelper', {
+                    type: t(I18N_UNION_KEYS.reportUseCase.key(report.type)),
+                    source: report.source.name,
+                    helper: t(I18N_UNION_KEYS.reportUseCaseHelper.key(report.type)),
+                  })}
+                </p>
+                <ReportInvoiceList
+                  report={applyLineExclusions(report, excludedLineIds)}
+                  selection={selection}
+                  excludedInvoiceIds={excludedInvoiceIds}
+                  excludedLineIds={excludedLineIds}
+                  onToggle={(id, excluded) =>
+                    guardedUpdate(() =>
+                      dispatch({
+                        type: 'TOGGLE_INVOICE',
+                        payload: { invoiceId: id, excluded },
+                      }),
+                    )
+                  }
+                  onToggleInvoices={(invoiceIds, excluded) =>
+                    guardedUpdate(() =>
+                      dispatch({
+                        type: 'SET_INVOICES_EXCLUDED',
+                        payload: { invoiceIds, excluded },
+                      }),
+                    )
+                  }
+                  onToggleAll={(excludeAll) =>
+                    guardedUpdate(() =>
+                      dispatch({ type: 'TOGGLE_ALL_INVOICES', payload: { excludeAll } }),
+                    )
+                  }
+                  onToggleLine={(lineId, excluded) =>
+                    guardedUpdate(() =>
+                      dispatch({ type: 'TOGGLE_LINE', payload: { lineId, excluded } }),
+                    )
+                  }
+                  onBack={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 2 } })}
+                  t={t}
+                />
+                <div className={styles.buttonRow}>
+                  <button
+                    type="button"
+                    className={sharedStyles.btnSecondary}
+                    onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 2 } })}
+                  >
+                    {t('common:button.back')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${sharedStyles.btnPrimary} ${styles.inertPrimary}`}
+                    onClick={
+                      selection.count === 0
+                        ? undefined
+                        : () => dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } })
+                    }
+                    aria-disabled={selection.count === 0 || undefined}
+                    aria-describedby={selection.count === 0 ? selectAtLeastOneId : undefined}
+                  >
+                    {t('common:button.next')}
+                  </button>
+                  {selection.count === 0 && (
+                    <span id={selectAtLeastOneId} className={sharedStyles.srOnly}>
+                      {t('sourceReports.selectAtLeastOne')}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1135,6 +1213,7 @@ export function ReportWizardPage() {
             <h2
               ref={(el) => {
                 stepHeadingsRef.current[4] = el;
+                step5HeadingRef.current = el;
               }}
               tabIndex={-1}
             >
@@ -1224,13 +1303,13 @@ export function ReportWizardPage() {
             <Step5Actions
               useCase={useCase!}
               paperlessStatus={paperlessStatus}
+              sourceId={sourceId!}
               isMarkingClaimed={isMarkingClaimed}
-              claimError={claimError}
               claimSuccess={claimSuccess}
               claimedInvoiceCount={claimedInvoiceCount}
               claimedDepositCount={claimedDepositCount}
               finishedWithoutMarking={finishedWithoutMarking}
-              selectedInvoiceCount={report!.invoices.length - excludedInvoiceIds.size}
+              selectedInvoiceCount={selection!.count}
               onPreviewPdf={handlePreviewPdf}
               onDownload={handleDownload}
               onMarkClaimed={() => setShowClaimConfirm(true)}
@@ -1306,69 +1385,41 @@ export function ReportWizardPage() {
         </Modal>
       )}
 
-      {/* Claim confirmation modal */}
-      {showClaimConfirm && report && (
-        <Modal
-          title={t('sourceReports.confirmClaimTitle')}
-          onClose={() => setShowClaimConfirm(false)}
-          footer={
-            <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => setShowClaimConfirm(false)}
-              >
-                {t('common:button.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={handleMarkClaimed}
-                disabled={isMarkingClaimed}
-              >
-                {t('common:button.confirm')}
-              </button>
-            </div>
-          }
-        >
-          <p>
-            {t('sourceReports.confirmClaimBody', {
-              count: report.invoices.length - excludedInvoiceIds.size,
-              pendingCount: report.invoices.filter(
-                (inv) => inv.status === 'pending' && !excludedInvoiceIds.has(inv.invoiceId),
-              ).length,
-            })}
-          </p>
-
-          {(() => {
-            // Find invoices with excluded lines (and not excluded at invoice level)
-            const invoicesWithExcludedItems = report.invoices.filter(
-              (inv) =>
-                !excludedInvoiceIds.has(inv.invoiceId) &&
-                inv.budgetLinesForSource.some((line) => excludedLineIds.has(line.id)),
-            );
-
-            return invoicesWithExcludedItems.length > 0 ? (
-              <div className={styles.warningBlock} role="alert">
-                <div className={styles.warningIconContainer}>
-                  <svg
-                    className={styles.warningIcon}
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
-                  </svg>
-                </div>
-                <p className={styles.warningBody}>
+      {/* Mark as submitted confirmation */}
+      {showClaimConfirm && report && selection && (
+        <ConfirmDialog
+          title={t('sourceReports.mark.title', { count: selection.count })}
+          lead={
+            <>
+              <p className={styles.markTotal}>
+                {t('sourceReports.mark.total', { amount: formatCurrency(selection.total) })}
+              </p>
+              <p className={styles.markMoves}>
+                {t('sourceReports.mark.moves', { source: report.source.name })}
+              </p>
+              {invoicesWithExcludedItems > 0 && (
+                <div className={sharedStyles.bannerWarning}>
                   {t('sourceReports.confirmClaimExcludedItemsWarning', {
-                    count: invoicesWithExcludedItems.length,
+                    count: invoicesWithExcludedItems,
                   })}
-                </p>
-              </div>
-            ) : null;
-          })()}
-        </Modal>
+                </div>
+              )}
+            </>
+          }
+          confirmLabel={t('sourceReports.mark.confirm')}
+          busyLabel={t('sourceReports.mark.busy')}
+          busy={isMarkingClaimed}
+          error={claimError || null}
+          blocked={claimBlocked}
+          onConfirm={() => void handleMarkClaimed()}
+          onCancel={() => {
+            setShowClaimConfirm(false);
+            setClaimError('');
+            setClaimBlocked(false);
+          }}
+          returnFocusRef={step5HeadingRef}
+          testIdPrefix="report-mark"
+        />
       )}
 
       {/* PDF preview modal */}

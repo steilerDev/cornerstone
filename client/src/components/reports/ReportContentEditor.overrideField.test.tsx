@@ -7,6 +7,7 @@
  * mobile card row (visible label mode), so both modes are reachable with one fixture. The cover
  * letter sender is the textarea; the reference is a plain input.
  */
+import { MemoryRouter } from 'react-router-dom';
 import { render, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import type { TFunction } from 'i18next';
@@ -116,6 +117,7 @@ function renderEditor(
       lang={options.lang}
       uiLang={options.uiLang}
     />,
+    { wrapper: MemoryRouter },
   );
   const desktop = utils.container.querySelector('table.table') as HTMLElement;
   const mobile = utils.container.querySelector(`.${styles.mobileCardList}`) as HTMLElement;

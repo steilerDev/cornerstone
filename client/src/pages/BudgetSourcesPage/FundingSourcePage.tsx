@@ -6,6 +6,7 @@ import type { BudgetSourceDetailResponse, BudgetSourceStatus } from '@cornerston
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
+import { useRevertSubmission } from '../../components/FeedRow/useRevertSubmission.js';
 import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import {
@@ -176,13 +177,21 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
     onApply: applyStatus,
   };
 
+  const revert = useRevertSubmission({
+    onChanged: () => {
+      void state.refresh();
+      lines.reload();
+    },
+    returnFocusRef: headingRef,
+  });
+
   const chosen = fundingSourcePrimary(source.sourceType, forwardActionTo(transitions));
   let primary: ObjectHeaderPrimary<BudgetSourceStatus>;
   if (chosen.kind === 'bankReport') {
     primary = {
       kind: 'link',
       label: t('financing.actions.prepareBankReport'),
-      to: routeUrl('bankReport', undefined, { sourceId: id }),
+      to: routeUrl('bankReport', undefined, { type: 'claim', sourceId: id }),
       state: originState,
       testId: 'source-primary-bank-report',
     };
@@ -419,6 +428,7 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
               entityId={id}
               revision={state.revision}
               testIdPrefix="source-history"
+              renderRowActions={revert.renderRowActions}
               labels={{
                 title: t('financing.history.title'),
                 empty: t('financing.history.empty'),
@@ -432,6 +442,8 @@ function FundingSourceLoaded({ id, record, state, h1Text, originState }: Funding
       />
 
       {documents.panel}
+
+      {revert.dialog}
 
       {moveOpen && (
         <MassMoveModal

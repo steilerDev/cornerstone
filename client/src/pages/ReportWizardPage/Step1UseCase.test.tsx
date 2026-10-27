@@ -58,10 +58,10 @@ describe('Step1UseCase', () => {
     expect(names.size).toBe(1);
   });
 
-  it('renders the 3 use cases in a fixed order: budget-overview, claim, proof-of-funds', () => {
+  it('renders the 3 use cases in a fixed order: claim (Draw-down request), budget-overview, proof-of-funds', () => {
     render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];
-    expect(radios.map((r) => r.value)).toEqual(['budget-overview', 'claim', 'proof-of-funds']);
+    expect(radios.map((r) => r.value)).toEqual(['claim', 'budget-overview', 'proof-of-funds']);
   });
 
   // #2194 D-18: the Claim helper describes the server set (to pay or paid, not yet submitted),

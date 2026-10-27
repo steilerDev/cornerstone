@@ -8,6 +8,16 @@ import type { InvoiceStatus, InvoiceDepositStatus, InvoiceDepositEntryType } fro
 export const SOURCE_REPORT_TYPES = ['budget-overview', 'claim', 'proof-of-funds'] as const;
 export type SourceReportType = (typeof SOURCE_REPORT_TYPES)[number];
 
+/**
+ * Invoice statuses (and progress-payment statuses) each report type includes. Single source for
+ * the server's report sets and the client's selection helpers (#2243).
+ */
+export const REPORT_TYPE_INVOICE_STATUSES = {
+  'budget-overview': ['quotation', 'pending', 'paid', 'claimed'],
+  claim: ['pending', 'paid'],
+  'proof-of-funds': ['claimed'],
+} as const satisfies Record<SourceReportType, readonly InvoiceStatus[]>;
+
 /** Linked item (work item or household item) associated with a budget line. */
 export interface SourceReportLinkedItem {
   type: 'work_item' | 'household_item';
@@ -122,8 +132,26 @@ export interface MarkClaimedRequest {
 }
 
 export interface MarkClaimedResponse {
+  /** The submission batch id carried by every system event of this call (#2243). */
+  batchId: string;
   claimedInvoiceIds: string[];
   claimedDepositIds: string[];
+}
+
+/** Result of reverting a submission (POST /api/source-reports/batches/:batchId/revert). */
+export interface RevertSubmissionResponse {
+  /** The revert's own batch id (`revertOf` on its events names the submission). */
+  batchId: string;
+  restoredInvoiceIds: string[];
+  restoredDepositIds: string[];
+}
+
+/** One item that blocked a revert (`details.items` of SUBMISSION_CHANGED); for clients and tests only. */
+export interface SubmissionChangedItem {
+  type: 'invoice' | 'progress_payment';
+  id: string;
+  /** Live status, or null when the row no longer exists. */
+  status: string | null;
 }
 
 /** Request to generate AI-assisted report content. Story #1901. */

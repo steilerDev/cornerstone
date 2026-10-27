@@ -28,7 +28,7 @@
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PhotoSpotViewerPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "ProfilePage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
-      "ReportWizardPage": { "destinations": 4, "primaryButtons": 13, "searchFields": 0 },
+      "ReportWizardPage": { "destinations": 3, "primaryButtons": 11, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
@@ -147,7 +147,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 84,
+      "count": 82,
       "values": [
         "(refund)",
         "(unnamed budget line)",
@@ -200,7 +200,6 @@
         "no more tags available",
         "not invoiced",
         "not yet paid",
-        "of | total",
         "on budget",
         "outstanding",
         "outstanding balance",
@@ -231,7 +230,6 @@
         "total amount",
         "total invoices",
         "unallocated",
-        "unallocated invoices ()",
         "unit price"
       ]
     },

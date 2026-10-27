@@ -114,6 +114,8 @@ Use the Cost tab to model a what-if. For example, move the lines of a payment th
 
 The **History** tab lists the events for this source. When you send invoices to the bank in one bank report, the history shows the whole submission as one row, with the **Submission** badge. Select **Show all in History** to open the full History page.
 
+To undo a submission that was recorded by mistake, select **Revert submission** on its row. The dialog shows how many invoices go back to To pay and how many go back to Paid, and each invoice returns to the status it had before. The row then shows a **Reverted** badge, and the revert is added as its own row. A submission cannot be reverted if an invoice in it has changed status since, or if it was already reverted. See [Reverting a submission](bank-reports#reverting-a-submission).
+
 ## Documents
 
 When Paperless-ngx is connected, each funding source has a **Documents (n)** button, such as for loan contracts. Select it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for details.

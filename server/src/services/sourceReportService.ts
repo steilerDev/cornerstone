@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { eq, inArray, and, sql, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { budgetSources, invoices, invoiceDeposits, documentLinks } from '../db/schema.js';
+import {
+  budgetSources,
+  invoices,
+  invoiceDeposits,
+  documentLinks,
+  diaryEntries,
+} from '../db/schema.js';
+import { REPORT_TYPE_INVOICE_STATUSES } from '@cornerstone/shared';
 import type {
   SourceReportType,
   SourceReportResponse,
@@ -10,6 +17,8 @@ import type {
   SourceReportUnallocatedInvoice,
   SourceReportSourceSummary,
   MarkClaimedResponse,
+  RevertSubmissionResponse,
+  SubmissionChangedItem,
   AttachmentType,
   SourceReportDocument,
   SourceReportBudgetLine,
@@ -18,7 +27,13 @@ import type {
   InvoiceDepositStatus,
   InvoiceDepositEntryType,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  InvoicesNotClaimableError,
+  SubmissionAlreadyRevertedError,
+  SubmissionChangedError,
+} from '../errors/AppError.js';
 import { toCents } from './shared/money.js';
 import {
   computeLineContributionsExcludingTagged,
@@ -44,9 +59,9 @@ function today(): string {
  * `claim` is the draw-down set: what is ready to submit to the bank (ADR-039).
  */
 export const REPORT_TYPE_STATUSES: Record<SourceReportType, ReadonlySet<string>> = {
-  'budget-overview': new Set(['quotation', 'pending', 'paid', 'claimed']),
-  claim: new Set(['pending', 'paid']),
-  'proof-of-funds': new Set(['claimed']),
+  'budget-overview': new Set<string>(REPORT_TYPE_INVOICE_STATUSES['budget-overview']),
+  claim: new Set<string>(REPORT_TYPE_INVOICE_STATUSES.claim),
+  'proof-of-funds': new Set<string>(REPORT_TYPE_INVOICE_STATUSES['proof-of-funds']),
 };
 
 /**
@@ -823,7 +838,189 @@ export function markInvoicesClaimed(
   });
 
   return {
+    batchId,
     claimedInvoiceIds,
     claimedDepositIds,
   };
+}
+
+/** One item of a submission batch to restore. */
+type RevertItem =
+  { kind: 'invoice'; id: string; from: unknown } | { kind: 'deposit'; id: string; from: unknown };
+
+/**
+ * Revert a bank-report submission (#2243, contract 14): every invoice and progress payment the
+ * batch moved to `claimed` goes back to the status it had (`pending` or `paid`). All or nothing,
+ * in one transaction; a 409 writes nothing. Reads only the batch's own events.
+ *
+ * @throws NotFoundError if no submission events carry `batchId` (unknown id or a revert batch)
+ * @throws SubmissionAlreadyRevertedError if a revert batch already names this batch
+ * @throws SubmissionChangedError if any item is no longer `claimed` (or is gone)
+ */
+export function revertSubmission(
+  db: DbType,
+  batchId: string,
+  userId: string | null = null,
+): RevertSubmissionResponse {
+  const revertBatchId = randomUUID();
+  const restoredInvoiceIds: string[] = [];
+  const restoredDepositIds: string[] = [];
+
+  db.transaction((tx: typeof db) => {
+    const eventRows = tx
+      .select({
+        sourceEntityId: diaryEntries.sourceEntityId,
+        metadata: diaryEntries.metadata,
+      })
+      .from(diaryEntries)
+      .where(
+        and(
+          eq(diaryEntries.isAutomatic, true),
+          eq(diaryEntries.entryType, 'invoice_status'),
+          sql`json_valid(${diaryEntries.metadata})`,
+          sql`json_extract(${diaryEntries.metadata}, '$.batchId') = ${batchId}`,
+          sql`json_extract(${diaryEntries.metadata}, '$.to') = 'claimed'`,
+          sql`json_extract(${diaryEntries.metadata}, '$.revertOf') IS NULL`,
+        ),
+      )
+      .orderBy(asc(diaryEntries.createdAt), asc(diaryEntries.id))
+      .all();
+    if (eventRows.length === 0) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    const alreadyReverted = tx
+      .select({ id: diaryEntries.id })
+      .from(diaryEntries)
+      .where(
+        and(
+          eq(diaryEntries.isAutomatic, true),
+          eq(diaryEntries.entryType, 'invoice_status'),
+          sql`json_valid(${diaryEntries.metadata})`,
+          sql`json_extract(${diaryEntries.metadata}, '$.revertOf') = ${batchId}`,
+        ),
+      )
+      .limit(1)
+      .get();
+    if (alreadyReverted) {
+      throw new SubmissionAlreadyRevertedError();
+    }
+
+    // Items in event order, first event per key
+    const items: RevertItem[] = [];
+    const seen = new Set<string>();
+    let budgetSourceId: string | undefined;
+    for (const row of eventRows) {
+      const meta = JSON.parse(row.metadata as string) as Record<string, unknown>;
+      if (budgetSourceId === undefined && typeof meta.budgetSourceId === 'string') {
+        budgetSourceId = meta.budgetSourceId;
+      }
+      const isDeposit = typeof meta.depositId === 'string';
+      const id = (isDeposit ? meta.depositId : row.sourceEntityId) as string;
+      const key = `${isDeposit ? 'd' : 'i'}:${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({ kind: isDeposit ? 'deposit' : 'invoice', id, from: meta.from });
+    }
+
+    const invoiceItems = items.filter((i) => i.kind === 'invoice');
+    const depositItems = items.filter((i) => i.kind === 'deposit');
+    const invoiceById = new Map(
+      tx
+        .select()
+        .from(invoices)
+        .where(
+          inArray(
+            invoices.id,
+            invoiceItems.map((i) => i.id),
+          ),
+        )
+        .all()
+        .map((r) => [r.id, r]),
+    );
+    const depositById = new Map(
+      tx
+        .select()
+        .from(invoiceDeposits)
+        .where(
+          inArray(
+            invoiceDeposits.id,
+            depositItems.map((i) => i.id),
+          ),
+        )
+        .all()
+        .map((r) => [r.id, r]),
+    );
+
+    const changed: SubmissionChangedItem[] = [];
+    for (const item of items) {
+      const live = item.kind === 'invoice' ? invoiceById.get(item.id) : depositById.get(item.id);
+      const validFrom = item.from === 'pending' || item.from === 'paid';
+      if (!live || live.status !== 'claimed' || !validFrom) {
+        changed.push({
+          type: item.kind === 'invoice' ? 'invoice' : 'progress_payment',
+          id: item.id,
+          status: live ? live.status : null,
+        });
+      }
+    }
+    if (changed.length > 0) {
+      throw new SubmissionChangedError(undefined, { items: changed });
+    }
+
+    const parentIds = [...new Set(depositItems.map((i) => depositById.get(i.id)!.invoiceId))];
+    const parentById = new Map(
+      tx
+        .select({ id: invoices.id, invoiceNumber: invoices.invoiceNumber })
+        .from(invoices)
+        .where(inArray(invoices.id, parentIds))
+        .all()
+        .map((r) => [r.id, r.invoiceNumber]),
+    );
+
+    const now = new Date().toISOString();
+    for (const item of items) {
+      const from = item.from as 'pending' | 'paid';
+      if (item.kind === 'invoice') {
+        const invoice = invoiceById.get(item.id)!;
+        tx.update(invoices)
+          .set({ status: from, updatedAt: now })
+          .where(eq(invoices.id, item.id))
+          .run();
+        restoredInvoiceIds.push(item.id);
+        onInvoiceStatusChanged(
+          tx,
+          item.id,
+          invoice.invoiceNumber,
+          'claimed',
+          from,
+          { userId },
+          { amount: invoice.amount, batchId: revertBatchId, budgetSourceId, revertOf: batchId },
+        );
+      } else {
+        const deposit = depositById.get(item.id)!;
+        tx.update(invoiceDeposits)
+          .set({ status: from, claimedDate: null, updatedAt: now })
+          .where(eq(invoiceDeposits.id, item.id))
+          .run();
+        restoredDepositIds.push(item.id);
+        onDepositStatusChanged(
+          tx,
+          {
+            id: deposit.id,
+            invoiceId: deposit.invoiceId,
+            amount: deposit.amount,
+            entryType: deposit.entryType as 'deposit' | 'refund',
+          },
+          parentById.get(deposit.invoiceId) ?? null,
+          'claimed',
+          from,
+          { userId },
+          { batchId: revertBatchId, budgetSourceId, revertOf: batchId },
+        );
+      }
+    }
+  });
+
+  return { batchId: revertBatchId, restoredInvoiceIds, restoredDepositIds };
 }

@@ -321,13 +321,13 @@ async function settleStepFocus(headingName: string) {
 
 async function goToStep4(user: User) {
   await waitFor(() => screen.getByRole('radiogroup'));
-  await user.click(screen.getAllByRole('radio')[1]!); // claim
+  await user.click(screen.getAllByRole('radio')[0]!); // claim
   await clickNext(user);
   await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
   await user.click(screen.getAllByRole('radio')[0]!);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
   await clickNext(user);
-  await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
   await clickNext(user);
   await screen.findByLabelText('Maximum file size (MB)');
   await settleStepFocus('Settings');
@@ -351,7 +351,7 @@ async function goToStep5WithLimit(user: User, limit = '1') {
   await step4WithLimit(user, limit);
   await clickNext(user);
   await screen.findByRole('button', { name: /^Download all/ });
-  await settleStepFocus('Preview & Export');
+  await settleStepFocus('Preview and export');
 }
 
 async function firstGenerated(): Promise<GeneratedReportParts> {
@@ -415,7 +415,7 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
     });
 
-    it('does not let the Preview & Export stepper step skip an invalid limit', async () => {
+    it('does not let the Preview and export stepper step skip an invalid limit', async () => {
       renderPage();
       const user = userEvent.setup();
       await goToStep4(user);
@@ -427,7 +427,7 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       await setLimit(user, '0.5');
       await screen.findByText('The minimum is 1 MB.');
 
-      await user.click(stepperButton('Preview & Export'));
+      await user.click(stepperButton('Preview and export'));
 
       expect(screen.getByLabelText('Maximum file size (MB)')).toHaveValue('0.5');
       expect(screen.getByText('The minimum is 1 MB.')).toBeInTheDocument();
@@ -609,17 +609,17 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       expect(screen.queryByTestId('sizing-failed')).not.toBeInTheDocument();
     });
 
-    it('clicking the Preview & Export stepper step from step 3 shows the sizing card on step 4 first', async () => {
+    it('clicking the Preview and export stepper step from step 3 shows the sizing card on step 4 first', async () => {
       renderPage();
       const user = userEvent.setup();
       await goToStep5WithLimit(user);
-      await user.click(stepperButton('Select Invoices'));
+      await user.click(stepperButton('Select invoices'));
       await waitFor(() => expect(screen.queryByLabelText('Maximum file size (MB)')).toBeNull());
       const gate = deferredAcquire();
       mockCountUncached.mockReturnValue(2);
       mockAcquire.mockReturnValueOnce(gate.promise);
 
-      await user.click(stepperButton('Preview & Export'));
+      await user.click(stepperButton('Preview and export'));
 
       expect(await screen.findByTestId('sizing-phase')).toBeInTheDocument();
       expect(screen.getByRole('status')).toHaveTextContent('Checking attachment sizes… 0 of 3');
@@ -1012,7 +1012,7 @@ describe('ReportWizardPage — multi-PDF edge cases (#2237 branch coverage)', ()
     await clickNext(user);
     await screen.findByTestId('sizing-phase');
 
-    await user.click(stepperButton('Select Invoices'));
+    await user.click(stepperButton('Select invoices'));
     await act(async () => {
       gate.resolve(OK_ACQUIRE);
     });
@@ -1022,7 +1022,7 @@ describe('ReportWizardPage — multi-PDF edge cases (#2237 branch coverage)', ()
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     });
 
-    expect(await screen.findByText('ACME')).toBeInTheDocument();
+    expect((await screen.findAllByText('ACME'))[0]).toBeInTheDocument();
     expect(screen.queryByTestId('sizing-phase')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Download all/ })).not.toBeInTheDocument();
     expect(mockGenerateParts).not.toHaveBeenCalled();
@@ -1031,16 +1031,17 @@ describe('ReportWizardPage — multi-PDF edge cases (#2237 branch coverage)', ()
   it('downloads nothing for a part when the deep-linked source id matches no source (no file name)', async () => {
     render(
       <LocaleProvider>
-        <MemoryRouter initialEntries={['/money/reports?type=claim&sourceId=ghost-source']}>
+        <MemoryRouter initialEntries={['/money/reports?sourceId=ghost-source']}>
           <ReportWizardPage />
         </MemoryRouter>
       </LocaleProvider>,
     );
     const user = userEvent.setup();
-    await waitFor(() => expect(screen.getAllByRole('radio')[1]).toBeChecked());
+    await waitFor(() => screen.getByRole('radiogroup'));
+    await user.click(screen.getAllByRole('radio')[0]!); // claim; the id is applied once a type is picked
     await clickNext(user); // 1 -> 2
     await clickNext(user); // 2 -> 3
-    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
     await clickNext(user); // 3 -> 4
     await screen.findByLabelText('Maximum file size (MB)');
     await settleStepFocus('Settings');

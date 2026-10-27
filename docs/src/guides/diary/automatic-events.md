@@ -27,7 +27,7 @@ Events are written in the language you are using in Cornerstone. Each row links 
 
 ## One Row per Bank Submission
 
-When you send several invoices to the bank in one bank report, Cornerstone records each invoice, but the History page shows the whole submission as **one row** with the **Submission** badge. The sentence gives the number of invoices and their total, for example "3 invoices submitted to the bank, 4,200.00". Below it, the row lists the first invoice numbers, for example "Invoices T-001, T-002, T-003". Its link opens the bank report for that funding source, labelled with the funding source's name.
+When you send several invoices to the bank in one bank report, Cornerstone records each invoice, but the History page shows the whole submission as **one row** with the **Submission** badge. The sentence gives the number of invoices and their total, for example "3 invoices submitted to the bank, 4,200.00". Below it, the row lists the first invoice numbers, for example "Invoices T-001, T-002, T-003". Its link opens the page of that funding source, labelled with the funding source's name. The **Revert submission** button on the row undoes the submission; see [Bank Reports](/guides/budget/bank-reports#reverting-a-submission).
 
 Submissions recorded before this change are shown as ordinary invoice status rows, because Cornerstone cannot tell which of them belonged together. A deleted funding source shows "No longer exists" instead of a link.
 

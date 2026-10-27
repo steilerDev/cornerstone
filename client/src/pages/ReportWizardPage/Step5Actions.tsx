@@ -1,16 +1,19 @@
 import { routeUrl } from '@cornerstone/shared';
-import { Link } from 'react-router-dom';
+import { useId } from 'react';
 import type { TFunction } from 'i18next';
 import type { SourceReportType, PaperlessStatusResponse } from '@cornerstone/shared';
 import { Spinner } from '../../components/Spinner/Spinner.js';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
 interface Step5ActionsProps {
   useCase: SourceReportType;
   paperlessStatus: PaperlessStatusResponse | null;
+  /** The report's funding source (target of the "Open History" link). */
+  sourceId: string;
   isMarkingClaimed: boolean;
-  claimError: string | null;
   claimSuccess: boolean;
   claimedInvoiceCount: number;
   claimedDepositCount: number;
@@ -36,8 +39,8 @@ interface Step5ActionsProps {
 export function Step5Actions({
   useCase,
   paperlessStatus,
+  sourceId,
   isMarkingClaimed,
-  claimError,
   claimSuccess,
   claimedInvoiceCount,
   claimedDepositCount,
@@ -69,6 +72,10 @@ export function Step5Actions({
     uploadLabel = t('sourceReports.parts.uploadAll', { count: partCount });
   }
 
+  const originState = useOriginState();
+  const zeroReasonId = useId();
+  const nothingSelected = selectedInvoiceCount === 0;
+
   return (
     <div className={styles.actionsContainer}>
       {/* Persistent live region: always mounted so text changes are announced. */}
@@ -79,99 +86,116 @@ export function Step5Actions({
       >
         {statusMessage}
       </p>
-      {claimSuccess ? (
-        <div className={sharedStyles.bannerSuccess}>
-          <div>
-            {finishedWithoutMarking
-              ? t('sourceReports.finishedWithoutMarkingSuccess')
-              : t('sourceReports.claimSuccess', {
-                  invoices: t('sourceReports.invoiceCount', { count: claimedInvoiceCount }),
-                  progressPayments: t('sourceReports.progressPaymentCount', {
-                    count: claimedDepositCount,
-                  }),
-                })}
+
+      <div className={styles.getReport}>
+        <button
+          type="button"
+          className={sharedStyles.btnSecondary}
+          onClick={onPreviewPdf}
+          disabled={isBusy}
+        >
+          {activeAction === 'preview' && (
+            <span aria-hidden="true">
+              <Spinner size="sm" color="muted" />
+            </span>
+          )}
+          {t('sourceReports.editable.previewPdf')}
+        </button>
+
+        <button
+          type="button"
+          className={sharedStyles.btnPrimary}
+          onClick={onDownload}
+          disabled={isBusy}
+        >
+          {activeAction === 'download' && (
+            <span aria-hidden="true">
+              <Spinner size="sm" color="muted" />
+            </span>
+          )}
+          {downloadLabel}
+        </button>
+
+        {paperlessStatus?.configured && paperlessStatus?.reachable && (
+          <button
+            type="button"
+            className={isRetry ? sharedStyles.btnPrimary : sharedStyles.btnSecondary}
+            onClick={onUploadPaperless}
+            disabled={isBusy}
+          >
+            {activeAction === 'paperless' && (
+              <span aria-hidden="true">
+                <Spinner size="sm" color="muted" />
+              </span>
+            )}
+            {uploadLabel}
+          </button>
+        )}
+      </div>
+
+      {isClaim &&
+        (claimSuccess ? (
+          <div className={sharedStyles.bannerSuccess} role="status">
+            <div>
+              {finishedWithoutMarking
+                ? t('sourceReports.finishedWithoutMarkingSuccess')
+                : t('sourceReports.claimSuccess', {
+                    invoices: t('sourceReports.invoiceCount', { count: claimedInvoiceCount }),
+                    progressPayments: t('sourceReports.progressPaymentCount', {
+                      count: claimedDepositCount,
+                    }),
+                  })}
+            </div>
+            <NavAnchor
+              to={routeUrl('invoices')}
+              state={originState}
+              className={sharedStyles.bannerLink}
+            >
+              {t('sourceReports.viewInvoices')}
+            </NavAnchor>
+            {!finishedWithoutMarking && (
+              <NavAnchor
+                to={routeUrl('fundingSource', { id: sourceId }, { tab: 'history' })}
+                state={originState}
+                className={sharedStyles.bannerLink}
+              >
+                {t('sourceReports.openHistory')}
+              </NavAnchor>
+            )}
           </div>
-          <Link to={routeUrl('invoices')} className={sharedStyles.bannerLink}>
-            {t('sourceReports.viewInvoices')}
-          </Link>
-        </div>
-      ) : (
-        <>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onPreviewPdf}
-            disabled={isBusy}
-          >
-            {activeAction === 'preview' && (
-              <span aria-hidden="true">
-                <Spinner size="sm" color="muted" />
-              </span>
-            )}
-            {t('sourceReports.editable.previewPdf')}
-          </button>
-
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={onDownload}
-            disabled={isBusy}
-          >
-            {activeAction === 'download' && (
-              <span aria-hidden="true">
-                <Spinner size="sm" color="muted" />
-              </span>
-            )}
-            {downloadLabel}
-          </button>
-
-          {isClaim && (
-            <>
+        ) : (
+          <section className={styles.afterSend}>
+            <h3>{t('sourceReports.afterSend.heading')}</h3>
+            <p>{t('sourceReports.afterSend.text', { count: selectedInvoiceCount })}</p>
+            <div className={styles.afterSendActions}>
               <button
                 type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={onMarkClaimed}
-                disabled={isBusy || isMarkingClaimed || selectedInvoiceCount === 0}
+                className={`${sharedStyles.btnSecondary} ${styles.inertSecondary}`}
+                onClick={nothingSelected ? undefined : onMarkClaimed}
+                disabled={isBusy || isMarkingClaimed}
+                aria-disabled={nothingSelected || undefined}
+                aria-describedby={nothingSelected ? zeroReasonId : undefined}
               >
-                {selectedInvoiceCount === 0
+                {nothingSelected
                   ? t('sourceReports.markSubmittedNone')
                   : t('sourceReports.markSubmitted', { count: selectedInvoiceCount })}
               </button>
-
+              {nothingSelected && (
+                <span id={zeroReasonId} className={sharedStyles.srOnly}>
+                  {t('sourceReports.mark.zeroReason')}
+                </span>
+              )}
               <button
                 type="button"
-                className={sharedStyles.btnSecondaryCompact}
+                className={sharedStyles.btnText}
                 onClick={onFinishWithoutMarking}
                 disabled={isBusy}
               >
                 {t('sourceReports.finishWithoutMarking')}
               </button>
-            </>
-          )}
-
-          {paperlessStatus?.configured && paperlessStatus?.reachable && (
-            <button
-              type="button"
-              className={isRetry ? sharedStyles.btnPrimary : sharedStyles.btnSecondary}
-              onClick={onUploadPaperless}
-              disabled={isBusy}
-            >
-              {activeAction === 'paperless' && (
-                <span aria-hidden="true">
-                  <Spinner size="sm" color="muted" />
-                </span>
-              )}
-              {uploadLabel}
-            </button>
-          )}
-        </>
-      )}
-
-      {claimError && (
-        <div className={sharedStyles.bannerError} role="alert">
-          {claimError}
-        </div>
-      )}
+            </div>
+          </section>
+        ))}
     </div>
   );
 }

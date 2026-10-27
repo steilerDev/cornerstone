@@ -77,4 +77,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Convert page specs](convert-page-specs.md) — portaled dialog forms submit the page form, stale blocking premises, document-row payload ids, route-flip E2E sweeps
 - [Invoice dialog specs](invoice-dialog-specs.md) — async ctx writes hit the top step, Number(null) finite, redirect `to` wipes carried params, false UX premises
 - [Financing pages specs](financing-pages-specs.md) — new screen ≤1 primary (host in old dirs), required header primary, AC field w/o column, mixed figure spans, history types, orphaned search terms
+- [Bank report specs](bank-report-specs.md) — NavAnchor ignores target, ConfirmDialog danger-only, aria-disabled unstyled on shared btns, revert batchId, real closure measure
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

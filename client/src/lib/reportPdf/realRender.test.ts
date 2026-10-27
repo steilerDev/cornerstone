@@ -4222,18 +4222,18 @@ describe('#2159: cover-letter opening and German copy (real bundles, real pdfmak
     return positions[0]!;
   }
 
-  it('de claim letter: subject "Betreff: Abruf Kreditmittel", opening "Sehr geehrte Damen und Herren,", old subject gone', async () => {
+  it('de claim letter: subject "Betreff: Mittelabruf", opening "Sehr geehrte Damen und Herren,", old subject gone', async () => {
     const { baseline, strings } = await letterFor('claim', 'de-DE');
-    expect(baseline.coverLetter!.subject).toBe('Abruf Kreditmittel');
+    expect(baseline.coverLetter!.subject).toBe('Mittelabruf');
     expect(baseline.coverLetter!.opening).toBe('Sehr geehrte Damen und Herren,');
-    expect(strings).toContain('Betreff: Abruf Kreditmittel');
+    expect(strings).toContain('Betreff: Mittelabruf');
     expect(strings).toContain('Sehr geehrte Damen und Herren,');
     expect(strings.some((s) => s.includes('Einreichungsunterlagen'))).toBe(false);
   });
 
-  it('en claim letter: subject "Subject: Claim Documentation", opening "Dear Sir or Madam,"', async () => {
+  it('en claim letter: subject "Subject: Draw-down request", opening "Dear Sir or Madam,"', async () => {
     const { strings } = await letterFor('claim', 'en-US');
-    expect(strings).toContain('Subject: Claim Documentation');
+    expect(strings).toContain('Subject: Draw-down request');
     expect(strings).toContain('Dear Sir or Madam,');
   });
 
@@ -4266,7 +4266,7 @@ describe('#2159: cover-letter opening and German copy (real bundles, real pdfmak
 
     await renderCoverLetterPdfContent(pdfContent);
 
-    const subject = firstPosition(nodeWithText(pdfContent, 'Betreff: Abruf Kreditmittel'));
+    const subject = firstPosition(nodeWithText(pdfContent, 'Betreff: Mittelabruf'));
     const opening = firstPosition(nodeWithText(pdfContent, 'Sehr geehrte Damen und Herren,'));
     const firstBody = firstPosition(nodeWithText(pdfContent, paragraph(1)));
     const closing = firstPosition(nodeWithText(pdfContent, 'Mit freundlichen Grüßen'));

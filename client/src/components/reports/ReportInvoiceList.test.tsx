@@ -30,7 +30,7 @@
  * (`.srOnly`) `<span>` sibling of the paperclip SVG — it's asserted via `getByText`, not
  * `getByLabelText` (a plain, non-form `<div>` has no label association for RTL's label query).
  */
-import { screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, within, act } from '@testing-library/react';
 import { describe, it, expect, jest, beforeAll } from '@jest/globals';
 import type { TFunction } from 'i18next';
 import type {
@@ -38,7 +38,8 @@ import type {
   SourceReportInvoice,
   SourceReportDeposit,
 } from '@cornerstone/shared';
-import { renderWithRouter } from '../../test/testUtils.js';
+import { reportSelection } from '../../lib/reportSelection.js';
+import { renderWithRouter as renderWithRouterSync } from '../../test/testUtils.js';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { ReportInvoiceList as ReportInvoiceListType } from './ReportInvoiceList.js';
 
@@ -57,11 +58,39 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   }),
 }));
 
-let ReportInvoiceList: typeof ReportInvoiceListType;
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: () => ({ resolvedLocale: 'en' }),
+}));
+
+/** Renders and lets the first page of the infinite-scroll hook land (it resolves on a microtask). */
+async function renderWithRouter(...args: Parameters<typeof renderWithRouterSync>) {
+  const result = renderWithRouterSync(...args);
+  await act(async () => {});
+  return result;
+}
+
+let RealReportInvoiceList: typeof ReportInvoiceListType;
 
 beforeAll(async () => {
-  ({ ReportInvoiceList } = await import('./ReportInvoiceList.js'));
+  ({ ReportInvoiceList: RealReportInvoiceList } = await import('./ReportInvoiceList.js'));
 });
+
+type ListProps = React.ComponentProps<typeof ReportInvoiceListType>;
+
+/** Test harness: derives the selection (#2243 D2) from the raw report like the wizard does. */
+function ReportInvoiceList(
+  props: Omit<ListProps, 'selection' | 'onToggleInvoices' | 'onBack'> &
+    Partial<Pick<ListProps, 'selection' | 'onToggleInvoices' | 'onBack'>>,
+) {
+  return (
+    <RealReportInvoiceList
+      selection={reportSelection(props.report, props.excludedInvoiceIds, props.excludedLineIds)}
+      onToggleInvoices={() => {}}
+      onBack={() => {}}
+      {...props}
+    />
+  );
+}
 
 function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReportInvoice {
   return {
@@ -104,8 +133,8 @@ function makeReport(
 }
 
 describe('ReportInvoiceList', () => {
-  it('renders EmptyState when there are no allocated and no unallocated invoices', () => {
-    renderWithRouter(
+  it('renders EmptyState when there are no allocated and no unallocated invoices', async () => {
+    await renderWithRouter(
       <ReportInvoiceList
         report={makeReport([])}
         excludedInvoiceIds={new Set()}
@@ -119,12 +148,17 @@ describe('ReportInvoiceList', () => {
     expect(screen.getByText('sourceReports.emptyInvoices')).toBeInTheDocument();
   });
 
-  it('renders one row per allocated invoice, with vendor name and invoice number', () => {
+  it('renders one row per allocated invoice, with vendor name and invoice number', async () => {
     const report = makeReport([
       makeInvoice({ invoiceId: 'inv-1', vendorName: 'ACME' }),
-      makeInvoice({ invoiceId: 'inv-2', vendorName: 'Beta Corp', invoiceNumber: 'INV-002' }),
+      makeInvoice({
+        invoiceId: 'inv-2',
+        vendorId: 'vend-2',
+        vendorName: 'Beta Corp',
+        invoiceNumber: 'INV-002',
+      }),
     ]);
-    renderWithRouter(
+    await renderWithRouter(
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set()}
@@ -135,17 +169,18 @@ describe('ReportInvoiceList', () => {
         t={t}
       />,
     );
-    expect(screen.getByText('ACME')).toBeInTheDocument();
-    expect(screen.getByText('Beta Corp')).toBeInTheDocument();
+    // company heading (group) and the row's vendor line
+    expect(screen.getAllByText('ACME')).toHaveLength(2);
+    expect(screen.getAllByText('Beta Corp')).toHaveLength(2);
     expect(screen.getByText(/INV-002/)).toBeInTheDocument();
   });
 
-  it('checks the row checkbox for a non-excluded invoice and unchecks it for an excluded one', () => {
+  it('checks the row checkbox for a non-excluded invoice and unchecks it for an excluded one', async () => {
     const report = makeReport([
       makeInvoice({ invoiceId: 'inv-1' }),
       makeInvoice({ invoiceId: 'inv-2' }),
     ]);
-    renderWithRouter(
+    await renderWithRouter(
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set(['inv-2'])}
@@ -157,15 +192,15 @@ describe('ReportInvoiceList', () => {
       />,
     );
     const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-    // Header checkbox (index 0, tri-state) + 2 row checkboxes.
-    expect(checkboxes[1]!.checked).toBe(true); // inv-1 included
-    expect(checkboxes[2]!.checked).toBe(false); // inv-2 excluded
+    // Header checkbox (index 0), the company group checkbox (1), then 2 row checkboxes.
+    expect(checkboxes[2]!.checked).toBe(true); // inv-1 included
+    expect(checkboxes[3]!.checked).toBe(false); // inv-2 excluded
   });
 
-  it('calls onToggle(invoiceId, true) when unchecking an included row', () => {
+  it('calls onToggle(invoiceId, true) when unchecking an included row', async () => {
     const onToggle = jest.fn();
     const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-    renderWithRouter(
+    await renderWithRouter(
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set()}
@@ -176,15 +211,15 @@ describe('ReportInvoiceList', () => {
         t={t}
       />,
     );
-    const [, rowCheckbox] = screen.getAllByRole('checkbox');
+    const [, , rowCheckbox] = screen.getAllByRole('checkbox');
     fireEvent.click(rowCheckbox!);
     expect(onToggle).toHaveBeenCalledWith('inv-1', true);
   });
 
-  it('calls onToggle(invoiceId, false) when re-checking an excluded row', () => {
+  it('calls onToggle(invoiceId, false) when re-checking an excluded row', async () => {
     const onToggle = jest.fn();
     const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-    renderWithRouter(
+    await renderWithRouter(
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set(['inv-1'])}
@@ -195,18 +230,18 @@ describe('ReportInvoiceList', () => {
         t={t}
       />,
     );
-    const [, rowCheckbox] = screen.getAllByRole('checkbox');
+    const [, , rowCheckbox] = screen.getAllByRole('checkbox');
     fireEvent.click(rowCheckbox!);
     expect(onToggle).toHaveBeenCalledWith('inv-1', false);
   });
 
   describe('header tri-state checkbox', () => {
-    it('is checked when every allocated invoice is included', () => {
+    it('is checked when every allocated invoice is included', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1' }),
         makeInvoice({ invoiceId: 'inv-2' }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -222,12 +257,12 @@ describe('ReportInvoiceList', () => {
       expect(header!.indeterminate).toBe(false);
     });
 
-    it('is indeterminate when some (not all) allocated invoices are excluded', () => {
+    it('is indeterminate when some (not all) allocated invoices are excluded', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1' }),
         makeInvoice({ invoiceId: 'inv-2' }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set(['inv-2'])}
@@ -242,10 +277,10 @@ describe('ReportInvoiceList', () => {
       expect(header!.indeterminate).toBe(true);
     });
 
-    it('clicking select-all when fully selected excludes everything (onToggleAll(true))', () => {
+    it('clicking select-all when fully selected excludes everything (onToggleAll(true))', async () => {
       const onToggleAll = jest.fn();
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -261,13 +296,13 @@ describe('ReportInvoiceList', () => {
       expect(onToggleAll).toHaveBeenCalledWith(true);
     });
 
-    it('clicking select-all when partially/fully excluded includes everything (onToggleAll(false))', () => {
+    it('clicking select-all when partially/fully excluded includes everything (onToggleAll(false))', async () => {
       const onToggleAll = jest.fn();
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1' }),
         makeInvoice({ invoiceId: 'inv-2' }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set(['inv-2'])}
@@ -283,9 +318,9 @@ describe('ReportInvoiceList', () => {
       expect(onToggleAll).toHaveBeenCalledWith(false);
     });
 
-    it('the select-all checkbox has a translated accessible name', () => {
+    it('the select-all checkbox has a translated accessible name', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -297,18 +332,18 @@ describe('ReportInvoiceList', () => {
         />,
       );
       expect(
-        screen.getByRole('checkbox', { name: 'sourceReports.selectAllInvoices' }),
+        screen.getByRole('checkbox', { name: /sourceReports.selectAllInvoices/ }),
       ).toBeInTheDocument();
     });
   });
 
   describe('running total (refund netting)', () => {
-    it('sums allocatedAmount for non-excluded invoice lines', () => {
+    it('sums allocatedAmount for non-excluded invoice lines', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 }),
         makeInvoice({ invoiceId: 'inv-2', allocatedAmount: 200 }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -322,7 +357,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText(/"totalAmount":"€500\.00"/)).toBeInTheDocument();
     });
 
-    it('nets a refund-adjustment line into the running total via its already-negative allocatedAmount (unconditional sum, no lineKind branch)', () => {
+    it('nets a refund-adjustment line into the running total via its already-negative allocatedAmount (unconditional sum, no lineKind branch)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 }),
         makeInvoice({
@@ -332,7 +367,7 @@ describe('ReportInvoiceList', () => {
           invoiceAmount: 100,
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -347,7 +382,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText(/"totalAmount":"€200\.00"/)).toBeInTheDocument();
     });
 
-    it('excluding a refund-adjustment row INCREASES the running total (sign behavior)', () => {
+    it('excluding a refund-adjustment row INCREASES the running total (sign behavior)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 }),
         makeInvoice({
@@ -358,7 +393,7 @@ describe('ReportInvoiceList', () => {
         }),
       ]);
 
-      const { rerender } = renderWithRouter(
+      const { rerender } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -389,7 +424,7 @@ describe('ReportInvoiceList', () => {
   });
 
   describe('split badge gating (server-driven isSplit, not a locally-derived amount comparison)', () => {
-    it('shows a split badge when isSplit is true', () => {
+    it('shows a split badge when isSplit is true', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -398,7 +433,7 @@ describe('ReportInvoiceList', () => {
           invoiceAmount: 1000,
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -412,7 +447,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
     });
 
-    it('does NOT show a split badge when isSplit is false, even if allocatedAmount < invoiceAmount', () => {
+    it('does NOT show a split badge when isSplit is false, even if allocatedAmount < invoiceAmount', async () => {
       // isSplit is now taken verbatim from the server, not re-derived from an amount comparison —
       // an amount delta alone must not conjure a badge.
       const report = makeReport([
@@ -423,7 +458,7 @@ describe('ReportInvoiceList', () => {
           invoiceAmount: 1000,
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -437,7 +472,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.queryByText(/sourceReports\.splitBadge/)).not.toBeInTheDocument();
     });
 
-    it('does NOT show a split badge when fully allocated (isSplit false, allocatedAmount === invoiceAmount)', () => {
+    it('does NOT show a split badge when fully allocated (isSplit false, allocatedAmount === invoiceAmount)', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -446,7 +481,7 @@ describe('ReportInvoiceList', () => {
           invoiceAmount: 1000,
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -460,7 +495,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.queryByText(/sourceReports\.splitBadge/)).not.toBeInTheDocument();
     });
 
-    it('shows a split badge for a refund-adjustment line when the server marks it isSplit', () => {
+    it('shows a split badge for a refund-adjustment line when the server marks it isSplit', async () => {
       // isSplit is now an independent server-provided field, not gated on lineKind — a
       // refund-adjustment row can in principle also be flagged split.
       const report = makeReport([
@@ -472,7 +507,7 @@ describe('ReportInvoiceList', () => {
           invoiceAmount: 100,
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -488,7 +523,7 @@ describe('ReportInvoiceList', () => {
   });
 
   describe('paperclip / no-document indicator', () => {
-    it('shows a paperclip indicator (with a visually-hidden accessible label) when the invoice has at least one document', () => {
+    it('shows a paperclip indicator (with a visually-hidden accessible label) when the invoice has at least one document', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -497,7 +532,7 @@ describe('ReportInvoiceList', () => {
           ],
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -514,9 +549,9 @@ describe('ReportInvoiceList', () => {
       expect(screen.queryByText('sourceReports.noDocument')).not.toBeInTheDocument();
     });
 
-    it('shows "no document" text when the invoice has zero documents', () => {
+    it('shows "no document" text when the invoice has zero documents', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1', documents: [] })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -531,7 +566,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.queryByText('sourceReports.hasAttachment')).not.toBeInTheDocument();
     });
 
-    it('renders the split badge ALONGSIDE the attachment indicator, not instead of it — both coexist on a split invoice with a document', () => {
+    it('renders the split badge ALONGSIDE the attachment indicator, not instead of it — both coexist on a split invoice with a document', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -543,7 +578,7 @@ describe('ReportInvoiceList', () => {
           ],
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -558,7 +593,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText('sourceReports.hasAttachment')).toBeInTheDocument();
     });
 
-    it('renders the split badge alongside "no document" when a split invoice has no attachments', () => {
+    it('renders the split badge alongside "no document" when a split invoice has no attachments', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -568,7 +603,7 @@ describe('ReportInvoiceList', () => {
           documents: [],
         }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -583,7 +618,7 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText('sourceReports.noDocument')).toBeInTheDocument();
     });
 
-    it('renders the paperclip glyph path, not the old refresh-cw glyph path (Issue #1933 AC 1.1)', () => {
+    it('renders the paperclip glyph path, not the old refresh-cw glyph path (Issue #1933 AC 1.1)', async () => {
       // Regression guard for the actual defect: the indicator previously rendered Feather's
       // refresh-cw icon (signature path segment "M21.5 2v6h-6") under the same .paperclip
       // wrapper/aria-text contract, which is why the earlier tests in this block (asserting only
@@ -597,7 +632,7 @@ describe('ReportInvoiceList', () => {
           ],
         }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -617,7 +652,7 @@ describe('ReportInvoiceList', () => {
       expect(d).toContain('M21.44 11.05'); // new paperclip glyph's opening segment
     });
 
-    it('the paperclip indicator is not focusable and exposes no interactive role/handler (AC 1.2 guard against re-adding interactivity)', () => {
+    it('the paperclip indicator is not focusable and exposes no interactive role/handler (AC 1.2 guard against re-adding interactivity)', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -626,7 +661,7 @@ describe('ReportInvoiceList', () => {
           ],
         }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -661,9 +696,9 @@ describe('ReportInvoiceList', () => {
       },
     ];
 
-    it('renders a collapsible unallocated group header with the count, collapsed by default', () => {
+    it('renders a collapsible unallocated group header with the count, collapsed by default', async () => {
       const report = makeReport([], unallocated);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -679,9 +714,9 @@ describe('ReportInvoiceList', () => {
       expect(screen.queryByText('Gamma Supplies')).not.toBeInTheDocument();
     });
 
-    it('expands to show unallocated rows on click, with no selection checkbox', () => {
+    it('expands to show unallocated rows on click, with no selection checkbox', async () => {
       const report = makeReport([], unallocated);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -701,12 +736,12 @@ describe('ReportInvoiceList', () => {
       expect(checkboxes).toHaveLength(1);
     });
 
-    it('does not count unallocated invoices toward the allocated selection/running total', () => {
+    it('does not count unallocated invoices toward the allocated selection/running total', async () => {
       const report = makeReport(
         [makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 })],
         unallocated,
       );
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -722,9 +757,9 @@ describe('ReportInvoiceList', () => {
   });
 
   describe('SelectionActionBar clear button', () => {
-    it('renders a "clear" button with a translated label', () => {
+    it('renders a "clear" button with a translated label', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -741,9 +776,9 @@ describe('ReportInvoiceList', () => {
       expect(clearBtn?.textContent).toBe('sourceReports.resetSelection');
     });
 
-    it('places the selection bar in the flow: no fixed bar and no sticky bar height', () => {
+    it('places the selection bar in the flow: no fixed bar and no sticky bar height', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -761,10 +796,10 @@ describe('ReportInvoiceList', () => {
       );
     });
 
-    it('clicking the "clear" button calls onToggleAll(false)', () => {
+    it('clicking the "clear" button calls onToggleAll(false)', async () => {
       const onToggleAll = jest.fn();
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -785,9 +820,9 @@ describe('ReportInvoiceList', () => {
   // ─── Story #1891: expand/collapse, sub-tables, tri-state, onToggleLine ─────
 
   describe('statusChip class (Story #1891 chip-width fix)', () => {
-    it('applies the statusChip class to the invoice status Badge', () => {
+    it('applies the statusChip class to the invoice status Badge', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1', status: 'paid' })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -851,11 +886,11 @@ describe('ReportInvoiceList', () => {
       return btn as HTMLElement;
     }
 
-    it('renders NO chevron/expand button for an invoice with zero budgetLinesForSource and zero depositsVisibleToSource', () => {
+    it('renders NO chevron/expand button for an invoice with zero budgetLinesForSource and zero depositsVisibleToSource', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [], depositsVisibleToSource: [] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -869,11 +904,11 @@ describe('ReportInvoiceList', () => {
       expect(container.querySelector('[aria-controls="invoice-expand-inv-1"]')).toBeNull();
     });
 
-    it('renders a chevron/expand button when the invoice has at least one budgetLine', () => {
+    it('renders a chevron/expand button when the invoice has at least one budgetLine', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -887,7 +922,7 @@ describe('ReportInvoiceList', () => {
       expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
     });
 
-    it('renders a chevron/expand button when the invoice has at least one deposit (even with zero budgetLinesForSource)', () => {
+    it('renders a chevron/expand button when the invoice has at least one deposit (even with zero budgetLinesForSource)', async () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -895,7 +930,7 @@ describe('ReportInvoiceList', () => {
           depositsVisibleToSource: [deposit],
         }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -909,11 +944,11 @@ describe('ReportInvoiceList', () => {
       expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
     });
 
-    it('aria-expanded starts false, and the expansion panel is not rendered before clicking', () => {
+    it('aria-expanded starts false, and the expansion panel is not rendered before clicking', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -929,11 +964,11 @@ describe('ReportInvoiceList', () => {
       expect(container.querySelector('#invoice-expand-inv-1')).toBeNull();
     });
 
-    it('clicking the chevron sets aria-expanded=true and renders a panel with matching id, tabIndex -1, and focuses it', () => {
+    it('clicking the chevron sets aria-expanded=true and renders a panel with matching id, tabIndex -1, and focuses it', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -954,11 +989,11 @@ describe('ReportInvoiceList', () => {
       expect(document.activeElement).toBe(panel);
     });
 
-    it('clicking the chevron again collapses the panel (aria-expanded=false, panel removed)', () => {
+    it('clicking the chevron again collapses the panel (aria-expanded=false, panel removed)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -977,11 +1012,11 @@ describe('ReportInvoiceList', () => {
       expect(container.querySelector('#invoice-expand-inv-1')).toBeNull();
     });
 
-    it('Enter and Space keys on the chevron toggle expansion (keyboard operability)', () => {
+    it('Enter and Space keys on the chevron toggle expansion (keyboard operability)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -999,11 +1034,11 @@ describe('ReportInvoiceList', () => {
       expect(btn).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('the expand button has a translated accessible name that flips to the collapse variant after expanding (Story #1891 follow-up: aria-label fix)', () => {
+    it('the expand button has a translated accessible name that flips to the collapse variant after expanding (Story #1891 follow-up: aria-label fix)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1035,11 +1070,11 @@ describe('ReportInvoiceList', () => {
     });
 
     describe('items sub-table', () => {
-      it('renders a row per budgetLine with description, allocated portion, and a linked-item link', () => {
+      it('renders a row per budgetLine with description, allocated portion, and a linked-item link', async () => {
         const report = makeReport([
           makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine, workItemLine] }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1058,11 +1093,11 @@ describe('ReportInvoiceList', () => {
         expect(links[0]).toHaveAttribute('href', '/project/work-items/wi-1');
       });
 
-      it('renders a household_item linkedItem with the correct href', () => {
+      it('renders a household_item linkedItem with the correct href', async () => {
         const report = makeReport([
           makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [householdItemLine] }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1079,11 +1114,11 @@ describe('ReportInvoiceList', () => {
         expect(links[0]).toHaveAttribute('href', '/project/household-items/hi-1');
       });
 
-      it('renders an "unassigned" badge instead of a link when linkedItem is null', () => {
+      it('renders an "unassigned" badge instead of a link when linkedItem is null', async () => {
         const report = makeReport([
           makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1099,14 +1134,14 @@ describe('ReportInvoiceList', () => {
         expect(screen.getAllByText('sourceReports.unassigned').length).toBeGreaterThan(0);
       });
 
-      it('falls back to "unnamedLine" text when description is null', () => {
+      it('falls back to "unnamedLine" text when description is null', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
             budgetLinesForSource: [{ ...budgetLine, description: null }],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1122,7 +1157,7 @@ describe('ReportInvoiceList', () => {
         expect(screen.getAllByText('sourceReports.expand.unnamedLine').length).toBeGreaterThan(0);
       });
 
-      it('renders an EmptyState for the items sub-table when budgetLinesForSource is empty (deposit-only invoice)', () => {
+      it('renders an EmptyState for the items sub-table when budgetLinesForSource is empty (deposit-only invoice)', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1130,7 +1165,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [deposit],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1146,13 +1181,13 @@ describe('ReportInvoiceList', () => {
         expect(screen.getByText('sourceReports.expand.itemsEmpty')).toBeInTheDocument();
       });
 
-      it('calls onToggleLine(lineId, true) when unchecking an included line, and does NOT call onToggle', () => {
+      it('calls onToggleLine(lineId, true) when unchecking an included line, and does NOT call onToggle', async () => {
         const onToggleLine = jest.fn();
         const onToggle = jest.fn();
         const report = makeReport([
           makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1174,12 +1209,12 @@ describe('ReportInvoiceList', () => {
         expect(onToggle).not.toHaveBeenCalled();
       });
 
-      it('calls onToggleLine(lineId, false) when re-checking an excluded line', () => {
+      it('calls onToggleLine(lineId, false) when re-checking an excluded line', async () => {
         const onToggleLine = jest.fn();
         const report = makeReport([
           makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1203,7 +1238,7 @@ describe('ReportInvoiceList', () => {
     });
 
     describe('deposits sub-table', () => {
-      it('renders a row per deposit with amount, status, dates, and entry type', () => {
+      it('renders a row per deposit with amount, status, dates, and entry type', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1211,7 +1246,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [{ ...deposit, status: 'paid', paidDate: '2026-01-20' }],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1231,7 +1266,7 @@ describe('ReportInvoiceList', () => {
         );
       });
 
-      it('displays a refund badge and negates the amount for a refund-type deposit', () => {
+      it('displays a refund badge and negates the amount for a refund-type deposit', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1239,7 +1274,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [{ ...deposit, amount: 75, entryType: 'refund' }],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1258,7 +1293,7 @@ describe('ReportInvoiceList', () => {
         );
       });
 
-      it("shows a source badge when the deposit is tagged to the report's own source", () => {
+      it("shows a source badge when the deposit is tagged to the report's own source", async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1266,7 +1301,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [{ ...deposit, budgetSourceId: 'src-1' }],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1283,7 +1318,7 @@ describe('ReportInvoiceList', () => {
         expect(screen.getAllByText('Home Loan').length).toBeGreaterThan(0);
       });
 
-      it('renders an em-dash instead of a badge when a deposit is untagged (budgetSourceId null)', () => {
+      it('renders an em-dash instead of a badge when a deposit is untagged (budgetSourceId null)', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1291,7 +1326,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [{ ...deposit, budgetSourceId: null }],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1307,7 +1342,7 @@ describe('ReportInvoiceList', () => {
         expect(screen.getByText('—')).toBeInTheDocument();
       });
 
-      it('renders an EmptyState for the deposits sub-table when depositsVisibleToSource is empty', () => {
+      it('renders an EmptyState for the deposits sub-table when depositsVisibleToSource is empty', async () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
@@ -1315,7 +1350,7 @@ describe('ReportInvoiceList', () => {
             depositsVisibleToSource: [],
           }),
         ]);
-        const { container } = renderWithRouter(
+        const { container } = await renderWithRouter(
           <ReportInvoiceList
             report={report}
             excludedInvoiceIds={new Set()}
@@ -1337,11 +1372,11 @@ describe('ReportInvoiceList', () => {
     const lineA = { id: 'line-a', description: 'A', allocatedPortion: 300, linkedItem: null };
     const lineB = { id: 'line-b', description: 'B', allocatedPortion: 200, linkedItem: null };
 
-    it('state 1 (checked): invoice not excluded and no lines excluded', () => {
+    it('state 1 (checked): invoice not excluded and no lines excluded', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1353,16 +1388,16 @@ describe('ReportInvoiceList', () => {
         />,
       );
       const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      // index 0 = header, index 1 = the single invoice row's parent checkbox
-      expect(rowCheckboxes[1]!.checked).toBe(true);
-      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+      // index 0 = header, 1 = company group, 2 = the single invoice row's parent checkbox
+      expect(rowCheckboxes[2]!.checked).toBe(true);
+      expect(rowCheckboxes[2]!.indeterminate).toBe(false);
     });
 
-    it('state 2 (indeterminate): invoice not excluded, SOME (not all) lines excluded', () => {
+    it('state 2 (indeterminate): invoice not excluded, SOME (not all) lines excluded', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1374,15 +1409,15 @@ describe('ReportInvoiceList', () => {
         />,
       );
       const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      expect(rowCheckboxes[1]!.indeterminate).toBe(true);
-      expect(rowCheckboxes[1]!.checked).toBe(false);
+      expect(rowCheckboxes[2]!.indeterminate).toBe(true);
+      expect(rowCheckboxes[2]!.checked).toBe(false);
     });
 
-    it('state 3 (unchecked, but invoice remains included): ALL lines excluded, invoice itself not excluded — checkbox reads unchecked, not indeterminate', () => {
+    it('state 3 (unchecked, but invoice remains included): ALL lines excluded, invoice itself not excluded — checkbox reads unchecked, not indeterminate', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1394,20 +1429,20 @@ describe('ReportInvoiceList', () => {
         />,
       );
       const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      expect(rowCheckboxes[1]!.checked).toBe(false);
-      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+      expect(rowCheckboxes[2]!.checked).toBe(false);
+      expect(rowCheckboxes[2]!.indeterminate).toBe(false);
       // The invoice is still present in the (allocated, selectable) list — not moved to
       // excluded/unallocated — since excludedInvoiceIds does not contain it.
-      expect(screen.getByText('ACME Builders')).toBeInTheDocument();
+      expect(screen.getAllByText('ACME Builders').length).toBeGreaterThan(0);
     });
 
-    it('clicking the parent checkbox calls onToggle for the INVOICE, never onToggleLine — even with lines excluded', () => {
+    it('clicking the parent checkbox calls onToggle for the INVOICE, never onToggleLine — even with lines excluded', async () => {
       const onToggle = jest.fn();
       const onToggleLine = jest.fn();
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1423,15 +1458,15 @@ describe('ReportInvoiceList', () => {
       // excluded), so clicking it fires a native checked=true change event — which maps to
       // onToggle(id, false) (i.e. "un-exclude the invoice"). The key assertion here is that
       // ONLY onToggle fires (never onToggleLine), regardless of direction.
-      fireEvent.click(rowCheckboxes[1]!);
+      fireEvent.click(rowCheckboxes[2]!);
 
       expect(onToggle).toHaveBeenCalledWith('inv-1', false);
       expect(onToggleLine).not.toHaveBeenCalled();
     });
 
-    it('an invoice with zero budgetLinesForSource is always in the "checked" tri-state (excludedLineCount === 0 vacuously)', () => {
+    it('an invoice with zero budgetLinesForSource is always in the "checked" tri-state (excludedLineCount === 0 vacuously)', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [] })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1443,20 +1478,20 @@ describe('ReportInvoiceList', () => {
         />,
       );
       const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      expect(rowCheckboxes[1]!.checked).toBe(true);
-      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+      expect(rowCheckboxes[2]!.checked).toBe(true);
+      expect(rowCheckboxes[2]!.indeterminate).toBe(false);
     });
   });
 
   // ─── Issue #1933: open-invoice affordance, header checkbox alignment, deposit dates ───
 
   describe('open-invoice affordance', () => {
-    it('renders an accessible link per allocated invoice row, with an aria-label containing both the vendor name and invoice number (not a bare "open") (AC 2.4)', () => {
+    it('renders an accessible link per allocated invoice row, with an aria-label containing both the vendor name and invoice number (not a bare "open") (AC 2.4)', async () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', vendorName: 'ACME Builders', invoiceNumber: 'INV-001' }),
         makeInvoice({ invoiceId: 'inv-2', vendorName: 'Beta Corp', invoiceNumber: 'INV-002' }),
       ]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1477,14 +1512,14 @@ describe('ReportInvoiceList', () => {
       expect(links[1]).toHaveAttribute('href', '/budget/invoices/inv-2');
     });
 
-    it("places the open-invoice link OUTSIDE the row's checkboxWithContent <label>, while it remains present elsewhere within the same invoiceRow (AC 2.5 structural guard)", () => {
+    it("places the open-invoice link OUTSIDE the row's checkboxWithContent <label>, while it remains present elsewhere within the same invoiceRow (AC 2.5 structural guard)", async () => {
       // This is the test that fails if someone later moves the affordance back inside the label:
       // TriStateCheckbox renders its own internal <label>, and the row wraps it AGAIN in
       // <label className={styles.checkboxWithContent}> — anything inside that outer label has its
       // clicks forwarded to the checkbox. The fix is structural: the affordance must live outside
       // that label, as a DOM sibling of .attachmentColumn.
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1505,10 +1540,10 @@ describe('ReportInvoiceList', () => {
       expect(row!.contains(link)).toBe(true);
     });
 
-    it('clicking the open-invoice link never calls onToggle — opening an invoice never toggles inclusion (AC 2.5 behavioural guard)', () => {
+    it('clicking the open-invoice link never calls onToggle — opening an invoice never toggles inclusion (AC 2.5 behavioural guard)', async () => {
       const onToggle = jest.fn();
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1524,9 +1559,9 @@ describe('ReportInvoiceList', () => {
       expect(onToggle).not.toHaveBeenCalled();
     });
 
-    it('opens in a new tab with the safe rel attribute set (AC 2.6)', () => {
+    it('opens in a new tab with the safe rel attribute set (AC 2.6)', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1544,9 +1579,9 @@ describe('ReportInvoiceList', () => {
   });
 
   describe('header checkbox alignment (Issue #1933 AC 3.1)', () => {
-    it('the header checkbox wrapper no longer references a headerCheckbox-named class', () => {
+    it('the header checkbox wrapper no longer references a headerCheckbox-named class', async () => {
       const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
-      const { container } = renderWithRouter(
+      const { container } = await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1566,14 +1601,14 @@ describe('ReportInvoiceList', () => {
   // ─── Story #1888: attachments note paragraph ─────────────────────────────────────────────
 
   describe('attachments note (Story #1888)', () => {
-    it('renders the attachments note paragraph when there is at least one allocated invoice', () => {
+    it('renders the attachments note paragraph when there is at least one allocated invoice', async () => {
       // makeInvoice() has allocatedAmount: 1000, so it passes the allocatedInvoices filter
       // (allocatedAmount > 0). The component renders the <p className={styles.attachmentsNote}>
       // when allocatedInvoices.length > 0. The t() mock returns
       // 'sourceReports.attachmentsNote::{"reportType":"sourceReports.useCase.claim"}' which
       // matches the regex /sourceReports\.attachmentsNote/.
       const report = makeReport([makeInvoice()]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1592,7 +1627,7 @@ describe('ReportInvoiceList', () => {
     // guard (the component bailed out before ever evaluating it). Using one unallocated invoice
     // bypasses EmptyState (there IS something to render) but keeps allocatedInvoices.length === 0,
     // so the note is absent because of the guard under test, not the early-return shortcut.
-    it('does not render the attachments note paragraph when there are no allocated invoices', () => {
+    it('does not render the attachments note paragraph when there are no allocated invoices', async () => {
       const oneUnallocated = {
         invoiceId: 'unalloc-note-1',
         vendorId: 'vend-ua',
@@ -1603,7 +1638,7 @@ describe('ReportInvoiceList', () => {
         invoiceAmount: 300,
       };
       const report = makeReport([], [oneUnallocated]);
-      renderWithRouter(
+      await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1637,7 +1672,7 @@ describe('ReportInvoiceList', () => {
       budgetSourceId: null,
     };
 
-    function renderWithDeposit(deposit: SourceReportDeposit) {
+    async function renderWithDeposit(deposit: SourceReportDeposit) {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -1645,7 +1680,7 @@ describe('ReportInvoiceList', () => {
           depositsVisibleToSource: [deposit],
         }),
       ]);
-      return renderWithRouter(
+      return await renderWithRouter(
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
@@ -1669,8 +1704,8 @@ describe('ReportInvoiceList', () => {
       return cells[0] as HTMLElement;
     }
 
-    it('renders exactly one date line for a due-date-only deposit', () => {
-      const { container } = renderWithDeposit({ ...depositBase });
+    it('renders exactly one date line for a due-date-only deposit', async () => {
+      const { container } = await renderWithDeposit({ ...depositBase });
       const cell = expandAndGetDesktopDatesCell(container);
       expect(cell.querySelectorAll('div')).toHaveLength(1);
       expect(cell.textContent).toContain('sourceReports.expand.dueDate');
@@ -1678,8 +1713,8 @@ describe('ReportInvoiceList', () => {
       expect(cell.textContent).not.toContain('sourceReports.expand.claimedDate');
     });
 
-    it('renders exactly two date lines for a due+paid deposit', () => {
-      const { container } = renderWithDeposit({ ...depositBase, paidDate: '2026-02-10' });
+    it('renders exactly two date lines for a due+paid deposit', async () => {
+      const { container } = await renderWithDeposit({ ...depositBase, paidDate: '2026-02-10' });
       const cell = expandAndGetDesktopDatesCell(container);
       expect(cell.querySelectorAll('div')).toHaveLength(2);
       expect(cell.textContent).toContain('sourceReports.expand.dueDate');
@@ -1687,8 +1722,8 @@ describe('ReportInvoiceList', () => {
       expect(cell.textContent).not.toContain('sourceReports.expand.claimedDate');
     });
 
-    it('renders exactly two date lines for a due+claimed deposit', () => {
-      const { container } = renderWithDeposit({ ...depositBase, claimedDate: '2026-02-15' });
+    it('renders exactly two date lines for a due+claimed deposit', async () => {
+      const { container } = await renderWithDeposit({ ...depositBase, claimedDate: '2026-02-15' });
       const cell = expandAndGetDesktopDatesCell(container);
       expect(cell.querySelectorAll('div')).toHaveLength(2);
       expect(cell.textContent).toContain('sourceReports.expand.dueDate');
@@ -1696,8 +1731,8 @@ describe('ReportInvoiceList', () => {
       expect(cell.textContent).not.toContain('sourceReports.expand.paidDate');
     });
 
-    it('renders exactly three date lines for a due+paid+claimed deposit', () => {
-      const { container } = renderWithDeposit({
+    it('renders exactly three date lines for a due+paid+claimed deposit', async () => {
+      const { container } = await renderWithDeposit({
         ...depositBase,
         paidDate: '2026-02-10',
         claimedDate: '2026-02-15',
@@ -1738,11 +1773,11 @@ describe('ReportInvoiceList', () => {
       },
     };
 
-    function renderExpanded(line: typeof workItemLine | typeof householdItemLine) {
+    async function renderExpanded(line: typeof workItemLine | typeof householdItemLine) {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [line] }),
       ]);
-      const view = renderWithRouter(
+      const view = await renderWithRouter(
         <>
           <ReportInvoiceList
             report={report}
@@ -1762,8 +1797,8 @@ describe('ReportInvoiceList', () => {
       );
     }
 
-    it('opens a linked task (table row) with the report URL as origin, no name', () => {
-      renderExpanded(workItemLine);
+    it('opens a linked task (table row) with the report URL as origin, no name', async () => {
+      await renderExpanded(workItemLine);
 
       fireEvent.click(screen.getAllByRole('link', { name: 'Roof Replacement' })[0]!);
 
@@ -1771,8 +1806,8 @@ describe('ReportInvoiceList', () => {
       expect(probedOrigin()).toEqual({ to: '/budget/reports?sourceId=src-1' });
     });
 
-    it('opens a linked task from the mobile card with the report URL as origin', () => {
-      renderExpanded(workItemLine);
+    it('opens a linked task from the mobile card with the report URL as origin', async () => {
+      await renderExpanded(workItemLine);
 
       const links = screen.getAllByRole('link', { name: 'Roof Replacement' });
       fireEvent.click(links[links.length - 1]!);
@@ -1781,8 +1816,8 @@ describe('ReportInvoiceList', () => {
       expect(probedOrigin()).toEqual({ to: '/budget/reports?sourceId=src-1' });
     });
 
-    it('opens a linked purchase with the report URL as origin', () => {
-      renderExpanded(householdItemLine);
+    it('opens a linked purchase with the report URL as origin', async () => {
+      await renderExpanded(householdItemLine);
 
       fireEvent.click(screen.getAllByRole('link', { name: 'Kitchen Cabinet' })[0]!);
 

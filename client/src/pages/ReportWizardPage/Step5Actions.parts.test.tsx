@@ -37,7 +37,7 @@ function renderActions(overrides: Overrides = {}) {
         useCase="claim"
         paperlessStatus={paperlessStatus}
         isMarkingClaimed={false}
-        claimError={null}
+        sourceId="src-1"
         claimSuccess={claimSuccess}
         claimedInvoiceCount={0}
         claimedDepositCount={0}
@@ -125,7 +125,7 @@ describe('Step5Actions — multi-PDF labels and status', () => {
           useCase="claim"
           paperlessStatus={paperlessReady}
           isMarkingClaimed={false}
-          claimError={null}
+          sourceId="src-1"
           claimSuccess={false}
           claimedInvoiceCount={0}
           claimedDepositCount={0}
@@ -165,11 +165,13 @@ describe('Step5Actions — multi-PDF labels and status', () => {
     expect(screen.getByRole('button', { name: 'Preview PDF' })).toBeEnabled();
   });
 
-  it('does not render the multi-part controls once the claim is marked (success view)', () => {
+  it('keeps the multi-part report actions after the claim is marked (success banner only replaces the after-send block)', () => {
     renderActions({ partCount: 3, claimSuccess: true });
 
-    expect(screen.queryByRole('button', { name: 'Download all (3 PDFs)' })).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(screen.getByRole('button', { name: 'Download all (3 PDFs)' })).toBeInTheDocument();
+    const statuses = screen.getAllByRole('status');
+    expect(statuses).toHaveLength(2); // transfer live region (empty) + success banner
+    expect(statuses[0]).toBeEmptyDOMElement();
   });
 
   it('omits the upload button entirely when Paperless is not reachable', () => {

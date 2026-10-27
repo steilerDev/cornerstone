@@ -13,6 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import { _resetFilterTagCache } from '../services/paperlessService.js';
@@ -23,6 +24,7 @@ import type {
   ApiErrorResponse,
   SourceReportResponse,
   MarkClaimedResponse,
+  RevertSubmissionResponse,
 } from '@cornerstone/shared';
 
 describe('Source Report Routes', () => {
@@ -477,6 +479,30 @@ describe('Source Report Routes', () => {
       expect(body.claimedDepositIds).toEqual([]);
     });
 
+    it('returns a batchId equal to the metadata.batchId of the events it wrote', async () => {
+      const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId, invoiceIds: [invId], depositIds: [] },
+      });
+
+      const body = response.json<MarkClaimedResponse>();
+      expect(typeof body.batchId).toBe('string');
+      const events = app.db
+        .select()
+        .from(schema.diaryEntries)
+        .all()
+        .filter((e) => e.entryType === 'invoice_status');
+      expect(events).toHaveLength(1);
+      expect(JSON.parse(events[0]!.metadata!).batchId).toBe(body.batchId);
+    });
+
     it('silently strips unknown body properties (Fastify/AJV removeAdditional default) and still processes the request', async () => {
       const { cookie } = await createUserWithSession();
       const sourceId = insertSource();
@@ -497,6 +523,144 @@ describe('Source Report Routes', () => {
   // ═══════════════════════════════════════════════════════════════════════
   // Paperless filter tag (fail-closed enrichment)
   // ═══════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // POST /api/source-reports/batches/:batchId/revert (#2243)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('POST /api/source-reports/batches/:batchId/revert', () => {
+    const revertUrl = (batchId: string) => `/api/source-reports/batches/${batchId}/revert`;
+
+    async function submit(cookie: string, status: 'pending' | 'paid' = 'pending') {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status });
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId, invoiceIds: [invId], depositIds: [] },
+      });
+      return { invId, batchId: response.json<MarkClaimedResponse>().batchId };
+    }
+
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({ method: 'POST', url: revertUrl('any-batch') });
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 200 with batchId, restoredInvoiceIds and restoredDepositIds, and restores the invoice', async () => {
+      const { cookie } = await createUserWithSession();
+      const { invId, batchId } = await submit(cookie, 'paid');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: revertUrl(batchId),
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<RevertSubmissionResponse>();
+      expect(Object.keys(body).sort()).toEqual([
+        'batchId',
+        'restoredDepositIds',
+        'restoredInvoiceIds',
+      ]);
+      expect(body.batchId).not.toBe(batchId);
+      expect(body.restoredInvoiceIds).toEqual([invId]);
+      expect(body.restoredDepositIds).toEqual([]);
+      const row = app.db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(row.status).toBe('paid');
+    });
+
+    it('returns 404 NOT_FOUND for an unknown batch id and for a revert batch id', async () => {
+      const { cookie } = await createUserWithSession();
+      const { batchId } = await submit(cookie);
+
+      const unknown = await app.inject({
+        method: 'POST',
+        url: revertUrl('no-such-batch'),
+        headers: { cookie },
+      });
+      expect(unknown.statusCode).toBe(404);
+      expect(unknown.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+
+      const reverted = (
+        await app.inject({ method: 'POST', url: revertUrl(batchId), headers: { cookie } })
+      ).json<RevertSubmissionResponse>();
+      const revertBatch = await app.inject({
+        method: 'POST',
+        url: revertUrl(reverted.batchId),
+        headers: { cookie },
+      });
+      expect(revertBatch.statusCode).toBe(404);
+    });
+
+    it('returns 409 SUBMISSION_ALREADY_REVERTED on a second revert', async () => {
+      const { cookie } = await createUserWithSession();
+      const { batchId } = await submit(cookie);
+      await app.inject({ method: 'POST', url: revertUrl(batchId), headers: { cookie } });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: revertUrl(batchId),
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('SUBMISSION_ALREADY_REVERTED');
+    });
+
+    it('returns 409 SUBMISSION_CHANGED with details.items when an invoice moved on', async () => {
+      const { cookie } = await createUserWithSession();
+      const { invId, batchId } = await submit(cookie);
+      app.db
+        .update(schema.invoices)
+        .set({ status: 'paid' })
+        .where(eq(schema.invoices.id, invId))
+        .run();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: revertUrl(batchId),
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('SUBMISSION_CHANGED');
+      expect(body.error.details).toEqual({
+        items: [{ type: 'invoice', id: invId, status: 'paid' }],
+      });
+    });
+
+    it('rejects a batchId longer than 100 characters without writing, accepts exactly 100', async () => {
+      const { cookie } = await createUserWithSession();
+      const before = app.db.select().from(schema.diaryEntries).all().length;
+
+      // Spec asked for 400. Fastify's router (maxParamLength = 100) answers 414 before the params
+      // schema runs, so the schema's maxLength is a second guard that is not reachable here.
+      const tooLong = await app.inject({
+        method: 'POST',
+        url: revertUrl('x'.repeat(101)),
+        headers: { cookie },
+      });
+      expect(tooLong.statusCode).toBe(414);
+      expect(app.db.select().from(schema.diaryEntries).all().length).toBe(before);
+
+      const boundary = await app.inject({
+        method: 'POST',
+        url: revertUrl('x'.repeat(100)),
+        headers: { cookie },
+      });
+      expect(boundary.statusCode).toBe(404);
+    });
+  });
 
   describe('GET /api/source-reports with PAPERLESS_FILTER_TAG', () => {
     const mockFetch = jest.fn<typeof fetch>();

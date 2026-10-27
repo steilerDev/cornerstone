@@ -396,6 +396,43 @@ describe('D-16: system events are written as v1 parameters, not English text', (
     });
   });
 
+  describe('revertOf (#2243)', () => {
+    it('invoice status: revertOf is the last key, omitted when not given', () => {
+      onInvoiceStatusChanged(
+        db,
+        'inv-1',
+        'INV-T-001',
+        'claimed',
+        'paid',
+        { userId: USER },
+        { amount: 1200, batchId: 'batch-2', budgetSourceId: 'src-1', revertOf: 'batch-1' },
+      );
+      onInvoiceStatusChanged(db, 'inv-2', 'INV-T-002', 'pending', 'claimed', { userId: USER });
+
+      const [reverted, plain] = rows();
+      expect(reverted!.metadata).toBe(
+        '{"v":1,"event":"status_changed","from":"claimed","to":"paid","subjectLabel":"INV-T-001","amount":1200,"batchId":"batch-2","budgetSourceId":"src-1","revertOf":"batch-1"}',
+      );
+      expect(plain!.metadata).not.toContain('revertOf');
+    });
+
+    it('deposit event: revertOf is last and a move to pending IS written when it reverts', () => {
+      onDepositStatusChanged(
+        db,
+        { id: 'dep-1', invoiceId: 'inv-1', entryType: 'deposit', amount: 300 },
+        'INV-T-001',
+        'claimed',
+        'pending',
+        { userId: USER },
+        { batchId: 'batch-2', budgetSourceId: 'src-1', revertOf: 'batch-1' },
+      );
+      expect(rows()).toHaveLength(1);
+      expect(rows()[0]!.metadata).toBe(
+        '{"v":1,"event":"status_changed","from":"claimed","to":"pending","subjectLabel":"INV-T-001","amount":300,"depositEntryType":"deposit","depositId":"dep-1","batchId":"batch-2","budgetSourceId":"src-1","revertOf":"batch-1"}',
+      );
+    });
+  });
+
   describe('batchId (W5)', () => {
     it('is omitted from events that do not carry one', () => {
       onInvoiceStatusChanged(db, 'i', 'N', 'pending', 'paid', UNDOABLE, { amount: 5 });

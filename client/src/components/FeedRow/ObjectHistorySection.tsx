@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { DiaryEntrySummary, HistoryObjectType } from '@cornerstone/shared';
@@ -41,6 +42,8 @@ export interface ObjectHistorySectionProps {
   readonly labels: ObjectHistoryLabels;
   /** Section id; the "show all" link is `${testIdPrefix}-show-all`. */
   readonly testIdPrefix: string;
+  /** Row actions after a row's link row (Revert submission); forwarded to the feed row. */
+  readonly renderRowActions?: (entry: DiaryEntrySummary) => ReactNode;
 }
 
 /**
@@ -53,6 +56,7 @@ export function ObjectHistorySection({
   revision,
   labels,
   testIdPrefix,
+  renderRowActions,
 }: ObjectHistorySectionProps) {
   const { t: tErrors } = useTranslation('errors');
   const [state, setState] = useState<HistoryState>({ status: 'loading' });
@@ -98,7 +102,12 @@ export function ObjectHistorySection({
       <>
         <ul className={styles.historyList}>
           {state.items.map((entry) => (
-            <SystemEventFeedRow key={entry.id} as="li" entry={entry} />
+            <SystemEventFeedRow
+              key={entry.id}
+              as="li"
+              entry={entry}
+              actions={renderRowActions?.(entry)}
+            />
           ))}
         </ul>
         {state.totalItems > state.items.length ? (

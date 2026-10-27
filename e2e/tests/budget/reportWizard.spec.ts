@@ -41,9 +41,9 @@
  * - Scenario 16: Issue #1933 (AC 2.7) — the open-invoice affordance repeats at mobile viewport,
  *   proving the new-tab behavior holds regardless of viewport (there is no separate mobile card
  *   layout for the invoice row — the grid is unconditional).
- * - Scenario 17: Story #2237 — `?type=budget-overview` preselects the "Budget overview" use case
- *   (the Money overview's ⋯ › "Budget overview for the bank" lands there), Next reaches the
- *   source step, and an unknown `?type=` does nothing.
+ * - Scenario 17: Story #2237 / #2243 — `?type=budget-overview` (the Money overview's ⋯ › "Budget
+ *   overview for the bank") lands past step 1: on step 2 with step 1 completed when several open
+ *   loans exist (sources mocked), Back shows the type chosen; an unknown `?type=` does nothing.
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -66,6 +66,11 @@ import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
 import { API } from '../../fixtures/testData.js';
+import {
+  buildBudgetSource,
+  mockBudgetSources,
+  mockSourceReports,
+} from '../../fixtures/reportWizardMocks.js';
 import {
   createVendorViaApi,
   deleteVendorViaApi,
@@ -337,10 +342,13 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       const download = await wizard.download();
       expect(download.suggestedFilename()).toBe(`claim-${slug}-${today}.pdf`);
 
-      // Mark claimed: modal states pending count (1 pending2 + 1 paid = 2 included, 1 pending).
+      // Mark as submitted (#2243): the dialog names the count in its title, the selected total
+      // (pending2 + paid = 1,900) and the move; nothing about "still to pay" any more.
       await wizard.clickMarkClaimed();
+      await expect(wizard.claimConfirmModal).toBeVisible();
+      await expect(wizard.claimConfirmModalBody).toContainText(/Total: .*1,900\.00/);
       await expect(wizard.claimConfirmModalBody).toContainText(
-        'This will mark 2 invoices as submitted (1 still to pay)',
+        `They move from To pay or Paid to Submitted for ${testPrefix} Source A.`,
       );
       await wizard.confirmClaim();
 
@@ -953,7 +961,7 @@ test.describe('Report wizard — German report language from English UI (Scenari
       // (ReportWizardPage.tsx).
       await expect(page.getByRole('heading', { name: 'Settings', level: 2 })).toBeVisible();
       await expect(wizard.stepItems.nth(3)).toContainText('Settings');
-      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview and export');
       await expect(wizard.step4BackButton).toHaveText('Back');
       await expect(wizard.step4NextButton).toHaveText('Next');
 
@@ -972,9 +980,9 @@ test.describe('Report wizard — German report language from English UI (Scenari
       // switch, unlike the always-present-auto-regenerating-iframe design this replaced. The
       // Subject field's baseline value comes straight from
       // `reportT('sourceReports.coverLetter.subject.claim')` — the German translation for the
-      // 'claim' use case ("Abruf Kreditmittel" since Story #2159; NOT part of this story's new
+      // 'claim' use case ("Mittelabruf" since Story #2243, was "Abruf Kreditmittel"; NOT part of this story's new
       // `sourceReports.editable.*` namespace, which isn't localized into German yet).
-      await expect(wizard.letterField('subject')).toHaveValue('Abruf Kreditmittel');
+      await expect(wizard.letterField('subject')).toHaveValue('Mittelabruf');
       // Story #2159: read-only Opening row — label stays English, value is German + lang="de".
       const opening = wizard.letterReadOnlyValue('Opening');
       await expect(opening).toHaveText('Sehr geehrte Damen und Herren,');
@@ -985,7 +993,7 @@ test.describe('Report wizard — German report language from English UI (Scenari
       // proven by having successfully located the field via its English label above, plus the
       // heading/stepper/button checks below.
       await expect(wizard.heading).toHaveText('Bank report');
-      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview and export');
       await expect(wizard.step5BackButton).toHaveText('Back');
 
       // Download still succeeds via the on-demand generation path (Story #1900), with the
@@ -1427,18 +1435,28 @@ test.describe('Report wizard — mark-as-submitted button wording (Story #2195, 
 });
 
 test.describe('Report wizard — ?type= preset (Scenario 17)', { tag: '@responsive' }, () => {
-  test('?type=budget-overview preselects the Budget overview use case and Next reaches the source step', async ({
+  // #2243 D1: a valid ?type= no longer stops on step 1. With no sourceId it lands on step 3 when
+  // exactly one open loan / credit line exists, else on step 2. The shared database holds other
+  // tests' loans, so the sources are mocked to make the landing deterministic.
+  test('?type=budget-overview with two open loans lands on step 2 with step 1 completed, and Back shows the type chosen', async ({
     page,
+    testPrefix,
   }) => {
     const wizard = new ReportWizardPage(page);
+    const loanA = buildBudgetSource('mock-loan-a', `${testPrefix} Preset Loan A`);
+    const loanB = buildBudgetSource('mock-loan-b', `${testPrefix} Preset Loan B`);
+    await mockBudgetSources(page, [loanA, loanB]);
+    await mockSourceReports(page, [loanA, loanB], () => null);
 
     await wizard.gotoWithType('budget-overview');
+    await wizard.expectOnStep(2, 'Funding source');
+    await expect(wizard.sourceRadioGroup).toBeVisible();
+    await expect(wizard.step2NextButton).toBeDisabled();
+
+    await wizard.goBack();
     await expect(wizard.useCaseRadioGroup).toBeVisible();
     await expect(wizard.useCaseCard('budget-overview')).toBeChecked();
     await expect(wizard.useCaseCard('claim')).not.toBeChecked();
-
-    await wizard.goNextFromStep1();
-    await expect(wizard.sourceRadioGroup).toBeVisible();
   });
 
   test('an unknown ?type= preselects nothing', async ({ page }) => {
@@ -1451,7 +1469,7 @@ test.describe('Report wizard — ?type= preset (Scenario 17)', { tag: '@responsi
     await expect(wizard.useCaseCard('proof-of-funds')).not.toBeChecked();
   });
 
-  test('Money overview ⋯ › Budget overview for the bank opens the wizard with the preset', async ({
+  test('Money overview ⋯ › Budget overview for the bank opens the wizard past step 1', async ({
     page,
   }) => {
     const overview = new BudgetOverviewPage(page);
@@ -1467,6 +1485,8 @@ test.describe('Report wizard — ?type= preset (Scenario 17)', { tag: '@responsi
         url.pathname === '/budget/reports' && url.searchParams.get('type') === 'budget-overview',
     );
     await expect(wizard.heading).toBeVisible();
-    await expect(wizard.useCaseCard('budget-overview')).toBeChecked();
+    // Step 2 or 3 depending on the loans of the shared database; step 1 is completed either way.
+    await expect(wizard.stepItems.nth(0)).toHaveClass(/stepCompleted/);
+    await expect(wizard.useCaseRadioGroup).toHaveCount(0);
   });
 });

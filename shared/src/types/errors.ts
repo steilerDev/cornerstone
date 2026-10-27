@@ -60,6 +60,8 @@ export const ERROR_CODES = [
   'LLM_UPSTREAM_ERROR',
   'LLM_NOT_CONFIGURED',
   'REORDER_SET_MISMATCH',
+  'SUBMISSION_ALREADY_REVERTED',
+  'SUBMISSION_CHANGED',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

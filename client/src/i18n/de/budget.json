@@ -642,7 +642,7 @@
       "source": "Finanzierungsquelle",
       "invoices": "Rechnungen auswählen",
       "settings": "Einstellungen",
-      "actions": "Vorschau & Export"
+      "actions": "Vorschau und Export"
     },
     "stepperAriaLabel": "Schritte des Berichtsassistenten",
     "mobileStepLabel": "Schritt {{current}} von {{total}}",
@@ -662,13 +662,13 @@
     "useCaseLabel": "Welchen Bericht benötigst du?",
     "useCase": {
       "budget-overview": "Budgetübersicht",
-      "claim": "Einreichung",
+      "claim": "Mittelabruf",
       "proof-of-funds": "Verwendungsnachweis"
     },
     "useCaseHelper": {
-      "budget-overview": "Eine Zusammenfassung aller Rechnungen und ihrer Zuordnungen",
-      "claim": "Zu zahlende oder bezahlte Rechnungen, die noch nicht eingereicht sind",
-      "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
+      "budget-overview": "Angebote sowie zu zahlende, bezahlte oder eingereichte Rechnungen.",
+      "claim": "Zu zahlende oder bezahlte Rechnungen, die noch nicht an die Bank eingereicht sind.",
+      "proof-of-funds": "Nur Rechnungen, die bereits an die Bank eingereicht wurden."
     },
     "sourceLabel": "Wähle eine Finanzierungsquelle aus",
     "amountLabel": {
@@ -677,13 +677,12 @@
       "proofOfFunds": "Eingereicht"
     },
     "discretionary": "Eigenmittel",
-    "selectAllInvoices": "Alle Rechnungen auswählen",
+    "selectAllInvoices": "Alle Rechnungen auswählen ({{count}})",
     "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
-    "invoicesHeading": "Einzubeziehende Rechnungen auswählen",
-    "unallocatedGroupTitle": "Nicht zugeordnete Rechnungen ({{count}})",
-    "unallocatedExplained": "Diese Rechnungen sind dieser Finanzierungsquelle nicht zugeordnet",
-    "emptyInvoices": "Keine Rechnungen gefunden",
-    "emptyInvoicesDescription": "Diese Finanzierungsquelle hat keine Rechnungen für diesen Berichtstyp",
+    "unallocatedGroupTitle": "Nicht auf diese Quelle aufgeteilt ({{count}})",
+    "unallocatedExplained": "Diese Rechnungen sind nicht auf diese Finanzierungsquelle aufgeteilt.",
+    "emptyInvoices": "Keine Rechnungen zum Einbeziehen",
+    "emptyInvoicesDescription": "Keine Rechnung dieser Finanzierungsquelle passt zu diesem Berichtstyp.",
     "selectAtLeastOne": "Wähle mindestens eine Rechnung aus, um fortzufahren",
     "attachDocuments": "Rechnungs-PDFs anhängen",
     "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
@@ -694,7 +693,6 @@
     "finishWithoutMarking": "Abschließen ohne Markierung",
     "uploadPaperless": "Zu Paperless hochladen",
     "uploadSuccess": "Dokument zu Paperless hochgeladen",
-    "confirmClaimTitle": "Rechnungen als eingereicht markieren?",
     "claimSuccess": "{{invoices}} und {{progressPayments}} als eingereicht markiert",
     "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es sind keine Abschlagszahlungen mehr einzureichen.",
     "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
@@ -717,7 +715,7 @@
     "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
     "openInvoiceAriaLabel": "Rechnung {{vendor}}, {{invoiceNumber}} in neuem Tab öffnen",
     "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
-    "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
+    "selectedCount": "{{count}} von {{totalCount}} Rechnungen ausgewählt · Gesamt {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
     "parts": {
       "letter": {
@@ -774,12 +772,12 @@
       "reference": "Referenz",
       "subject": {
         "budget-overview": "Budgetübersicht unseres Bauprojekts",
-        "claim": "Abruf Kreditmittel",
+        "claim": "Mittelabruf",
         "proof-of-funds": "Verwendungsnachweis"
       },
       "body": {
         "budget-overview": "anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
-        "claim": "hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
+        "claim": "hiermit beantragen wir einen Mittelabruf über Rechnungen in Höhe von insgesamt {{total}}.",
         "proof-of-funds": "anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       },
       "closing": "Mit freundlichen Grüßen",
@@ -815,19 +813,22 @@
       "columnVisibilityLabel": "Spalten ein-/ausblenden",
       "allocatedAmountRequiredHint": "Erforderlich – jeder Bericht enthält den zugeordneten Betrag.",
       "usageHiddenAttachmentsWarning": "Anhänge sind aktiviert, aber wenn du „Verwendung“ ausblendest, fehlt in der PDF-Datei der Bezug zwischen den einzelnen Zeilen und den zugehörigen Anhängen.",
-      "enhanceWithAi": "Mit KI verbessern",
+      "enhanceWithAi": "Mit KI entwerfen",
       "enhanceWithAiDescription": "Ersetzt die unten stehenden Verwendungstexte und das Anschreiben durch KI-generierte Inhalte. Vorgenommene Bearbeitungen gehen dabei verloren.",
       "generating": "Generiere… ({{seconds}}s)",
       "aiGeneratedNote": "Inhalt mit KI generiert – vor dem Absenden prüfen.",
       "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuche es erneut.",
       "aiOverwriteConfirmTitle": "Deine Bearbeitungen überschreiben?",
       "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt deine manuellen Bearbeitungen mit neu erzeugtem Text.",
-      "aiOverwriteAndGenerate": "Überschreiben und generieren"
+      "aiOverwriteAndGenerate": "Überschreiben und generieren",
+      "senderHelp": "Stammt aus <houseLink>Projekteinrichtung › Haus</houseLink>. Änderungen hier gelten nur für diesen Bericht.",
+      "senderEmpty": "Kein Absender festgelegt. Trage deinen Namen und deine Adresse unter <houseLink>Projekteinrichtung › Haus</houseLink> ein.",
+      "opensNewTab": " (öffnet in einem neuen Tab)"
     },
     "table": {
       "title": {
         "budget-overview": "Budgetübersicht",
-        "claim": "Einreichungsbericht",
+        "claim": "Mittelabruf",
         "proof-of-funds": "Verwendungsnachweis"
       },
       "source": "Finanzierungsquelle",
@@ -902,15 +903,38 @@
     },
     "markSubmitted_one": "{{count}} Rechnung als eingereicht markieren",
     "markSubmitted_other": "{{count}} Rechnungen als eingereicht markieren",
-    "markSubmittedNone": "Keine Rechnungen zum Markieren als eingereicht",
+    "markSubmittedNone": "Als eingereicht markieren",
     "invoiceCount_one": "{{count}} Rechnung",
     "invoiceCount_other": "{{count}} Rechnungen",
     "progressPaymentCount_one": "{{count}} Abschlagszahlung",
     "progressPaymentCount_other": "{{count}} Abschlagszahlungen",
-    "confirmClaimBody_one": "Dadurch wird {{count}} Rechnung als eingereicht markiert ({{pendingCount}} davon noch zu zahlen). Diese Aktion kann nicht rückgängig gemacht werden.",
-    "confirmClaimBody_other": "Dadurch werden {{count}} Rechnungen als eingereicht markiert ({{pendingCount}} davon noch zu zahlen). Diese Aktion kann nicht rückgängig gemacht werden.",
     "confirmClaimExcludedItemsWarning_one": "{{count}} Rechnung hat ausgeschlossene Positionen und behält ihren aktuellen Status. Der ausgeschlossene Teil kann in einem späteren Bericht eingereicht werden.",
-    "confirmClaimExcludedItemsWarning_other": "{{count}} Rechnungen haben ausgeschlossene Positionen und behalten ihren aktuellen Status. Der ausgeschlossene Teil kann in einem späteren Bericht eingereicht werden."
+    "confirmClaimExcludedItemsWarning_other": "{{count}} Rechnungen haben ausgeschlossene Positionen und behalten ihren aktuellen Status. Der ausgeschlossene Teil kann in einem späteren Bericht eingereicht werden.",
+    "invoicesHelper": "{{type}} für {{source}}. {{helper}}",
+    "presetSourceMissing": "Diese Finanzierungsquelle gibt es nicht mehr. Wähle eine aus.",
+    "groupSubtotal": "Zwischensumme",
+    "paging": {
+      "loadMore": "Weitere Rechnungen anzeigen",
+      "loading": "Weitere Rechnungen werden geladen…",
+      "error": "Weitere Rechnungen konnten nicht angezeigt werden.",
+      "end": "Alle {{count}} Rechnungen angezeigt",
+      "shown": "{{count}} von {{total}} Rechnungen werden angezeigt"
+    },
+    "mark": {
+      "title_one": "{{count}} Rechnung als eingereicht markieren?",
+      "title_other": "{{count}} Rechnungen als eingereicht markieren?",
+      "total": "Gesamt: {{amount}}",
+      "moves": "Sie wechseln von „Zu zahlen“ oder „Bezahlt“ zu „Eingereicht“ für {{source}}.",
+      "confirm": "Als eingereicht markieren",
+      "busy": "Wird markiert…",
+      "zeroReason": "Wähle in Schritt 3 mindestens eine Rechnung aus."
+    },
+    "afterSend": {
+      "heading": "Nach dem Absenden",
+      "text_one": "Sobald die Bank den Bericht erhalten hat, halte die Einreichung fest. Diese Rechnung verschwindet dann aus der Liste „Mittelabruf“. Du kannst das später im Verlauf der Finanzierungsquelle rückgängig machen.",
+      "text_other": "Sobald die Bank den Bericht erhalten hat, halte die Einreichung fest. Diese {{count}} Rechnungen verschwinden dann aus der Liste „Mittelabruf“. Du kannst das später im Verlauf der Finanzierungsquelle rückgängig machen."
+    },
+    "openHistory": "Verlauf öffnen"
   },
   "common": {
     "loading": "Wird geladen...",

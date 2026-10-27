@@ -1,5 +1,5 @@
-import { routeUrl } from '@cornerstone/shared';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { routeUrl, computeIncludedTotal } from '@cornerstone/shared';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportResponse } from '@cornerstone/shared';
@@ -11,32 +11,54 @@ import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js'
 import { Tooltip } from '../Tooltip/Tooltip.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { IconLinkButton } from '../IconLinkButton/IconLinkButton.js';
+import { ObjectListGroup } from '../ObjectList/ObjectListGroup.js';
+import { InfiniteScrollFooter } from '../InfiniteScrollFooter/InfiniteScrollFooter.js';
+import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
+import { useInfiniteScrollAnnouncements } from '../../hooks/useInfiniteScrollAnnouncements.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
+import { findScrollParent } from '../../lib/scrollParent.js';
+import type { ReportSelection } from '../../lib/reportSelection.js';
+import { orderInvoices, groupByCompany } from './reportInvoiceGroups.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './ReportInvoiceList.module.css';
 
+/** Invoices shown per batch; the selection, counts and sums always cover every invoice. */
+export const REPORT_INVOICE_PAGE_SIZE = 25;
+
 interface ReportInvoiceListProps {
+  /** The line-adjusted report: rows show its amounts. */
   report: SourceReportResponse;
+  selection: ReportSelection;
   excludedInvoiceIds: Set<string>;
   excludedLineIds: Set<string>;
   onToggle: (invoiceId: string, excluded: boolean) => void;
+  onToggleInvoices: (invoiceIds: readonly string[], excluded: boolean) => void;
   onToggleAll: (excludeAll: boolean) => void;
   onToggleLine: (lineId: string, excluded: boolean) => void;
+  /** Empty state action: back to the source step. */
+  onBack: () => void;
   t: TFunction;
 }
 
+const NO_EXCLUDED_LINES = new Set<string>();
+
 export function ReportInvoiceList({
   report,
+  selection,
   excludedInvoiceIds,
   excludedLineIds,
   onToggle,
+  onToggleInvoices,
   onToggleAll,
   onToggleLine,
+  onBack,
   t,
 }: ReportInvoiceListProps) {
   const { formatCurrency, formatDate } = useFormatters();
+  const { resolvedLocale } = useLocale();
   const originState = useOriginState();
   const [unallocatedExpanded, setUnallocatedExpanded] = useState(false);
   const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(() => new Set());
@@ -45,38 +67,71 @@ export function ReportInvoiceList({
 
   const variants = useStatusBadgeVariants();
 
-  const allocatedInvoices = useMemo(
-    () =>
-      report.invoices.filter(
-        (inv) =>
-          inv.allocatedAmount > 0 ||
-          inv.lineKind === 'refund-adjustment' ||
-          inv.budgetLinesForSource.length > 0 ||
-          inv.depositsVisibleToSource.length > 0,
-      ),
+  const unallocatedInvoices = report.unallocatedInvoices;
+
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() => new Set());
+  const [scrollRoot, setScrollRoot] = useState<Element | null>(null);
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    setScrollRoot(node ? findScrollParent(node) : null);
+  }, []);
+
+  const byId = useMemo(
+    () => new Map(report.invoices.map((invoice) => [invoice.invoiceId, invoice])),
     [report.invoices],
   );
-
-  const unallocatedInvoices = useMemo(
-    () => report.unallocatedInvoices || [],
-    [report.unallocatedInvoices],
+  const orderedIds = useMemo(
+    () => orderInvoices(report.invoices, resolvedLocale).map((invoice) => invoice.invoiceId),
+    [report.invoices, resolvedLocale],
   );
+  const groups = useMemo(() => groupByCompany(orderedIds, byId), [orderedIds, byId]);
 
-  const selectedCount = useMemo(
-    () => allocatedInvoices.filter((inv) => !excludedInvoiceIds.has(inv.invoiceId)).length,
-    [allocatedInvoices, excludedInvoiceIds],
-  );
+  const orderedIdsRef = useRef(orderedIds);
+  orderedIdsRef.current = orderedIds;
+  const fetchPage = (page: number): Promise<InfiniteScrollPage<string>> => {
+    const ids = orderedIdsRef.current;
+    return Promise.resolve({
+      items: ids.slice((page - 1) * REPORT_INVOICE_PAGE_SIZE, page * REPORT_INVOICE_PAGE_SIZE),
+      hasMore: page * REPORT_INVOICE_PAGE_SIZE < ids.length,
+    });
+  };
+  const { items, status, hasMore, fetchSequence, sentinelRef, loadMore, retry } =
+    useInfiniteScroll<string>({
+      fetchPage,
+      resetKey: `${report.source.id}|${report.type}|${report.generatedAt}`,
+      root: scrollRoot,
+    });
 
-  const runningTotal = useMemo(
-    () =>
-      allocatedInvoices
-        .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-        .reduce((sum, inv) => sum + inv.allocatedAmount, 0),
-    [allocatedInvoices, excludedInvoiceIds],
-  );
+  // A refreshed report can drop an invoice before the reset refetch lands.
+  const visibleIds = useMemo(() => items.filter((id) => byId.has(id)), [items, byId]);
+  const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds]);
+
+  const announcementRef = useInfiniteScrollAnnouncements({
+    fetchSequence,
+    status,
+    hasMore,
+    items: visibleIds,
+    getKey: (id) => id,
+    labels: {
+      initialLoad: () =>
+        t('sourceReports.paging.shown', { count: visibleIds.length, total: selection.totalCount }),
+      batchAppended: () =>
+        t('sourceReports.paging.shown', { count: visibleIds.length, total: selection.totalCount }),
+      batchAppendedAndEnd: () =>
+        t('sourceReports.paging.shown', { count: visibleIds.length, total: selection.totalCount }),
+    },
+  });
+
+  const toggleGroup = (vendorId: string) => {
+    setCollapsedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(vendorId)) next.delete(vendorId);
+      else next.add(vendorId);
+      return next;
+    });
+  };
 
   const handleSelectAll = () => {
-    onToggleAll(selectedCount === allocatedInvoices.length);
+    onToggleAll(selection.count === selection.totalCount);
   };
 
   const toggleExpand = (invoiceId: string) => {
@@ -112,32 +167,32 @@ export function ReportInvoiceList({
     }
   }, [expandedInvoiceIds]);
 
-  if (allocatedInvoices.length === 0 && unallocatedInvoices.length === 0) {
+  if (report.invoices.length === 0 && unallocatedInvoices.length === 0) {
     return (
       <EmptyState
         message={t('sourceReports.emptyInvoices')}
         description={t('sourceReports.emptyInvoicesDescription')}
+        action={{ label: t('common:button.back'), onClick: onBack }}
       />
     );
   }
 
   return (
-    <div className={styles.invoiceListContainer}>
+    <div ref={containerRef} className={styles.invoiceListContainer}>
       {/* Header with select-all */}
       <div className={styles.listHeader}>
         <span aria-hidden="true" />
         <div className={styles.checkboxWithContent}>
           <TriStateCheckbox
-            checked={selectedCount === allocatedInvoices.length && allocatedInvoices.length > 0}
-            indeterminate={selectedCount > 0 && selectedCount < allocatedInvoices.length}
+            checked={selection.count === selection.totalCount && selection.totalCount > 0}
+            indeterminate={selection.count > 0 && selection.count < selection.totalCount}
             onChange={handleSelectAll}
-            label={t('sourceReports.selectAllInvoices')}
+            label={t('sourceReports.selectAllInvoices', { count: selection.totalCount })}
           />
         </div>
-        <div className={styles.headerTitle}>{t('sourceReports.invoicesHeading')}</div>
       </div>
 
-      {allocatedInvoices.length > 0 && (
+      {report.invoices.length > 0 && (
         <p className={styles.attachmentsNote}>
           {t('sourceReports.attachmentsNote', {
             reportType: t(I18N_UNION_KEYS.reportUseCase.key(report.type)),
@@ -145,502 +200,601 @@ export function ReportInvoiceList({
         </p>
       )}
 
+      <div
+        ref={announcementRef}
+        className={styles.srOnly}
+        role="status"
+        aria-atomic="true"
+        data-testid="report-invoices-status"
+      />
+
       {/* Allocated invoices list */}
-      {allocatedInvoices.map((invoice) => {
-        const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);
-        const hasDocuments = (invoice.documents && invoice.documents.length > 0) || false;
-        const isExpanded = expandedInvoiceIds.has(invoice.invoiceId);
-        const isExpandable =
-          invoice.budgetLinesForSource.length > 0 || invoice.depositsVisibleToSource.length > 0;
+      {groups
+        .filter((group) => group.ids.some((id) => visibleSet.has(id)))
+        .map((group) => {
+          const groupExcluded = group.ids.filter((id) => excludedInvoiceIds.has(id)).length;
+          const includedGroupIds = group.ids.filter((id) => !excludedInvoiceIds.has(id));
+          const shownIds = group.ids.filter((id) => visibleSet.has(id));
+          return (
+            <ObjectListGroup
+              key={group.vendorId}
+              surface="card"
+              headingLevel={3}
+              groupKey={group.vendorId}
+              label={group.vendorName}
+              count={group.ids.length}
+              loaded={shownIds.length}
+              open={!collapsedGroupIds.has(group.vendorId)}
+              onToggle={() => toggleGroup(group.vendorId)}
+              select={{
+                checked: groupExcluded === 0,
+                indeterminate: groupExcluded > 0 && groupExcluded < group.ids.length,
+                onChange: (checked) => onToggleInvoices(group.ids, !checked),
+              }}
+              columnCount={1}
+              testIdPrefix="report-invoices"
+              aside={
+                <span className={styles.groupSubtotal}>
+                  <span className={styles.srOnly}>{t('sourceReports.groupSubtotal')} </span>
+                  {formatCurrency(
+                    computeIncludedTotal(report, includedGroupIds, NO_EXCLUDED_LINES),
+                  )}
+                </span>
+              }
+            >
+              {shownIds.map((invoiceId) => {
+                const invoice = byId.get(invoiceId)!;
+                const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);
+                const hasDocuments = (invoice.documents && invoice.documents.length > 0) || false;
+                const isExpanded = expandedInvoiceIds.has(invoice.invoiceId);
+                const isExpandable =
+                  invoice.budgetLinesForSource.length > 0 ||
+                  invoice.depositsVisibleToSource.length > 0;
 
-        // Tri-state logic: indeterminate if some but not all lines are excluded
-        const excludedLineCount = invoice.budgetLinesForSource.filter((l) =>
-          excludedLineIds.has(l.id),
-        ).length;
-        const isTriStateIndeterminate =
-          !isExcluded &&
-          excludedLineCount > 0 &&
-          excludedLineCount < invoice.budgetLinesForSource.length;
-        const isTriStateChecked = !isExcluded && excludedLineCount === 0;
+                // Tri-state logic: indeterminate if some but not all lines are excluded
+                const excludedLineCount = invoice.budgetLinesForSource.filter((l) =>
+                  excludedLineIds.has(l.id),
+                ).length;
+                const isTriStateIndeterminate =
+                  !isExcluded &&
+                  excludedLineCount > 0 &&
+                  excludedLineCount < invoice.budgetLinesForSource.length;
+                const isTriStateChecked = !isExcluded && excludedLineCount === 0;
 
-        return (
-          <div key={invoice.invoiceId}>
-            <div className={styles.invoiceRow}>
-              {isExpandable ? (
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(invoice.invoiceId)}
-                  onKeyDown={(e) => handleExpandKeyDown(e, invoice.invoiceId)}
-                  className={styles.expandButton}
-                  aria-expanded={isExpanded}
-                  aria-controls={`invoice-expand-${invoice.invoiceId}`}
-                  aria-label={
-                    isExpanded
-                      ? t('sourceReports.expand.collapseInvoice')
-                      : t('sourceReports.expand.expandInvoice')
-                  }
-                >
-                  <svg
-                    className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              ) : (
-                <span aria-hidden="true" />
-              )}
+                return (
+                  <li key={invoice.invoiceId}>
+                    <div className={styles.invoiceRow}>
+                      {isExpandable ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(invoice.invoiceId)}
+                          onKeyDown={(e) => handleExpandKeyDown(e, invoice.invoiceId)}
+                          className={styles.expandButton}
+                          aria-expanded={isExpanded}
+                          aria-controls={`invoice-expand-${invoice.invoiceId}`}
+                          aria-label={
+                            isExpanded
+                              ? t('sourceReports.expand.collapseInvoice')
+                              : t('sourceReports.expand.expandInvoice')
+                          }
+                        >
+                          <svg
+                            className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`}
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            aria-hidden="true"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span aria-hidden="true" />
+                      )}
 
-              <label className={styles.checkboxWithContent}>
-                <TriStateCheckbox
-                  checked={isTriStateChecked}
-                  indeterminate={isTriStateIndeterminate}
-                  onChange={(checked) => onToggle(invoice.invoiceId, !checked)}
-                  label=""
-                />
+                      <label className={styles.checkboxWithContent}>
+                        <TriStateCheckbox
+                          checked={isTriStateChecked}
+                          indeterminate={isTriStateIndeterminate}
+                          onChange={(checked) => onToggle(invoice.invoiceId, !checked)}
+                          label=""
+                        />
 
-                <div className={styles.vendorInfo}>
-                  <div className={styles.vendorName}>{invoice.vendorName}</div>
-                  <div className={styles.invoiceDate}>
-                    {t('sourceReports.table.invoiceNumber')}: {invoice.invoiceNumber}
-                  </div>
-                </div>
-              </label>
-
-              <Badge
-                className={styles.statusChip}
-                variants={variants.invoice}
-                value={invoice.status}
-              />
-
-              <div className={styles.amountColumn}>
-                {invoice.lineKind === 'refund-adjustment' ? (
-                  <div>
-                    <Badge
-                      variants={{
-                        refund: { label: t('sourceReports.refund'), className: BadgeStyles.refund },
-                      }}
-                      value="refund"
-                    />
-                    <div className={`${styles.amount} ${styles.amountNegative}`}>
-                      {formatCurrency(invoice.allocatedAmount)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.amount}>{formatCurrency(invoice.allocatedAmount)}</div>
-                )}
-              </div>
-
-              <div className={styles.attachmentColumn}>
-                {invoice.isSplit && (
-                  <Tooltip content={t('sourceReports.splitTooltip')}>
-                    <Badge
-                      variants={{
-                        split: {
-                          label: t('sourceReports.splitBadge', {
-                            allocated: formatCurrency(invoice.allocatedAmount),
-                            total: formatCurrency(invoice.invoiceAmount),
-                          }),
-                          className: BadgeStyles.info,
-                        },
-                      }}
-                      value="split"
-                    />
-                  </Tooltip>
-                )}
-                {hasDocuments ? (
-                  <div className={styles.paperclip}>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      aria-hidden="true"
-                    >
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                    </svg>
-                    <span className={styles.srOnly}>{t('sourceReports.hasAttachment')}</span>
-                  </div>
-                ) : (
-                  <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
-                )}
-              </div>
-              {/* 7th grid column: open-invoice affordance. Sibling of .attachmentColumn,
-                  NOT inside the checkboxWithContent <label> above — see AC 2.5. */}
-              <IconLinkButton
-                to={routeUrl('invoice', { id: invoice.invoiceId })}
-                newTab
-                ariaLabel={t('sourceReports.openInvoiceAriaLabel', {
-                  vendor: invoice.vendorName,
-                  invoiceNumber: invoice.invoiceNumber,
-                })}
-                tooltip={t('sourceReports.openInvoiceTooltip')}
-                icon={
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                    <polyline points="15 3 21 3 21 9" />
-                    <line x1="10" y1="14" x2="21" y2="3" />
-                  </svg>
-                }
-              />
-            </div>
-
-            {/* Expansion panel - items sub-table */}
-            {isExpanded && isExpandable && (
-              <div
-                className={styles.expansionPanel}
-                id={`invoice-expand-${invoice.invoiceId}`}
-                tabIndex={-1}
-                ref={(el) => {
-                  if (el) expandPanelRefsRef.current.set(invoice.invoiceId, el);
-                }}
-              >
-                {/* Items sub-table */}
-                {invoice.budgetLinesForSource.length > 0 ? (
-                  <div className={styles.subTableSection}>
-                    <h4
-                      className={styles.subTableHeading}
-                      id={`items-heading-${invoice.invoiceId}`}
-                    >
-                      {t('sourceReports.expand.itemsHeading')}
-                    </h4>
-                    {/* Desktop table */}
-                    <div className={styles.tableWrapper}>
-                      <table
-                        className={styles.table}
-                        aria-labelledby={`items-heading-${invoice.invoiceId}`}
-                      >
-                        <thead>
-                          <tr>
-                            <th>{t('sourceReports.expand.itemColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.linkedColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.allocatedColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.includeColumnHeader')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoice.budgetLinesForSource.map((line) => {
-                            const isLineExcluded = excludedLineIds.has(line.id);
-                            return (
-                              <tr key={line.id}>
-                                <td>{line.description || t('sourceReports.expand.unnamedLine')}</td>
-                                <td>
-                                  {line.linkedItem ? (
-                                    <Link
-                                      to={
-                                        line.linkedItem.type === 'work_item'
-                                          ? routeUrl('workItem', { id: line.linkedItem.id })
-                                          : routeUrl('householdItem', { id: line.linkedItem.id })
-                                      }
-                                      state={originState}
-                                      className={styles.linkedItemLink}
-                                    >
-                                      {line.linkedItem.name}
-                                    </Link>
-                                  ) : (
-                                    <Badge
-                                      variants={{
-                                        unassigned: {
-                                          label: t('sourceReports.unassigned'),
-                                          className: BadgeStyles.iblUnassigned,
-                                        },
-                                      }}
-                                      value="unassigned"
-                                    />
-                                  )}
-                                </td>
-                                <td>{formatCurrency(line.allocatedPortion)}</td>
-                                <td>
-                                  <input
-                                    type="checkbox"
-                                    className={styles.checkbox}
-                                    checked={!isLineExcluded}
-                                    onChange={(e) => onToggleLine(line.id, !e.target.checked)}
-                                    aria-label={t('sourceReports.expand.excludeItemAriaLabel', {
-                                      name:
-                                        line.description || t('sourceReports.expand.unnamedLine'),
-                                    })}
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    {/* Mobile card list */}
-                    <div className={styles.mobileCardList} role="list">
-                      {invoice.budgetLinesForSource.map((line) => {
-                        const isLineExcluded = excludedLineIds.has(line.id);
-                        return (
-                          <div key={line.id} className={styles.mobileCard} role="listitem">
-                            <div className={styles.mobileCardTopRow}>
-                              <span className={styles.mobileCardHeading}>
-                                {line.description || t('sourceReports.expand.unnamedLine')}
-                              </span>
-                              <span className={styles.amount}>
-                                {formatCurrency(line.allocatedPortion)}
-                              </span>
-                            </div>
-                            <div className={styles.mobileCardRow}>
-                              <span className={styles.mobileCardHeading}>
-                                {t('sourceReports.expand.linkedColumnHeader')}
-                              </span>
-                              {line.linkedItem ? (
-                                <Link
-                                  to={
-                                    line.linkedItem.type === 'work_item'
-                                      ? routeUrl('workItem', { id: line.linkedItem.id })
-                                      : routeUrl('householdItem', { id: line.linkedItem.id })
-                                  }
-                                  state={originState}
-                                  className={styles.linkedItemLink}
-                                >
-                                  {line.linkedItem.name}
-                                </Link>
-                              ) : (
-                                <Badge
-                                  variants={{
-                                    unassigned: {
-                                      label: t('sourceReports.unassigned'),
-                                      className: BadgeStyles.iblUnassigned,
-                                    },
-                                  }}
-                                  value="unassigned"
-                                />
-                              )}
-                            </div>
-                            <div className={styles.mobileCardRow}>
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  className={styles.checkbox}
-                                  checked={!isLineExcluded}
-                                  onChange={(e) => onToggleLine(line.id, !e.target.checked)}
-                                  aria-label={t('sourceReports.expand.excludeItemAriaLabel', {
-                                    name: line.description || t('sourceReports.expand.unnamedLine'),
-                                  })}
-                                />
-                                <span>{t('sourceReports.expand.includeColumnHeader')}</span>
-                              </label>
-                            </div>
+                        <div className={styles.vendorInfo}>
+                          <div className={styles.vendorName}>{invoice.vendorName}</div>
+                          <div className={styles.invoiceDate}>
+                            {t('sourceReports.table.invoiceNumber')}: {invoice.invoiceNumber}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.subTableSection}>
-                    <h4 className={styles.subTableHeading}>
-                      {t('sourceReports.expand.itemsHeading')}
-                    </h4>
-                    <EmptyState message={t('sourceReports.expand.itemsEmpty')} />
-                  </div>
-                )}
+                        </div>
+                      </label>
 
-                {/* Deposits sub-table */}
-                {invoice.depositsVisibleToSource.length > 0 ? (
-                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
-                    <h4
-                      className={styles.subTableHeading}
-                      id={`deposits-heading-${invoice.invoiceId}`}
-                    >
-                      {t('sourceReports.expand.depositsHeading')}
-                    </h4>
-                    {/* Desktop table */}
-                    <div className={styles.tableWrapper}>
-                      <table
-                        className={styles.table}
-                        aria-labelledby={`deposits-heading-${invoice.invoiceId}`}
-                      >
-                        <thead>
-                          <tr>
-                            <th>{t('sourceReports.expand.amountColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.statusColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.datesColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.entryTypeColumnHeader')}</th>
-                            <th>{t('sourceReports.expand.allocatedSourceColumnHeader')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoice.depositsVisibleToSource.map((deposit) => (
-                            <tr key={deposit.id}>
-                              <td>
-                                <div className={styles.depositAmountContainer}>
-                                  {deposit.entryType === 'refund' && (
-                                    <Badge variants={variants.refund} value="refund" />
-                                  )}
-                                  {formatCurrency(
-                                    deposit.entryType === 'refund'
-                                      ? -deposit.amount
-                                      : deposit.amount,
-                                  )}
-                                </div>
-                              </td>
-                              <td>
-                                <Badge variants={variants.progressPayment} value={deposit.status} />
-                              </td>
-                              <td className={styles.depositDatesCell}>
-                                <div>
-                                  {t('sourceReports.expand.dueDate')}: {formatDate(deposit.dueDate)}
-                                </div>
-                                {deposit.paidDate && (
-                                  <div>
-                                    {t('sourceReports.expand.paidDate')}:{' '}
-                                    {formatDate(deposit.paidDate)}
-                                  </div>
-                                )}
-                                {deposit.claimedDate && (
-                                  <div>
-                                    {t('sourceReports.expand.claimedDate')}:{' '}
-                                    {formatDate(deposit.claimedDate)}
-                                  </div>
-                                )}
-                              </td>
-                              <td>
-                                <Badge
-                                  variants={{
-                                    [deposit.entryType]: {
-                                      label:
-                                        deposit.entryType === 'deposit'
-                                          ? t('sourceReports.expand.entryTypeDeposit')
-                                          : t('sourceReports.expand.entryTypeRefund'),
-                                      className:
-                                        deposit.entryType === 'deposit'
-                                          ? BadgeStyles.info
-                                          : BadgeStyles.refund,
-                                    },
-                                  }}
-                                  value={deposit.entryType}
-                                />
-                              </td>
-                              <td>
-                                {deposit.budgetSourceId ? (
-                                  <Badge
-                                    variants={{
-                                      [deposit.budgetSourceId]: {
-                                        label: report.source.name,
-                                        className:
-                                          BadgeStyles[
-                                            getSourceBadgeStyleKey(deposit.budgetSourceId)
-                                          ],
-                                      },
-                                    }}
-                                    value={deposit.budgetSourceId}
-                                  />
-                                ) : (
-                                  <span>—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {/* Mobile card list */}
-                    <div className={styles.mobileCardList} role="list">
-                      {invoice.depositsVisibleToSource.map((deposit) => (
-                        <div key={deposit.id} className={styles.mobileCard} role="listitem">
-                          <div className={styles.mobileCardTopRow}>
-                            <span className={styles.amount}>
-                              {formatCurrency(
-                                deposit.entryType === 'refund' ? -deposit.amount : deposit.amount,
-                              )}
-                            </span>
-                            <Badge variants={variants.progressPayment} value={deposit.status} />
-                          </div>
-                          <div className={styles.mobileCardRow}>
-                            <span className={styles.mobileCardHeading}>
-                              {t('sourceReports.expand.entryTypeColumnHeader')}
-                            </span>
+                      <Badge
+                        className={styles.statusChip}
+                        variants={variants.invoice}
+                        value={invoice.status}
+                      />
+
+                      <div className={styles.amountColumn}>
+                        {invoice.lineKind === 'refund-adjustment' ? (
+                          <div>
                             <Badge
                               variants={{
-                                [deposit.entryType]: {
-                                  label:
-                                    deposit.entryType === 'deposit'
-                                      ? t('sourceReports.expand.entryTypeDeposit')
-                                      : t('sourceReports.expand.entryTypeRefund'),
-                                  className:
-                                    deposit.entryType === 'deposit'
-                                      ? BadgeStyles.info
-                                      : BadgeStyles.refund,
+                                refund: {
+                                  label: t('sourceReports.refund'),
+                                  className: BadgeStyles.refund,
                                 },
                               }}
-                              value={deposit.entryType}
+                              value="refund"
                             />
+                            <div className={`${styles.amount} ${styles.amountNegative}`}>
+                              {formatCurrency(invoice.allocatedAmount)}
+                            </div>
                           </div>
-                          <div className={styles.mobileCardRow}>
-                            <span className={styles.mobileCardHeading}>
-                              {t('sourceReports.expand.datesColumnHeader')}
+                        ) : (
+                          <div className={styles.amount}>
+                            {formatCurrency(invoice.allocatedAmount)}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.attachmentColumn}>
+                        {invoice.isSplit && (
+                          <Tooltip content={t('sourceReports.splitTooltip')}>
+                            <Badge
+                              variants={{
+                                split: {
+                                  label: t('sourceReports.splitBadge', {
+                                    allocated: formatCurrency(invoice.allocatedAmount),
+                                    total: formatCurrency(invoice.invoiceAmount),
+                                  }),
+                                  className: BadgeStyles.info,
+                                },
+                              }}
+                              value="split"
+                            />
+                          </Tooltip>
+                        )}
+                        {hasDocuments ? (
+                          <div className={styles.paperclip}>
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden="true"
+                            >
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                            <span className={styles.srOnly}>
+                              {t('sourceReports.hasAttachment')}
                             </span>
-                            <div className={styles.depositDatesCell}>
-                              <div>
-                                {t('sourceReports.expand.dueDate')}: {formatDate(deposit.dueDate)}
-                              </div>
-                              {deposit.paidDate && (
-                                <div>
-                                  {t('sourceReports.expand.paidDate')}:{' '}
-                                  {formatDate(deposit.paidDate)}
-                                </div>
-                              )}
-                              {deposit.claimedDate && (
-                                <div>
-                                  {t('sourceReports.expand.claimedDate')}:{' '}
-                                  {formatDate(deposit.claimedDate)}
-                                </div>
-                              )}
+                          </div>
+                        ) : (
+                          <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
+                        )}
+                      </div>
+                      {/* 7th grid column: open-invoice affordance. Sibling of .attachmentColumn,
+                  NOT inside the checkboxWithContent <label> above — see AC 2.5. */}
+                      <IconLinkButton
+                        to={routeUrl('invoice', { id: invoice.invoiceId })}
+                        newTab
+                        ariaLabel={t('sourceReports.openInvoiceAriaLabel', {
+                          vendor: invoice.vendorName,
+                          invoiceNumber: invoice.invoiceNumber,
+                        })}
+                        tooltip={t('sourceReports.openInvoiceTooltip')}
+                        icon={
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            aria-hidden="true"
+                          >
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                          </svg>
+                        }
+                      />
+                    </div>
+
+                    {/* Expansion panel - items sub-table */}
+                    {isExpanded && isExpandable && (
+                      <div
+                        className={styles.expansionPanel}
+                        id={`invoice-expand-${invoice.invoiceId}`}
+                        tabIndex={-1}
+                        ref={(el) => {
+                          if (el) expandPanelRefsRef.current.set(invoice.invoiceId, el);
+                        }}
+                      >
+                        {/* Items sub-table */}
+                        {invoice.budgetLinesForSource.length > 0 ? (
+                          <div className={styles.subTableSection}>
+                            <h4
+                              className={styles.subTableHeading}
+                              id={`items-heading-${invoice.invoiceId}`}
+                            >
+                              {t('sourceReports.expand.itemsHeading')}
+                            </h4>
+                            {/* Desktop table */}
+                            <div className={styles.tableWrapper}>
+                              <table
+                                className={styles.table}
+                                aria-labelledby={`items-heading-${invoice.invoiceId}`}
+                              >
+                                <thead>
+                                  <tr>
+                                    <th>{t('sourceReports.expand.itemColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.linkedColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.allocatedColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.includeColumnHeader')}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {invoice.budgetLinesForSource.map((line) => {
+                                    const isLineExcluded = excludedLineIds.has(line.id);
+                                    return (
+                                      <tr key={line.id}>
+                                        <td>
+                                          {line.description ||
+                                            t('sourceReports.expand.unnamedLine')}
+                                        </td>
+                                        <td>
+                                          {line.linkedItem ? (
+                                            <Link
+                                              to={
+                                                line.linkedItem.type === 'work_item'
+                                                  ? routeUrl('workItem', { id: line.linkedItem.id })
+                                                  : routeUrl('householdItem', {
+                                                      id: line.linkedItem.id,
+                                                    })
+                                              }
+                                              state={originState}
+                                              className={styles.linkedItemLink}
+                                            >
+                                              {line.linkedItem.name}
+                                            </Link>
+                                          ) : (
+                                            <Badge
+                                              variants={{
+                                                unassigned: {
+                                                  label: t('sourceReports.unassigned'),
+                                                  className: BadgeStyles.iblUnassigned,
+                                                },
+                                              }}
+                                              value="unassigned"
+                                            />
+                                          )}
+                                        </td>
+                                        <td>{formatCurrency(line.allocatedPortion)}</td>
+                                        <td>
+                                          <input
+                                            type="checkbox"
+                                            className={styles.checkbox}
+                                            checked={!isLineExcluded}
+                                            onChange={(e) =>
+                                              onToggleLine(line.id, !e.target.checked)
+                                            }
+                                            aria-label={t(
+                                              'sourceReports.expand.excludeItemAriaLabel',
+                                              {
+                                                name:
+                                                  line.description ||
+                                                  t('sourceReports.expand.unnamedLine'),
+                                              },
+                                            )}
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                            {/* Mobile card list */}
+                            <div className={styles.mobileCardList} role="list">
+                              {invoice.budgetLinesForSource.map((line) => {
+                                const isLineExcluded = excludedLineIds.has(line.id);
+                                return (
+                                  <div key={line.id} className={styles.mobileCard} role="listitem">
+                                    <div className={styles.mobileCardTopRow}>
+                                      <span className={styles.mobileCardHeading}>
+                                        {line.description || t('sourceReports.expand.unnamedLine')}
+                                      </span>
+                                      <span className={styles.amount}>
+                                        {formatCurrency(line.allocatedPortion)}
+                                      </span>
+                                    </div>
+                                    <div className={styles.mobileCardRow}>
+                                      <span className={styles.mobileCardHeading}>
+                                        {t('sourceReports.expand.linkedColumnHeader')}
+                                      </span>
+                                      {line.linkedItem ? (
+                                        <Link
+                                          to={
+                                            line.linkedItem.type === 'work_item'
+                                              ? routeUrl('workItem', { id: line.linkedItem.id })
+                                              : routeUrl('householdItem', {
+                                                  id: line.linkedItem.id,
+                                                })
+                                          }
+                                          state={originState}
+                                          className={styles.linkedItemLink}
+                                        >
+                                          {line.linkedItem.name}
+                                        </Link>
+                                      ) : (
+                                        <Badge
+                                          variants={{
+                                            unassigned: {
+                                              label: t('sourceReports.unassigned'),
+                                              className: BadgeStyles.iblUnassigned,
+                                            },
+                                          }}
+                                          value="unassigned"
+                                        />
+                                      )}
+                                    </div>
+                                    <div className={styles.mobileCardRow}>
+                                      <label>
+                                        <input
+                                          type="checkbox"
+                                          className={styles.checkbox}
+                                          checked={!isLineExcluded}
+                                          onChange={(e) => onToggleLine(line.id, !e.target.checked)}
+                                          aria-label={t(
+                                            'sourceReports.expand.excludeItemAriaLabel',
+                                            {
+                                              name:
+                                                line.description ||
+                                                t('sourceReports.expand.unnamedLine'),
+                                            },
+                                          )}
+                                        />
+                                        <span>{t('sourceReports.expand.includeColumnHeader')}</span>
+                                      </label>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          {deposit.budgetSourceId && (
-                            <div className={styles.mobileCardRow}>
-                              <span className={styles.mobileCardHeading}>
-                                {t('sourceReports.expand.allocatedSourceColumnHeader')}
-                              </span>
-                              <Badge
-                                variants={{
-                                  [deposit.budgetSourceId]: {
-                                    label: report.source.name,
-                                    className:
-                                      BadgeStyles[getSourceBadgeStyleKey(deposit.budgetSourceId)],
-                                  },
-                                }}
-                                value={deposit.budgetSourceId}
-                              />
+                        ) : (
+                          <div className={styles.subTableSection}>
+                            <h4 className={styles.subTableHeading}>
+                              {t('sourceReports.expand.itemsHeading')}
+                            </h4>
+                            <EmptyState message={t('sourceReports.expand.itemsEmpty')} />
+                          </div>
+                        )}
+
+                        {/* Deposits sub-table */}
+                        {invoice.depositsVisibleToSource.length > 0 ? (
+                          <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
+                            <h4
+                              className={styles.subTableHeading}
+                              id={`deposits-heading-${invoice.invoiceId}`}
+                            >
+                              {t('sourceReports.expand.depositsHeading')}
+                            </h4>
+                            {/* Desktop table */}
+                            <div className={styles.tableWrapper}>
+                              <table
+                                className={styles.table}
+                                aria-labelledby={`deposits-heading-${invoice.invoiceId}`}
+                              >
+                                <thead>
+                                  <tr>
+                                    <th>{t('sourceReports.expand.amountColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.statusColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.datesColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.entryTypeColumnHeader')}</th>
+                                    <th>{t('sourceReports.expand.allocatedSourceColumnHeader')}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {invoice.depositsVisibleToSource.map((deposit) => (
+                                    <tr key={deposit.id}>
+                                      <td>
+                                        <div className={styles.depositAmountContainer}>
+                                          {deposit.entryType === 'refund' && (
+                                            <Badge variants={variants.refund} value="refund" />
+                                          )}
+                                          {formatCurrency(
+                                            deposit.entryType === 'refund'
+                                              ? -deposit.amount
+                                              : deposit.amount,
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <Badge
+                                          variants={variants.progressPayment}
+                                          value={deposit.status}
+                                        />
+                                      </td>
+                                      <td className={styles.depositDatesCell}>
+                                        <div>
+                                          {t('sourceReports.expand.dueDate')}:{' '}
+                                          {formatDate(deposit.dueDate)}
+                                        </div>
+                                        {deposit.paidDate && (
+                                          <div>
+                                            {t('sourceReports.expand.paidDate')}:{' '}
+                                            {formatDate(deposit.paidDate)}
+                                          </div>
+                                        )}
+                                        {deposit.claimedDate && (
+                                          <div>
+                                            {t('sourceReports.expand.claimedDate')}:{' '}
+                                            {formatDate(deposit.claimedDate)}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td>
+                                        <Badge
+                                          variants={{
+                                            [deposit.entryType]: {
+                                              label:
+                                                deposit.entryType === 'deposit'
+                                                  ? t('sourceReports.expand.entryTypeDeposit')
+                                                  : t('sourceReports.expand.entryTypeRefund'),
+                                              className:
+                                                deposit.entryType === 'deposit'
+                                                  ? BadgeStyles.info
+                                                  : BadgeStyles.refund,
+                                            },
+                                          }}
+                                          value={deposit.entryType}
+                                        />
+                                      </td>
+                                      <td>
+                                        {deposit.budgetSourceId ? (
+                                          <Badge
+                                            variants={{
+                                              [deposit.budgetSourceId]: {
+                                                label: report.source.name,
+                                                className:
+                                                  BadgeStyles[
+                                                    getSourceBadgeStyleKey(deposit.budgetSourceId)
+                                                  ],
+                                              },
+                                            }}
+                                            value={deposit.budgetSourceId}
+                                          />
+                                        ) : (
+                                          <span>—</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
-                    <h4 className={styles.subTableHeading}>
-                      {t('sourceReports.expand.depositsHeading')}
-                    </h4>
-                    <EmptyState message={t('sourceReports.expand.depositsEmpty')} />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                            {/* Mobile card list */}
+                            <div className={styles.mobileCardList} role="list">
+                              {invoice.depositsVisibleToSource.map((deposit) => (
+                                <div key={deposit.id} className={styles.mobileCard} role="listitem">
+                                  <div className={styles.mobileCardTopRow}>
+                                    <span className={styles.amount}>
+                                      {formatCurrency(
+                                        deposit.entryType === 'refund'
+                                          ? -deposit.amount
+                                          : deposit.amount,
+                                      )}
+                                    </span>
+                                    <Badge
+                                      variants={variants.progressPayment}
+                                      value={deposit.status}
+                                    />
+                                  </div>
+                                  <div className={styles.mobileCardRow}>
+                                    <span className={styles.mobileCardHeading}>
+                                      {t('sourceReports.expand.entryTypeColumnHeader')}
+                                    </span>
+                                    <Badge
+                                      variants={{
+                                        [deposit.entryType]: {
+                                          label:
+                                            deposit.entryType === 'deposit'
+                                              ? t('sourceReports.expand.entryTypeDeposit')
+                                              : t('sourceReports.expand.entryTypeRefund'),
+                                          className:
+                                            deposit.entryType === 'deposit'
+                                              ? BadgeStyles.info
+                                              : BadgeStyles.refund,
+                                        },
+                                      }}
+                                      value={deposit.entryType}
+                                    />
+                                  </div>
+                                  <div className={styles.mobileCardRow}>
+                                    <span className={styles.mobileCardHeading}>
+                                      {t('sourceReports.expand.datesColumnHeader')}
+                                    </span>
+                                    <div className={styles.depositDatesCell}>
+                                      <div>
+                                        {t('sourceReports.expand.dueDate')}:{' '}
+                                        {formatDate(deposit.dueDate)}
+                                      </div>
+                                      {deposit.paidDate && (
+                                        <div>
+                                          {t('sourceReports.expand.paidDate')}:{' '}
+                                          {formatDate(deposit.paidDate)}
+                                        </div>
+                                      )}
+                                      {deposit.claimedDate && (
+                                        <div>
+                                          {t('sourceReports.expand.claimedDate')}:{' '}
+                                          {formatDate(deposit.claimedDate)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {deposit.budgetSourceId && (
+                                    <div className={styles.mobileCardRow}>
+                                      <span className={styles.mobileCardHeading}>
+                                        {t('sourceReports.expand.allocatedSourceColumnHeader')}
+                                      </span>
+                                      <Badge
+                                        variants={{
+                                          [deposit.budgetSourceId]: {
+                                            label: report.source.name,
+                                            className:
+                                              BadgeStyles[
+                                                getSourceBadgeStyleKey(deposit.budgetSourceId)
+                                              ],
+                                          },
+                                        }}
+                                        value={deposit.budgetSourceId}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
+                            <h4 className={styles.subTableHeading}>
+                              {t('sourceReports.expand.depositsHeading')}
+                            </h4>
+                            <EmptyState message={t('sourceReports.expand.depositsEmpty')} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ObjectListGroup>
+          );
+        })}
+
+      {report.invoices.length > 0 && (
+        <InfiniteScrollFooter
+          status={status}
+          loadingLabel={t('sourceReports.paging.loading')}
+          loadingAriaLabel={t('sourceReports.paging.loading')}
+          loadMoreLabel={t('sourceReports.paging.loadMore')}
+          retryLabel={t('common:button.retry')}
+          errorMessage={t('sourceReports.paging.error')}
+          endOfListMessage={t('sourceReports.paging.end', { count: selection.totalCount })}
+          sentinelRef={sentinelRef}
+          onLoadMore={loadMore}
+          onRetry={retry}
+          testIdPrefix="report-invoices"
+        />
+      )}
 
       {/* Unallocated group */}
       {unallocatedInvoices.length > 0 && (
@@ -702,9 +856,9 @@ export function ReportInvoiceList({
       {/* Selection action bar */}
       <SelectionActionBar
         countLabel={t('sourceReports.selectedCount', {
-          count: selectedCount,
-          totalCount: allocatedInvoices.length,
-          totalAmount: formatCurrency(runningTotal),
+          count: selection.count,
+          totalCount: selection.totalCount,
+          totalAmount: formatCurrency(selection.total),
         })}
         clearLabel={t('sourceReports.resetSelection')}
         onClear={() => onToggleAll(false)}

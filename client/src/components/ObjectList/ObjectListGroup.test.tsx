@@ -99,4 +99,27 @@ describe('ObjectListGroup', () => {
     fireEvent.click(box);
     expect(onChange).toHaveBeenCalled();
   });
+
+  describe('headingLevel and aside (#2243)', () => {
+    it('defaults to an h2 title', () => {
+      renderGroup({ surface: 'card' });
+      expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Ground floor');
+      expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
+    });
+
+    it.each(['table', 'card'] as const)(
+      'headingLevel 3 renders an h3 on the %s surface',
+      (surface) => {
+        renderGroup({ surface, headingLevel: 3 });
+        expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Ground floor');
+        expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+        // the toggle stays inside the heading
+        expect(
+          within(screen.getByRole('heading', { level: 3 })).getByRole('button', {
+            name: /Ground floor/,
+          }),
+        ).toHaveAttribute('aria-expanded', 'true');
+      },
+    );
+  });
 });

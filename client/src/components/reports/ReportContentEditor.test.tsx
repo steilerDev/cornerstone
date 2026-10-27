@@ -74,6 +74,7 @@
  * supplies the colour class (and the Submitted check icon) from the shared invoice variant map
  * (`useStatusBadgeVariants`).
  */
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import type { TFunction } from 'i18next';
@@ -88,6 +89,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import enCommon from '../../i18n/en/common.json';
+import i18n from '../../i18n/index.js';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
 import { usageChunkCharsForWidth, USAGE_WIDTH_7COL } from '../../lib/reportPdf/overviewPdf.js';
@@ -193,6 +195,7 @@ function renderEditor(overridesProp: Partial<Parameters<typeof ReportContentEdit
       t={t}
       {...overridesProp}
     />,
+    { wrapper: MemoryRouter },
   );
   return { ...utils, onFieldChange, onFieldReset, onToggleColumn };
 }
@@ -2056,5 +2059,59 @@ describe('ReportContentEditor — #1941 conditional cover-letter fields render n
     expect(referenceField).toBeInTheDocument();
     expect(referenceField).not.toBeDisabled();
     unmount();
+  });
+});
+
+// #2243 AC6: the sender helper links to Project setup > House in a new tab (real en resources).
+describe('ReportContentEditor — sender helper (#2243, AC6)', () => {
+  const realT = i18n.getFixedT('en', 'budget') as unknown as TFunction;
+
+  function letter(sender: string): ReportContent['coverLetter'] {
+    return {
+      sender,
+      recipient: 'Recipient',
+      dateLine: '01/15/2026',
+      reference: 'Ref',
+      subject: 'Subject',
+      body: 'Body',
+      signature: sender,
+      opening: 'Dear Sir or Madam,',
+      closing: 'Sincerely,',
+    } as unknown as ReportContent['coverLetter'];
+  }
+
+  function renderReal(sender: string) {
+    return renderEditor({ content: makeContent({ coverLetter: letter(sender) }), t: realT });
+  }
+
+  it('shows the help text with a new-tab link to Project setup House', () => {
+    renderReal('Jane Doe');
+
+    const help = screen.getByTestId('report-sender-help');
+    expect(help).toHaveTextContent(
+      'Taken from Project setup › House (opens in a new tab). Changes here apply to this report only.',
+    );
+    const link = within(help).getByRole('link');
+    expect(link).toHaveAttribute('href', '/settings/manage#house');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAccessibleName('Project setup › House (opens in a new tab)');
+    expect(help.className).not.toContain('senderHelpEmpty');
+  });
+
+  it('uses the empty variant, still with the link, when no sender is set', () => {
+    renderReal('   ');
+
+    const help = screen.getByTestId('report-sender-help');
+    expect(help).toHaveTextContent(
+      'No sender set. Add your name and address in Project setup › House (opens in a new tab).',
+    );
+    expect(help.className).toContain('senderHelpEmpty');
+    expect(within(help).getByRole('link')).toHaveAttribute('target', '_blank');
+  });
+
+  it('renders no sender helper when the report has no cover letter', () => {
+    renderEditor({ content: makeContent({ coverLetter: null }), t: realT });
+    expect(screen.queryByTestId('report-sender-help')).toBeNull();
   });
 });

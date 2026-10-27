@@ -139,7 +139,7 @@ If the printed page does not match what you see on screen, turn on **Background 
 
 ## Budget Overview for the Bank
 
-Open the **⋯** menu and choose **Budget overview for the bank**. This opens the [Bank Reports](bank-reports) wizard with the **Budget Overview** report type already selected.
+Open the **⋯** menu and choose **Budget overview for the bank**. This opens the [Bank Reports](bank-reports) wizard with the **Budget overview** report type already selected.
 
 ## Offers
 
