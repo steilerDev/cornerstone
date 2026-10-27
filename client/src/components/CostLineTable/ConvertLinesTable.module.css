@@ -1,0 +1,216 @@
+/* The editable lines of the Convert page. Table from 768px of its own width, cards below. */
+.root {
+  composes: root from './CostLineTable.module.css';
+}
+
+.tableSurface {
+  composes: tableSurface from './CostLineTable.module.css';
+}
+
+.cardSurface {
+  composes: cardSurface from './CostLineTable.module.css';
+}
+
+.table {
+  composes: table from './CostLineTable.module.css';
+}
+
+.head {
+  composes: head from './CostLineTable.module.css';
+}
+
+.headEnd {
+  composes: headEnd from './CostLineTable.module.css';
+}
+
+.headCenter {
+  composes: head from './CostLineTable.module.css';
+  text-align: center;
+}
+
+.groupHead {
+  composes: groupHead from './CostLineTable.module.css';
+}
+
+.groupHeadRow {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.groupHeadFill {
+  background-color: var(--color-bg-secondary);
+}
+
+.groupTotal {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.row {
+  composes: row from './CostLineTable.module.css';
+}
+
+.cellStack {
+  composes: cellStack from './CostLineTable.module.css';
+}
+
+.cellEnd {
+  composes: cellEnd from './CostLineTable.module.css';
+  font-variant-numeric: tabular-nums;
+}
+
+.cellInput {
+  composes: cell from './CostLineTable.module.css';
+  min-width: 9rem;
+  text-align: end;
+}
+
+.cellCenter {
+  composes: cell from './CostLineTable.module.css';
+  text-align: center;
+}
+
+.facts {
+  composes: facts from './CostLineTable.module.css';
+}
+
+.totalRow {
+  composes: totalRow from './CostLineTable.module.css';
+}
+
+.totalLabel {
+  composes: totalLabel from './CostLineTable.module.css';
+}
+
+.totalAmount {
+  composes: totalAmount from './CostLineTable.module.css';
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* ---------- Inputs ---------- */
+
+.input {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  min-height: var(--touch-target-min);
+}
+
+.input:disabled {
+  color: var(--color-text-secondary);
+}
+
+.inputInvalid {
+  border-color: var(--color-danger);
+}
+
+/* 44px hit area around the checkbox without growing the row. */
+.keepLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2-5);
+  margin: calc(-1 * var(--spacing-2-5));
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+}
+
+.keepBox {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  cursor: pointer;
+}
+
+.keepBox:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---------- Remainder ---------- */
+
+.remainder {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Cards ---------- */
+
+.cardGroup + .cardGroup {
+  margin-top: var(--spacing-3);
+}
+
+.cardGroupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--font-size-base);
+}
+
+.cardList {
+  composes: cardList from './CostLineTable.module.css';
+}
+
+.card {
+  composes: card from './CostLineTable.module.css';
+  gap: var(--spacing-2);
+}
+
+.cardMain {
+  composes: cardMain from './CostLineTable.module.css';
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-1) var(--spacing-3);
+  align-items: center;
+}
+
+.cardCaption {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cardOffered {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardInput {
+  min-width: 0;
+}
+
+.cardTotals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3);
+  border-top: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.cardTotalLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input {
+    transition: none;
+  }
+}

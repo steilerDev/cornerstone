@@ -66,6 +66,7 @@ const seed = {
   diaryId: '',
   vendorId: '',
   invoiceId: '',
+  offerId: '',
   areaId: '',
   orientationId: '',
 };
@@ -93,6 +94,7 @@ const PATHS: Record<string, () => string> = {
   budgetOverview: () => routeUrl('budgetOverview'),
   invoices: () => routeUrl('invoices'),
   invoice: () => routeUrl('invoice', { id: seed.invoiceId }),
+  invoiceConvert: () => routeUrl('invoiceConvert', { id: seed.offerId }),
   budgetSources: () => routeUrl('budgetSources'),
   budgetSubsidies: () => routeUrl('budgetSubsidies'),
   bankReport: () => routeUrl('bankReport'),
@@ -178,6 +180,17 @@ test.describe('Phase 1 exit checks (#2219)', { tag: '@responsive' }, () => {
       });
       expect(invoice.ok(), `POST invoice failed: ${invoice.status()}`).toBeTruthy();
       seed.invoiceId = ((await invoice.json()) as { invoice: { id: string } }).invoice.id;
+      // An offer (status quotation) for the Convert page, which renders "Offer not found" otherwise
+      const offer = await page.request.post(`${API.vendors}/${seed.vendorId}/invoices`, {
+        data: {
+          amount: 900,
+          date: '2026-03-01',
+          status: 'quotation',
+          invoiceNumber: `${NAMES.invoiceNumber}-O`,
+        },
+      });
+      expect(offer.ok(), `POST offer failed: ${offer.status()}`).toBeTruthy();
+      seed.offerId = ((await offer.json()) as { invoice: { id: string } }).invoice.id;
     } finally {
       await context.close();
     }
@@ -189,6 +202,9 @@ test.describe('Phase 1 exit checks (#2219)', { tag: '@responsive' }, () => {
     try {
       if (seed.invoiceId && seed.vendorId) {
         await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.invoiceId}`);
+      }
+      if (seed.offerId && seed.vendorId) {
+        await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.offerId}`);
       }
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId).catch(() => undefined);
       if (seed.diaryId) await deleteDiaryEntryViaApi(page, seed.diaryId).catch(() => undefined);

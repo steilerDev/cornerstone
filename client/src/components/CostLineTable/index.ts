@@ -4,6 +4,13 @@ export {
   type CostLineSplitHandle,
   type CostLineTableProps,
 } from './CostLineTable.js';
+export {
+  ConvertLinesTable,
+  type ConvertLineView,
+  type ConvertLinesLabels,
+  type ConvertLinesTableHandle,
+  type ConvertLinesTableProps,
+} from './ConvertLinesTable.js';
 export { CostLineStateChip, type CostLineStateChipProps } from './CostLineStateChip.js';
 export { NetAmountTip, type NetAmountTipProps } from './NetAmountTip.js';
 export { COST_LINE_STATES, deriveCostLineState, type CostLineState } from './costLineState.js';
@@ -12,6 +19,7 @@ export {
   costLineNet,
   groupForDocument,
   groupForItem,
+  invoiceLineKey,
   remainingState,
   rowFromBudgetLine,
   rowFromInvoiceLine,

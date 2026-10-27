@@ -25,6 +25,13 @@ describe('routePattern / getRouteEntry / isRouteServed', () => {
     expect(routePattern('invoicePaperlessReview')).toBe('/budget/invoices/new/paperless');
   });
 
+  it('serves the Convert page (#2240) at the offer id plus /convert, as a child of the offer', () => {
+    expect(isRouteServed('invoiceConvert')).toBe(true);
+    expect(routePattern('invoiceConvert')).toBe('/budget/invoices/:id/convert');
+    expect(routeUrl('invoiceConvert', { id: 'off-1' })).toBe('/budget/invoices/off-1/convert');
+    expect(getRouteEntry('invoiceConvert')).toMatchObject({ parent: 'invoice', guard: 'member' });
+  });
+
   it('returns the catch-all pattern for notFound', () => {
     expect(routePattern('notFound')).toBe('*');
   });

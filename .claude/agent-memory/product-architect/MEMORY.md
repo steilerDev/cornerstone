@@ -30,6 +30,7 @@
 - [Renamed money label = rise](recurring-patterns.md) — plan:check before plan:build; a 1:1 glossary rename still fails moneyLabels (#2233)
 - [Capmap rename / template-story placements](recurring-patterns.md) — capmap name edits need capabilities.json; template stories leave page placements and `carries` to adopters (#2234)
 - [Union bodies vs removeAdditional](recurring-patterns.md) — `oneOf` of strict shapes breaks; use a `kind` discriminator + if/then; budgetSourceId is required (#2235)
+- [data-state hooks need the module class](recurring-patterns.md) — `.x[data-state]` in a host module never matches a classless span passed as a prop (PR #2341)
 - [Retired components vs defects.json](recurring-patterns.md) — deleted tests orphan D-ids; re-home + repoint in the same PR (#2235)
 - [Silent post-validation skips](recurring-patterns.md) — `continue`/`return ''` "validation ran first" guards drop data; `request.user!` vs guard (PR #2333)
 - ["As route X" contract refs](recurring-patterns.md) — open a cited model route before naming it; route fixes still need wiki (PR #2334)

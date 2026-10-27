@@ -237,6 +237,33 @@ describe('TargetLabel with a bare target (#2239)', () => {
   });
 });
 
+describe('TargetLabel plain (#2240)', () => {
+  const target = {
+    type: 'work_item' as const,
+    id: 'w1',
+    label: 'Tile the hallway',
+    area: { id: 'a1', name: 'Kitchen', color: null, ancestors: [] },
+  };
+
+  it('renders the name as plain text, with its area, and no link', () => {
+    wrap(<Parts.TargetLabel target={target} plain />);
+    expect(screen.getByText('Tile the hallway')).toBeInTheDocument();
+    expect(screen.getByText('Tile the hallway').closest('a')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
+  });
+
+  it('plain does not change the not-assigned badge', () => {
+    wrap(<Parts.TargetLabel target={null} plain />);
+    expect(screen.getByText('Not assigned').className).toContain('neutral');
+  });
+
+  it('without plain the same target is still a link', () => {
+    wrap(<Parts.TargetLabel target={target} />);
+    expect(screen.getByRole('link', { name: 'Tile the hallway' })).toBeInTheDocument();
+  });
+});
+
 describe('ActionsCell', () => {
   it('renders nothing without menu items', () => {
     const { container } = wrap(

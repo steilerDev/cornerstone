@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useToast } from './ToastContext.js';
@@ -105,10 +106,25 @@ function ToastItem({ toast }: ToastItemProps) {
   const Icon = TOAST_ICONS[toast.variant];
   const isUndo = toast.variant === 'undo';
 
+  // Only a real mouse hover pauses. Touch emulates enter without a reliable leave, which would
+  // leave the clock paused for good. The ref keeps each resume matched to its own pause, so it
+  // never releases the hold of focus.
+  const hoverHoldRef = useRef(false);
+  const releaseHover = () => {
+    if (!hoverHoldRef.current) return;
+    hoverHoldRef.current = false;
+    resumeToast(toast.id);
+  };
+
   const pauseProps = isUndo
     ? {
-        onMouseEnter: () => pauseToast(toast.id),
-        onMouseLeave: () => resumeToast(toast.id),
+        onPointerEnter: (e: React.PointerEvent<HTMLDivElement>) => {
+          if (e.pointerType !== 'mouse' || hoverHoldRef.current) return;
+          hoverHoldRef.current = true;
+          pauseToast(toast.id);
+        },
+        onPointerLeave: releaseHover,
+        onPointerCancel: releaseHover,
         onFocus: (e: React.FocusEvent<HTMLDivElement>) => {
           // Only the first focus entering the toast pauses.
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) pauseToast(toast.id);

@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2240 Convert page tests](story-2240-convert-page-tests.md) (2026-10-27) — barrel-import mock ripple, makeConvert fixture, getClientRects stub, App.tsx baseline gap
 - [Story #2239 offer/invoice page tests](story-2239-offer-invoice-page-tests.md) (2026-10-27) — Node 22 buildApp shim, fixtures, tab-select origin defect, dead branches
 
 - [Story #2236 relation-unlink Undo server tests](story-2236-relation-undo-server-tests.md) (2026-10-24) — table-driven 12-route file, per-file coverage merge recipe, dead branches, never pkill jest

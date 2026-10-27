@@ -47,6 +47,11 @@
   gap: var(--spacing-3);
 }
 
+/* The host's buttons and links meet the touch target size at every width. */
+.actions > * {
+  min-height: var(--touch-target-min);
+}
+
 @media (max-width: 479px) {
   .content {
     flex-direction: column;

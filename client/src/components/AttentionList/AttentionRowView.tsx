@@ -359,8 +359,20 @@ export function AttentionRowView({
             {actionLabel}
           </NavAnchor>
         );
-      case 'change_target':
       case 'convert':
+        return (
+          <NavAnchor
+            key={action}
+            to={routeUrl('invoiceConvert', { id: row.subject.id })}
+            state={originState}
+            className={styles.actionLink}
+            onNavigate={onNavigate}
+            data-testid={key}
+          >
+            {actionLabel}
+          </NavAnchor>
+        );
+      case 'change_target':
       case 'split':
       case 'continue':
       case 'prepare_bank_report':

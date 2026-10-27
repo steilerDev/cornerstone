@@ -131,9 +131,12 @@ export function EnteredAsCell({ row }: Pick<RowPartsProps, 'row'>) {
 export function TargetLabel({
   target,
   linkState,
+  plain = false,
 }: {
   readonly target: CostLineTarget | null;
   readonly linkState?: OriginState;
+  /** Plain text instead of a link (where the row is not a place to leave from). */
+  readonly plain?: boolean;
 }) {
   const { t } = useTranslation('costLines');
   const userText = useUserText();
@@ -149,9 +152,13 @@ export function TargetLabel({
       : routeUrl('householdItem', { id: target.id });
   return (
     <span className={styles.target}>
-      <NavAnchor to={to} state={linkState} {...userText(styles.targetLink)}>
-        {target.label}
-      </NavAnchor>
+      {plain ? (
+        <span {...userText(styles.targetName)}>{target.label}</span>
+      ) : (
+        <NavAnchor to={to} state={linkState} {...userText(styles.targetLink)}>
+          {target.label}
+        </NavAnchor>
+      )}
       <AreaBreadcrumb area={target.area ?? null} variant="compact" />
     </span>
   );

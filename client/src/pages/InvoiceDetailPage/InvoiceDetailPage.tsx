@@ -7,7 +7,6 @@ import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { useInvoiceCostLines } from '../../components/CostLineTable/useInvoiceCostLines.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
-import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import { ObjectHeader } from '../../components/ObjectHeader/index.js';
 import type { ObjectHeaderPrimary } from '../../components/ObjectHeader/index.js';
 import { ObjectTabs } from '../../components/ObjectTabs/ObjectTabs.js';
@@ -26,7 +25,7 @@ import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import { deleteInvoice, fetchInvoiceById } from '../../lib/invoicesApi.js';
+import { deleteInvoice } from '../../lib/invoicesApi.js';
 import { changeInvoiceStatus, invoiceStatusBody } from '../../lib/statusChangeApi.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
@@ -34,14 +33,11 @@ import { TITLE_SEPARATOR } from '../../navigation/pageIdentity.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import sharedStyles from '../../styles/shared.module.css';
-import { ConvertQuotationModal } from './ConvertQuotationModal.js';
-import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
 import { InvoiceEditModal } from './InvoiceEditModal.js';
 import { InvoiceHistoryPanel } from './InvoiceHistoryPanel.js';
 import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
 import { INVOICE_HEADER_ACTIONS } from './invoiceHeaderActions.js';
 import { invoiceSources } from './invoiceSources.js';
-import { useConvertQuotation } from './useConvertQuotation.js';
 import { useInvoiceRecord } from './useInvoiceRecord.js';
 import type { UseInvoiceRecordResult } from './useInvoiceRecord.js';
 import { useInvoiceSummaryFacts } from './useInvoiceSummaryFacts.js';
@@ -148,7 +144,6 @@ function InvoiceDetailLoaded({
   const { run: runStatusChange } = useUndoableStatusChange();
   const [searchParams] = useSearchParams();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const focusHeadingAfterConvertRef = useRef(false);
   const paymentDeepLinkHandledRef = useRef(false);
 
   const costLines = useInvoiceCostLines(id);
@@ -175,28 +170,6 @@ function InvoiceDetailLoaded({
   const deleteConsequences = useDeleteImpact('invoice', showDeleteModal ? id : null);
 
   const isOffer = invoice.status === 'quotation';
-
-  const convert = useConvertQuotation({
-    invoice,
-    refreshInvoice: async () => {
-      const fresh = await fetchInvoiceById(id);
-      record.apply(fresh);
-      return fresh;
-    },
-    onConverted: () => {
-      focusHeadingAfterConvertRef.current = true;
-      void record.refresh();
-      void costLines.reload();
-    },
-  });
-
-  // The Convert button unmounts once the status changes, so move focus to the page heading.
-  useEffect(() => {
-    if (focusHeadingAfterConvertRef.current) {
-      focusHeadingAfterConvertRef.current = false;
-      headingRef.current?.focus();
-    }
-  }, [invoice]);
 
   // A link that carries only ?payment= (History, Attention) lands on the Payments tab.
   useEffect(() => {
@@ -338,14 +311,14 @@ function InvoiceDetailLoaded({
       }
       secondary={
         actions.secondary === 'convert' ? (
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
+          <NavAnchor
+            to={routeUrl('invoiceConvert', { id: invoice.id })}
+            state={originState}
+            className={styles.convertLink}
             data-testid="convert-quotation-button"
-            onClick={convert.open}
           >
             {t('invoiceDetail.buttons.convertToFinal')}
-          </button>
+          </NavAnchor>
         ) : actions.secondary === 'addProgressPayment' ? (
           <button
             type="button"
@@ -418,28 +391,6 @@ function InvoiceDetailLoaded({
       />
 
       {documents.panel}
-
-      {/* Quotation conversion flow: one modal at a time, never stacked */}
-      {convert.view === 'form' && <ConvertQuotationModal convert={convert} />}
-      {convert.view === 'paperless' && (
-        <InvoicePaperlessPickerModal
-          onDocumentSelected={convert.onDocumentSelected}
-          onManualEntry={convert.onPickerClosed}
-          onClose={convert.onPickerClosed}
-          paperlessUrl={convert.paperless.paperlessUrl}
-        />
-      )}
-      {convert.view === 'refund' && (
-        <InvoiceDepositFormModal
-          invoiceId={invoice.id}
-          mode="add"
-          lockEntryType
-          initialValues={{ entryType: 'refund', status: 'pending', ...convert.refundPreset }}
-          budgetSources={convert.budgetSources}
-          onSaved={() => void convert.onRefundSaved()}
-          onClose={convert.onRefundClosed}
-        />
-      )}
 
       {payments.dialog}
 

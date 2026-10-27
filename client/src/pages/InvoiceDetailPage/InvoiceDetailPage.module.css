@@ -57,3 +57,13 @@
     flex-direction: column;
   }
 }
+
+/* The header's Convert to final invoice: a link to the Convert page, styled as a secondary button. */
+.convertLink {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+  text-decoration: none;
+}

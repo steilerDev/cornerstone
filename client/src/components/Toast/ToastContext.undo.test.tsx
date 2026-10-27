@@ -4,7 +4,16 @@
  * Undo toasts (#2209): timing, pause/resume, dedupe, Undo outcomes, Ctrl/Cmd+Z, live regions
  * and focus fallback.
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterAll,
+  afterEach,
+} from '@jest/globals';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { UNDO_WINDOW_MS } from '@cornerstone/shared';
 import { ToastProvider, useToast, UNDO_TOAST_MS } from './ToastContext.js';
@@ -126,6 +135,42 @@ describe('undo toast rendering', () => {
   });
 });
 
+/**
+ * jsdom has no PointerEvent, so RTL would dispatch a plain Event without `pointerType`. This
+ * stand-in carries it from the init dict (installed for this file, restored afterwards).
+ */
+class TestPointerEvent extends MouseEvent {
+  readonly pointerId: number;
+  readonly pointerType: string;
+  constructor(
+    type: string,
+    init: MouseEventInit & { pointerId?: number; pointerType?: string } = {},
+  ) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 1;
+    this.pointerType = init.pointerType ?? '';
+  }
+}
+const originalPointerEvent = (window as unknown as { PointerEvent?: unknown }).PointerEvent;
+beforeAll(() => {
+  Object.defineProperty(window, 'PointerEvent', {
+    configurable: true,
+    writable: true,
+    value: TestPointerEvent,
+  });
+});
+afterAll(() => {
+  Object.defineProperty(window, 'PointerEvent', {
+    configurable: true,
+    writable: true,
+    value: originalPointerEvent,
+  });
+});
+
+/** Only a real mouse hover pauses the undo clock; touch and pen pointers never do. */
+const MOUSE = { pointerType: 'mouse' };
+const TOUCH = { pointerType: 'touch' };
+
 describe('auto-dismiss clock', () => {
   it('dismisses at 6000 ms and not before', () => {
     renderToasts();
@@ -141,10 +186,10 @@ describe('auto-dismiss clock', () => {
     showUndo();
     const toast = screen.getByTestId('toast-undo');
     advance(4000);
-    fireEvent.mouseEnter(toast);
+    fireEvent.pointerEnter(toast, MOUSE);
     advance(60_000);
     expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
-    fireEvent.mouseLeave(toast);
+    fireEvent.pointerLeave(toast, MOUSE);
     advance(1999);
     expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
     advance(1);
@@ -186,12 +231,99 @@ describe('auto-dismiss clock', () => {
     renderToasts();
     showUndo();
     const toast = screen.getByTestId('toast-undo');
-    fireEvent.mouseEnter(toast);
+    fireEvent.pointerEnter(toast, MOUSE);
     fireEvent.focus(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
-    fireEvent.mouseLeave(toast);
+    fireEvent.pointerLeave(toast, MOUSE);
     advance(60_000);
     expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
     fireEvent.blur(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    advance(UNDO_TOAST_MS);
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+  });
+
+  it('a touch pointer entering the toast never pauses the clock', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    advance(4000);
+    fireEvent.pointerEnter(toast, TOUCH);
+    advance(2000);
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+  });
+
+  it('pointercancel releases the hover hold and the clock resumes', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    advance(4000);
+    fireEvent.pointerEnter(toast, MOUSE);
+    advance(60_000);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    fireEvent.pointerCancel(toast, MOUSE);
+    advance(1999);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    advance(1);
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+  });
+
+  it('a pointer leave without a prior mouse enter is a no-op: it never over-resumes another hold', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    // Focus holds the clock; a stray leave (touch enter never took a hold) must not release it.
+    fireEvent.focus(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    fireEvent.pointerEnter(toast, TOUCH);
+    fireEvent.pointerLeave(toast, TOUCH);
+    fireEvent.pointerCancel(toast, TOUCH);
+    advance(60_000);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    fireEvent.blur(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    advance(UNDO_TOAST_MS);
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+  });
+
+  it('repeated mouse enters pause once: one leave resumes', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    fireEvent.pointerEnter(toast, MOUSE);
+    fireEvent.pointerEnter(toast, MOUSE);
+    fireEvent.pointerEnter(toast, MOUSE);
+    advance(60_000);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    fireEvent.pointerLeave(toast, MOUSE);
+    advance(UNDO_TOAST_MS);
+    expect(screen.queryByTestId('toast-undo')).toBeNull();
+  });
+
+  it('leaving twice releases the hover hold only once', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    fireEvent.focus(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    fireEvent.pointerEnter(toast, MOUSE);
+    fireEvent.pointerLeave(toast, MOUSE);
+    fireEvent.pointerLeave(toast, MOUSE);
+    advance(60_000);
+    // The focus hold is still there.
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+  });
+
+  it('the hover hold and the focus hold are independent: leaving keeps the pause while focus is inside', () => {
+    renderToasts();
+    showUndo();
+    const toast = screen.getByTestId('toast-undo');
+    fireEvent.pointerEnter(toast, MOUSE);
+    fireEvent.focus(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    fireEvent.pointerLeave(toast, MOUSE);
+    advance(60_000);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    // Blur while hovering again: the hover hold alone keeps it paused.
+    fireEvent.pointerEnter(toast, MOUSE);
+    fireEvent.blur(screen.getByTestId('toast-undo-button'), { relatedTarget: null });
+    advance(60_000);
+    expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+    fireEvent.pointerLeave(toast, MOUSE);
     advance(UNDO_TOAST_MS);
     expect(screen.queryByTestId('toast-undo')).toBeNull();
   });
@@ -238,7 +370,7 @@ describe('auto-dismiss clock', () => {
   it('never pauses plain toasts on hover', () => {
     renderToasts();
     act(() => api.showToast('success', 'Saved'));
-    fireEvent.mouseEnter(screen.getByTestId('toast-success'));
+    fireEvent.pointerEnter(screen.getByTestId('toast-success'), MOUSE);
     advance(4000);
     expect(screen.queryByTestId('toast-success')).toBeNull();
   });
@@ -394,12 +526,12 @@ describe('Undo button', () => {
         onUndo: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('network')),
       });
       const toast = screen.getByTestId('toast-undo');
-      fireEvent.mouseEnter(toast);
+      fireEvent.pointerEnter(toast, MOUSE);
       fireEvent.click(screen.getByTestId('toast-undo-button'));
       await act(async () => {});
       advance(60_000);
       expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
-      fireEvent.mouseLeave(toast);
+      fireEvent.pointerLeave(toast, MOUSE);
       advance(UNDO_TOAST_MS);
       expect(screen.queryByTestId('toast-undo')).toBeNull();
     });

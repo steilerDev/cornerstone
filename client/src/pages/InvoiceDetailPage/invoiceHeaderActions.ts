@@ -4,7 +4,7 @@ export type InvoiceHeaderAction =
   'convert' | 'markPaid' | 'prepareBankReport' | 'addProgressPayment';
 
 export interface InvoiceHeaderActions {
-  /** Convert is only ever a secondary (an offer leads with Add progress payment). */
+  /** Convert is only ever a secondary (an offer leads with Add progress payment); it is a link to the Convert page. */
   readonly primary: Exclude<InvoiceHeaderAction, 'convert'>;
   readonly secondary: 'convert' | 'addProgressPayment' | null;
 }

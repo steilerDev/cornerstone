@@ -1052,7 +1052,8 @@ test.describe(
         const box = await select.boundingBox();
         expect(box).not.toBeNull();
         if (box) {
-          expect(box.height).toBeGreaterThanOrEqual(44);
+          // 2.75rem can lay out as 43.99998px: allow subpixel rounding
+          expect(box.height).toBeGreaterThanOrEqual(43.99);
         }
       } finally {
         await cleanupAttachmentMocks(page);

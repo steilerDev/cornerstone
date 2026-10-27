@@ -324,22 +324,19 @@ describe('#2188 deposits-exceed-invoice copy', () => {
   type DepositsBundle = {
     invoiceDetail: {
       deposits: { errors: Record<string, string>; form: Record<string, string> };
-      convertModal: {
-        errors: Record<string, string>;
-        overpaid: Record<string, string>;
-      };
       messages: Record<string, string>;
     };
+    convertPage: Record<string, unknown>;
   };
   const bundles = { en: enBudget, de: deBudget } as unknown as Record<string, DepositsBundle>;
 
   for (const [locale, bundle] of Object.entries(bundles)) {
     it(`${locale}: removed net-deposit error keys are gone`, () => {
-      const { deposits, convertModal, messages } = bundle.invoiceDetail;
+      const { deposits, messages } = bundle.invoiceDetail;
       expect(deposits.errors).not.toHaveProperty('exceedsTotal');
       expect(deposits.errors).not.toHaveProperty('refundReductionExceedsTotal');
       expect(deposits.errors).not.toHaveProperty('refundDeleteExceedsTotal');
-      expect(convertModal.errors).not.toHaveProperty('depositsExceed');
+      expect(bundle.invoiceDetail).not.toHaveProperty('convertModal');
       expect(messages).not.toHaveProperty('amountBelowNetDeposits');
     });
 
@@ -355,11 +352,32 @@ describe('#2188 deposits-exceed-invoice copy', () => {
       );
     });
 
-    it(`${locale}: convertModal.overpaid.message keeps {{shortfall}} and {{deposits}}; resolved is a string`, () => {
-      const { overpaid } = bundle.invoiceDetail.convertModal;
-      expect(overpaid.message).toContain('{{shortfall}}');
-      expect(overpaid.message).toContain('{{deposits}}');
-      expect(typeof overpaid.resolved).toBe('string');
+    it(`${locale}: the Convert page keeps its placeholders (refund copy, remainder, mismatch, history)`, () => {
+      const page = bundle.convertPage as {
+        refund: Record<string, string>;
+        lines: { remainder: Record<string, string>; keepAria: string; proposedAria: string };
+        document: Record<string, string>;
+        details: Record<string, string>;
+        actions: Record<string, string>;
+        history: Record<string, string>;
+      };
+      expect(page.refund.heading).toContain('{{amount}}');
+      expect(page.refund.message).toContain('{{amount}}');
+      expect(page.refund.recorded).toContain('{{amount}}');
+      expect(page.lines.remainder.notYetSplit).toContain('{{amount}}');
+      expect(page.lines.remainder.over).toContain('{{amount}}');
+      expect(page.lines.keepAria).toContain('{{name}}');
+      expect(page.lines.proposedAria).toContain('{{name}}');
+      expect(page.document.mismatch).toContain('{{extracted}}');
+      expect(page.document.mismatch).toContain('{{offered}}');
+      expect(page.details.more).toContain('{{amount}}');
+      expect(page.details.more).toContain('{{percent}}');
+      expect(page.details.less).toContain('{{amount}}');
+      expect(page.details.less).toContain('{{percent}}');
+      expect(page.actions.status).toContain('{{final}}');
+      expect(page.actions.status).toContain('{{payment}}');
+      expect(page.history.converted).toContain('{{amount}}');
+      expect(page.history.converted).toContain('{{date}}');
     });
   }
 });

@@ -1,13 +1,13 @@
 /**
  * @jest-environment jsdom
  *
- * The offer and invoice page (#2239). Module boundaries: the API client functions, the conversion
- * hook and its dialogs, the cost line section, the Documents host and the edit dialog (each has
+ * The offer and invoice page (#2239). Module boundaries: the API client functions, the cost line section, the Documents host and the edit dialog (each has
  * its own test). The header, summary strip, tabs, Payments and History panels are real.
  *
  * Mutations these tests catch (each assertion below fails when the named change is made):
  *  - D-07: rendering the chip as a bare span instead of the shared Badge, or an Offer chip;
- *  - an offer whose primary is not Add progress payment, or whose secondary is not Convert;
+ *  - an offer whose primary is not Add progress payment, or whose secondary is not a Convert link
+ *    to the Convert page carrying the offer as origin;
  *  - bank report `sourceId` sent with zero or several sources;
  *  - `?payment=` ignored without `?tab=`: the Payments tab would not be selected;
  *  - the delete navigating with push instead of replace.
@@ -18,7 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { InvoiceDetail, UndoToken } from '@cornerstone/shared';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
-import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import * as statusChangeActual from '../../lib/statusChangeApi.js';
@@ -158,39 +158,6 @@ jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
   ),
 }));
 
-interface ConvertArgs {
-  invoice: InvoiceDetail;
-  refreshInvoice: () => Promise<unknown>;
-  onConverted: () => void;
-}
-let convertArgs: ConvertArgs | null = null;
-let convertView: 'closed' | 'form' | 'paperless' | 'refund' = 'closed';
-const convertOpen = jest.fn();
-const convertCallbacks = { onRefundSaved: jest.fn(), onRefundClosed: jest.fn() };
-jest.unstable_mockModule('./useConvertQuotation.js', () => ({
-  useConvertQuotation: (args: ConvertArgs) => {
-    convertArgs = args;
-    return {
-      view: convertView,
-      open: convertOpen,
-      paperless: { paperlessUrl: 'https://paperless.example' },
-      onDocumentSelected: jest.fn(),
-      onPickerClosed: jest.fn(),
-      refundPreset: { amount: '5' },
-      budgetSources: [],
-      ...convertCallbacks,
-    };
-  },
-}));
-jest.unstable_mockModule('./ConvertQuotationModal.js', () => ({
-  ConvertQuotationModal: () => <div role="dialog" aria-label="convert-probe" />,
-}));
-jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
-  InvoicePaperlessPickerModal: (props: { paperlessUrl: string | null }) => (
-    <div role="dialog" aria-label="picker-probe" data-url={props.paperlessUrl ?? ''} />
-  ),
-}));
-
 let InvoiceDetailPage: (typeof PageModule)['InvoiceDetailPage'];
 
 // ─── Fixtures and harness ────────────────────────────────────────────────────
@@ -271,11 +238,6 @@ beforeEach(async () => {
     .mockResolvedValue({ entityType: 'invoice', id: ID, effects: [] });
   mockShowToast.mockReset();
   mockShowUndoToast.mockReset();
-  convertOpen.mockReset();
-  convertCallbacks.onRefundSaved.mockReset();
-  convertCallbacks.onRefundClosed.mockReset();
-  convertArgs = null;
-  convertView = 'closed';
   documentsFact = null;
   lastCostSectionProps = null;
   document.title = 'initial';
@@ -511,17 +473,27 @@ describe('InvoiceDetailPage header (S11)', () => {
       expect(primary.className).toContain('primary');
       const secondary = screen.getByTestId('convert-quotation-button');
       expect(secondary).toHaveTextContent('Convert to final invoice');
-      expect(secondary.className).toContain('btnSecondary');
+      expect(secondary.tagName).toBe('A');
+      expect(secondary.className).toContain('convertLink');
       expect(secondary.className).not.toContain('primary');
       expect(screen.queryByTestId('invoice-secondary-add-payment')).toBeNull();
       expect(screen.queryByTestId('invoice-status-badge')).toBeNull();
       expect(screen.getByTestId('invoice-header').querySelectorAll('.primary')).toHaveLength(1);
     });
 
-    it('clicking Convert opens the conversion flow', async () => {
+    it('Convert is a link to the Convert page, and no conversion dialog renders', async () => {
+      await loaded({ status: 'quotation' });
+      const link = screen.getByTestId('convert-quotation-button');
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveAttribute('href', `/budget/invoices/${ID}/convert`);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('Convert carries this offer as the origin so the Convert page can step back', async () => {
       await loaded({ status: 'quotation' });
       await userEvent.click(screen.getByTestId('convert-quotation-button'));
-      expect(convertOpen).toHaveBeenCalledTimes(1);
+      expect(probedPath()).toBe(`/budget/invoices/${ID}/convert`);
+      expect(probedOrigin()).toEqual({ to: `/budget/invoices/${ID}`, name: HEADING });
     });
 
     it('an invoice has no Convert button', async () => {
@@ -975,102 +947,6 @@ describe('InvoiceDetailPage body (S11)', () => {
       expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€300.00'),
     );
     expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
-  });
-});
-
-// ─── Conversion ──────────────────────────────────────────────────────────────
-
-describe('InvoiceDetailPage conversion (S11)', () => {
-  it('hands the conversion flow the invoice and a refresh that fetches the detail', async () => {
-    await loaded({ status: 'quotation' });
-    expect(convertArgs?.invoice.id).toBe(ID);
-    mockFetchInvoiceById.mockClear();
-    await convertArgs!.refreshInvoice();
-    expect(mockFetchInvoiceById).toHaveBeenCalledWith(ID);
-  });
-
-  it('the conversion flow refetch becomes the page record: deposits update without a skeleton', async () => {
-    await loaded({ status: 'quotation', deposits: [] });
-    mockFetchInvoiceById.mockResolvedValue(
-      record({
-        status: 'quotation',
-        deposits: [makePayment({ id: 'dep-new', invoiceId: ID, amount: 250 })],
-        paid: 250,
-      }),
-    );
-    let returned: InvoiceDetail | undefined;
-    await act(async () => {
-      returned = (await convertArgs!.refreshInvoice()) as InvoiceDetail;
-    });
-    expect(returned?.deposits.map((d) => d.id)).toEqual(['dep-new']);
-    await waitFor(() =>
-      expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€250.00'),
-    );
-    expect(screen.getByRole('tab', { name: /Payments.*1/ })).toBeInTheDocument();
-    expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
-  });
-
-  it('a failed conversion-flow refetch rejects to the dialog and leaves the page rendered', async () => {
-    await loaded({ status: 'quotation', paid: 0 });
-    mockFetchInvoiceById.mockRejectedValue(new Error('offline'));
-    await act(async () => {
-      await expect(convertArgs!.refreshInvoice()).rejects.toThrow('offline');
-    });
-    expect(screen.getByRole('heading', { level: 1, name: HEADING })).toBeInTheDocument();
-    expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€0.00');
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
-  });
-
-  it('after a conversion the page refreshes, reloads the cost lines and focuses the h1', async () => {
-    await loaded({ status: 'quotation' });
-    mockFetchInvoiceById.mockResolvedValue(record({ status: 'pending' }));
-    const costCallsBefore = mockFetchCostLines.mock.calls.length;
-    await act(async () => {
-      convertArgs!.onConverted();
-    });
-    await waitFor(() =>
-      expect(screen.getByTestId('invoice-primary-mark-paid')).toBeInTheDocument(),
-    );
-    expect(screen.queryByTestId('convert-quotation-button')).toBeNull();
-    expect(mockFetchCostLines.mock.calls.length).toBeGreaterThan(costCallsBefore);
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: HEADING })).toHaveFocus(),
-    );
-  });
-
-  it.each([
-    ['form', 'convert-probe'],
-    ['paperless', 'picker-probe'],
-    ['refund', 'payment-probe'],
-  ] as const)('the %s step shows exactly one dialog', async (view, label) => {
-    convertView = view;
-    await loaded({ status: 'quotation' });
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
-    expect(screen.getByRole('dialog', { name: label })).toBeInTheDocument();
-  });
-
-  it('the refund step is an Add refund dialog with the preset', async () => {
-    convertView = 'refund';
-    await loaded({ status: 'quotation' });
-    expect(screen.getByRole('dialog', { name: 'payment-probe' })).toHaveAttribute(
-      'data-entry',
-      'refund',
-    );
-  });
-
-  it('the refund step wires its save and close to the conversion flow', async () => {
-    convertView = 'refund';
-    await loaded({ status: 'quotation' });
-    await userEvent.click(screen.getByText('payment-saved'));
-    await userEvent.click(screen.getByText('payment-close'));
-    expect(convertCallbacks.onRefundSaved).toHaveBeenCalledTimes(1);
-    expect(convertCallbacks.onRefundClosed).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows no dialog while the conversion flow is closed', async () => {
-    await loaded({ status: 'quotation' });
-    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 

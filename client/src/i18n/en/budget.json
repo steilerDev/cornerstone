@@ -613,97 +613,6 @@
         "paidDateRequired": "Paid date is required.",
         "claimedDateRequired": "Submitted date is required."
       }
-    },
-    "convertModal": {
-      "title": "Convert offer to final invoice",
-      "intro": "Review the final amount, itemized lines and progress payments. Nothing is saved until you confirm.",
-      "confirm": "Convert offer",
-      "confirming": "Converting...",
-      "cancel": "Cancel",
-      "saveError": "The offer could not be converted. Nothing was changed.",
-      "history": {
-        "converted": "Converted from offer of {{amount}} on {{date}}."
-      },
-      "errors": {
-        "itemizedExceeds": "The itemized total exceeds the final amount. Adjust the itemized lines.",
-        "notQuotation": "This invoice is no longer an offer. The page has been refreshed."
-      },
-      "source": {
-        "heading": "Source document",
-        "select": "Select Paperless document",
-        "change": "Change document",
-        "remove": "Remove",
-        "none": "No document selected. A selected document is linked as the invoice attachment.",
-        "aiAnalyze": "Prefill from document",
-        "aiAnalyzing": "Analyzing...",
-        "aiNeedsDocument": "Select a document to enable AI prefill.",
-        "aiSuccess": "Prefilled from document. Review the values before confirming.",
-        "aiError": "Analysis failed. Your entries are kept. Continue manually or try again.",
-        "aiRetry": "Try again",
-        "aiTotalMismatch": "The document total ({{extracted}}) differs from the offer amount ({{quoted}}) by more than 1%.",
-        "aiNoLines": "No lines were detected in the document, so the final amount was not prefilled."
-      },
-      "details": {
-        "heading": "Invoice details",
-        "finalAmount": "Final amount",
-        "date": "Invoice date",
-        "invoiceNumber": "Invoice number",
-        "dueDate": "Due date",
-        "notes": "Notes",
-        "historyHint": "A note with the offer amount is added automatically.",
-        "quotedAmount": "Offer {{quoted}} → Final {{final}}",
-        "deltaIncrease": "Increase: +{{amount}} (+{{percent}})",
-        "deltaDecrease": "Decrease: −{{amount}} (−{{percent}})",
-        "deltaNone": "No change",
-        "errors": {
-          "amountRequired": "Enter a final amount.",
-          "amountPositive": "The final amount must be greater than 0.",
-          "dateRequired": "Enter an invoice date.",
-          "dueDateBeforeDate": "The due date must be on or after the invoice date."
-        }
-      },
-      "lines": {
-        "heading": "Itemized lines",
-        "caption": "Proposed itemized amounts for the final invoice",
-        "proposalHint": "Proposed amounts are scaled pro rata to the final amount.",
-        "columns": {
-          "line": "Line",
-          "quoted": "Offer",
-          "proposed": "Proposed",
-          "keep": "Keep"
-        },
-        "keepExisting": "Keep existing itemization",
-        "reset": "Reset to proposal",
-        "proposedAria": "Proposed amount for {{name}}",
-        "keepAria": "Keep existing amount for {{name}}",
-        "itemizedTotal": "Itemized total",
-        "remainderDiscretionary": "Remainder to Own funds",
-        "overAllocated": "Itemized total exceeds the final amount by {{amount}}.",
-        "lineInvalid": "Enter an amount greater than 0.",
-        "empty": "No itemized lines. Nothing to adjust.",
-        "workItem": "Work item",
-        "householdItem": "Household item"
-      },
-      "deposits": {
-        "heading": "Progress payments and final payment",
-        "unchangedNote": "Progress payments are kept unchanged.",
-        "empty": "No progress payments recorded.",
-        "finalAmount": "Final amount",
-        "depositsSubtotal": "Progress payments",
-        "finalPayment": "Final payment",
-        "noRemaining": "No remaining payment."
-      },
-      "overpaid": {
-        "message": "The final amount is {{shortfall}} lower than the progress payments recorded ({{deposits}}). You can still convert; add a refund entry if the company pays back the difference.",
-        "addRefund": "Add refund",
-        "resolved": "Progress payments no longer exceed the final amount.",
-        "refundDescription": "Refund for the offer conversion"
-      },
-      "status": {
-        "heading": "Payment status",
-        "pending": "Still to pay",
-        "paid": "Already paid"
-      }
     }
   },
   "invoicePage": {
@@ -1251,6 +1160,113 @@
     },
     "picker": {
       "newNamed": "New company {{name}}"
+    }
+  },
+  "convertPage": {
+    "title": "Convert to final invoice",
+    "loadingTitle": "Convert offer",
+    "notFoundTitle": "Offer not found",
+    "notFound": "This offer doesn't exist or was deleted.",
+    "notAnOffer": "This is already a final invoice. Only an offer can be converted.",
+    "openInvoice": "Open the invoice",
+    "retry": "Try again",
+    "intro": "Review how the offer's amounts become the final invoice. Nothing changes until you confirm.",
+    "document": {
+      "title": "Document",
+      "prompt": "Pre-fill the final invoice from a document.",
+      "select": "Select document",
+      "change": "Change document",
+      "remove": "Remove",
+      "read": "Read amounts",
+      "reading": "Reading document…",
+      "readDone": "Document read. Review the suggestions.",
+      "readError": "Couldn't read the document. Your entries are kept.",
+      "tryAgain": "Try again",
+      "mismatch": "The document total {{extracted}} differs from the offer total {{offered}}.",
+      "noLines": "The document has no lines, so the final amount was not pre-filled.",
+      "linkedNote": "The selected document is linked to the final invoice."
+    },
+    "details": {
+      "title": "Final invoice details",
+      "finalAmount": "Final amount",
+      "date": "Invoice date",
+      "invoiceNumber": "Invoice number",
+      "dueDate": "Due date",
+      "notes": "Notes",
+      "notesHint": "A note with the offer amount is added automatically.",
+      "status": "Status after converting",
+      "more": "{{amount}} ({{percent}}) more than the offer",
+      "less": "{{amount}} ({{percent}}) less than the offer",
+      "same": "Same as the offer",
+      "errors": {
+        "amountRequired": "Enter a final amount.",
+        "amountPositive": "The final amount must be greater than 0.",
+        "dateRequired": "Enter an invoice date.",
+        "dueDateBeforeDate": "The due date must be on or after the invoice date."
+      }
+    },
+    "lines": {
+      "title": "Cost lines",
+      "hint": "Proposed amounts follow the final amount pro rata. Type an amount to change a line, or keep its offered amount.",
+      "keepAll": "Keep all offered amounts",
+      "reset": "Reset to proposal",
+      "caption": "Cost lines: offered, proposed and kept amounts",
+      "columns": {
+        "line": "Line",
+        "offered": "Offered",
+        "proposed": "Proposed",
+        "keep": "Keep"
+      },
+      "keepVisible": "Keep as offered",
+      "keepAria": "Keep as offered: {{name}}",
+      "proposedAria": "Proposed amount for {{name}}",
+      "lineInvalid": "Enter an amount greater than 0.",
+      "total": "Total",
+      "noDescription": "No description",
+      "remainder": {
+        "none": "Nothing left to split",
+        "notYetSplit": "{{amount}} not yet split",
+        "over": "{{amount}} more than the final amount"
+      },
+      "empty": "This offer has no cost lines. Nothing to adjust.",
+      "updated": "Proposed amounts updated."
+    },
+    "payments": {
+      "title": "Progress payments",
+      "progressPayments": "Progress payments",
+      "finalAmount": "Final amount",
+      "finalPayment": "Final payment",
+      "unchanged": "Progress payments stay as they are."
+    },
+    "refund": {
+      "heading": "Refund due: {{amount}}",
+      "message": "You paid {{amount}} more than the final invoice. You can still convert. Add a refund if the company pays the difference back.",
+      "amount": "Amount",
+      "dueDate": "Due date",
+      "source": "Funding source",
+      "noSource": "Not set",
+      "add": "Add refund",
+      "recorded": "The refund of {{amount}} is recorded.",
+      "description": "Refund for the offer conversion"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "convert": "Convert to final invoice",
+      "converting": "Converting…",
+      "saving": "Converting the offer…",
+      "status": "Final {{final}} · Final payment {{payment}}"
+    },
+    "blocked": {
+      "lines": "Fix the highlighted lines.",
+      "over": "Lower the proposed amounts to the final amount."
+    },
+    "errors": {
+      "saveFailed": "The offer could not be converted. Nothing was changed.",
+      "itemizedExceeds": "The cost lines add up to more than the final amount. Lower the proposed amounts."
+    },
+    "converted": "Offer converted to a final invoice.",
+    "history": {
+      "converted": "Converted from offer of {{amount}} on {{date}}."
     }
   }
 }

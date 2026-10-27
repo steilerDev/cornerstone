@@ -146,13 +146,15 @@ jest.unstable_mockModule('./lib/usersApi.js', () => ({
 
 // InvoicesPage calls fetchAllInvoices and createInvoice on mount.
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
+const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>();
 jest.unstable_mockModule('./lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
   fetchInvoices: jest.fn<typeof InvoicesApiTypes.fetchInvoices>(),
   updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
   deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
-  fetchInvoiceById: jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>(),
+  fetchInvoiceById: mockFetchInvoiceById,
+  convertQuotation: jest.fn<typeof InvoicesApiTypes.convertQuotation>(),
 }));
 
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
@@ -347,6 +349,7 @@ describe('App', () => {
     mockGetSchedulerStatus.mockReset();
     mockGetIntegrationsStatus.mockReset();
     mockFetchAllInvoices.mockReset();
+    mockFetchInvoiceById.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
@@ -611,6 +614,26 @@ describe('App', () => {
     await waitFor(() =>
       expect(document.title).toBe('Invoices \u00B7 Money \u00B7 Synthetic House'),
     );
+  }, 15000);
+
+  it('serves the Convert page at /budget/invoices/:id/convert (offer not found state)', async () => {
+    const { ApiClientError } = await import('./lib/apiClient.js');
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'Invoice not found' }),
+    );
+    window.history.pushState({}, 'Convert', '/budget/invoices/off-404/convert');
+    render(<App />);
+
+    const heading = await screen.findByRole(
+      'heading',
+      { name: 'Offer not found', level: 1 },
+      { timeout: 5000 },
+    );
+    expect(heading).toBeInTheDocument();
+    expect(mockFetchInvoiceById).toHaveBeenCalledWith('off-404');
+    expect(screen.getByTestId('convert-not-found')).toBeInTheDocument();
+    // The Convert route is its own page: the offer page's header never renders.
+    expect(screen.queryByTestId('convert-quotation-button')).toBeNull();
   }, 15000);
 
   it('serves the Offers chip at /budget/invoices?status=quotation', async () => {

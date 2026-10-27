@@ -74,6 +74,7 @@ const seed = {
   diaryId: '',
   vendorId: '',
   invoiceId: '',
+  offerId: '',
   areaId: '',
   orientationId: '',
 };
@@ -227,6 +228,13 @@ const ROWS: SweepRow[] = [
     id: 'invoice',
     path: () => routeUrl('invoice', { id: seed.invoiceId }),
     h1: INVOICE_H1,
+    crumbs: true,
+    active: 'sidebar-view-invoices',
+  },
+  {
+    id: 'invoiceConvert',
+    path: () => routeUrl('invoiceConvert', { id: seed.offerId }),
+    h1: 'Convert to final invoice',
     crumbs: true,
     active: 'sidebar-view-invoices',
   },
@@ -469,6 +477,17 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
       });
       expect(invoice.ok(), `POST invoice failed: ${invoice.status()}`).toBeTruthy();
       seed.invoiceId = ((await invoice.json()) as { invoice: { id: string } }).invoice.id;
+      // An offer (status quotation) for the Convert page, which renders "Offer not found" otherwise
+      const offer = await page.request.post(`${API.vendors}/${seed.vendorId}/invoices`, {
+        data: {
+          amount: 900,
+          date: '2026-03-01',
+          status: 'quotation',
+          invoiceNumber: `${NAMES.invoiceNumber}-O`,
+        },
+      });
+      expect(offer.ok(), `POST offer failed: ${offer.status()}`).toBeTruthy();
+      seed.offerId = ((await offer.json()) as { invoice: { id: string } }).invoice.id;
     } finally {
       await context.close();
     }
@@ -481,6 +500,9 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
     try {
       if (seed.invoiceId && seed.vendorId) {
         await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.invoiceId}`);
+      }
+      if (seed.offerId && seed.vendorId) {
+        await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.offerId}`);
       }
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId).catch(() => undefined);
       if (seed.diaryId) await deleteDiaryEntryViaApi(page, seed.diaryId).catch(() => undefined);

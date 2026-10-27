@@ -1,0 +1,344 @@
+/* Convert page (#2240). Tokens only. */
+
+.subtitle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.intro {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+@media (max-width: 767px) {
+  .form {
+    gap: var(--spacing-3);
+  }
+}
+
+.stateCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.retry {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.saveError:focus {
+  outline: none;
+}
+
+.saveError:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-md);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.muted {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- Buttons ---- */
+
+.compactButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.textButton {
+  composes: btnText from '../../styles/shared.module.css';
+}
+
+.secondaryButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.busy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* ---- Document ---- */
+
+.documentBanner {
+  composes: bannerInfo bannerRow from '../../styles/shared.module.css';
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.documentActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.fileName {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-weight-medium);
+}
+
+.readStatus {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.notice {
+  composes: noticeSplit from '../../components/CostLineTable/CostLineTable.module.css';
+  border-radius: var(--radius-md);
+}
+
+/* ---- Details ---- */
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-3);
+}
+
+@media (min-width: 640px) {
+  .detailsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger-text-on-light);
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+  min-height: var(--touch-target-min);
+}
+
+.textarea {
+  composes: textarea from '../../styles/shared.module.css';
+}
+
+.inputInvalid {
+  border-color: var(--color-danger);
+}
+
+.amountRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.diffMore {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-primary);
+}
+
+.diffLess {
+  background-color: var(--color-primary-bg);
+  color: var(--color-text-primary);
+}
+
+.diffSame {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+
+.modeSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.modeSelector label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  min-height: var(--touch-target-min);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.modeSelector input[type='radio'] {
+  cursor: pointer;
+}
+
+.modeSelector input[type='radio']:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Cost lines ---- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.remainder[data-state='notYetSplit'] {
+  display: block;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-primary);
+}
+
+.remainder[data-state='over'] {
+  display: block;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-bg);
+  color: var(--color-text-primary);
+}
+
+/* ---- Progress payments ---- */
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--spacing-2) var(--spacing-4);
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.summary dt {
+  color: var(--color-text-secondary);
+}
+
+.summary dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryStrong,
+.summaryStrong + dd {
+  font-weight: var(--font-weight-semibold);
+}
+
+.refundDue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.refundHeading {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.refundMessage {
+  margin: 0;
+}
+
+.refundFacts {
+  composes: summary;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.recorded {
+  composes: bannerSuccess from '../../styles/shared.module.css';
+  margin: 0;
+}
+
+.recorded:focus {
+  outline: none;
+}
+
+.recorded:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---- Actions ---- */
+
+.problems {
+  composes: srOnly from '../../styles/shared.module.css';
+}
+
+.statusText {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .textarea {
+    transition: none;
+  }
+}
+
+/* Convert is aria-disabled (never native disabled) while something blocks it. */
+.convertDisabled[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.convertDisabled[aria-disabled='true'][aria-busy='true'] {
+  cursor: progress;
+}
+
+.convertDisabled[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
