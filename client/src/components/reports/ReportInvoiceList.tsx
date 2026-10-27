@@ -31,6 +31,8 @@ export const REPORT_INVOICE_PAGE_SIZE = 25;
 interface ReportInvoiceListProps {
   /** The line-adjusted report: rows show its amounts. */
   report: SourceReportResponse;
+  /** The report as fetched: group subtotals use the same sum as the selection (D2). */
+  rawReport: SourceReportResponse;
   selection: ReportSelection;
   excludedInvoiceIds: Set<string>;
   excludedLineIds: Set<string>;
@@ -43,10 +45,9 @@ interface ReportInvoiceListProps {
   t: TFunction;
 }
 
-const NO_EXCLUDED_LINES = new Set<string>();
-
 export function ReportInvoiceList({
   report,
+  rawReport,
   selection,
   excludedInvoiceIds,
   excludedLineIds,
@@ -237,7 +238,7 @@ export function ReportInvoiceList({
                 <span className={styles.groupSubtotal}>
                   <span className={styles.srOnly}>{t('sourceReports.groupSubtotal')} </span>
                   {formatCurrency(
-                    computeIncludedTotal(report, includedGroupIds, NO_EXCLUDED_LINES),
+                    computeIncludedTotal(rawReport, includedGroupIds, excludedLineIds),
                   )}
                 </span>
               }

@@ -643,8 +643,9 @@ describe('Source Report Routes', () => {
       const { cookie } = await createUserWithSession();
       const before = app.db.select().from(schema.diaryEntries).all().length;
 
-      // Spec asked for 400. Fastify's router (maxParamLength = 100) answers 414 before the params
-      // schema runs, so the schema's maxLength is a second guard that is not reachable here.
+      // The route declares no length limit of its own. Fastify's router (default maxParamLength
+      // of 100) answers 414 for a longer path parameter before any handler runs, so nothing is
+      // read or written.
       const tooLong = await app.inject({
         method: 'POST',
         url: revertUrl('x'.repeat(101)),

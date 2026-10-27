@@ -481,7 +481,7 @@ describe('HistoryPage', () => {
       expect(lastQuery()).toMatchObject({ type: 'payment', q: 'T-001' });
     });
 
-    it('changing a filter while the list is empty (no feed element mounted) reloads without scrolling', async () => {
+    it('changing a filter on the empty state reloads with that filter from page 1', async () => {
       const user = userEvent.setup();
       mockListHistory.mockResolvedValue(response([]));
       renderPage();

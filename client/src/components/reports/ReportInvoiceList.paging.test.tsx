@@ -9,6 +9,7 @@ import type { TFunction } from 'i18next';
 import type { SourceReportResponse, SourceReportInvoice } from '@cornerstone/shared';
 import { renderWithRouter } from '../../test/testUtils.js';
 import { reportSelection } from '../../lib/reportSelection.js';
+import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import type { ReportInvoiceList as ReportInvoiceListType } from './ReportInvoiceList.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
@@ -77,6 +78,8 @@ interface Opts {
   excludedLines?: string[];
   onToggleInvoices?: jest.Mock;
   onBack?: jest.Mock;
+  /** Pass the line-adjusted report as `report`, like the wizard does. */
+  adjusted?: boolean;
 }
 
 function element(rep: SourceReportResponse, o: Opts = {}) {
@@ -84,7 +87,8 @@ function element(rep: SourceReportResponse, o: Opts = {}) {
   const excludedLineIds = new Set(o.excludedLines ?? []);
   return (
     <ReportInvoiceList
-      report={rep}
+      report={o.adjusted ? applyLineExclusions(rep, excludedLineIds) : rep}
+      rawReport={rep}
       selection={reportSelection(rep, excludedInvoiceIds, excludedLineIds)}
       excludedInvoiceIds={excludedInvoiceIds}
       excludedLineIds={excludedLineIds}
@@ -304,5 +308,37 @@ describe('ReportInvoiceList paging and grouping', () => {
     expect(boxes).toHaveLength(2); // table row and mobile card
     fireEvent.click(boxes[1]!);
     expect(onToggleLine).toHaveBeenCalledWith('line-1', true);
+  });
+
+  it('group subtotals come from the raw report minus excluded lines and add up to the selection total', async () => {
+    const line = (id: string, portion: number) =>
+      ({
+        id,
+        description: id,
+        allocatedPortion: portion,
+        linkedItem: null,
+      }) as unknown as SourceReportInvoice['budgetLinesForSource'][number];
+    const rep = report([
+      inv(1, { budgetLinesForSource: [line('l1', 40), line('l2', 60)] }),
+      inv(2),
+      inv(3, { vendorId: 'v-b', vendorName: 'Beta Electric' }),
+    ]);
+    await renderList(rep, { excludedLines: ['l1'], adjusted: true });
+
+    const subtotal = (vendorId: string) =>
+      screen.getByTestId(`report-invoices-group-mobile-${vendorId}`).querySelector('.groupSubtotal')
+        ?.textContent;
+    const total = reportSelection(rep, new Set(), new Set(['l1'])).total;
+    expect(total).toBe(260);
+    // Alpha: (100 - 40) + 100; Beta: 100. Counted once, not subtracted twice.
+    expect(subtotal('v-a')).toContain('EUR 160.00');
+    expect(subtotal('v-b')).toContain('EUR 100.00');
+    expect(160 + 100).toBe(total);
+  });
+
+  it('an excluded invoice drops out of its group subtotal', async () => {
+    const rep = report([inv(1), inv(2)]);
+    await renderList(rep, { excluded: ['inv-002'], adjusted: true });
+    expect(screen.getByTestId('report-invoices-group-mobile-v-a')).toHaveTextContent('EUR 100.00');
   });
 });

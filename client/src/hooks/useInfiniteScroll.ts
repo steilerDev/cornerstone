@@ -3,6 +3,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /** Distance (in px) below the viewport bottom at which the next batch starts loading. */
 const INFINITE_SCROLL_LOOKAHEAD_PX = 600;
 
+/**
+ * Whether the sentinel is inside the root plus the lookahead right now. An IntersectionObserver
+ * entry is a snapshot from when the browser computed it; a batch applied since then (an instant
+ * first page) may have pushed the sentinel far below the fold, so the entry alone must not
+ * trigger the next load.
+ */
+function isSentinelNearRoot(sentinel: Element, root: Element | null): boolean {
+  const rect = sentinel.getBoundingClientRect();
+  const rootRect = root ? root.getBoundingClientRect() : null;
+  const rootTop = rootRect ? rootRect.top : 0;
+  const rootBottom = rootRect ? rootRect.bottom : window.innerHeight;
+  return rect.top <= rootBottom + INFINITE_SCROLL_LOOKAHEAD_PX && rect.bottom >= rootTop;
+}
+
 export type InfiniteScrollStatus = 'idle' | 'loading' | 'error' | 'done';
 
 export interface InfiniteScrollPage<T, M = undefined> {
@@ -169,7 +183,10 @@ export function useInfiniteScroll<T, M = undefined>({
     if (!sentinelNode || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) loadMore();
+        // Re-check the live geometry: this entry may predate the batch that is now rendered.
+        if (entries[0]?.isIntersecting && isSentinelNearRoot(sentinelNode, root ?? null)) {
+          loadMore();
+        }
       },
       { root: root ?? null, rootMargin: `0px 0px ${INFINITE_SCROLL_LOOKAHEAD_PX}px 0px` },
     );

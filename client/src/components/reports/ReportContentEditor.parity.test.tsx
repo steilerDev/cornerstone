@@ -252,14 +252,14 @@ interface Expected {
 }
 
 const EXPECTED_EN: Expected = {
-  depositPdf: '(Deposit)',
-  depositBadge: 'Deposit',
+  depositPdf: '(Progress\u2011payment)',
+  depositBadge: 'Progress\u2011payment',
   partial: '(partial)',
-  lessDeposit: '(less\u00A0deposit)',
+  lessDeposit: '(less\u00A0part\u2011payment)',
   refund: '(refund)',
-  splitLegend: 'partial: Amount shown reflects only the portion allocated to this source.',
+  splitLegend: 'partial: Amount shown reflects only the portion allocated to this funding source.',
   lessDepositLegend:
-    'less\u00A0deposit: This position reflects progress payments submitted separately.',
+    'less\u00A0part\u2011payment: This position reflects progress payments submitted separately.',
 };
 
 const EXPECTED_DE: Expected = {
@@ -269,7 +269,7 @@ const EXPECTED_DE: Expected = {
   lessDeposit: '(abzgl.\u00A0Abschlag)',
   refund: '(Rückerstattung)',
   splitLegend:
-    'Teilbetrag: Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.',
+    'Teilbetrag: Der angezeigte Betrag umfasst nur den dieser Finanzierungsquelle zugeordneten Anteil.',
   lessDepositLegend:
     'abzgl.\u00A0Abschlag: Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
 };

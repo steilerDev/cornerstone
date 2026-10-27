@@ -52,17 +52,17 @@ The wizard walks through five steps, shown in a stepper at the top of the page. 
 
 When you arrive from a link that already names a report type and funding source, steps 1 and 2 show as completed and the wizard opens on step 3. You can select step 1 or step 2 to change either choice.
 
-### 1. Report type
+### 1. Report Type
 
 Choose Draw-down request, Budget overview, or Proof of funds. This determines which invoices are eligible in step 3 and which document types qualify to be attached in step 4.
 
 Changing the type after you have selected invoices clears the selection.
 
-### 2. Funding source
+### 2. Funding Source
 
 Select the funding source the report is for, using the **Select the funding source for this report** field. Each source shows the amount that matches the chosen report type.
 
-### 3. Select invoices
+### 3. Select Invoices
 
 Every eligible invoice for the source and report type is listed, pre-selected. Invoices are grouped by company, in alphabetical order, with **No company** last. Within a group, invoices are ordered by invoice date, oldest first.
 
@@ -79,7 +79,7 @@ From the list you can:
 - See a **partial** badge on invoices whose funding is split across more than one funding source -- both invoices split across budget lines and invoices with a source-tagged deposit are flagged, and the PDF's footnotes distinguish which kind of split applies to each row
 - See invoices that are not split to this funding source, grouped separately under **Not split to this source (n)** below the company groups
 
-Excluding a line item narrows the amount shown in the report but does not change the invoice's status -- see [After you send it](#after-you-send-it) below.
+Excluding a line item narrows the amount shown in the report but does not change the invoice's status -- see [After You Send It](#after-you-send-it) below.
 
 ### 4. Settings
 
@@ -88,11 +88,11 @@ Excluding a line item narrows the amount shown in the report but does not change
 - **Max file size (optional)** -- set a maximum file size in MB. If the final report exceeds this size, it will be automatically split into multiple PDF files, each with its own continuation cover letter. The first file notes that the report spans multiple attachments; continuation files reference the report without repeating the full table. If unset, the report is generated as a single file regardless of size.
 - **Include cover letter** -- adds a formal letter ahead of the report table, addressed using the source's contact details. Disabled if the source has no contact address or reference number configured.
 
-### 5. Preview and export
+### 5. Preview and Export
 
 Step 5 has two parts: **Get the report**, which produces the PDF, and **After you send it**, which records the submission. The second part appears only for Draw-down request reports.
 
-#### Get the report
+#### Get the Report
 
 The step shows an editable HTML preview of the report -- this is what generates the PDF, so what you see here is what you get.
 
@@ -107,7 +107,7 @@ From here you can:
 - **Download PDF(s)** -- saves the report to your device
 - **Upload to Paperless** -- if [Paperless-ngx integration](../documents/setup) is configured, uploads the generated PDF(s) directly into your document library
 
-#### Multi-file reports
+#### Multi-File Reports
 
 If you set a max file size in step 4 and the report exceeds it, the report is automatically split across multiple PDF files. The first file's cover letter notes "This report is sent in multiple attachments." Continuation files each have their own cover letter (with reference, date, closing, and signature fields) but no repeated totals or table headers -- they continue directly from where the previous file left off.
 
@@ -116,7 +116,7 @@ When downloading or uploading multi-file reports, all files are handled together
 - **Download PDF** -- if split, all files are packaged and downloaded (browser-dependent; most modern browsers can handle multi-file downloads)
 - **Upload to Paperless** -- all files are uploaded sequentially with automatic retry on failure; progress is shown for each file
 
-#### After you send it
+#### After You Send It
 
 This part appears for Draw-down request reports only. Use it after the bank has the report.
 
@@ -129,12 +129,12 @@ Select **Finish without marking** if you are not ready to record the submission 
 When the submission is recorded, a success message shows how many invoices and progress payments were marked, with two links: **View invoices**, and **Open History**, which opens the funding source's History tab.
 
 :::caution
-Recording a submission is done from the wizard and is not undone there. To take it back, use [Reverting a submission](#reverting-a-submission) below.
+Recording a submission is done from the wizard and is not undone there. To take it back, use [Reverting a Submission](#reverting-a-submission) below.
 :::
 
 If no invoice is selected, **Mark as submitted** is unavailable, and the button explains that you need to select at least one invoice in step 3.
 
-## Reverting a submission
+## Reverting a Submission
 
 You can undo a submission that was recorded by mistake. Open the funding source's **History** tab, or the **History** page, and find the submission row. Each submission appears as one row with the **Submission** badge, for example "12 invoices submitted", and a **Revert submission** button.
 

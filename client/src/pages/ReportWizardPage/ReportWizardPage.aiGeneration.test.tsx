@@ -670,7 +670,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
-      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }));
 
       expect(screen.queryByText('Overwrite your edits?')).not.toBeInTheDocument();
       expect(mockGenerateReportContent).not.toHaveBeenCalled();
@@ -711,7 +711,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('button', { name: 'Draft with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
-      await user.click(screen.getByRole('button', { name: 'Overwrite and Generate' }));
+      await user.click(screen.getByRole('button', { name: 'Overwrite and generate' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       await waitFor(() => {
@@ -748,7 +748,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       // Re-include the invoice, then navigate back to step 5: the AI content is gone, and the
       // original derived baseline text is shown again.
@@ -905,7 +905,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
 
       // Confirm: token incremented, isGeneratingAi set false immediately.
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       // Navigate back to step 5.
       await clickNext(user); // 4 -> 5
@@ -951,7 +951,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
       await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
-      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }));
       expect(screen.queryByText('Cancel AI generation?')).not.toBeInTheDocument();
 
       // Navigate back to step 5 — generation still in-flight.
@@ -1000,7 +1000,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
       await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       // Navigate back to step 5.
       await clickNext(user); // 4 -> 5
@@ -1182,7 +1182,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       // Click "Preview PDF" to populate skippedDocuments state.
       await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
-      await waitFor(() => expect(screen.getByText('PDF Preview')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('PDF preview')).toBeInTheDocument());
 
       // Close the preview modal.
       await user.keyboard('{Escape}');
@@ -1246,7 +1246,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
 
       // Confirm discard — token bumped, isGeneratingAi cleared.
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       // Navigate back to step 5 and start generation B.
       await clickNext(user); // 4 -> 5

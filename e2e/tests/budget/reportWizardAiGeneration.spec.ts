@@ -35,8 +35,8 @@
  *   with NO edited-dot indicator anywhere (AI content is a baseline, not a manual override);
  *   the provenance note is absent before generation and visible after.
  * - Scenario 4: Overwrite-confirm modal — with a manual edit present, clicking "Enhance with
- *   AI" shows the modal instead of calling the endpoint; "Keep Editing" closes it with zero
- *   calls made and the manual edit intact; a subsequent "Overwrite and Generate" calls the
+ *   AI" shows the modal instead of calling the endpoint; "Keep editing" closes it with zero
+ *   calls made and the manual edit intact; a subsequent "Overwrite and generate" calls the
  *   endpoint exactly once and replaces the content (edited-dot clears, since the manual
  *   override is discarded as part of accepting the AI baseline).
  * - Scenario 5: Regenerating with NO manual edits present (including immediately after a prior
@@ -459,7 +459,7 @@ test.describe('Report wizard AI generation — happy path (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario 4)', () => {
-  test('With a manual edit present, Generate shows an overwrite-confirm modal; "Keep Editing" makes no call, "Overwrite and Generate" calls once and replaces the content', async ({
+  test('With a manual edit present, Generate shows an overwrite-confirm modal; "Keep editing" makes no call, "Overwrite and generate" calls once and replaces the content', async ({
     page,
     testPrefix,
   }) => {
@@ -502,7 +502,7 @@ test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario
       await wizard.editField(subject, 'A manual edit that must be protected');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
-      // "Keep Editing" — modal shown, but the endpoint is never called and the edit survives.
+      // "Keep editing" — modal shown, but the endpoint is never called and the edit survives.
       await wizard.clickGenerateWithAi();
       await expect(wizard.aiOverwriteConfirmModal).toBeVisible();
       await wizard.cancelAiOverwrite();
@@ -511,7 +511,7 @@ test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario
       await expect(subject).toHaveValue('A manual edit that must be protected');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
-      // "Overwrite and Generate" — the endpoint is called exactly once and the content is
+      // "Overwrite and generate" — the endpoint is called exactly once and the content is
       // replaced; the discarded manual override means the new AI text is NOT itself "edited".
       await wizard.clickGenerateWithAi();
       await expect(wizard.aiOverwriteConfirmModal).toBeVisible();

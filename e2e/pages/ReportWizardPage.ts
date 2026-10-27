@@ -25,7 +25,7 @@
  *     each containing either a `<button class*="stepButton">` (reachable step, stepNum <=
  *     maxReachedStep) or a non-interactive `<div class*="stepButtonDisabled">` (forward-locked
  *     step — NOT a button, not in the a11y/tab tree). Now 5 items (`stepItems.nth(3)` =
- *     "Settings", `stepItems.nth(4)` = "Preview & Export").
+ *     "Settings", `stepItems.nth(4)` = "Preview and export").
  *   - Mobile (<768px, visible): `<p class*="stepCount">` (now "Step N of 5") + `<div
  *     class*="dotIndicators"><div class*="dot">` (now 5 dots).
  *
@@ -115,7 +115,7 @@
  *     button (`sourceReports.editable.previewPdf`) which is now the ONLY way to see rendered
  *     PDF output on step 5 — clicking it calls `generatePdfFromContent()` fresh (always a new
  *     `URL.createObjectURL()` blob, never memoized/skipped) and opens a wide `Modal`
- *     (`role="dialog"`, name `sourceReports.editable.previewModalTitle` = "PDF Preview")
+ *     (`role="dialog"`, name `sourceReports.editable.previewModalTitle` = "PDF preview")
  *     wrapping the UNCHANGED `ReportPdfPreview.tsx` — same `iframe[title="Report PDF
  *     preview"]`/`[class*="pdfLoadingOverlay"]`/`[class*="pdfPreviewWrapper"]` structure as
  *     before, just now scoped INSIDE the modal instead of permanently mounted on the page. The
@@ -135,8 +135,8 @@
  * - Discard-edits confirmation modal (Story #1900): `role="dialog"` (name
  *   `sourceReports.editable.discardConfirmTitle` = "Discard your edits?"), shown whenever a
  *   guarded step 1-4 mutation (use case, source, any invoice/line toggle, settings toggle) is
- *   attempted while `overrides` is non-empty (`isDirty`). "Keep Editing"
- *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and Continue"
+ *   attempted while `overrides` is non-empty (`isDirty`). "Keep editing"
+ *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and continue"
  *   (`[class*="btnPrimary"]`) clears `overrides` THEN applies the originally-attempted change.
  * - Claim confirmation dialog: `role="alertdialog"` (name "Mark n invoice(s) as submitted?", #2243). Structurally
  *   never concurrent with the PDF preview modal or the discard-confirm modal (all three are
@@ -189,9 +189,9 @@
  *   no manual edits since the first generation runs immediately, no overwrite modal. With a
  *   manual edit present, it shows the SAME `Modal` component family as the discard-confirm modal
  *   (`role="dialog"`, name `sourceReports.editable.aiOverwriteConfirmTitle` = "Overwrite your
- *   edits?"): "Overwrite and Generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
+ *   edits?"): "Overwrite and generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
  *   generation immediately (clearing `overrides` as a side effect of `runAiGeneration` succeeding
- *   — see `applyAiContent`'s docstring); "Keep Editing" (`btnSecondary`, same translation key/
+ *   — see `applyAiContent`'s docstring); "Keep editing" (`btnSecondary`, same translation key/
  *   button as the discard modal) closes without ever calling the generate-content endpoint.
  * - A confirmed step 1-4 mutation via the discard-confirm modal (`guardedUpdate`) clears BOTH
  *   `overrides` AND `aiContent` (`isDirty = overrides.length > 0 || aiContent !== null`) —
@@ -235,7 +235,7 @@
  *   locators reflect the current design and are correct.
  *   Instead, a split row appends a grey inline `<span class*="inlineNote">` reading `(partial)`
  *   (de: `(Teilbetrag)`, `sourceReports.table.splitInlineLabel`) INSIDE the Allocated Amount
- *   cell, and a deposit-reduced row one reading `(less deposit)` (de: `(abzgl. Abschlag)`,
+ *   cell, and a deposit-reduced row one reading `(less part‑payment)` (de: `(abzgl. Abschlag)`,
  *   `depositReducedInlineLabel`) — same cell, same pattern as the existing inline Deposit badge.
  *   See `inlineNote()`/`mobileInlineNote()` below; the desktop copy carries a leading space
  *   inside the span (` (partial)`), which `toHaveText`'s whitespace normalization absorbs.
@@ -261,7 +261,7 @@
  *   `depositBadge` — the old array-length gate used to suppress `(partial)` here; `splitKind`
  *   alone decides now, and `row.isDeposit`'s trigger is unrelated to it. See Scenario 17 in
  *   `reportWizardEditableContent.spec.ts`.
- * - `(less deposit)` now fires ONLY when a deposit is tagged to a source OTHER than the one being
+ * - `(less part‑payment)` now fires ONLY when a deposit is tagged to a source OTHER than the one being
  *   reported. An UNTAGGED deposit (`budgetSourceId: null`) never triggers it — untagged deposits
  *   are apportioned pro-rata back INTO the reported source, not claimed separately (Issue #1965's
  *   "separately" wording is audit-load-bearing, which is what made the old over-inclusive
@@ -554,7 +554,7 @@ export class ReportWizardPage {
   // The footnotes block (`.footnotes` / its `<li>` entries). Issue #1959 replaced the `†`/`‡`
   // split + deposit-reduced glyphs with inline labels (see `inlineNote()`), but Issue #1965
   // restored legend population: `buildReportContent.ts` now pushes ONE deduplicated sentence per
-  // active flag (`isPartial` → "Amount shown reflects only the portion allocated to this source.",
+  // active flag (`isPartial` → "Amount shown reflects only the portion allocated to this funding source.",
   // `isDepositReduced` → the corresponding deposit-reduced sentence) whenever any row in the
   // report carries that flag. Scenarios with split or deposit-reduced rows must assert a positive
   // count; scenarios with neither (e.g., constituted-deposit-only rows — Scenario 17) correctly
@@ -722,7 +722,7 @@ export class ReportWizardPage {
     this.previewPartSelect = page.locator('#previewPart');
 
     // Story #1900: on-demand PDF preview modal.
-    this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF Preview' });
+    this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF preview' });
     this.pdfPreviewModalCloseButton = this.pdfPreviewModal.getByRole('button', {
       name: 'Close dialog',
     });
@@ -860,9 +860,9 @@ export class ReportWizardPage {
 
   /**
    * Triggers the footer's "Show more invoices" button without scrolling to it. A plain click
-   * scrolls the footer into the scroller's lookahead, which also fires the sentinel's
-   * IntersectionObserver; the auto-loaded batch then removes the button mid-click. The button's
-   * handler is what is under test here, so it is dispatched directly.
+   * scrolls the footer toward the sentinel, which also fires its IntersectionObserver, and the
+   * auto-loaded batch can remove the button mid-click. Specs that count batches also stub the
+   * observer (`reportWizardPresets.spec.ts`, `openPagedReport`).
    */
   async loadMoreInvoices(): Promise<void> {
     await this.invoicesLoadMoreButton.dispatchEvent('click');
@@ -1416,7 +1416,7 @@ export class ReportWizardPage {
    * badge CAN co-occur with an `inlineNote()` `(partial)` label when the invoice's own budget
    * lines are foreign to the reported source (`splitKind: 'lines'` — see Scenario 17 in
    * `reportWizardEditableContent.spec.ts`) — it is no longer guaranteed to be the row's ONLY
-   * annotation. `(less deposit)` still never co-occurs with the badge on the SAME source's own
+   * annotation. `(less part‑payment)` still never co-occurs with the badge on the SAME source's own
    * tagged deposit (that would require a foreign-tagged deposit, which is a different row shape).
    * Scoped to the row so it never collides with `mobileDepositBadge`'s copy
    * (both trees share the `depositBadge` class and are always in the DOM simultaneously, per
@@ -1458,7 +1458,7 @@ export class ReportWizardPage {
   /**
    * The grey inline note(s) (`[class*="inlineNote"]`) appended INSIDE a desktop row's Allocated
    * Amount cell by Issue #1959, which replaced the `†`/`‡` footnote markers: `(partial)` when
-   * `row.isPartial` and `(less deposit)` when `row.isDepositReduced`. Since Issue #1911 both flags
+   * `row.isPartial` and `(less part‑payment)` when `row.isDepositReduced`. Since Issue #1911 both flags
    * are driven purely by the server's `splitKind` (`'lines'`/`'both'` → `isPartial`;
    * `'deposits'`/`'both'` → `isDepositReduced`), independently of `row.isDeposit` (the
    * constituted-deposit badge trigger, unchanged) — a row CAN carry the `depositBadge` AND an
@@ -1515,13 +1515,13 @@ export class ReportWizardPage {
 
   // ─── Story #1900: discard-edits confirmation modal ──────────────────────────────────────────
 
-  /** "Discard and Continue" — clears all overrides then applies the originally-attempted change. */
+  /** "Discard and continue" — clears all overrides then applies the originally-attempted change. */
   async confirmDiscard(): Promise<void> {
     await this.discardConfirmDiscardButton.click();
     await this.discardConfirmModal.waitFor({ state: 'hidden' });
   }
 
-  /** "Keep Editing" — closes the modal without discarding anything or applying the change. */
+  /** "Keep editing" — closes the modal without discarding anything or applying the change. */
   async cancelDiscard(): Promise<void> {
     await this.discardConfirmKeepEditingButton.click();
     await this.discardConfirmModal.waitFor({ state: 'hidden' });
@@ -1539,13 +1539,13 @@ export class ReportWizardPage {
     await this.generateWithAiButton.click();
   }
 
-  /** "Overwrite and Generate" — closes the AI overwrite modal and runs the generation. */
+  /** "Overwrite and generate" — closes the AI overwrite modal and runs the generation. */
   async confirmAiOverwrite(): Promise<void> {
     await this.aiOverwriteAndGenerateButton.click();
     await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });
   }
 
-  /** "Keep Editing" — closes the AI overwrite modal WITHOUT ever calling generate-content. */
+  /** "Keep editing" — closes the AI overwrite modal WITHOUT ever calling generate-content. */
   async cancelAiOverwrite(): Promise<void> {
     await this.aiOverwriteKeepEditingButton.click();
     await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });

@@ -1070,6 +1070,7 @@ export function ReportWizardPage() {
                 </p>
                 <ReportInvoiceList
                   report={applyLineExclusions(report, excludedLineIds)}
+                  rawReport={report}
                   selection={selection}
                   excludedInvoiceIds={excludedInvoiceIds}
                   excludedLineIds={excludedLineIds}

@@ -654,7 +654,7 @@ test.describe('Report wizard expansion — deposit tagged to a zero-line source 
 
       // Items sub-table is empty — Source B genuinely has zero budget lines for this invoice.
       await expect(wizard.itemsSubTable(vendorName, invoice.invoiceNumber!)).toContainText(
-        'No budget lines for this invoice',
+        'No cost lines for this invoice',
       );
 
       // Deposits sub-table shows the one tagged deposit with a Source-B badge (not a plain
@@ -909,7 +909,7 @@ test.describe('Report wizard expansion — quotation invoice with a tagged uncla
       // contributes 0 to this claim slice and is filtered out server-side, even though the line
       // itself still exists.
       await expect(wizard.itemsSubTable(vendorName, invoice.invoiceNumber!)).toContainText(
-        'No budget lines for this invoice',
+        'No cost lines for this invoice',
       );
 
       // Deposits sub-table renders the tagged deposit unchanged (AC2: allocatedAmount and the
@@ -988,7 +988,7 @@ test.describe('Report wizard expansion — cross-source mark-claimed scope (Scen
 
       await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
       await expect(wizard.itemsSubTable(vendorName, invoice.invoiceNumber!)).toContainText(
-        'No budget lines for this invoice',
+        'No cost lines for this invoice',
       );
       const depositRowLocator = wizard
         .depositsSubTable(vendorName, invoice.invoiceNumber!)

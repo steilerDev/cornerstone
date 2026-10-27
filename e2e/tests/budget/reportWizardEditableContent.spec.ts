@@ -70,7 +70,7 @@
  *
  * Story #1923 (report table cleanup): inline deposit label, claim metadata suppression,
  * total-only summary, area in the Usage cell. Issue #1959 then REPLACED this story's `†`/`‡`
- * markers + footnote list with inline `(partial)`/`(less deposit)` labels in the Allocated Amount
+ * markers + footnote list with inline `(partial)`/`(less part‑payment)` labels in the Allocated Amount
  * cell, and merged the area sub-line and the (previously editable, separately-columned)
  * attachments note into ONE read-only grey meta line in the Usage cell. See `ReportWizardPage.ts`'s
  * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
@@ -98,15 +98,15 @@
  *   entirely at a DIFFERENT source) shows the inline "Deposit" badge on desktop, tablet, AND
  *   mobile (AC2.1, AC2.2) — and, since Issue #1911, ALSO the `(partial)` note and one footnote
  *   entry, because the invoice's lines are foreign to the reported source (`splitKind: 'lines'`).
- *   It still carries NO `(less deposit)` note (nor either legacy `†`/`‡` glyph): the deposit is
+ *   It still carries NO `(less part‑payment)` note (nor either legacy `†`/`‡` glyph): the deposit is
  *   tagged to the reported source itself, not a foreign one.
  * - Scenario 18: Every split invoice carries its OWN inline `(partial)` label in its Allocated
  *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker). The
  *   footnote list now contains exactly ONE deduplicated legend sentence ("Amount shown reflects
- *   only the portion allocated to this source.") pushed by `buildReportContent.ts` because
+ *   only the portion allocated to this funding source.") pushed by `buildReportContent.ts` because
  *   `splitInvoiceIds.size > 0` (Issue #1965). A sibling test at the end of this describe block is
  *   the Issue #1911 AC 3.2 regression guard: a split invoice with an UNTAGGED deposit must show
- *   `(partial)` but never `(less deposit)`.
+ *   `(partial)` but never `(less part‑payment)`.
  * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
  *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
  * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
@@ -683,11 +683,11 @@ test.describe('Report wizard editable content — per-field reset (Scenario 3)',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Discard-confirm modal — Keep Editing vs. Discard and Continue
+// Scenario 4: Discard-confirm modal — Keep editing vs. Discard and continue
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — discard-confirm modal (Scenario 4)', () => {
-  test('A guarded change while dirty shows the discard modal; "Keep Editing" preserves the edit and skips the change, "Discard and Continue" clears the edit and applies it', async ({
+  test('A guarded change while dirty shows the discard modal; "Keep editing" preserves the edit and skips the change, "Discard and continue" clears the edit and applies it', async ({
     page,
     testPrefix,
   }) => {
@@ -743,7 +743,7 @@ test.describe('Report wizard editable content — discard-confirm modal (Scenari
       await expect(wizard.discardConfirmModal).toBeVisible();
       await expect(checkboxA).toBeChecked();
 
-      // "Keep Editing" — closes the modal without applying the exclusion.
+      // "Keep editing" — closes the modal without applying the exclusion.
       await wizard.cancelDiscard();
       await expect(wizard.discardConfirmModal).not.toBeVisible();
       await expect(checkboxA).toBeChecked();
@@ -1500,7 +1500,7 @@ test.describe('Report wizard editable content — report-language guard (Scenari
       await expect(wizard.reportLanguageRadio('en')).toBeChecked();
       await expect(wizard.reportLanguageRadio('de')).not.toBeChecked();
 
-      // "Keep Editing" — closes the modal without applying the language change.
+      // "Keep editing" — closes the modal without applying the language change.
       await wizard.cancelDiscard();
       await expect(wizard.discardConfirmModal).not.toBeVisible();
       await expect(wizard.reportLanguageRadio('en')).toBeChecked();
@@ -1585,7 +1585,7 @@ test.describe('Report wizard editable content — claim reports omit the metadat
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 17: Constituted-deposit row shows the inline Deposit badge, a "(partial)" note (the
-// invoice's own budget lines are foreign to the reported source), and no "(less deposit)" note
+// invoice's own budget lines are foreign to the reported source), and no "(less part‑payment)" note
 // (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959; `(partial)` addition + rationale
 // per Issue #1911's splitKind-driven derivation)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1594,7 +1594,7 @@ test.describe(
   'Report wizard editable content — inline deposit badge (Scenario 17)',
   { tag: '@responsive' },
   () => {
-    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and a "(partial)" note (its own budget lines are foreign to this source), but no "(less deposit)" note, with one footnote entry, on desktop, tablet, and mobile', async ({
+    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and a "(partial)" note (its own budget lines are foreign to this source), but no "(less part‑payment)" note, with one footnote entry, on desktop, tablet, and mobile', async ({
       page,
       testPrefix,
     }) => {
@@ -1646,7 +1646,7 @@ test.describe(
         // `has_foreign_deposit_source` is false and `splitKind` cannot be 'deposits'/'both'.
         // Net effect: BOTH the "Deposit" badge AND the `(partial)` note render on this row — the
         // old code's implicit either/or between "constituted" and "split" is gone — but never
-        // `(less deposit)`.
+        // `(less part‑payment)`.
         await reachStep5(wizard, sourceBId);
 
         const vendorName = `${testPrefix} Deposit Vendor`;
@@ -1658,14 +1658,14 @@ test.describe(
           await expect(card).toBeVisible();
           const badge = wizard.mobileDepositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
-          await expect(badge).toHaveText('Deposit');
+          await expect(badge).toHaveText('Progress\u2011payment');
           // The badge co-occurs with exactly one inline note: `(partial)` (Issue #1911 AC 3.1),
-          // never `(less deposit)`, and — belt and braces — neither legacy glyph.
+          // never `(less part‑payment)`, and — belt and braces — neither legacy glyph.
           const mobileNote = wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!);
           await expect(mobileNote).toHaveCount(1);
           await expect(mobileNote).toHaveText('(partial)');
           const cardText = (await card.textContent()) ?? '';
-          expect(cardText).not.toContain('less deposit');
+          expect(cardText).not.toMatch(/less\spart\u2011payment/);
           expect(cardText).not.toContain('†');
           expect(cardText).not.toContain('‡');
         } else {
@@ -1674,12 +1674,12 @@ test.describe(
           await expect(row).toBeVisible();
           const badge = wizard.depositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
-          await expect(badge).toHaveText('Deposit');
+          await expect(badge).toHaveText('Progress\u2011payment');
           const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
           await expect(note).toHaveCount(1);
           await expect(note).toHaveText('(partial)');
           const rowText = (await row.textContent()) ?? '';
-          expect(rowText).not.toContain('less deposit');
+          expect(rowText).not.toMatch(/less\spart\u2011payment/);
           expect(rowText).not.toContain('†');
           expect(rowText).not.toContain('‡');
         }
@@ -1692,7 +1692,7 @@ test.describe(
         await expect(wizard.footnotesBlock).toHaveCount(1);
         await expect(wizard.footnoteItems).toHaveCount(1);
         await expect(wizard.footnoteItems.nth(0)).toContainText(
-          'Amount shown reflects only the portion allocated to this source.',
+          'Amount shown reflects only the portion allocated to this funding source.',
         );
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -1706,12 +1706,12 @@ test.describe(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 18: Split invoices carry an inline "(partial)" label; deposit-reduced invoices
-// carry a "(less deposit)" label; together they produce two deduplicated legend entries in
+// carry a "(less part‑payment)" label; together they produce two deduplicated legend entries in
 // the footnotes block (Issue #1965, AC5 Issue #1980)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — inline split and deposit-reduced labels (Scenario 18)', () => {
-  test('Two split invoices show a "(partial)" note each, a third invoice (split + deposit-reduced) shows both "(partial)" and "(less deposit)" notes, and two deduplicated legend sentences appear in the footnotes block', async ({
+  test('Two split invoices show a "(partial)" note each, a third invoice (split + deposit-reduced) shows both "(partial)" and "(less part‑payment)" notes, and two deduplicated legend sentences appear in the footnotes block', async ({
     page,
     testPrefix,
   }) => {
@@ -1810,7 +1810,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       await expect(row2).toContainText('€150.00 (partial)');
 
       // invoice3 is BOTH split AND deposit-reduced — two `[class*="inlineNote"]` spans appear in
-      // its Allocated Amount cell: one `(partial)` and one `(less deposit)`. This is the
+      // its Allocated Amount cell: one `(partial)` and one `(less part‑payment)`. This is the
       // real-browser proof that `isDepositReduced` is computed and rendered correctly (AC5 —
       // Issue #1980).
       const note3 = wizard.inlineNote(vendorName, invoice3.invoiceNumber!);
@@ -1826,7 +1826,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       // separately" is a TRUE statement here — contrast the untagged case in the sibling guard
       // below, where the same residual math nets back to the full amount.
       await expect(row3).toContainText('€56.25 (partial)');
-      await expect(row3).toContainText('(less deposit)');
+      await expect(row3).toContainText('(less part‑payment)');
 
       // Negatives, each paired with the positives above: neither legacy footnote glyph survives
       // anywhere in the row (numbered or not).
@@ -1849,7 +1849,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
 
       // First legend entry: split sentence (Issue #1965, `sourceReports.table.splitFootnote`).
       await expect(wizard.footnoteItems.nth(0)).toContainText(
-        'Amount shown reflects only the portion allocated to this source.',
+        'Amount shown reflects only the portion allocated to this funding source.',
       );
       // Second legend entry: deposit-reduced sentence — first real-browser assertion of the
       // `isDepositReduced` path (`sourceReports.table.depositReducedFootnote`, AC5 Issue #1980).
@@ -1858,12 +1858,12 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       );
       // The inline labels from the table rows must also still be present.
       // `(partial)` uses a plain space — safe to compare via raw textContent().
-      // `(less deposit)` contains U+00A0 (non-breaking space) in `depositReducedInlineLabel`
+      // `(less part‑payment)` contains U+00A0 (non-breaking space) in `depositReducedInlineLabel`
       // (pinned by i18n.parity.test.ts) — textContent() returns it verbatim, so a plain-space
       // string comparison would fail. Use toContainText() which normalizes whitespace.
       const pageText = (await page.locator('main').textContent()) ?? '';
       expect(pageText).toContain('(partial)');
-      await expect(page.locator('main')).toContainText('(less deposit)');
+      await expect(page.locator('main')).toContainText('(less part‑payment)');
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
@@ -1876,7 +1876,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
   // Issue #1911 AC 3.2 regression guard (the over-inclusive-fix direction): a split invoice
   // carrying an UNTAGGED deposit must show "(partial)" — the invoice's lines genuinely span two
   // sources, so `splitKind: 'lines'` and `isPartial` fires normally — but must NEVER show
-  // "(less deposit)", and must contribute exactly ONE legend entry. Before #1911,
+  // "(less part‑payment)", and must contribute exactly ONE legend entry. Before #1911,
   // `isDepositReduced` fired on ANY untagged deposit sharing an invoice with a split line,
   // producing a false "claimed separately" legend sentence for a deposit that
   // `depositAggregateUtils.ts`'s residual-fraction apportionment actually folds pro-rata back
@@ -1888,7 +1888,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
   // `footnoteItems` can assert count 1 cleanly — the scenario above always has 2 (split +
   // deposit-reduced) for unrelated reasons. Positive control: the `(partial)` note AND the split
   // footnote sentence both render, proving this isn't passing against a blank/mis-seeded page.
-  test('A split invoice carrying an untagged deposit shows only the "(partial)" note — never "(less deposit)" — and contributes exactly one legend entry', async ({
+  test('A split invoice carrying an untagged deposit shows only the "(partial)" note — never "(less part‑payment)" — and contributes exactly one legend entry', async ({
     page,
     testPrefix,
   }) => {
@@ -1959,13 +1959,13 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       // The regression guard itself: no second inline note, specifically not the deposit-reduced
       // label (the untagged deposit must not read as "claimed separately").
       const rowText = (await row.textContent()) ?? '';
-      expect(rowText).not.toContain('less deposit');
+      expect(rowText).not.toMatch(/less\spart\u2011payment/);
 
       // Exactly one legend entry (the split sentence) — never a second deposit-reduced entry.
       await expect(wizard.footnotesBlock).toHaveCount(1);
       await expect(wizard.footnoteItems).toHaveCount(1);
       await expect(wizard.footnoteItems.nth(0)).toContainText(
-        'Amount shown reflects only the portion allocated to this source.',
+        'Amount shown reflects only the portion allocated to this funding source.',
       );
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
@@ -2024,7 +2024,7 @@ test.describe('Report wizard editable content — total-only summary (Scenario 1
       const summaryText = (await wizard.summaryTable.textContent()) ?? '';
       expect(summaryText).not.toContain('Subtotal');
       expect(summaryText).not.toContain('Outstanding');
-      expect(summaryText).not.toContain('Quotation');
+      expect(summaryText).not.toContain('Offer');
       expect(summaryText).not.toContain('Claimed');
       expect(summaryText).not.toContain('Submitted');
     } finally {
@@ -2524,12 +2524,12 @@ test.describe('Report wizard editable content — signature field reset (Scenari
 test.describe('Report wizard editable content — column-visibility toggles reach the PDF (Scenario 28, Issue #1973)', () => {
   // toggleable columns for budget-overview in insertion order (matches component source)
   const OVERVIEW_COLUMNS = [
-    'Vendor',
+    'Company',
     'Invoice No.',
     'Date',
     'Status',
-    'Invoice Amount',
-    'Allocated Amount',
+    'Invoice amount',
+    'Allocated amount',
     'Usage',
   ] as const;
   const OVERVIEW_COLUMN_COUNT = OVERVIEW_COLUMNS.length; // 7
@@ -2605,7 +2605,7 @@ test.describe('Report wizard editable content — column-visibility toggles reac
       // AC1 requires asserting BOTH the <th> and the matching <td> are absent.
       // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…` and
       // `show('vendor') && <td>…`), so both are removed from the DOM entirely when hidden.
-      const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
+      const vendorHeader = page.getByRole('columnheader', { name: 'Company', exact: true });
       const vendorCell = page.getByRole('cell', {
         name: `${testPrefix} Toggle Vendor`,
         exact: true,
@@ -2615,14 +2615,14 @@ test.describe('Report wizard editable content — column-visibility toggles reac
       await expect(vendorHeader).toHaveCount(1);
       await expect(vendorCell).toHaveCount(1);
 
-      await columnGroup.getByLabel('Vendor').uncheck();
-      await expect(columnGroup.getByLabel('Vendor')).not.toBeChecked();
+      await columnGroup.getByLabel('Company').uncheck();
+      await expect(columnGroup.getByLabel('Company')).not.toBeChecked();
       await expect(vendorHeader).toHaveCount(0);
       await expect(vendorCell).toHaveCount(0);
 
       // ── Toggle back on: both column header and data cell return ──
-      await columnGroup.getByLabel('Vendor').check();
-      await expect(columnGroup.getByLabel('Vendor')).toBeChecked();
+      await columnGroup.getByLabel('Company').check();
+      await expect(columnGroup.getByLabel('Company')).toBeChecked();
       await expect(vendorHeader).toHaveCount(1);
       await expect(vendorCell).toHaveCount(1);
 
@@ -2760,7 +2760,7 @@ test.describe(
 
         await reachStep5(wizard, sourceId, 'claim');
 
-        const allocatedCheckbox = wizard.columnToggleGroup.getByLabel('Allocated Amount');
+        const allocatedCheckbox = wizard.columnToggleGroup.getByLabel('Allocated amount');
         await expect(allocatedCheckbox).toBeVisible();
         await expect(allocatedCheckbox).toBeDisabled();
         await expect(allocatedCheckbox).toBeChecked();
@@ -2904,8 +2904,8 @@ test.describe(
 
         await reachStep5(wizard, sourceId, 'claim');
         await expect(wizard.columnToggleGroup.getByRole('checkbox')).toHaveCount(6);
-        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
-        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+        await wizard.columnToggleGroup.getByLabel('Company').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Company')).not.toBeChecked();
 
         // Walk all the way back to step 1 (5 -> 4 -> 3 -> 2 -> 1).
         await wizard.goBack();
@@ -2986,8 +2986,8 @@ test.describe(
         await wizard.goNextFromStep3();
         await wizard.goNextFromStep4();
 
-        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
-        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+        await wizard.columnToggleGroup.getByLabel('Company').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Company')).not.toBeChecked();
 
         // Reload the same URL (still carrying ?sourceId=) and re-walk the deep-link flow.
         await page.reload();

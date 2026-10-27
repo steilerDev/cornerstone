@@ -79,12 +79,13 @@ type ListProps = React.ComponentProps<typeof ReportInvoiceListType>;
 
 /** Test harness: derives the selection (#2243 D2) from the raw report like the wizard does. */
 function ReportInvoiceList(
-  props: Omit<ListProps, 'selection' | 'onToggleInvoices' | 'onBack'> &
-    Partial<Pick<ListProps, 'selection' | 'onToggleInvoices' | 'onBack'>>,
+  props: Omit<ListProps, 'selection' | 'onToggleInvoices' | 'onBack' | 'rawReport'> &
+    Partial<Pick<ListProps, 'selection' | 'onToggleInvoices' | 'onBack' | 'rawReport'>>,
 ) {
   return (
     <RealReportInvoiceList
       selection={reportSelection(props.report, props.excludedInvoiceIds, props.excludedLineIds)}
+      rawReport={props.report}
       onToggleInvoices={() => {}}
       onBack={() => {}}
       {...props}

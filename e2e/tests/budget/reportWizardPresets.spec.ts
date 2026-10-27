@@ -234,10 +234,26 @@ test.describe('Bank report: step 3 groups and paging (A3)', { tag: '@responsive'
       ...Array.from({ length: 14 }, (_, i) => buildReportInvoice(i + 1, alpha.id, alpha.name, 100)),
       ...Array.from({ length: 13 }, (_, i) => buildReportInvoice(i + 1, beta.id, beta.name, 50)),
     ];
-    // A short viewport keeps the footer's sentinel outside the 600 px lookahead, so the first
-    // batch is exactly 25 rows and the batch button (not the observer) loads the rest.
-    const viewport = page.viewportSize();
-    if (viewport) await page.setViewportSize({ width: viewport.width, height: 700 });
+    // The footer's IntersectionObserver auto-loads the next batch (CI run 40598989544: all 27
+    // rows were there at once, whatever the viewport height; an initial observation made while
+    // the list was still empty can arrive after the first batch rendered). The scenarios below
+    // are about the batch button and the unloaded rows, so the observer is replaced by one that
+    // never fires and only "Show more invoices" loads a batch.
+    await page.addInitScript(() => {
+      class SilentObserver {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+        takeRecords(): IntersectionObserverEntry[] {
+          return [];
+        }
+      }
+      Object.defineProperty(window, 'IntersectionObserver', {
+        configurable: true,
+        writable: true,
+        value: SilentObserver,
+      });
+    });
     await mockBudgetSources(page, [loan]);
     await mockSourceReports(page, [loan], (type, source) =>
       buildSourceReport(type, source, invoices),

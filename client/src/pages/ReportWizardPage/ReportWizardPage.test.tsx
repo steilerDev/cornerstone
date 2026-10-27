@@ -574,7 +574,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      expect(screen.getByRole('heading', { level: 3, name: 'Report Table' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Report table' })).toBeInTheDocument();
     });
   });
 
@@ -665,7 +665,7 @@ describe('ReportWizardPage', () => {
       await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
       await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
-      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }));
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
       // The exclusion checkbox itself: still checked, since the guarded change never committed.
@@ -686,7 +686,7 @@ describe('ReportWizardPage', () => {
       await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
       await user.click(screen.getByRole('checkbox', { name: /ACME.*INV-/ }));
 
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
       expect(screen.getByRole('checkbox', { name: /ACME.*INV-/ })).not.toBeChecked();
@@ -738,7 +738,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByLabelText('Include cover letter'));
 
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
       expect(screen.getByLabelText('Include cover letter')).toBeChecked();
     });
 
@@ -757,7 +757,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
 
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
       expect(screen.getByLabelText('Attach invoice PDFs')).not.toBeChecked();
     });
 
@@ -779,7 +779,7 @@ describe('ReportWizardPage', () => {
       // The radio itself: still on the prior selection, since the guarded change never committed.
       expect(screen.getByLabelText('English')).toBeChecked();
 
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
       expect(screen.getByLabelText('Deutsch')).toBeChecked();
     });
 
@@ -973,7 +973,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getAllByRole('radio')[1]!); // pick a different use case
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      await user.click(screen.getByRole('button', { name: 'Discard and continue' }));
 
       await clickNext(user); // step 1 -> 2
       await waitFor(() => screen.getAllByRole('radio').length > 0);
@@ -1001,7 +1001,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getAllByRole('radio')[1]!); // attempt a different use case
       expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }));
       expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
 
       // The pending use-case change never applied: the original ('claim', index 0) radio is still
@@ -1334,7 +1334,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
 
       await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
-      expect(screen.getByText('PDF Preview')).toBeInTheDocument();
+      expect(screen.getByText('PDF preview')).toBeInTheDocument();
     });
 
     it('opens the PDF preview modal IMMEDIATELY on click, showing a loading state before generation resolves (regression guard — previously the modal only opened after a successful generation)', async () => {
@@ -1353,7 +1353,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
 
       // Modal is open BEFORE generation resolves: shows the loading text, no iframe yet.
-      expect(screen.getByRole('dialog', { name: 'PDF Preview' })).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'PDF preview' })).toBeInTheDocument();
       expect(screen.getByText('Generating preview…')).toBeInTheDocument();
       expect(document.querySelector('iframe')).not.toBeInTheDocument();
 
@@ -1435,7 +1435,7 @@ describe('ReportWizardPage', () => {
         await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
 
         await waitFor(() => {
-          expect(screen.getByRole('dialog', { name: 'PDF Preview' })).toBeInTheDocument();
+          expect(screen.getByRole('dialog', { name: 'PDF preview' })).toBeInTheDocument();
         });
         expect(screen.getByText('PDF generation failed')).toBeInTheDocument();
         // The edit itself survives the failed generation attempt — overrides are never cleared by
@@ -1505,7 +1505,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user); // default useCase -> 'claim'
 
-      await user.click(within(columnToggleGroup()).getByLabelText('Vendor'));
+      await user.click(within(columnToggleGroup()).getByLabelText('Company'));
       await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
 
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
@@ -1536,7 +1536,7 @@ describe('ReportWizardPage', () => {
       });
       globalThis.fetch = fetchSpy;
       try {
-        for (const label of ['Vendor', 'Invoice No.', 'Usage']) {
+        for (const label of ['Company', 'Invoice No.', 'Usage']) {
           await user.click(within(columnToggleGroup()).getByLabelText(label));
         }
 
@@ -1556,7 +1556,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user, 0); // 'claim'
 
-      const vendorBox = within(columnToggleGroup()).getByLabelText('Vendor') as HTMLInputElement;
+      const vendorBox = within(columnToggleGroup()).getByLabelText('Company') as HTMLInputElement;
       await user.click(vendorBox);
       expect(vendorBox).not.toBeChecked();
 
@@ -1841,7 +1841,7 @@ describe('ReportWizardPage', () => {
           screen.getAllByText('ACME (INV-001) — Document could not be retrieved').length,
         ).toBeGreaterThanOrEqual(1);
       });
-      const dialog = screen.getByRole('dialog', { name: 'PDF Preview' });
+      const dialog = screen.getByRole('dialog', { name: 'PDF preview' });
       const pageLevelNote = screen
         .getAllByText('ACME (INV-001) — Document could not be retrieved')
         .find((el) => !dialog.contains(el));
@@ -1874,7 +1874,7 @@ describe('ReportWizardPage', () => {
         await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
         await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
 
-        const modal = screen.getByRole('dialog', { name: 'PDF Preview' });
+        const modal = screen.getByRole('dialog', { name: 'PDF preview' });
         expect(
           within(modal).getByText('ACME (INV-001) — Document could not be retrieved'),
         ).toBeInTheDocument();
