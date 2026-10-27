@@ -10,6 +10,7 @@ import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { CostLineTable, focusVisibleSplit } from './CostLineTable.js';
 import type { CostLineSplitHandle, CostLineTableProps } from './CostLineTable.js';
+import { groupForDocument } from './costLineRows.js';
 import type { CostLineGroup, CostLineRow } from './types.js';
 
 function makeRow(overrides: Partial<CostLineRow> = {}): CostLineRow {
@@ -251,23 +252,55 @@ describe('CostLineTable document mode', () => {
   function renderDoc(props: Partial<CostLineTableProps> = {}) {
     return renderTable({
       mode: 'document',
-      groups: [group('doc', docRows)],
+      groups: groupForDocument(docRows),
       remainingAmount: 0,
       documentKind: 'invoice',
       ...props,
     });
   }
 
-  it('adds Entered as and Belongs to columns, with Net and Gross badges', () => {
+  it('S9: adds an Entered as column but no Belongs to column, with Net and Gross badges', () => {
     renderDoc();
     const table = screen.getByRole('table');
     expect(within(table).getByRole('columnheader', { name: 'Entered as' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Belongs to' })).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'Belongs to' })).toBeNull();
+    // 5 data columns + actions: item mode has one fewer (no Entered as)
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(6);
+    expect(screen.getByTestId('cost-lines-row-d1').querySelectorAll('td')).toHaveLength(6);
     expect(within(screen.getByTestId('cost-lines-row-d1')).getByText('Net')).toBeInTheDocument();
     expect(within(screen.getByTestId('cost-lines-row-d2')).getByText('Gross')).toBeInTheDocument();
   });
 
-  it('links Belongs to with the origin state and marks unassigned lines', () => {
+  it('S9: one group per task or purchase, the unassigned lines last, each heading with its total', () => {
+    const { container } = renderDoc();
+    const heads = ['target-work_item-task-1', 'target-household_item-buy-1', 'unassigned'].map(
+      (id) => screen.getByTestId(`cost-lines-group-${id}`),
+    );
+    // DOM order is first appearance, unassigned last
+    for (let i = 0; i < heads.length - 1; i += 1) {
+      expect(
+        heads[i]!.compareDocumentPosition(heads[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    expect(heads[0]).toHaveTextContent('Hallway tiling');
+    expect(heads[0]).toHaveTextContent('€119.00');
+    expect(heads[2]).toHaveTextContent('Not assigned');
+    expect(heads[0]).toHaveAttribute('colspan', '6');
+    // the mobile cards carry their own heading ids
+    expect(screen.getByTestId('cost-lines-group-mobile-unassigned')).toHaveTextContent(
+      'Not assigned',
+    );
+    expect(findDuplicateTestIds(container)).toEqual([]);
+  });
+
+  it('S9: item mode keeps five columns and no target group heading', () => {
+    renderTable({ groups: [ESTIMATES] });
+    const table = screen.getByRole('table');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
+    expect(screen.queryByTestId('cost-lines-group-estimates')).not.toBeNull();
+  });
+
+  it('links the group heading target with the origin state and marks unassigned lines', () => {
     renderDoc({ linkState: { from: '/budget/invoices/x' } as never });
     const table = screen.getByRole('table');
     expect(within(table).getByRole('link', { name: 'Hallway tiling' })).toHaveAttribute(
@@ -285,7 +318,7 @@ describe('CostLineTable document mode', () => {
     const row = makeRow({
       target: { type: 'household_item', id: 'buy-9', label: 'Spare tiles' },
     });
-    renderDoc({ groups: [group('doc', [row])] });
+    renderDoc({ groups: groupForDocument([row]) });
     expect(screen.getAllByText('No area')).toHaveLength(2);
   });
 
@@ -324,7 +357,7 @@ describe('CostLineTable document mode', () => {
         } as never,
       },
     });
-    renderDoc({ groups: [group('doc', [row])] });
+    renderDoc({ groups: groupForDocument([row]) });
     expect(screen.getAllByText(/Kitchen/).length).toBeGreaterThan(0);
   });
 

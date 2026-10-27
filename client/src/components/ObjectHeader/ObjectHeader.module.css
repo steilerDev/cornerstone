@@ -13,6 +13,21 @@
   row-gap: var(--spacing-2);
 }
 
+.titleBlock {
+  min-width: 0;
+}
+
+.description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  margin: var(--spacing-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 .title {
   margin: 0;
   min-width: 0;
@@ -75,9 +90,14 @@
     grid-auto-flow: row;
   }
 
-  .title {
+  .titleBlock {
     grid-column: 1 / 3;
     grid-row: 1;
+  }
+
+  .description {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .menu {
@@ -134,8 +154,15 @@
     color-scheme: light;
   }
 
-  .title {
+  .title,
+  .description {
     color: CanvasText;
+  }
+
+  .description {
+    display: block;
+    -webkit-line-clamp: none;
+    line-clamp: none;
   }
 
   .secondary,

@@ -307,11 +307,6 @@
   font-size: var(--font-size-sm);
 }
 
-.cardTarget {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 .cardNotice {
   margin-top: var(--spacing-3);
   border: 1px solid var(--color-border);

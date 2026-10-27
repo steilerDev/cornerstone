@@ -162,6 +162,7 @@ function Host(props: HostProps) {
         {...(props.headingLevel ? { headingLevel: props.headingLevel } : {})}
         {...(props.loadError !== undefined ? { loadError: props.loadError } : {})}
         {...(props.onRetry ? { onRetry: props.onRetry } : {})}
+        {...(props.count !== undefined ? { count: props.count } : {})}
         {...(props.action ? { action: props.action } : {})}
         {...(props.onEdit ? { onEdit: props.onEdit } : {})}
         {...(props.collapsedLimit ? { collapsedLimit: props.collapsedLimit } : {})}
@@ -245,6 +246,29 @@ beforeEach(async () => {
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('RelatedList: count override (#2239)', () => {
+  it('shows the given count instead of the number of rows in the heading', () => {
+    renderHost({ initialRows: makeRows(3), count: 2 });
+    expect(screen.getByRole('heading', { name: 'Things (2)' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Things (3)' })).toBeNull();
+  });
+
+  it('accepts a count of 0 (a derived row that is not an item)', () => {
+    renderHost({ initialRows: makeRows(1), count: 0 });
+    expect(screen.getByRole('heading', { name: 'Things (0)' })).toBeInTheDocument();
+  });
+
+  it('shows no count while loading', () => {
+    renderHost({ initialRows: null, count: 5 });
+    expect(screen.getByRole('heading', { name: 'Things' })).toBeInTheDocument();
+  });
+
+  it('shows no count on a load error', () => {
+    renderHost({ loadError: 'Could not load things.', count: 5 });
+    expect(screen.getByRole('heading', { name: 'Things' })).toBeInTheDocument();
+  });
+});
 
 describe('RelatedList: one fixture per relation', () => {
   it.each(RELATIONS)(

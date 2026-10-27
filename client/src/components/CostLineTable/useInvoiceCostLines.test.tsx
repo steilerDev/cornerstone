@@ -45,6 +45,18 @@ describe('useInvoiceCostLines', () => {
     expect(result.current.remainingAmount).toBe(12.5);
     expect(result.current.error).toBeNull();
     await waitFor(() => expect(result.current.sources.get('s1')).toBe('Savings'));
+    // #2239: the fetched sources are exposed as-is, and the Map is derived from them
+    expect(result.current.budgetSources).toEqual([{ id: 's1', name: 'Savings' }]);
+  });
+
+  it('exposes no budget sources while loading and when the sources request fails', async () => {
+    mockFetchSources.mockRejectedValue(new Error('offline'));
+    mockFetchLines.mockResolvedValue({ budgetLines: [LINE], remainingAmount: 0 });
+    const { result } = renderHook(() => useInvoiceCostLines('inv-1'));
+    expect(result.current.budgetSources).toEqual([]);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.budgetSources).toEqual([]);
+    expect(result.current.sources.size).toBe(0);
   });
 
   it('translates an API failure and recovers on reload', async () => {

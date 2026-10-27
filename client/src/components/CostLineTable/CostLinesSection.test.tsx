@@ -877,6 +877,48 @@ describe('CostLinesSection document host', () => {
     expect(screen.getAllByText(/Kitchen/).length).toBeGreaterThan(0);
   });
 
+  describe('with the page controller (documentLines, #2239)', () => {
+    function controller(over: Record<string, unknown> = {}) {
+      return {
+        lines: DOC_LINES,
+        remainingAmount: 0,
+        sources: new Map<string, string>(),
+        budgetSources: [],
+        loading: false,
+        error: null,
+        reload: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        ...over,
+      } as never;
+    }
+
+    it('renders the given lines and does not fetch its own', async () => {
+      renderSection({ host: DOC_HOST, documentLines: controller() });
+      expect(await screen.findByTestId('cost-lines-row-wb-d1')).toBeInTheDocument();
+      expect(mockFetchInvoiceBudgetLines).not.toHaveBeenCalled();
+      expect(mockFetchBudgetSources).not.toHaveBeenCalled();
+      // grouped by task, the unassigned line last
+      expect(screen.getByTestId('cost-lines-group-target-work_item-w1')).toBeInTheDocument();
+      expect(screen.getByTestId('cost-lines-group-unassigned')).toBeInTheDocument();
+    });
+
+    it('reloads the page controller (not a private copy) after a grid save, then reports the change', async () => {
+      const given = controller({ remainingAmount: 300 });
+      const user = userEvent.setup();
+      renderSection({ host: DOC_HOST, documentLines: given });
+      await screen.findByTestId('cost-lines-row-wb-d1');
+      await user.click(screen.getByTestId('cost-lines-add-grid'));
+      await user.click(screen.getByText('grid-save-three'));
+      await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+      expect((given as unknown as { reload: jest.Mock }).reload).toHaveBeenCalledTimes(1);
+      expect(mockFetchInvoiceBudgetLines).not.toHaveBeenCalled();
+    });
+
+    it('shows the controller load error', async () => {
+      renderSection({ host: DOC_HOST, documentLines: controller({ lines: [], error: 'Boom' }) });
+      expect(await screen.findByText('Boom')).toBeInTheDocument();
+    });
+  });
+
   it('a load error shows translated text and Retry reloads', async () => {
     mockFetchInvoiceBudgetLines.mockRejectedValueOnce(
       new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'db exploded' }),

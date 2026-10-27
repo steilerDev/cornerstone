@@ -5,7 +5,7 @@
  * The Documents panel ("Documents (n)" trigger + side sheet / full-screen sheet) is hosted by:
  *   - Task detail page (/project/work-items/:id)             trigger documents-panel-button
  *   - Purchase detail page (/project/household-items/:id)    trigger documents-panel-button
- *   - Invoice detail page (/budget/invoices/:id)             trigger documents-panel-button
+ *   - Invoice detail page (/budget/invoices/:id)             trigger summary-fact-documents (strip fact, value = count)
  *   - Funding source row (/budget/sources)                   trigger source-docs-<id>
  *   - Grant row (/budget/subsidies)                          trigger program-docs-<id>
  *
@@ -118,6 +118,8 @@ interface Host {
   readonly triggerTestId: (id: string) => string;
   /** Pattern for "no trigger of this host" assertions. */
   readonly triggerPattern: RegExp;
+  /** What the trigger shows for `count` links (the invoice strip fact shows the bare count). */
+  readonly triggerText: (count: number) => string;
   /** Creates the record; returns its id and a cleanup. */
   readonly create: (
     page: Page,
@@ -133,6 +135,7 @@ const HOSTS: readonly Host[] = [
     entityType: 'work_item',
     triggerTestId: () => 'documents-panel-button',
     triggerPattern: /^documents-panel-button$/,
+    triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createWorkItemViaApi(page, { title: `${prefix} Docs Host Task` });
       return { id, cleanup: () => deleteWorkItemViaApi(page, id) };
@@ -146,6 +149,7 @@ const HOSTS: readonly Host[] = [
     entityType: 'household_item',
     triggerTestId: () => 'documents-panel-button',
     triggerPattern: /^documents-panel-button$/,
+    triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createHouseholdItemViaApi(page, { name: `${prefix} Docs Host Purchase` });
       return { id, cleanup: () => deleteHouseholdItemViaApi(page, id) };
@@ -157,8 +161,9 @@ const HOSTS: readonly Host[] = [
   {
     label: 'Invoice',
     entityType: 'invoice',
-    triggerTestId: () => 'documents-panel-button',
-    triggerPattern: /^documents-panel-button$/,
+    triggerTestId: () => 'summary-fact-documents',
+    triggerPattern: /^summary-fact-documents$/,
+    triggerText: (count) => `${count}`,
     create: async (page, prefix) => {
       const ids = await createVendorAndInvoiceViaApi(page, prefix);
       return { id: ids.invoiceId, cleanup: () => deleteVendorViaApi(page, ids.vendorId) };
@@ -172,6 +177,7 @@ const HOSTS: readonly Host[] = [
     entityType: 'budget_source',
     triggerTestId: (id) => `source-docs-${id}`,
     triggerPattern: /^source-docs-/,
+    triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createBudgetSourceViaApi(page, {
         name: `${prefix} Docs Host Source`,
@@ -190,6 +196,7 @@ const HOSTS: readonly Host[] = [
     entityType: 'subsidy_program',
     triggerTestId: (id) => `program-docs-${id}`,
     triggerPattern: /^program-docs-/,
+    triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createSubsidyProgramViaApi(page, {
         name: `${prefix} Docs Host Grant`,
@@ -238,7 +245,7 @@ for (const host of HOSTS) {
 
         const trigger = panel.button(host.triggerTestId(id));
         await expect(trigger).toBeVisible();
-        await expect(trigger).toContainText('Documents (2)');
+        await expect(trigger).toContainText(host.triggerText(2));
         await panel.open(host.triggerTestId(id));
 
         await expect(panel.title).toHaveText('Documents (2)');
@@ -270,7 +277,7 @@ for (const host of HOSTS) {
 
         const trigger = panel.button(host.triggerTestId(id));
         await expect(trigger).toBeVisible();
-        await expect(trigger).toHaveText('Documents (0)');
+        await expect(trigger).toHaveText(host.triggerText(0));
         await panel.open(host.triggerTestId(id));
 
         await expect(panel.title).toHaveText('Documents (0)');
@@ -1311,6 +1318,9 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
               vendor: { id: vendorId, name: vendorName },
               deposits: [],
               finalPaymentAmount: 500,
+              paid: 0,
+              openAmount: 500,
+              notYetSplit: false,
               createdBy: null,
               createdAt: '2026-06-15T00:00:00.000Z',
               updatedAt: '2026-06-15T00:00:00.000Z',

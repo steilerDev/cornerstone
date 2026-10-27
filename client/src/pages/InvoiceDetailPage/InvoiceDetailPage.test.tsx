@@ -1,215 +1,72 @@
 /**
  * @jest-environment jsdom
+ *
+ * The offer and invoice page (#2239). Module boundaries: the API client functions, the conversion
+ * hook and its dialogs, the cost line section, the Documents host and the edit dialog (each has
+ * its own test). The header, summary strip, tabs, Payments and History panels are real.
+ *
+ * Mutations these tests catch (each assertion below fails when the named change is made):
+ *  - D-07: rendering the chip as a bare span instead of the shared Badge, or an Offer chip;
+ *  - offer primary other than Convert, or a secondary on an offer;
+ *  - bank report `sourceId` sent with zero or several sources;
+ *  - `?payment=` ignored without `?tab=`: the Payments tab would not be selected;
+ *  - the delete navigating with push instead of replace.
  */
-import { useEffect } from 'react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import type { InvoiceDetail, UndoToken } from '@cornerstone/shared';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
-import type {
-  AppConfigResponse,
-  Invoice,
-  InvoiceDeposit,
-  PaperlessStatusResponse,
-  Vendor,
-} from '@cornerstone/shared';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
-import enCommon from '../../i18n/en/common.json';
-import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
-import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
-import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
-import type * as ConfigApiTypes from '../../lib/configApi.js';
-import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
-import userEvent from '@testing-library/user-event';
-import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { installMatchMedia } from '../../test/matchMediaControl.js';
-import type { MatchMediaControl } from '../../test/matchMediaControl.js';
-import type * as ProviderTypes from '../../objectForms/CompanyCreateProvider.js';
-import { CompanyCreateContext } from '../../objectForms/companyCreateContext.js';
-import type { RequestCompanyCreate } from '../../objectForms/companyCreateContext.js';
-import type { CompanyOption } from '../../objectForms/companyForm.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import * as statusChangeActual from '../../lib/statusChangeApi.js';
+import * as houseNameActual from '../../contexts/HouseNameContext.js';
+import {
+  makeBudgetSource,
+  makeCostLine,
+  makeInvoiceDetail,
+  makePayment,
+} from '../../test/invoiceDetailFixtures.js';
+import type * as PageModule from './InvoiceDetailPage.js';
 
-// ─── Module-scope mock functions ──────────────────────────────────────────────
+// ─── Module boundaries ───────────────────────────────────────────────────────
 
-const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>();
-const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
-const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
-const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
-const mockConvertQuotation = jest.fn<typeof InvoicesApiTypes.convertQuotation>();
-const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
-const mockFetchConfig = jest.fn<typeof ConfigApiTypes.fetchConfig>();
+const TOKEN: UndoToken = { token: `u_${'a'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
 
-/** Mount counters for the stubbed sections (Story #2107: remount after conversion). */
-let budgetLinesMounts = 0;
-let linkedDocumentsMounts = 0;
-
-/** Captures the SearchPicker onChange handler so tests can simulate vendor selection */
-let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
-
-// ─── Mock: invoicesApi ─────────────────────────────────────────────────────────
-
+const mockFetchInvoiceById = jest.fn<(id: string) => Promise<InvoiceDetail>>();
+const mockDeleteInvoice = jest.fn<(vendorId: string, id: string) => Promise<void>>();
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoiceById: mockFetchInvoiceById,
-  updateInvoice: mockUpdateInvoice,
   deleteInvoice: mockDeleteInvoice,
-  convertQuotation: mockConvertQuotation,
-  fetchInvoices: jest.fn(),
-  createInvoice: jest.fn(),
-  fetchAllInvoices: jest.fn(),
+  updateInvoice: jest.fn(),
 }));
 
-// ─── Mock: CostLinesSection stub ──────────────────────────────────────────────
-// The section has its own tests; here it is a stub that exposes the props the page hands it.
-
-jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
-  CostLinesSection: (props: {
-    host: {
-      kind: string;
-      id: string;
-      label: string;
-      status: string;
-      amount: number;
-      vendorId: string | null;
-    };
-    onChanged: () => Promise<void> | void;
-    linkState?: unknown;
-  }) => {
-    useEffect(() => {
-      budgetLinesMounts += 1;
-    }, []);
-    return (
-      <div
-        data-testid="invoice-budget-lines-section"
-        data-host-kind={props.host.kind}
-        data-invoice-id={props.host.id}
-        data-invoice-total={props.host.amount}
-        data-invoice-status={props.host.status}
-        data-vendor-id={props.host.vendorId ?? ''}
-        data-label={props.host.label}
-        data-link-state={JSON.stringify(props.linkState ?? null)}
-      >
-        <button type="button" onClick={() => void props.onChanged()}>
-          stub-changed
-        </button>
-      </div>
-    );
-  },
+const mockChangeInvoiceStatus =
+  jest.fn<(vendorId: string, id: string, body: unknown) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/statusChangeApi.js', () => ({
+  ...statusChangeActual,
+  changeInvoiceStatus: mockChangeInvoiceStatus,
+  changeDepositStatus: jest.fn(),
 }));
+jest.unstable_mockModule('../../lib/undoApi.js', () => ({ undoChange: jest.fn() }));
+jest.unstable_mockModule('../../lib/invoiceDepositsApi.js', () => ({ deleteDeposit: jest.fn() }));
 
-// ─── Mock: Documents panel host stub ────────────────────────────────────────
-
-jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
-  DocumentsPanelButton: (props: { entityType: string; entityId: string }) => {
-    useEffect(() => {
-      linkedDocumentsMounts += 1;
-    }, []);
-    return (
-      <div
-        data-testid="documents-panel-button"
-        data-entity-type={props.entityType}
-        data-entity-id={props.entityId}
-      />
-    );
-  },
+const mockFetchCostLines = jest.fn<(id: string) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
+  fetchInvoiceBudgetLines: mockFetchCostLines,
 }));
-
-// ─── Mocks: conversion flow integrations (Story #2107) ───────────────────────
-
-jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
-  getPaperlessStatus: mockGetPaperlessStatus,
+const mockFetchBudgetSources = jest.fn<() => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
 }));
-jest.unstable_mockModule('../../lib/configApi.js', () => ({ fetchConfig: mockFetchConfig }));
-
-/** Stub of the Paperless picker: lets tests select a document or close it. */
-jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
-  InvoicePaperlessPickerModal: (props: {
-    onDocumentSelected: (doc: { id: number; title: string }) => void;
-    onManualEntry: () => void;
-    onClose: () => void;
-    paperlessUrl: string | null;
-  }) => (
-    <div role="dialog" aria-label="Stub picker" data-testid="stub-picker">
-      <span data-testid="stub-picker-url">{props.paperlessUrl}</span>
-      <button
-        type="button"
-        data-testid="stub-picker-select"
-        onClick={() => props.onDocumentSelected({ id: 7, title: 'Picked.pdf' })}
-      >
-        select
-      </button>
-      <button type="button" data-testid="stub-picker-manual" onClick={props.onManualEntry}>
-        manual
-      </button>
-      <button type="button" data-testid="stub-picker-close" onClick={props.onClose}>
-        close
-      </button>
-    </div>
-  ),
+const mockListHistory = jest.fn<(...a: unknown[]) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/historyApi.js', () => ({ listHistory: mockListHistory }));
+const mockFetchDeleteImpact = jest.fn<(...a: unknown[]) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
 }));
-
-/** Stub of the deposit form modal, used for the refund sub-flow. */
-jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
-  getEmptyForm: () => ({}),
-  InvoiceDepositFormModal: (props: {
-    mode: string;
-    lockEntryType?: boolean;
-    initialValues?: Record<string, unknown>;
-    invoiceAmount?: number;
-    existingEntries?: Array<{ id: string }>;
-    onSaved: (deposit: unknown) => void;
-    onClose: () => void;
-  }) => (
-    <div role="dialog" aria-label="Stub refund" data-testid="stub-refund">
-      <span data-testid="stub-refund-props">
-        {JSON.stringify({
-          mode: props.mode,
-          lockEntryType: props.lockEntryType,
-          initialValues: props.initialValues,
-          invoiceAmount: props.invoiceAmount,
-          existingEntryIds: props.existingEntries?.map((e) => e.id),
-        })}
-      </span>
-      <button type="button" data-testid="stub-refund-save" onClick={() => props.onSaved({})}>
-        save
-      </button>
-      <button type="button" data-testid="stub-refund-close" onClick={props.onClose}>
-        close
-      </button>
-    </div>
-  ),
-}));
-
-// ─── Mock: apiClient (required by transitively imported modules) ───────────────
-
-class MockApiClientError extends Error {
-  statusCode: number;
-  error: { code: string; message?: string };
-  constructor(statusCode: number, error: { code: string; message?: string }) {
-    super(error.message ?? 'API Error');
-    this.statusCode = statusCode;
-    this.error = error;
-  }
-}
-
-const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
-const mockDel = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
-const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
-
-jest.unstable_mockModule('../../lib/apiClient.js', () => ({
-  get: jest.fn(),
-  post: mockPost,
-  patch: mockPatch,
-  del: mockDel,
-  put: jest.fn(),
-  setBaseUrl: jest.fn(),
-  getBaseUrl: jest.fn().mockReturnValue('/api'),
-  ApiClientError: MockApiClientError,
-  NetworkError: class MockNetworkError extends Error {},
-}));
-
-// ─── Mock: Toast + delete impact (#2209) ──────────────────────────────────────
 
 const mockShowToast = jest.fn();
 const mockShowUndoToast = jest.fn();
@@ -222,1996 +79,299 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
     dismissToast: jest.fn(),
   }),
 }));
-
-const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
-jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
-  fetchDeleteImpact: mockFetchDeleteImpact,
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  ...houseNameActual,
+  useEntriesLanguage: () => 'en',
 }));
 
-/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+/** Mount counters and props the stubs expose. */
+let lastCostSectionProps: {
+  host: { id: string; status: string; amount: number; vendorId: string | null; label: string };
+  documentLines?: { lines: unknown[]; reload: () => Promise<void> };
+  onChanged: () => Promise<void> | void;
+  linkState?: unknown;
+} | null = null;
+jest.unstable_mockModule('../../components/CostLineTable/index.js', () => ({
+  CostLinesSection: (props: NonNullable<typeof lastCostSectionProps>) => {
+    lastCostSectionProps = props;
+    return (
+      <div
+        data-testid="invoice-budget-lines-section"
+        data-host-status={props.host.status}
+        data-host-label={props.host.label}
+        data-has-controller={String(props.documentLines !== undefined)}
+        data-link-state={JSON.stringify(props.linkState ?? null)}
+      >
+        <button type="button" onClick={() => void props.onChanged()}>
+          stub-changed
+        </button>
+      </div>
+    );
+  },
+}));
+
+let documentsFact: unknown = null;
+jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
+  useDocumentsPanel: (entityType: string, entityId: string) => ({
+    fact: documentsFact,
+    panel: <div data-testid="documents-panel" data-type={entityType} data-id={entityId} />,
+  }),
+}));
+
+jest.unstable_mockModule('./InvoiceEditModal.js', () => ({
+  InvoiceEditModal: (props: { onSaved: () => Promise<unknown>; onClose: () => void }) => (
+    <div role="dialog" aria-label="edit-probe">
+      <button type="button" onClick={() => void props.onSaved()}>
+        edit-saved
+      </button>
+      <button type="button" onClick={props.onClose}>
+        edit-close
+      </button>
+    </div>
+  ),
+}));
+
+interface PaymentProbeProps {
+  mode: string;
+  initialValues?: { entryType?: string };
+  name?: string;
+  onClose: () => void;
+  onSaved: (d: unknown) => void;
+}
+jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
+  getEmptyForm: () => ({}),
+  InvoiceDepositFormModal: (props: PaymentProbeProps) => (
+    <div
+      role="dialog"
+      aria-label="payment-probe"
+      data-mode={props.mode}
+      data-entry={props.initialValues?.entryType ?? ''}
+      data-name={props.name ?? ''}
+    >
+      <button type="button" onClick={props.onClose}>
+        payment-close
+      </button>
+      <button type="button" onClick={() => props.onSaved({})}>
+        payment-saved
+      </button>
+    </div>
+  ),
+}));
+
+interface ConvertArgs {
+  invoice: InvoiceDetail;
+  refreshInvoice: () => Promise<unknown>;
+  onConverted: () => void;
+}
+let convertArgs: ConvertArgs | null = null;
+let convertView: 'closed' | 'form' | 'paperless' | 'refund' = 'closed';
+const convertOpen = jest.fn();
+const convertCallbacks = { onRefundSaved: jest.fn(), onRefundClosed: jest.fn() };
+jest.unstable_mockModule('./useConvertQuotation.js', () => ({
+  useConvertQuotation: (args: ConvertArgs) => {
+    convertArgs = args;
+    return {
+      view: convertView,
+      open: convertOpen,
+      paperless: { paperlessUrl: 'https://paperless.example' },
+      onDocumentSelected: jest.fn(),
+      onPickerClosed: jest.fn(),
+      refundPreset: { amount: '5' },
+      budgetSources: [],
+      ...convertCallbacks,
+    };
+  },
+}));
+jest.unstable_mockModule('./ConvertQuotationModal.js', () => ({
+  ConvertQuotationModal: () => <div role="dialog" aria-label="convert-probe" />,
+}));
+jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
+  InvoicePaperlessPickerModal: (props: { paperlessUrl: string | null }) => (
+    <div role="dialog" aria-label="picker-probe" data-url={props.paperlessUrl ?? ''} />
+  ),
+}));
+
+let InvoiceDetailPage: (typeof PageModule)['InvoiceDetailPage'];
+
+// ─── Fixtures and harness ────────────────────────────────────────────────────
+
+const ID = 'inv-001';
+
+function record(over: Partial<InvoiceDetail> = {}): InvoiceDetail {
+  return makeInvoiceDetail({
+    id: ID,
+    vendorId: 'vendor-1',
+    vendorName: 'Acme Construction',
+    invoiceNumber: 'INV-2026-001',
+    ...over,
+  });
+}
+
+function costLinesResponse(
+  lines: ReturnType<typeof makeCostLine>[] = [],
+  remainingAmount = 0,
+): unknown {
+  return { budgetLines: lines, remainingAmount };
+}
+
+const HEADING = 'Acme Construction · INV-2026-001';
+
+function routes(extra?: React.ReactNode) {
+  return (
+    <LocaleProvider>
+      <Routes>
+        <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+        <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
+        <Route path="*" element={<div>Elsewhere</div>} />
+      </Routes>
+      {extra}
+    </LocaleProvider>
+  );
+}
+
+function renderPage(entry = `/budget/invoices/${ID}`) {
+  return render(<MemoryRouter initialEntries={[entry]}>{routes(<OriginProbe />)}</MemoryRouter>);
+}
+
+function renderRouted(entry: string | { url: string; state?: unknown } = `/budget/invoices/${ID}`) {
+  const log = createRouterLog();
+  render(
+    <RecordingRouter entries={[entry]} log={log}>
+      {routes()}
+    </RecordingRouter>,
+  );
+  return log;
+}
+
+async function loaded(over: Partial<InvoiceDetail> = {}, entry?: string) {
+  mockFetchInvoiceById.mockResolvedValue(record(over));
+  renderPage(entry);
+  await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+}
+
 async function enabledConfirm(prefix: string): Promise<HTMLElement> {
   const btn = await screen.findByTestId(`${prefix}-confirm`);
   await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
   return btn;
 }
 
-// ─── Mock: formatters (pure utility — avoids Intl issues in jsdom) ────────────
-
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  formatDate: (d: string) => d ?? '—',
-  formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-  formatTime: (d: string | null | undefined) => d ?? '—',
-  formatDateTime: (d: string | null | undefined) => d ?? '—',
-  formatRelativeTime: (d: string) => d,
-  formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-    formatDate: (d: string | null | undefined) => d ?? '—',
-    formatTime: (d: string | null | undefined) => d ?? '—',
-    formatDateTime: (d: string | null | undefined) => d ?? '—',
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    formatDayMonth: (d: string | null | undefined) => d ?? '',
-  }),
-}));
-
-// ─── Mock: vendorsApi (used transitively by SearchPicker in edit modal) ────────
-
-jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: mockFetchVendors,
-  searchCompanies: makeSearchCompanies(mockFetchVendors),
-  fetchVendorById: jest.fn(),
-  fetchVendor: jest.fn(),
-  createVendor: jest.fn(),
-  updateVendor: jest.fn(),
-  deleteVendor: jest.fn(),
-}));
-
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({ user: { id: 'u1' } }),
-}));
-
-const stubCompanySchema = {
-  id: 'company',
-  title: 'New company',
-  initialValues: { name: '' },
-  fields: [{ name: 'name', label: 'Name', kind: 'text', essential: true, required: true }],
-  validate: () => ({}),
-  submit: async () => ({ id: 'c-new', href: '/companies/c-new', label: 'Brand New Co' }),
-};
-jest.unstable_mockModule('../../objectForms/companyForm.js', () => ({
-  useCompanyFormSchema: () => stubCompanySchema,
-}));
-
-// ─── Mock: SearchPicker (#1736) ───────────────────────────────────────────────
-// The real SearchPicker requires floating-ui portal and getBoundingClientRect
-// which are problematic in jsdom. Stub it with a simple element that captures
-// the onChange handler so tests can simulate vendor selection.
-
-jest.unstable_mockModule('../../components/SearchPicker/SearchPicker.js', () => ({
-  SearchPicker: ({
-    onChange,
-    initialTitle,
-    id,
-    createAction,
-    searchFn,
-    renderItem,
-  }: {
-    value: string;
-    onChange: (id: string) => void;
-    initialTitle?: string;
-    id?: string;
-    searchFn?: (
-      query: string,
-      excluded: string[],
-      signal: AbortSignal,
-    ) => Promise<Array<{ id: string; name: string }>>;
-    renderItem?: (item: { id: string; name: string }) => { id: string; label: string };
-    createAction?: {
-      show?: string;
-      getLabel: (query: string) => string;
-      onCreate: (query: string) => Promise<{ id: string; name: string } | null>;
-    };
-    [key: string]: unknown;
-  }) => {
-    capturedSearchPickerOnChange = onChange;
-    return (
-      <div data-testid={`search-picker-${id ?? 'default'}`} data-initial-title={initialTitle}>
-        <span data-testid="search-picker-title">{initialTitle ?? ''}</span>
-        {createAction && (
-          <button
-            type="button"
-            data-testid="search-picker-create"
-            data-show={createAction.show}
-            onClick={() =>
-              void createAction.onCreate('Brand New Co').then((company) => {
-                if (company) onChange(company.id);
-              })
-            }
-          >
-            {createAction.getLabel('Brand New Co')}
-          </button>
-        )}
-        {searchFn && renderItem && (
-          <button
-            type="button"
-            data-testid={`search-picker-search-${id ?? 'default'}`}
-            onClick={() =>
-              void searchFn('Builder', [], new AbortController().signal).then((items) => {
-                const labels = items.map((item) => renderItem(item).label).join(',');
-                document.body.setAttribute('data-picker-labels', labels);
-              })
-            }
-          >
-            search
-          </button>
-        )}
-        <input
-          data-testid={`search-picker-input-${id ?? 'default'}`}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  },
-}));
-
-// ─── Type import for deferred module load ─────────────────────────────────────
-
-let InvoiceDetailPage: (typeof InvoiceDetailPageTypes)['InvoiceDetailPage'];
-
-// ─── Test fixtures ─────────────────────────────────────────────────────────────
-
-const MOCK_INVOICE_ID = 'inv-001';
-
-const mockInvoice: Invoice = {
-  id: MOCK_INVOICE_ID,
-  vendorId: 'vendor-1',
-  vendorName: 'Acme Construction',
-  budgetLines: [],
-  remainingAmount: 1500.0,
-  invoiceNumber: 'INV-2026-001',
-  amount: 1500.0,
-  date: '2026-01-15',
-  dueDate: '2026-02-15',
-  status: 'pending',
-  notes: null,
-  deposits: [],
-  finalPaymentAmount: 1500.0,
-  createdBy: {
-    id: 'user-1',
-    displayName: 'Jane Builder',
-    email: 'jane@example.com',
-  },
-  createdAt: '2026-01-15T10:00:00Z',
-  updatedAt: '2026-01-15T10:00:00Z',
-};
-
-const PAPERLESS_OFF: PaperlessStatusResponse = {
-  configured: false,
-  reachable: false,
-  error: null,
-  paperlessUrl: null,
-  filterTag: null,
-};
-const PAPERLESS_ON: PaperlessStatusResponse = {
-  configured: true,
-  reachable: true,
-  error: null,
-  paperlessUrl: 'https://paperless.example',
-  filterTag: null,
-};
-const CONFIG_OFF: AppConfigResponse = {
-  currency: 'EUR',
-  vatRate: 0.19,
-  autoItemizeEnabled: false,
-  llmEnabled: false,
-};
-
-/** A quotation of 10,000 with a far-future due date (so the default invoice date never trips validation). */
-const mockQuotation: Invoice = {
-  ...mockInvoice,
-  status: 'quotation',
-  amount: 10000,
-  remainingAmount: 10000,
-  finalPaymentAmount: 10000,
-  dueDate: '2099-01-01',
-};
-
-function paidDeposit(amount: number): InvoiceDeposit {
-  return {
-    id: 'dep-1',
-    invoiceId: MOCK_INVOICE_ID,
-    amount,
-    dueDate: '2026-01-10',
-    paidDate: '2026-01-11',
-    claimedDate: null,
-    description: null,
-    status: 'paid',
-    entryType: 'deposit',
-    budgetSourceId: null,
-    createdBy: null,
-    createdAt: '2026-01-10T00:00:00Z',
-    updatedAt: '2026-01-10T00:00:00Z',
-  };
-}
-
-// ─── Setup ────────────────────────────────────────────────────────────────────
+const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'Page actions' }));
 
 beforeEach(async () => {
-  mockFetchInvoiceById.mockReset();
-  mockUpdateInvoice.mockReset();
-  mockDeleteInvoice.mockReset();
-  mockFetchVendors.mockReset();
-  mockConvertQuotation.mockReset();
-  mockGetPaperlessStatus.mockReset();
-  mockFetchConfig.mockReset();
+  mockFetchInvoiceById.mockReset().mockResolvedValue(record());
+  mockDeleteInvoice.mockReset().mockResolvedValue(undefined);
+  mockChangeInvoiceStatus.mockReset();
+  mockFetchCostLines.mockReset().mockResolvedValue(costLinesResponse());
+  mockFetchBudgetSources.mockReset().mockResolvedValue({ budgetSources: [] });
+  mockListHistory
+    .mockReset()
+    .mockResolvedValue({ items: [], pagination: { page: 1, pageSize: 20, totalItems: 0 } });
+  mockFetchDeleteImpact
+    .mockReset()
+    .mockResolvedValue({ entityType: 'invoice', id: ID, effects: [] });
   mockShowToast.mockReset();
   mockShowUndoToast.mockReset();
-  mockDel.mockReset();
-  mockDel.mockResolvedValue(undefined);
-  mockFetchDeleteImpact.mockReset();
-  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'invoice', id: 'inv-001', effects: [] });
-  budgetLinesMounts = 0;
-  linkedDocumentsMounts = 0;
-
-  // Default: Paperless and the LLM unavailable for the conversion flow
-  mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_OFF);
-  mockFetchConfig.mockResolvedValue(CONFIG_OFF);
-
-  // Default: successful load
-  mockFetchInvoiceById.mockResolvedValue(mockInvoice);
-  // Default: empty vendor list (vendor search not exercised by most tests)
-  mockFetchVendors.mockResolvedValue({
-    vendors: [] as Vendor[],
-    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
-  });
-
-  // Deferred import after mock registration
-  const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
-  InvoiceDetailPage = module.InvoiceDetailPage;
+  convertOpen.mockReset();
+  convertCallbacks.onRefundSaved.mockReset();
+  convertCallbacks.onRefundClosed.mockReset();
+  convertArgs = null;
+  convertView = 'closed';
+  documentsFact = null;
+  lastCostSectionProps = null;
+  document.title = 'initial';
+  ({ InvoiceDetailPage } = (await import('./InvoiceDetailPage.js')) as typeof PageModule);
 });
 
 afterEach(() => {
   jest.restoreAllMocks();
 });
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── States ──────────────────────────────────────────────────────────────────
 
-function renderPage(id = MOCK_INVOICE_ID) {
-  return render(
-    <MemoryRouter initialEntries={[`/budget/invoices/${id}`]}>
-      <Routes>
-        <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-        <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
+describe('InvoiceDetailPage states (S11)', () => {
+  function trail(): string[] {
+    const nav = screen.getByRole('navigation', { name: 'You are here' });
+    return within(nav)
+      .getAllByRole('link')
+      .map((a) => (a.textContent ?? '').replace('‹', ''));
+  }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-describe('InvoiceDetailPage', () => {
-  describe('loading state', () => {
-    it('renders "Loading invoice..." before fetchInvoiceById resolves', () => {
-      mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
-      renderPage();
-      expect(screen.getByRole('status', { name: 'Loading invoice...' })).toBeInTheDocument();
-    });
+  it('loading: one "Invoice" h1, the Money > Invoices trail, the tab title and a skeleton', () => {
+    mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
+    renderPage();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
+    expect(trail()).toEqual(['Money', 'Invoices']);
+    expect(document.title).toBe('Invoice · Money · Cornerstone');
+    expect(screen.getByRole('status', { name: 'Loading invoice...' })).toBeInTheDocument();
   });
 
-  describe('deposits section wiring (#2188)', () => {
-    it('passes the invoice amount and the existing entries to the deposit form modal', async () => {
-      mockFetchInvoiceById.mockResolvedValue({
-        ...mockInvoice,
-        amount: 1500,
-        deposits: [paidDeposit(400)],
-      });
-      renderPage();
-      await screen.findByTestId('invoice-budget-lines-section');
-
-      fireEvent.click(await screen.findByRole('button', { name: /add deposit/i }));
-
-      const props = JSON.parse((await screen.findByTestId('stub-refund-props')).textContent!) as {
-        mode: string;
-        invoiceAmount: number;
-        existingEntryIds: string[];
-      };
-      expect(props.mode).toBe('add');
-      expect(props.invoiceAmount).toBe(1500);
-      expect(props.existingEntryIds).toEqual(['dep-1']);
-    });
-  });
-
-  describe('deleting a deposit refreshes silently (#2209 final fix)', () => {
-    const skeleton = () => document.querySelector('[aria-busy="true"]');
-
-    async function deleteFirstDeposit() {
-      renderPage();
-      const h1 = await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
-      await screen.findByTestId('invoice-budget-lines-section');
-      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(kebab);
-      fireEvent.click(
-        screen
-          .getAllByRole('menuitem')
-          .filter((m) => !m.closest('[inert]'))
-          .find((m) => m.textContent?.toLowerCase().includes('delete'))!,
-      );
-      await act(async () => {
-        fireEvent.click(await enabledConfirm('deposit-delete'));
-      });
-      return h1;
-    }
-
-    beforeEach(() => {
-      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, deposits: [paidDeposit(400)] });
-    });
-
-    it('uses the silent refresh: no skeleton, the h1 stays mounted and focused while it is in flight', async () => {
-      mockFetchInvoiceById
-        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
-        .mockImplementation(() => new Promise(() => {}));
-      const h1 = await deleteFirstDeposit();
-
-      await waitFor(() => expect(mockDel).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(skeleton()).toBeNull();
-      expect(h1.isConnected).toBe(true);
-      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
-      await waitFor(() => expect(document.activeElement).toBe(h1));
-    });
-
-    it('the refreshed invoice replaces the deposits without a full reload', async () => {
-      mockFetchInvoiceById
-        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
-        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
-      const h1 = await deleteFirstDeposit();
-
-      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
-      await screen.findByText('No deposits yet');
-      expect(skeleton()).toBeNull();
-      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
-    });
-
-    it('falls back to a full loadInvoice when the silent refresh fails', async () => {
-      mockFetchInvoiceById
-        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
-        .mockRejectedValueOnce(new Error('offline'))
-        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
-      await deleteFirstDeposit();
-
-      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(3));
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { level: 1, name: /Acme Construction/ }),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.queryByText(/offline/i)).toBeNull();
-    });
-  });
-
-  describe('error state', () => {
-    it('renders "Invoice not found" when fetchInvoiceById rejects with 404', async () => {
-      mockFetchInvoiceById.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Invoice not found.' }),
-      );
-      renderPage();
-
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { level: 1, name: 'Invoice not found' }),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.getByText(/It may have been deleted/i)).toBeInTheDocument();
-    });
-
-    it('renders generic error message on non-404 API error', async () => {
-      mockFetchInvoiceById.mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Internal server error' }),
-      );
-      renderPage();
-
-      // #2113: API errors are shown via the errors namespace translation, never the raw message
-      await waitFor(() =>
-        expect(
-          screen.getByText('An unexpected error occurred. Please try again.'),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.queryByText(/Internal server error/i)).not.toBeInTheDocument();
-    });
-
-    it('renders generic error message on network failure', async () => {
-      mockFetchInvoiceById.mockRejectedValue(new Error('Network error'));
-      renderPage();
-
-      await waitFor(() => expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument());
-    });
-  });
-
-  describe('successful render', () => {
-    it('renders page heading with the invoice number', async () => {
-      renderPage();
-
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-    });
-
-    it('renders the vendor name', async () => {
-      renderPage();
-
-      await waitFor(() => expect(screen.getByText('Acme Construction')).toBeInTheDocument());
-    });
-
-    it('renders the formatted amount', async () => {
-      renderPage();
-
-      // Amount 1500 formatted as currency (mock returns $1500.00)
-      await waitFor(() => expect(screen.getByText('$1500.00')).toBeInTheDocument());
-    });
-
-    it('renders the status badge', async () => {
-      renderPage();
-
-      // The page renders the status badge in two places: the page header and the info list
-      await waitFor(() => expect(screen.getAllByText('To pay').length).toBeGreaterThanOrEqual(1));
-    });
-
-    it('D-07: renders the header and details status badges through the shared Badge (To pay)', async () => {
-      renderPage();
-
-      await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
-      // The header status is the interactive StatusMenu chip; the details row is a plain Badge.
-      const header = screen.getByTestId('invoice-status-badge');
-      expect(header.tagName).toBe('BUTTON');
-      expect(header).toHaveTextContent('To pay');
-      expect(header.className).toContain('pending');
-      const details = screen.getByTestId('invoice-detail-status-badge');
-      expect(details).toHaveTextContent('To pay');
-      expect(details.className).toContain('badge');
-      expect(details.className).toContain('pending');
-    });
-
-    it('D-07: a quotation shows "Offer" with the offer class (info pair), never a quotation class', async () => {
-      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, status: 'quotation' });
-      renderPage();
-
-      await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
-      // A quotation has no status transitions, so the header shows a plain Badge.
-      const chip = screen.getByTestId('invoice-status-badge');
-      expect(chip.tagName).toBe('SPAN');
-      expect(chip).toHaveTextContent('Offer');
-      expect(chip.className).toContain('offer');
-      expect(chip.className).not.toContain('quotation');
-    });
-
-    it('renders the invoice number in the details list', async () => {
-      renderPage();
-
-      await waitFor(() => expect(screen.getByText('Invoice #')).toBeInTheDocument());
-    });
-
-    it('renders "Invoice Details" section heading', async () => {
-      renderPage();
-
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: 'Invoice Details', level: 2 }),
-        ).toBeInTheDocument(),
-      );
-    });
-  });
-
-  describe('Documents panel button integration', () => {
-    it('renders the Documents panel button after loading', async () => {
-      renderPage();
-
-      await waitFor(() => expect(screen.getByTestId('documents-panel-button')).toBeInTheDocument());
-    });
-
-    it('passes entityType="invoice" to the Documents panel button', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        const section = screen.getByTestId('documents-panel-button');
-        expect(section).toHaveAttribute('data-entity-type', 'invoice');
-      });
-    });
-
-    it('passes the invoice ID as entityId to the Documents panel button', async () => {
-      renderPage(MOCK_INVOICE_ID);
-
-      await waitFor(() => {
-        const section = screen.getByTestId('documents-panel-button');
-        expect(section).toHaveAttribute('data-entity-id', MOCK_INVOICE_ID);
-      });
-    });
-  });
-
-  describe('CostLinesSection integration (#2235)', () => {
-    it('renders the cost lines section in its own card after the invoice loads', async () => {
-      renderPage();
-
-      const section = await screen.findByTestId('invoice-budget-lines-section');
-      expect(section.parentElement?.className).toContain('card');
-    });
-
-    it('hands the invoice as the document host', async () => {
-      renderPage(MOCK_INVOICE_ID);
-
-      const section = await screen.findByTestId('invoice-budget-lines-section');
-      expect(section).toHaveAttribute('data-host-kind', 'invoice');
-      expect(section).toHaveAttribute('data-invoice-id', MOCK_INVOICE_ID);
-      expect(section).toHaveAttribute('data-invoice-total', '1500');
-      expect(section).toHaveAttribute('data-invoice-status', 'pending');
-      expect(section).toHaveAttribute('data-vendor-id', 'vendor-1');
-      expect(section).toHaveAttribute('data-label', 'Acme Construction · INV-2026-001');
-    });
-
-    it('onChanged refreshes the invoice so the header figures follow', async () => {
-      renderPage();
-      await screen.findByTestId('invoice-budget-lines-section');
-      mockFetchInvoiceById.mockClear();
-
-      fireEvent.click(screen.getByRole('button', { name: 'stub-changed' }));
-
-      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(1));
-    });
-
-    it('onChanged swallows a failed refresh', async () => {
-      renderPage();
-      await screen.findByTestId('invoice-budget-lines-section');
-      mockFetchInvoiceById.mockRejectedValueOnce(new Error('boom'));
-
-      fireEvent.click(screen.getByRole('button', { name: 'stub-changed' }));
-
-      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalled());
-      expect(screen.getByTestId('invoice-budget-lines-section')).toBeInTheDocument();
-    });
-  });
-
-  describe('edit modal fields and validation', () => {
-    async function openEdit(invoice: Invoice = mockInvoice) {
-      mockFetchInvoiceById.mockResolvedValue(invoice);
-      renderPage();
-      const edit = await screen.findByRole('button', { name: /^Edit$/i });
-      await act(async () => {
-        fireEvent.click(edit);
-      });
-      await screen.findByRole('heading', { name: 'Edit Invoice', level: 2 });
-    }
-
-    const submit = () => {
-      fireEvent.submit(screen.getByRole('button', { name: /^Save Changes$/i }).closest('form')!);
-    };
-
-    it('saves every edited field and closes the modal', async () => {
-      mockUpdateInvoice.mockResolvedValue({ ...mockInvoice, amount: 1750 });
-      await openEdit();
-
-      fireEvent.change(document.getElementById('edit-invoice-number') as HTMLInputElement, {
-        target: { value: ' INV-9 ' },
-      });
-      fireEvent.change(document.getElementById('edit-amount') as HTMLInputElement, {
-        target: { value: '1750' },
-      });
-      fireEvent.change(document.getElementById('edit-date') as HTMLInputElement, {
-        target: { value: '2026-03-01' },
-      });
-      fireEvent.change(document.getElementById('edit-due-date') as HTMLInputElement, {
-        target: { value: '2026-04-01' },
-      });
-      fireEvent.change(document.getElementById('edit-status') as HTMLSelectElement, {
-        target: { value: 'paid' },
-      });
-      fireEvent.change(document.getElementById('edit-notes') as HTMLTextAreaElement, {
-        target: { value: ' Pay by transfer ' },
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-
-      await waitFor(() =>
-        expect(mockUpdateInvoice).toHaveBeenCalledWith('vendor-1', MOCK_INVOICE_ID, {
-          invoiceNumber: 'INV-9',
-          amount: 1750,
-          date: '2026-03-01',
-          dueDate: '2026-04-01',
-          status: 'paid',
-          notes: 'Pay by transfer',
-          vendorId: 'vendor-1',
-        }),
-      );
-      await waitFor(() =>
-        expect(screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeNull(),
-      );
-    });
-
-    it('sends null for a blank invoice number, due date and notes', async () => {
-      mockUpdateInvoice.mockResolvedValue(mockInvoice);
-      await openEdit({ ...mockInvoice, invoiceNumber: null, dueDate: null, notes: null });
-
-      expect(document.getElementById('edit-invoice-number') as HTMLInputElement).toHaveValue('');
-      expect(document.getElementById('edit-due-date') as HTMLInputElement).toHaveValue('');
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-
-      await waitFor(() =>
-        expect(mockUpdateInvoice).toHaveBeenCalledWith(
-          'vendor-1',
-          MOCK_INVOICE_ID,
-          expect.objectContaining({ invoiceNumber: null, dueDate: null, notes: null }),
-        ),
-      );
-    });
-
-    it('rejects a non-positive amount with the amount message and sends nothing', async () => {
-      await openEdit();
-      fireEvent.change(document.getElementById('edit-amount') as HTMLInputElement, {
-        target: { value: '0' },
-      });
-      submit();
-
-      expect(await screen.findByText('Amount must be a positive number.')).toBeInTheDocument();
-      expect(mockUpdateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('rejects a missing date with the date message', async () => {
-      await openEdit();
-      fireEvent.change(document.getElementById('edit-date') as HTMLInputElement, {
-        target: { value: '' },
-      });
-      submit();
-
-      expect(await screen.findByText('Invoice date is required.')).toBeInTheDocument();
-      expect(mockUpdateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('rejects a missing vendor with the vendor message', async () => {
-      await openEdit();
-      act(() => capturedSearchPickerOnChange?.(''));
-      submit();
-
-      expect(await screen.findByText('Please select a vendor')).toBeInTheDocument();
-      expect(mockUpdateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('prefills the notes and blurs the amount field on wheel', async () => {
-      await openEdit({ ...mockInvoice, notes: 'Pay on delivery' });
-
-      expect(document.getElementById('edit-notes')).toHaveValue('Pay on delivery');
-      const amount = document.getElementById('edit-amount') as HTMLInputElement;
-      amount.focus();
-      fireEvent.wheel(amount);
-      expect(amount).not.toHaveFocus();
-    });
-
-    it('Cancel closes the modal without saving', async () => {
-      await openEdit();
-      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-
-      await waitFor(() =>
-        expect(screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeNull(),
-      );
-      expect(mockUpdateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('a vendor-not-found 404 on save shows the vendor copy', async () => {
-      mockUpdateInvoice.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'raw' }),
-      );
-      await openEdit();
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-
-      expect(await screen.findByRole('alert')).toBeInTheDocument();
-      expect(screen.queryByText(/^raw$/)).toBeNull();
-    });
-  });
-
-  describe('page states', () => {
-    it('Retry on the error card reloads the invoice', async () => {
-      mockFetchInvoiceById.mockRejectedValueOnce(new Error('offline'));
-      renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
-
-      expect(
-        await screen.findByRole('heading', { level: 1, name: /Acme Construction/ }),
-      ).toBeInTheDocument();
-    });
-
-    it('Back to Invoices on the error card returns to the list', async () => {
-      mockFetchInvoiceById.mockRejectedValueOnce(new Error('offline'));
-      renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: /Back to Invoices/i }));
-
-      expect(await screen.findByText('Invoice List Page')).toBeInTheDocument();
-    });
-
-    it('shows an en dash for a missing due date and creator', async () => {
-      mockFetchInvoiceById.mockResolvedValue({
-        ...mockInvoice,
-        dueDate: null,
-        createdBy: null,
-      });
-      renderPage();
-      await screen.findByRole('button', { name: /^Edit$/i });
-
-      expect(document.body.textContent).toContain('—');
-    });
-
-    it('Cancel in the delete dialog closes it', async () => {
-      renderPage();
-      await screen.findByRole('heading', { level: 1 });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-      });
-      fireEvent.click(await screen.findByTestId('invoice-delete-cancel'));
-
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    });
-  });
-
-  describe('status menu (#2209)', () => {
-    const TOKEN = { token: `u_${'a'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
-    beforeEach(() => {
-      mockPatch.mockReset();
-      mockPost.mockReset();
-    });
-
-    async function loaded(status: Invoice['status'] = 'pending') {
-      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, status });
-      renderPage();
-      await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
-    }
-
-    it('a pending invoice offers "Mark paid" with no date step', async () => {
-      await loaded('pending');
-      fireEvent.click(screen.getByTestId('invoice-status-badge'));
-      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual(['Mark paid']);
-    });
-
-    it('Mark paid applies at once (AC3: no date step) and offers Undo', async () => {
-      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'paid' }, undo: TOKEN });
-      await loaded('pending');
-      fireEvent.click(screen.getByTestId('invoice-status-badge'));
-      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
-
-      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
-      expect(screen.queryByRole('dialog')).toBeNull();
-      expect(mockPatch).toHaveBeenCalledWith(
-        `/vendors/${mockInvoice.vendorId}/invoices/${mockInvoice.id}`,
-        { status: 'paid' },
-      );
-      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
-      expect((mockShowUndoToast.mock.calls[0]![0] as { dedupeKey: string }).dedupeKey).toBe(
-        `invoice:${mockInvoice.id}`,
-      );
-    });
-
-    it('a paid invoice offers the way back to "To pay"', async () => {
-      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'pending' } });
-      await loaded('paid');
-      fireEvent.click(screen.getByTestId('invoice-status-badge'));
-      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
-        'Back to “To pay”',
-      ]);
-      fireEvent.click(screen.getByTestId('invoice-status-badge-option-pending'));
-      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
-      expect(mockPatch.mock.calls[0]![1]).toEqual({ status: 'pending' });
-    });
-
-    it.each(['claimed', 'quotation'] as const)(
-      'a %s invoice has no transitions: a plain badge, not a button',
-      async (status) => {
-        await loaded(status);
-        expect(screen.getByTestId('invoice-status-badge').tagName).toBe('SPAN');
-        expect(screen.queryByRole('menuitem')).toBeNull();
-      },
+  it('not found: "Invoice not found" is the only h1, with the trail, the tab title and no error h2', async () => {
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
     );
-
-    it('a failed change toasts the generic copy and keeps the status', async () => {
-      mockPatch.mockRejectedValue(new Error('RAW-LOCAL'));
-      await loaded('pending');
-      fireEvent.click(screen.getByTestId('invoice-status-badge'));
-      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
-      await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
-      );
-      expect(mockShowUndoToast).not.toHaveBeenCalled();
-      expect(screen.getByTestId('invoice-status-badge')).toHaveTextContent('To pay');
-    });
-
-    it('Undo posts the token and reloads the invoice', async () => {
-      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'paid' }, undo: TOKEN });
-      mockPost.mockResolvedValue({ restored: [], retractedEventIds: [] });
-      await loaded('pending');
-      fireEvent.click(screen.getByTestId('invoice-status-badge'));
-      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
-      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
-
-      const loadsBefore = mockFetchInvoiceById.mock.calls.length;
-      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
-      await act(async () => {
-        await options.onUndo();
-      });
-      expect(mockPost).toHaveBeenCalledWith(`/undo/${TOKEN.token}`);
-      expect(mockFetchInvoiceById.mock.calls.length).toBeGreaterThan(loadsBefore);
-    });
+    renderPage();
+    await screen.findByRole('heading', { level: 1, name: 'Invoice not found' });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+    expect(trail()).toEqual(['Money', 'Invoices']);
+    await waitFor(() => expect(document.title).toBe('Invoice not found · Money · Cornerstone'));
+    expect(screen.getByRole('alert')).toHaveTextContent('Invoice not found.');
   });
 
-  describe('delete dialog (#2209)', () => {
-    async function openDialog() {
-      renderPage();
-      await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-      });
-    }
-
-    it('opens an alertdialog with Cancel focused and loads what the delete also removes', async () => {
-      mockFetchDeleteImpact.mockResolvedValue({
-        entityType: 'invoice',
-        id: 'inv-001',
-        effects: [
-          { kind: 'progressPayments', count: 2 },
-          { kind: 'documentLinks', count: 0 },
-        ],
-      });
-      await openDialog();
-      expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(/^Delete /);
-      expect(screen.getByTestId('invoice-delete-cancel')).toHaveFocus();
-      await waitFor(() =>
-        expect(screen.getByTestId('invoice-delete-consequences')).toHaveTextContent(
-          'Progress payments deleted with it: 2',
-        ),
-      );
-      expect(screen.queryByText(/Linked documents/)).toBeNull();
-      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('invoice', 'inv-001');
-    });
-
-    it('a 409 hides the action', async () => {
-      mockDeleteInvoice.mockRejectedValue(
-        new MockApiClientError(409, { code: 'CONFLICT', message: 'x' }),
-      );
-      await openDialog();
-      await act(async () => {
-        fireEvent.click(await enabledConfirm('invoice-delete'));
-      });
-      await waitFor(() => expect(screen.queryByTestId('invoice-delete-confirm')).toBeNull());
-      expect(screen.getByTestId('invoice-delete-cancel')).toBeInTheDocument();
-    });
-
-    it('a non-409 failure keeps the action for a retry', async () => {
-      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
-      await openDialog();
-      await act(async () => {
-        fireEvent.click(await enabledConfirm('invoice-delete'));
-      });
-      await screen.findByRole('alert');
-      expect(screen.getByTestId('invoice-delete-confirm')).toBeInTheDocument();
-    });
-  });
-
-  describe('edit modal no longer contains legacy budget pickers', () => {
-    it('edit modal status select lists INVOICE_STATUSES in order with translated labels', async () => {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      screen.getByRole('button', { name: /^Edit$/i }).click();
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      const select = document.getElementById('edit-status') as HTMLSelectElement;
-
-      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
-        INVOICE_STATUSES.map((status) => [status, enCommon.statusVocabulary.invoice[status]]),
-      );
-    });
-
-    it('edit modal does not render a work item picker', async () => {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      // Open edit modal
-      const editButton = screen.getByRole('button', { name: /^Edit$/i });
-      editButton.click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      // No work item or household item pickers in the edit modal
-      expect(screen.queryByTestId('work-item-picker')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('household-item-picker')).not.toBeInTheDocument();
-    });
-
-    it('edit modal does not render a "— or —" separator', async () => {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      const editButton = screen.getByRole('button', { name: /^Edit$/i });
-      editButton.click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      expect(screen.queryByText('— or —')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('vendor SearchPicker in edit modal (#1736)', () => {
-    beforeEach(() => {
-      capturedSearchPickerOnChange = null;
-    });
-
-    it('edit modal renders vendor SearchPicker pre-populated with current vendor name', async () => {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      screen.getByRole('button', { name: /^Edit$/i }).click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      const picker = screen.getByTestId('search-picker-edit-vendor');
-      expect(picker).toHaveAttribute('data-initial-title', 'Acme Construction');
-    });
-
-    it('selecting a different vendor and submitting sends PATCH with new vendorId while path uses original', async () => {
-      mockUpdateInvoice.mockResolvedValue({
-        ...mockInvoice,
-        vendorId: 'vendor-2',
-        vendorName: 'Builder Co',
-      });
-
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      screen.getByRole('button', { name: /^Edit$/i }).click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      // Simulate selecting a different vendor
-      await act(async () => {
-        capturedSearchPickerOnChange?.('vendor-2');
-      });
-
-      // Submit the form
-      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
-      await act(async () => {
-        fireEvent.click(saveButton);
-      });
-
-      await waitFor(() => expect(mockUpdateInvoice).toHaveBeenCalledTimes(1));
-
-      const [pathVendorId, invoiceId, body] = mockUpdateInvoice.mock.calls[0] as [
-        string,
-        string,
-        Record<string, unknown>,
-      ];
-      expect(pathVendorId).toBe('vendor-1');
-      expect(invoiceId).toBe(MOCK_INVOICE_ID);
-      expect(body.vendorId).toBe('vendor-2');
-    });
-
-    it('submitting with vendor cleared shows vendorRequired error and does not call updateInvoice', async () => {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      screen.getByRole('button', { name: /^Edit$/i }).click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      // Clear the vendor selection
-      await act(async () => {
-        capturedSearchPickerOnChange?.('');
-      });
-
-      // Submit the form
-      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
-      await act(async () => {
-        fireEvent.click(saveButton);
-      });
-
-      await waitFor(() => expect(screen.getByText('Please select a vendor')).toBeInTheDocument());
-
-      expect(mockUpdateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('404 response from updateInvoice surfaces vendorNotFound error without navigating away', async () => {
-      mockUpdateInvoice.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
-      );
-
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-
-      screen.getByRole('button', { name: /^Edit$/i }).click();
-
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-
-      // Submit with default pre-populated vendor (vendor-1 is valid)
-      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
-      await act(async () => {
-        fireEvent.click(saveButton);
-      });
-
-      await waitFor(() =>
-        expect(screen.getByText('The selected vendor could not be found')).toBeInTheDocument(),
-      );
-
-      // Modal should still be open
-      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
-    });
-  });
-  // ─── Story #2107: quotation-to-final-invoice conversion ─────────────────────
-
-  describe('quotation conversion (#2107)', () => {
-    async function renderQuotation(invoice: Invoice = mockQuotation) {
-      mockFetchInvoiceById.mockResolvedValue(invoice);
-      renderPage();
-      await screen.findByTestId('invoice-budget-lines-section');
-    }
-
-    async function openConvertModal() {
-      fireEvent.click(await screen.findByTestId('convert-quotation-button'));
-      return screen.findByTestId('convert-quotation-form');
-    }
-
-    it('scenario 45: shows the Convert button for a quotation', async () => {
-      await renderQuotation();
-
-      const button = screen.getByTestId('convert-quotation-button');
-      expect(button).toHaveTextContent('Convert to final invoice');
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    it('scenario 45: does not show the Convert button for a pending invoice', async () => {
-      await renderQuotation(mockInvoice);
-
-      expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument();
-    });
-
-    it.each(['paid', 'claimed'] as const)(
-      'does not show the Convert button for a %s invoice',
-      async (status) => {
-        await renderQuotation({ ...mockInvoice, status });
-
-        expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument();
-      },
+  it('server error: "Invoice" h1 plus the card h2 "Error", the trail and a translated message', async () => {
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'raw prose' }),
     );
+    renderPage();
+    await screen.findByRole('heading', { level: 2, name: 'Error' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
+    expect(trail()).toEqual(['Money', 'Invoices']);
+    expect(screen.getByRole('alert')).not.toHaveTextContent('raw prose');
+  });
 
-    it('scenario 45: clicking the button opens the conversion modal with the invoice values', async () => {
-      await renderQuotation();
+  it('a network failure shows the not-found text under an "Invoice" h1', async () => {
+    mockFetchInvoiceById.mockRejectedValue(new Error('offline'));
+    renderPage();
+    await screen.findByRole('heading', { level: 2, name: 'Error' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Invoice not found.');
+  });
 
-      await openConvertModal();
-
-      const dialogs = screen.getAllByRole('dialog');
-      expect(dialogs).toHaveLength(1);
-      expect(screen.getByText('Convert quotation to final invoice')).toBeInTheDocument();
-      expect(screen.getByTestId('convert-final-amount')).toHaveValue(10000);
-      expect(screen.getByTestId('convert-invoice-number')).toHaveValue('INV-2026-001');
-    });
-
-    it('Cancel closes the modal without calling the API', async () => {
-      await renderQuotation();
-      await openConvertModal();
-
-      fireEvent.click(screen.getByTestId('convert-cancel'));
-
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(mockConvertQuotation).not.toHaveBeenCalled();
-      expect(screen.getByTestId('convert-quotation-button')).toBeInTheDocument();
-    });
-
-    it('scenario 45: switching to the document picker shows exactly one dialog and returns to the form', async () => {
-      mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_ON);
-      await renderQuotation();
-      await openConvertModal();
-      fireEvent.click(await screen.findByTestId('convert-select-document'));
-
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.getByTestId('stub-picker')).toBeInTheDocument();
-      expect(screen.queryByTestId('convert-quotation-form')).not.toBeInTheDocument();
-      expect(screen.getByTestId('stub-picker-url')).toHaveTextContent('https://paperless.example');
-
-      fireEvent.click(screen.getByTestId('stub-picker-select'));
-
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.queryByTestId('stub-picker')).not.toBeInTheDocument();
-      expect(screen.getByTestId('convert-selected-document')).toHaveTextContent('Picked.pdf');
-      // form values survive the round trip
-      expect(screen.getByTestId('convert-final-amount')).toHaveValue(10000);
-    });
-
-    it.each(['stub-picker-close', 'stub-picker-manual'])(
-      'closing the picker via %s returns to the form without a document',
-      async (testId) => {
-        mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_ON);
-        await renderQuotation();
-        await openConvertModal();
-        fireEvent.click(await screen.findByTestId('convert-select-document'));
-
-        fireEvent.click(screen.getByTestId(testId));
-
-        expect(screen.getAllByRole('dialog')).toHaveLength(1);
-        expect(screen.getByTestId('convert-quotation-form')).toBeInTheDocument();
-        expect(screen.getByTestId('convert-selected-document')).toHaveTextContent(
-          'No document selected',
-        );
-      },
+  it('Retry on the error card loads the invoice again', async () => {
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
     );
-
-    it('scenario 45: switching to the refund modal shows exactly one dialog with a locked refund preset', async () => {
-      await renderQuotation({ ...mockQuotation, deposits: [paidDeposit(6000)] });
-      await openConvertModal();
-      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
-
-      fireEvent.click(screen.getByTestId('convert-add-refund'));
-
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.queryByTestId('convert-quotation-form')).not.toBeInTheDocument();
-      const props = JSON.parse(screen.getByTestId('stub-refund-props').textContent!) as {
-        mode: string;
-        lockEntryType: boolean;
-        initialValues: Record<string, unknown>;
-      };
-      expect(props.mode).toBe('add');
-      expect(props.lockEntryType).toBe(true);
-      expect(props.initialValues).toMatchObject({
-        entryType: 'refund',
-        status: 'pending',
-        amount: '1000.00',
-      });
-    });
-
-    it('cancelling the refund modal returns to the form and keeps the entered amount', async () => {
-      await renderQuotation({ ...mockQuotation, deposits: [paidDeposit(6000)] });
-      await openConvertModal();
-      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
-      fireEvent.click(screen.getByTestId('convert-add-refund'));
-
-      fireEvent.click(screen.getByTestId('stub-refund-close'));
-
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.getByTestId('convert-final-amount')).toHaveValue(5000);
-      expect(screen.getByTestId('convert-overpaid-banner')).toBeInTheDocument();
-    });
-
-    it('saving the refund silently refreshes the invoice (no page loader) and returns to the form', async () => {
-      const refunded: Invoice = {
-        ...mockQuotation,
-        deposits: [
-          paidDeposit(6000),
-          { ...paidDeposit(1000), id: 'ref-1', entryType: 'refund', status: 'pending' },
-        ],
-      };
-      mockFetchInvoiceById.mockResolvedValueOnce({
-        ...mockQuotation,
-        deposits: [paidDeposit(6000)],
-      });
-      mockFetchInvoiceById.mockResolvedValue(refunded);
-      renderPage();
-      await screen.findByTestId('invoice-budget-lines-section');
-      await openConvertModal();
-      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
-      fireEvent.click(screen.getByTestId('convert-add-refund'));
-      expect(mockFetchInvoiceById).toHaveBeenCalledTimes(1);
-
-      fireEvent.click(screen.getByTestId('stub-refund-save'));
-
-      await waitFor(() =>
-        expect(screen.queryByTestId('convert-overpaid-banner')).not.toBeInTheDocument(),
-      );
-      expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2);
-      expect(screen.queryByRole('status', { name: 'Loading invoice...' })).not.toBeInTheDocument();
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.getByTestId('convert-final-amount')).toHaveValue(5000);
-      expect(screen.getByTestId('convert-confirm')).toBeEnabled();
-    });
-
-    it('scenario 45: after a successful conversion the status shows To pay, the button is gone and the amount is updated', async () => {
-      const converted: Invoice = {
-        ...mockQuotation,
-        status: 'pending',
-        amount: 10500,
-        finalPaymentAmount: 10500,
-        remainingAmount: 10500,
-        notes: 'Converted from quotation of $10000.00 on 2026-09-30.',
-      };
-      mockConvertQuotation.mockResolvedValue(converted);
-      await renderQuotation();
-      expect(screen.queryByText('To pay')).not.toBeInTheDocument();
-      await openConvertModal();
-      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '10500' } });
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('convert-confirm'));
-      });
-
-      await waitFor(() =>
-        expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument(),
-      );
-      expect(mockConvertQuotation).toHaveBeenCalledTimes(1);
-      expect(mockConvertQuotation.mock.calls[0]![0]).toBe(MOCK_INVOICE_ID);
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(screen.getAllByText('To pay').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('$10500.00').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText(/Converted from quotation of/)).toBeInTheDocument();
-    });
-
-    it('remounts the budget lines and linked documents sections after conversion', async () => {
-      mockConvertQuotation.mockResolvedValue({ ...mockQuotation, status: 'pending' });
-      await renderQuotation();
-      await waitFor(() => expect(budgetLinesMounts).toBe(1));
-      expect(linkedDocumentsMounts).toBe(1);
-      await openConvertModal();
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('convert-confirm'));
-      });
-
-      await waitFor(() => expect(budgetLinesMounts).toBe(2));
-      expect(linkedDocumentsMounts).toBe(2);
-    });
-
-    it('moves focus to the page heading after conversion', async () => {
-      mockConvertQuotation.mockResolvedValue({ ...mockQuotation, status: 'pending' });
-      await renderQuotation();
-      await openConvertModal();
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('convert-confirm'));
-      });
-
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { level: 1, name: /Acme Construction · INV-2026-001/ }),
-        ).toHaveFocus(),
-      );
-    });
-
-    it('a failed conversion keeps the modal open with the error and the quotation state', async () => {
-      mockConvertQuotation.mockRejectedValue(
-        new MockApiClientError(409, { code: 'INVOICE_NOT_QUOTATION', message: 'x' }),
-      );
-      mockFetchInvoiceById.mockResolvedValue(mockQuotation);
-      await renderQuotation();
-      await openConvertModal();
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('convert-confirm'));
-      });
-
-      expect(
-        await screen.findByText(
-          'This invoice is no longer a quotation. The page has been refreshed.',
-        ),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('convert-quotation-form')).toBeInTheDocument();
-      expect(budgetLinesMounts).toBe(1);
-    });
+    renderPage();
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    mockFetchInvoiceById.mockResolvedValue(record());
+    await userEvent.click(retry);
+    await screen.findByRole('heading', { level: 1, name: HEADING });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  // ─── #2108 / #2109 / #2113: translated error surfaces ───────────────────────
-
-  describe('translated API errors (#2108, #2109, #2113)', () => {
-    async function openEditAndSave() {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
-      });
-      await waitFor(() =>
-        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-    }
-
-    it('scenario 19: ITEMIZED_SUM_EXCEEDS_INVOICE shows amountBelowItemized with formatted itemizedTotal and keeps the modal open', async () => {
-      mockUpdateInvoice.mockRejectedValue(
-        new MockApiClientError(400, {
-          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
-          message: 'raw server text',
-          details: { invoiceTotal: 800, itemizedTotal: 900 },
-        } as never),
-      );
-
-      await openEditAndSave();
-
-      await waitFor(() =>
-        expect(
-          screen.getByText(
-            'The amount cannot be lower than the itemized total of $900.00. Reduce the itemized budget lines first.',
-          ),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
-    });
-
-    it('scenario 20: lowering the amount below deposits is no longer special-cased; an unknown code falls back to the translateApiError humanised text and keeps the modal open', async () => {
-      mockUpdateInvoice.mockRejectedValue(
-        new MockApiClientError(400, {
-          code: 'SOME_FUTURE_ERROR',
-          message: 'raw server text',
-        }),
-      );
-
-      await openEditAndSave();
-
-      await waitFor(() => expect(screen.getByText('Some Future Error')).toBeInTheDocument());
-      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
-      expect(screen.queryByText(/net of refunds/)).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
-    });
-
-    it('falls back to a formatted zero when the error details are missing', async () => {
-      mockUpdateInvoice.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'ITEMIZED_SUM_EXCEEDS_INVOICE', message: 'raw' }),
-      );
-      await openEditAndSave();
-      await waitFor(() =>
-        expect(screen.getByText(/itemized total of \$0\.00/)).toBeInTheDocument(),
-      );
-    });
-
-    it('scenario 21: VALIDATION_ERROR shows the errors-namespace translation, not the raw server message', async () => {
-      mockUpdateInvoice.mockRejectedValue(
-        new MockApiClientError(400, { code: 'VALIDATION_ERROR', message: 'raw server text' }),
-      );
-
-      await openEditAndSave();
-
-      await waitFor(() =>
-        expect(
-          screen.getByText('The submitted data is invalid. Please check your input.'),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
-    });
-
-    it('a non-API update failure shows the generic updateError message', async () => {
-      mockUpdateInvoice.mockRejectedValue(new Error('boom'));
-
-      await openEditAndSave();
-
-      await waitFor(() =>
-        expect(screen.getByText('Failed to update invoice. Please try again.')).toBeInTheDocument(),
-      );
-    });
-
-    it('scenario 22: a delete failure shows the translated error, not the raw server message', async () => {
-      mockDeleteInvoice.mockRejectedValue(
-        new MockApiClientError(409, { code: 'CONFLICT', message: 'raw server text' }),
-      );
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-      });
-      const confirm = await enabledConfirm('invoice-delete');
-      await act(async () => {
-        fireEvent.click(confirm);
-      });
-
-      await waitFor(() =>
-        expect(
-          screen.getByText('A conflict occurred. The resource may already exist.'),
-        ).toBeInTheDocument(),
-      );
-      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
-    });
-
-    it('a non-API delete failure shows the generic deleteError message', async () => {
-      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-      });
-      await act(async () => {
-        fireEvent.click(await enabledConfirm('invoice-delete'));
-      });
-
-      await waitFor(() =>
-        expect(screen.getByText('Failed to delete invoice. Please try again.')).toBeInTheDocument(),
-      );
-    });
-  });
-  describe('page identity (#2203)', () => {
-    function renderRouted(
-      entry: string | { url: string; state?: unknown } = '/budget/invoices/inv-001',
-    ) {
-      const log = createRouterLog();
-      render(
-        <RecordingRouter entries={[entry]} log={log}>
-          <Routes>
-            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-            <Route path="*" element={<div>Elsewhere</div>} />
-          </Routes>
-        </RecordingRouter>,
-      );
-      return log;
-    }
-
-    function trail(): string[] {
-      const nav = screen.getByRole('navigation', { name: 'You are here' });
-      return within(nav)
-        .getAllByRole('link')
-        .map((a) => (a.textContent ?? '').replace('‹', ''));
-    }
-
-    it('loading: one "Invoice" h1, the Money > Invoices trail and the matching tab title', () => {
-      document.title = 'initial';
-      mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
-      renderRouted();
-
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
-      expect(trail()).toEqual(['Money', 'Invoices']);
-      expect(document.title).toBe('Invoice · Money · Cornerstone');
-    });
-
-    it('not found: "Invoice not found" is the only h1, with the trail and tab title', async () => {
-      mockFetchInvoiceById.mockRejectedValue(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Invoice not found.' }),
-      );
-      renderRouted();
-
-      await screen.findByRole('heading', { level: 1, name: 'Invoice not found' });
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(trail()).toEqual(['Money', 'Invoices']);
-      await waitFor(() => expect(document.title).toBe('Invoice not found · Money · Cornerstone'));
-    });
-
-    it('server error: "Invoice" h1 plus the card h2 "Error"', async () => {
-      mockFetchInvoiceById.mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
-      );
-      renderRouted();
-
-      await screen.findByRole('heading', { level: 2, name: 'Error' });
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
-      expect(trail()).toEqual(['Money', 'Invoices']);
-    });
-
-    it('loaded: the h1 and tab title are company and number, with no "Back to Invoices"', async () => {
-      renderRouted();
-
-      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      await waitFor(() =>
-        expect(document.title).toBe('Acme Construction · INV-2026-001 · Money · Cornerstone'),
-      );
-      expect(trail()).toEqual(['Money', 'Invoices']);
-      expect(screen.queryByText(/back to invoices/i)).toBeNull();
-      expect(screen.queryByTestId('breadcrumbs-back')).toBeNull();
-    });
-
-    it('loaded offer without a number: company and "Offer"', async () => {
-      mockFetchInvoiceById.mockResolvedValue({
-        ...mockQuotation,
-        invoiceNumber: null,
-      });
-      renderRouted();
-
-      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · Offer' });
-    });
-
-    it('offers Back to the company the invoice was opened from', async () => {
-      renderRouted({
-        url: '/budget/invoices/inv-001',
-        state: { origin: { to: '/companies/vendor-1', name: 'Acme Construction' } },
-      });
-
-      const back = await screen.findByTestId('breadcrumbs-back');
-      expect(back).toHaveTextContent('Back to Acme Construction');
-      expect(back).toHaveAttribute('href', '/companies/vendor-1');
-    });
-
-    it('the error action "Back to Invoices" navigates to the Invoices list', async () => {
-      mockFetchInvoiceById.mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
-      );
-      const log = renderRouted();
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Back to Invoices' }));
-
-      expect(log.actions).toEqual(['PUSH /budget/invoices']);
-      expect(await screen.findByText('Elsewhere')).toBeInTheDocument();
-    });
-
-    it('deleting the invoice replaces the history entry with the Invoices list', async () => {
-      mockDeleteInvoice.mockResolvedValue(undefined);
-      const log = renderRouted();
-      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-      });
-      await act(async () => {
-        fireEvent.click(await enabledConfirm('invoice-delete'));
-      });
-
-      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices']));
-      expect(log.entries).toEqual(['/budget/invoices']);
-    });
-
-    it('does not navigate on mount', async () => {
-      const log = renderRouted();
-
-      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
-      expect(log.actions).toEqual([]);
-      expect(log.entries).toEqual(['/budget/invoices/inv-001']);
-    });
-
-    it('the company link and the budget lines carry this invoice as origin', async () => {
-      render(
-        <MemoryRouter initialEntries={['/budget/invoices/inv-001']}>
-          <Routes>
-            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-            <Route path="*" element={<div>Elsewhere</div>} />
-          </Routes>
-          <OriginProbe />
-        </MemoryRouter>,
-      );
-      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
-
-      const lines = screen.getByTestId('invoice-budget-lines-section');
-      expect(JSON.parse(lines.getAttribute('data-link-state') ?? 'null')).toEqual({
-        origin: { to: '/budget/invoices/inv-001', name: 'Acme Construction · INV-2026-001' },
-      });
-
-      fireEvent.click(screen.getByRole('link', { name: 'Acme Construction' }));
-
-      await screen.findByText('Elsewhere');
-      expect(probedOrigin()).toEqual({
-        to: '/budget/invoices/inv-001',
-        name: 'Acme Construction · INV-2026-001',
-      });
-    });
+  it('"Back to Invoices" on the error card navigates to the Invoices list (push)', async () => {
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+    );
+    const log = renderRouted();
+    await userEvent.click(await screen.findByRole('button', { name: 'Back to Invoices' }));
+    expect(log.actions).toEqual(['PUSH /budget/invoices']);
+    expect(await screen.findByText('Invoice List Page')).toBeInTheDocument();
   });
 
-  describe('company create row in the edit modal (#2213)', () => {
-    function renderWithCompanyCreate(request: RequestCompanyCreate | null) {
-      return render(
-        <CompanyCreateContext value={request}>
-          <MemoryRouter initialEntries={[`/budget/invoices/${MOCK_INVOICE_ID}`]}>
-            <Routes>
-              <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-              <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
-            </Routes>
-          </MemoryRouter>
-        </CompanyCreateContext>,
-      );
+  it('error actions are secondary buttons, not primary', async () => {
+    mockFetchInvoiceById.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+    );
+    renderPage();
+    for (const name of ['Back to Invoices', 'Retry']) {
+      const button = await screen.findByRole('button', { name });
+      expect(button.className).toContain('btnSecondary');
+      expect(button.className).not.toContain('btnPrimary');
     }
-
-    async function openEdit() {
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
-      });
-      await screen.findByRole('heading', { name: 'Edit Invoice', level: 2 });
-    }
-
-    it('gives the company picker a "New company ‹text›" row that hides on an exact match', async () => {
-      renderWithCompanyCreate(jest.fn<RequestCompanyCreate>());
-      await openEdit();
-
-      const row = screen.getByTestId('search-picker-create');
-      expect(row).toHaveTextContent('New company Brand New Co');
-      expect(row).toHaveAttribute('data-show', 'noExactMatch');
-    });
-
-    it('gives the picker no row outside a CompanyCreateProvider', async () => {
-      renderWithCompanyCreate(null);
-      await openEdit();
-      expect(screen.queryByTestId('search-picker-create')).not.toBeInTheDocument();
-    });
-
-    it('saves the invoice with the created company', async () => {
-      const request = jest
-        .fn<RequestCompanyCreate>()
-        .mockResolvedValue({ id: 'vendor-new', name: 'Brand New Co' });
-      mockUpdateInvoice.mockResolvedValue({
-        ...mockInvoice,
-        vendorId: 'vendor-new',
-        vendorName: 'Brand New Co',
-      });
-      renderWithCompanyCreate(request);
-      await openEdit();
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('search-picker-create'));
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-
-      expect(request).toHaveBeenCalledWith('Brand New Co');
-      await waitFor(() => expect(mockUpdateInvoice).toHaveBeenCalledTimes(1));
-      const [pathVendorId, , body] = mockUpdateInvoice.mock.calls[0] as [
-        string,
-        string,
-        Record<string, unknown>,
-      ];
-      expect(pathVendorId).toBe('vendor-1');
-      expect(body.vendorId).toBe('vendor-new');
-    });
-
-    describe('while the New company form is open (stacked dialog)', () => {
-      let finish: (company: CompanyOption | null) => void;
-
-      async function openWithPendingCreate() {
-        const request = jest.fn<RequestCompanyCreate>(
-          () => new Promise<CompanyOption | null>((resolve) => (finish = resolve)),
-        );
-        renderWithCompanyCreate(request);
-        await openEdit();
-        await act(async () => {
-          fireEvent.click(screen.getByTestId('search-picker-create'));
-        });
-      }
-
-      const editOpen = () => screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 });
-
-      it('ignores a click on the backdrop', async () => {
-        await openWithPendingCreate();
-        const backdrop = document.querySelector('[class*="modalBackdrop"]') as HTMLElement;
-
-        await act(async () => {
-          fireEvent.click(backdrop);
-        });
-
-        expect(editOpen()).toBeInTheDocument();
-      });
-
-      it('ignores Cancel', async () => {
-        await openWithPendingCreate();
-
-        await act(async () => {
-          fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-        });
-
-        expect(editOpen()).toBeInTheDocument();
-      });
-
-      it('closes normally again once the New company form is done', async () => {
-        await openWithPendingCreate();
-        await act(async () => {
-          finish(null);
-        });
-
-        await act(async () => {
-          fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-        });
-
-        expect(editOpen()).not.toBeInTheDocument();
-      });
-    });
   });
 
-  describe('edit dialog is the shared Modal (#2213)', () => {
-    async function openEdit() {
-      renderPage();
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      screen.getByRole('button', { name: /^Edit$/i }).focus();
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
-      });
-      await screen.findByRole('dialog', { name: 'Edit Invoice' });
-    }
-
-    const closeButton = () =>
-      within(screen.getByRole('dialog', { name: 'Edit Invoice' })).getByRole('button', {
-        name: 'Close dialog',
-      });
-
-    it('is one dialog named by its title, with a Close dialog button', async () => {
-      await openEdit();
-      expect(screen.getAllByRole('dialog')).toHaveLength(1);
-      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toHaveAttribute(
-        'aria-modal',
-        'true',
-      );
-      expect(closeButton()).not.toHaveAttribute('aria-disabled');
-    });
-
-    it('the close button closes it', async () => {
-      await openEdit();
-      fireEvent.click(closeButton());
-      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
-    });
-
-    it('Escape closes it', async () => {
-      await openEdit();
-      await userEvent.keyboard('{Escape}');
-      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
-    });
-
-    it('a click on the backdrop closes it', async () => {
-      await openEdit();
-      fireEvent.click(document.querySelector('[class*="modalBackdrop"]') as HTMLElement);
-      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
-    });
-
-    it('Cancel closes it and returns focus to the Edit button', async () => {
-      await openEdit();
-      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Edit$/i })).toHaveFocus());
-    });
-
-    it('is not dismissible while the save is running: Escape, close button and backdrop do nothing', async () => {
-      let finish: (inv: Invoice) => void = () => {};
-      mockUpdateInvoice.mockReturnValue(new Promise((resolve) => (finish = resolve)));
-      await openEdit();
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
-      });
-      const close = closeButton();
-
-      expect(close).toHaveAttribute('aria-disabled', 'true');
-      await userEvent.keyboard('{Escape}');
-      fireEvent.click(close);
-      fireEvent.click(document.querySelector('[class*="modalBackdrop"]') as HTMLElement);
-      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
-
-      await act(async () => {
-        finish({ ...mockInvoice });
-      });
-    });
-  });
-
-  describe('company create stacked over the edit dialog (real provider, #2213)', () => {
-    let Provider: (typeof ProviderTypes)['CompanyCreateProvider'];
-    let media: MatchMediaControl;
-
-    beforeEach(async () => {
-      ({ CompanyCreateProvider: Provider } =
-        (await import('../../objectForms/CompanyCreateProvider.js')) as typeof ProviderTypes);
-      media = installMatchMedia({ '(min-width: 768px)': true });
-    });
-    afterEach(() => media.restore());
-
-    async function openStack() {
-      render(
-        <MemoryRouter initialEntries={[`/budget/invoices/${MOCK_INVOICE_ID}`]}>
-          <Provider>
-            <Routes>
-              <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-            </Routes>
-          </Provider>
-        </MemoryRouter>,
-      );
-      await waitFor(() =>
-        expect(
-          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
-        ).toBeInTheDocument(),
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
-      });
-      await screen.findByRole('dialog', { name: 'Edit Invoice' });
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('search-picker-create'));
-      });
-      await screen.findByRole('dialog', { name: 'New company' });
-    }
-
-    it('shows both dialogs, the company form on top', async () => {
-      await openStack();
-      expect(screen.getAllByRole('dialog')).toHaveLength(2);
-      expect(screen.getByRole('dialog', { name: 'New company' }).getAttribute('style')).toContain(
-        'var(--z-modal) + 2',
-      );
-      expect(
-        screen.getByRole('dialog', { name: 'Edit Invoice' }).getAttribute('style') ?? '',
-      ).not.toContain('z-modal');
-    });
-
-    it('one Escape closes only the company form; the edit dialog stays', async () => {
-      await openStack();
-
-      await userEvent.keyboard('{Escape}');
-
-      await waitFor(() =>
-        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument(),
-      );
-      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
-    });
-
-    it('the edit dialog cannot be dismissed while the company form is open', async () => {
-      await openStack();
-      const editDialog = screen.getByRole('dialog', { name: 'Edit Invoice' });
-      const close = within(editDialog).getByRole('button', { name: 'Close dialog' });
-
-      expect(close).toHaveAttribute('aria-disabled', 'true');
-      fireEvent.click(close);
-      fireEvent.click(within(editDialog).getByRole('button', { name: /^Cancel$/i }));
-      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
-    });
-
-    it('a second Escape then closes the edit dialog (it is dismissible again)', async () => {
-      await openStack();
-      await userEvent.keyboard('{Escape}');
-      await waitFor(() =>
-        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument(),
-      );
-
-      await userEvent.keyboard('{Escape}');
-
-      await waitFor(() =>
-        expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument(),
-      );
-    });
-  });
-
-  describe('payment target from ?payment= (#2223)', () => {
-    function renderAt(search: string, state: unknown = { origin: { to: '/diary' } }) {
-      const log = createRouterLog();
-      render(
-        <RecordingRouter
-          entries={[{ url: `/budget/invoices/${MOCK_INVOICE_ID}${search}`, state }]}
-          log={log}
-        >
-          <Routes>
-            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
-          </Routes>
-        </RecordingRouter>,
-      );
-      return log;
-    }
-    const withPayment = () =>
-      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, deposits: [paidDeposit(400)] });
-    const paymentRows = () =>
-      Array.from(document.querySelectorAll<HTMLElement>('[data-payment-id="dep-1"]'));
-
-    beforeEach(() => {
-      HTMLElement.prototype.scrollIntoView = jest.fn() as never;
-    });
-
-    afterEach(() => {
-      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
-    });
-
-    it('focuses and highlights the payment row, then drops the param keeping the origin', async () => {
-      withPayment();
-      const log = renderAt('?payment=dep-1');
-      await screen.findByTestId('invoice-payment-status');
-      await waitFor(() => expect(paymentRows().length).toBeGreaterThan(0));
-      await waitFor(() => expect(log.actions).toHaveLength(1));
-
-      const [row] = paymentRows();
-      expect(row).toHaveFocus();
-      expect(row?.className).toContain('paymentTarget');
-      expect(row).toHaveAttribute('tabindex', '-1');
-      expect(log.actions[0]).toBe(`REPLACE /budget/invoices/${MOCK_INVOICE_ID}`);
-      expect(log.states[0]).toEqual({ origin: { to: '/diary' } });
-      expect(screen.getByTestId('invoice-payment-status')).toBeEmptyDOMElement();
-    });
-
-    it('keeps other params when dropping payment', async () => {
-      withPayment();
-      const log = renderAt('?tab=payments&payment=dep-1');
-      await waitFor(() => expect(log.actions).toHaveLength(1));
-      expect(log.actions[0]).toBe(`REPLACE /budget/invoices/${MOCK_INVOICE_ID}?tab=payments`);
-    });
-
-    it('says the payment no longer exists for an unknown id, and Close clears it', async () => {
-      withPayment();
-      const log = renderAt('?payment=missing-id');
-
-      const region = await screen.findByTestId('invoice-payment-status');
-      await waitFor(() =>
-        expect(region).toHaveTextContent('That progress payment no longer exists.'),
-      );
-      expect(region).toHaveAttribute('role', 'status');
-      expect(log.actions).toEqual([`REPLACE /budget/invoices/${MOCK_INVOICE_ID}`]);
-      expect(paymentRows().some((r) => r.className.includes('paymentTarget'))).toBe(false);
-
-      fireEvent.click(within(region).getByRole('button', { name: 'Close' }));
-      expect(region).toBeEmptyDOMElement();
-    });
-
-    it('keeps an always-mounted empty status region without the param', async () => {
-      withPayment();
-      const log = renderAt('');
-      const region = await screen.findByTestId('invoice-payment-status');
-      expect(region).toHaveAttribute('role', 'status');
-      expect(region).toBeEmptyDOMElement();
-      expect(log.actions).toEqual([]);
-    });
-
-    it('does not run before the invoice has loaded', async () => {
-      let resolve!: (invoice: Invoice) => void;
-      mockFetchInvoiceById.mockImplementation(
-        () =>
-          new Promise((res) => {
-            resolve = res;
-          }),
-      );
-      const log = renderAt('?payment=dep-1');
-      expect(log.actions).toEqual([]);
-
-      await act(async () => {
-        resolve({ ...mockInvoice, deposits: [paidDeposit(400)] });
-      });
-      await waitFor(() => expect(log.actions).toHaveLength(1));
-    });
-  });
-});
-
-describe('route id and delete-in-flight guards', () => {
-  it('redirects to the invoice list when the route has no id', async () => {
+  it('redirects to the Invoices list when the route has no id', async () => {
     render(
       <MemoryRouter initialEntries={['/no-id']}>
         <Routes>
@@ -2224,35 +384,775 @@ describe('route id and delete-in-flight guards', () => {
     expect(mockFetchInvoiceById).not.toHaveBeenCalled();
   });
 
-  it('ignores Cancel and Escape while the delete request is running', async () => {
-    mockDeleteInvoice.mockImplementation(() => new Promise(() => {}));
-    renderPage();
-    await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
-    });
-    await screen.findByRole('alertdialog');
-    await act(async () => {
-      fireEvent.click(await enabledConfirm('invoice-delete'));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('invoice-delete-cancel'));
-      fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
-    });
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  it('does not navigate on mount and replaces nothing', async () => {
+    const log = renderRouted();
+    await screen.findByRole('heading', { level: 1, name: HEADING });
+    expect(log.actions).toEqual([]);
+  });
+});
+
+// ─── Header ──────────────────────────────────────────────────────────────────
+
+describe('InvoiceDetailPage header (S11)', () => {
+  it('shows company and number as the one h1 and tab title, with the trail and no Back link', async () => {
+    await loaded();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: HEADING })).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toBe(`${HEADING} · Money · Cornerstone`));
+    expect(screen.queryByTestId('breadcrumbs-back')).toBeNull();
   });
 
-  it('the edit vendor picker searches companies and renders their names', async () => {
-    mockFetchVendors.mockResolvedValue({
-      vendors: [{ id: 'vendor-2', name: 'Builder Co' } as Vendor],
-      pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
-    });
+  it('marks the h1 as user text when the company or the number has content, and not otherwise', async () => {
+    await loaded();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'en');
+  });
+
+  it('a blank company and number make the h1 a translated fallback with no language', async () => {
+    mockFetchInvoiceById.mockResolvedValue(record({ vendorName: '  ', invoiceNumber: null }));
     renderPage();
-    await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
-    screen.getByRole('button', { name: /^Edit$/i }).click();
-    fireEvent.click(await screen.findByTestId('search-picker-search-edit-vendor'));
-    await waitFor(() =>
-      expect(document.body.getAttribute('data-picker-labels')).toBe('Builder Co'),
+    expect(await screen.findByRole('heading', { level: 1, name: 'Invoice' })).not.toHaveAttribute(
+      'lang',
     );
+    await screen.findByTestId('invoice-header');
+  });
+
+  it('a blank company with a number still makes the h1 user text', async () => {
+    mockFetchInvoiceById.mockResolvedValue(record({ vendorName: '', invoiceNumber: 'INV-7' }));
+    renderPage();
+    await screen.findByTestId('invoice-header');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'en');
+  });
+
+  it('an offer without a number: company and "Offer"', async () => {
+    await loaded({ status: 'quotation', invoiceNumber: null });
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Acme Construction · Offer' }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers Back to the company the invoice was opened from', async () => {
+    mockFetchInvoiceById.mockResolvedValue(record());
+    const log = renderRouted({
+      url: `/budget/invoices/${ID}`,
+      state: { origin: { to: '/companies/vendor-1', name: 'Acme Construction' } },
+    });
+    const back = await screen.findByTestId('breadcrumbs-back');
+    expect(back).toHaveAttribute('href', '/companies/vendor-1');
+    expect(log.actions).toEqual([]);
+  });
+
+  it('puts the company link and the notes in the description, the link carrying this page as origin', async () => {
+    await loaded({ notes: 'Roof tiles for the garage' });
+    const description = screen.getByTestId('invoice-header-description');
+    expect(description).toHaveTextContent('Acme Construction · Roof tiles for the garage');
+    const link = within(description).getByTestId('invoice-company-link');
+    expect(link).toHaveAttribute('href', '/companies/vendor-1');
+    expect(link).toHaveAttribute('lang', 'en');
+    await userEvent.click(link);
+    await screen.findByText('Elsewhere');
+    expect(probedOrigin()).toEqual({ to: `/budget/invoices/${ID}`, name: HEADING });
+  });
+
+  it('shows only the company link without notes', async () => {
+    await loaded({ notes: null });
+    expect(screen.getByTestId('invoice-header-description')).toHaveTextContent(
+      /^Acme Construction$/,
+    );
+  });
+
+  it('hands the cost lines section the invoice as host, the page controller and the origin', async () => {
+    await loaded({ amount: 1500, vendorId: 'vendor-9' });
+    const section = screen.getByTestId('invoice-budget-lines-section');
+    expect(section).toHaveAttribute('data-has-controller', 'true');
+    expect(lastCostSectionProps?.host).toMatchObject({
+      id: ID,
+      status: 'pending',
+      amount: 1500,
+      vendorId: 'vendor-9',
+      label: HEADING,
+    });
+    expect(JSON.parse(section.getAttribute('data-link-state') ?? 'null')).toEqual({
+      origin: { to: `/budget/invoices/${ID}`, name: HEADING },
+    });
+  });
+
+  describe('D-07 status chip through the shared Badge', () => {
+    it('D-07: an invoice header chip renders through the shared Badge with the To pay class', async () => {
+      await loaded({ status: 'pending' });
+      const chip = screen.getByTestId('invoice-status-badge');
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('To pay');
+      expect(chip.className).toContain('chip');
+      expect(chip.className).toContain('pending');
+    });
+
+    it('D-07: an offer shows no chip, and its final-payment row Badge reads "Offer" with the offer class', async () => {
+      await loaded(
+        {
+          status: 'quotation',
+          deposits: [makePayment({ id: 'p1', invoiceId: ID })],
+        },
+        `/budget/invoices/${ID}?tab=payments`,
+      );
+      expect(screen.queryByTestId('invoice-status-badge')).toBeNull();
+      const row = await screen.findByTestId('invoice-progress-payments-row-final-payment');
+      const badge = within(row).getByText('Offer');
+      expect(badge.className).toContain('badge');
+      expect(badge.className).toContain('offer');
+      expect(badge.className).not.toContain('quotation');
+    });
+  });
+
+  describe('invoice vs offer', () => {
+    it('an offer: Convert to final invoice is the one primary, no chip and no secondary', async () => {
+      await loaded({ status: 'quotation' });
+      const primary = screen.getByTestId('convert-quotation-button');
+      expect(primary).toHaveTextContent('Convert to final invoice');
+      expect(primary.className).toContain('primary');
+      expect(screen.queryByTestId('invoice-secondary-add-payment')).toBeNull();
+      expect(screen.queryByTestId('invoice-status-badge')).toBeNull();
+      expect(
+        screen
+          .getByTestId('invoice-header')
+          .querySelectorAll('.primary, [data-testid$="-primary-mark-paid"]'),
+      ).toHaveLength(1);
+    });
+
+    it('clicking Convert opens the conversion flow', async () => {
+      await loaded({ status: 'quotation' });
+      await userEvent.click(screen.getByTestId('convert-quotation-button'));
+      expect(convertOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('an invoice has no Convert button', async () => {
+      await loaded({ status: 'pending' });
+      expect(screen.queryByTestId('convert-quotation-button')).toBeNull();
+    });
+
+    it('names the strip and the tabs after the type: "Offer summary" and "Invoice summary"', async () => {
+      await loaded({ status: 'quotation' });
+      expect(screen.getByRole('region', { name: 'Offer summary' })).toBeInTheDocument();
+    });
+
+    it('an invoice strip is "Invoice summary"', async () => {
+      await loaded();
+      expect(screen.getByRole('region', { name: 'Invoice summary' })).toBeInTheDocument();
+    });
+
+    it.each([
+      ['pending', 'invoice-primary-mark-paid'],
+      ['paid', 'invoice-primary-bank-report'],
+      ['claimed', 'invoice-primary-add-payment'],
+    ] as const)('a %s invoice has the primary %s', async (status, testId) => {
+      await loaded({ status });
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      for (const other of [
+        'invoice-primary-mark-paid',
+        'invoice-primary-bank-report',
+        'invoice-primary-add-payment',
+      ].filter((id) => id !== testId)) {
+        expect(screen.queryByTestId(other)).toBeNull();
+      }
+    });
+
+    it.each(['pending', 'paid'] as const)(
+      'a %s invoice has Add progress payment as its secondary; claimed has none',
+      async (status) => {
+        await loaded({ status });
+        expect(screen.getByTestId('invoice-secondary-add-payment')).toHaveTextContent(
+          'Add progress payment',
+        );
+      },
+    );
+
+    it('a submitted invoice has no secondary and shows no chip menu', async () => {
+      await loaded({ status: 'claimed' });
+      expect(screen.queryByTestId('invoice-secondary-add-payment')).toBeNull();
+      expect(screen.getByTestId('invoice-status-badge').tagName).toBe('SPAN');
+    });
+  });
+
+  describe('status change', () => {
+    it('Mark paid (primary) applies at once with no date step, and offers Undo', async () => {
+      mockChangeInvoiceStatus.mockResolvedValue({
+        record: record({ status: 'paid' }),
+        undo: TOKEN,
+      });
+      await loaded({ status: 'pending' });
+      await userEvent.click(screen.getByTestId('invoice-primary-mark-paid'));
+      await waitFor(() => expect(mockChangeInvoiceStatus).toHaveBeenCalledTimes(1));
+      expect(mockChangeInvoiceStatus).toHaveBeenCalledWith('vendor-1', ID, { status: 'paid' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        dedupeKey: `invoice:${ID}`,
+        message: expect.stringContaining(HEADING),
+      });
+    });
+
+    it('refreshes the record silently after a change, without a skeleton', async () => {
+      mockChangeInvoiceStatus.mockResolvedValue({ record: record({ status: 'paid' }), undo: null });
+      await loaded({ status: 'pending' });
+      mockFetchInvoiceById.mockResolvedValue(record({ status: 'paid', paid: 1000, openAmount: 0 }));
+      await userEvent.click(screen.getByTestId('invoice-primary-mark-paid'));
+      await waitFor(() => expect(screen.getByTestId('invoice-primary-bank-report')).toBeVisible());
+      expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
+      expect(screen.getByTestId('invoice-status-badge')).toHaveTextContent('Paid');
+    });
+
+    it('the chip menu offers the way back from Paid', async () => {
+      mockChangeInvoiceStatus.mockResolvedValue({ record: record(), undo: null });
+      await loaded({ status: 'paid' });
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
+        'Back to “To pay”',
+      ]);
+      fireEvent.click(screen.getByTestId('invoice-status-badge-option-pending'));
+      await waitFor(() =>
+        expect(mockChangeInvoiceStatus).toHaveBeenCalledWith('vendor-1', ID, { status: 'pending' }),
+      );
+    });
+
+    it('a failed change toasts the generic copy and keeps the status', async () => {
+      mockChangeInvoiceStatus.mockRejectedValue(new Error('RAW'));
+      await loaded({ status: 'pending' });
+      await userEvent.click(screen.getByTestId('invoice-primary-mark-paid'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('invoice-status-badge')).toHaveTextContent('To pay');
+    });
+
+    it('Undo refreshes the record', async () => {
+      mockChangeInvoiceStatus.mockResolvedValue({
+        record: record({ status: 'paid' }),
+        undo: TOKEN,
+      });
+      await loaded({ status: 'pending' });
+      await userEvent.click(screen.getByTestId('invoice-primary-mark-paid'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      const before = mockFetchInvoiceById.mock.calls.length;
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(mockFetchInvoiceById.mock.calls.length).toBeGreaterThan(before);
+    });
+  });
+
+  describe('Prepare bank report', () => {
+    const SOURCES = [
+      makeBudgetSource({ id: 's1', name: 'Loan Alpha' }),
+      makeBudgetSource({ id: 's2', name: 'Savings Beta' }),
+    ];
+
+    async function paidWith(lines: ReturnType<typeof makeCostLine>[]) {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: SOURCES });
+      mockFetchCostLines.mockResolvedValue(costLinesResponse(lines));
+      await loaded({ status: 'paid' });
+      // the cost lines and sources load after the page: wait for the funding source fact
+      await waitFor(() =>
+        expect(screen.getByTestId('summary-fact-fundingSource')).not.toHaveTextContent('–'),
+      ).catch(() => undefined);
+      return screen.getByTestId('invoice-primary-bank-report');
+    }
+
+    it('includes sourceId when exactly one source funds the cost lines, and carries the origin', async () => {
+      await paidWith([makeCostLine({ budgetSourceId: 's1' })]);
+      await waitFor(() =>
+        expect(screen.getByTestId('invoice-primary-bank-report').getAttribute('href')).toContain(
+          'sourceId=s1',
+        ),
+      );
+      expect(screen.getByTestId('invoice-primary-bank-report').getAttribute('href')).toBe(
+        '/budget/reports?sourceId=s1',
+      );
+    });
+
+    it('sends no sourceId with several sources', async () => {
+      await paidWith([
+        makeCostLine({ id: 'a', budgetSourceId: 's1' }),
+        makeCostLine({ id: 'b', budgetSourceId: 's2' }),
+      ]);
+      await waitFor(() =>
+        expect(screen.getByTestId('summary-fact-fundingSource')).toHaveTextContent('+1'),
+      );
+      expect(screen.getByTestId('invoice-primary-bank-report').getAttribute('href')).toBe(
+        '/budget/reports',
+      );
+    });
+
+    it('sends no sourceId with no source at all', async () => {
+      const link = await paidWith([makeCostLine({ budgetSourceId: null })]);
+      expect(link.getAttribute('href')).toBe('/budget/reports');
+    });
+
+    it('follows the link with this page as origin', async () => {
+      const link = await paidWith([]);
+      await userEvent.click(link);
+      await screen.findByText('Elsewhere');
+      expect(probedOrigin()).toEqual({ to: `/budget/invoices/${ID}`, name: HEADING });
+    });
+  });
+
+  describe('Add progress payment', () => {
+    it('the secondary opens the Add progress payment dialog', async () => {
+      await loaded({ status: 'pending' });
+      await userEvent.click(screen.getByTestId('invoice-secondary-add-payment'));
+      const dialog = await screen.findByRole('dialog', { name: 'payment-probe' });
+      expect(dialog).toHaveAttribute('data-mode', 'add');
+      expect(dialog).toHaveAttribute('data-entry', 'deposit');
+    });
+
+    it('the primary of a submitted invoice opens it too, and closing returns focus to the button', async () => {
+      await loaded({ status: 'claimed' });
+      const primary = screen.getByTestId('invoice-primary-add-payment');
+      await userEvent.click(primary);
+      await userEvent.click(await screen.findByText('payment-close'));
+      await waitFor(() => expect(primary).toHaveFocus());
+    });
+
+    it('opens with no opener when focus sits on a non-HTML element', async () => {
+      await loaded({ status: 'claimed' });
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('tabindex', '0');
+      document.body.appendChild(svg);
+      svg.focus();
+      expect(document.activeElement).toBe(svg);
+      fireEvent.click(screen.getByTestId('invoice-primary-add-payment'));
+      expect(await screen.findByRole('dialog', { name: 'payment-probe' })).toBeInTheDocument();
+      svg.remove();
+    });
+
+    it('saving a payment refreshes the record', async () => {
+      await loaded({ status: 'pending' });
+      await userEvent.click(screen.getByTestId('invoice-secondary-add-payment'));
+      const before = mockFetchInvoiceById.mock.calls.length;
+      await userEvent.click(await screen.findByText('payment-saved'));
+      await waitFor(() => expect(mockFetchInvoiceById.mock.calls.length).toBeGreaterThan(before));
+    });
+  });
+
+  describe('⋯ menu', () => {
+    it('Edit details opens the edit dialog; saving refreshes the record; Close closes it', async () => {
+      await loaded();
+      openMenu();
+      fireEvent.click(screen.getByTestId('invoice-menu-edit'));
+      expect(await screen.findByRole('dialog', { name: 'edit-probe' })).toBeInTheDocument();
+      const before = mockFetchInvoiceById.mock.calls.length;
+      await userEvent.click(screen.getByText('edit-saved'));
+      await waitFor(() => expect(mockFetchInvoiceById.mock.calls.length).toBeGreaterThan(before));
+      await userEvent.click(screen.getByText('edit-close'));
+      expect(screen.queryByRole('dialog', { name: 'edit-probe' })).toBeNull();
+    });
+
+    it('offers Edit details and Delete', async () => {
+      await loaded();
+      openMenu();
+      expect(screen.getByTestId('invoice-menu-edit')).toHaveTextContent('Edit details');
+      expect(screen.getByTestId('object-header-delete')).toBeInTheDocument();
+    });
+  });
+
+  describe('delete', () => {
+    async function openDelete() {
+      await loaded();
+      openMenu();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('object-header-delete'));
+      });
+    }
+
+    it('opens an alertdialog with Cancel focused and loads what the delete also removes', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'invoice',
+        id: ID,
+        effects: [
+          { kind: 'progressPayments', count: 2 },
+          { kind: 'documentLinks', count: 0 },
+        ],
+      });
+      await openDelete();
+      expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(/^Delete /);
+      expect(screen.getByTestId('invoice-delete-cancel')).toHaveFocus();
+      await waitFor(() =>
+        expect(screen.getByTestId('invoice-delete-consequences')).toHaveTextContent(
+          'Progress payments deleted with it: 2',
+        ),
+      );
+      expect(screen.queryByText(/Linked documents/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('invoice', ID);
+    });
+
+    it('does not load the impact until the dialog is opened', async () => {
+      await loaded();
+      expect(mockFetchDeleteImpact).not.toHaveBeenCalled();
+    });
+
+    it('deleting replaces the history entry with the Invoices list', async () => {
+      const log = renderRouted();
+      await screen.findByRole('heading', { level: 1, name: HEADING });
+      openMenu();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('object-header-delete'));
+      });
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices']));
+      expect(log.entries).toEqual(['/budget/invoices']);
+      expect(mockDeleteInvoice).toHaveBeenCalledWith('vendor-1', ID);
+    });
+
+    it('Cancel closes the dialog without deleting', async () => {
+      await openDelete();
+      await act(async () => {
+        fireEvent.click(await screen.findByTestId('invoice-delete-cancel'));
+      });
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(mockDeleteInvoice).not.toHaveBeenCalled();
+    });
+
+    it('a 409 shows the translated error and hides the action', async () => {
+      mockDeleteInvoice.mockRejectedValue(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'raw prose' }),
+      );
+      await openDelete();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await waitFor(() => expect(screen.queryByTestId('invoice-delete-confirm')).toBeNull());
+      expect(screen.getByRole('alert')).not.toHaveTextContent('raw prose');
+      expect(screen.getByTestId('invoice-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('another API error keeps the action for a retry and shows the translated text', async () => {
+      mockDeleteInvoice.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'raw prose' }),
+      );
+      await openDelete();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      const alert = await screen.findByRole('alert');
+      expect(alert).not.toHaveTextContent('raw prose');
+      expect(screen.getByTestId('invoice-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('a non-API failure shows the generic delete error and keeps the action', async () => {
+      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
+      await openDelete();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Failed to delete invoice. Please try again.',
+      );
+      expect(screen.getByTestId('invoice-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('ignores Cancel and Escape while the delete request is running', async () => {
+      mockDeleteInvoice.mockImplementation(() => new Promise(() => {}));
+      await openDelete();
+      await screen.findByRole('alertdialog');
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('invoice-delete-cancel'));
+        fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+      });
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    it('re-opening after a failure starts without the old error', async () => {
+      mockDeleteInvoice.mockRejectedValueOnce(new Error('boom'));
+      await openDelete();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await screen.findByRole('alert');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('invoice-delete-cancel'));
+      });
+      openMenu();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('object-header-delete'));
+      });
+      await screen.findByRole('alertdialog');
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+});
+
+// ─── Summary strip, tabs and panels ──────────────────────────────────────────
+
+describe('InvoiceDetailPage body (S11)', () => {
+  it('shows the facts from the loaded record, with Paid and Still to pay from the money service', async () => {
+    await loaded({ amount: 1000, paid: 200, openAmount: 800 });
+    const strip = screen.getByTestId('invoice-summary');
+    expect(within(strip).getByTestId('summary-fact-amount')).toHaveTextContent('€1,000.00');
+    expect(within(strip).getByTestId('summary-fact-paid')).toHaveTextContent('€200.00');
+    expect(within(strip).getByTestId('summary-fact-stillToPay')).toHaveTextContent('€800.00');
+  });
+
+  it('an offer strip shows Remaining on offer instead of Still to pay', async () => {
+    await loaded({ status: 'quotation', remainingOnOffer: 650 });
+    expect(screen.getByTestId('summary-fact-remainingOnOffer')).toHaveTextContent('€650.00');
+    expect(screen.queryByTestId('summary-fact-stillToPay')).toBeNull();
+  });
+
+  it('appends the Documents fact from the Documents host and renders its panel', async () => {
+    documentsFact = { id: 'documents', kind: 'static', label: 'Documents', value: '3' };
+    await loaded();
+    expect(screen.getByTestId('summary-fact-documents')).toHaveTextContent('3');
+    expect(screen.getByTestId('documents-panel')).toHaveAttribute('data-type', 'invoice');
+    expect(screen.getByTestId('documents-panel')).toHaveAttribute('data-id', ID);
+  });
+
+  it('has no Documents fact while the host has none', async () => {
+    await loaded();
+    expect(screen.queryByTestId('summary-fact-documents')).toBeNull();
+  });
+
+  it('opens on the Cost tab with the counts of lines and payments', async () => {
+    mockFetchCostLines.mockResolvedValue(
+      costLinesResponse([makeCostLine({ id: 'a' }), makeCostLine({ id: 'b' })]),
+    );
+    await loaded({ deposits: [makePayment({ id: 'p1', invoiceId: ID })] });
+    expect(screen.getByRole('tab', { name: /Cost/ })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Cost.*2/ })).toBeInTheDocument());
+    expect(screen.getByRole('tab', { name: /Payments.*1/ })).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-budget-lines-section')).toBeInTheDocument();
+  });
+
+  it('the Cost tab hides the count while its lines load', async () => {
+    mockFetchCostLines.mockImplementation(() => new Promise(() => {}));
+    await loaded();
+    expect(screen.getByRole('tab', { name: 'Cost' })).toBeInTheDocument();
+  });
+
+  it('the Paid fact opens the Payments tab and the panel shows both lists', async () => {
+    await loaded({ deposits: [makePayment({ id: 'p1', invoiceId: ID })] });
+    await userEvent.click(screen.getByTestId('summary-fact-paid'));
+    expect(await screen.findByTestId('invoice-progress-payments')).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-refunds')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Payments/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('invoice-budget-lines-section')).not.toBeVisible();
+  });
+
+  it('the History tab loads the invoice history', async () => {
+    await loaded({}, `/budget/invoices/${ID}?tab=history`);
+    expect(await screen.findByRole('heading', { name: 'History' })).toBeInTheDocument();
+    expect(mockListHistory).toHaveBeenCalledWith(
+      { entityType: 'invoice', entityId: ID, pageSize: 20 },
+      expect.any(AbortSignal),
+    );
+  });
+
+  it('a change reported by the cost lines section refreshes the record, and a failed refresh falls back to a reload', async () => {
+    await loaded();
+    const before = mockFetchInvoiceById.mock.calls.length;
+    await userEvent.click(screen.getByText('stub-changed'));
+    await waitFor(() => expect(mockFetchInvoiceById.mock.calls.length).toBe(before + 1));
+
+    mockFetchInvoiceById.mockRejectedValueOnce(new Error('offline'));
+    mockFetchInvoiceById.mockResolvedValue(record({ amount: 2222 }));
+    await userEvent.click(screen.getByText('stub-changed'));
+    await waitFor(() =>
+      expect(screen.getByTestId('summary-fact-amount')).toHaveTextContent('€2,222.00'),
+    );
+  });
+
+  it('the payments panel refresh reloads the figures: a new Paid shows without a skeleton', async () => {
+    await loaded({ paid: 0 }, `/budget/invoices/${ID}?tab=payments`);
+    mockFetchInvoiceById.mockResolvedValue(record({ paid: 300, openAmount: 700 }));
+    const list = await screen.findByTestId('invoice-progress-payments');
+    await userEvent.click(within(list).getByRole('button', { name: 'Add progress payment' }));
+    await userEvent.click(await screen.findByText('payment-saved'));
+    await waitFor(() =>
+      expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€300.00'),
+    );
+    expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
+  });
+});
+
+// ─── Conversion ──────────────────────────────────────────────────────────────
+
+describe('InvoiceDetailPage conversion (S11)', () => {
+  it('hands the conversion flow the invoice and a refresh that fetches the detail', async () => {
+    await loaded({ status: 'quotation' });
+    expect(convertArgs?.invoice.id).toBe(ID);
+    mockFetchInvoiceById.mockClear();
+    await convertArgs!.refreshInvoice();
+    expect(mockFetchInvoiceById).toHaveBeenCalledWith(ID);
+  });
+
+  it('after a conversion the page refreshes, reloads the cost lines and focuses the h1', async () => {
+    await loaded({ status: 'quotation' });
+    mockFetchInvoiceById.mockResolvedValue(record({ status: 'pending' }));
+    const costCallsBefore = mockFetchCostLines.mock.calls.length;
+    await act(async () => {
+      convertArgs!.onConverted();
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('invoice-primary-mark-paid')).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId('convert-quotation-button')).toBeNull();
+    expect(mockFetchCostLines.mock.calls.length).toBeGreaterThan(costCallsBefore);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: HEADING })).toHaveFocus(),
+    );
+  });
+
+  it.each([
+    ['form', 'convert-probe'],
+    ['paperless', 'picker-probe'],
+    ['refund', 'payment-probe'],
+  ] as const)('the %s step shows exactly one dialog', async (view, label) => {
+    convertView = view;
+    await loaded({ status: 'quotation' });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: label })).toBeInTheDocument();
+  });
+
+  it('the refund step is an Add refund dialog with the preset', async () => {
+    convertView = 'refund';
+    await loaded({ status: 'quotation' });
+    expect(screen.getByRole('dialog', { name: 'payment-probe' })).toHaveAttribute(
+      'data-entry',
+      'refund',
+    );
+  });
+
+  it('the refund step wires its save and close to the conversion flow', async () => {
+    convertView = 'refund';
+    await loaded({ status: 'quotation' });
+    await userEvent.click(screen.getByText('payment-saved'));
+    await userEvent.click(screen.getByText('payment-close'));
+    expect(convertCallbacks.onRefundSaved).toHaveBeenCalledTimes(1);
+    expect(convertCallbacks.onRefundClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no dialog while the conversion flow is closed', async () => {
+    await loaded({ status: 'quotation' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+// ─── ?payment= deep link ─────────────────────────────────────────────────────
+
+describe('InvoiceDetailPage payment deep link (S11)', () => {
+  beforeEach(() => {
+    HTMLElement.prototype.scrollIntoView = jest.fn() as never;
+  });
+  afterEach(() => {
+    delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  const withPayment = () =>
+    mockFetchInvoiceById.mockResolvedValue(
+      record({ deposits: [makePayment({ id: 'dep-1', invoiceId: ID, status: 'paid' })] }),
+    );
+
+  function renderAt(search: string, state: unknown = { origin: { to: '/diary' } }) {
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={[{ url: `/budget/invoices/${ID}${search}`, state }]} log={log}>
+        {routes()}
+      </RecordingRouter>,
+    );
+    return log;
+  }
+
+  it('?payment= without ?tab= selects Payments, highlights and focuses the row link, then drops the param keeping the origin', async () => {
+    withPayment();
+    const log = renderAt('?payment=dep-1');
+    const link = await screen.findByTestId('invoice-progress-payments-link-dep-1');
+    await waitFor(() => expect(link).toHaveFocus());
+    expect(link.className).toContain('paymentTarget');
+    expect(screen.getByRole('tab', { name: /Payments/ })).toHaveAttribute('aria-selected', 'true');
+    // one replace to select the tab (keeps the param), one to drop the param
+    await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(2));
+    expect(log.actions.every((a) => a.startsWith('REPLACE'))).toBe(true);
+    expect(log.actions.at(-1)).toBe(`REPLACE /budget/invoices/${ID}?tab=payments`);
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  it('?payment= without ?tab= keeps the origin state through the tab selection', async () => {
+    withPayment();
+    const log = renderAt('?payment=dep-1');
+    await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(2));
+    expect(log.states.at(-1)).toEqual({ origin: { to: '/diary' } });
+  });
+
+  it('with ?tab=payments the dropped payment param keeps the origin state', async () => {
+    withPayment();
+    const log = renderAt('?tab=payments&payment=dep-1');
+    await waitFor(() => expect(log.actions).toHaveLength(1));
+    expect(log.states[0]).toEqual({ origin: { to: '/diary' } });
+  });
+
+  it('with ?tab=payments&payment= it highlights and drops only the payment param', async () => {
+    withPayment();
+    const log = renderAt('?tab=payments&payment=dep-1');
+    await waitFor(() => expect(log.actions).toHaveLength(1));
+    expect(log.actions[0]).toBe(`REPLACE /budget/invoices/${ID}?tab=payments`);
+    expect(await screen.findByTestId('invoice-progress-payments-link-dep-1')).toHaveFocus();
+  });
+
+  it('finds a refund too', async () => {
+    mockFetchInvoiceById.mockResolvedValue(
+      record({
+        deposits: [makePayment({ id: 'ref-1', invoiceId: ID, entryType: 'refund' })],
+      }),
+    );
+    renderAt('?payment=ref-1');
+    const link = await screen.findByTestId('invoice-refunds-link-ref-1');
+    await waitFor(() => expect(link).toHaveFocus());
+  });
+
+  it('a missing payment shows the "no longer exists" toast and drops the param', async () => {
+    withPayment();
+    const log = renderAt('?payment=missing-id');
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith('info', 'That progress payment no longer exists.'),
+    );
+    expect(log.actions.at(-1)).toBe(`REPLACE /budget/invoices/${ID}?tab=payments`);
+    expect(document.querySelector('.paymentTarget')).toBeNull();
+  });
+
+  it('without the param it stays on the Cost tab and never replaces the URL', async () => {
+    withPayment();
+    const log = renderAt('');
+    await screen.findByRole('heading', { level: 1, name: HEADING });
+    expect(screen.getByRole('tab', { name: /Cost/ })).toHaveAttribute('aria-selected', 'true');
+    expect(log.actions).toEqual([]);
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  it('does not run before the invoice has loaded', async () => {
+    let resolve!: (invoice: InvoiceDetail) => void;
+    mockFetchInvoiceById.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolve = res;
+        }),
+    );
+    const log = renderAt('?payment=dep-1');
+    expect(log.actions).toEqual([]);
+    await act(async () => {
+      resolve(record({ deposits: [makePayment({ id: 'dep-1', invoiceId: ID })] }));
+    });
+    await waitFor(() => expect(log.actions.length).toBeGreaterThan(0));
+  });
+
+  it('has no live region of its own: the old payment status region and header badge test ids are gone', async () => {
+    withPayment();
+    renderAt('?payment=dep-1');
+    await screen.findByTestId('invoice-progress-payments-link-dep-1');
+    expect(screen.queryByTestId('invoice-payment-status')).toBeNull();
+    expect(screen.queryByTestId('invoice-detail-status-badge')).toBeNull();
   });
 });

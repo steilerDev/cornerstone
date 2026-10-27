@@ -16,7 +16,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import sharedStyles from '../../styles/shared.module.css';
-import styles from './InvoiceDepositsSection.module.css';
+import styles from './InvoiceDepositFormModal.module.css';
 
 export interface DepositFormState {
   amount: string;
@@ -47,6 +47,8 @@ export interface InvoiceDepositFormModalProps {
   invoiceId: string;
   mode: 'add' | 'edit';
   deposit?: InvoiceDeposit | null;
+  /** Edit mode: the name of the entry ("Progress payment 2"), used in the title. */
+  name?: string;
   initialValues?: Partial<DepositFormState>;
   lockEntryType?: boolean;
   budgetSources: BudgetSource[];
@@ -86,6 +88,7 @@ export function InvoiceDepositFormModal({
   invoiceId,
   mode,
   deposit,
+  name,
   initialValues,
   lockEntryType = false,
   budgetSources,
@@ -210,8 +213,10 @@ export function InvoiceDepositFormModal({
     <Modal
       title={
         isEdit
-          ? t('budget:invoiceDetail.deposits.modal.editTitle')
-          : t('budget:invoiceDetail.deposits.modal.addTitle')
+          ? t('budget:invoiceDetail.deposits.modal.editTitle', { name: name ?? '' })
+          : form.entryType === 'refund'
+            ? t('budget:invoiceDetail.deposits.modal.addRefundTitle')
+            : t('budget:invoiceDetail.deposits.modal.addTitle')
       }
       onClose={handleClose}
       className={styles.modal}

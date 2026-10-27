@@ -30,6 +30,7 @@ import { CostLineTable } from './CostLineTable.js';
 import type { CostLineSplitHandle } from './CostLineTable.js';
 import { useCostLineMutations } from './useCostLineMutations.js';
 import { useInvoiceCostLines } from './useInvoiceCostLines.js';
+import type { UseInvoiceCostLinesResult } from './useInvoiceCostLines.js';
 import type { CostLineGroup, CostLineHost, CostLineRow, CostLineTableMode } from './types.js';
 import styles from './CostLinesSection.module.css';
 
@@ -38,6 +39,8 @@ export interface CostLinesSectionProps {
   /** Item hosts: the page's lines (the page keeps them for its cost overview). */
   readonly lines?: readonly BaseBudgetLine[];
   readonly loading?: boolean;
+  /** Document hosts: the page's own controller; omitted, the section loads its own lines. */
+  readonly documentLines?: UseInvoiceCostLinesResult;
   /** After every successful change; item hosts reload their lines and grant payback here. */
   readonly onChanged: () => Promise<void> | void;
   readonly linkState?: OriginState;
@@ -97,15 +100,34 @@ function ItemCostLines({
   );
 }
 
-function DocumentCostLines({
+type DocumentHost = Extract<CostLineHost, { kind: 'invoice' }>;
+
+/** Uses the page's controller when given; otherwise an inner component owns the hook. */
+function DocumentCostLines(props: CostLinesSectionProps & { host: DocumentHost }) {
+  if (props.documentLines) {
+    return <DocumentCostLinesView {...props} controller={props.documentLines} />;
+  }
+  return <OwnedDocumentCostLines {...props} />;
+}
+
+function OwnedDocumentCostLines(props: CostLinesSectionProps & { host: DocumentHost }) {
+  const controller = useInvoiceCostLines(props.host.id);
+  return <DocumentCostLinesView {...props} controller={controller} />;
+}
+
+function DocumentCostLinesView({
   host,
+  controller,
   onChanged,
   linkState,
   headingLevel,
   testId,
-}: CostLinesSectionProps & { host: Extract<CostLineHost, { kind: 'invoice' }> }) {
+}: CostLinesSectionProps & {
+  host: DocumentHost;
+  controller: UseInvoiceCostLinesResult;
+}) {
   const { vatRate } = useLocale();
-  const { lines, remainingAmount, sources, loading, error, reload } = useInvoiceCostLines(host.id);
+  const { lines, remainingAmount, sources, loading, error, reload } = controller;
   const rows = useMemo<readonly CostLineRow[]>(() => {
     const doc = {
       id: host.id,

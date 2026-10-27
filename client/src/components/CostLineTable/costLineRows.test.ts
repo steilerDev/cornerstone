@@ -417,15 +417,52 @@ describe('groupForItem', () => {
 });
 
 describe('groupForDocument', () => {
-  it('returns one heading-less group in server order', () => {
+  const T1 = { type: 'work_item' as const, id: 'w1', label: 'Tile the hallway' };
+  const T2 = { type: 'household_item' as const, id: 'h1', label: 'Bathroom tiles' };
+
+  it('S9: groups by task or purchase in order of first appearance, with totals', () => {
     const rows = [
-      row({ id: 'a', gross: 10, plannedGross: 8 }),
-      row({ id: 'b', gross: 5, plannedGross: 5 }),
+      row({ id: 'a', target: T2, gross: 10, plannedGross: 8 }),
+      row({ id: 'b', target: T1, gross: 5, plannedGross: 5 }),
+      row({ id: 'c', target: T2, gross: 7, plannedGross: 6 }),
     ];
     const groups = groupForDocument(rows);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({ id: 'lines', heading: null, total: 15, plannedTotal: 13 });
-    expect(groups[0]?.rows.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(groups.map((g) => g.id)).toEqual(['target-household_item-h1', 'target-work_item-w1']);
+    expect(groups[0]).toMatchObject({
+      heading: { kind: 'target', target: T2 },
+      total: 17,
+      plannedTotal: 14,
+    });
+    expect(groups[0]?.rows.map((r) => r.id)).toEqual(['a', 'c']);
+    expect(groups[1]).toMatchObject({ total: 5, plannedTotal: 5 });
+  });
+
+  it('keeps a work item and a purchase with the same id in separate groups', () => {
+    const groups = groupForDocument([
+      row({ id: 'a', target: { type: 'work_item', id: 'x', label: 'Task X' } }),
+      row({ id: 'b', target: { type: 'household_item', id: 'x', label: 'Purchase X' } }),
+    ]);
+    expect(groups.map((g) => g.id)).toEqual(['target-work_item-x', 'target-household_item-x']);
+  });
+
+  it('puts lines without a task or purchase in a last "unassigned" group, even when they come first', () => {
+    const groups = groupForDocument([
+      row({ id: 'a', target: null, gross: 3, plannedGross: 2 }),
+      row({ id: 'b', target: T1, gross: 5 }),
+      row({ id: 'c', target: null, gross: 4, plannedGross: 4 }),
+    ]);
+    expect(groups.map((g) => g.id)).toEqual(['target-work_item-w1', 'unassigned']);
+    expect(groups[1]).toMatchObject({
+      heading: { kind: 'target', target: null },
+      total: 7,
+      plannedTotal: 6,
+    });
+    expect(groups[1]?.rows.map((r) => r.id)).toEqual(['a', 'c']);
+  });
+
+  it('returns only the unassigned group when no line has a target', () => {
+    const groups = groupForDocument([row({ id: 'a', target: null })]);
+    expect(groups.map((g) => g.id)).toEqual(['unassigned']);
   });
 
   it('returns no group for no rows', () => {

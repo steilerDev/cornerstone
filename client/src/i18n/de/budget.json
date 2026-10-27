@@ -385,23 +385,10 @@
     "error": "Fehler",
     "retry": "Erneut versuchen",
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
-    "invoiceDetails": "Rechnungsdetails",
-    "createdBy": "Erstellt von",
-    "detailFields": {
-      "invoiceNumber": "Rechnung #",
-      "vendor": "Auftragnehmer",
-      "amount": "Betrag",
-      "date": "Datum",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "createdBy": "Erstellt von"
-    },
     "form": {
       "invoiceNumber": "Rechnung #",
       "vendor": "Auftragnehmer",
       "amount": "Betrag",
-      "date": "Datum",
       "dueDate": "Fälligkeitsdatum",
       "invoiceDate": "Rechnungsdatum",
       "status": "Status",
@@ -414,20 +401,16 @@
     },
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "dateRequired": "Rechnungsdatum ist erforderlich.",
       "vendorRequired": "Bitte wähle einen Auftragnehmer aus"
     },
     "buttons": {
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
       "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "convertToFinal": "In Endrechnung umwandeln"
     },
     "modal": {
-      "editTitle": "Rechnung bearbeiten",
-      "deleteConfirmShort": "Bist du sicher, dass du diese Rechnung löschen möchtest?"
+      "editTitle": "Details bearbeiten"
     },
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
@@ -436,51 +419,15 @@
       "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Budgetpositionen."
     },
     "budgetLines": {
-      "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt",
-      "countLabel_one": "{{count}} Budgetposition verknüpft",
-      "countLabel_other": "{{count}} Budgetpositionen verknüpft",
-      "form": {
-        "itemizedAmount": "Aufgeschlüsselter Betrag",
-        "saving": "Wird gespeichert…",
-        "required": "*"
-      },
-      "dismissErrorAriaLabel": "Fehler schließen",
-      "assignedSuccess": "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen",
-      "assignParentRequired": "Bitte wähle ein Arbeitspaket oder einen Haushaltsartikel aus"
+      "form": {},
+      "dismissErrorAriaLabel": "Fehler schließen"
     },
     "deposits": {
-      "sectionTitle": "Abschlagszahlungen",
-      "countChip": "{{count}} Abschlagszahlungen",
-      "addButton": "Abschlagszahlung hinzufügen",
-      "loading": "Abschlagszahlungen werden geladen...",
-      "empty": {
-        "message": "Noch keine Abschlagszahlungen",
-        "description": "Teile diese Rechnung in Teilzahlungen auf, indem du eine Abschlagszahlung hinzufügst."
-      },
       "finalPayment": "Schlusszahlung",
-      "columns": {
-        "dueDate": "Fälligkeitsdatum",
-        "amount": "Betrag",
-        "status": "Status",
-        "paidDate": "Bezahlt am",
-        "claimedDate": "Einreichungsdatum",
-        "description": "Beschreibung",
-        "actions": "Aktionen"
-      },
-      "mobile": {
-        "due": "Fällig",
-        "paid": "Bezahlt",
-        "claimed": "Eingereicht"
-      },
-      "menu": {
-        "edit": "Bearbeiten",
-        "delete": "Löschen",
-        "ariaLabel": "Aktionen für Abschlagszahlung {{description}}"
-      },
       "modal": {
         "addTitle": "Abschlagszahlung hinzufügen",
-        "editTitle": "Abschlagszahlung bearbeiten",
-        "deleteWarningPaidClaimed": "Diese Abschlagszahlung ist als bezahlt oder eingereicht markiert. Beim Löschen entfällt ihr Beitrag zu den Budgetsummen."
+        "editTitle": "{{name}} bearbeiten",
+        "addRefundTitle": "Rückerstattung hinzufügen"
       },
       "form": {
         "amount": "Betrag",
@@ -496,12 +443,12 @@
         "entryType": "Eintragsart",
         "entryTypeLabel": "Eintragsart",
         "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben.",
-        "budgetSource": "Budgetquelle",
+        "budgetSource": "Finanzierungsquelle",
         "budgetSourceNone": "Keine (anteilig)",
-        "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Budgetquelle dieser Rechnung.",
-        "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt, die Quelle mit dem größten zugeordneten Anteil dieser Rechnung.",
-        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wähle eine Quelle aus, oder lass das Feld leer, um diese Abschlagszahlung anteilig zu belassen.",
-        "exceedsInvoiceWarning": "Abschlagszahlungen abzüglich Rückerstattungen werden den Rechnungsbetrag um {{amount}} übersteigen. Du kannst die Abschlagszahlung dennoch speichern."
+        "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Finanzierungsquelle dieser Rechnung.",
+        "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt – die größte Finanzierungsquelle dieser Rechnung.",
+        "budgetSourceHintNone": "Diese Rechnung hat noch keine Kostenpositionen. Wähle eine Finanzierungsquelle aus oder lass das Feld leer, um diese Abschlagszahlung anteilig zu verteilen.",
+        "exceedsInvoiceWarning": "Abschlagszahlungen werden den Rechnungsbetrag um {{amount}} übersteigen. Du kannst trotzdem speichern."
       },
       "entryTypeLabels": {
         "deposit": "Abschlagszahlung",
@@ -511,9 +458,7 @@
         "refundExceedsTotal": "Rückerstattungen würden das Maximum aus Rechnungsbetrag und erfassten Abschlagszahlungen übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
-        "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuche es erneut.",
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuche es erneut.",
-        "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuche es erneut.",
         "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
         "claimedDateRequired": "Einreichungsdatum ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
@@ -595,7 +540,6 @@
         "heading": "Abschlagszahlungen und Schlusszahlung",
         "unchangedNote": "Abschlagszahlungen bleiben unverändert.",
         "empty": "Keine Abschlagszahlungen erfasst.",
-        "refund": "Rückerstattung",
         "finalAmount": "Endbetrag",
         "depositsSubtotal": "Abschlagszahlungen",
         "finalPayment": "Schlusszahlung",
@@ -612,6 +556,45 @@
         "pending": "Noch zu zahlen",
         "paid": "Bereits bezahlt"
       }
+    }
+  },
+  "invoicePage": {
+    "actions": {
+      "addProgressPayment": "Abschlagszahlung hinzufügen",
+      "addRefund": "Rückerstattung hinzufügen",
+      "prepareBankReport": "Bankbericht vorbereiten",
+      "editDetails": "Details bearbeiten"
+    },
+    "facts": {
+      "amount": "Betrag",
+      "paid": "Bezahlt",
+      "stillToPay": "Noch zu zahlen",
+      "remainingOnOffer": "Restbetrag",
+      "due": "Fällig",
+      "overdue": "{{date}} · Überfällig",
+      "split": "Aufschlüsselung",
+      "notYetSplit": "{{amount}} nicht aufgeschlüsselt",
+      "over": "{{amount}} über",
+      "fundingSource": "Finanzierungsquelle",
+      "fundingSourceMore": "{{name}} +{{count}}"
+    },
+    "payments": {
+      "progressTitle": "Abschlagszahlungen",
+      "refundsTitle": "Rückerstattungen",
+      "progressRow": "Abschlagszahlung {{n}}",
+      "refundRow": "Rückerstattung {{n}}",
+      "due": "Fällig am {{date}}",
+      "paid": "Bezahlt am {{date}}",
+      "submitted": "Eingereicht am {{date}}",
+      "progressEmpty": "Noch keine Abschlagszahlungen. Füge eine Abschlagszahlung hinzu.",
+      "refundsEmpty": "Noch keine Rückerstattungen. Füge eine Rückerstattung hinzu."
+    },
+    "history": {
+      "title": "Verlauf",
+      "empty": "Noch kein Verlauf vorhanden.",
+      "showAll": "Alle im Verlauf anzeigen",
+      "loadError": "Der Verlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   },
   "subsidies": {

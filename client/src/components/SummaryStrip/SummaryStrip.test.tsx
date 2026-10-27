@@ -173,6 +173,71 @@ describe('SummaryStrip', () => {
     expect(screen.getByTestId('custom-fact')).toBeInTheDocument();
   });
 
+  describe('wide facts and span attributes (#2239)', () => {
+    const spansOf = () =>
+      Array.from(document.querySelectorAll('dl > div')).map((el) => [
+        el.getAttribute('data-span-sm'),
+        el.getAttribute('data-span-md'),
+        el.getAttribute('data-span-lg'),
+      ]);
+
+    it('gives every fact span 1 at every breakpoint when the row is full of narrow facts', () => {
+      renderStrip([
+        link('a', 'A', '1'),
+        link('b', 'B', '2'),
+        link('c', 'C', '3'),
+        link('d', 'D', '4'),
+      ]);
+      expect(spansOf()).toEqual([
+        ['1', '1', '1'],
+        ['1', '1', '1'],
+        ['1', '1', '1'],
+        ['1', '1', '1'],
+      ]);
+    });
+
+    it('lets a wide fact span two columns and the last fact fill the row (4 columns: 2 / 4 / 4)', () => {
+      const facts = [
+        link('a', 'A', '1'),
+        link('b', 'B', '2'),
+        link('c', 'C', '3'),
+        link('d', 'D', '4'),
+        { ...link('e', 'E', '5 · remark'), wide: true },
+        link('f', 'F', '6'),
+        link('g', 'G', '7'),
+      ];
+      renderStrip(facts);
+      expect(spansOf()[4]).toEqual(['2', '2', '2']);
+      expect(spansOf()[6]).toEqual(['1', '1', '1']);
+    });
+
+    it('computes 5-column strips as 2 / 3 / 5 per breakpoint', () => {
+      render(
+        <MemoryRouter>
+          <SummaryStrip
+            typeLabel="Money"
+            columns={5}
+            facts={[link('a', 'A', '1'), link('b', 'B', '2'), link('c', 'C', '3')]}
+          />
+        </MemoryRouter>,
+      );
+      // sm: 2 columns -> [1,2]; md: 3 columns -> [1,1,1]; lg: 5 columns -> [1,1,3]
+      expect(spansOf()).toEqual([
+        ['1', '1', '1'],
+        ['1', '1', '1'],
+        ['2', '1', '3'],
+      ]);
+    });
+
+    it('computes spans after the seventh-fact slice', () => {
+      const facts = Array.from({ length: 8 }, (_, i) => link(`f${i}`, `L${i}`, `V${i}`));
+      renderStrip(facts);
+      expect(spansOf()).toHaveLength(7);
+      // 7 narrow facts: the 7th fills its row at every breakpoint (2, 4 and 4 columns)
+      expect(spansOf()[6]).toEqual(['2', '2', '2']);
+    });
+  });
+
   describe('columns', () => {
     it('defaults to 4 columns', () => {
       renderStrip([link('a', 'A', '1')]);

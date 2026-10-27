@@ -1,31 +1,28 @@
 /**
- * E2E tests for Invoice Deposit UX fixes (Issues #1423, #1424)
+ * E2E tests for the progress payment UX fixes (Issues #1423, #1424), on the Payments tab since
+ * #2239
  *
- * #1424 — Deposit add/edit/state-confirm modals must show translated "Cancel" /
+ * #1424 — Progress payment add/edit dialogs must show translated "Cancel" /
  *          "Save" / "Confirm" labels.  The i18n key path was fixed from
  *          `common:buttons.*` → `common:button.*`.  These tests assert that the
  *          buttons render the expected translated text (not the raw key strings
  *          like "buttons.cancel" or "buttons.save").
  *
- * #1423 — Deposit OverflowMenu uses usePortal=true so the menu is rendered via
- *          createPortal() to document.body.  On pages with a scrollable deposit
- *          list the menu must not be clipped by the container.  We assert that
- *          after clicking the LAST deposit row's kebab the menu's bounding box
- *          is fully within the viewport (top, right, bottom, left all within
- *          viewport dimensions).
+ * #1423 — The row ⋯ menu is portalled to document.body (RelatedList `usePortal`), so a
+ *          list in a scrollable page never clips it.  We assert that after clicking the LAST
+ *          row's ⋯ the menu's bounding box is fully within the viewport.
  *
  * Scenarios covered:
- *   1. Add deposit modal shows "Cancel" and "Save" button text (not raw keys)
- *   2. Edit deposit modal shows "Cancel" and "Save" button text
- *   3. Status menu date step shows translated labels (not raw keys); the old state-confirm
- *      modal is gone (#2209)
- *   4. Portal: last deposit row kebab menu bounding box fully within viewport
+ *   1. Add dialog shows "Cancel" and "Save" button text (not raw keys)
+ *   2. Edit dialog (pencil) shows "Cancel" and "Save" button text
+ *   3. Status menu date step shows translated labels (not raw keys)
+ *   4. Portal: last row ⋯ menu bounding box fully within viewport
  *
  * Refund entries (Issue #1876) — responsive + dark-mode rendering:
- *   5. Mobile: refund card shows red "Refund" badge and negative amount in cardAmount
- *   6. Dark mode: refund badge and negative amount are legible
+ *   5. Phone: the refund row shows the "Refund" badge and a minus amount on one list row
+ *   6. Dark mode: refund badge and minus amount are legible
  *
- * Setup mirrors invoice-deposits.spec.ts.
+ * Setup mirrors invoice-deposits.spec.ts (invoices are seeded `pending`).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -54,7 +51,7 @@ async function createInvoiceViaApi(
   data: { amount: number; date: string; status?: string },
 ): Promise<string> {
   const response = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
-    data: { status: 'quotation', ...data },
+    data: { status: 'pending', ...data },
   });
   expect(response.ok(), `POST invoice failed: ${response.status()}`).toBeTruthy();
   const body = (await response.json()) as { invoice: { id: string } };
@@ -80,12 +77,12 @@ async function createDepositViaApi(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1 (#1424): Add deposit modal — translated button labels
+// Scenario 1 (#1424): Add dialog — translated button labels
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposit modal i18n — Add deposit buttons (#1424)', { tag: '@responsive' }, () => {
+test.describe('Payment dialog i18n — Add buttons (#1424)', { tag: '@responsive' }, () => {
   test(
-    'Add deposit modal footer shows "Cancel" and "Save" (not raw i18n keys)',
+    'Add progress payment dialog footer shows "Cancel" and "Save" (not raw i18n keys)',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const detailPage = new InvoiceDetailPage(page);
@@ -99,33 +96,21 @@ test.describe('Deposit modal i18n — Add deposit buttons (#1424)', { tag: '@res
         });
 
         await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
-
-        // Open the Add deposit modal via the section header button
-        await detailPage.openAddDepositModal();
+        await detailPage.openAddProgressPayment();
         await expect(detailPage.depositAmountInput).toBeVisible();
 
-        // The modal footer must show translated button labels.
-        // Before the fix, the buttons rendered "buttons.cancel" / "buttons.save".
-        // After the fix, they render "Cancel" / "Save".
-
-        // Cancel button: data-testid="deposit-modal-cancel" with text "Cancel"
-        const cancelBtn = page.getByTestId('deposit-modal-cancel');
+        // Before the fix the buttons rendered "buttons.cancel" / "buttons.save"
+        const cancelBtn = detailPage.depositModalCancel;
         await expect(cancelBtn).toBeVisible();
         await expect(cancelBtn).toHaveText('Cancel');
-        // Assert the raw key text is NOT rendered
-        await expect(cancelBtn).not.toHaveText('buttons.cancel');
         await expect(cancelBtn).not.toHaveText(/^buttons\./);
 
-        // Save button: data-testid="deposit-modal-save" with text "Save"
-        const saveBtn = page.getByTestId('deposit-modal-save');
+        const saveBtn = detailPage.depositModalSave;
         await saveBtn.scrollIntoViewIfNeeded();
         await expect(saveBtn).toBeVisible();
         await expect(saveBtn).toHaveText('Save');
-        await expect(saveBtn).not.toHaveText('buttons.save');
         await expect(saveBtn).not.toHaveText(/^buttons\./);
 
-        // Close modal without saving
         await cancelBtn.click();
         await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
       } finally {
@@ -136,20 +121,16 @@ test.describe('Deposit modal i18n — Add deposit buttons (#1424)', { tag: '@res
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2 (#1424): Edit deposit modal — translated button labels
+// Scenario 2 (#1424): Edit dialog — translated button labels
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposit modal i18n — Edit deposit buttons (#1424)', () => {
-  test('Edit deposit modal footer shows "Cancel" and "Save" (not raw i18n keys)', async ({
+test.describe('Payment dialog i18n — Edit buttons (#1424)', () => {
+  test('Edit dialog footer shows "Cancel" and "Save" (not raw i18n keys)', async ({
     page,
     testPrefix,
   }) => {
     // Desktop only — i18n rendering is viewport-independent
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 1024) {
-      test.skip(true, 'i18n label test — desktop only');
-      return;
-    }
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'i18n label test — desktop only');
 
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
@@ -160,36 +141,25 @@ test.describe('Deposit modal i18n — Edit deposit buttons (#1424)', () => {
         amount: 600,
         date: '2026-06-01',
       });
-
-      // Create a deposit so we can edit it
-      await createDepositViaApi(page, invoiceId, {
+      const deposit = await createDepositViaApi(page, invoiceId, {
         amount: 150,
         dueDate: '2026-07-01',
         description: `${testPrefix} i18n deposit`,
       });
 
       await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.openEditPayment(deposit.id);
 
-      // Open overflow menu → Edit
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Edit/);
-
-      // Edit modal opens
-      await expect(detailPage.depositAmountInput).toBeVisible();
-
-      // Cancel and Save buttons must show translated text
-      const cancelBtn = page.getByTestId('deposit-modal-cancel');
+      const cancelBtn = detailPage.depositModalCancel;
       await expect(cancelBtn).toBeVisible();
       await expect(cancelBtn).toHaveText('Cancel');
       await expect(cancelBtn).not.toHaveText(/^buttons\./);
 
-      const saveBtn = page.getByTestId('deposit-modal-save');
+      const saveBtn = detailPage.depositModalSave;
       await expect(saveBtn).toBeVisible();
       await expect(saveBtn).toHaveText('Save');
       await expect(saveBtn).not.toHaveText(/^buttons\./);
 
-      // Close
       await cancelBtn.click();
       await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
     } finally {
@@ -202,7 +172,7 @@ test.describe('Deposit modal i18n — Edit deposit buttons (#1424)', () => {
 // Scenario 3 (#1424, #2209): status menu date step — translated labels
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposit status menu i18n — date step (#1424, #2209)', () => {
+test.describe('Payment status menu i18n — date step (#1424, #2209)', () => {
   test('Mark paid date step shows translated chips and Back (not raw i18n keys)', async ({
     page,
     testPrefix,
@@ -216,18 +186,17 @@ test.describe('Deposit status menu i18n — date step (#1424, #2209)', () => {
         amount: 400,
         date: '2026-06-01',
       });
-
-      await createDepositViaApi(page, invoiceId, {
+      const deposit = await createDepositViaApi(page, invoiceId, {
         amount: 100,
         dueDate: '2026-07-01',
         description: `${testPrefix} i18n confirm`,
       });
 
       await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.openPayments();
 
       // Open the status chip → "Mark paid" (leads to the date step)
-      const menu = await detailPage.depositStatusMenu();
+      const menu = detailPage.paymentStatusMenu(deposit.id);
       await menu.pickRow('paid');
 
       // The date step shows translated chips (not raw keys such as "statusMenu.today")
@@ -250,21 +219,15 @@ test.describe('Deposit status menu i18n — date step (#1424, #2209)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4 (#1423): Portal — last deposit row menu not clipped by container
+// Scenario 4 (#1423): Portal — last row menu not clipped by the container
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
-  test('Clicking the kebab on the LAST deposit row shows a menu fully within the viewport', async ({
+test.describe('Payment row menu portal — not clipped (#1423)', () => {
+  test('Clicking ⋯ on the LAST progress payment row shows a menu fully within the viewport', async ({
     page,
     testPrefix,
   }) => {
-    // Desktop only — viewport clipping is most obvious on desktop where the
-    // deposits section is taller (table layout).
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 1024) {
-      test.skip(true, 'Portal clipping test — desktop only');
-      return;
-    }
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'Portal clipping test — desktop only');
 
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
@@ -276,48 +239,35 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
         date: '2026-06-01',
       });
 
-      // Create 4 deposits so the section has multiple rows
+      // Four payments so the list has several rows; the final-payment row closes it
+      const ids: string[] = [];
       const descriptions = ['First', 'Second', 'Third', 'Last'];
       for (let i = 0; i < descriptions.length; i++) {
-        await createDepositViaApi(page, invoiceId, {
+        const deposit = await createDepositViaApi(page, invoiceId, {
           amount: 100,
           dueDate: `2026-${String(i + 7).padStart(2, '0')}-01`,
-          description: `${testPrefix} ${descriptions[i]} deposit`,
+          description: `${testPrefix} ${descriptions[i]} payment`,
         });
+        ids.push(deposit.id);
       }
 
       await detailPage.goto(invoiceId);
-      await expect(detailPage.heading).toBeVisible();
+      await detailPage.openPayments();
+      await expect(detailPage.progressPayments.rowWith('First')).toBeVisible();
+      await expect(detailPage.progressPayments.rowWith('Last')).toBeVisible();
 
-      // All deposits visible
-      await expect(detailPage.depositsSection).toContainText('First');
-      await expect(detailPage.depositsSection).toContainText('Last');
-
-      // Click the LAST deposit row's overflow menu trigger.
-      // On desktop the table layout renders rows sequentially; the LAST row's
-      // trigger is the last visible button[aria-haspopup="menu"] in the section.
-      const triggers = detailPage.depositsSection.locator('button[aria-haspopup="menu"]').visible();
-
-      const count = await triggers.count();
-      expect(count).toBeGreaterThan(0);
-
-      // Click the LAST trigger
-      await triggers.nth(count - 1).click();
+      await detailPage.progressPayments.actionsTrigger(ids[ids.length - 1]!).click();
 
       // Wait for the portal-rendered menu
-      const menu = page.locator('[role="menu"]').visible().first();
+      const menu = page.getByRole('menu').filter({ visible: true }).last();
       await expect(menu).toBeVisible();
 
-      // Assert the menu's bounding box is fully within the viewport
       const menuBox = await menu.boundingBox();
       expect(menuBox, 'Menu bounding box must be non-null').not.toBeNull();
-
       const viewportSize = page.viewportSize();
       expect(viewportSize, 'Viewport size must be non-null').not.toBeNull();
-
       const { width: vw, height: vh } = viewportSize!;
 
-      // Menu must be fully within the viewport on all sides
       expect(menuBox!.x, 'Menu left edge must be >= 0').toBeGreaterThanOrEqual(0);
       expect(menuBox!.y, 'Menu top edge must be >= 0').toBeGreaterThanOrEqual(0);
       expect(
@@ -329,7 +279,6 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
         'Menu bottom edge must be within viewport height',
       ).toBeLessThanOrEqual(vh);
 
-      // Dismiss menu by pressing Escape
       await page.keyboard.press('Escape');
       await expect(menu).not.toBeVisible();
     } finally {
@@ -339,75 +288,59 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5 (#1876): Mobile — refund card shows the "Refund" badge and negative
-// amount inside cardAmount
+// Scenario 5 (#1876): Phone — the refund row on one list row
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe(
-  'Refund entry — mobile card layout (Scenario 5, #1876)',
-  { tag: '@responsive' },
-  () => {
-    test('Mobile: refund card shows red "Refund" badge and negative amount in cardAmount', async ({
-      page,
-      testPrefix,
-    }) => {
-      // Mobile-only: the desktop/tablet table-row equivalent is covered by
-      // invoice-deposits.spec.ts Scenario 9. This test asserts the mobile CARD markup
-      // specifically ([class*="cardAmount"], [class*="mobileCard"]).
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth > 767) {
-        test.skip(true, 'Refund card layout — mobile viewport only');
-        return;
-      }
+test.describe('Refund entry — phone layout (Scenario 5, #1876)', { tag: '@responsive' }, () => {
+  test('Phone: the refund row shows the "Refund" badge and a minus amount, inside the viewport', async ({
+    page,
+    testPrefix,
+  }) => {
+    // There is one list surface on every viewport; this checks the phone width specifically
+    test.skip((page.viewportSize()?.width ?? 1440) > 767, 'Refund row layout — phone only');
 
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} Refund Mobile Vendor`);
-        const invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 800,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} Refund Mobile Vendor`);
+      const invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 800,
+        date: '2026-06-01',
+      });
+      const refund = await createDepositViaApi(page, invoiceId, {
+        entryType: 'refund',
+        amount: 150,
+        dueDate: '2026-07-20',
+        description: `${testPrefix} mobile refund`,
+      });
 
-        await createDepositViaApi(page, invoiceId, {
-          entryType: 'refund',
-          amount: 150,
-          dueDate: '2026-07-20',
-          description: `${testPrefix} mobile refund`,
-        });
+      await detailPage.goto(invoiceId);
+      await detailPage.openPayments();
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      const row = detailPage.refunds.row(refund.id);
+      await expect(row).toBeVisible();
+      await expect(row).toContainText('Refund');
+      await expect(row).toContainText(/[-\u2212]\s?€?\s?150\.00/);
 
-        // Mobile card is visible
-        const mobileCard = detailPage.depositsSection.locator('[class*="mobileCard"]').first();
-        await expect(mobileCard).toBeVisible();
-
-        // Refund badge + negative amount are both inside the card's cardAmount block
-        const cardAmount = mobileCard.locator('[class*="cardAmount"]');
-        await expect(cardAmount).toBeVisible();
-        await expect(cardAmount).toContainText('Refund');
-        await expect(cardAmount.locator('[class*="amountNegative"]')).toContainText('150');
-        const negativeText =
-          (await cardAmount.locator('[class*="amountNegative"]').textContent()) ?? '';
-        expect(negativeText.trim().startsWith('-')).toBe(true);
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    });
-  },
-);
+      // The row stays inside the viewport width (no horizontal overflow)
+      const box = await row.boundingBox();
+      const width = page.viewportSize()?.width ?? 0;
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6 (#1876): Dark mode — refund badge and negative amount are legible
+// Scenario 6 (#1876): Dark mode — refund badge and minus amount are legible
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Refund entry — dark mode (Scenario 6, #1876)', () => {
-  test('Dark mode: refund badge and negative amount render visibly', async ({
-    browser,
-    page: p,
-  }) => {
+  test('Dark mode: refund row renders visibly', async ({ browser, page: p }) => {
     const vendorName = `DM-Refund-${Date.now()} Vendor`;
     let vendorId = '';
 
@@ -417,8 +350,7 @@ test.describe('Refund entry — dark mode (Scenario 6, #1876)', () => {
         amount: 600,
         date: '2026-06-01',
       });
-
-      await createDepositViaApi(p, invoiceId, {
+      const refund = await createDepositViaApi(p, invoiceId, {
         entryType: 'refund',
         amount: 120,
         dueDate: '2026-07-01',
@@ -433,12 +365,12 @@ test.describe('Refund entry — dark mode (Scenario 6, #1876)', () => {
 
       try {
         await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+        await detailPage.openPayments();
 
-        await expect(detailPage.refundBadge.first()).toBeVisible();
-        await expect(detailPage.refundBadge.first()).toContainText('Refund');
-        await expect(detailPage.refundAmountNegative.first()).toBeVisible();
-        await expect(detailPage.refundAmountNegative.first()).toContainText('120');
+        const row = detailPage.refunds.row(refund.id);
+        await expect(row).toBeVisible();
+        await expect(row).toContainText('Refund');
+        await expect(row).toContainText(/[-\u2212]\s?€?\s?120\.00/);
       } finally {
         await context.close();
       }

@@ -5,6 +5,7 @@ import type { FigureKind } from '../../types/figureKind.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { isPlainLeftClick } from '../../lib/plainClick.js';
 import sharedStyles from '../../styles/shared.module.css';
+import { factSpans } from './factSpans.js';
 import styles from './SummaryStrip.module.css';
 
 interface FactBase {
@@ -16,6 +17,8 @@ interface FactBase {
   readonly figureKind?: FigureKind;
   /** Default `summary-fact-${id}`. */
   readonly testId?: string;
+  /** Spans two grid columns where the strip has room (a value with a trailing remark). */
+  readonly wide?: boolean;
 }
 
 export type SummaryFact =
@@ -49,7 +52,25 @@ function isEmpty(value: ReactNode | null): boolean {
   return value === null || value === undefined || value === '' || value === false;
 }
 
-function Fact({ fact }: { readonly fact: SummaryFact }) {
+/** Columns per breakpoint (small, medium, large) for each `columns` setting. */
+const BREAKPOINT_COLUMNS = {
+  4: { sm: 2, md: 4, lg: 4 },
+  5: { sm: 2, md: 3, lg: 5 },
+} as const;
+
+interface FactSpansByBreakpoint {
+  readonly sm: number;
+  readonly md: number;
+  readonly lg: number;
+}
+
+function Fact({
+  fact,
+  spans,
+}: {
+  readonly fact: SummaryFact;
+  readonly spans: FactSpansByBreakpoint;
+}) {
   const { t } = useTranslation('common');
   const labelId = useId();
   const valueId = useId();
@@ -125,7 +146,13 @@ function Fact({ fact }: { readonly fact: SummaryFact }) {
   }
 
   return (
-    <div className={styles.fact} data-static={fact.kind === 'static' ? 'true' : undefined}>
+    <div
+      className={styles.fact}
+      data-static={fact.kind === 'static' ? 'true' : undefined}
+      data-span-sm={spans.sm}
+      data-span-md={spans.md}
+      data-span-lg={spans.lg}
+    >
       <dt id={labelId} className={styles.label}>
         {fact.label}
       </dt>
@@ -148,6 +175,12 @@ export function SummaryStrip({
   testId = 'summary-strip',
 }: SummaryStripProps) {
   const { t } = useTranslation('common');
+  const shown = facts.slice(0, MAX_SUMMARY_FACTS);
+  const wide = shown.map((fact) => fact.wide === true);
+  const cols = BREAKPOINT_COLUMNS[columns];
+  const sm = factSpans(wide, cols.sm);
+  const md = factSpans(wide, cols.md);
+  const lg = factSpans(wide, cols.lg);
   return (
     <section
       className={styles.strip}
@@ -155,8 +188,12 @@ export function SummaryStrip({
       data-testid={testId}
     >
       <dl className={styles.grid} data-columns={columns}>
-        {facts.slice(0, MAX_SUMMARY_FACTS).map((fact) => (
-          <Fact key={fact.id} fact={fact} />
+        {shown.map((fact, index) => (
+          <Fact
+            key={fact.id}
+            fact={fact}
+            spans={{ sm: sm[index]!, md: md[index]!, lg: lg[index]! }}
+          />
         ))}
       </dl>
     </section>

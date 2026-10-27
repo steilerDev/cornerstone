@@ -1293,7 +1293,7 @@ test.describe(
       }
     });
 
-    test('The invoice detail header chip reads "Offer" with a non-transparent background', async ({
+    test('The invoice page header chip reads "To pay" with a non-transparent background; an offer has no chip', async ({
       page,
       testPrefix,
     }) => {
@@ -1308,9 +1308,20 @@ test.describe(
           date: daysAgo(10),
           status: 'quotation',
         });
+        const invoice = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIPD-002`,
+          amount: 400,
+          date: daysAgo(10),
+          status: 'pending',
+        });
 
+        // #2239: an offer's header has no status chip (Convert is its primary)
         await detailPage.goto(offer.id);
-        await expect(detailPage.statusBadge).toHaveText('Offer');
+        await expect(detailPage.convertButton).toBeVisible();
+        await expect(detailPage.statusBadge).toHaveCount(0);
+
+        await detailPage.goto(invoice.id);
+        await expect(detailPage.statusBadge).toHaveText('To pay');
         const bg = await detailPage.statusBadge.evaluate(
           (el) => getComputedStyle(el).backgroundColor,
         );

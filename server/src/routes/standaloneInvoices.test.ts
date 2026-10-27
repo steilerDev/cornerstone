@@ -790,6 +790,52 @@ describe('Standalone Invoice Routes', () => {
       expect(inv.createdBy).toBeNull();
     });
 
+    it('S4: returns the money service figures (paid, openAmount, remainingOnOffer, notYetSplit)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Vendor Money Figures');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000, status: 'pending' });
+      const offerId = createTestInvoice(vendorId, { amount: 900, status: 'quotation' });
+      const ts = new Date().toISOString();
+      for (const [invoice, amount, status] of [
+        [invoiceId, 200, 'paid'],
+        [invoiceId, 300, 'pending'],
+        [offerId, 250, 'paid'],
+      ] as const) {
+        app.db
+          .insert(schema.invoiceDeposits)
+          .values({
+            id: `dep-${Math.random().toString(36).substring(2)}`,
+            invoiceId: invoice,
+            amount,
+            dueDate: '2026-02-01',
+            paidDate: status === 'paid' ? '2026-01-20' : null,
+            claimedDate: null,
+            description: null,
+            status,
+            entryType: 'deposit',
+            createdBy: null,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+      }
+
+      const invoice = (
+        await app.inject({ method: 'GET', url: `/api/invoices/${invoiceId}`, headers: { cookie } })
+      ).json<{ invoice: Record<string, unknown> }>().invoice;
+      const offer = (
+        await app.inject({ method: 'GET', url: `/api/invoices/${offerId}`, headers: { cookie } })
+      ).json<{ invoice: Record<string, unknown> }>().invoice;
+
+      expect(invoice).toMatchObject({
+        paid: 200,
+        openAmount: 800,
+        remainingOnOffer: null,
+        notYetSplit: true,
+      });
+      expect(offer).toMatchObject({ paid: 250, remainingOnOffer: 650 });
+    });
+
     it('can retrieve an invoice from any vendor (cross-vendor access)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor1Id = createTestVendor('Vendor X');

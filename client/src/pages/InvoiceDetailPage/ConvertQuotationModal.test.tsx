@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import type { InvoiceDeposit } from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type * as ModalTypes from './ConvertQuotationModal.js';
 import type { ConvertLineState, UseConvertQuotation } from './useConvertQuotation.js';
 
@@ -684,7 +685,9 @@ describe('ConvertQuotationModal', () => {
       expect(dep).toHaveTextContent(t('invoiceDetail.deposits.entryTypeLabels.deposit'));
       const ref = screen.getByTestId('convert-deposit-d2');
       expect(ref).toHaveTextContent('$-500.00');
-      expect(ref).toHaveTextContent(t('invoiceDetail.convertModal.deposits.refund'));
+      expect(ref).toHaveTextContent(
+        i18n.t(I18N_UNION_KEYS.depositEntryType.key('refund'), { ns: 'budget' }),
+      );
       expect(ref).toHaveTextContent(
         i18n.t('statusVocabulary.progressPayment.pending', { ns: 'common' }),
       );

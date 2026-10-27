@@ -196,7 +196,7 @@ async function openAssignForm(page: Page, panel: CostLinesPanel, description: st
 
 test.describe('Unassigned cost line badge (Scenario 1)', { tag: ['@smoke', '@responsive'] }, () => {
   test(
-    'the Belongs to cell shows "Not assigned" and the menu offers Assign for orphan lines',
+    'the "Not assigned" group heading shows for orphan lines and the menu offers Assign',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const panel = new CostLinesPanel(page);
@@ -226,7 +226,8 @@ test.describe('Unassigned cost line badge (Scenario 1)', { tag: ['@smoke', '@res
 
         const row = panel.row(`${testPrefix} Unassigned Line`);
         await expect(row).toBeVisible();
-        await expect(row).toContainText('Not assigned');
+        // Document mode: the "Not assigned" group heading carries the badge (#2239)
+        await expect(panel.groupHeading('Not assigned')).toBeVisible();
         await expect(panel.gross(row)).toHaveText('€300.00');
 
         await panel.menuTrigger(row).click();
@@ -270,7 +271,8 @@ test.describe('Assign unassigned cost line to a task (Scenario 2)', { tag: '@res
 
         await page.goto(routeUrl('invoice', { id: invoiceId }));
         await panel.waitForLoaded();
-        await expect(panel.row(`${testPrefix} AssWI Line`)).toContainText('Not assigned');
+        await expect(panel.row(`${testPrefix} AssWI Line`)).toBeVisible();
+        await expect(panel.groupHeading('Not assigned')).toBeVisible();
 
         const form = await openAssignForm(page, panel, `${testPrefix} AssWI Line`);
         // Belongs to is an essential field of the assign form
@@ -287,9 +289,11 @@ test.describe('Assign unassigned cost line to a task (Scenario 2)', { tag: '@res
         await assigned;
         await form.waitForClosed();
 
-        const row = panel.row(`${testPrefix} AssWI Line`);
-        await expect(row).not.toContainText('Not assigned');
-        const link = row.getByRole('link', { name: `${testPrefix} AssWI Work Item` });
+        await expect(panel.row(`${testPrefix} AssWI Line`)).toBeVisible();
+        await expect(panel.groupHeading('Not assigned')).toHaveCount(0);
+        const link = panel
+          .groupHeading(`${testPrefix} AssWI Work Item`)
+          .getByRole('link', { name: `${testPrefix} AssWI Work Item` });
         await expect(link).toBeVisible();
         await expect(link).toHaveAttribute('href', /\/project\/work-items\//);
 
@@ -354,9 +358,11 @@ test.describe(
         await assigned;
         await form.waitForClosed();
 
-        const row = panel.row(`${testPrefix} AssHI Line`);
-        await expect(row).not.toContainText('Not assigned');
-        const link = row.getByRole('link', { name: `${testPrefix} AssHI Item` });
+        await expect(panel.row(`${testPrefix} AssHI Line`)).toBeVisible();
+        await expect(panel.groupHeading('Not assigned')).toHaveCount(0);
+        const link = panel
+          .groupHeading(`${testPrefix} AssHI Item`)
+          .getByRole('link', { name: `${testPrefix} AssHI Item` });
         await expect(link).toBeVisible();
         await expect(link).toHaveAttribute('href', /\/project\/household-items\//);
 
@@ -528,7 +534,8 @@ test.describe('Mobile viewport — badge and assign flow (Scenario 6)', () => {
 
       await page.goto(routeUrl('invoice', { id: invoiceId }));
       await panel.waitForLoaded();
-      await expect(panel.row(`${testPrefix} MobAss Line`)).toContainText('Not assigned');
+      await expect(panel.row(`${testPrefix} MobAss Line`)).toBeVisible();
+      await expect(panel.groupHeading('Not assigned')).toBeVisible();
 
       const form = await openAssignForm(page, panel, `${testPrefix} MobAss Line`);
       await expect(page.getByTestId('cost-line-form-sheet')).toBeVisible();
@@ -536,7 +543,8 @@ test.describe('Mobile viewport — badge and assign flow (Scenario 6)', () => {
       await form.save();
       await form.waitForClosed();
 
-      await expect(panel.row(`${testPrefix} MobAss Line`)).not.toContainText('Not assigned');
+      await expect(panel.row(`${testPrefix} MobAss Line`)).toBeVisible();
+      await expect(panel.groupHeading('Not assigned')).toHaveCount(0);
       wibId = '';
     } finally {
       if (wibId) deleteOrphanWorkItemBudget(wibId);

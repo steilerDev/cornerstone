@@ -127,7 +127,7 @@ export default async function standaloneInvoiceRoutes(fastify: FastifyInstance) 
     { schema: getInvoiceByIdSchema },
     async (request, reply) => {
       if (!request.user) throw new UnauthorizedError();
-      const invoice = invoiceService.getInvoiceById(fastify.db, request.params.invoiceId);
+      const invoice = invoiceService.getInvoiceDetail(fastify.db, request.params.invoiceId);
       return reply.status(200).send({ invoice });
     },
   );

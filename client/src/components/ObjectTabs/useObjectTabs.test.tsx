@@ -9,7 +9,7 @@ import type { RouterLog } from '../../test/recordingRouter';
 import type { ObjectTabId } from './objectTabIds.js';
 import { useObjectTabs } from './useObjectTabs.js';
 
-function setup(url: string, available: readonly ObjectTabId[]) {
+function setup(url: string | { url: string; state?: unknown }, available: readonly ObjectTabId[]) {
   const log: RouterLog = createRouterLog();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <RecordingRouter entries={[url]} log={log}>
@@ -54,6 +54,15 @@ describe('useObjectTabs', () => {
     act(() => result.current.select('cost'));
     expect(log.actions).toEqual(['REPLACE /p?depError=1&tab=cost']);
     expect(result.current.active).toBe('cost');
+  });
+
+  it('keeps the location state (the origin) when a tab is selected', () => {
+    const state = { origin: { to: '/diary', name: 'Diary' } };
+    const { result, log } = setup({ url: '/p', state }, ['overview', 'cost']);
+    act(() => result.current.select('cost'));
+    expect(log.states).toEqual([state]);
+    act(() => result.current.select('overview'));
+    expect(log.states).toEqual([state, state]);
   });
 
   it('removes the param when the first tab is selected', () => {
