@@ -390,10 +390,15 @@ test.describe('Convert page - entry point (C1)', { tag: '@responsive' }, () => {
         // Lines are grouped under the task they belong to
         await expect(convert.linesCard).toContainText(`${testPrefix} Convert WI`);
         for (const id of fixture.lineIds) await expect(convert.lineInput(id)).toBeVisible();
-        if ((page.viewportSize()?.width ?? 0) >= 768) {
+        // The table/card switch is a container query on the lines card, not the viewport:
+        // column headers on the table surface, the same labels as card captions otherwise
+        if (await convert.tableRow(fixture.lineIds[0]!).isVisible()) {
           for (const name of ['Offered', 'Proposed', 'Keep']) {
             await expect(page.getByRole('columnheader', { name })).toBeVisible();
           }
+        } else {
+          await expect(convert.cardRow(fixture.lineIds[0]!)).toContainText('Offered');
+          await expect(convert.cardRow(fixture.lineIds[0]!)).toContainText('Proposed');
         }
 
         await expect(convert.confirm).toHaveText('Convert to final invoice');
@@ -1084,7 +1089,10 @@ test.describe('Convert page - mobile layout (C15)', { tag: '@responsive' }, () =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Convert page - tablet layout (C16)', { tag: '@responsive' }, () => {
-  test('The table renders at 768px and the conversion succeeds', async ({ page, testPrefix }) => {
+  test('Exactly one line surface renders at 768px and the conversion succeeds', async ({
+    page,
+    testPrefix,
+  }) => {
     const width = page.viewportSize()?.width ?? 1440;
     test.skip(width < 768 || width > 1023, 'Tablet-only layout test');
     const convert = new InvoiceConvertPage(page);
@@ -1094,8 +1102,11 @@ test.describe('Convert page - tablet layout (C16)', { tag: '@responsive' }, () =
       const line1 = fixture.lineIds[0]!;
       await convert.goto(fixture.invoiceId);
 
-      await expect(convert.tableRow(line1)).toBeVisible();
-      await expect(convert.cardRow(line1)).toBeHidden();
+      // The surface follows the lines card's own width (container query at 48rem), which is
+      // narrower than the viewport beside the sidebar: assert one surface, whichever applies
+      await expect(convert.lineInput(line1)).toBeVisible();
+      const tableVisible = await convert.tableRow(line1).isVisible();
+      expect(tableVisible).not.toBe(await convert.cardRow(line1).isVisible());
 
       expect(await convert.convert()).toBe(200);
       await expect(new InvoiceDetailPage(page).statusBadge).toContainText('To pay');
