@@ -1500,36 +1500,36 @@
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
     "from": "/budget/invoices/:id (status Quotation) > 'Convert to final invoice' > modal (final amount, date, invoice #, due date, notes; quoted->final delta; payment status 'Leave as pending' / 'Already paid')",
-    "to": "Money > Invoice / Offer page (offer) > secondary 'Convert to final invoice' -> Money > Convert page (/budget/invoices/:id/convert; dense cost-line table grouped by task); the record keeps its id and URL and leaves the Offers chip for the invoice chips of the same list",
+    "to": "Money > Invoice / Offer page (offer) > secondary link 'Convert to final invoice' -> Money > Convert page (/budget/invoices/:id/convert; cost lines grouped by task or purchase) > 'Convert to final invoice'; Home > Needs attention > offer row 'Convert' opens the Convert page; the record keeps its id and URL and leaves the Offers chip for the To pay / Paid chips of the same list",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The Convert dialog stays until P4.8 #2240. #2239: Convert is the secondary on an offer (the primary is Add progress payment)."
+    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The Convert dialog stays until P4.8 #2240. #2239: Convert is the secondary on an offer (the primary is Add progress payment). #2240: Convert page built; the dialog is removed (AC5)."
   },
   "MNY-086": {
     "name": "Attach the final document and AI-prefill values while converting a quotation",
     "from": "/budget/invoices/:id > Convert modal > 'Source document' > 'Select Paperless document' / 'Change document' / 'Remove' > 'Prefill from document'",
-    "to": "Money > Convert page (/budget/invoices/:id/convert) > 'Source document' + 'Prefill from document' (Paperless only; the prefill needs AI too: Paperless + AI only)",
+    "to": "Money > Convert page (/budget/invoices/:id/convert) > Document > 'Select document' / 'Change document' / 'Remove' > 'Read amounts' (Paperless only; Read amounts needs AI too)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Paperless only; the prefill from the document needs AI as well. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Paperless only; the prefill from the document needs AI as well. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2240: Built on the Convert page's Document card."
   },
   "MNY-087": {
     "name": "Rebalance itemized lines pro rata when converting a quotation",
     "from": "/budget/invoices/:id > Convert modal > 'Itemized lines' (Quoted | Proposed | Keep) > 'Keep existing itemization' / 'Reset to proposal' | /budget/invoices/:id (quotation) > \"Convert\" modal > rows typed \"Household item\" > keep or enter new amount",
-    "to": "Money > Convert page (/budget/invoices/:id/convert) > cost lines grouped by task (Offered | Proposed | Keep), searchable, scales to 50 lines",
+    "to": "Money > Convert page (/budget/invoices/:id/convert) > Cost lines grouped by task or purchase (Offered | Proposed | Keep) > 'Keep all offered amounts' / 'Reset to proposal'",
     "change": "same",
     "gate": "none",
-    "note": "Dialog uses the dense CostLineTable so 50 lines scale (VRD-06). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Dialog uses the dense CostLineTable so 50 lines scale (VRD-06). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2240: No search field: the grouped table scales to 50 lines with totals, and a filter would hide inputs whose values still count; the old dialog had none."
   },
   "MNY-088": {
     "name": "Resolve overpaid deposits by adding a refund during quotation conversion",
     "from": "/budget/invoices/:id > Convert modal > 'Deposits and final payment' > overpaid message > 'Add refund' (refund form, type locked)",
-    "to": "Money > Convert page (/budget/invoices/:id/convert) > 'Add refund'",
+    "to": "Money > Convert page (/budget/invoices/:id/convert) > Progress payments > Refund due > 'Add refund'",
     "change": "same",
     "gate": "none",
     "clicks": 1,
     "clickPath": "Convert page > 'Add refund' (1)",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2240: the refund is proposed (amount, today, funding source) and stays advisory; converting is never blocked (#2188 AC5)."
   },
   "MNY-089": {
     "name": "View staged payments (deposits/refunds) and the remaining final payment",

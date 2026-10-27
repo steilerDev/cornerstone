@@ -74,4 +74,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Money overview specs](money-overview-specs.md) — reserved baseline names (MoneyFigure), existing route params (`by`), glossary-former UX labels, ADR vs UX columns, Not-yet-split/orphan rows, drill lists losing item links, translated names ≠ user text
 - [ObjectList adopter specs](object-list-adopter-specs.md) — template gaps (child cells, All count, slots), chip-scoped column prefs, refresh() clears rows, last figure surface
 - [First detail-page adopter specs](first-detail-page-adopter-specs.md) — list-only money fields, false "existing" premises, lazy tabs vs header dialogs, final-row counts, figure guard literals, closure pre-measure
+- [Convert page specs](convert-page-specs.md) — portaled dialog forms submit the page form, stale blocking premises, document-row payload ids, route-flip E2E sweeps
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

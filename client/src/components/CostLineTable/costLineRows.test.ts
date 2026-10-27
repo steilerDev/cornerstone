@@ -5,6 +5,7 @@ import {
   costLineNet,
   groupForDocument,
   groupForItem,
+  invoiceLineKey,
   remainingState,
   rowFromBudgetLine,
   rowFromInvoiceLine,
@@ -467,6 +468,19 @@ describe('groupForDocument', () => {
 
   it('returns no group for no rows', () => {
     expect(groupForDocument([])).toEqual([]);
+  });
+});
+
+describe('invoiceLineKey (#2240, D4)', () => {
+  it('is the invoice budget line id of a document row, not the task budget id', () => {
+    const row = rowFromInvoiceLine(
+      invoiceLine({ id: 'ibl-9', workItemBudgetId: 'wb-9' }),
+      DOC,
+      VAT,
+      new Map(),
+    );
+    expect(row.id).toBe('wb-9');
+    expect(invoiceLineKey(row)).toBe('ibl-9');
   });
 });
 

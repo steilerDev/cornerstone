@@ -1,40 +1,39 @@
 /**
- * E2E tests for converting a quotation into the final invoice (Story #2107)
+ * E2E tests for the Convert page (#2240, supersedes the Story #2107 dialog tests)
  *
- * A quotation invoice shows a "Convert to final invoice" button on the Invoice Detail page.
- * The conversion flow (ConvertQuotationModal) lets the user set the final amount, proposes
- * pro-rata amounts for the existing itemized budget lines, surfaces the deposits/final-payment
- * arithmetic, shows an advisory overpaid banner when deposits exceed the final amount (with an in-flow
- * optional "Add refund" sub-flow), and submits everything atomically via
- * POST /api/invoices/:invoiceId/convert-quotation.
+ * An offer (status `quotation`) shows "Convert to final invoice" as a link to
+ * /budget/invoices/:id/convert. The page has a Document card (Paperless only), the final invoice
+ * details, the Cost lines card (Offered · Proposed · Keep, grouped by task/purchase), a Progress
+ * payments card (Refund due + Add refund) and a sticky Cancel / Convert bar. Converting posts
+ * POST /api/invoices/:invoiceId/convert-quotation and returns to the same invoice id.
  *
  * Scenarios (numbering follows the E2E spec):
- *   1.  @smoke Entry point: quotation shows the button, a pending invoice does not
- *   2.  Manual happy path (amount 10000 -> 10500, pro-rata lines 6300 / 3150)
- *   3.  Keep existing itemization
- *   4.  Over-allocation blocks Confirm
- *   5.  Quotation without budget lines
- *   6.  Overpaid deposit (advisory) -> Add refund round trip -> Confirm
- *   6b. Convert with overpaid deposits and no refund succeeds
- *   7.  Already paid (status radio)
- *   8.  Cancel and Escape discard everything
- *   9.  Paperless not configured (default env)
- *   10. Paperless document + AI prefill (mocked) and document link on convert
- *   11. Suggestion badge when the field was edited before AI
- *   12. AI failure keeps typed values, retry available, manual conversion still works
- *   13. AI unavailable (llmEnabled=false) hides the AI prefill block
- *   14. @responsive Mobile 375: line cards, stacked footer, 44px Confirm
- *   15. @responsive Tablet 768: table renders, conversion succeeds
- *   16. Dark mode smoke
- *   17. Keyboard: focus trap and focus restoration after the refund round trip
+ *   C1  @smoke Entry link, page identity, grouped lines, columns
+ *   C2  Happy path (10,000 -> 10,500, lines 6,300 / 3,150), same id, list chips (AC4)
+ *   C3  Keep all offered amounts; Reset to proposal
+ *   C4  Over-allocation blocks Convert (aria-disabled, focus moves, nothing posted)
+ *   C5  Past due date error shown at once
+ *   C6  Offer without cost lines
+ *   C7  Refund due -> Add refund round trip (AC2); C7b Convert without a refund (D1, #2188)
+ *   C8  Status Paid
+ *   C9  Cancel (clean / dirty -> Discard changes?)
+ *   C10 Paperless off: no Document card (AC3)
+ *   C11 Paperless + AI mocked: Read amounts pre-fills, document linked
+ *   C12 Edited field keeps its value and gets a suggestion
+ *   C13 AI error keeps typed values, retry, manual convert
+ *   C14 LLM off: no Read amounts, picking still works
+ *   C15 @responsive mobile; C16 @responsive tablet; C17 dark mode
+ *   C18 Not an offer; C19 Home N9 "Convert" link
  *
  * Paperless and the LLM are mocked with page.route() (no container); the convert endpoint itself
- * is always the real server. There is no paid-date field in the flow (user decision) - the
- * pending/paid radios are the only status controls.
+ * is always the real server.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { InvoiceConvertPage } from '../../pages/InvoiceConvertPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
+import { HomePage } from '../../pages/HomePage.js';
 import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
@@ -321,103 +320,143 @@ function viewportKind(page: Page): 'desktop' | 'mobile' {
   return (page.viewportSize()?.width ?? 1440) <= 767 ? 'mobile' : 'desktop';
 }
 
-/** Selects the mocked document through the picker modal that the convert flow opens. */
-async function pickMockDocument(page: Page, detail: InvoiceDetailPage): Promise<void> {
-  await detail.convertSelectDocument.click();
+/** Matches an amount input value like "6300" or "6300.00". */
+function amountValue(amount: number): RegExp {
+  return new RegExp(`^${amount}(\\.00)?$`);
+}
+
+/** Today as the browser sees it (YYYY-MM-DD). */
+async function browserToday(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  });
+}
+
+/** Selects the mocked document through the picker modal that the Document card opens. */
+async function pickMockDocument(page: Page, convert: InvoiceConvertPage): Promise<void> {
+  await convert.selectDocument.click();
   const picker = new PaperlessPickerModal(page);
   await picker.waitForVisible();
   await picker.selectDocument(MOCK_DOC.title);
-  await expect(detail.convertSelectedDocument).toContainText(MOCK_DOC.title);
+  await expect(convert.selectedDocument).toContainText(MOCK_DOC.title);
+}
+
+/** Counts POSTs to convert-quotation. */
+function trackConvertPosts(page: Page): { count: () => number } {
+  let posts = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/convert-quotation') && request.method() === 'POST') posts += 1;
+  });
+  return { count: () => posts };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Entry point
+// C1: Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - entry point (Scenario 1)', { tag: '@responsive' }, () => {
+test.describe('Convert page - entry point (C1)', { tag: '@responsive' }, () => {
   test(
-    'Quotation shows the Convert button; a pending invoice does not',
+    'The offer page links to the Convert page, which shows the grouped lines',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const detail = new InvoiceDetailPage(page);
-      let quotation: Fixture | null = null;
-      let pending: Fixture | null = null;
+      const convert = new InvoiceConvertPage(page);
+      let fixture: Fixture | null = null;
       try {
-        quotation = await createQuotation(page, testPrefix, { lines: [] });
-        pending = await createQuotation(page, `${testPrefix}P`, { status: 'pending', lines: [] });
-
-        // E3: an offer leads with Add progress payment (the one primary), keeps Convert as the
-        // secondary and has no status chip
-        await detail.goto(quotation.invoiceId);
-        await expect(detail.addPaymentPrimary).toHaveText('Add progress payment');
+        fixture = await createQuotation(page, testPrefix);
+        await detail.goto(fixture.invoiceId);
         await expect(detail.convertButton).toHaveText('Convert to final invoice');
-        await expect(detail.statusBadge).toHaveCount(0);
-        await expect(detail.addPaymentSecondary).toHaveCount(0);
-        await expect(detail.markPaid.trigger).toHaveCount(0);
+        await expect(detail.convertButton).toHaveAttribute(
+          'href',
+          `/budget/invoices/${fixture.invoiceId}/convert`,
+        );
 
-        // A pending invoice has the chip and no Convert
-        await detail.goto(pending.invoiceId);
-        await expect(detail.statusBadge).toContainText('To pay');
-        await expect(detail.header.menuTrigger).toBeVisible();
-        await expect(detail.convertButton).toHaveCount(0);
+        await detail.convertButton.click();
+        await expect(page).toHaveURL(new RegExp(`/budget/invoices/${fixture.invoiceId}/convert$`));
+        await expect(convert.root).toBeVisible();
+        await expect(convert.heading).toHaveText('Convert to final invoice');
+        await expect(convert.heading).toBeFocused();
+        await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+
+        // Money › Invoices › ‹company› · ‹number› (a single link below 1024px)
+        await convert.breadcrumbs.expectTrail([
+          'Money',
+          'Invoices',
+          `${testPrefix} Convert Vendor · ${testPrefix.substring(0, 8)}-Q`,
+        ]);
+
+        // Lines are grouped under the task they belong to
+        await expect(convert.linesCard).toContainText(`${testPrefix} Convert WI`);
+        for (const id of fixture.lineIds) await expect(convert.lineInput(id)).toBeVisible();
+        if ((page.viewportSize()?.width ?? 0) >= 768) {
+          for (const name of ['Offered', 'Proposed', 'Keep']) {
+            await expect(page.getByRole('columnheader', { name })).toBeVisible();
+          }
+        }
+
+        await expect(convert.confirm).toHaveText('Convert to final invoice');
       } finally {
-        await cleanup(page, quotation);
-        await cleanup(page, pending);
+        await cleanup(page, fixture);
       }
     },
   );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Manual happy path
+// C2: Happy path
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
-  test('Convert with pro-rata lines: status Pending, amount 10,500, lines 6,300 / 3,150', async ({
+test.describe('Convert page - happy path (C2)', () => {
+  test('Convert with pro-rata lines: same invoice, To pay, lines 6,300 / 3,150', async ({
     page,
     testPrefix,
   }) => {
-    test.skip(viewportKind(page) === 'mobile', 'Covered for mobile in Scenario 14');
     const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
+    const invoices = new InvoicesPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
       const [line1, line2] = fixture.lineIds as [string, string];
       await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await detail.convertButton.click();
+      await expect(convert.root).toBeVisible();
 
-      // Prefilled with the quoted amount
-      await expect(detail.convertFinalAmount).toHaveValue('10000.00');
+      await expect(convert.finalAmount).toHaveValue(amountValue(10000));
+      await convert.finalAmount.fill('10500');
+      await expect(convert.difference).toContainText('more than the offer');
 
-      await detail.convertFinalAmount.fill('10500');
-      await expect(detail.convertDelta).toContainText('+');
-      await expect(detail.convertDelta).toContainText('5');
+      // Pro-rata proposal: 6000 * 1.05 and 3000 * 1.05, remainder 1,050
+      await expect(convert.lineInput(line1)).toHaveValue(amountValue(6300));
+      await expect(convert.lineInput(line2)).toHaveValue(amountValue(3150));
+      await expect(convert.remainder()).toContainText('1,050.00 not yet split');
+      await expect(convert.proposedTotal()).toContainText('9,450.00');
 
-      // Pro-rata proposal: 6000 * 1.05 and 3000 * 1.05
-      await expect(detail.lineInput(line1, 'desktop')).toHaveValue('6300.00');
-      await expect(detail.lineInput(line2, 'desktop')).toHaveValue('3150.00');
-      // Remainder = 10500 - 9450 = 1050
-      await expect(detail.convertRemainder).toContainText('1,050.00');
+      await convert.invoiceNumber.fill(`${testPrefix.substring(0, 8)}-FINAL`);
+      await convert.date.fill('2026-03-01');
 
-      await detail.convertInvoiceNumber.fill(`${testPrefix.substring(0, 8)}-FINAL`);
-      await detail.convertDate.fill('2026-03-01');
+      expect(await convert.convert()).toBe(200);
 
-      expect(await detail.confirmConvert()).toBe(200);
-
-      // Modal closed, page reflects the converted invoice
-      await expect(detail.convertForm).toBeHidden();
+      // Same invoice id, a toast, the h1 takes focus, the header has no offer state any more
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
+      await expect(convert.toasts.successToast).toContainText(
+        'Offer converted to a final invoice.',
+      );
       await expect(detail.statusBadge).toContainText('To pay');
       await expect(detail.convertButton).toHaveCount(0);
-      // AC6: same URL, the h1 takes focus, the header now leads with Mark paid
-      await expect(page).toHaveURL(new RegExp(`/budget/invoices/${fixture.invoiceId}`));
       await expect(detail.heading).toBeFocused();
-      await expect(detail.markPaid.trigger).toBeVisible();
       await expect(detail.summary.fact('amount')).toContainText('10,500.00');
-      await expect(detail.header.description).toContainText('Converted from offer of');
       await expect(detail.budgetLinesSection).toContainText('6,300.00');
       await expect(detail.budgetLinesSection).toContainText('3,150.00');
 
-      // Same invoice, status pending, persisted
+      // Back does not reopen the Convert page as a form
+      await page.goBack();
+      await expect(convert.root).toHaveCount(0);
+
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.id).toBe(fixture.invoiceId);
       expect(invoice.status).toBe('pending');
@@ -427,6 +466,13 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
       const byId = new Map(invoice.budgetLines.map((l) => [l.id, l.itemizedAmount]));
       expect(byId.get(line1)).toBe(6300);
       expect(byId.get(line2)).toBe(3150);
+
+      // AC4: the list shows the record under To pay and no longer under Offers
+      const number = `${testPrefix.substring(0, 8)}-FINAL`;
+      await invoices.gotoChip('pending', `q=${number}`);
+      await expect(invoices.row(fixture.invoiceId)).toBeVisible();
+      await invoices.gotoChip('quotation', `q=${number}`);
+      await expect(invoices.row(fixture.invoiceId)).toHaveCount(0);
     } finally {
       await cleanup(page, fixture);
     }
@@ -434,63 +480,32 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2b: Stored due date earlier than the invoice date
+// C3: Keep all offered amounts, Reset to proposal
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - stale due date (Scenario 2b)', () => {
-  test('Past due date shows the field error and disables Confirm until fixed', async ({
+test.describe('Convert page - keep offered amounts (C3)', () => {
+  test('Keep all offered amounts leaves the lines unchanged; the remainder is 500', async ({
     page,
     testPrefix,
   }) => {
-    const detail = new InvoiceDetailPage(page);
-    let fixture: Fixture | null = null;
-    try {
-      fixture = await createQuotation(page, testPrefix, { lines: [], dueDate: '2026-02-01' });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-
-      // Invoice date defaults to today, so the stored due date is before it
-      await expect(detail.convertDueDate).toHaveAttribute('aria-invalid', 'true');
-      await expect(detail.convertConfirm).toBeDisabled();
-
-      await detail.convertDueDate.fill('2099-12-31');
-      await expect(detail.convertDueDate).not.toHaveAttribute('aria-invalid', 'true');
-      await expect(detail.convertConfirm).toBeEnabled();
-
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
-    } finally {
-      await cleanup(page, fixture);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Keep existing itemization
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Quotation conversion - keep existing itemization (Scenario 3)', () => {
-  test('Keep existing leaves line amounts unchanged; remainder is 500', async ({
-    page,
-    testPrefix,
-  }) => {
-    test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet table layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      const [line1, line2] = fixture.lineIds as [string, string];
+      await convert.goto(fixture.invoiceId);
 
-      await detail.convertKeepExisting.check();
-      await detail.convertFinalAmount.fill('9500');
-      await expect(detail.convertRemainder).toContainText('500.00');
-      for (const id of fixture.lineIds) {
-        await expect(detail.lineInput(id, 'desktop')).toBeDisabled();
-      }
+      await convert.keepAll.getByRole('checkbox').check();
+      await convert.finalAmount.fill('9500');
+      await expect(convert.lineKeep(line1)).toBeChecked();
+      await expect(convert.lineInput(line1)).toHaveValue(amountValue(6000));
+      await expect(convert.lineInput(line2)).toHaveValue(amountValue(3000));
+      await expect(convert.remainder()).toContainText('500.00 not yet split');
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(9500);
@@ -500,34 +515,59 @@ test.describe('Quotation conversion - keep existing itemization (Scenario 3)', (
       await cleanup(page, fixture);
     }
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Over-allocation
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Quotation conversion - over-allocation (Scenario 4)', () => {
-  test('A line above the final amount shows the warning and disables Confirm', async ({
+  test('Reset to proposal restores the pro-rata amounts of an edited line', async ({
     page,
     testPrefix,
   }) => {
-    test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet table layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      const [line1, line2] = fixture.lineIds as [string, string];
+      await convert.goto(fixture.invoiceId);
 
-      await expect(detail.convertOverAllocated).toBeHidden();
-      await expect(detail.convertConfirm).toBeEnabled();
+      await convert.finalAmount.fill('10500');
+      await expect(convert.lineInput(line1)).toHaveValue(amountValue(6300));
+      await convert.lineInput(line1).fill('5000');
+      await expect(convert.lineInput(line1)).toHaveValue('5000');
 
-      await detail.lineInput(fixture.lineIds[0]!, 'desktop').fill('9000');
+      await convert.resetProposal.click();
+      await expect(convert.lineInput(line1)).toHaveValue(amountValue(6300));
+      await expect(convert.lineInput(line2)).toHaveValue(amountValue(3150));
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
 
-      await expect(detail.convertOverAllocated).toBeVisible();
-      await expect(detail.convertConfirm).toBeDisabled();
+// ─────────────────────────────────────────────────────────────────────────────
+// C4: Over-allocation
+// ─────────────────────────────────────────────────────────────────────────────
 
-      // Nothing was persisted
+test.describe('Convert page - over-allocation (C4)', () => {
+  test('A line above the final amount blocks Convert; clicking it posts nothing', async ({
+    page,
+    testPrefix,
+  }) => {
+    const convert = new InvoiceConvertPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix);
+      await convert.goto(fixture.invoiceId);
+      await expect(convert.confirm).not.toHaveAttribute('aria-disabled', 'true');
+      const posts = trackConvertPosts(page);
+
+      await convert.lineInput(fixture.lineIds[0]!).fill('9000');
+      await expect(convert.remainder()).toContainText('more than the final amount');
+      await expect(convert.confirm).toHaveAttribute('aria-disabled', 'true');
+      await expect(convert.problems).toBeVisible();
+
+      // aria-disabled (not disabled): the click goes through, focuses a line and posts nothing
+      await convert.confirm.click({ force: true });
+      await expect(page.locator('input[data-convert-input]:focus')).toHaveCount(1);
+      expect(posts.count()).toBe(0);
+
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.status).toBe('quotation');
     } finally {
@@ -537,21 +577,54 @@ test.describe('Quotation conversion - over-allocation (Scenario 4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: No budget lines
+// C5: Stale due date
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - no budget lines (Scenario 5)', () => {
-  test('Shows the empty-lines note and the conversion succeeds', async ({ page, testPrefix }) => {
-    const detail = new InvoiceDetailPage(page);
+test.describe('Convert page - stale due date (C5)', () => {
+  test('A past due date shows the field error at once and blocks Convert until fixed', async ({
+    page,
+    testPrefix,
+  }) => {
+    const convert = new InvoiceConvertPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, { lines: [], dueDate: '2026-02-01' });
+      await convert.goto(fixture.invoiceId);
+
+      // The invoice date defaults to today, so the stored due date is before it
+      await expect(convert.dueDate).toHaveAttribute('aria-invalid', 'true');
+      await expect(convert.confirm).toHaveAttribute('aria-disabled', 'true');
+
+      await convert.dueDate.fill('2099-12-31');
+      await expect(convert.dueDate).not.toHaveAttribute('aria-invalid', 'true');
+      await expect(convert.confirm).not.toHaveAttribute('aria-disabled', 'true');
+
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C6: No cost lines
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Convert page - no cost lines (C6)', () => {
+  test('Shows the empty state and the conversion succeeds', async ({ page, testPrefix }) => {
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      await expect(detail.convertLinesEmpty).toBeVisible();
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      await expect(convert.linesEmpty).toBeVisible();
+      await expect(convert.payments).toHaveCount(0);
+      expect(await convert.convert()).toBe(200);
+      await expect(new InvoiceDetailPage(page).statusBadge).toContainText('To pay');
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.status).toBe('pending');
@@ -562,16 +635,16 @@ test.describe('Quotation conversion - no budget lines (Scenario 5)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Overpaid deposits -> refund -> confirm  (+ Scenario 17 keyboard)
+// C7 / C7b: Refund due
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', () => {
-  test('Overpaid banner is advisory; Add refund round trip still works', async ({
+test.describe('Convert page - refund due (C7, C7b)', () => {
+  test('Progress payments above the final amount show Refund due; Add refund round trip', async ({
     page,
     testPrefix,
   }) => {
-    test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
     const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
@@ -581,56 +654,35 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
         status: 'paid',
         paidDate: '2026-02-01',
       });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-      await expect(page.getByRole('dialog')).toHaveCount(1);
+      await convert.goto(fixture.invoiceId);
 
-      await detail.convertFinalAmount.fill('5000');
-      await expect(detail.convertOverpaidBanner).toBeVisible();
-      await expect(detail.convertOverpaidBanner).toHaveAttribute('role', 'status');
-      await expect(detail.convertConfirm).toBeEnabled();
+      await expect(convert.payments).toBeVisible();
+      await expect(convert.refundDue).toHaveCount(0);
+      await convert.finalAmount.fill('5000');
+      await expect(convert.refundDue).toBeVisible();
+      await expect(convert.refundDue).toContainText('1,000.00');
+      await expect(convert.confirm).not.toHaveAttribute('aria-disabled', 'true');
 
-      // Scenario 17: focus trap - Tab never leaves the dialog
-      await detail.convertFinalAmount.focus();
-      for (let i = 0; i < 12; i += 1) {
-        await page.keyboard.press('Tab');
-        const inside = await page.evaluate(() => {
-          const dialog = document.querySelector('[role="dialog"]');
-          return !!dialog && dialog.contains(document.activeElement);
-        });
-        expect(inside, `Tab #${i + 1} left the dialog`).toBe(true);
-      }
-
-      // Open the refund sub-flow: only one dialog at a time
-      await detail.convertAddRefund.click();
+      // Add refund opens the shared dialog prefilled as a refund due today
+      await convert.addRefund.click();
       await expect(detail.depositEntryTypeRefundRadio).toBeChecked();
-      await expect(detail.depositEntryTypeRefundRadio).toBeDisabled();
-      await expect(detail.depositAmountInput).toHaveValue('1000.00');
-      await expect(page.getByRole('dialog')).toHaveCount(1);
-      await expect(detail.convertForm).toBeHidden();
+      await expect(detail.depositAmountInput).toHaveValue(amountValue(1000));
+      await expect(detail.depositDueDateInput).toHaveValue(await browserToday(page));
 
       await detail.saveDepositForm(201);
 
-      // Back in the convert modal with state retained
-      await expect(detail.convertForm).toBeVisible();
-      await expect(page.getByRole('dialog')).toHaveCount(1);
-      await expect(detail.convertFinalAmount).toHaveValue('5000');
-      await expect(detail.convertOverpaidBanner).toBeHidden();
-      await expect(detail.convertConfirm).toBeEnabled();
-      // Focus is restored into the flow (form field after the block was resolved)
-      await expect(detail.convertFinalAmount).toBeFocused();
+      // The recorded row appears, focus lands on it, the form state is retained
+      await expect(convert.refundRecorded).toBeVisible();
+      await expect(convert.refundRecorded).toBeFocused();
+      await expect(convert.refundDue).toHaveCount(0);
+      await expect(convert.finalAmount).toHaveValue(amountValue(5000));
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
 
-      // Deposits untouched, refund added
-      await detail.openPayments();
-      await expect(detail.progressPayments.root).toContainText('6,000.00');
-      await expect(detail.refunds.rows).toHaveCount(1);
-      await expect(detail.refunds.rows.first()).toContainText('Refund');
-      await expect(detail.refunds.rows.first()).toContainText('1,000.00');
       const invoice = await getInvoice(page, fixture.invoiceId);
-      expect(invoice.deposits.filter((d) => d.entryType === 'deposit')).toHaveLength(1);
       expect(invoice.deposits.find((d) => d.entryType === 'deposit')?.amount).toBe(6000);
       expect(invoice.deposits.find((d) => d.entryType === 'refund')?.amount).toBe(1000);
       expect(invoice.amount).toBe(5000);
@@ -638,19 +690,12 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
       await cleanup(page, fixture);
     }
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6b: Overpaid deposits, no refund -> confirm succeeds
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', () => {
-  test('Confirm succeeds with deposits above the final amount; nothing is auto-refunded', async ({
+  test('C7b: Convert succeeds with a Refund due and no refund; nothing is auto-refunded', async ({
     page,
     testPrefix,
   }) => {
-    test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
@@ -660,24 +705,22 @@ test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', ()
         status: 'paid',
         paidDate: '2026-02-01',
       });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      await detail.convertFinalAmount.fill('5000');
-      await expect(detail.convertOverpaidBanner).toBeVisible();
-      await expect(detail.convertConfirm).toBeEnabled();
+      await convert.finalAmount.fill('5000');
+      await expect(convert.refundDue).toBeVisible();
+      await expect(convert.confirm).not.toHaveAttribute('aria-disabled', 'true');
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(5000);
       expect(invoice.deposits).toHaveLength(1);
       expect(invoice.deposits[0]?.entryType).toBe('deposit');
       expect(invoice.deposits[0]?.amount).toBe(6000);
-      expect(invoice.deposits.filter((d) => d.entryType === 'refund')).toHaveLength(0);
-      await detail.openPayments();
-      await expect(detail.finalPaymentRow).toContainText(/Final payment.*0[.,]00/s);
     } finally {
       await cleanup(page, fixture);
     }
@@ -685,63 +728,90 @@ test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', ()
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Already paid
+// C8: Paid
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - already paid (Scenario 7)', () => {
-  test('Choosing "paid" converts straight to Paid status', async ({ page, testPrefix }) => {
-    const detail = new InvoiceDetailPage(page);
-    let fixture: Fixture | null = null;
-    try {
-      fixture = await createQuotation(page, testPrefix, { lines: [] });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-
-      await expect(detail.convertStatusPending).toBeChecked();
-      await detail.convertStatusPaid.check();
-      expect(await detail.confirmConvert()).toBe(200);
-
-      await expect(detail.statusBadge).toContainText('Paid');
-      const invoice = await getInvoice(page, fixture.invoiceId);
-      expect(invoice.status).toBe('paid');
-    } finally {
-      await cleanup(page, fixture);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Cancel and Escape
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Quotation conversion - cancel and Escape (Scenario 8)', () => {
-  test('Escape and Cancel discard edits; quotation stays unchanged', async ({
+test.describe('Convert page - already paid (C8)', () => {
+  test('Choosing Paid converts straight to Paid, which the list shows under its chip', async ({
     page,
     testPrefix,
   }) => {
+    const convert = new InvoiceConvertPage(page);
+    const invoices = new InvoicesPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, { lines: [] });
+      await convert.goto(fixture.invoiceId);
+
+      await expect(convert.statusPending).toBeChecked();
+      await convert.statusPaid.check();
+      expect(await convert.convert()).toBe(200);
+      await expect(new InvoiceDetailPage(page).statusBadge).toContainText('Paid');
+
+      const invoice = await getInvoice(page, fixture.invoiceId);
+      expect(invoice.status).toBe('paid');
+
+      await invoices.gotoChip('paid', `q=${testPrefix.substring(0, 8)}-Q`);
+      await expect(invoices.row(fixture.invoiceId)).toBeVisible();
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C9: Cancel
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Convert page - cancel (C9)', () => {
+  test('Cancel on a clean form returns to the offer at once', async ({ page, testPrefix }) => {
+    const convert = new InvoiceConvertPage(page);
     const detail = new InvoiceDetailPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
       await detail.goto(fixture.invoiceId);
+      await detail.convertButton.click();
+      await expect(convert.root).toBeVisible();
 
-      // Escape
-      await detail.openConvert();
-      await detail.convertFinalAmount.fill('12345');
-      await detail.convertNotes.fill('scratch note');
-      await page.keyboard.press('Escape');
-      await expect(detail.convertForm).toBeHidden();
+      await convert.cancel.click();
+      await expect(convert.discardDialog.dialog).toHaveCount(0);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
+      await expect(detail.convertButton).toBeVisible();
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
 
-      await detail.openConvert();
-      await expect(detail.convertFinalAmount).toHaveValue('10000.00');
-      await expect(detail.convertNotes).toHaveValue('Original quotation notes');
+  test('Cancel with edits asks "Discard changes?"; Keep editing stays, Discard leaves', async ({
+    page,
+    testPrefix,
+  }) => {
+    const convert = new InvoiceConvertPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, { lines: [] });
+      await convert.goto(fixture.invoiceId);
+      await convert.finalAmount.fill('777');
 
-      // Cancel button
-      await detail.convertFinalAmount.fill('777');
-      await detail.convertCancel.click();
-      await expect(detail.convertForm).toBeHidden();
-      await detail.openConvert();
-      await expect(detail.convertFinalAmount).toHaveValue('10000.00');
+      await convert.cancel.click();
+      await expect(convert.discardDialog.dialog).toBeVisible();
+      await expect(convert.discardDialog.dialog).toContainText('Discard changes?');
+
+      // Keep editing
+      await convert.discardDialog.cancelButton.click();
+      await expect(convert.discardDialog.dialog).toHaveCount(0);
+      await expect(convert.root).toBeVisible();
+      await expect(convert.finalAmount).toHaveValue('777');
+
+      // Discard
+      await convert.cancel.click();
+      await convert.discardDialog.confirmButton.click();
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.status).toBe('quotation');
@@ -754,31 +824,28 @@ test.describe('Quotation conversion - cancel and Escape (Scenario 8)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Paperless not configured
+// C10: Paperless not configured
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - Paperless not configured (Scenario 9)', () => {
-  test('Hides the Source document section entirely; manual conversion still succeeds', async ({
+test.describe('Convert page - Paperless not configured (C10)', () => {
+  test('Hides the Document card entirely; manual conversion still succeeds', async ({
     page,
     testPrefix,
   }) => {
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      // Nothing about Paperless or AI: no section, no heading, no explanatory note
-      await expect(detail.convertDialog).toBeVisible();
-      await expect(detail.convertSourceSection).toHaveCount(0);
-      await expect(detail.convertDialog.getByText('Source document')).toHaveCount(0);
-      await expect(detail.convertDialog.getByText(/not configured|PAPERLESS_/i)).toHaveCount(0);
-      await expect(detail.convertSelectDocument).toHaveCount(0);
-      await expect(detail.convertAiPrefill).toHaveCount(0);
+      await expect(convert.details).toBeVisible();
+      await expect(convert.document).toHaveCount(0);
+      await expect(convert.selectDocument).toHaveCount(0);
+      await expect(convert.readAmounts).toHaveCount(0);
+      await expect(convert.root.getByText(/not configured|PAPERLESS_/i)).toHaveCount(0);
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(new InvoiceDetailPage(page).statusBadge).toContainText('To pay');
     } finally {
       await cleanup(page, fixture);
     }
@@ -786,16 +853,16 @@ test.describe('Quotation conversion - Paperless not configured (Scenario 9)', ()
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: Paperless + AI prefill
+// C11: Paperless + AI prefill
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - Paperless document and AI prefill (Scenario 10)', () => {
-  test('AI prefill fills the form; convert links the document as the invoice tier', async ({
+test.describe('Convert page - Paperless document and Read amounts (C11)', () => {
+  test('Read amounts pre-fills untouched fields; Convert links the document as the invoice', async ({
     page,
     testPrefix,
   }) => {
     test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
@@ -804,36 +871,33 @@ test.describe('Quotation conversion - Paperless document and AI prefill (Scenari
       await mockPickerBackend(page);
       await mockPreviewOk(page);
 
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
+      await expect(convert.document).toBeVisible();
+      await expect(convert.readAmounts).toHaveAttribute('aria-disabled', 'true');
+      await pickMockDocument(page, convert);
+      await expect(convert.readAmounts).not.toHaveAttribute('aria-disabled', 'true');
 
-      await expect(detail.convertAiPrefill).toBeDisabled();
-      await pickMockDocument(page, detail);
-      await expect(detail.convertAiPrefill).toBeEnabled();
+      await convert.readAmounts.click();
+      await expect(convert.readStatus).toContainText('Document read');
+      await expect(convert.finalAmount).toHaveValue(amountValue(10200));
+      await expect(convert.date).toHaveValue('2026-03-10');
+      await expect(convert.dueDate).toHaveValue('2026-04-10');
+      // Seeded invoice number and notes are protected: values kept, suggestions offered
+      await expect(convert.invoiceNumber).toHaveValue(`${testPrefix.substring(0, 8)}-Q`);
+      await expect(convert.notes).toHaveValue('Original quotation notes');
+      await expect(convert.suggestion('invoiceNumber')).toBeVisible();
+      await expect(convert.suggestion('notes')).toBeVisible();
 
-      await detail.convertAiPrefill.click();
-      await expect(detail.convertAiSuccess).toBeVisible();
-      await expect(detail.convertFinalAmount).toHaveValue('10200.00');
-      await expect(detail.convertDate).toHaveValue('2026-03-10');
-      await expect(detail.convertDueDate).toHaveValue('2026-04-10');
-      // Non-empty invoice number and notes are protected: values kept, AI offers suggestions
-      await expect(detail.convertInvoiceNumber).toHaveValue(`${testPrefix.substring(0, 8)}-Q`);
-      await expect(detail.convertNotes).toHaveValue('Original quotation notes');
-      const suggestionButtons = detail.convertDialog.getByRole('button', {
-        name: /Apply .* suggestion/i,
-      });
-      await expect(suggestionButtons).toHaveCount(2);
-      await detail.convertDialog
-        .getByRole('button', { name: /Apply Invoice number suggestion/i })
-        .click();
-      await expect(detail.convertInvoiceNumber).toHaveValue('FINAL-2026-777');
-      await expect(suggestionButtons).toHaveCount(1);
-      // Notes suggestion is left unapplied
-      // Lines were re-proposed pro rata from the prefilled amount (x1.02)
-      await expect(detail.lineInput(fixture.lineIds[0]!, 'desktop')).toHaveValue('6120.00');
+      await convert.suggestion('invoiceNumber').click();
+      await expect(convert.invoiceNumber).toHaveValue('FINAL-2026-777');
+      await expect(convert.suggestion('invoiceNumber')).toHaveCount(0);
+      // Lines were re-proposed pro rata from the pre-filled amount (x1.02)
+      await expect(convert.lineInput(fixture.lineIds[0]!)).toHaveValue(amountValue(6120));
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
 
       const linksResp = await page.request.get(
         `/api/document-links?entityType=invoice&entityId=${fixture.invoiceId}`,
@@ -850,7 +914,6 @@ test.describe('Quotation conversion - Paperless document and AI prefill (Scenari
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.invoiceNumber).toBe('FINAL-2026-777');
-      expect(invoice.notes).toContain('Original quotation notes');
       expect(invoice.notes).not.toContain('Extracted note from document');
     } finally {
       await cleanup(page, fixture);
@@ -859,16 +922,16 @@ test.describe('Quotation conversion - Paperless document and AI prefill (Scenari
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 11: Suggestion when edited first
+// C12: Suggestion when edited first
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - AI suggestion for edited field (Scenario 11)', () => {
-  test('Edited amount is kept and a suggestion badge is offered; Apply sets it', async ({
+test.describe('Convert page - suggestion for an edited field (C12)', () => {
+  test('An edited amount is kept and a suggestion is offered; Apply sets it', async ({
     page,
     testPrefix,
   }) => {
     test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
@@ -877,26 +940,19 @@ test.describe('Quotation conversion - AI suggestion for edited field (Scenario 1
       await mockPickerBackend(page);
       await mockPreviewOk(page);
 
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-      await detail.convertFinalAmount.fill('9900');
-      await pickMockDocument(page, detail);
-      await detail.convertAiPrefill.click();
-      await expect(detail.convertAiSuccess).toBeVisible();
+      await convert.goto(fixture.invoiceId);
+      await convert.finalAmount.fill('9900');
+      await pickMockDocument(page, convert);
+      await convert.readAmounts.click();
+      await expect(convert.readStatus).toContainText('Document read');
 
-      // The edited amount was kept and offered as a suggestion (invoice number and notes
-      // hold fixture values, so they get suggestions too)
-      await expect(detail.convertFinalAmount).toHaveValue('9900');
-      await expect(detail.convertDate).toHaveValue('2026-03-10');
-      const applyButton = detail.convertDialog.getByRole('button', {
-        name: /Apply Final amount suggestion/i,
-      });
-      await expect(applyButton).toHaveCount(1);
-      await expect(applyButton).toBeVisible();
+      await expect(convert.finalAmount).toHaveValue('9900');
+      await expect(convert.date).toHaveValue('2026-03-10');
+      await expect(convert.suggestion('amount')).toBeVisible();
 
-      await applyButton.click();
-      await expect(detail.convertFinalAmount).toHaveValue('10200.00');
-      await expect(applyButton).toHaveCount(0);
+      await convert.suggestion('amount').click();
+      await expect(convert.finalAmount).toHaveValue(amountValue(10200));
+      await expect(convert.suggestion('amount')).toHaveCount(0);
     } finally {
       await cleanup(page, fixture);
     }
@@ -904,16 +960,16 @@ test.describe('Quotation conversion - AI suggestion for edited field (Scenario 1
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 12: AI failure
+// C13: AI failure
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - AI failure (Scenario 12)', () => {
-  test('AI error keeps typed values, offers retry, and manual conversion still succeeds', async ({
+test.describe('Convert page - read failure (C13)', () => {
+  test('An AI error keeps typed values, offers Try again, and manual conversion succeeds', async ({
     page,
     testPrefix,
   }) => {
     test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
@@ -922,20 +978,18 @@ test.describe('Quotation conversion - AI failure (Scenario 12)', () => {
       await mockPickerBackend(page);
       await mockPreviewFailure(page);
 
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-      await detail.convertFinalAmount.fill('9800');
-      await detail.convertInvoiceNumber.fill('TYPED-1');
-      await pickMockDocument(page, detail);
+      await convert.goto(fixture.invoiceId);
+      await convert.finalAmount.fill('9800');
+      await convert.invoiceNumber.fill('TYPED-1');
+      await pickMockDocument(page, convert);
 
-      await detail.convertAiPrefill.click();
-      await expect(detail.convertAiError).toBeVisible();
-      await expect(detail.convertAiRetry).toBeVisible();
-      await expect(detail.convertFinalAmount).toHaveValue('9800');
-      await expect(detail.convertInvoiceNumber).toHaveValue('TYPED-1');
+      await convert.readAmounts.click();
+      await expect(convert.readError).toBeVisible();
+      await expect(convert.readRetry).toBeVisible();
+      await expect(convert.finalAmount).toHaveValue('9800');
+      await expect(convert.invoiceNumber).toHaveValue('TYPED-1');
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(9800);
     } finally {
@@ -945,15 +999,15 @@ test.describe('Quotation conversion - AI failure (Scenario 12)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13: AI unavailable
+// C14: LLM off
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - AI unavailable (Scenario 13)', () => {
-  test('llmEnabled=false hides the AI prefill block; picking a document still works', async ({
+test.describe('Convert page - AI unavailable (C14)', () => {
+  test('llmEnabled=false hides Read amounts; picking a document still works', async ({
     page,
     testPrefix,
   }) => {
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
@@ -961,15 +1015,12 @@ test.describe('Quotation conversion - AI unavailable (Scenario 13)', () => {
       await mockLlmEnabled(page, false);
       await mockPickerBackend(page);
 
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
-
-      await expect(detail.convertSelectDocument).toBeVisible();
-      await expect(detail.convertAiPrefill).toHaveCount(0);
-      await pickMockDocument(page, detail);
-      await expect(detail.convertSelectedDocument).toBeVisible();
-      await expect(detail.convertAiPrefill).toHaveCount(0);
-      await expect(detail.convertSourceSection.getByText(/AI/)).toHaveCount(0);
+      await convert.goto(fixture.invoiceId);
+      await expect(convert.selectDocument).toBeVisible();
+      await expect(convert.readAmounts).toHaveCount(0);
+      await pickMockDocument(page, convert);
+      await expect(convert.readAmounts).toHaveCount(0);
+      await expect(convert.removeDocument).toBeVisible();
     } finally {
       await cleanup(page, fixture);
     }
@@ -977,42 +1028,48 @@ test.describe('Quotation conversion - AI unavailable (Scenario 13)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 14: Mobile 375
+// C15: Mobile
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - mobile layout (Scenario 14)', { tag: '@responsive' }, () => {
-  test('Lines render as cards, footer buttons stack at >= 44px, conversion succeeds', async ({
+test.describe('Convert page - mobile layout (C15)', { tag: '@responsive' }, () => {
+  test('Lines render as cards, the bar stacks Convert over Cancel at >= 44px, converting works', async ({
     page,
     testPrefix,
   }) => {
     test.skip(viewportKind(page) !== 'mobile', 'Mobile-only layout test');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
       const [line1, line2] = fixture.lineIds as [string, string];
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      await expect(detail.lineCard(line1)).toBeVisible();
-      await expect(detail.lineCard(line2)).toBeVisible();
-      await expect(detail.lineRow(line1)).toBeHidden();
+      await expect(convert.cardRow(line1)).toBeVisible();
+      await expect(convert.cardRow(line2)).toBeVisible();
+      await expect(convert.tableRow(line1)).toBeHidden();
 
-      // Stacked footer: Confirm and Cancel share the same x and Confirm is at least 44px tall
-      await detail.convertConfirm.scrollIntoViewIfNeeded();
-      const confirmBox = await detail.convertConfirm.boundingBox();
-      const cancelBox = await detail.convertCancel.boundingBox();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow, 'horizontal scroll').toBeLessThanOrEqual(0);
+
+      // Stacked bar: Convert on top of Cancel, same x, both at least 44px tall
+      const confirmBox = await convert.confirm.boundingBox();
+      const cancelBox = await convert.cancel.boundingBox();
       expect(confirmBox).not.toBeNull();
       expect(cancelBox).not.toBeNull();
       expect(confirmBox!.height).toBeGreaterThanOrEqual(44);
+      expect(cancelBox!.height).toBeGreaterThanOrEqual(44);
       expect(Math.abs(confirmBox!.x - cancelBox!.x)).toBeLessThan(2);
-      expect(Math.abs(confirmBox!.y - cancelBox!.y)).toBeGreaterThan(20);
+      expect(confirmBox!.y).toBeLessThan(cancelBox!.y);
 
-      await detail.convertFinalAmount.fill('10500');
-      await expect(detail.lineInput(line1, 'mobile')).toHaveValue('6300.00');
+      await convert.finalAmount.fill('10500');
+      await expect(convert.lineInput(line1)).toHaveValue(amountValue(6300));
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}`,
+      );
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(10500);
     } finally {
@@ -1022,26 +1079,25 @@ test.describe('Quotation conversion - mobile layout (Scenario 14)', { tag: '@res
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 15: Tablet 768
+// C16: Tablet
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - tablet layout (Scenario 15)', { tag: '@responsive' }, () => {
-  test('Table renders at 768px and the conversion succeeds', async ({ page, testPrefix }) => {
+test.describe('Convert page - tablet layout (C16)', { tag: '@responsive' }, () => {
+  test('The table renders at 768px and the conversion succeeds', async ({ page, testPrefix }) => {
     const width = page.viewportSize()?.width ?? 1440;
     test.skip(width < 768 || width > 1023, 'Tablet-only layout test');
-    const detail = new InvoiceDetailPage(page);
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix);
       const line1 = fixture.lineIds[0]!;
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      await expect(detail.lineRow(line1)).toBeVisible();
-      await expect(detail.lineCard(line1)).toBeHidden();
+      await expect(convert.tableRow(line1)).toBeVisible();
+      await expect(convert.cardRow(line1)).toBeHidden();
 
-      expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('To pay');
+      expect(await convert.convert()).toBe(200);
+      await expect(new InvoiceDetailPage(page).statusBadge).toContainText('To pay');
     } finally {
       await cleanup(page, fixture);
     }
@@ -1049,12 +1105,15 @@ test.describe('Quotation conversion - tablet layout (Scenario 15)', { tag: '@res
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 16: Dark mode
+// C17: Dark mode
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Quotation conversion - dark mode (Scenario 16)', () => {
-  test('Modal and overpaid banner render in dark mode', async ({ page, testPrefix }) => {
-    const detail = new InvoiceDetailPage(page);
+test.describe('Convert page - dark mode (C17)', () => {
+  test('The Refund due block and the difference badge have a background in dark mode', async ({
+    page,
+    testPrefix,
+  }) => {
+    const convert = new InvoiceConvertPage(page);
     let fixture: Fixture | null = null;
     try {
       fixture = await createQuotation(page, testPrefix, { lines: [] });
@@ -1065,13 +1124,83 @@ test.describe('Quotation conversion - dark mode (Scenario 16)', () => {
         paidDate: '2026-02-01',
       });
       await page.emulateMedia({ colorScheme: 'dark' });
-      await detail.goto(fixture.invoiceId);
-      await detail.openConvert();
+      await convert.goto(fixture.invoiceId);
 
-      await detail.convertFinalAmount.fill('5000');
-      await expect(detail.convertOverpaidBanner).toBeVisible();
-      await expect(detail.convertDialog).toBeVisible();
-      await expect(detail.convertConfirm).toBeEnabled();
+      await convert.finalAmount.fill('5000');
+      await expect(convert.refundDue).toBeVisible();
+      await expect(convert.difference).toContainText('less than the offer');
+
+      const background = (locator: typeof convert.refundDue) =>
+        locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(await background(convert.refundDue)).not.toBe('rgba(0, 0, 0, 0)');
+      expect(await background(convert.difference.locator('xpath=./*[1]'))).not.toBe(
+        'rgba(0, 0, 0, 0)',
+      );
+      await expect(convert.confirm).toBeVisible();
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C18: Not an offer
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Convert page - not an offer (C18)', () => {
+  test('A final invoice shows "Offer not found" and a link to the invoice, no redirect', async ({
+    page,
+    testPrefix,
+  }) => {
+    const convert = new InvoiceConvertPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, { status: 'pending', lines: [] });
+      await convert.gotoRaw(fixture.invoiceId);
+
+      await expect(convert.heading).toHaveText('Offer not found');
+      await expect(convert.notAnOffer).toBeVisible();
+      const open = convert.notAnOffer.getByRole('link', { name: 'Open the invoice' });
+      await expect(open).toHaveAttribute('href', `/budget/invoices/${fixture.invoiceId}`);
+      await expect(page).toHaveURL(
+        (url) => url.pathname === `/budget/invoices/${fixture!.invoiceId}/convert`,
+      );
+      await expect(convert.root).toHaveCount(0);
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C19: Home N9
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Convert page - Home attention entry (C19)', () => {
+  test('An offer due within 7 days offers Convert on Home, which opens the Convert page', async ({
+    page,
+    testPrefix,
+  }) => {
+    const home = new HomePage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, {
+        lines: [],
+        dueDate: await browserToday(page),
+      });
+      await home.goto();
+      // A fresh database may show the set-up checklist instead of the sections
+      test.skip(await home.setup.isVisible(), 'Home is in set-up mode: no Needs attention list');
+      if (await home.showAllButton.isVisible()) await home.showAllButton.click();
+
+      const key = `N9:invoice:${fixture.invoiceId}`;
+      const convertLink = page.getByTestId(`needs-attention-row-${key}-convert`);
+      await expect(convertLink).toHaveAttribute(
+        'href',
+        `/budget/invoices/${fixture.invoiceId}/convert`,
+      );
+      await convertLink.click();
+      await expect(new InvoiceConvertPage(page).root).toBeVisible();
     } finally {
       await cleanup(page, fixture);
     }

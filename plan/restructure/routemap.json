@@ -435,7 +435,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "NEW Convert offer to final invoice page (replaces the 108-field modal; dense cost-line table grouped by task)."
+    "note": "NEW Convert offer to final invoice page (replaces the 108-field modal; dense cost-line table grouped by task). Served since #2240."
   },
   {
     "from": "/companies",

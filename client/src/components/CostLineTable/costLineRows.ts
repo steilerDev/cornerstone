@@ -247,6 +247,14 @@ export function groupForDocument(rows: readonly CostLineRow[]): CostLineGroup[] 
   return groups;
 }
 
+/**
+ * The key of a document-mode row: its `invoice_budget_lines` id. `CostLineRow.id` is the task or
+ * purchase budget id there, which the convert request must never use.
+ */
+export function invoiceLineKey(row: CostLineRow): string {
+  return row.invoiceBudgetLineId!;
+}
+
 /** What is left of an offer or invoice once its lines are subtracted. */
 export function remainingState(remaining: number): 'none' | 'notYetSplit' | 'over' {
   const cents = Math.round(remaining * 100);

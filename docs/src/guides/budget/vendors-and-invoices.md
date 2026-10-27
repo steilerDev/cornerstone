@@ -106,7 +106,7 @@ Select the **Offers** chip to see company offers. Above the list, the **Offers s
 - **Paid** -- the progress payments made so far
 - **Remaining on offer** -- the offered total minus those progress payments
 
-On the offer rows, the columns show each offer's **Offered**, **Paid**, **Remaining on offer** and **Progress payments**. The summary appears only on the Offers chip. To turn an offer into a final invoice, open the offer and use **Convert to final invoice** (see [Converting an Offer to a Final Invoice](#converting-an-offer-to-a-final-invoice)).
+On the offer rows, the columns show each offer's **Offered**, **Paid**, **Remaining on offer** and **Progress payments**. The summary appears only on the Offers chip. To turn an offer into a final invoice, open the offer and select **Convert to final invoice**, which opens the Convert page (see [Converting an Offer to a Final Invoice](#converting-an-offer-to-a-final-invoice)).
 
 #### Empty Lists
 
@@ -168,15 +168,59 @@ Use the **Offer** status for company offers that you want to track alongside act
 
 ### Converting an Offer to a Final Invoice
 
-When an offer becomes a finalized invoice from the company, you can convert it to capture the final amounts and details. On the offer's invoice detail page, click **Convert to final invoice** to open a dialog where you:
+When the company sends the final invoice for an offer, convert the offer on the **Convert to final invoice** page. The offer keeps its record, its ID and its URL, so it becomes the final invoice in place. Nothing is saved until you select **Convert to final invoice** on the page.
 
-1. **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes (the offered amount is automatically added as a note)
-2. **Optionally select a Paperless document** -- the document becomes the invoice attachment. If Paperless and an LLM are configured, **Prefill from document** auto-extracts the final details
-3. **Review and edit the cost lines** -- proposed amounts are scaled pro rata to the final amount. You can adjust them or keep the existing lines; any unallocated amount goes to Discretionary
-4. **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final balance
-5. **Choose payment status** -- mark the invoice as To pay or already Paid
+To open the page, open the offer and select **Convert to final invoice** in its header. You can also select **Convert** on the offer's row in **Needs attention** on the Home page. The breadcrumb reads Money › Invoices › the company and offer number.
 
-If the final amount is less than the net deposits (deposits minus refunds), the dialog shows an **"Overpaid"** advisory note. You can optionally add a refund from the dialog to adjust the overpaid amount. Conversion is still blocked if the cost lines add up to more than the final amount -- adjust the lines first. Nothing is saved until you confirm the dialog.
+The page has up to four cards, from top to bottom.
+
+**Document** (only when Paperless-ngx is configured)
+
+- **Select document** picks the PDF of the final invoice from Paperless-ngx. The document is linked to the final invoice. **Change document** picks a different one, and **Remove** clears the selection.
+- **Read amounts** (needs an LLM provider as well) reads the selected document and suggests values for the final amount, invoice date, invoice number, due date and notes.
+- Read amounts fills only empty fields. A field you have typed in, or one that already holds saved data from the offer, such as the notes or the invoice number, is not overwritten. It shows a suggestion you can apply instead.
+- If the document total differs from the offer total, the page says so.
+
+**Final invoice details**
+
+- **Final amount** and **Invoice date** are required. **Invoice number**, **Due date** and **Notes** are optional. A note with the offer amount is added to the notes automatically.
+- Next to the final amount, a badge shows how far it is from the offer: more, less, or the same, as an amount and a percentage.
+- A due date before the invoice date is rejected.
+- **Status after converting** sets the invoice to **To pay** or **Paid**.
+
+**Cost lines**
+
+The table lists the offer's cost lines, grouped by task or purchase. Lines with no task or purchase are grouped as **Not assigned**. Each row shows three amounts:
+
+- **Offered** -- the amount on the offer.
+- **Proposed** -- the amount the final invoice will use. It starts as the offered amount scaled pro rata to the final amount. Type a new amount to change a line.
+- **Keep** -- tick to keep the line at its offered amount. A kept line does not change when you change the final amount.
+
+Above the table, **Keep all offered amounts** keeps every line at its offered amount. Clearing it returns every line to the proposal. **Reset to proposal** discards the amounts you typed and returns every line to the proposal.
+
+Below the table, a note compares the lines with the final amount:
+
+- **Nothing left to split** -- the proposed lines add up to the final amount.
+- An amount **not yet split** -- the lines add up to less than the final amount. You can still convert.
+- An amount **more than the final amount** -- the lines add up to more. Conversion is blocked until you lower them.
+
+**Progress payments** (only when the offer already has progress payments)
+
+- The summary shows the **Progress payments** made so far, the **Final amount**, and the **Final payment** that remains after them.
+- If the progress payments add up to more than the final amount, a **Refund due** box shows the difference. It is advice only. It does not block conversion.
+- **Add refund** opens the refund form with the difference as the amount, today as the due date and a funding source you can change. Saving the refund records it at once. It does not wait for **Convert to final invoice**. Once it is recorded, the page confirms it.
+
+**Convert to final invoice**
+
+Select **Convert to final invoice** at the bottom of the page to save. The button stays unavailable while something needs fixing, such as a missing final amount or date, a proposed amount of zero or less, or cost lines that add up to more than the final amount. The page lists these problems above the button.
+
+When the conversion succeeds, the page returns to the invoice's detail page with a confirmation. The record keeps its ID and URL, and it moves from the **Offers** chip to the **To pay** or **Paid** chip of the same list. **Cancel** returns without saving. If you have changed anything, it asks you to confirm before discarding.
+
+If you open the Convert page for an invoice that is already final, the page says that it is not an offer and links to the invoice.
+
+:::info Screenshot needed
+A screenshot of the Convert to final invoice page is still to come.
+:::
 
 ### Invoice Detail
 

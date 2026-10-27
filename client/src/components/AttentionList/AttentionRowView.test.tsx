@@ -348,7 +348,6 @@ describe('AttentionRowView: link actions', () => {
 
   it.each([
     ['N10', 'change_target', 'Change target', '/household-items/hi-1'],
-    ['N9', 'convert', 'Convert', '/budget/invoices/off-1'],
     ['H2', 'split', 'Split', '/budget/invoices/inv-4'],
     ['H1', 'continue', 'Continue', '/diary/de-2/edit'],
     ['N8', 'prepare_bank_report', 'Prepare bank report', '/budget/sources/bs-1/bank-report'],
@@ -358,6 +357,17 @@ describe('AttentionRowView: link actions', () => {
     const link = screen.getByTestId(`${TID}-${action}`);
     expect(link).toHaveTextContent(label);
     expect(link.getAttribute('href')).toBe(attentionLinkUrl(r.link));
+    fireEvent.click(link);
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('N9 offers Convert as a link to the Convert page of the offer, not to the offer', () => {
+    const r = makeRow('N9');
+    renderRow(r, { withNavigate: true });
+    const link = screen.getByTestId(`${TID}-convert`);
+    expect(link).toHaveTextContent('Convert');
+    expect(link.getAttribute('href')).toBe(`/budget/invoices/${r.subject.id}/convert`);
+    expect(link.getAttribute('href')).not.toBe(attentionLinkUrl(r.link));
     fireEvent.click(link);
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });

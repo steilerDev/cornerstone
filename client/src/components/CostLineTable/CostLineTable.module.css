@@ -60,6 +60,11 @@
   min-width: 0;
 }
 
+.targetName {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
 .targetLink,
 .groupLink {
   color: var(--color-primary);

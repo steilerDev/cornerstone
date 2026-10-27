@@ -51,7 +51,7 @@ export interface InvoiceDepositFormModalProps {
   name?: string;
   initialValues?: Partial<DepositFormState>;
   lockEntryType?: boolean;
-  budgetSources: BudgetSource[];
+  budgetSources: readonly BudgetSource[];
   /** Number of distinct sources in the invoice's budget lines (hint display). Hint hidden when undefined. */
   budgetLineSourceCount?: number;
   /** The source with the largest sum (hint display). */

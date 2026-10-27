@@ -25,6 +25,12 @@
       "element": "AutoItemizePage"
     },
     {
+      "path": "/budget/invoices/:id/convert",
+      "guard": "member",
+      "kind": "page",
+      "element": "InvoiceConvertPage"
+    },
+    {
       "path": "/budget/invoices/new/paperless",
       "guard": "member",
       "gated": true,

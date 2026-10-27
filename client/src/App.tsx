@@ -85,6 +85,7 @@ const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage/IntegrationsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
+const InvoiceConvertPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceConvertPage'));
 const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
 const ReportWizardPage = lazy(() => import('./pages/ReportWizardPage/index.js'));
 const PaperlessInvoiceReviewPage = lazy(
@@ -194,6 +195,14 @@ function RoutedApp() {
                         />
                       </Route>
                       <Route path={routePattern('invoice')} element={<InvoiceDetailPage />} />
+                      <Route
+                        path={routePattern('invoiceConvert')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <InvoiceConvertPage />
+                          </Suspense>
+                        }
+                      />
                       <Route
                         path={routePattern('invoiceAutoItemize')}
                         element={

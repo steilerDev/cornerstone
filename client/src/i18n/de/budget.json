@@ -465,97 +465,6 @@
         "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
       },
       "paymentGone": "Diese Abschlagszahlung existiert nicht mehr."
-    },
-    "convertModal": {
-      "title": "Angebot in Endrechnung umwandeln",
-      "intro": "Überprüfe den Endbetrag, die aufgeschlüsselten Positionen und die Abschlagszahlungen. Nichts wird gespeichert, bis du bestätigst.",
-      "confirm": "Angebot umwandeln",
-      "confirming": "Wird umgewandelt...",
-      "cancel": "Abbrechen",
-      "saveError": "Das Angebot konnte nicht umgewandelt werden. Keine Änderungen wurden vorgenommen.",
-      "history": {
-        "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
-      },
-      "errors": {
-        "itemizedExceeds": "Die Summe der aufgeschlüsselten Beträge überschreitet den Endbetrag. Passe die aufgeschlüsselten Positionen an.",
-        "notQuotation": "Diese Rechnung ist kein Angebot mehr. Die Seite wurde aktualisiert."
-      },
-      "source": {
-        "heading": "Quelldokument",
-        "select": "Paperless-Dokument auswählen",
-        "change": "Dokument ändern",
-        "remove": "Entfernen",
-        "none": "Kein Dokument ausgewählt. Ein ausgewähltes Dokument wird als Rechnungsanlage verknüpft.",
-        "aiAnalyze": "Aus Dokument vorausfüllen",
-        "aiAnalyzing": "Wird analysiert...",
-        "aiNeedsDocument": "Wähle ein Dokument aus, um die KI-Vorausfüllung zu aktivieren.",
-        "aiSuccess": "Aus Dokument vorausgefüllt. Überprüfe die Werte vor dem Bestätigen.",
-        "aiError": "Analyse fehlgeschlagen. Deine Einträge sind noch vorhanden. Fahre manuell fort oder versuche es erneut.",
-        "aiRetry": "Erneut versuchen",
-        "aiTotalMismatch": "Die Dokumentensumme ({{extracted}}) unterscheidet sich um mehr als 1% vom Angebotsbetrag ({{quoted}}).",
-        "aiNoLines": "Im Dokument wurden keine Positionen erkannt, daher wurde der Endbetrag nicht vorausgefüllt."
-      },
-      "details": {
-        "heading": "Rechnungsdetails",
-        "finalAmount": "Endbetrag",
-        "date": "Rechnungsdatum",
-        "invoiceNumber": "Rechnungsnummer",
-        "dueDate": "Fälligkeitsdatum",
-        "notes": "Notizen",
-        "historyHint": "Eine Notiz mit dem Angebotsbetrag wird automatisch hinzugefügt.",
-        "quotedAmount": "Angebot {{quoted}} → Endbetrag {{final}}",
-        "deltaIncrease": "Erhöhung: +{{amount}} (+{{percent}})",
-        "deltaDecrease": "Reduktion: −{{amount}} (−{{percent}})",
-        "deltaNone": "Keine Änderung",
-        "errors": {
-          "amountRequired": "Gib einen Endbetrag ein.",
-          "amountPositive": "Der Endbetrag muss größer als 0 sein.",
-          "dateRequired": "Gib ein Rechnungsdatum ein.",
-          "dueDateBeforeDate": "Das Fälligkeitsdatum muss auf oder nach dem Rechnungsdatum liegen."
-        }
-      },
-      "lines": {
-        "heading": "Aufgeschlüsselte Positionen",
-        "caption": "Vorgeschlagene aufgeschlüsselte Beträge für die Endrechnung",
-        "proposalHint": "Vorgeschlagene Beträge werden proportional zum Endbetrag skaliert.",
-        "columns": {
-          "line": "Position",
-          "quoted": "Angebot",
-          "proposed": "Vorgeschlagen",
-          "keep": "Beibehalten"
-        },
-        "keepExisting": "Bestehende Aufschlüsselung beibehalten",
-        "reset": "Auf Vorschlag zurücksetzen",
-        "proposedAria": "Vorgeschlagener Betrag für {{name}}",
-        "keepAria": "Betrag beibehalten für {{name}}",
-        "itemizedTotal": "Aufgeschlüsselte Summe",
-        "remainderDiscretionary": "Verbleibend für Eigenmittel",
-        "overAllocated": "Die aufgeschlüsselte Summe überschreitet den Endbetrag um {{amount}}.",
-        "lineInvalid": "Gib einen Betrag größer als 0 ein.",
-        "empty": "Keine aufgeschlüsselten Positionen. Nichts zum Anpassen.",
-        "workItem": "Arbeitspaket",
-        "householdItem": "Haushaltsartikel"
-      },
-      "deposits": {
-        "heading": "Abschlagszahlungen und Schlusszahlung",
-        "unchangedNote": "Abschlagszahlungen bleiben unverändert.",
-        "empty": "Keine Abschlagszahlungen erfasst.",
-        "finalAmount": "Endbetrag",
-        "depositsSubtotal": "Abschlagszahlungen",
-        "finalPayment": "Schlusszahlung",
-        "noRemaining": "Keine verbleibende Zahlung."
-      },
-      "overpaid": {
-        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Du kannst die Umwandlung durchführen; füge einen Rückerstattungseintrag hinzu, wenn die Firma die Differenz erstattet.",
-        "addRefund": "Rückerstattung hinzufügen",
-        "resolved": "Abschlagszahlungen übersteigen den Endbetrag nicht mehr.",
-        "refundDescription": "Rückerstattung für Angebotsumwandlung"
-      },
-      "status": {
-        "heading": "Zahlungsstatus",
-        "pending": "Noch zu zahlen",
-        "paid": "Bereits bezahlt"
-      }
     }
   },
   "invoicePage": {
@@ -1258,6 +1167,113 @@
     },
     "picker": {
       "newNamed": "Neue Firma „{{name}}“"
+    }
+  },
+  "convertPage": {
+    "title": "In Endrechnung umwandeln",
+    "loadingTitle": "Angebot umwandeln",
+    "notFoundTitle": "Angebot nicht gefunden",
+    "notFound": "Dieses Angebot existiert nicht oder wurde gelöscht.",
+    "notAnOffer": "Dies ist bereits eine Endrechnung. Nur ein Angebot kann umgewandelt werden.",
+    "openInvoice": "Rechnung öffnen",
+    "retry": "Erneut versuchen",
+    "intro": "Überprüfe, wie die Beträge des Angebots zur Endrechnung werden. Nichts ändert sich, bis du bestätigst.",
+    "document": {
+      "title": "Dokument",
+      "prompt": "Fülle die Endrechnung aus einem Dokument vor.",
+      "select": "Dokument auswählen",
+      "change": "Dokument ändern",
+      "remove": "Entfernen",
+      "read": "Beträge auslesen",
+      "reading": "Dokument wird gelesen…",
+      "readDone": "Dokument gelesen. Prüfe die Vorschläge.",
+      "readError": "Das Dokument konnte nicht gelesen werden. Deine Eingaben bleiben erhalten.",
+      "tryAgain": "Erneut versuchen",
+      "mismatch": "Die Summe des Dokuments {{extracted}} weicht von der Angebotssumme {{offered}} ab.",
+      "noLines": "Das Dokument enthält keine Positionen, daher wurde der Endbetrag nicht vorausgefüllt.",
+      "linkedNote": "Das ausgewählte Dokument ist mit der Endrechnung verknüpft."
+    },
+    "details": {
+      "title": "Details der Endrechnung",
+      "finalAmount": "Endbetrag",
+      "date": "Rechnungsdatum",
+      "invoiceNumber": "Rechnungsnummer",
+      "dueDate": "Fälligkeitsdatum",
+      "notes": "Notizen",
+      "notesHint": "Eine Notiz mit dem Angebotsbetrag wird automatisch hinzugefügt.",
+      "status": "Status nach der Umwandlung",
+      "more": "{{amount}} ({{percent}}) mehr als das Angebot",
+      "less": "{{amount}} ({{percent}}) weniger als das Angebot",
+      "same": "Entspricht dem Angebot",
+      "errors": {
+        "amountRequired": "Gib einen Endbetrag ein.",
+        "amountPositive": "Der Endbetrag muss größer als 0 sein.",
+        "dateRequired": "Gib ein Rechnungsdatum ein.",
+        "dueDateBeforeDate": "Das Fälligkeitsdatum muss auf oder nach dem Rechnungsdatum liegen."
+      }
+    },
+    "lines": {
+      "title": "Kostenpositionen",
+      "hint": "Vorgeschlagene Beträge werden anteilig zum Endbetrag berechnet. Gib einen Betrag ein, um eine Position zu ändern, oder behalte den angebotenen Betrag.",
+      "keepAll": "Alle angebotenen Beträge beibehalten",
+      "reset": "Auf Vorschlag zurücksetzen",
+      "caption": "Kostenpositionen: angeboten, vorgeschlagen und beibehalten",
+      "columns": {
+        "line": "Position",
+        "offered": "Angeboten",
+        "proposed": "Vorgeschlagen",
+        "keep": "Beibehalten"
+      },
+      "keepVisible": "Wie angeboten beibehalten",
+      "keepAria": "Wie angeboten beibehalten: {{name}}",
+      "proposedAria": "Vorgeschlagener Betrag für {{name}}",
+      "lineInvalid": "Gib einen Betrag größer als 0 ein.",
+      "total": "Summe",
+      "noDescription": "Keine Beschreibung",
+      "remainder": {
+        "none": "Nichts mehr aufzuschlüsseln",
+        "notYetSplit": "{{amount}} nicht aufgeschlüsselt",
+        "over": "{{amount}} mehr als der Endbetrag"
+      },
+      "empty": "Dieses Angebot hat keine Kostenpositionen. Es gibt nichts anzupassen.",
+      "updated": "Vorgeschlagene Beträge aktualisiert."
+    },
+    "payments": {
+      "title": "Abschlagszahlungen",
+      "progressPayments": "Abschlagszahlungen",
+      "finalAmount": "Endbetrag",
+      "finalPayment": "Schlusszahlung",
+      "unchanged": "Abschlagszahlungen bleiben unverändert."
+    },
+    "refund": {
+      "heading": "Ausstehende Rückerstattung: {{amount}}",
+      "message": "Du hast {{amount}} mehr gezahlt als die Endrechnung. Du kannst trotzdem umwandeln. Füge eine Rückerstattung hinzu, wenn die Firma die Differenz zurückzahlt.",
+      "amount": "Betrag",
+      "dueDate": "Fälligkeitsdatum",
+      "source": "Finanzierungsquelle",
+      "noSource": "Nicht festgelegt",
+      "add": "Rückerstattung hinzufügen",
+      "recorded": "Die Rückerstattung über {{amount}} ist erfasst.",
+      "description": "Rückerstattung für die Angebotsumwandlung"
+    },
+    "actions": {
+      "cancel": "Abbrechen",
+      "convert": "In Endrechnung umwandeln",
+      "converting": "Wird umgewandelt…",
+      "saving": "Angebot wird umgewandelt…",
+      "status": "Endbetrag {{final}} · Schlusszahlung {{payment}}"
+    },
+    "blocked": {
+      "lines": "Korrigiere die markierten Positionen.",
+      "over": "Senke die vorgeschlagenen Beträge auf den Endbetrag."
+    },
+    "errors": {
+      "saveFailed": "Das Angebot konnte nicht umgewandelt werden. Es wurde nichts geändert.",
+      "itemizedExceeds": "Die Kostenpositionen ergeben zusammen mehr als der Endbetrag. Senke die vorgeschlagenen Beträge."
+    },
+    "converted": "Angebot in Endrechnung umgewandelt.",
+    "history": {
+      "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
     }
   }
 }

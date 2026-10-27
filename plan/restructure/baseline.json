@@ -148,7 +148,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 107,
+      "count": 104,
       "values": [
         "(refund)",
         "(unnamed budget line)",
@@ -159,7 +159,6 @@
         "allocated",
         "allocated amount",
         "allocated source",
-        "already paid",
         "amount",
         "applicable budget categories",
         "budget breakdown",
@@ -197,8 +196,6 @@
         "headroom",
         "invoice amount",
         "invoiced",
-        "itemized total",
-        "keep existing amount for",
         "left to spend",
         "less deposit",
         "loading budget lines",
@@ -212,7 +209,6 @@
         "new subsidy program",
         "no budget lines assigned",
         "no more tags available",
-        "no remaining payment.",
         "no subsidies linked",
         "no subsidy programs yet",
         "not invoiced",
@@ -238,6 +234,7 @@
         "project budget overview",
         "proposed amount for",
         "refund",
+        "refund due",
         "refunds",
         "refunds due",
         "remaining",

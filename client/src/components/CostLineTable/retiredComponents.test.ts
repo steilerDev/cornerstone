@@ -7,11 +7,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * AC8 (#2235): the per-record budget-line UI was replaced by CostLineTable / CostLineForm. These
- * files must not come back, and nothing may import them.
+ * AC8 (#2235) and #2240 AC5: the per-record budget-line UI was replaced by CostLineTable /
+ * CostLineForm, and the convert dialog by the Convert page. These files must not come back, and nothing may import them.
  *
  * Mutation that must fail this test: re-adding any one of the files below (for example an empty
- * `components/budget/BudgetLineCard.tsx`), or importing `useBudgetSection` from any source file.
+ * `components/budget/BudgetLineCard.tsx`), or importing `useBudgetSection` from any source file; re-adding `ConvertQuotationModal.tsx` or
+ * `useConvertQuotation.ts` (the convert dialog and its hook, #2240).
  */
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -31,6 +32,8 @@ const RETIRED = [
   'useBudgetLinePicker',
   'ParentPicker',
   'HouseholdItemPicker',
+  'ConvertQuotationModal',
+  'useConvertQuotation',
 ] as const;
 
 function walk(dir: string): string[] {
