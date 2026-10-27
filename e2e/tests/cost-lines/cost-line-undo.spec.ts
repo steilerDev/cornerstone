@@ -161,16 +161,16 @@ test.describe('Cost line Remove - focus (U3)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    // Each Remove leaves an Undo toast for 6 s. The section now sits lower on the page (header,
-    // summary strip and tabs above it), so on a phone the menu item that was just clicked lies
-    // under where the toast appears: the stationary mouse is then over the toast, and hovering
-    // pauses an Undo toast's clock. Move the pointer away, then wait for the toast to go, before
-    // opening the next menu (it would cover the menu item).
+    // Each Remove leaves an Undo toast for 6 s. The section sits low on the page, so on a phone the
+    // menu item that was just clicked lies under where the toast appears: the pointer is then over
+    // the toast, and hovering pauses an Undo toast's clock (moving the pointer away did not lift
+    // the pause reliably on the mobile project: CI #2341). The next menu would be covered by the
+    // toast, so close it through its own dismiss control instead of waiting for the clock.
     test.setTimeout(60_000);
     const panel = new CostLinesPanel(page);
     const waitForUndoToastGone = async () => {
-      await page.mouse.move(1, 1);
-      await expect(panel.toasts.undoToast).toHaveCount(0, { timeout: 10_000 });
+      await panel.toasts.dismissUndoToasts();
+      await expect(panel.toasts.undoToast).toHaveCount(0);
     };
     const { invoice } = await seedLinked(page, testPrefix, 3);
     await page.goto(routeUrl('invoice', { id: invoice.id }));

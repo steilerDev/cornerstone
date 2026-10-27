@@ -29,6 +29,26 @@ export class ToastRegion {
     return this.undoToast.filter({ hasText: text });
   }
 
+  /** The toast's own dismiss (X) control: the last button of the toast, after Undo. */
+  get dismissUndoButton(): Locator {
+    return this.undoToast.getByRole('button').last();
+  }
+
+  /**
+   * Close the undo toast(s) through their dismiss control. Unlike waiting for the 6 s clock, this
+   * never depends on the pointer: hover (or focus) pauses an undo toast's clock, and on a phone
+   * the toast appears under the pointer that just tapped the menu item.
+   */
+  async dismissUndoToasts(): Promise<void> {
+    while ((await this.undoToast.count()) > 0) {
+      await this.dismissUndoButton.click();
+      await this.undoToast
+        .first()
+        .waitFor({ state: 'detached' })
+        .catch(() => undefined);
+    }
+  }
+
   get undoneToast(): Locator {
     return this.infoToast.filter({ hasText: 'Change undone.' });
   }
