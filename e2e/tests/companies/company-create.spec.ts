@@ -317,7 +317,7 @@ test.describe('Company picker - invoice edit modal (AC5)', { tag: '@responsive' 
 
       // Saving the invoice moves it to the new company
       await detail.saveEdit();
-      await expect(detail.infoList.getByRole('link', { name: typed })).toBeVisible();
+      await expect(detail.companyLink).toHaveText(typed);
     } finally {
       await page.request.delete(`${API.vendors}/${currentId}/invoices/${invoiceId}`);
       await page.request.delete(`${API.vendors}/${currentId}`);

@@ -21,7 +21,7 @@ import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiModule from '../../lib/householdItemBudgetsApi.js';
 import type {
-  Invoice,
+  InvoiceDetail,
   AutoItemizeDryRunResponse,
   PaperlessDocumentDetailResponse,
 } from '@cornerstone/shared';
@@ -239,7 +239,7 @@ afterEach(() => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
+function makeInvoice(overrides: Partial<InvoiceDetail> = {}): InvoiceDetail {
   return {
     id: 'inv-1',
     vendorId: 'vendor-1',
@@ -254,6 +254,10 @@ function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     remainingAmount: 1000,
     deposits: [],
     finalPaymentAmount: 1000,
+    paid: 0,
+    openAmount: 1000,
+    remainingOnOffer: null,
+    notYetSplit: false,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',

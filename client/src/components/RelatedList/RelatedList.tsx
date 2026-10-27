@@ -35,6 +35,7 @@ export function RelatedList({
   title,
   headingLevel = 2,
   rows,
+  count,
   loadError,
   onRetry,
   action,
@@ -266,7 +267,7 @@ export function RelatedList({
       <div className={styles.card}>
         <RelatedListHeader
           title={title}
-          {...(rows !== null && !loadError ? { count: rows.length } : {})}
+          {...(rows !== null && !loadError ? { count: count ?? rows.length } : {})}
           headingLevel={headingLevel}
           headingId={headingId}
           headingRef={headingRef}

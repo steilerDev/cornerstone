@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { InvoiceBudgetLineDetailResponse } from '@cornerstone/shared';
+import type { BudgetSource, InvoiceBudgetLineDetailResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -12,6 +12,8 @@ export interface UseInvoiceCostLinesResult {
   readonly remainingAmount: number;
   /** Funding source id to name, for the facts line. */
   readonly sources: ReadonlyMap<string, string>;
+  /** The fetched funding sources (the Map above is derived from them). */
+  readonly budgetSources: readonly BudgetSource[];
   readonly loading: boolean;
   /** Translated; null when the last load worked. */
   readonly error: string | null;
@@ -20,6 +22,7 @@ export interface UseInvoiceCostLinesResult {
 }
 
 const NO_LINES: readonly InvoiceBudgetLineDetailResponse[] = [];
+const NO_SOURCES: readonly BudgetSource[] = [];
 
 /** The cost lines of an offer or invoice (document host) with its funding source names. */
 export function useInvoiceCostLines(invoiceId: string): UseInvoiceCostLinesResult {
@@ -27,7 +30,7 @@ export function useInvoiceCostLines(invoiceId: string): UseInvoiceCostLinesResul
   const { t: tErrors } = useTranslation('errors');
   const [lines, setLines] = useState<readonly InvoiceBudgetLineDetailResponse[]>(NO_LINES);
   const [remainingAmount, setRemainingAmount] = useState(0);
-  const [sources, setSources] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const [budgetSources, setBudgetSources] = useState<readonly BudgetSource[]>(NO_SOURCES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Only the newest request may write state (a slow older response must not overwrite it).
@@ -71,7 +74,7 @@ export function useInvoiceCostLines(invoiceId: string): UseInvoiceCostLinesResul
     fetchBudgetSources()
       .then((response) => {
         if (cancelled) return;
-        setSources(new Map(response.budgetSources.map((source) => [source.id, source.name])));
+        setBudgetSources(response.budgetSources);
       })
       .catch(() => {
         // The facts line just omits the funding source name.
@@ -81,5 +84,10 @@ export function useInvoiceCostLines(invoiceId: string): UseInvoiceCostLinesResul
     };
   }, []);
 
-  return { lines, remainingAmount, sources, loading, error, reload };
+  const sources = useMemo<ReadonlyMap<string, string>>(
+    () => new Map(budgetSources.map((source) => [source.id, source.name])),
+    [budgetSources],
+  );
+
+  return { lines, remainingAmount, sources, budgetSources, loading, error, reload };
 }

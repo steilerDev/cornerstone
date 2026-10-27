@@ -12,6 +12,8 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2239 offer/invoice page tests](story-2239-offer-invoice-page-tests.md) (2026-10-27) — Node 22 buildApp shim, fixtures, tab-select origin defect, dead branches
+
 - [Story #2236 relation-unlink Undo server tests](story-2236-relation-undo-server-tests.md) (2026-10-24) — table-driven 12-route file, per-file coverage merge recipe, dead branches, never pkill jest
 - [Story #2236 entity picker tests](story-2236-entity-picker-tests.md) (2026-10-24) — factory-mock ripple, harness, it.failing defects, dead branches
 - [Story #2235 cost lines tests](story-2235-cost-lines-tests.md) (2026-10-24) — fixtures, grid mock ripple, focus defect pin, D-20 home

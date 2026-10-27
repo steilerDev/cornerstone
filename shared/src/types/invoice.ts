@@ -120,7 +120,7 @@ export interface Invoice {
    *   + Σ (pending deposit-type entries)
    * Pending refunds are EXCLUDED (reported separately via summary.refundsDue).
    * Additive to — never a replacement for — finalPaymentAmount.
-   * Always present on GET /api/invoices rows (`InvoiceListRow`); undefined on detail responses.
+   * Always present on GET /api/invoices rows (`InvoiceListRow`) and on `InvoiceDetail`.
    */
   openAmount?: number;
   createdBy: UserSummary | null;
@@ -267,8 +267,8 @@ export const INVOICE_LIST_SORTS = [
 ] as const;
 export type InvoiceListSort = (typeof INVOICE_LIST_SORTS)[number];
 
-/** A row of GET /api/invoices: every list-only figure is always present. */
-export interface InvoiceListRow extends Invoice {
+/** The money service's figures for one record (ADR-039); identical on list rows and the detail. */
+export interface InvoiceRecordMoney {
   /** Still to pay on this record (refunds excluded). */
   openAmount: number;
   /** The money service's Paid for this one record (paid + claimed, refunds netted). */
@@ -278,6 +278,12 @@ export interface InvoiceListRow extends Invoice {
   /** The money service's Not yet split rule for this record. */
   notYetSplit: boolean;
 }
+
+/** GET /api/invoices/:invoiceId and every GET /api/invoices row. */
+export type InvoiceDetail = Omit<Invoice, 'openAmount'> & InvoiceRecordMoney;
+
+/** A row of GET /api/invoices: every list-only figure is always present. */
+export type InvoiceListRow = InvoiceDetail;
 
 /** Totals over every row matching the request (all pages); `ids` is ignored. */
 export interface InvoiceListTotals {
@@ -303,5 +309,5 @@ export interface InvoiceListPaginatedResponse {
  * Response for GET /api/invoices/:id (single invoice detail).
  */
 export interface InvoiceDetailResponse {
-  invoice: Invoice;
+  invoice: InvoiceDetail;
 }

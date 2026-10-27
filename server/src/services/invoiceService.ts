@@ -17,6 +17,8 @@ import type {
   InvoiceChipTally,
   InvoiceChipsOutsideToPay,
   InvoiceListRow,
+  InvoiceRecordMoney,
+  InvoiceDetail,
   InvoiceListSort,
   InvoiceListTotals,
   FilterMeta,
@@ -50,7 +52,39 @@ import {
   computeFinalPaymentAmount,
   computeFinalPaymentAmounts,
   computeOpenAmounts,
+  type InvoiceDepositRow,
 } from './shared/depositAggregateUtils.js';
+
+/** The (invoices LEFT JOIN invoice_deposits) column set the money helpers read (InvoiceDepositRow). */
+const RECORD_ROW_COLUMNS = {
+  invoice_id: invoices.id,
+  invoice_amount: invoices.amount,
+  invoice_status: invoices.status,
+  deposit_id: invoiceDeposits.id,
+  deposit_amount: invoiceDeposits.amount,
+  deposit_status: invoiceDeposits.status,
+  deposit_entry_type: invoiceDeposits.entryType,
+};
+
+/**
+ * The money service's per-record figures (ADR-039), shared by list rows and the detail.
+ * `recordRows` are the record's own (invoices LEFT JOIN invoice_deposits) rows.
+ */
+export function toRecordMoney(
+  recordRows: InvoiceDepositRow[],
+  invoiceId: string,
+  status: InvoiceStatus,
+  notYetSplit: boolean,
+): InvoiceRecordMoney {
+  const payments = computePayments(recordRows);
+  return {
+    openAmount: computeOpenAmounts(recordRows).byInvoice.get(invoiceId) ?? 0,
+    paid: toMajor(payments.paidCents),
+    remainingOnOffer:
+      status === 'quotation' ? toMajor(payments.offers.remainingOnOfferCents) : null,
+    notYetSplit,
+  };
+}
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -458,15 +492,7 @@ export function listAllInvoices(
   // The page filters only narrow the listed rows; the header summary always shows totals
   // across the entire dataset so users can see what the other filter values would yield.
   const summaryRawRows = db
-    .select({
-      invoice_id: invoices.id,
-      invoice_amount: invoices.amount,
-      invoice_status: invoices.status,
-      deposit_id: invoiceDeposits.id,
-      deposit_amount: invoiceDeposits.amount,
-      deposit_status: invoiceDeposits.status,
-      deposit_entry_type: invoiceDeposits.entryType,
-    })
+    .select(RECORD_ROW_COLUMNS)
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
     .all();
@@ -582,8 +608,6 @@ export function listAllInvoices(
       row.amount,
     );
 
-    const payments = computePayments(rawRowsByInvoice.get(row.id)!);
-
     return {
       id: row.id,
       vendorId: row.vendorId,
@@ -598,11 +622,12 @@ export function listAllInvoices(
       remainingAmount,
       deposits: depositsByInvoice.get(row.id) ?? [],
       finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id)!,
-      openAmount: openAmounts.byInvoice.get(row.id)!,
-      paid: toMajor(payments.paidCents),
-      remainingOnOffer:
-        row.status === 'quotation' ? toMajor(payments.offers.remainingOnOfferCents) : null,
-      notYetSplit: notYetSplitSet.has(row.id),
+      ...toRecordMoney(
+        rawRowsByInvoice.get(row.id)!,
+        row.id,
+        row.status as InvoiceStatus,
+        notYetSplitSet.has(row.id),
+      ),
       createdBy: toUserSummary(createdByUser),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -662,6 +687,32 @@ export function getInvoiceById(db: DbType, invoiceId: string): Invoice {
     throw new NotFoundError('Invoice not found');
   }
   return toInvoice(db, row);
+}
+
+/**
+ * Get a single invoice with the money service's per-record figures (GET /api/invoices/:id).
+ * @throws NotFoundError if invoice does not exist
+ */
+export function getInvoiceDetail(db: DbType, invoiceId: string): InvoiceDetail {
+  const row = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+  if (!row) {
+    throw new NotFoundError('Invoice not found');
+  }
+  const rows = db
+    .select(RECORD_ROW_COLUMNS)
+    .from(invoices)
+    .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
+    .where(eq(invoices.id, invoiceId))
+    .all();
+  return {
+    ...toInvoice(db, row),
+    ...toRecordMoney(
+      rows,
+      row.id,
+      row.status as InvoiceStatus,
+      notYetSplitInvoiceIds(db).has(row.id),
+    ),
+  };
 }
 
 /**

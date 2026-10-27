@@ -1,50 +1,52 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
-import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import { useFormatters } from '../../lib/formatters.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
-import { DocumentsPanelButton } from '../../components/DocumentsPanel/index.js';
-import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
-import { FormError } from '../../components/FormError/FormError.js';
+import { routeUrl } from '@cornerstone/shared';
+import type { InvoiceDetail, InvoiceStatus } from '@cornerstone/shared';
 import { CostLinesSection } from '../../components/CostLineTable/index.js';
-import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
-import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
-import { Modal } from '../../components/Modal/Modal.js';
-import { ConvertQuotationModal } from './ConvertQuotationModal.js';
-import { useConvertQuotation } from './useConvertQuotation.js';
+import { useInvoiceCostLines } from '../../components/CostLineTable/useInvoiceCostLines.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
-import styles from './InvoiceDetailPage.module.css';
-import depositStyles from './InvoiceDepositsSection.module.css';
-import shared from '../../styles/shared.module.css';
-import { useQueryTargetHighlight } from '../../hooks/useQueryTargetHighlight.js';
-import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
-import { Badge } from '../../components/Badge/Badge.js';
+import { ObjectHeader } from '../../components/ObjectHeader/index.js';
+import type { ObjectHeaderPrimary } from '../../components/ObjectHeader/index.js';
+import { ObjectTabs } from '../../components/ObjectTabs/ObjectTabs.js';
+import { useObjectTabs } from '../../components/ObjectTabs/useObjectTabs.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
 import { invoiceTransitions } from '../../components/StatusMenu/statusVocabularies.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useToast } from '../../components/Toast/ToastContext.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
-import { changeInvoiceStatus, invoiceStatusBody } from '../../lib/statusChangeApi.js';
-import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import { useOriginState } from '../../navigation/useOriginState.js';
+import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
+import { useQueryTargetHighlight } from '../../hooks/useQueryTargetHighlight.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
+import { deleteInvoice, fetchInvoiceById } from '../../lib/invoicesApi.js';
+import { changeInvoiceStatus, invoiceStatusBody } from '../../lib/statusChangeApi.js';
+import { NavAnchor } from '../../navigation/NavAnchor.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
-import { Skeleton } from '../../components/Skeleton/Skeleton.js';
-
-interface InvoiceFormState {
-  invoiceNumber: string;
-  amount: string;
-  date: string;
-  dueDate: string;
-  status: InvoiceStatus;
-  notes: string;
-  vendorId: string;
-  vendorName: string;
-}
+import { TITLE_SEPARATOR } from '../../navigation/pageIdentity.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useUserText } from '../../hooks/useUserText.js';
+import sharedStyles from '../../styles/shared.module.css';
+import { ConvertQuotationModal } from './ConvertQuotationModal.js';
+import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
+import { InvoiceEditModal } from './InvoiceEditModal.js';
+import { InvoiceHistoryPanel } from './InvoiceHistoryPanel.js';
+import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
+import { INVOICE_HEADER_ACTIONS } from './invoiceHeaderActions.js';
+import { invoiceSources } from './invoiceSources.js';
+import { useConvertQuotation } from './useConvertQuotation.js';
+import { useInvoiceRecord } from './useInvoiceRecord.js';
+import type { UseInvoiceRecordResult } from './useInvoiceRecord.js';
+import { useInvoiceSummaryFacts } from './useInvoiceSummaryFacts.js';
+import { usePaymentDialogs } from './usePaymentDialogs.js';
+import styles from './InvoiceDetailPage.module.css';
 
 /** Reads the route id once; the view below always has an invoice id. */
 export function InvoiceDetailPage() {
@@ -54,24 +56,11 @@ export function InvoiceDetailPage() {
 }
 
 function InvoiceDetailView({ id }: { id: string }) {
-  const {
-    formatCurrency,
-    formatDate,
-    formatTime: _formatTime,
-    formatDateTime: _formatDateTime,
-  } = useFormatters();
   const { t } = useTranslation('budget');
-  const { t: tErrors } = useTranslation('errors');
   const { t: tc } = useTranslation('common');
-  const statusVariants = useStatusBadgeVariants();
-  const { run: runStatusChange } = useUndoableStatusChange();
   const navigate = useNavigate();
-
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const record = useInvoiceRecord(id);
+  const { invoice, isLoading, error, notFound } = record;
 
   const invoiceTitle = useInvoiceDisplayTitle(invoice);
   // The title of the loaded invoice, or the plain noun while it is not (or cannot be) shown.
@@ -85,50 +74,119 @@ function InvoiceDetailView({ id }: { id: string }) {
   useDocumentTitle(h1Text);
   const originState = useOriginState(invoice ? invoiceTitle : null);
 
-  // Edit modal
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState<InvoiceFormState>({
-    invoiceNumber: '',
-    amount: '',
-    date: '',
-    dueDate: '',
-    status: 'pending',
-    notes: '',
-    vendorId: '',
-    vendorName: '',
-  });
-  const [isUpdating, setIsUpdating] = useState(false);
-  // The New company form stacks over the edit modal; the lower dialog stays put meanwhile.
-  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
-  const [editError, setEditError] = useState('');
-  const [vendorError, setVendorError] = useState('');
+  if (isLoading) {
+    return (
+      <PageLayout title={h1Text} breadcrumbs={<PageBreadcrumbs />}>
+        <Skeleton lines={4} loadingLabel={t('invoiceDetail.loading')} />
+      </PageLayout>
+    );
+  }
 
-  // Delete modal
+  if (error || !invoice) {
+    return (
+      <PageLayout title={h1Text} breadcrumbs={<PageBreadcrumbs />}>
+        <div className={styles.errorCard} role="alert">
+          {notFound ? null : <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>}
+          <p>{error}</p>
+          <div className={styles.errorActions}>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={() => navigate(routeUrl('invoices'))}
+            >
+              {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={() => void record.reload()}
+            >
+              {t('invoiceDetail.retry')}
+            </button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <InvoiceDetailLoaded
+      id={id}
+      invoice={invoice}
+      record={record}
+      h1Text={h1Text}
+      invoiceName={invoiceName}
+      originState={originState}
+    />
+  );
+}
+
+interface InvoiceDetailLoadedProps {
+  readonly id: string;
+  readonly invoice: InvoiceDetail;
+  readonly record: UseInvoiceRecordResult;
+  readonly h1Text: string;
+  readonly invoiceName: string;
+  readonly originState: ReturnType<typeof useOriginState>;
+}
+
+function InvoiceDetailLoaded({
+  id,
+  invoice,
+  record,
+  h1Text,
+  invoiceName,
+  originState,
+}: InvoiceDetailLoadedProps) {
+  const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const userText = useUserText();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
+  const [searchParams] = useSearchParams();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeadingAfterConvertRef = useRef(false);
+  const paymentDeepLinkHandledRef = useRef(false);
+
+  const costLines = useInvoiceCostLines(id);
+  const documents = useDocumentsPanel('invoice', id);
+  const tabs = useObjectTabs(['cost', 'payments', 'history']);
+  const payments = usePaymentDialogs({ invoice, costLines, onSaved: record.refresh });
+  const sources = useMemo(
+    () => invoiceSources(costLines.lines, costLines.budgetSources),
+    [costLines.lines, costLines.budgetSources],
+  );
+  const facts = useInvoiceSummaryFacts({
+    invoice,
+    costLines,
+    documentsFact: documents.fact,
+    tabs,
+    originState,
+  });
+
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const deleteConsequences = useDeleteImpact('invoice', showDeleteModal ? id : null);
 
-  // Story #2107: quotation-to-final-invoice conversion
-  const [sectionsKey, setSectionsKey] = useState(0);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const focusHeadingAfterConvertRef = useRef(false);
-
-  /** Silent re-fetch: does not toggle the page loading state. */
-  const refreshInvoice = async (): Promise<Invoice> => {
-    const fresh = await fetchInvoiceById(id);
-    setInvoice(fresh);
-    return fresh;
-  };
+  const isOffer = invoice.status === 'quotation';
 
   const convert = useConvertQuotation({
     invoice,
-    refreshInvoice,
-    onConverted: (converted) => {
-      setInvoice(converted);
-      setSectionsKey((k) => k + 1);
+    refreshInvoice: async () => {
+      const fresh = await fetchInvoiceById(id);
+      record.apply(fresh);
+      return fresh;
+    },
+    onConverted: () => {
       focusHeadingAfterConvertRef.current = true;
+      void record.refresh();
+      void costLines.reload();
     },
   });
 
@@ -136,161 +194,104 @@ function InvoiceDetailView({ id }: { id: string }) {
   useEffect(() => {
     if (focusHeadingAfterConvertRef.current) {
       focusHeadingAfterConvertRef.current = false;
-      headingRef.current!.focus();
+      headingRef.current?.focus();
     }
   }, [invoice]);
 
+  // A link that carries only ?payment= (History, Attention) lands on the Payments tab.
   useEffect(() => {
-    void loadInvoice();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadInvoice is defined in component body; effect re-runs on intended trigger only
-  }, [id]);
-
-  const loadInvoice = async () => {
-    setIsLoading(true);
-    setError(null);
-    setNotFound(false);
-    try {
-      const data = await fetchInvoiceById(id);
-      setInvoice(data);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.statusCode === 404) {
-          setNotFound(true);
-          setError(t('invoiceDetail.invoiceNotFound'));
-        } else {
-          setError(translateApiError(err.error.code, tErrors));
-        }
-      } else {
-        setError(t('invoiceDetail.invoiceNotFound'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    if (paymentDeepLinkHandledRef.current) return;
+    paymentDeepLinkHandledRef.current = true;
+    if (searchParams.has('payment') && tabs.active !== 'payments') tabs.select('payments');
+  }, [searchParams, tabs]);
 
   useQueryTargetHighlight({
     param: 'payment',
-    ready: invoice !== null,
-    selector: (paymentId) => `[data-payment-id="${CSS.escape(paymentId)}"]`,
-    highlightClassName: depositStyles.paymentTarget!,
-    onMissing: () => setPaymentStatus(t('invoiceDetail.deposits.paymentGone')),
+    ready: tabs.active === 'payments',
+    selector: (paymentId) =>
+      `[data-testid="invoice-progress-payments-link-${CSS.escape(paymentId)}"], [data-testid="invoice-refunds-link-${CSS.escape(paymentId)}"]`,
+    highlightClassName: styles.paymentTarget!,
+    onMissing: () => showToast('info', t('invoiceDetail.deposits.paymentGone')),
   });
 
-  if (isLoading) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        <h1 className={styles.pageTitle}>{h1Text}</h1>
-        <Skeleton lines={4} loadingLabel={t('invoiceDetail.loading')} />
-      </div>
-    );
-  }
-
-  if (error || !invoice) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        {!notFound && <h1 className={styles.pageTitle}>{h1Text}</h1>}
-        <div className={styles.errorCard} role="alert">
-          {notFound ? (
-            <h1 className={styles.errorTitle}>{h1Text}</h1>
-          ) : (
-            <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
-          )}
-          <p>{error}</p>
-          <div className={styles.errorActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => navigate(routeUrl('invoices'))}
-            >
-              {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
-            </button>
-            <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
-              {t('invoiceDetail.retry')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const openEditModal = () => {
-    setEditForm({
-      invoiceNumber: invoice.invoiceNumber ?? '',
-      amount: invoice.amount.toString(),
-      date: invoice.date.slice(0, 10),
-      dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
-      status: invoice.status,
-      notes: invoice.notes ?? '',
-      vendorId: invoice.vendorId,
-      vendorName: invoice.vendorName,
+  const applyStatus = (to: InvoiceStatus) =>
+    runStatusChange({
+      request: () => changeInvoiceStatus(invoice.vendorId, invoice.id, invoiceStatusBody(to)),
+      recordName: invoiceName,
+      statusLabel: statusVariants.invoice[to].label,
+      dedupeKey: `invoice:${invoice.id}`,
+      onChanged: () => void record.refresh(),
+      onUndone: async () => {
+        await record.refresh();
+      },
     });
-    setEditError('');
-    setVendorError('');
-    setShowEditModal(true);
+
+  const statusMenuProps = {
+    transitions: invoiceTransitions(tc, invoice),
+    badge: { variants: statusVariants.invoice, value: invoice.status },
+    currentLabel: statusVariants.invoice[invoice.status].label,
+    focusFallbackRef: headingRef,
+    onApply: (to: InvoiceStatus) => applyStatus(to),
   };
 
-  const closeEditModal = () => {
-    if (!isUpdating && !isCreatingCompany) {
-      setShowEditModal(false);
-      setEditError('');
-      setVendorError('');
-    }
+  const openAddPayment = () => {
+    const active = document.activeElement;
+    payments.openAdd('deposit', active instanceof HTMLElement ? active : null);
   };
 
-  const handleUpdate = async (event: FormEvent) => {
-    event.preventDefault();
-    const amount = parseFloat(editForm.amount);
-    if (isNaN(amount) || amount <= 0) {
-      setEditError(t('invoiceDetail.validation.amountRequired'));
-      return;
+  const actions = INVOICE_HEADER_ACTIONS[invoice.status];
+  let primary: ObjectHeaderPrimary<InvoiceStatus>;
+  switch (actions.primary) {
+    case 'markPaid':
+      primary = {
+        kind: 'status',
+        status: { ...statusMenuProps, actionTo: 'paid', testId: 'invoice-primary-mark-paid' },
+      };
+      break;
+    case 'prepareBankReport': {
+      const [only] = sources;
+      primary = {
+        kind: 'link',
+        label: t('invoicePage.actions.prepareBankReport'),
+        to: routeUrl(
+          'bankReport',
+          undefined,
+          sources.length === 1 && only ? { sourceId: only.id } : undefined,
+        ),
+        state: originState,
+        testId: 'invoice-primary-bank-report',
+      };
+      break;
     }
-    if (!editForm.date) {
-      setEditError(t('invoiceDetail.validation.dateRequired'));
-      return;
-    }
-    if (!editForm.vendorId) {
-      setVendorError(t('invoiceDetail.validation.vendorRequired'));
-      return;
-    }
-    setIsUpdating(true);
-    setEditError('');
-    setVendorError('');
-    try {
-      const updated = await updateInvoice(invoice.vendorId, invoice.id, {
-        invoiceNumber: editForm.invoiceNumber.trim() || null,
-        amount,
-        date: editForm.date,
-        dueDate: editForm.dueDate || null,
-        status: editForm.status,
-        notes: editForm.notes.trim() || null,
-        vendorId: editForm.vendorId,
-      });
-      setInvoice(updated);
-      setShowEditModal(false);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.statusCode === 404 && err.error.code === 'NOT_FOUND') {
-          setEditError(t('invoiceDetail.messages.vendorNotFound'));
-        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          const itemizedTotal =
-            (err.error.details as { itemizedTotal?: number } | undefined)?.itemizedTotal ?? 0;
-          setEditError(
-            t('invoiceDetail.messages.amountBelowItemized', {
-              itemizedTotal: formatCurrency(itemizedTotal),
-            }),
-          );
-        } else {
-          setEditError(translateApiError(err.error.code, tErrors));
-        }
-      } else {
-        setEditError(t('invoiceDetail.messages.updateError'));
-      }
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+    case 'addProgressPayment':
+      primary = {
+        kind: 'button',
+        label: t('invoicePage.actions.addProgressPayment'),
+        onClick: openAddPayment,
+        testId: 'invoice-primary-add-payment',
+      };
+      break;
+  }
+
+  const vendorName = invoice.vendorName;
+  const description = (
+    <>
+      <NavAnchor
+        to={routeUrl('company', { id: invoice.vendorId })}
+        state={originState}
+        data-testid="invoice-company-link"
+        {...userText()}
+      >
+        {vendorName}
+      </NavAnchor>
+      {invoice.notes ? (
+        <>
+          {TITLE_SEPARATOR}
+          <span {...userText()}>{invoice.notes}</span>
+        </>
+      ) : null}
+    </>
+  );
 
   const openDeleteModal = () => {
     setDeleteError('');
@@ -322,164 +323,101 @@ function InvoiceDetailView({ id }: { id: string }) {
     }
   };
 
+  const typeLabel = tc(isOffer ? 'navigation.offer' : 'navigation.invoice');
+
+  const header = (
+    <ObjectHeader
+      title={h1Text}
+      titleIsUserText={Boolean(invoice.vendorName.trim() || invoice.invoiceNumber?.trim())}
+      breadcrumbs={<PageBreadcrumbs />}
+      description={description}
+      headingRef={headingRef}
+      testId="invoice-header"
+      status={
+        isOffer ? undefined : <StatusMenu {...statusMenuProps} testId="invoice-status-badge" />
+      }
+      secondary={
+        actions.secondary === 'convert' ? (
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            data-testid="convert-quotation-button"
+            onClick={convert.open}
+          >
+            {t('invoiceDetail.buttons.convertToFinal')}
+          </button>
+        ) : actions.secondary === 'addProgressPayment' ? (
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            data-testid="invoice-secondary-add-payment"
+            onClick={(event) => payments.openAdd('deposit', event.currentTarget)}
+          >
+            {t('invoicePage.actions.addProgressPayment')}
+          </button>
+        ) : undefined
+      }
+      primary={primary}
+      menu={{
+        onDelete: openDeleteModal,
+        extraItems: [
+          {
+            id: 'edit',
+            label: t('invoicePage.actions.editDetails'),
+            onClick: () => setShowEditModal(true),
+            testId: 'invoice-menu-edit',
+          },
+        ],
+      }}
+    />
+  );
+
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <PageBreadcrumbs />
+    <PageLayout header={header}>
+      <SummaryStrip typeLabel={typeLabel} facts={facts} testId="invoice-summary" />
 
-        {/* Page heading */}
-        <div className={styles.headerRow}>
-          <div className={styles.pageHeading}>
-            <h1 className={styles.pageTitle} ref={headingRef} tabIndex={-1}>
-              {h1Text}
-            </h1>
-            <StatusMenu
-              transitions={invoiceTransitions(tc, invoice)}
-              badge={{ variants: statusVariants.invoice, value: invoice.status }}
-              currentLabel={statusVariants.invoice[invoice.status].label}
-              focusFallbackRef={headingRef}
-              testId="invoice-status-badge"
-              onApply={(to) =>
-                runStatusChange({
-                  request: () =>
-                    changeInvoiceStatus(invoice.vendorId, invoice.id, invoiceStatusBody(to)),
-                  recordName: invoiceName,
-                  statusLabel: statusVariants.invoice[to].label,
-                  dedupeKey: `invoice:${invoice.id}`,
-                  onChanged: () => void refreshInvoice(),
-                  onUndone: async () => {
-                    await refreshInvoice();
-                  },
-                })
-              }
+      <ObjectTabs
+        controller={tabs}
+        typeLabel={typeLabel}
+        idPrefix="invoice-tabs"
+        counts={{
+          cost: costLines.loading ? null : costLines.lines.length,
+          payments: invoice.deposits.length,
+        }}
+        panels={{
+          cost: () => (
+            <div className={styles.costCard}>
+              <CostLinesSection
+                host={{
+                  kind: 'invoice',
+                  id: invoice.id,
+                  label: invoiceName,
+                  status: invoice.status,
+                  amount: invoice.amount,
+                  vendorId: invoice.vendorId,
+                }}
+                documentLines={costLines}
+                onChanged={async () => {
+                  await record.refresh();
+                }}
+                linkState={originState}
+              />
+            </div>
+          ),
+          payments: () => (
+            <InvoicePaymentsPanel
+              invoice={invoice}
+              payments={payments}
+              onChanged={record.refresh}
+              headingRef={headingRef}
+              originState={originState}
             />
-          </div>
-          <div className={styles.pageActions}>
-            {invoice.status === 'quotation' && (
-              <button
-                type="button"
-                className={styles.convertButton}
-                data-testid="convert-quotation-button"
-                onClick={convert.open}
-              >
-                {t('invoiceDetail.buttons.convertToFinal')}
-              </button>
-            )}
-            <button type="button" className={styles.editButton} onClick={openEditModal}>
-              {t('invoiceDetail.buttons.edit')}
-            </button>
-            <button type="button" className={styles.deleteButton} onClick={openDeleteModal}>
-              {t('invoiceDetail.buttons.delete')}
-            </button>
-          </div>
-        </div>
+          ),
+          history: () => <InvoiceHistoryPanel invoiceId={id} revision={record.revision} />,
+        }}
+      />
 
-        {/* Detail card */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>{t('invoiceDetail.invoiceDetails')}</h2>
-          </div>
-          <dl className={styles.infoList}>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.invoiceNumber')}</dt>
-              <dd className={styles.infoValue}>{invoice.invoiceNumber ?? '\u2014'}</dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
-              <dd className={styles.infoValue}>
-                <Link
-                  to={routeUrl('company', { id: invoice.vendorId })}
-                  state={originState}
-                  className={styles.infoLink}
-                >
-                  {invoice.vendorName}
-                </Link>
-              </dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.amount')}</dt>
-              <dd className={`${styles.infoValue} ${styles.infoValueAmount}`}>
-                {formatCurrency(invoice.amount)}
-              </dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.date')}</dt>
-              <dd className={styles.infoValue}>{formatDate(invoice.date)}</dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.dueDate')}</dt>
-              <dd className={styles.infoValue}>
-                {invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}
-              </dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.status')}</dt>
-              <dd className={styles.infoValue}>
-                <Badge
-                  variants={statusVariants.invoice}
-                  value={invoice.status}
-                  className={styles.statusBadge}
-                  testId="invoice-detail-status-badge"
-                />
-              </dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.notes')}</dt>
-              <dd className={`${styles.infoValue} ${invoice.notes ? styles.infoValueNotes : ''}`}>
-                {invoice.notes ?? '\u2014'}
-              </dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.createdBy')}</dt>
-              <dd className={styles.infoValue}>{invoice.createdBy?.displayName ?? '\u2014'}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <div role="status" aria-atomic="true" data-testid="invoice-payment-status">
-          {paymentStatus && (
-            <div className={`${shared.bannerInfo} ${shared.bannerRow}`}>
-              <span>{paymentStatus}</span>
-              <button
-                type="button"
-                className={styles.noticeDismiss}
-                onClick={() => setPaymentStatus('')}
-              >
-                {tc('button.close')}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <InvoiceDepositsSection
-          invoiceId={id}
-          invoiceStatus={invoice.status}
-          invoiceAmount={invoice.amount}
-          deposits={invoice.deposits}
-          finalPaymentAmount={invoice.finalPaymentAmount}
-          onDepositMutated={() => void refreshInvoice().catch(() => loadInvoice())}
-        />
-
-        <div className={styles.card}>
-          <CostLinesSection
-            key={`lines-${sectionsKey}`}
-            host={{
-              kind: 'invoice',
-              id: invoice.id,
-              label: invoiceName,
-              status: invoice.status,
-              amount: invoice.amount,
-              vendorId: invoice.vendorId,
-            }}
-            onChanged={async () => {
-              await refreshInvoice().catch(() => undefined);
-            }}
-            linkState={originState}
-          />
-        </div>
-
-        <DocumentsPanelButton key={`docs-${sectionsKey}`} entityType="invoice" entityId={id} />
-      </div>
+      {documents.panel}
 
       {/* Quotation conversion flow: one modal at a time, never stacked */}
       {convert.view === 'form' && <ConvertQuotationModal convert={convert} />}
@@ -503,165 +441,16 @@ function InvoiceDetailView({ id }: { id: string }) {
         />
       )}
 
-      {/* Edit invoice modal */}
+      {payments.dialog}
+
       {showEditModal && (
-        <Modal
-          title={t('invoiceDetail.modal.editTitle')}
-          onClose={closeEditModal}
-          className={styles.modalContentWide}
-          dismissible={!isUpdating && !isCreatingCompany}
-        >
-          <div>
-            <form onSubmit={handleUpdate} className={styles.form} noValidate>
-              {editError && (
-                <div className={styles.errorBanner} role="alert">
-                  {editError}
-                </div>
-              )}
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-invoice-number" className={styles.label}>
-                    {t('invoiceDetail.form.invoiceNumber')}
-                  </label>
-                  <input
-                    type="text"
-                    id="edit-invoice-number"
-                    value={editForm.invoiceNumber}
-                    onChange={(e) => setEditForm({ ...editForm, invoiceNumber: e.target.value })}
-                    className={styles.input}
-                    placeholder={t('invoiceDetail.form.placeholders.invoiceNumber')}
-                    maxLength={100}
-                    disabled={isUpdating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-amount" className={styles.label}>
-                    {t('invoiceDetail.form.amount')}{' '}
-                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="edit-amount"
-                    value={editForm.amount}
-                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                    className={styles.input}
-                    min="0.01"
-                    step="0.01"
-                    required
-                    disabled={isUpdating}
-                    onWheel={(e) => e.currentTarget.blur()}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-vendor" className={styles.label}>
-                  {t('invoiceDetail.form.vendor')}{' '}
-                  <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
-                </label>
-                <EntityPicker
-                  kind="company"
-                  id="edit-vendor"
-                  value={editForm.vendorId}
-                  onChange={(id) => setEditForm({ ...editForm, vendorId: id })}
-                  selectedLabel={editForm.vendorName}
-                  onCreatingChange={setIsCreatingCompany}
-                  disabled={isUpdating}
-                  placeholder={t('invoiceDetail.form.placeholders.vendor')}
-                />
-                <FormError message={vendorError} variant="field" />
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-date" className={styles.label}>
-                    {t('invoiceDetail.form.invoiceDate')}{' '}
-                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="edit-date"
-                    value={editForm.date}
-                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                    className={styles.input}
-                    required
-                    disabled={isUpdating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-due-date" className={styles.label}>
-                    {t('invoiceDetail.form.dueDate')}
-                  </label>
-                  <input
-                    type="date"
-                    id="edit-due-date"
-                    value={editForm.dueDate}
-                    onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
-                    className={styles.input}
-                    disabled={isUpdating}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-status" className={styles.label}>
-                  {t('invoiceDetail.form.status')}
-                </label>
-                <select
-                  id="edit-status"
-                  value={editForm.status}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, status: e.target.value as InvoiceStatus })
-                  }
-                  className={styles.select}
-                  disabled={isUpdating}
-                >
-                  {INVOICE_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {statusVariants.invoice[status].label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-notes" className={styles.label}>
-                  {t('invoiceDetail.form.notes')}
-                </label>
-                <textarea
-                  id="edit-notes"
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                  className={styles.textarea}
-                  rows={3}
-                  disabled={isUpdating}
-                />
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeEditModal}
-                  disabled={isUpdating}
-                >
-                  {t('invoiceDetail.buttons.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className={styles.saveButton}
-                  disabled={isUpdating || !editForm.amount || !editForm.date}
-                >
-                  {isUpdating ? t('invoiceDetail.buttons.saving') : t('invoiceDetail.buttons.save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
+        <InvoiceEditModal
+          invoice={invoice}
+          onSaved={record.refresh}
+          onClose={() => setShowEditModal(false)}
+        />
       )}
 
-      {/* Delete confirmation */}
       {showDeleteModal && (
         <ConfirmDialog
           title={tc('confirmDialog.deleteTitle', { name: invoiceName })}
@@ -677,7 +466,7 @@ function InvoiceDetailView({ id }: { id: string }) {
           testIdPrefix="invoice-delete"
         />
       )}
-    </div>
+    </PageLayout>
   );
 }
 

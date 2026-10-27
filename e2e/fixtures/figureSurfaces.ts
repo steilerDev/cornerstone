@@ -52,11 +52,14 @@ export interface CompanySubject {
 export interface TaskSubject {
   workItemId: string;
 }
+export interface InvoiceSubject {
+  invoiceId: string;
+}
 
 export interface SubjectSurface<S> {
   id: string;
   story: string;
-  kind: 'company-still-to-pay' | 'holds-up';
+  kind: 'company-still-to-pay' | 'holds-up' | 'invoice-paid' | 'invoice-still-to-pay';
   /** Every marker of the kind on the surface (a company page shows its balance twice). */
   readAll(page: Page, subject: S): Promise<Array<number | null>>;
 }
@@ -239,10 +242,41 @@ export const SCHEDULE_TOOLTIP_SURFACE: SubjectSurface<TaskSubject> = {
   },
 };
 
+/** The summary strip of an offer or invoice page (#2239, story 4.7): its Paid and Still to pay. */
+async function readInvoiceStrip(
+  page: Page,
+  subject: InvoiceSubject,
+  kind: 'paid' | 'still-to-pay',
+): Promise<Array<number | null>> {
+  await page.goto(routeUrl('invoice', { id: subject.invoiceId }));
+  const strip = page.getByTestId('invoice-summary');
+  await strip.waitFor({ state: 'visible' });
+  // The Amount fact is always present: the strip has rendered its facts
+  await strip.getByTestId('summary-fact-amount').waitFor({ state: 'visible' });
+  const texts = await strip.locator(`[data-figure="${kind}"]`).allInnerTexts();
+  return texts.map((text) => parseMoney(text));
+}
+
+export const INVOICE_PAID_SURFACE: SubjectSurface<InvoiceSubject> = {
+  id: 'invoice.page.paid',
+  story: '4.7',
+  kind: 'invoice-paid',
+  readAll: (page, subject) => readInvoiceStrip(page, subject, 'paid'),
+};
+
+export const INVOICE_STILL_TO_PAY_SURFACE: SubjectSurface<InvoiceSubject> = {
+  id: 'invoice.page.stillToPay',
+  story: '4.7',
+  kind: 'invoice-still-to-pay',
+  readAll: (page, subject) => readInvoiceStrip(page, subject, 'still-to-pay'),
+};
+
 export const SUBJECT_SURFACES = [
   COMPANY_SURFACE,
   HOME_ATTENTION_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
+  INVOICE_PAID_SURFACE,
+  INVOICE_STILL_TO_PAY_SURFACE,
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────

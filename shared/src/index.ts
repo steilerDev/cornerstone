@@ -175,6 +175,8 @@ export type {
   InvoiceListChip,
   InvoiceListSort,
   InvoiceListRow,
+  InvoiceRecordMoney,
+  InvoiceDetail,
   InvoiceListTotals,
   InvoiceChipTally,
   InvoiceChipsOutsideToPay,

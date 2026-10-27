@@ -43,6 +43,8 @@ export interface RelatedListProps {
   readonly headingLevel?: 2 | 3;
   /** null = loading. */
   readonly rows: readonly RelatedListRow[] | null;
+  /** Heading count when it differs from `rows.length` (a derived row that is not an item). */
+  readonly count?: number;
   readonly loadError?: string | null;
   readonly onRetry?: () => void;
   readonly action?: RelatedListAction;

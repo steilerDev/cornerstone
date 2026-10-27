@@ -43,6 +43,51 @@
   background-color: var(--color-bg-secondary);
 }
 
+/* Span 1 is the default; wider spans fill a row's trailing cells (see factSpans). */
+.fact[data-span-sm='2'] {
+  grid-column: span 2;
+}
+
+@media (min-width: 768px) {
+  .fact[data-span-md='1'] {
+    grid-column: auto;
+  }
+
+  .fact[data-span-md='2'] {
+    grid-column: span 2;
+  }
+
+  .fact[data-span-md='3'] {
+    grid-column: span 3;
+  }
+
+  .fact[data-span-md='4'] {
+    grid-column: span 4;
+  }
+}
+
+@media (min-width: 1024px) {
+  .fact[data-span-lg='1'] {
+    grid-column: auto;
+  }
+
+  .fact[data-span-lg='2'] {
+    grid-column: span 2;
+  }
+
+  .fact[data-span-lg='3'] {
+    grid-column: span 3;
+  }
+
+  .fact[data-span-lg='4'] {
+    grid-column: span 4;
+  }
+
+  .fact[data-span-lg='5'] {
+    grid-column: span 5;
+  }
+}
+
 @media (max-width: 1023px) {
   .fact {
     min-height: var(--touch-target-min);
@@ -132,11 +177,13 @@
   }
 
   .grid {
-    background-color: CanvasText;
+    background: transparent;
+    gap: 0;
   }
 
   .fact {
     background: transparent;
+    border: 1px solid CanvasText;
     break-inside: avoid;
   }
 

@@ -42,6 +42,11 @@ export type ObjectHeaderPrimary<S extends string = string> =
 export interface ObjectHeaderProps<S extends string = string> {
   /** The object's name (user content). */
   readonly title: string;
+  /**
+   * A muted line under the title (clamped to one line, two on phones). Hosts mark their own
+   * user-text spans with `userTextProps`; the paragraph itself carries no `lang`.
+   */
+  readonly description?: ReactNode;
   /** false when `title` is a translated fallback ("Untitled task"): no lang, no hyphenation. Default true. */
   readonly titleIsUserText?: boolean;
   /** `PageBreadcrumbs` node (it portals itself into the top bar). */
@@ -112,6 +117,7 @@ function PrimaryControl<S extends string>({ primary, className }: PrimaryControl
  */
 export function ObjectHeader<S extends string = string>({
   title,
+  description,
   titleIsUserText = true,
   breadcrumbs,
   status,
@@ -183,12 +189,19 @@ export function ObjectHeader<S extends string = string>({
     <div className={styles.root} data-testid={testId}>
       {breadcrumbs}
       <header className={secondary ? `${styles.row} ${styles.hasSecondary}` : styles.row}>
-        <PageTitle
-          title={title}
-          headingRef={headingRef}
-          lang={titleProps.lang}
-          className={titleProps.className}
-        />
+        <div className={styles.titleBlock}>
+          <PageTitle
+            title={title}
+            headingRef={headingRef}
+            lang={titleProps.lang}
+            className={titleProps.className}
+          />
+          {description ? (
+            <p className={styles.description} data-testid={`${testId}-description`}>
+              {description}
+            </p>
+          ) : null}
+        </div>
         {status ? <div className={styles.status}>{status}</div> : null}
         {secondary ? <div className={styles.secondary}>{secondary}</div> : null}
         <div className={styles.actionSlot}>

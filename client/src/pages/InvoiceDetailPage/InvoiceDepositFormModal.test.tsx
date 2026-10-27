@@ -105,13 +105,48 @@ describe('getEmptyForm', () => {
 });
 
 describe('InvoiceDepositFormModal', () => {
+  describe('S17: the four titles', () => {
+    it('add (progress payment) is "Add progress payment"', () => {
+      renderModal({ mode: 'add' });
+      expect(screen.getByRole('dialog', { name: 'Add progress payment' })).toBeInTheDocument();
+    });
+
+    it('add with the refund entry type is "Add refund"', () => {
+      renderModal({ mode: 'add', initialValues: { entryType: 'refund' } });
+      expect(screen.getByRole('dialog', { name: 'Add refund' })).toBeInTheDocument();
+    });
+
+    it('edit of a progress payment names the entry', () => {
+      renderModal({ mode: 'edit', name: 'Progress payment 3', deposit: makeDeposit() });
+      expect(screen.getByRole('dialog', { name: 'Edit Progress payment 3' })).toBeInTheDocument();
+    });
+
+    it('edit of a refund names the entry, whatever the refund entry type of an add would be', () => {
+      renderModal({
+        mode: 'edit',
+        name: 'Refund 1',
+        deposit: makeDeposit({ entryType: 'refund' }),
+      });
+      expect(screen.getByRole('dialog', { name: 'Edit Refund 1' })).toBeInTheDocument();
+    });
+
+    it('edit without a name does not print the placeholder', () => {
+      renderModal({ mode: 'edit', deposit: makeDeposit() });
+      expect(screen.getByRole('dialog', { name: 'Edit' })).toBeInTheDocument();
+    });
+
+    it('switching the entry type in add mode switches the title', () => {
+      renderModal({ mode: 'add' });
+      fireEvent.click(screen.getAllByRole('radio')[1]!);
+      expect(screen.getByRole('dialog', { name: 'Add refund' })).toBeInTheDocument();
+    });
+  });
+
   describe('scenario 44: presets and lockEntryType', () => {
     it('renders refund presets from initialValues', () => {
       renderModal({ initialValues: refundPreset, lockEntryType: true });
 
-      expect(
-        screen.getByText(tr('budget:invoiceDetail.deposits.modal.addTitle')),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Add refund' })).toBeInTheDocument();
       expect(screen.getByLabelText(/Refund/)).toBeChecked();
       expect(document.getElementById('deposit-amount')).toHaveValue(1000);
       expect(document.getElementById('deposit-dueDate')).toHaveValue('2026-03-05');
@@ -155,6 +190,7 @@ describe('InvoiceDepositFormModal', () => {
     it('edit mode prefills from the deposit, disables the entry type and uses the edit title', () => {
       renderModal({
         mode: 'edit',
+        name: 'Refund 2',
         deposit: makeDeposit({
           entryType: 'refund',
           status: 'claimed',
@@ -163,9 +199,7 @@ describe('InvoiceDepositFormModal', () => {
         }),
       });
 
-      expect(
-        screen.getByText(tr('budget:invoiceDetail.deposits.modal.editTitle')),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Edit Refund 2' })).toBeInTheDocument();
       expect(document.getElementById('deposit-amount')).toHaveValue(500);
       expect(document.getElementById('deposit-dueDate')).toHaveValue('2026-02-01');
       expect(document.getElementById('deposit-paidDate')).toHaveValue('2026-02-10');

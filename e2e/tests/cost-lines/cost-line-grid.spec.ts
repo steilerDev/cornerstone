@@ -276,7 +276,8 @@ test.describe('Cost line grid - saving and validation', { tag: '@responsive' }, 
 
     await expect(panel.rows()).toHaveCount(2);
     await expect(panel.stateChip(panel.row(`${testPrefix} Door`))).toHaveText('Offered');
-    await expect(panel.row(`${testPrefix} Door`)).toContainText(`${testPrefix} Hall task`);
+    // The lines sit under their task's group heading (#2239)
+    await expect(panel.groupHeading(`${testPrefix} Hall task`)).toBeVisible();
     await expect(panel.notYetSplit()).toHaveText('Not yet split · €762.00');
   });
 });

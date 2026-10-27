@@ -137,6 +137,34 @@ describe('ObjectHeader', () => {
     expect(screen.getByTestId('object-header').querySelector('header')).toHaveClass('hasSecondary');
   });
 
+  it('S7: renders the description under the h1 inside the title block', () => {
+    renderHeader({ description: <span data-testid="desc-content">Sample Co · note</span> });
+    const description = screen.getByTestId('object-header-description');
+    expect(description.tagName).toBe('P');
+    expect(description).toContainElement(screen.getByTestId('desc-content'));
+    const block = description.parentElement!;
+    expect(block).toHaveClass('titleBlock');
+    expect(block.firstElementChild).toBe(screen.getByRole('heading', { level: 1 }));
+    expect(description).not.toHaveAttribute('lang');
+  });
+
+  it('S7: derives the description test id from a custom header test id', () => {
+    renderHeader({ description: 'Line', testId: 'invoice-header' });
+    expect(screen.getByTestId('invoice-header-description')).toHaveTextContent('Line');
+  });
+
+  it('S7: renders no description paragraph when none is given, and the DOM order is unchanged', () => {
+    renderHeader({ status: <span data-testid="status-slot">Planned</span> });
+    expect(screen.queryByTestId('object-header-description')).toBeNull();
+    expect(screen.getByTestId('object-header').querySelector('p')).toBeNull();
+    expect(
+      screen
+        .getByRole('heading', { level: 1 })
+        .compareDocumentPosition(screen.getByTestId('status-slot')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('renders no status or secondary wrapper when none is given', () => {
     renderHeader();
     expect(screen.getByTestId('object-header').querySelector('.status')).toBeNull();

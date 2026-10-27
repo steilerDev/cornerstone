@@ -253,7 +253,12 @@ test.describe('Cost line table - offer and invoice page (AC4)', { tag: '@respons
     // Entered as: a table column, and the Net badge on the two-line cards
     await expect(row.getByText('Net', { exact: true })).toBeVisible();
     await expect(panel.gross(row)).toHaveText('€238.00');
-    await expect(row.getByRole('link', { name: `${testPrefix} Cabinet task` })).toBeVisible();
+    // Document mode groups by task: the task link is the group heading, not a column (#2239)
+    await expect(
+      panel.groupHeading(`${testPrefix} Cabinet task`).getByRole('link', {
+        name: `${testPrefix} Cabinet task`,
+      }),
+    ).toBeVisible();
     await expect(panel.stateChip(row)).toHaveText('Offered');
     await expect(panel.total()).toHaveText('€238.00');
   });

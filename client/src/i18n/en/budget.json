@@ -534,23 +534,10 @@
     "error": "Error",
     "retry": "Retry",
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
-    "invoiceDetails": "Invoice Details",
-    "createdBy": "Created by",
-    "detailFields": {
-      "invoiceNumber": "Invoice #",
-      "vendor": "Vendor",
-      "amount": "Amount",
-      "date": "Date",
-      "dueDate": "Due Date",
-      "status": "Status",
-      "notes": "Notes",
-      "createdBy": "Created by"
-    },
     "form": {
       "invoiceNumber": "Invoice #",
-      "vendor": "Vendor",
+      "vendor": "Company",
       "amount": "Amount",
-      "date": "Date",
       "dueDate": "Due Date",
       "invoiceDate": "Invoice Date",
       "status": "Status",
@@ -558,79 +545,38 @@
       "required": "*",
       "placeholders": {
         "invoiceNumber": "e.g., INV-001",
-        "vendor": "Search vendors…"
+        "vendor": "Search companies…"
       }
     },
     "validation": {
       "amountRequired": "Amount must be a positive number.",
-      "dateRequired": "Invoice date is required.",
-      "vendorRequired": "Please select a vendor"
+      "vendorRequired": "Please select a company"
     },
     "buttons": {
-      "edit": "Edit",
-      "delete": "Delete",
-      "save": "Save Changes",
+      "save": "Save changes",
       "saving": "Saving...",
       "cancel": "Cancel",
       "convertToFinal": "Convert to final invoice"
     },
     "modal": {
-      "editTitle": "Edit Invoice",
-      "deleteConfirmShort": "Are you sure you want to delete this invoice?"
+      "editTitle": "Edit details"
     },
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again.",
-      "vendorNotFound": "The selected vendor could not be found",
-      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first."
+      "vendorNotFound": "The selected company could not be found",
+      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized cost lines first."
     },
     "budgetLines": {
-      "autoLinkedSuccess": "Budget line created and added for {{amount}}",
-      "dismissErrorAriaLabel": "Dismiss error",
-      "countLabel_one": "{{count}} budget line linked",
-      "countLabel_other": "{{count}} budget lines linked",
-      "assignedSuccess": "Budget line '{{lineDescription}}' assigned to {{parentItemName}}",
-      "assignParentRequired": "Please select a work item or household item",
-      "form": {
-        "itemizedAmount": "Itemized Amount",
-        "saving": "Saving…",
-        "required": "*"
-      }
+      "dismissErrorAriaLabel": "Dismiss error"
     },
     "deposits": {
       "paymentGone": "That progress payment no longer exists.",
-      "sectionTitle": "Deposits",
-      "countChip": "{{count}} deposits",
-      "addButton": "Add deposit",
-      "loading": "Loading deposits...",
-      "empty": {
-        "message": "No deposits yet",
-        "description": "Break this invoice into staged payments by adding a deposit."
-      },
       "finalPayment": "Final payment",
-      "columns": {
-        "dueDate": "Due date",
-        "amount": "Amount",
-        "status": "Status",
-        "paidDate": "Paid date",
-        "claimedDate": "Submitted date",
-        "description": "Description",
-        "actions": "Actions"
-      },
-      "mobile": {
-        "due": "Due",
-        "paid": "Paid",
-        "claimed": "Submitted"
-      },
-      "menu": {
-        "edit": "Edit",
-        "delete": "Delete",
-        "ariaLabel": "Deposit actions for {{description}}"
-      },
       "modal": {
-        "addTitle": "Add deposit",
-        "editTitle": "Edit deposit",
-        "deleteWarningPaidClaimed": "This progress payment is marked paid or submitted. Deleting it removes its contribution from the budget totals."
+        "addTitle": "Add progress payment",
+        "editTitle": "Edit {{name}}",
+        "addRefundTitle": "Add refund"
       },
       "form": {
         "amount": "Amount",
@@ -646,24 +592,22 @@
         "entryType": "Entry type",
         "entryTypeLabel": "Entry type",
         "refundAmountHint": "Refund amounts are entered as a positive number.",
-        "budgetSource": "Budget source",
-        "budgetSourceNone": "None (pro-rated)",
-        "budgetSourceHintSingle": "Defaulted to {{name}} — this invoice's only budget source.",
-        "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest allocated source.",
-        "budgetSourceHintNone": "This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated.",
-        "exceedsInvoiceWarning": "Net deposits will exceed the invoice amount by {{amount}}. You can still save this deposit."
+        "budgetSource": "Funding source",
+        "budgetSourceNone": "None (spread pro rata)",
+        "budgetSourceHintSingle": "Defaulted to {{name}}, this invoice's only funding source.",
+        "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest funding source.",
+        "budgetSourceHintNone": "This invoice has no cost lines yet. Pick a funding source, or leave it blank to spread this progress payment pro rata.",
+        "exceedsInvoiceWarning": "Progress payments will exceed the invoice amount by {{amount}}. You can still save."
       },
       "entryTypeLabels": {
-        "deposit": "Deposit",
+        "deposit": "Progress payment",
         "refund": "Refund"
       },
       "errors": {
-        "refundExceedsTotal": "Refunds would exceed the larger of the invoice amount and the deposits recorded. Available headroom: {{availableHeadroom}}",
+        "refundExceedsTotal": "Refunds would exceed the larger of the invoice amount and the progress payments recorded. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
-        "loadError": "Failed to load deposits. Please try again.",
-        "saveError": "Failed to save deposit. Please try again.",
-        "deleteError": "Failed to delete deposit. Please try again.",
+        "saveError": "Failed to save progress payment. Please try again.",
         "amountRequired": "Amount must be a positive number.",
         "dueDateRequired": "Due date is required.",
         "paidDateRequired": "Paid date is required.",
@@ -671,18 +615,18 @@
       }
     },
     "convertModal": {
-      "title": "Convert quotation to final invoice",
-      "intro": "Review the final amount, itemized lines and deposits. Nothing is saved until you confirm.",
-      "confirm": "Convert to invoice",
+      "title": "Convert offer to final invoice",
+      "intro": "Review the final amount, itemized lines and progress payments. Nothing is saved until you confirm.",
+      "confirm": "Convert offer",
       "confirming": "Converting...",
       "cancel": "Cancel",
-      "saveError": "The quotation could not be converted. Nothing was changed.",
+      "saveError": "The offer could not be converted. Nothing was changed.",
       "history": {
-        "converted": "Converted from quotation of {{amount}} on {{date}}."
+        "converted": "Converted from offer of {{amount}} on {{date}}."
       },
       "errors": {
         "itemizedExceeds": "The itemized total exceeds the final amount. Adjust the itemized lines.",
-        "notQuotation": "This invoice is no longer a quotation. The page has been refreshed."
+        "notQuotation": "This invoice is no longer an offer. The page has been refreshed."
       },
       "source": {
         "heading": "Source document",
@@ -696,8 +640,8 @@
         "aiSuccess": "Prefilled from document. Review the values before confirming.",
         "aiError": "Analysis failed. Your entries are kept. Continue manually or try again.",
         "aiRetry": "Try again",
-        "aiTotalMismatch": "The document total ({{extracted}}) differs from the quoted amount ({{quoted}}) by more than 1%.",
-        "aiNoLines": "No line items were detected in the document, so the final amount was not prefilled."
+        "aiTotalMismatch": "The document total ({{extracted}}) differs from the offer amount ({{quoted}}) by more than 1%.",
+        "aiNoLines": "No lines were detected in the document, so the final amount was not prefilled."
       },
       "details": {
         "heading": "Invoice details",
@@ -706,8 +650,8 @@
         "invoiceNumber": "Invoice number",
         "dueDate": "Due date",
         "notes": "Notes",
-        "historyHint": "A note with the quoted amount is added automatically.",
-        "quotedAmount": "Quoted {{quoted}} → Final {{final}}",
+        "historyHint": "A note with the offer amount is added automatically.",
+        "quotedAmount": "Offer {{quoted}} → Final {{final}}",
         "deltaIncrease": "Increase: +{{amount}} (+{{percent}})",
         "deltaDecrease": "Decrease: −{{amount}} (−{{percent}})",
         "deltaNone": "No change",
@@ -724,7 +668,7 @@
         "proposalHint": "Proposed amounts are scaled pro rata to the final amount.",
         "columns": {
           "line": "Line",
-          "quoted": "Quoted",
+          "quoted": "Offer",
           "proposed": "Proposed",
           "keep": "Keep"
         },
@@ -733,7 +677,7 @@
         "proposedAria": "Proposed amount for {{name}}",
         "keepAria": "Keep existing amount for {{name}}",
         "itemizedTotal": "Itemized total",
-        "remainderDiscretionary": "Remainder to Discretionary",
+        "remainderDiscretionary": "Remainder to Own funds",
         "overAllocated": "Itemized total exceeds the final amount by {{amount}}.",
         "lineInvalid": "Enter an amount greater than 0.",
         "empty": "No itemized lines. Nothing to adjust.",
@@ -741,26 +685,64 @@
         "householdItem": "Household item"
       },
       "deposits": {
-        "heading": "Deposits and final payment",
-        "unchangedNote": "Deposits are kept unchanged.",
-        "empty": "No deposits recorded.",
-        "refund": "Refund",
+        "heading": "Progress payments and final payment",
+        "unchangedNote": "Progress payments are kept unchanged.",
+        "empty": "No progress payments recorded.",
         "finalAmount": "Final amount",
-        "depositsSubtotal": "Deposits",
+        "depositsSubtotal": "Progress payments",
         "finalPayment": "Final payment",
         "noRemaining": "No remaining payment."
       },
       "overpaid": {
-        "message": "The final amount is {{shortfall}} lower than the deposits recorded ({{deposits}}). You can still convert; add a refund entry if the vendor pays back the difference.",
+        "message": "The final amount is {{shortfall}} lower than the progress payments recorded ({{deposits}}). You can still convert; add a refund entry if the company pays back the difference.",
         "addRefund": "Add refund",
-        "resolved": "Deposits no longer exceed the final amount.",
-        "refundDescription": "Refund for quotation conversion"
+        "resolved": "Progress payments no longer exceed the final amount.",
+        "refundDescription": "Refund for the offer conversion"
       },
       "status": {
         "heading": "Payment status",
         "pending": "Still to pay",
         "paid": "Already paid"
       }
+    }
+  },
+  "invoicePage": {
+    "actions": {
+      "addProgressPayment": "Add progress payment",
+      "addRefund": "Add refund",
+      "prepareBankReport": "Prepare bank report",
+      "editDetails": "Edit details"
+    },
+    "facts": {
+      "amount": "Amount",
+      "paid": "Paid",
+      "stillToPay": "Still to pay",
+      "remainingOnOffer": "Remaining on offer",
+      "due": "Due",
+      "overdue": "{{date}} · Overdue",
+      "split": "Split",
+      "notYetSplit": "{{amount}} not yet split",
+      "over": "{{amount}} over",
+      "fundingSource": "Funding source",
+      "fundingSourceMore": "{{name}} +{{count}}"
+    },
+    "payments": {
+      "progressTitle": "Progress payments",
+      "refundsTitle": "Refunds",
+      "progressRow": "Progress payment {{n}}",
+      "refundRow": "Refund {{n}}",
+      "due": "Due {{date}}",
+      "paid": "Paid {{date}}",
+      "submitted": "Submitted {{date}}",
+      "progressEmpty": "No progress payments yet. Add a progress payment.",
+      "refundsEmpty": "No refunds yet. Add a refund."
+    },
+    "history": {
+      "title": "History",
+      "empty": "No history yet.",
+      "showAll": "Show all in History",
+      "loadError": "Couldn't load the history.",
+      "retry": "Try again"
     }
   },
   "subsidies": {

@@ -16,7 +16,7 @@ import { OverflowMenu } from '../OverflowMenu/index.js';
 import type { OverflowMenuItem } from '../OverflowMenu/index.js';
 import { CostLineStateChip } from './CostLineStateChip.js';
 import { NetAmountTip } from './NetAmountTip.js';
-import type { CostLineRow } from './types.js';
+import type { CostLineRow, CostLineTarget } from './types.js';
 import styles from './CostLineTable.module.css';
 
 export interface RowPartsProps {
@@ -127,16 +127,16 @@ export function EnteredAsCell({ row }: Pick<RowPartsProps, 'row'>) {
   return <Badge variants={variants} value={row.includesVat ? 'gross' : 'net'} />;
 }
 
-export interface TargetCellProps {
-  readonly row: CostLineRow;
+/** The task or purchase a line belongs to (with origin and area), or "Not assigned". */
+export function TargetLabel({
+  target,
+  linkState,
+}: {
+  readonly target: CostLineTarget | null;
   readonly linkState?: OriginState;
-}
-
-/** Belongs to: the task or purchase (with origin), its area, or "Not assigned". */
-export function TargetCell({ row, linkState }: TargetCellProps) {
+}) {
   const { t } = useTranslation('costLines');
   const userText = useUserText();
-  const target = row.target;
   if (target === null) {
     const variants: BadgeVariantMap = {
       none: { label: t('table.notAssigned'), className: badgeStyles.neutral! },

@@ -2,6 +2,7 @@ import { get, post, patch, del } from './apiClient.js';
 import type { RequestOptions } from './apiClient.js';
 import type {
   Invoice,
+  InvoiceDetail,
   InvoiceDetailResponse,
   InvoiceListPaginatedResponse,
   InvoiceListSort,
@@ -118,9 +119,9 @@ export function fetchAllInvoices(
 }
 
 /**
- * Fetches a single invoice by ID (cross-vendor).
+ * Fetches a single invoice by ID (cross-vendor), with the money service's per-record figures.
  */
-export function fetchInvoiceById(invoiceId: string): Promise<Invoice> {
+export function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetail> {
   return get<InvoiceDetailResponse>(`/invoices/${invoiceId}`).then((r) => r.invoice);
 }
 

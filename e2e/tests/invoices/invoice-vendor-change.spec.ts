@@ -156,8 +156,7 @@ test.describe(
         await detailPage.goto(invoiceId);
 
         // Verify original vendor is shown on the detail page
-        const fieldsBefore = await detailPage.getDetailFields();
-        expect(fieldsBefore['Vendor']).toBe(originalVendorName);
+        await expect(detailPage.companyLink).toHaveText(originalVendorName);
 
         // Open edit modal and reassign vendor
         await detailPage.openEditModal();
@@ -167,14 +166,10 @@ test.describe(
         await detailPage.saveEdit();
 
         // Detail page now shows the new vendor name
-        const fieldsAfter = await detailPage.getDetailFields();
-        expect(fieldsAfter['Vendor']).toBe(newVendorName);
+        await expect(detailPage.companyLink).toHaveText(newVendorName);
 
-        // Vendor link in the detail card should point to the new vendor
-        const vendorLink = detailPage.infoList.getByRole('link', { name: newVendorName });
-        await expect(vendorLink).toBeVisible();
-        const href = await vendorLink.getAttribute('href');
-        expect(href).toContain(newVendorId);
+        // The company link in the header description should point to the new vendor
+        await expect(detailPage.companyLink).toHaveAttribute('href', new RegExp(newVendorId));
 
         // Invoice no longer shows up when filtered to the old vendor on the invoices list
         // (filter by vendorId via the URL query)
@@ -242,12 +237,11 @@ test.describe(
         await detailPage.saveEdit();
 
         // Both vendor and notes are updated on the detail page
-        const fields = await detailPage.getDetailFields();
-        expect(fields['Vendor']).toBe(vendorB);
-        expect(fields['Notes']).toBe(`${testPrefix} reassigned note`);
+        await expect(detailPage.companyLink).toHaveText(vendorB);
+        await expect(detailPage.header.description).toContainText(`${testPrefix} reassigned note`);
 
-        // Amount and invoice number are unchanged
-        expect(fields['Invoice #']).toBe(`${testPrefix}-FIELDS`);
+        // The invoice number (part of the h1) is unchanged
+        await expect(detailPage.heading).toContainText(`${testPrefix}-FIELDS`);
       } finally {
         // After reassignment invoice lives under vendorB
         if (invoiceId && vendorBId)
@@ -299,7 +293,7 @@ test.describe(
 
         // Vendor validation error message is displayed
         await expect(detailPage.editVendorError).toBeVisible();
-        await expect(detailPage.editVendorError).toContainText('Please select a vendor');
+        await expect(detailPage.editVendorError).toContainText('Please select a company');
 
         await detailPage.closeEditModal();
       } finally {
@@ -421,8 +415,7 @@ test.describe(
         // Save and verify the reassignment persisted
         await detailPage.saveEdit();
 
-        const fields = await detailPage.getDetailFields();
-        expect(fields['Vendor']).toBe(newVendor);
+        await expect(detailPage.companyLink).toHaveText(newVendor);
       } finally {
         // After reassignment invoice lives under newId
         if (invoiceId && newId) await deleteInvoiceViaApi(page, newId, invoiceId).catch(() => {});

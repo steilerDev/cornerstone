@@ -69,6 +69,8 @@ export interface CostLineRow {
 
 export type CostLineGroupHeading =
   | { readonly kind: 'estimates' }
+  /** Document mode: the task or purchase the group's lines belong to (null = not assigned). */
+  | { readonly kind: 'target'; readonly target: CostLineTarget | null }
   | {
       readonly kind: 'document';
       readonly invoiceId: string;
@@ -80,7 +82,7 @@ export type CostLineGroupHeading =
 
 export interface CostLineGroup {
   readonly id: string;
-  /** null = no heading (document mode). */
+  /** null = no heading. */
   readonly heading: CostLineGroupHeading | null;
   readonly rows: readonly CostLineRow[];
   readonly total: number;

@@ -742,6 +742,39 @@ function describeConsistency(getCtx: () => Ctx): void {
       expect(split.invoices.length).toBe(money.notYetSplit.recordCount);
       expect(split.invoices.every((r) => r.notYetSplit)).toBe(true);
     });
+
+    it('13. GET /api/invoices/:id (#2239): the detail equals its list row, and the details add up to Paid and Still to pay', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      type Figures = {
+        id: string;
+        status: string;
+        paid: number;
+        openAmount: number;
+        remainingOnOffer: number | null;
+        notYetSplit: boolean;
+      };
+      const pick = (r: Figures) => ({
+        paid: r.paid,
+        openAmount: r.openAmount,
+        remainingOnOffer: r.remainingOnOffer,
+        notYetSplit: r.notYetSplit,
+      });
+
+      const list = await getJson<{ invoices: Figures[] }>(ctx, '/api/invoices?pageSize=100');
+      expect(list.invoices.length).toBeGreaterThan(0);
+      let paidCents = 0;
+      let openCents = 0;
+      for (const row of list.invoices) {
+        const detail = (await getJson<{ invoice: Figures }>(ctx, `/api/invoices/${row.id}`))
+          .invoice;
+        expect(pick(detail)).toEqual(pick(row));
+        paidCents += Math.round(detail.paid * 100);
+        openCents += Math.round(detail.openAmount * 100);
+      }
+      expect(paidCents).toBe(Math.round(money.paid * 100));
+      expect(openCents).toBe(Math.round(money.stillToPay * 100));
+    });
   });
 }
 

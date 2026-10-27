@@ -3,11 +3,11 @@
  *
  * 1. Paying a progress payment writes one event ("Progress payment of ... for invoice ..."); its
  *    "Open progress payment" link goes to `/budget/invoices/<id>?payment=<depositId>`, the page
- *    scrolls to, focuses and highlights the visible payment row (table row from 768px, card
- *    below), then removes the parameter.
- * 2. A payment that no longer exists shows the visible notice "That progress payment no longer
- *    exists." with Close, and the invoice still renders.
- * 3. An unknown payment id gives the same notice.
+ *    selects the Payments tab (a link with only `?payment=` carries no `?tab=`), scrolls to,
+ *    focuses and highlights the payment's row link, then removes the parameter (#2239).
+ * 2. A payment that no longer exists shows the info toast "That progress payment no longer
+ *    exists." and the invoice still renders.
+ * 3. An unknown payment id gives the same toast.
  *
  * Synthetic data only; the vendor (and with it the invoice) is created and removed per test.
  */
@@ -18,6 +18,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import { HistoryPage } from '../../pages/HistoryPage.js';
+import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 
 interface Seeded {
   vendorId: string;
@@ -113,21 +114,23 @@ test.describe('Progress payment event and link (#2223)', { tag: '@responsive' },
       await page.waitForURL(
         (url) =>
           url.pathname === routeUrl('invoice', { id: invoiceId }) &&
-          !url.search.includes('payment'),
+          !url.search.includes('payment='),
       );
-      const target = page.locator(`[data-payment-id="${depositId}"]:visible`);
-      await expect(target).toHaveCount(1);
+      const detail = new InvoiceDetailPage(page);
+      await expect(detail.tabs.tab('payments')).toHaveAttribute('aria-selected', 'true');
+      const target = detail.progressPayments.link(depositId);
+      await expect(target).toBeVisible();
       await expect(target).toBeFocused();
       await expect(target).toHaveClass(/paymentTarget/);
-      await expect(page.getByTestId('invoice-payment-status')).not.toContainText(
-        'no longer exists',
-      );
+      await expect(detail.toasts.infoToast.filter({ hasText: 'no longer exists' })).toHaveCount(0);
+      // The tab survives the parameter's removal
+      expect(new URL(page.url()).searchParams.get('tab')).toBe('payments');
     } finally {
       await cleanup(page, seeded);
     }
   });
 
-  test('2. a payment that no longer exists shows the notice, and Close dismisses it', async ({
+  test('2. a payment that no longer exists shows the info toast and the invoice still renders', async ({
     page,
     testPrefix,
   }) => {
@@ -142,13 +145,12 @@ test.describe('Progress payment event and link (#2223)', { tag: '@responsive' },
 
       await page.goto(routeUrl('invoice', { id: invoiceId }, { payment: depositId }));
 
-      const status = page.getByTestId('invoice-payment-status');
-      await expect(status).toContainText('That progress payment no longer exists.');
-      await expect(page.getByText(invoiceNumber).first()).toBeVisible();
-      await page.waitForURL((url) => !url.search.includes('payment'));
-
-      await status.getByRole('button', { name: 'Close', exact: true }).click();
-      await expect(status).not.toContainText('no longer exists');
+      const detail = new InvoiceDetailPage(page);
+      await expect(
+        detail.toasts.infoToast.filter({ hasText: 'That progress payment no longer exists.' }),
+      ).toBeVisible();
+      await expect(detail.heading).toContainText(invoiceNumber);
+      await page.waitForURL((url) => !url.search.includes('payment='));
     } finally {
       await cleanup(page, seeded);
     }
@@ -165,10 +167,11 @@ test.describe('Progress payment event and link (#2223)', { tag: '@responsive' },
 
       await page.goto(routeUrl('invoice', { id: invoiceId }, { payment: 'does-not-exist' }));
 
-      await expect(page.getByTestId('invoice-payment-status')).toContainText(
-        'That progress payment no longer exists.',
-      );
-      await expect(page.getByText(invoiceNumber).first()).toBeVisible();
+      const detail = new InvoiceDetailPage(page);
+      await expect(
+        detail.toasts.infoToast.filter({ hasText: 'That progress payment no longer exists.' }),
+      ).toBeVisible();
+      await expect(detail.heading).toContainText(invoiceNumber);
     } finally {
       await cleanup(page, seeded);
     }

@@ -6,7 +6,7 @@ import type { Invoice, InvoiceDeposit } from '@cornerstone/shared';
  */
 
 /**
- * Local calendar date as YYYY-MM-DD. Matches InvoiceDepositsSection.tsx's convention.
+ * Local calendar date as YYYY-MM-DD. Matches the convention of the payment dialogs.
  * Built from local date components, not `toISOString()` (UTC, can be a day off near
  * midnight for CET users).
  */

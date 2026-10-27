@@ -66,10 +66,10 @@ export function useObjectTabs(available: readonly ObjectTabId[]): ObjectTabsCont
           else next.set('tab', id);
           return next;
         },
-        { replace: true },
+        { replace: true, state: location.state },
       );
     },
-    [first, setSearchParams],
+    [first, setSearchParams, location.state],
   );
 
   const hrefFor = useCallback(

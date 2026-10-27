@@ -127,7 +127,10 @@ test.describe('Invoices overdue flag (Scenarios 1 and 2)', { tag: '@responsive' 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Offers summary spacing (Issue #1422, #2238)', () => {
-  test('The Offers summary has at least 12px vertical gap above the list', async ({ page }) => {
+  test('The Offers summary has at least 12px vertical gap above the list', async ({
+    page,
+    testPrefix,
+  }) => {
     // Desktop only: the table surface is where the gap is measured.
     const viewportWidth = page.viewportSize()?.width ?? 1440;
     if (viewportWidth < 1024) {
@@ -136,16 +139,29 @@ test.describe('Offers summary spacing (Issue #1422, #2238)', () => {
     }
 
     const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.gotoChip('quotation');
-    await expect(invoicesPage.offersSummary).toBeVisible();
-    await expect(invoicesPage.tableSurface).toBeVisible();
+    let vendorId = '';
+    try {
+      // The shared database may hold no offer: seed one so the table (not the empty state) shows
+      vendorId = await createVendorViaApi(page, `${testPrefix} Spacing Vendor`);
+      await createInvoiceViaApi(page, vendorId, {
+        amount: 400,
+        date: daysAgo(5),
+        status: 'quotation',
+      });
 
-    const summaryBox = await invoicesPage.offersSummary.boundingBox();
-    const tableBox = await invoicesPage.tableSurface.boundingBox();
-    expect(summaryBox, 'offers summary bounding box must be non-null').not.toBeNull();
-    expect(tableBox, 'table bounding box must be non-null').not.toBeNull();
+      await invoicesPage.gotoChip('quotation', `vendorId=${vendorId}`);
+      await expect(invoicesPage.offersSummary).toBeVisible();
+      await expect(invoicesPage.tableSurface).toBeVisible();
 
-    const gap = tableBox!.y - (summaryBox!.y + summaryBox!.height);
-    expect(gap).toBeGreaterThanOrEqual(12);
+      const summaryBox = await invoicesPage.offersSummary.boundingBox();
+      const tableBox = await invoicesPage.tableSurface.boundingBox();
+      expect(summaryBox, 'offers summary bounding box must be non-null').not.toBeNull();
+      expect(tableBox, 'table bounding box must be non-null').not.toBeNull();
+
+      const gap = tableBox!.y - (summaryBox!.y + summaryBox!.height);
+      expect(gap).toBeGreaterThanOrEqual(12);
+    } finally {
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+    }
   });
 });

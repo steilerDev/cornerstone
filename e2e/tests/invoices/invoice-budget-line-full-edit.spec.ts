@@ -8,7 +8,7 @@
  *
  * Scenarios covered:
  *   1. Edit the description and the amount of a linked line
- *   2. Move a line from one task to another: the row's "Belongs to" follows
+ *   2. Move a line from one task to another: the line moves under the other task's group heading
  *   3. Move a line from a task to a purchase: both pages agree
  *   4. Move to a task that already has a line on the same invoice: both lines sit under it
  *   5. Edit on the task page opens the form with the current values and Belongs to
@@ -92,7 +92,7 @@ test.describe('Full edit - description and amount (Scenario 1)', { tag: '@respon
 
 test.describe('Move between tasks (Scenario 2)', { tag: '@responsive' }, () => {
   test(
-    'Move a line from task A to task B -> Belongs to shows task B',
+    'Move a line from task A to task B -> the line sits under task B',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const { sourceId, invoice } = await seedInvoice(page, testPrefix);
@@ -113,7 +113,8 @@ test.describe('Move between tasks (Scenario 2)', { tag: '@responsive' }, () => {
       await panel.waitForLoaded();
 
       const row = panel.row(`${testPrefix} Mover`);
-      await expect(row).toContainText('Task A Source');
+      // Document mode: the task is the group heading, not a cell of the row
+      await expect(panel.groupHeading('Task A Source')).toBeVisible();
       await panel.chooseAction(row, 'Edit');
       await form.waitForOpen();
       await form.changeTarget(`${testPrefix} Task B Target`);
@@ -127,8 +128,9 @@ test.describe('Move between tasks (Scenario 2)', { tag: '@responsive' }, () => {
       await patched;
       await form.waitForClosed();
 
-      await expect(panel.row(`${testPrefix} Mover`)).toContainText('Task B Target');
-      await expect(panel.row(`${testPrefix} Mover`)).not.toContainText('Task A Source');
+      await expect(panel.row(`${testPrefix} Mover`)).toBeVisible();
+      await expect(panel.groupHeading('Task B Target')).toBeVisible();
+      await expect(panel.groupHeading('Task A Source')).toHaveCount(0);
     },
   );
 });
@@ -160,7 +162,9 @@ test.describe('Move from a task to a purchase (Scenario 3)', { tag: '@responsive
     await form.changeTarget(`${testPrefix} Cross Purchase`);
     await form.save();
     await form.waitForClosed();
-    await expect(panel.row(`${testPrefix} Cross Line`)).toContainText('Cross Purchase');
+    await expect(panel.row(`${testPrefix} Cross Line`)).toBeVisible();
+    await expect(panel.groupHeading('Cross Purchase')).toBeVisible();
+    await expect(panel.groupHeading('Cross Task')).toHaveCount(0);
 
     await page.goto(routeUrl('householdItem', { id: purchaseId }));
     await panel.waitForLoaded();
@@ -212,8 +216,11 @@ test.describe(
       await form.save();
       await form.waitForClosed();
 
-      await expect(panel.row(`${testPrefix} Line A`)).toContainText('Same B');
-      await expect(panel.row(`${testPrefix} Line B`)).toContainText('Same B');
+      // Both lines now sit under one group, task B; task A's group is gone
+      await expect(panel.groupHeading('Same B')).toHaveCount(1);
+      await expect(panel.groupHeading('Same A')).toHaveCount(0);
+      await expect(panel.row(`${testPrefix} Line A`)).toBeVisible();
+      await expect(panel.row(`${testPrefix} Line B`)).toBeVisible();
 
       await page.goto(routeUrl('workItem', { id: taskB }));
       await panel.waitForLoaded();

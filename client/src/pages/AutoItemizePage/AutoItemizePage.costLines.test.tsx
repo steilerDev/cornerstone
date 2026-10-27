@@ -15,7 +15,7 @@ import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiModule from '../../lib/householdItemBudgetsApi.js';
 import type * as SearchApiModule from '../../lib/searchApi.js';
-import type { Invoice, PaperlessDocumentDetailResponse } from '@cornerstone/shared';
+import type { InvoiceDetail, PaperlessDocumentDetailResponse } from '@cornerstone/shared';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -154,7 +154,7 @@ let ToastProvider: (typeof ToastContextModule)['ToastProvider'];
 const DISCRETIONARY = { id: 'src-disc', name: 'Discretionary', isDiscretionary: true };
 const BANK = { id: 'src-bank', name: 'Bank loan', isDiscretionary: false };
 
-function makeInvoice(): Invoice {
+function makeInvoice(): InvoiceDetail {
   return {
     id: 'inv-1',
     vendorId: 'vendor-1',
@@ -169,10 +169,14 @@ function makeInvoice(): Invoice {
     remainingAmount: 1000,
     deposits: [],
     finalPaymentAmount: 1000,
+    paid: 0,
+    openAmount: 1000,
+    remainingOnOffer: null,
+    notYetSplit: false,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
-  } as Invoice;
+  };
 }
 
 function makeDoc(): PaperlessDocumentDetailResponse {
@@ -567,7 +571,7 @@ describe('AutoItemizePage with the cost line grid', () => {
         ...makeInvoice(),
         invoiceNumber: null,
         dueDate: '2026-02-01',
-      } as Invoice);
+      });
       mockAutoItemize.mockResolvedValueOnce({
         ...dryRun([{ description: 'Tile work', totalAmount: 100 }]),
         extractedInvoiceNumber: 'RE-77',

@@ -14,6 +14,7 @@
  * FC3 (desktop, AC1)       "Holds up n tasks": API, Home attention row and Schedule tooltip agree
  * FC4 (@responsive, AC4)   at most one Left to spend figure per screen; no former names visible
  * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
+ * FC6 (desktop, #2239)     an invoice page's Paid and Still to pay equal the record's API figures
  */
 
 import fs from 'node:fs';
@@ -30,6 +31,8 @@ import { dayOffset } from '../../fixtures/homeMocks.js';
 import {
   COMPANY_SURFACE,
   HOME_ATTENTION_SURFACE,
+  INVOICE_PAID_SURFACE,
+  INVOICE_STILL_TO_PAY_SURFACE,
   LEFT_SCREENS,
   PENDING_SURFACES,
   PROJECT_SURFACES,
@@ -175,6 +178,85 @@ test.describe('Figure consistency', () => {
       await expect(page.locator('[data-figure="still-to-pay"]')).toHaveCount(2);
       const markers = await COMPANY_SURFACE.readAll(page, { companyId: vendorId });
       expect(markers).toEqual([cents(balance), cents(balance)]);
+    } finally {
+      if (vendorId) await removeCompany(page, vendorId);
+    }
+  });
+
+  test("FC6: an invoice page shows the record's Paid and Still to pay from the money service (#2239)", async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1024,
+      'desktop only (the figures are viewport-independent)',
+    );
+    let vendorId: string | null = null;
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Invoice Figure Company` });
+      const created = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: {
+          invoiceNumber: `${testPrefix}-INV-FC6`,
+          amount: 1234.56,
+          date: '2026-03-01',
+          status: 'pending',
+        },
+      });
+      expect(created.ok(), `POST invoice: ${created.status()}`).toBeTruthy();
+      const invoiceId = ((await created.json()) as { invoice: { id: string } }).invoice.id;
+
+      const first = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
+        data: { amount: 200, dueDate: '2026-03-10', status: 'pending' },
+      });
+      expect(first.ok(), `POST first progress payment: ${first.status()}`).toBeTruthy();
+      const firstId = ((await first.json()) as { deposit: { id: string } }).deposit.id;
+      const paid = await page.request.patch(`/api/invoices/${invoiceId}/deposits/${firstId}`, {
+        data: { status: 'paid', paidDate: '2026-03-11' },
+      });
+      expect(paid.ok(), `PATCH progress payment paid: ${paid.status()}`).toBeTruthy();
+      const second = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
+        data: { amount: 300, dueDate: '2026-04-10', status: 'pending' },
+      });
+      expect(second.ok(), `POST second progress payment: ${second.status()}`).toBeTruthy();
+
+      // The record's own figures, from the detail and from the list row
+      const detailResponse = await page.request.get(`/api/invoices/${invoiceId}`);
+      expect(detailResponse.ok()).toBeTruthy();
+      const detail = (
+        (await detailResponse.json()) as {
+          invoice: { paid: number; openAmount: number };
+        }
+      ).invoice;
+      const listResponse = await page.request.get(`/api/invoices?ids=${invoiceId}`);
+      expect(listResponse.ok()).toBeTruthy();
+      const row = (
+        (await listResponse.json()) as {
+          invoices: Array<{ id: string; paid: number; openAmount: number }>;
+        }
+      ).invoices.find((candidate) => candidate.id === invoiceId);
+      expect(row, 'the invoice is in the ids= list').toBeTruthy();
+      expect(detail.paid).toBe(row!.paid);
+      expect(detail.openAmount).toBe(row!.openAmount);
+      expect(cents(detail.paid)).toBe(20000);
+      expect(cents(detail.openAmount)).toBe(103456);
+
+      // The page's markers equal them
+      expect(await INVOICE_PAID_SURFACE.readAll(page, { invoiceId })).toEqual([20000]);
+      expect(await INVOICE_STILL_TO_PAY_SURFACE.readAll(page, { invoiceId })).toEqual([103456]);
+
+      // An offer has a Paid marker and no Still to pay marker
+      const offerResponse = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: {
+          invoiceNumber: `${testPrefix}-OFR-FC6`,
+          amount: 500,
+          date: '2026-03-01',
+          status: 'quotation',
+        },
+      });
+      expect(offerResponse.ok(), `POST offer: ${offerResponse.status()}`).toBeTruthy();
+      const offerId = ((await offerResponse.json()) as { invoice: { id: string } }).invoice.id;
+      expect(await INVOICE_PAID_SURFACE.readAll(page, { invoiceId: offerId })).toHaveLength(1);
+      expect(await INVOICE_STILL_TO_PAY_SURFACE.readAll(page, { invoiceId: offerId })).toEqual([]);
     } finally {
       if (vendorId) await removeCompany(page, vendorId);
     }

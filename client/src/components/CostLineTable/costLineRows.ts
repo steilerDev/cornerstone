@@ -211,18 +211,40 @@ export function groupForItem(rows: readonly CostLineRow[]): CostLineGroup[] {
   return groups;
 }
 
-/** Document mode: one group without a heading, rows in the server's order. */
+/**
+ * Document mode: one group per task or purchase in order of first appearance; lines that belong
+ * to none ("Not assigned") form the last group.
+ */
 export function groupForDocument(rows: readonly CostLineRow[]): CostLineGroup[] {
-  if (rows.length === 0) return [];
-  return [
-    {
-      id: 'lines',
-      heading: null,
-      rows,
-      total: sumOf(rows, (row) => row.gross),
-      plannedTotal: sumOf(rows, (row) => row.plannedGross),
-    },
-  ];
+  const byTarget = new Map<string, CostLineRow[]>();
+  const unassigned: CostLineRow[] = [];
+  for (const row of rows) {
+    if (row.target === null) {
+      unassigned.push(row);
+      continue;
+    }
+    const key = `target-${row.target.type}-${row.target.id}`;
+    const list = byTarget.get(key);
+    if (list) list.push(row);
+    else byTarget.set(key, [row]);
+  }
+  const groups: CostLineGroup[] = [...byTarget.entries()].map(([id, groupRows]) => ({
+    id,
+    heading: { kind: 'target', target: groupRows[0]!.target },
+    rows: groupRows,
+    total: sumOf(groupRows, (row) => row.gross),
+    plannedTotal: sumOf(groupRows, (row) => row.plannedGross),
+  }));
+  if (unassigned.length > 0) {
+    groups.push({
+      id: 'unassigned',
+      heading: { kind: 'target', target: null },
+      rows: unassigned,
+      total: sumOf(unassigned, (row) => row.gross),
+      plannedTotal: sumOf(unassigned, (row) => row.plannedGross),
+    });
+  }
+  return groups;
 }
 
 /** What is left of an offer or invoice once its lines are subtracted. */

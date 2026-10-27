@@ -787,6 +787,9 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
               vendor: { id: vendorId, name: `${testPrefix} PF Builder Co` },
               deposits: [],
               finalPaymentAmount: 1580,
+              paid: 0,
+              openAmount: 1580,
+              notYetSplit: false,
               createdBy: null,
               createdAt: '2026-06-15T00:00:00.000Z',
               updatedAt: '2026-06-15T00:00:00.000Z',
@@ -1067,7 +1070,7 @@ test.describe('Scenario 9 — Hide-linked default in invoice detail Documents pa
 
       // Open the Documents panel, then its Link document picker view
       const docsPanel = new DocumentsPanel(page);
-      await docsPanel.open();
+      await docsPanel.open('summary-fact-documents');
       await docsPanel.openPicker();
 
       // The picker (DocumentBrowser in the panel's sheet) is open
@@ -1532,6 +1535,9 @@ test.describe('Scenario 17 — Editing the row and saving creates the cost line 
               vendor: { id: vendorId, name: `${testPrefix} PF-S17 Vendor` },
               deposits: [],
               finalPaymentAmount: 900,
+              paid: 0,
+              openAmount: 900,
+              notYetSplit: false,
               createdBy: null,
               createdAt: '2026-06-18T00:00:00.000Z',
               updatedAt: '2026-06-18T00:00:00.000Z',

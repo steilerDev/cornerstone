@@ -82,7 +82,7 @@ test.describe(
       await expect(row).toBeVisible();
       await expect(panel.gross(row)).toHaveText('€476.00');
       await expect(panel.stateChip(row)).toHaveText('Invoiced');
-      await expect(row).toContainText(taskName);
+      await expect(panel.groupHeading(taskName)).toBeVisible();
       if (!(await panel.showsCards())) await expect(row).toContainText('4 pcs × €100.00');
       await expect(panel.notYetSplit()).toHaveText('Not yet split · €524.00');
 

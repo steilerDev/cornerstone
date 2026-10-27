@@ -482,15 +482,16 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
         await expect(detailPage.statusBadge).toBeVisible();
         await expect(detailPage.statusBadge).toContainText('To pay');
 
-        // Detail fields are populated
-        const fields = await detailPage.getDetailFields();
-        expect(fields['Invoice #']).toBe(`${testPrefix}-DET-001`);
-        expect(fields['Vendor']).toBe(vendorName);
-        expect(fields['Status']).toContain('To pay');
+        // The header description carries the company link and the notes; the strip the figures
+        await expect(detailPage.companyLink).toHaveText(vendorName);
+        await expect(detailPage.header.description).toContainText(`Test notes for ${testPrefix}`);
+        await expect(detailPage.summary.fact('amount')).toContainText(/3[.,\s\u00a0\u202f]?500/);
 
-        // Edit and Delete buttons visible in the page actions
-        await expect(detailPage.editButton).toBeVisible();
-        await expect(detailPage.deleteButton).toBeVisible();
+        // Edit details and Delete live in the ⋯ menu
+        await detailPage.header.openMenu();
+        await expect(detailPage.header.menuItem('invoice-menu-edit')).toBeVisible();
+        await expect(detailPage.header.menuItem('object-header-delete')).toBeVisible();
+        await page.keyboard.press('Escape');
 
         // Breadcrumb trail "Money › Invoices" (the old Back button is retired)
         await detailPage.breadcrumbs.expectTrail(['Money', 'Invoices']);
@@ -692,7 +693,7 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
       // Cancel — the invoice amount is unchanged
       await detailPage.closeEditModal();
       await expect(detailPage.editModal).not.toBeVisible();
-      await expect(detailPage.infoList).toContainText(/1[.,\s\u00a0\u202f]?000/);
+      await expect(detailPage.summary.fact('amount')).toContainText(/1[.,\s\u00a0\u202f]?000/);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -903,7 +904,7 @@ test.describe('Dark mode', () => {
       try {
         await detailPage.goto(invoice.id);
         await expect(detailPage.heading).toBeVisible();
-        await expect(detailPage.editButton).toBeVisible();
+        await expect(detailPage.header.menuTrigger).toBeVisible();
       } finally {
         await context.close();
       }

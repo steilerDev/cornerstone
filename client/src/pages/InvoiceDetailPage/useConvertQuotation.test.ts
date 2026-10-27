@@ -787,9 +787,7 @@ describe('useConvertQuotation', () => {
       const second = mockConvertQuotation.mock.calls[1]![1] as ConvertQuotationRequest;
       expect(first.status).toBe('pending');
       expect(second.status).toBe('paid');
-      expect(first.conversionNote).toBe(
-        `Converted from quotation of $10000.00 on ${localToday()}.`,
-      );
+      expect(first.conversionNote).toBe(`Converted from offer of $10000.00 on ${localToday()}.`);
       expect(second.conversionNote).toBe(first.conversionNote);
     });
 

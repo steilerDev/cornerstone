@@ -179,9 +179,9 @@ describe('EnteredAsCell', () => {
   });
 });
 
-describe('TargetCell', () => {
+describe('TargetLabel', () => {
   it('shows a neutral Not assigned badge without a target', () => {
-    wrap(<Parts.TargetCell row={makeRow({ target: null })} />);
+    wrap(<Parts.TargetLabel target={null} />);
     const badge = screen.getByText('Not assigned');
     expect(badge.className).toContain('neutral');
     expect(screen.queryByRole('link')).toBeNull();
@@ -189,15 +189,13 @@ describe('TargetCell', () => {
 
   it('links a task target to its page with the origin state and shows its area', () => {
     wrap(
-      <Parts.TargetCell
-        row={makeRow({
-          target: {
-            type: 'work_item',
-            id: 'w1',
-            label: 'Tile the hallway',
-            area: { id: 'a1', name: 'Kitchen', color: null, ancestors: [] },
-          },
-        })}
+      <Parts.TargetLabel
+        target={{
+          type: 'work_item',
+          id: 'w1',
+          label: 'Tile the hallway',
+          area: { id: 'a1', name: 'Kitchen', color: null, ancestors: [] },
+        }}
       />,
     );
     expect(screen.getByRole('link', { name: 'Tile the hallway' })).toHaveAttribute(
@@ -208,15 +206,34 @@ describe('TargetCell', () => {
   });
 
   it('links a purchase target to the purchase page and tolerates a missing area', () => {
-    wrap(
-      <Parts.TargetCell
-        row={makeRow({ target: { type: 'household_item', id: 'h1', label: 'Oak table' } })}
-      />,
-    );
+    wrap(<Parts.TargetLabel target={{ type: 'household_item', id: 'h1', label: 'Oak table' }} />);
     expect(screen.getByRole('link', { name: 'Oak table' })).toHaveAttribute(
       'href',
       expect.stringContaining('h1'),
     );
+  });
+});
+
+describe('TargetLabel with a bare target (#2239)', () => {
+  it('renders the link, the area and the page of a task target', () => {
+    const target = {
+      type: 'work_item' as const,
+      id: 'w1',
+      label: 'Tile the hallway',
+      area: { id: 'a1', name: 'Kitchen', color: null, ancestors: [] },
+    };
+    wrap(<Parts.TargetLabel target={target} />);
+    expect(screen.getByRole('link', { name: 'Tile the hallway' })).toHaveAttribute(
+      'href',
+      '/project/work-items/w1',
+    );
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
+  });
+
+  it('renders the neutral Not assigned badge for a null target', () => {
+    wrap(<Parts.TargetLabel target={null} />);
+    expect(screen.getByText('Not assigned').className).toContain('neutral');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
 

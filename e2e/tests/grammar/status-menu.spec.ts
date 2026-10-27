@@ -343,7 +343,7 @@ test.describe('StatusMenu — invoice and progress payment', { tag: '@responsive
     }
   });
 
-  test('Progress payment Mark submitted > Today works on the table row and on the mobile card', async ({
+  test('Progress payment Mark submitted > Today works from the row chip on the Payments tab', async ({
     page,
     testPrefix,
   }) => {
@@ -366,20 +366,16 @@ test.describe('StatusMenu — invoice and progress payment', { tag: '@responsive
         },
       });
       expect(created.ok(), 'POST deposit').toBeTruthy();
+      const depositId = ((await created.json()) as { deposit: { id: string } }).deposit.id;
 
+      // The rows are one RelatedList on every viewport: the chip is `payment-status-<id>`
       await detail.goto(invoiceId);
-      const menu = await detail.depositStatusMenu();
-
-      // Both layouts are mounted; the visible one is the card at phone width, the row otherwise
-      const isPhone = (page.viewportSize()?.width ?? 1440) <= 767;
-      if (isPhone) {
-        expect(menu.testId).toMatch(/^deposit-status-mobile-/);
-      } else {
-        expect(menu.testId).toMatch(/^deposit-status-(?!mobile-)/);
-      }
+      await detail.openPayments();
+      const menu = detail.paymentStatusMenu(depositId);
+      expect(menu.testId).toBe(`payment-status-${depositId}`);
       await expect(menu.trigger).toHaveText('To pay');
 
-      await detail.changeDepositStatus('claimed', { date: 'today' });
+      await detail.changePaymentStatus(depositId, 'claimed', { date: 'today' });
 
       await expect(menu.trigger).toHaveText('Submitted');
       await expect(toasts.undoToastWith('is now “Submitted”.')).toBeVisible();

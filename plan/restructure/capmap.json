@@ -1292,7 +1292,7 @@
     "to": "Money > Invoices / Money > Invoice / Offer page > company link -> Companies > Company page",
     "change": "same",
     "gate": "none",
-    "note": "Opens Companies instead of jumping into Settings. #2203: the company page opened from Money shows Back to its origin and the breadcrumb \"Companies\"; \"Back to Vendors\" retired. #2238: the company name in each Invoices row is a link to the company page."
+    "note": "Opens Companies instead of jumping into Settings. #2203: the company page opened from Money shows Back to its origin and the breadcrumb \"Companies\"; \"Back to Vendors\" retired. #2238: the company name in each Invoices row is a link to the company page. #2239: Company link in the header description line."
   },
   "MNY-060": {
     "name": "Create an invoice manually",
@@ -1470,7 +1470,7 @@
     "to": "Money > Invoice / Offer page > summary strip (Amount, Paid, Still to pay or Remaining on offer, Due, Split %, Funding source, Documents) and the description under the h1 (no Overview tab)",
     "change": "same",
     "gate": "none",
-    "note": "Amount, paid so far and still to pay on the first screen (P34). #2203: h1 \"‹company› · ‹number›\" (Invoice/Offer fallbacks); breadcrumb \"Money › Invoices\"; origin-aware \"‹ Back to ‹origin›\" replaces \"Back to Invoices\"."
+    "note": "Amount, paid so far and still to pay on the first screen (P34). #2203: h1 \"‹company› · ‹number›\" (Invoice/Offer fallbacks); breadcrumb \"Money › Invoices\"; origin-aware \"‹ Back to ‹origin›\" replaces \"Back to Invoices\". #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-082": {
     "name": "Edit invoice fields or reassign the invoice to another vendor",
@@ -1478,7 +1478,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Edit details (section form; same field sections as create)",
     "change": "same",
     "gate": "none",
-    "note": "Vendor picker identical to create (PAT-05). #2236: the Edit invoice modal's company field is EntityPicker kind 'company', identical to create (PAT-05)."
+    "note": "Vendor picker identical to create (PAT-05). #2236: the Edit invoice modal's company field is EntityPicker kind 'company', identical to create (PAT-05). #2239: ⋯ > Edit details opens the edit dialog with the create fields; ObjectForm comes with P4.9."
   },
   "MNY-083": {
     "name": "Change an invoice's payment status (Quotation / Pending / Paid / Claimed)",
@@ -1487,7 +1487,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q3",
-    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › header StatusMenu chip (Mark paid, no date step; Back to “To pay”); Submitted and Offer stay plain badges; the Edit modal keeps its Status select until 4.11 / the offers story."
+    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › header StatusMenu chip (Mark paid, no date step; Back to “To pay”); Submitted and Offer stay plain badges; the Edit modal keeps its Status select until 4.11 / the offers story. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-084": {
     "name": "Delete an invoice",
@@ -1495,7 +1495,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Delete (modal); Companies > Company page > Payments tab > row ⋯ > Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
@@ -1503,7 +1503,7 @@
     "to": "Money > Invoice / Offer page (offer) > secondary 'Convert to final invoice' -> Money > Convert page (/budget/invoices/:id/convert; dense cost-line table grouped by task); the record keeps its id and URL and leaves the Offers chip for the invoice chips of the same list",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (monthly use)."
+    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The Convert dialog stays until P4.8 #2240. #2239: Convert is the secondary on an offer (the primary is Add progress payment)."
   },
   "MNY-086": {
     "name": "Attach the final document and AI-prefill values while converting a quotation",
@@ -1511,7 +1511,7 @@
     "to": "Money > Convert page (/budget/invoices/:id/convert) > 'Source document' + 'Prefill from document' (Paperless only; the prefill needs AI too: Paperless + AI only)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Paperless only; the prefill from the document needs AI as well."
+    "note": "Paperless only; the prefill from the document needs AI as well. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-087": {
     "name": "Rebalance itemized lines pro rata when converting a quotation",
@@ -1519,7 +1519,7 @@
     "to": "Money > Convert page (/budget/invoices/:id/convert) > cost lines grouped by task (Offered | Proposed | Keep), searchable, scales to 50 lines",
     "change": "same",
     "gate": "none",
-    "note": "Dialog uses the dense CostLineTable so 50 lines scale (VRD-06)."
+    "note": "Dialog uses the dense CostLineTable so 50 lines scale (VRD-06). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-088": {
     "name": "Resolve overpaid deposits by adding a refund during quotation conversion",
@@ -1529,7 +1529,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "Convert page > 'Add refund' (1)",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-089": {
     "name": "View staged payments (deposits/refunds) and the remaining final payment",
@@ -1537,15 +1537,15 @@
     "to": "Money > Invoice / Offer page > Payments tab (progress payments, refunds, final payment) + summary 'Paid / Still to pay'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-090": {
     "name": "Record a deposit (staged payment) on an invoice",
     "from": "/budget/invoices/:id > Deposits > 'Add deposit' > modal (entry type, budget source, amount*, due date*, status, paid date, claimed date, description)",
-    "to": "Money > Invoice / Offer page > primary 'Add progress payment' (offers) / Payments tab > 'Add progress payment'",
+    "to": "Money > Invoice / Offer page > header 'Add progress payment' (primary on offers and Submitted invoices, secondary on To pay and Paid invoices) / Payments tab > Progress payments > 'Add progress payment'",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (monthly use)."
+    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-091": {
     "name": "Record a refund owed by the vendor",
@@ -1555,7 +1555,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Invoice / Offer page > Payments tab (1) > 'Add refund' (2)",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-092": {
     "name": "Attribute a deposit to a financing source",
@@ -1563,7 +1563,7 @@
     "to": "Money > Invoice / Offer page > progress payment form > Funding source",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-093": {
     "name": "Mark a deposit paid or claimed with a date",
@@ -1571,7 +1571,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress-payment StatusMenu (To pay > Paid > Submitted) with date prompt (progress payments store paid and submitted dates)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-094": {
     "name": "Revert a deposit status (claimed to paid, paid to pending)",
@@ -1579,15 +1579,15 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress payment StatusMenu > back transitions",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-095": {
     "name": "Edit or delete a deposit",
     "from": "/budget/invoices/:id > deposit row menu > 'Edit' (entry type locked) / 'Delete' (warning for paid/claimed)",
-    "to": "Money > Invoice / Offer page > Payments tab > row ⋯ > Edit / Delete",
+    "to": "Money > Invoice / Offer page > Payments tab > row Edit (pencil) / row ⋯ > Remove (Undo)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › Progress payments › row ⋯ › Delete (ConfirmDialog). #2209: Money › Invoice page › Progress payments › edit form loses Status (row StatusMenu instead); add keeps it."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › Progress payments › row ⋯ › Delete (ConfirmDialog). #2209: Money › Invoice page › Progress payments › edit form loses Status (row StatusMenu instead); add keeps it. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The delete ConfirmDialog is retired; Remove applies at once with Undo."
   },
   "MNY-096": {
     "name": "See an invoice's itemized budget lines and the unallocated remainder",
@@ -1595,7 +1595,7 @@
     "to": "Money > Invoice / Offer page > Cost tab (lines in their entry basis, marked net or gross; totals gross) + summary 'Not yet split'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: CostLineTable mode=\"document\" lists each line with quantity × unit price, Entered as (Net/Gross), the gross amount (net in a tooltip) and Belongs to; the footer reads \"Not yet split · ‹amount›\" from 1.00 with a Split button, or \"Lines are ‹amount› over\"."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: CostLineTable mode=\"document\" lists each line with quantity × unit price, Entered as (Net/Gross), the gross amount (net in a tooltip) and Belongs to; the footer reads \"Not yet split · ‹amount›\" from 1.00 with a Split button, or \"Lines are ‹amount› over\". #2239: Cost tab built; document mode grouped by task or purchase with area breadcrumbs."
   },
   "MNY-097": {
     "name": "Itemize an invoice by linking existing budget lines with amounts",
@@ -1603,7 +1603,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Add cost line' (pick task / purchase, then estimate line or new) and 'Add lines (grid)': grid dialog with keyboard rows, duplicate, paste from a spreadsheet and the document preview beside it (Paperless only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: \"Add cost line\" (pick the task or purchase, then an existing estimate line or a new one) and \"Add lines (grid)\", a grid dialog with keyboard rows, Ctrl/⌘+D duplicate, spreadsheet paste (up to 200 rows, column-mapping preview) and the document preview beside it (Paperless only); the grid saves every row in one transaction (POST /api/budget-lines/batch)."
+    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: \"Add cost line\" (pick the task or purchase, then an existing estimate line or a new one) and \"Add lines (grid)\", a grid dialog with keyboard rows, Ctrl/⌘+D duplicate, spreadsheet paste (up to 200 rows, column-mapping preview) and the document preview beside it (Paperless only); the grid saves every row in one transaction (POST /api/budget-lines/batch). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-098": {
     "name": "Create a new budget line on a work item or household item directly from the invoice",
@@ -1611,7 +1611,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > Add > New cost line",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: Add cost line › New line creates the line on the chosen task or purchase and links it to the offer or invoice at its gross amount in one request (POST /api/budget-lines/batch)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: Add cost line › New line creates the line on the chosen task or purchase and links it to the offer or invoice at its gross amount in one request (POST /api/budget-lines/batch). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-099": {
     "name": "Edit an invoice-linked budget line including its itemized amount",
@@ -1619,7 +1619,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: One cost-line form (CostLineForm, an ObjectForm) on the task, purchase and invoice pages, row ⋯ › Edit; a linked line is edited as one gross amount that becomes its itemized amount. Interim placement as MNY-096 / MNY-105."
+    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps). #2235: One cost-line form (CostLineForm, an ObjectForm) on the task, purchase and invoice pages, row ⋯ › Edit; a linked line is edited as one gross amount that becomes its itemized amount. Interim placement as MNY-096 / MNY-105. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-100": {
     "name": "Move an invoice-linked budget line to a different work item or household item",
@@ -1627,7 +1627,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog > 'Belongs to' (task/purchase picker)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to (task or purchase search picker) moves a linked line to another task or purchase. Interim placement as MNY-096 / MNY-105. #2236: Belongs to is EntityPicker kind 'taskOrPurchase' (CostLineTargetPicker retired)."
+    "note": "Kept as it works today, inside Cost line dialog; only the shared page template, the words and the navigation around it change (rare use). #2235: CostLineForm › Belongs to (task or purchase search picker) moves a linked line to another task or purchase. Interim placement as MNY-096 / MNY-105. #2236: Belongs to is EntityPicker kind 'taskOrPurchase' (CostLineTargetPicker retired). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-101": {
     "name": "Remove a budget line from an invoice",
@@ -1635,7 +1635,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > row ⋯ > Remove from invoice (Undo); Task / Purchase page > Cost tab > row ⋯ > Unlink",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm). #2236: Undo delivered. Remove from invoice / Remove from offer (document host) and Unlink (task and purchase pages) apply at once with an Undo toast (DELETE /api/invoices/:invoiceId/budget-lines/:id returns { undo }); no ConfirmDialog. Deleting a cost line keeps its ConfirmDialog."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: row ⋯ › Remove from invoice; on the task and purchase pages row ⋯ › Unlink. Both confirm with ConfirmDialog (D4: Undo comes with P4.4 #2236; the task page used to unlink without a confirm). #2236: Undo delivered. Remove from invoice / Remove from offer (document host) and Unlink (task and purchase pages) apply at once with an Undo toast (DELETE /api/invoices/:invoiceId/budget-lines/:id returns { undo }); no ConfirmDialog. Deleting a cost line keeps its ConfirmDialog. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-102": {
     "name": "Assign an unassigned (orphan) invoice line to a work item or household item",
@@ -1643,7 +1643,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Not assigned' badge > Assign",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: an unassigned line shows \"Not assigned\" under Belongs to and row ⋯ › Assign opens CostLineForm in assign mode."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2235: Built (interim, until P4.7 #2239 adds the Cost tab) as the Cost lines section on Money › Invoices › Invoice / Offer page: an unassigned line shows \"Not assigned\" under Belongs to and row ⋯ › Assign opens CostLineForm in assign mode. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
   },
   "MNY-105": {
     "name": "Add a planned-cost budget line to a work item or household item",

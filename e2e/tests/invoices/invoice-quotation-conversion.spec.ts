@@ -346,11 +346,19 @@ test.describe('Quotation conversion - entry point (Scenario 1)', { tag: '@respon
         quotation = await createQuotation(page, testPrefix, { lines: [] });
         pending = await createQuotation(page, `${testPrefix}P`, { status: 'pending', lines: [] });
 
+        // E3: an offer leads with Add progress payment (the one primary), keeps Convert as the
+        // secondary and has no status chip
         await detail.goto(quotation.invoiceId);
-        await expect(detail.convertButton).toBeVisible();
+        await expect(detail.addPaymentPrimary).toHaveText('Add progress payment');
+        await expect(detail.convertButton).toHaveText('Convert to final invoice');
+        await expect(detail.statusBadge).toHaveCount(0);
+        await expect(detail.addPaymentSecondary).toHaveCount(0);
+        await expect(detail.markPaid.trigger).toHaveCount(0);
 
+        // A pending invoice has the chip and no Convert
         await detail.goto(pending.invoiceId);
-        await expect(detail.editButton).toBeVisible();
+        await expect(detail.statusBadge).toContainText('To pay');
+        await expect(detail.header.menuTrigger).toBeVisible();
         await expect(detail.convertButton).toHaveCount(0);
       } finally {
         await cleanup(page, quotation);
@@ -400,8 +408,12 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
       await expect(detail.convertForm).toBeHidden();
       await expect(detail.statusBadge).toContainText('To pay');
       await expect(detail.convertButton).toHaveCount(0);
-      await expect(detail.infoList).toContainText('10,500.00');
-      await expect(detail.infoList).toContainText('Converted from quotation of');
+      // AC6: same URL, the h1 takes focus, the header now leads with Mark paid
+      await expect(page).toHaveURL(new RegExp(`/budget/invoices/${fixture.invoiceId}`));
+      await expect(detail.heading).toBeFocused();
+      await expect(detail.markPaid.trigger).toBeVisible();
+      await expect(detail.summary.fact('amount')).toContainText('10,500.00');
+      await expect(detail.header.description).toContainText('Converted from offer of');
       await expect(detail.budgetLinesSection).toContainText('6,300.00');
       await expect(detail.budgetLinesSection).toContainText('3,150.00');
 
@@ -411,7 +423,7 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
       expect(invoice.status).toBe('pending');
       expect(invoice.amount).toBe(10500);
       expect(invoice.notes).toContain('Original quotation notes');
-      expect(invoice.notes).toContain('Converted from quotation of');
+      expect(invoice.notes).toContain('Converted from offer of');
       const byId = new Map(invoice.budgetLines.map((l) => [l.id, l.itemizedAmount]));
       expect(byId.get(line1)).toBe(6300);
       expect(byId.get(line2)).toBe(3150);
@@ -612,8 +624,11 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
       await expect(detail.statusBadge).toContainText('To pay');
 
       // Deposits untouched, refund added
-      await expect(detail.depositsSection).toContainText('6,000.00');
-      await expect(detail.refundBadge.first()).toBeVisible();
+      await detail.openPayments();
+      await expect(detail.progressPayments.root).toContainText('6,000.00');
+      await expect(detail.refunds.rows).toHaveCount(1);
+      await expect(detail.refunds.rows.first()).toContainText('Refund');
+      await expect(detail.refunds.rows.first()).toContainText('1,000.00');
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.deposits.filter((d) => d.entryType === 'deposit')).toHaveLength(1);
       expect(invoice.deposits.find((d) => d.entryType === 'deposit')?.amount).toBe(6000);
@@ -661,7 +676,8 @@ test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', ()
       expect(invoice.deposits[0]?.entryType).toBe('deposit');
       expect(invoice.deposits[0]?.amount).toBe(6000);
       expect(invoice.deposits.filter((d) => d.entryType === 'refund')).toHaveLength(0);
-      await expect(detail.finalPaymentAmount).toHaveText(/^\D*0[.,]00\D*$/);
+      await detail.openPayments();
+      await expect(detail.finalPaymentRow).toContainText(/Final payment.*0[.,]00/s);
     } finally {
       await cleanup(page, fixture);
     }

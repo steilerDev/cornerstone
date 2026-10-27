@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
+import type { InvoiceDetail } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 // Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
@@ -1621,6 +1622,294 @@ describe('Invoice Service', () => {
       const result = invoiceService.getInvoiceById(db, invoiceId);
 
       expect(result.createdBy).toBeNull();
+    });
+  });
+
+  // ─── listAllInvoices() filters at service level (#2239 whole-file coverage) ──
+
+  describe('listAllInvoices() filters', () => {
+    let seq = 0;
+
+    function addPayment(invoiceId: string, entryType: 'deposit' | 'refund', dueDate: string) {
+      const now = new Date().toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id: `flt-dep-${seq++}`,
+          invoiceId,
+          amount: 10,
+          dueDate,
+          status: 'pending',
+          entryType,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function addLine(invoiceId: string, itemizedAmount: number) {
+      const now = new Date().toISOString();
+      const budgetId = `flt-wib-${seq++}`;
+      db.insert(schema.workItemBudgets)
+        .values({ id: budgetId, plannedAmount: 0, createdAt: now, updatedAt: now })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: `flt-ibl-${seq++}`,
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    const ids = (q: Parameters<typeof invoiceService.listAllInvoices>[1]) =>
+      invoiceService
+        .listAllInvoices(db, q)
+        .invoices.map((i) => i.id)
+        .sort();
+
+    it('narrows by invoice date, due date and amount ranges', () => {
+      const v = createTestVendor('Range Vendor');
+      const a = insertRawInvoice(v, { amount: 100, date: '2026-01-01', dueDate: '2026-02-01' });
+      const b = insertRawInvoice(v, { amount: 500, date: '2026-03-01', dueDate: '2026-04-01' });
+      expect(ids({ dateFrom: '2026-02-01' })).toEqual([b]);
+      expect(ids({ dateTo: '2026-02-01' })).toEqual([a]);
+      expect(ids({ dueDateFrom: '2026-03-01' })).toEqual([b]);
+      expect(ids({ dueDateTo: '2026-03-01' })).toEqual([a]);
+      expect(ids({ amountMin: 200 })).toEqual([b]);
+      expect(ids({ amountMax: 200 })).toEqual([a]);
+    });
+
+    it('notYetSplit keeps only records with an unsplit remainder, and the row says so', () => {
+      const v = createTestVendor('Split Filter Vendor');
+      const unsplit = insertRawInvoice(v, { amount: 1000 });
+      const split = insertRawInvoice(v, { amount: 1000 });
+      addLine(split, 600);
+      addLine(split, 400);
+      expect(ids({ notYetSplit: true })).toEqual([unsplit]);
+      const rows = invoiceService.listAllInvoices(db, {}).invoices;
+      expect(rows.find((r) => r.id === split)?.notYetSplit).toBe(false);
+      expect(rows.find((r) => r.id === unsplit)?.notYetSplit).toBe(true);
+    });
+
+    it('withoutDocument drops records that have a linked document', () => {
+      const v = createTestVendor('Doc Vendor');
+      const linked = insertRawInvoice(v, {});
+      const bare = insertRawInvoice(v, {});
+      db.insert(schema.documentLinks)
+        .values({
+          id: 'flt-link',
+          entityType: 'invoice',
+          entityId: linked,
+          paperlessDocumentId: 7,
+          createdAt: new Date().toISOString(),
+        })
+        .run();
+      expect(ids({ withoutDocument: true })).toEqual([bare]);
+    });
+
+    it('refundsDue keeps only records with a pending refund', () => {
+      const v = createTestVendor('Refund Filter Vendor');
+      const withRefund = insertRawInvoice(v, {});
+      const plain = insertRawInvoice(v, {});
+      addPayment(withRefund, 'refund', '2026-02-01');
+      addPayment(plain, 'deposit', '2026-02-01');
+      expect(ids({ refundsDue: true })).toEqual([withRefund]);
+    });
+
+    it('due keeps overdue pending invoices and records with a due progress payment, never refunds', () => {
+      const v = createTestVendor('Due Vendor');
+      const overdue = insertRawInvoice(v, { dueDate: '2000-01-01' });
+      const futureWithDue = insertRawInvoice(v, { dueDate: '2999-01-01' });
+      const refundOnly = insertRawInvoice(v, { dueDate: '2999-01-01' });
+      const far = insertRawInvoice(v, { dueDate: '2999-01-01' });
+      addPayment(futureWithDue, 'deposit', '2000-01-01');
+      addPayment(refundOnly, 'refund', '2000-01-01');
+      addPayment(far, 'deposit', '2999-01-01');
+      expect(ids({ due: true })).toEqual([overdue, futureWithDue].sort());
+    });
+
+    it('ids narrows to the named records and rejects more than 100', () => {
+      const v = createTestVendor('Ids Vendor');
+      const a = insertRawInvoice(v, {});
+      insertRawInvoice(v, {});
+      expect(ids({ ids: ` ${a} , ,` })).toEqual([a]);
+      const many = Array.from({ length: 101 }, (_, i) => `id-${i}`).join(',');
+      expect(() => invoiceService.listAllInvoices(db, { ids: many })).toThrow(ValidationError);
+    });
+
+    it('resolves each creator once per list and shows null for records without one', () => {
+      const v = createTestVendor('Creator Vendor');
+      const user = createTestUser('creator@test.com', 'Creator Person');
+      insertRawInvoice(v, { createdBy: user });
+      insertRawInvoice(v, { createdBy: user });
+      insertRawInvoice(v, { createdBy: null });
+      const rows = invoiceService.listAllInvoices(db, {}).invoices;
+      expect(rows.filter((r) => r.createdBy?.id === user)).toHaveLength(2);
+      expect(rows.filter((r) => r.createdBy === null)).toHaveLength(1);
+    });
+  });
+
+  // ─── toRecordMoney() / getInvoiceDetail() (#2239) ──────────────────────────
+
+  describe('toRecordMoney() and getInvoiceDetail() (#2239)', () => {
+    type Payment = { amount: number; status: 'pending' | 'paid' | 'claimed'; type?: string };
+
+    function addPayments(invoiceId: string, payments: Payment[]): void {
+      for (const p of payments) {
+        const ts = new Date(Date.now() + timestampOffset++).toISOString();
+        db.insert(schema.invoiceDeposits)
+          .values({
+            id: `pay-${Math.random().toString(36).substring(2)}`,
+            invoiceId,
+            amount: p.amount,
+            dueDate: '2026-02-01',
+            paidDate: p.status === 'pending' ? null : '2026-01-20',
+            claimedDate: p.status === 'claimed' ? '2026-01-25' : null,
+            description: null,
+            status: p.status,
+            entryType: (p.type ?? 'deposit') as 'deposit' | 'refund',
+            createdBy: null,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+      }
+    }
+
+    function insertRecord(
+      vendorId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' | 'quotation',
+    ): string {
+      return insertRawInvoice(vendorId, { amount, status: status as 'pending' });
+    }
+
+    function rowsFor(invoiceId: string): Parameters<typeof invoiceService.toRecordMoney>[0] {
+      return sqlite
+        .prepare(
+          `SELECT i.id AS invoice_id, i.amount AS invoice_amount, i.status AS invoice_status,
+                  d.id AS deposit_id, d.amount AS deposit_amount, d.status AS deposit_status,
+                  d.entry_type AS deposit_entry_type
+           FROM invoices i LEFT JOIN invoice_deposits d ON d.invoice_id = i.id WHERE i.id = ?`,
+        )
+        .all(invoiceId) as Parameters<typeof invoiceService.toRecordMoney>[0];
+    }
+
+    function figures(
+      r: Pick<InvoiceDetail, 'paid' | 'openAmount' | 'remainingOnOffer' | 'notYetSplit'>,
+    ) {
+      return {
+        paid: r.paid,
+        openAmount: r.openAmount,
+        remainingOnOffer: r.remainingOnOffer,
+        notYetSplit: r.notYetSplit,
+      };
+    }
+
+    it('S1: a pending invoice with a paid 200 and a pending 300 payment owes 1,034.56 and has paid 200', () => {
+      const vendorId = createTestVendor('Money Vendor');
+      const id = insertRecord(vendorId, 1234.56, 'pending');
+      addPayments(id, [
+        { amount: 200, status: 'paid' },
+        { amount: 300, status: 'pending' },
+      ]);
+
+      const money = invoiceService.toRecordMoney(rowsFor(id), id, 'pending', false);
+
+      expect(money).toEqual({
+        paid: 200,
+        openAmount: 1034.56,
+        remainingOnOffer: null,
+        notYetSplit: false,
+      });
+    });
+
+    it('S1: an offer reports Remaining on offer = amount minus its non-refund payments, never below 0', () => {
+      const vendorId = createTestVendor('Offer Vendor');
+      const id = insertRecord(vendorId, 1000, 'quotation');
+      addPayments(id, [{ amount: 250, status: 'paid' }]);
+      expect(invoiceService.toRecordMoney(rowsFor(id), id, 'quotation', true)).toMatchObject({
+        remainingOnOffer: 750,
+        notYetSplit: true,
+      });
+
+      const over = insertRecord(vendorId, 100, 'quotation');
+      addPayments(over, [{ amount: 150, status: 'paid' }]);
+      expect(invoiceService.toRecordMoney(rowsFor(over), over, 'quotation', false)).toMatchObject({
+        remainingOnOffer: 0,
+      });
+    });
+
+    it('S1: a paid refund nets Paid', () => {
+      const vendorId = createTestVendor('Refund Money Vendor');
+      const id = insertRecord(vendorId, 1000, 'pending');
+      addPayments(id, [
+        { amount: 400, status: 'paid' },
+        { amount: 100, status: 'paid', type: 'refund' },
+      ]);
+
+      expect(invoiceService.toRecordMoney(rowsFor(id), id, 'pending', false).paid).toBe(300);
+    });
+
+    it('S1: a paid invoice has nothing open', () => {
+      const vendorId = createTestVendor('Paid Money Vendor');
+      const id = insertRecord(vendorId, 500, 'paid');
+
+      expect(invoiceService.toRecordMoney(rowsFor(id), id, 'paid', false).openAmount).toBe(0);
+    });
+
+    it('S1: with no rows the open amount falls back to 0', () => {
+      expect(invoiceService.toRecordMoney([], 'ghost', 'pending', false).openAmount).toBe(0);
+    });
+
+    it('S2/S3: the detail equals the matching list row on the four figures, for each status', () => {
+      const vendorId = createTestVendor('Detail Vendor');
+      const records = [
+        insertRecord(vendorId, 1234.56, 'pending'),
+        insertRecord(vendorId, 800, 'paid'),
+        insertRecord(vendorId, 600, 'claimed'),
+        insertRecord(vendorId, 1000, 'quotation'),
+      ];
+      const [pendingId, paidId, claimedId, offerId] = records;
+      expect(pendingId).toBeDefined();
+      expect(paidId).toBeDefined();
+      expect(claimedId).toBeDefined();
+      expect(offerId).toBeDefined();
+      if (!pendingId || !offerId) throw new Error('fixture records missing');
+      addPayments(pendingId, [
+        { amount: 200, status: 'paid' },
+        { amount: 300, status: 'pending' },
+      ]);
+      addPayments(offerId, [{ amount: 250, status: 'paid' }]);
+
+      for (const id of records) {
+        const detail = invoiceService.getInvoiceDetail(db, id);
+        const row = invoiceService
+          .listAllInvoices(db, { ids: id, pageSize: 100 })
+          .invoices.find((r) => r.id === id);
+        if (!row) throw new Error(`list row missing for ${id}`);
+        expect(figures(detail)).toEqual(figures(row));
+        expect(detail.id).toBe(id);
+        expect(detail.vendorName).toBe('Detail Vendor');
+      }
+      const offer = invoiceService.getInvoiceDetail(db, offerId);
+      expect(offer.remainingOnOffer).toBe(750);
+      // the list row and the detail are not trivially equal: the figures are non-zero
+      expect(invoiceService.getInvoiceDetail(db, pendingId).paid).toBe(200);
+    });
+
+    it('S3: the detail flags a record that is not yet split into cost lines', () => {
+      const vendorId = createTestVendor('Split Vendor');
+      const id = insertRecord(vendorId, 1000, 'pending');
+      expect(invoiceService.getInvoiceDetail(db, id).notYetSplit).toBe(true);
+    });
+
+    it('S3: an unknown id throws NotFoundError', () => {
+      expect(() => invoiceService.getInvoiceDetail(db, 'missing')).toThrow(NotFoundError);
+      expect(() => invoiceService.getInvoiceDetail(db, 'missing')).toThrow('Invoice not found');
     });
   });
 

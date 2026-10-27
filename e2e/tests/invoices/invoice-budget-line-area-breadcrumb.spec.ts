@@ -1,10 +1,12 @@
 /**
  * E2E tests for the area breadcrumb in the cost lines of an invoice (Story #1272, #2235)
  *
- * The "Belongs to" cell of a cost line shows the task or purchase as a link and, when it has an
- * area, a compact AreaBreadcrumb beneath it (a line whose item has no area shows only the link).
+ * On an offer or invoice page the cost lines are grouped by task or purchase (#2239): the group
+ * heading shows the task or purchase as a link and, when it has an area, a compact AreaBreadcrumb
+ * beside it (an item without an area shows the link and the muted "No area"). There is no
+ * Belongs to column in document mode.
  *
- *   Scenario 1: a line whose task has an area -> breadcrumb in the Belongs to cell
+ *   Scenario 1: a line whose task has an area -> breadcrumb in the group heading
  *   Scenario 2: a line whose task has no area -> link plus the muted "No area" text
  *   Scenario 3: a line whose purchase has no area -> link plus the muted "No area" text
  *
@@ -14,7 +16,7 @@
  *   3. Create work item (or household item) with/without area
  *   4. Create work item budget → POST /api/work-items/:id/budgets
  *   5. Create invoice budget line → POST /api/invoices/:invoiceId/budget-lines
- *   6. Navigate to invoice detail → assert breadcrumb in Linked Item column
+ *   6. Navigate to invoice detail → assert breadcrumb in the group heading
  *
 
  * The row is found by its description (`CostLinesPanel.row`), on the table or the card list.
@@ -127,7 +129,7 @@ async function createInvoiceBudgetLineViaApi(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Cost line — task with an area shows the breadcrumb (Scenario 1)', () => {
-  test('the Belongs to cell shows a compact breadcrumb when the task has an area', async ({
+  test('the group heading shows a compact breadcrumb when the task has an area', async ({
     page,
     testPrefix,
   }) => {
@@ -177,13 +179,14 @@ test.describe('Cost line — task with an area shows the breadcrumb (Scenario 1)
       // Wait for budget lines section to load
       await expect(detailPage.budgetLinesSection).toBeVisible();
 
-      // Locate the "Linked Item" cell containing the work item link
-      // The tdLinkedItem cell contains: link (wiTitle) + AreaBreadcrumb compact span
-      const linkedItemCell = detailPage.costLines.row(`${testPrefix} Budget`);
-      await expect(linkedItemCell).toBeVisible();
+      // The line sits under its task's group heading (task link + compact area breadcrumb);
+      // document mode has no Belongs to column (#2239)
+      await expect(detailPage.costLines.row(`${testPrefix} Budget`)).toBeVisible();
+      const groupHeading = detailPage.costLines.groupHeading(wiTitle);
+      await expect(groupHeading).toBeVisible();
 
-      // The compact breadcrumb span should be visible inside the Belongs to cell
-      const breadcrumbSpan = linkedItemCell.locator('[class*="compact"]');
+      // The compact breadcrumb span should be visible inside the group heading
+      const breadcrumbSpan = groupHeading.locator('[class*="compact"]');
       await expect(breadcrumbSpan).toBeVisible();
 
       const breadcrumbText = await breadcrumbSpan.textContent();
@@ -244,14 +247,15 @@ test.describe('Cost line — task without an area shows no breadcrumb (Scenario 
 
       await expect(detailPage.budgetLinesSection).toBeVisible();
 
-      const linkedItemCell = detailPage.costLines.row(`${testPrefix} Budget No Area`);
-      await expect(linkedItemCell).toBeVisible();
+      await expect(detailPage.costLines.row(`${testPrefix} Budget No Area`)).toBeVisible();
+      const groupHeading = detailPage.costLines.groupHeading(wiTitle);
+      await expect(groupHeading).toBeVisible();
 
       // The task link is there; an item without an area shows the muted "No area" text
       // (rendered by AreaBreadcrumb when the area is null), never a breadcrumb path
-      await expect(linkedItemCell.getByRole('link', { name: wiTitle })).toBeVisible();
-      await expect(linkedItemCell.getByText('No area', { exact: true })).toBeVisible();
-      await expect(linkedItemCell.locator('[class*="compact"]')).toHaveCount(0);
+      await expect(groupHeading.getByRole('link', { name: wiTitle })).toBeVisible();
+      await expect(groupHeading.getByText('No area', { exact: true })).toBeVisible();
+      await expect(groupHeading.locator('[class*="compact"]')).toHaveCount(0);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -266,7 +270,7 @@ test.describe('Cost line — task without an area shows no breadcrumb (Scenario 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Cost line — purchase without an area shows "No area" (Scenario 3)', () => {
-  test('the Belongs to cell of a purchase line shows "No area", no breadcrumb path', async ({
+  test('the group heading of a purchase line shows "No area", no breadcrumb path', async ({
     page,
     testPrefix,
   }) => {
@@ -305,20 +309,17 @@ test.describe('Cost line — purchase without an area shows "No area" (Scenario 
 
       await expect(detailPage.budgetLinesSection).toBeVisible();
 
-      // The row of our purchase's line
-      const linkedItemCell = detailPage.costLines.row(`${testPrefix} HI Budget`);
-      await expect(linkedItemCell).toBeVisible();
+      // The row of our purchase's line, under the purchase's group heading
+      await expect(detailPage.costLines.row(`${testPrefix} HI Budget`)).toBeVisible();
+      const groupHeading = detailPage.costLines.groupHeading(hiName);
+      await expect(groupHeading).toBeVisible();
+      await expect(groupHeading.getByRole('link', { name: hiName })).toBeVisible();
 
-      // Scope to the household item row — it must contain the hi name link
-      const hiLink = linkedItemCell.getByRole('link', { name: hiName });
-      await expect(hiLink).toBeVisible();
-
-      // No compact breadcrumb span in the household item Linked Item cell
-      const breadcrumbSpan = linkedItemCell.locator('[class*="compact"]');
-      await expect(breadcrumbSpan).not.toBeVisible();
+      // No compact breadcrumb span for a purchase without an area
+      await expect(groupHeading.locator('[class*="compact"]')).toHaveCount(0);
 
       // A purchase with no area shows the muted "No area" text, like a task does
-      await expect(linkedItemCell.getByText('No area', { exact: true })).toBeVisible();
+      await expect(groupHeading.getByText('No area', { exact: true })).toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

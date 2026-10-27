@@ -19,7 +19,7 @@ import {
   GrossCell,
   QuantityPriceCell,
   StateCell,
-  TargetCell,
+  TargetLabel,
 } from './CostLineRowParts.js';
 import type {
   CostLineGroup,
@@ -96,7 +96,7 @@ export function CostLineTable({
   const total = Math.round(groups.reduce((sum, group) => sum + group.total, 0) * 100) / 100;
   const remaining = isDocument && remainingAmount !== undefined ? remainingAmount : 0;
   const split = isDocument && remainingAmount !== undefined ? remainingState(remaining) : 'none';
-  const columns = isDocument ? 7 : 5;
+  const columns = isDocument ? 6 : 5;
 
   function splitNotice(kind: 'notYetSplit' | 'over', surface: DataTableSurface): ReactNode {
     if (kind === 'over') {
@@ -153,11 +153,6 @@ export function CostLineTable({
               <th scope="col" className={styles.headEnd}>
                 {t('table.colGross')}
               </th>
-              {isDocument && (
-                <th scope="col" className={styles.head}>
-                  {t('table.colBelongsTo')}
-                </th>
-              )}
               <th scope="col" className={styles.headAction}>
                 <span className={sharedStyles.srOnly}>{t('table.colActions')}</span>
               </th>
@@ -167,7 +162,12 @@ export function CostLineTable({
             <tbody key={group.id}>
               {group.heading && (
                 <tr>
-                  <th scope="rowgroup" colSpan={columns} className={styles.groupHead}>
+                  <th
+                    scope="rowgroup"
+                    colSpan={columns}
+                    className={styles.groupHead}
+                    data-testid={dataTableTestId(`${testIdPrefix}-group`, group.id, 'table')}
+                  >
                     <GroupHeading
                       heading={group.heading}
                       total={group.total}
@@ -206,11 +206,6 @@ export function CostLineTable({
                       vatRate={vatRate}
                     />
                   </td>
-                  {isDocument && (
-                    <td className={styles.cell}>
-                      <TargetCell row={row} linkState={linkState} />
-                    </td>
-                  )}
                   <td className={styles.cellAction}>
                     <ActionsCell
                       row={row}
@@ -244,7 +239,7 @@ export function CostLineTable({
               >
                 {formatCurrency(total)}
               </td>
-              <td colSpan={isDocument ? 2 : 1} />
+              <td />
             </tr>
           </tfoot>
         </table>
@@ -254,7 +249,10 @@ export function CostLineTable({
         {groups.map((group) => (
           <section key={group.id} className={styles.cardGroup}>
             {group.heading && (
-              <h3 className={styles.cardGroupHead}>
+              <h3
+                className={styles.cardGroupHead}
+                data-testid={dataTableTestId(`${testIdPrefix}-group`, group.id, 'card')}
+              >
                 <GroupHeading
                   heading={group.heading}
                   total={group.total}
@@ -296,11 +294,6 @@ export function CostLineTable({
                       vatRate={vatRate}
                     />
                   </div>
-                  {isDocument && (
-                    <div className={styles.cardTarget}>
-                      <TargetCell row={row} linkState={linkState} />
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>
@@ -332,10 +325,20 @@ interface GroupHeadingProps {
   readonly linkState?: OriginState;
 }
 
-/** Heading of an item-mode group: Estimates, or the offer/invoice with company and totals. */
+/** Heading of a group: Estimates, an offer/invoice with company and totals, or a task/purchase. */
 function GroupHeading({ heading, total, plannedTotal, linkState }: GroupHeadingProps) {
   const { t } = useTranslation('costLines');
   const { formatCurrency, formatDate } = useFormatters();
+  if (heading.kind === 'target') {
+    return (
+      <span className={styles.groupLine}>
+        <TargetLabel target={heading.target} linkState={linkState} />
+        <span className={styles.groupMeta}>
+          {t('table.groupTotal', { amount: formatCurrency(total) })}
+        </span>
+      </span>
+    );
+  }
   if (heading.kind === 'estimates') {
     return (
       <span className={styles.groupLine}>

@@ -346,7 +346,7 @@ test.describe('Document Linking — Invoice (Scenario 2)', { tag: '@responsive' 
 
       await new InvoiceDetailPage(page).goto(ids.invoiceId);
       const panel = new DocumentsPanel(page);
-      await panel.open();
+      await panel.open('summary-fact-documents');
       await panel.openPicker();
       await panel.picker.waitForDocumentsLoaded();
       await panel.picker.documentItems.first().click();

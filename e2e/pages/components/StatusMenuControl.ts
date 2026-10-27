@@ -2,7 +2,7 @@
  * Component POM for the shared StatusMenu (#2209).
  *
  * `testId` is the host's id: `work-item-status`, `purchase-status`, `milestone-status`,
- * `invoice-status-badge`, `deposit-status-<id>` / `deposit-status-mobile-<id>`.
+ * `invoice-status-badge`, `invoice-primary-mark-paid`, `payment-status-<id>`.
  * The trigger is a chip button (or a plain Badge when no transition exists). From 1024 px
  * the surface is an anchored popover (role "menu" / "dialog"); below it is the bottom Sheet,
  * which slides in - wait for the animation to settle before clicking.

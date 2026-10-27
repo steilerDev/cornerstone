@@ -73,4 +73,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Related list & picker specs](related-list-picker-specs.md) — stale plan retire lists, adoption vs page stories, 204→200 schema strip, Undo+reschedule, translated ref data, guard-safe greps
 - [Money overview specs](money-overview-specs.md) — reserved baseline names (MoneyFigure), existing route params (`by`), glossary-former UX labels, ADR vs UX columns, Not-yet-split/orphan rows, drill lists losing item links, translated names ≠ user text
 - [ObjectList adopter specs](object-list-adopter-specs.md) — template gaps (child cells, All count, slots), chip-scoped column prefs, refresh() clears rows, last figure surface
+- [First detail-page adopter specs](first-detail-page-adopter-specs.md) — list-only money fields, false "existing" premises, lazy tabs vs header dialogs, final-row counts, figure guard literals, closure pre-measure
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling
