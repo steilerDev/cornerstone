@@ -873,9 +873,10 @@ test.describe('Convert page - Paperless document and Read amounts (C11)', () => 
 
       await convert.goto(fixture.invoiceId);
       await expect(convert.document).toBeVisible();
-      await expect(convert.readAmounts).toHaveAttribute('aria-disabled', 'true');
+      // Read amounts exists only once a document is selected (and the LLM is on)
+      await expect(convert.readAmounts).toHaveCount(0);
       await pickMockDocument(page, convert);
-      await expect(convert.readAmounts).not.toHaveAttribute('aria-disabled', 'true');
+      await expect(convert.readAmounts).toBeVisible();
 
       await convert.readAmounts.click();
       await expect(convert.readStatus).toContainText('Document read');

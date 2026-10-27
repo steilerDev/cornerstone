@@ -71,6 +71,12 @@ function preview(over: Partial<AutoItemizePreviewResponse> = {}): AutoItemizePre
 
 const DOC = { id: 5, title: 'Offer.pdf' };
 
+/** Lets the mocked requests and the hook's promise chain settle (state cannot show a rejection). */
+const settle = () =>
+  act(async () => {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+  });
+
 async function setup(llm = true) {
   mockGetPaperlessStatus.mockResolvedValue(status());
   mockFetchConfig.mockResolvedValue(config(llm));
@@ -112,14 +118,13 @@ describe('availability', () => {
     mockFetchConfig.mockResolvedValue(config(true));
     mockGetPaperlessStatus.mockResolvedValue(status({ reachable: false }));
     const unreachable = renderHook(() => useConvertDocument());
-    await waitFor(() => expect(mockFetchConfig).toHaveBeenCalled());
-    await act(async () => undefined);
+    // llmEnabled comes from the config alone: true marks the moment both requests have settled.
+    await waitFor(() => expect(unreachable.result.current.llmEnabled).toBe(true));
     expect(unreachable.result.current.configured).toBe(false);
-    expect(unreachable.result.current.llmEnabled).toBe(true);
 
     mockGetPaperlessStatus.mockResolvedValue(status({ configured: false }));
     const unconfigured = renderHook(() => useConvertDocument());
-    await act(async () => undefined);
+    await waitFor(() => expect(unconfigured.result.current.llmEnabled).toBe(true));
     expect(unconfigured.result.current.configured).toBe(false);
   });
 
@@ -135,7 +140,7 @@ describe('availability', () => {
     mockGetPaperlessStatus.mockRejectedValue(new Error('offline'));
     mockFetchConfig.mockResolvedValue(config(true));
     const { result } = renderHook(() => useConvertDocument());
-    await act(async () => undefined);
+    await settle();
     expect(result.current).toMatchObject({
       configured: false,
       paperlessUrl: null,
