@@ -143,7 +143,7 @@ Open the **⋯** menu and choose **Budget overview for the bank**. This opens th
 
 ## Offers
 
-Linked offers count at their face value on Money > Overview, the same as on the task and purchase pages. A cost line linked to an offer shows the offer's amount in every view, with no range added to it. For more, see [Invoices & Vendors](vendors-and-invoices).
+Linked offers count at their face value on Money > Overview, the same as on the task and purchase pages. A cost line linked to an offer shows the offer's amount in every view, with no range added to it. For more, see [Invoices & Companies](vendors-and-invoices).
 
 ## Subsidies
 

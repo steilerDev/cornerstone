@@ -6,7 +6,7 @@ import type {
   InvoiceDetailResponse,
   InvoiceListPaginatedResponse,
   InvoiceListSort,
-  CreateInvoiceRequest,
+  CreateVendorInvoiceRequest,
   UpdateInvoiceRequest,
   ConvertQuotationRequest,
 } from '@cornerstone/shared';
@@ -19,9 +19,13 @@ export function fetchInvoices(vendorId: string): Promise<Invoice[]> {
 }
 
 /**
- * Creates a new invoice for a vendor.
+ * Creates a new invoice for a vendor; an optional cost line and linked document are written in
+ * the same request.
  */
-export function createInvoice(vendorId: string, data: CreateInvoiceRequest): Promise<Invoice> {
+export function createInvoice(
+  vendorId: string,
+  data: CreateVendorInvoiceRequest,
+): Promise<Invoice> {
   return post<{ invoice: Invoice }>(`/vendors/${vendorId}/invoices`, data).then((r) => r.invoice);
 }
 

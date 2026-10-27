@@ -140,10 +140,8 @@ test.describe('Paperless review page — reload and direct link', () => {
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
     await invoicesPage.waitForLoaded();
-    await invoicesPage.clickNewInvoice();
-    const picker = await invoicesPage.waitForPickerModal();
-    await picker.selectDocument(MOCK_DOC.title);
-
+    // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+    await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC.id);
     await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
     expect(new URL(page.url()).searchParams.get('documentId')).toBe(String(DOC_ID));
 

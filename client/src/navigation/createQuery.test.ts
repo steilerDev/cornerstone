@@ -39,6 +39,22 @@ describe('sanitizePrefill', () => {
   it('ignores non-string values', () => {
     expect(sanitizePrefill({ areaId: 5, date: null, companyId: undefined })).toEqual({});
   });
+
+  it.each(['1', '42', '1234567890'])('accepts documentId %p', (documentId) => {
+    expect(sanitizePrefill({ documentId })).toEqual({ documentId });
+  });
+
+  it.each(['0', '01', '-1', '1.5', 'x', '', '12345678901', '7 ', 'a7'])(
+    'rejects documentId %p',
+    (documentId) => {
+      expect(sanitizePrefill({ documentId })).toEqual({});
+    },
+  );
+
+  it('does not apply the id slug rule to documentId (digits only, any length up to ten)', () => {
+    expect(sanitizePrefill({ documentId: 'abc' })).toEqual({});
+    expect(sanitizePrefill({ areaId: 'abc' })).toEqual({ areaId: 'abc' });
+  });
 });
 
 describe('prefillFromSearch', () => {
@@ -49,6 +65,15 @@ describe('prefillFromSearch', () => {
       date: '2026-03-01',
     });
     expect(prefillFromSearch(new URLSearchParams(''))).toEqual({});
+  });
+
+  it('reads a valid documentId and drops an invalid one', () => {
+    expect(prefillFromSearch(new URLSearchParams('documentId=7&companyId=c1'))).toEqual({
+      documentId: '7',
+      companyId: 'c1',
+    });
+    expect(prefillFromSearch(new URLSearchParams('documentId=0'))).toEqual({});
+    expect(prefillFromSearch(new URLSearchParams('documentId=x'))).toEqual({});
   });
 });
 

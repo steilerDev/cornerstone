@@ -122,7 +122,7 @@
     {
       "id": "D-17",
       "story": 2194,
-      "tests": ["client/src/pages/InvoicesPage/useInvoiceCreate.test.tsx"]
+      "tests": ["client/src/objectForms/invoiceForm.test.tsx"]
     },
     {
       "id": "D-18",

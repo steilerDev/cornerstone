@@ -31,6 +31,11 @@ const mockPreviewAutoItemize = jest.fn<typeof AutoItemizeApiTypes.previewAutoIte
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
 }));
+// The shared status cache would carry one test's answer into the next.
+jest.unstable_mockModule('../../lib/paperlessStatusCache.js', () => ({
+  getSharedPaperlessStatus: () => mockGetPaperlessStatus(),
+  resetPaperlessStatusCache: jest.fn(),
+}));
 jest.unstable_mockModule('../../lib/configApi.js', () => ({ fetchConfig: mockFetchConfig }));
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   previewAutoItemize: mockPreviewAutoItemize,
@@ -162,15 +167,14 @@ describe('availability', () => {
 });
 
 describe('document selection', () => {
-  it('the picker opens and closes', async () => {
+  it('has no picker state of its own any more (the document picker owns it)', async () => {
     const { result } = await setup();
-    act(() => result.current.openPicker());
-    expect(result.current.pickerOpen).toBe(true);
-    act(() => result.current.closePicker());
-    expect(result.current.pickerOpen).toBe(false);
+    expect(result.current).not.toHaveProperty('pickerOpen');
+    expect(result.current).not.toHaveProperty('openPicker');
+    expect(result.current).not.toHaveProperty('closePicker');
   });
 
-  it('selecting a document keeps its id and title, closes the picker and clears a previous read', async () => {
+  it('selecting a document keeps its id and title and clears a previous read', async () => {
     const { result } = await setup();
     mockPreviewAutoItemize.mockResolvedValue(preview());
     act(() => result.current.select(DOC));
@@ -178,10 +182,8 @@ describe('document selection', () => {
       await result.current.analyze(5, 10000);
     });
     expect(result.current.aiState).toBe('success');
-    act(() => result.current.openPicker());
     act(() => result.current.select({ id: 6, title: 'Other.pdf', ...{ extra: 'ignored' } }));
     expect(result.current.document).toEqual({ id: 6, title: 'Other.pdf' });
-    expect(result.current.pickerOpen).toBe(false);
     expect(result.current.aiState).toBe('idle');
     expect(result.current.mismatch).toBeNull();
     expect(result.current.noLines).toBe(false);

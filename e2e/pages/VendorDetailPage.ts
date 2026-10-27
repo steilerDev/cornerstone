@@ -527,13 +527,8 @@ export class VendorDetailPage {
     return this.outstandingBalanceStat.locator('[class*="statValue"]');
   }
 
-  /** "Add Invoice" button in the Invoices section header. */
-  get addInvoiceButton(): Locator {
-    return this.invoicesSection.getByRole('button', { name: 'Add Invoice', exact: true });
-  }
-
-  /** Status select of the create-invoice modal on the company page. */
-  get createInvoiceStatusSelect(): Locator {
-    return this.page.locator('#create-status');
+  /** "New invoice" button in the Invoices card header (#2241); opens the New invoice dialog. */
+  get newInvoiceButton(): Locator {
+    return this.page.getByTestId('company-new-invoice');
   }
 }

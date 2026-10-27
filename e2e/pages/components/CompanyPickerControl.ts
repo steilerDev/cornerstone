@@ -1,8 +1,8 @@
 /**
  * Component POM for a company EntityPicker (kind `company` or `who`) with the inline "New company ‹text›" row (#2213).
  *
- * Used for the Paperless review (`#vendor-picker`), the invoice edit modal (`#edit-vendor`), the
- * diary daily log (`#daily-log-vendor`), the invoice create modal (`#invoice-vendor`) and the
+ * Used for the Paperless review (`#vendor-picker`), the Edit details dialog (`#vendorId`), the
+ * diary daily log (`#daily-log-vendor`), the New invoice dialog (`#vendorId`) and the
  * purchase form and purchase edit page (`#vendorId`), the cost line form (`#budget-vendor`), the
  * task detail assignment (`#work-item-assignment`) and the New task dialog (`#assignment`, the Who
  * kind: a "Companies" group, then "Household members"; one pick only). `pick(name)` chooses an existing company by keyboard. The dropdown is

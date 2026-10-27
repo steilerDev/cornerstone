@@ -408,9 +408,9 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
       await createMenu.choose('invoice');
 
       await page.waitForURL(pathnameIs(routeUrl('invoices')));
-      await expect(invoices.createModal).toBeVisible();
-      await expect(invoices.createVendorSelected).toContainText(COMPANY);
-      await expect(invoices.createStatusSelect).toHaveValue('pending');
+      await expect(invoices.createDialog.dialog).toBeVisible();
+      await expect(invoices.createDialog.companyChip()).toContainText(COMPANY);
+      await expect(invoices.createDialog.status).toHaveValue('pending');
       // The request params are consumed: the URL is clean
       expect(new URL(page.url()).search).toBe('');
 
@@ -425,12 +425,10 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
         await freshMenu.choose('offer');
 
         await fresh.waitForURL(pathnameIs(routeUrl('invoices')));
-        await expect(freshInvoices.createModal).toBeVisible();
-        await expect(freshInvoices.createVendorSelected).toContainText(COMPANY);
-        await expect(freshInvoices.createStatusSelect).toHaveValue('quotation');
-        await expect(freshInvoices.createStatusSelect.locator('option:checked')).toHaveText(
-          'Offer',
-        );
+        // An offer has no Status field: the dialog is titled "New offer" and is sent as an offer
+        await expect(freshInvoices.offerDialog.dialog).toBeVisible();
+        await expect(freshInvoices.offerDialog.companyChip()).toContainText(COMPANY);
+        await expect(freshInvoices.offerDialog.status).toHaveCount(0);
       } finally {
         await fresh.close();
       }

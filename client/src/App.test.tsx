@@ -616,6 +616,21 @@ describe('App', () => {
     );
   }, 15000);
 
+  it('mounts the invoice create provider: ?create=1 opens the New offer dialog in place over the list', async () => {
+    window.history.pushState({}, 'New offer', '/budget/invoices?create=1&kind=offer');
+    render(<App />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'New offer' }, { timeout: 5000 });
+
+    expect(dialog).toBeInTheDocument();
+    // In place: the list page stays behind the dialog and the create params are gone.
+    expect(
+      screen.getByRole('heading', { name: /^invoices/i, level: 1, hidden: true }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(window.location.pathname).toBe('/budget/invoices');
+  }, 15000);
+
   it('serves the Convert page at /budget/invoices/:id/convert (offer not found state)', async () => {
     const { ApiClientError } = await import('./lib/apiClient.js');
     mockFetchInvoiceById.mockRejectedValue(

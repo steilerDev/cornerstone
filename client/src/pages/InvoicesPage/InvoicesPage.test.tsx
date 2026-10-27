@@ -22,9 +22,13 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as StatusChangeApiTypes from '../../lib/statusChangeApi.js';
 import type * as PageModule from './InvoicesPage.js';
+import { InvoiceCreateContext } from '../../objectForms/invoiceCreateContext.js';
+import type { OpenInvoiceForm } from '../../objectForms/invoiceCreateContext.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
+
+const mockOpenForm = jest.fn<OpenInvoiceForm>();
 
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
-const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
@@ -32,7 +36,7 @@ const mockChangeInvoiceStatus = jest.fn<typeof StatusChangeApiTypes.changeInvoic
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
-  createInvoice: mockCreateInvoice,
+  createInvoice: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
@@ -52,6 +56,12 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentThumbnailUrl: jest.fn().mockReturnValue('/thumb'),
   getDocumentPreviewUrl: jest.fn().mockReturnValue('/preview'),
   listPaperlessCorrespondents: jest.fn(),
+}));
+
+// The shared status cache would carry one test's answer into the next.
+jest.unstable_mockModule('../../lib/paperlessStatusCache.js', () => ({
+  getSharedPaperlessStatus: () => mockGetPaperlessStatus(),
+  resetPaperlessStatusCache: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
@@ -121,7 +131,7 @@ beforeEach(async () => {
   if (!InvoicesPage) ({ InvoicesPage } = await import('./InvoicesPage.js'));
   mockFetchAllInvoices.mockReset();
   mockFetchAllInvoices.mockResolvedValue(makeResponse([A, B]));
-  mockCreateInvoice.mockReset();
+  mockOpenForm.mockReset();
   mockFetchVendors.mockReset();
   mockFetchVendors.mockResolvedValue({
     vendors: [{ id: 'v-1', name: 'Example Roofing Ltd' } as never],
@@ -519,31 +529,113 @@ describe('Mark paid from the list', () => {
 });
 
 describe('creating an invoice', () => {
-  it('reloads the list after a successful create', async () => {
-    mockCreateInvoice.mockResolvedValue(A as never);
-    const user = userEvent.setup();
-    renderPage();
-    await loaded();
-    await waitFor(() =>
-      expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute('aria-disabled', 'true'),
+  function renderWithOpener(url = '/budget/invoices', state?: unknown) {
+    return render(
+      <ToastProvider>
+        <InvoiceCreateContext value={mockOpenForm}>
+          <MemoryRouter
+            initialEntries={[
+              {
+                pathname: url.split('?')[0]!,
+                search: url.includes('?') ? `?${url.split('?')[1]}` : '',
+                state,
+              },
+            ]}
+          >
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPage />} />
+            </Routes>
+            <LocationProbe />
+          </MemoryRouter>
+        </InvoiceCreateContext>
+      </ToastProvider>,
     );
+  }
+
+  it('labels the primary action New invoice and opens the invoice form', async () => {
+    const user = userEvent.setup();
+    renderWithOpener();
+    await loaded();
+
+    expect(screen.getByTestId('new-invoice-button')).toHaveTextContent('New invoice');
+    await user.click(screen.getByTestId('new-invoice-button'));
+
+    expect(mockOpenForm).toHaveBeenCalledTimes(1);
+    expect(mockOpenForm).toHaveBeenCalledWith({ kind: 'invoice' });
+  });
+
+  it('labels the primary action New offer and opens the offer form on the Offers chip', async () => {
+    const user = userEvent.setup();
+    renderWithOpener('/budget/invoices?status=quotation');
+    await loaded();
+
+    expect(screen.getByTestId('new-invoice-button')).toHaveTextContent('New offer');
+    await user.click(screen.getByTestId('new-invoice-button'));
+
+    expect(mockOpenForm).toHaveBeenCalledWith({ kind: 'offer' });
+  });
+
+  it('opens with the company and document of ?create=1 and removes the create params', async () => {
+    renderWithOpener('/budget/invoices?create=1&kind=offer&companyId=v-1&documentId=7&q=roof');
+    await loaded();
+
+    await waitFor(() => expect(mockOpenForm).toHaveBeenCalledTimes(1));
+    expect(mockOpenForm).toHaveBeenCalledWith({
+      kind: 'offer',
+      company: { id: 'v-1' },
+      documentId: 7,
+    });
+    await waitFor(() => {
+      const url = screen.getByTestId('location').textContent!;
+      expect(url).toContain('q=roof');
+      expect(url).not.toMatch(/create|kind=|companyId|documentId/);
+    });
+  });
+
+  it('gives the New menu trigger as the focus target when ?create=1 came from the menu', async () => {
+    const trigger = document.createElement('button');
+    trigger.setAttribute('data-create-trigger', '');
+    document.body.appendChild(trigger);
+    renderWithOpener('/budget/invoices?create=1', { createOpener: true });
+    await loaded();
+
+    await waitFor(() => expect(mockOpenForm).toHaveBeenCalled());
+    expect(mockOpenForm.mock.calls[0]![0].returnFocusRef?.current).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('opens the form with the n shortcut', async () => {
+    renderWithOpener();
+    await loaded();
+
+    fireEvent.keyDown(document, { key: 'n' });
+
+    expect(mockOpenForm).toHaveBeenCalledWith({ kind: 'invoice' });
+  });
+
+  it.each(['invoice', 'offer'])(
+    'reloads the list when an %s is created behind the dialog',
+    async (kind) => {
+      renderWithOpener();
+      await loaded();
+      const before = mockFetchAllInvoices.mock.calls.length;
+
+      act(() => notifyObjectCreated(kind));
+
+      await waitFor(() => expect(mockFetchAllInvoices.mock.calls.length).toBeGreaterThan(before));
+    },
+  );
+
+  it('does not reload the list when another kind of object is created', async () => {
+    renderWithOpener();
+    await loaded();
+    await act(async () => {});
     const before = mockFetchAllInvoices.mock.calls.length;
 
-    await user.click(screen.getByTestId('new-invoice-button'));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByLabelText(/vendor/i));
-    await user.click(await screen.findByRole('option', { name: 'Example Roofing Ltd' }));
-    fireEvent.change(within(dialog).getByLabelText(/^amount/i), { target: { value: '500' } });
-    fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
-      target: { value: '2026-06-01' },
-    });
-    fireEvent.submit(dialog.querySelector('form') as HTMLFormElement);
+    act(() => notifyObjectCreated('company'));
+    await act(async () => {});
 
-    await waitFor(() => expect(mockCreateInvoice).toHaveBeenCalledWith('v-1', expect.anything()));
-    await waitFor(() => expect(mockFetchAllInvoices.mock.calls.length).toBeGreaterThan(before));
-    await act(async () => {
-      await Promise.resolve();
-    });
+    expect(mockFetchAllInvoices.mock.calls.length).toBe(before);
   });
 
   it('shows the Without document filter once Paperless is configured', async () => {
@@ -558,5 +650,12 @@ describe('creating an invoice', () => {
     await loaded();
     await userEvent.click(await screen.findByTestId('invoices-filters-button'));
     expect(await screen.findByTestId('invoices-filter-withoutDocument')).toBeInTheDocument();
+  });
+
+  it('hides the Without document filter when Paperless is not configured', async () => {
+    renderPage();
+    await loaded();
+    await userEvent.click(await screen.findByTestId('invoices-filters-button'));
+    expect(screen.queryByTestId('invoices-filter-withoutDocument')).toBeNull();
   });
 });

@@ -105,3 +105,4 @@ removing it will fail typecheck. Flag it so QA updates the import in-session.
 - `ISSUE-415-STATUS.md` — household item timeline dependency status notes
 - [Restructure gotchas](restructure-gotchas.md) — EPIC-21 plan:check component counting, cost line family location, Bash guard workarounds
 - [ObjectList adopter patterns](objectlist-adopter-patterns.md) — Invoices #2238: chip-count config split, ids row refresh, ref cycle for create flow
+- [Invoice create dialog](invoice-create-dialog.md) — #2241 provider/schema/document picker wiring and baseline rules

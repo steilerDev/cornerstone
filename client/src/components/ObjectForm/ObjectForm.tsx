@@ -25,6 +25,7 @@ import {
   adjustForOptions,
   clearResolvedError,
   firstErrorField,
+  hasValue,
   initialFocusName,
   isDirty,
   isMoreField,
@@ -75,7 +76,8 @@ interface Step {
   readonly errors: ObjectFormErrors;
   readonly expanded: boolean;
   readonly addedText: string;
-  readonly onCreated: (result: ObjectFormResult) => void;
+  /** Child steps only: the root form reports through the `onCreated` prop. */
+  readonly onCreated?: (result: ObjectFormResult) => void;
   readonly parentField?: string;
 }
 
@@ -94,7 +96,6 @@ function makeStep(
     errors: {},
     expanded: startsExpanded(schema, prefill),
     addedText: '',
-    onCreated: () => undefined,
     ...extra,
   };
 }
@@ -243,6 +244,24 @@ export function ObjectForm({
     });
   };
 
+  const setValues = (next: ObjectFormValues, announcement?: string) => {
+    updateTop((step) => {
+      const current = step.schema ?? schemaRef.current;
+      const values = { ...step.values, ...next };
+      let errors = step.errors;
+      const validated = current.validate(values);
+      for (const key of Object.keys(next)) errors = clearResolvedError(errors, key, validated);
+      const needsMore = current.fields.some((f) => isMoreField(f) && hasValue(next[f.name]));
+      return {
+        ...step,
+        values,
+        errors,
+        expanded: step.expanded || needsMore,
+        addedText: announcement ?? '',
+      };
+    });
+  };
+
   const createChild = (child: ObjectFormChild, parentField: string) => {
     setBanner(null);
     setSteps((prev) => [
@@ -267,7 +286,7 @@ export function ObjectForm({
     const failed = top;
     if (error instanceof ApiClientError) {
       const code = error.error.code;
-      const mappedErrors = schema.mapError?.(code, failed.values) ?? {};
+      const mappedErrors = schema.mapError?.(code, failed.values, error.error.details) ?? {};
       const mappedNames = Object.keys(mappedErrors).filter(
         (name) => mappedErrors[name] !== undefined,
       );
@@ -341,7 +360,7 @@ export function ObjectForm({
     if (depth > 1) {
       setBusy(false);
       popStep();
-      step.onCreated(result);
+      step.onCreated!(result);
       return;
     }
 
@@ -415,6 +434,9 @@ export function ObjectForm({
       error={top.errors[field.name]}
       busy={busy}
       onChange={(value) => setValue(field.name, value)}
+      onSetValues={(next, announcement) => {
+        if (!busyRef.current) setValues(next, announcement);
+      }}
       createChild={(child) => createChild(child, field.name)}
     />
   );

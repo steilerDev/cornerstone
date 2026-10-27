@@ -1119,8 +1119,7 @@ test.describe('Attachment-type tagging — dark mode (Scenario 24)', () => {
 // Scenario 21: Paperless-first invoice creation flow — regression guard
 //
 // Per the dev-team-lead's ambiguity resolution #1 on issue #1877: the picker used
-// while CREATING a new invoice (InvoicePaperlessPickerModal, InvoicesPage → "New
-// Invoice") does NOT get an attachment-type field — the picked document IS the
+// while CREATING a new invoice (the New invoice dialog's document picker) does NOT get an attachment-type field — the picked document IS the
 // invoice's own source document, so the server hardcodes attachmentType:'invoice'
 // in commitAutoItemizeCreate's own document_links insert. This test verifies BOTH
 // halves of that contract from the browser: no attachment-type picker/select ever
@@ -1368,15 +1367,8 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await expect(pickerModal.modal).toBeVisible();
-
-      // Regression guard: no attachment-type field anywhere in the create-invoice picker
-      await expect(page.locator('#picker-attachment-type')).toHaveCount(0);
-      await expect(page.locator('select[id^="attachment-type-"]')).toHaveCount(0);
-
-      await pickerModal.selectDocument(PF_DOC.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(PF_DOC.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);

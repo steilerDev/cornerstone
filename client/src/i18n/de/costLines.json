@@ -18,6 +18,7 @@
     "saved": "Gespeichert.",
     "savedCount_one": "{{count}} Position gespeichert.",
     "savedCount_other": "{{count}} Positionen gespeichert.",
+    "newInvoice": "Neue Rechnung",
     "emptyBodyDocument": {
       "offer": "Teile dieses Angebot in Kostenpositionen für Aufgaben und Anschaffungen auf.",
       "invoice": "Teile diese Rechnung in Kostenpositionen für Aufgaben und Anschaffungen auf."

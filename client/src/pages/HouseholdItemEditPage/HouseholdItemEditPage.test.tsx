@@ -23,6 +23,22 @@ const mockFetchHouseholdItemCategories =
 
 const mockFetchAreas = jest.fn<typeof AreasApiTypes.fetchAreas>();
 
+// EntityPicker formats document dates, so it reads the locale.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../lib/areasApi.js', () => ({
   fetchAreas: mockFetchAreas,
   createArea: jest.fn(),

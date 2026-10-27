@@ -32,12 +32,17 @@
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createVendorViaApi,
+  createWorkItemViaApi,
+  deleteVendorViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
 import { DocumentsPanel } from '../../pages/DocumentsPanel.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
-import { InvoicesPage } from '../../pages/InvoicesPage.js';
-import { ROUTES } from '../../fixtures/testData.js';
+import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
+import { API, ROUTES } from '../../fixtures/testData.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -245,7 +250,10 @@ test.describe(
       }
     });
 
-    test('Search input filters documents in the picker modal', async ({ page, testPrefix }) => {
+    test('Search input filters documents in the Link document picker', async ({
+      page,
+      testPrefix,
+    }) => {
       let createdId: string | null = null;
       try {
         createdId = await createWorkItemViaApi(page, {
@@ -463,7 +471,7 @@ test.describe('Document Browser — not connected (Scenario 6)', { tag: '@respon
 test.describe('Document Browser — responsive (Scenario 8)', { tag: '@responsive' }, () => {
   test.describe.configure({ timeout: 60_000 });
 
-  test('Document browser in picker modal renders without horizontal scroll', async ({
+  test('Document browser in the Link document picker renders without horizontal scroll', async ({
     page,
     testPrefix,
   }) => {
@@ -585,34 +593,41 @@ test.describe('Document Browser — infinite scroll (Scenarios 9–14)', { tag: 
     }
   });
 
-  test('Scenario 11: invoice picker modal loads the second batch on scroll', async ({ page }) => {
+  test('Scenario 11: the Link document picker on an invoice loads the second batch on scroll', async ({
+    page,
+    testPrefix,
+  }) => {
+    // The New invoice dialog no longer hosts the document browser (#2241: it has an inline
+    // document picker); the browser lives in the Documents panel's "Link document" picker.
     const mock = await mockPaginatedPaperless(page, { total: 30 });
-    // Enable auto-itemize so "New Invoice" opens the Paperless picker; keep the real config fields
-    await page.route('**/api/config', async (route: Route) => {
-      const realResp = await route.fetch();
-      const realBody = (await realResp.json()) as Record<string, unknown>;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+    let vendorId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} DocBrowser Invoice Co` });
+      const created = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: { invoiceNumber: `${testPrefix}-DB11`, amount: 100, date: '2026-01-15' },
       });
-    });
+      expect(created.ok(), 'POST invoice').toBeTruthy();
+      const invoiceId = ((await created.json()) as { invoice: { id: string } }).invoice.id;
+      const detail = new InvoiceDetailPage(page);
+      await detail.goto(invoiceId);
+      await detail.openDocuments();
+      const docsPanel = detail.documents;
+      await docsPanel.openPicker();
+      await docsPanel.picker.waitForVisible();
+      const picker = docsPanel.picker;
+      await picker.waitForDocumentsLoaded();
 
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
-    await invoicesPage.clickNewInvoice();
-    const picker = await invoicesPage.waitForPickerModal();
-    await picker.waitForDocumentsLoaded();
+      await expect(picker.documentItems).toHaveCount(25);
+      expect(mock.requestedPages).toEqual([1]);
 
-    await expect(picker.documentItems).toHaveCount(25);
-    expect(mock.requestedPages).toEqual([1]);
+      await picker.scrollToBottom();
 
-    await picker.scrollToBottom();
-
-    await expect(picker.documentItems).toHaveCount(30);
-    await expect(picker.endOfListMessage).toBeVisible();
-    expect(mock.requestedPages).toEqual([1, 2]);
+      await expect(picker.documentItems).toHaveCount(30);
+      await expect(picker.endOfListMessage).toBeVisible();
+      expect(mock.requestedPages).toEqual([1, 2]);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
   });
 
   test('Scenario 12: Load more keeps keyboard focus while loading and hands it to the end-of-list message', async ({

@@ -176,13 +176,16 @@ describe('resolveRedirect', () => {
 });
 
 describe('liveConditionalRules', () => {
-  it('returns exactly the live Paperless-off rule for the review page', () => {
+  it('returns the live Paperless-off and AI-off rules for the review page, in that order', () => {
     const rules = liveConditionalRules('invoicePaperlessReview');
-    expect(rules).toHaveLength(1);
+    expect(rules).toHaveLength(2);
     expect(rules[0]).toBe(
       ROUTE_MAP.find((e) => e.from === '/budget/invoices/new/paperless (Paperless off)'),
     );
-    expect(rules[0]?.match?.condition).toBe('paperless-off');
+    expect(rules[1]).toBe(
+      ROUTE_MAP.find((e) => e.from === '/budget/invoices/new/paperless (AI off)'),
+    );
+    expect(rules.map((r) => r.match?.condition)).toEqual(['paperless-off', 'ai-off']);
   });
 
   it('returns nothing for the auto-itemize page (its rule is planned)', () => {

@@ -72,3 +72,4 @@
 - [story-2235-cost-lines.md](story-2235-cost-lines.md) — #2235 cost lines: CostLinesPanel/Form/Grid POMs, costLineSeed, old UI mapping, click-budget spec, live-run defects.
 - [story-2237-money-overview.md](story-2237-money-overview.md) — #2237 Money overview POM/test ids, mockMoneyOverview + buildMockBreakdown, table-vs-list container query, live-run traps.
 - [story-2239-offer-invoice-page.md](story-2239-offer-invoice-page.md) — #2239 invoice page POM composition, test ids, changed behaviours, static-only verification.
+- [story-2241-invoice-dialog.md](story-2241-invoice-dialog.md) — #2241 InvoiceFormDialog POM, company child step, removed picker scenarios, static-only verification.

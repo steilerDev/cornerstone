@@ -219,12 +219,12 @@ describe('resolveLocation', () => {
     expect(res).toMatchObject({ kind: 'redirect', to: '/budget/invoices?documentId=7&create=1' });
   });
 
-  it('serves the review page with Paperless on and AI off (that rule is planned)', () => {
+  it('redirects the review page to the invoice dialog with AI off, keeping the document id', () => {
     const res = resolveLocation('/budget/invoices/new/paperless?documentId=7', {
       ...ADMIN,
       llmEnabled: false,
     });
-    expect(pageId(res)).toBe('invoicePaperlessReview');
+    expect(res).toMatchObject({ kind: 'redirect', to: '/budget/invoices?documentId=7&create=1' });
   });
 
   it('serves the review page with both on', () => {

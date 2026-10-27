@@ -661,9 +661,8 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
     await invoicesPage.waitForLoaded();
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-    await pickerModal.selectDocument(doc.title);
+    // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+    await new PaperlessInvoiceReviewPage(page).goto(doc.id);
     await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.waitForExtractionComplete();

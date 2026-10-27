@@ -17,6 +17,9 @@ import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import enErrors from '../../i18n/en/errors.json';
 import type { VendorDetail, Invoice } from '@cornerstone/shared';
+import { InvoiceCreateContext } from '../../objectForms/invoiceCreateContext.js';
+import type { OpenInvoiceForm } from '../../objectForms/invoiceCreateContext.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 
 const mockWhenReady = jest.fn<() => () => void>(() => () => {});
 jest.unstable_mockModule('../../lib/focusPageHeading.js', () => ({
@@ -52,12 +55,12 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 // Mock the invoices API module BEFORE importing the component
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
-const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
+const mockOpenForm = jest.fn<OpenInvoiceForm>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoices: mockFetchInvoices,
-  createInvoice: mockCreateInvoice,
+  createInvoice: jest.fn(),
   deleteInvoice: mockDeleteInvoice,
 }));
 
@@ -231,7 +234,7 @@ describe('VendorDetailPage', () => {
     mockFetchTrades.mockReset();
     mockFetchTrades.mockResolvedValue({ trades: [] });
     mockFetchInvoices.mockReset();
-    mockCreateInvoice.mockReset();
+    mockOpenForm.mockReset();
     mockDeleteInvoice.mockReset();
 
     // Default: invoices load successfully (empty list) unless overridden
@@ -241,8 +244,11 @@ describe('VendorDetailPage', () => {
   /**
    * Renders the VendorDetailPage in a router context with the given vendor ID param.
    */
-  function renderPage(vendorId: string = 'vendor-1', options: { probe?: boolean } = {}) {
-    return render(
+  function renderPage(
+    vendorId: string = 'vendor-1',
+    options: { probe?: boolean; withOpener?: boolean } = {},
+  ) {
+    const tree = (
       <MemoryRouter initialEntries={[`/companies/${vendorId}`]}>
         {options.probe ? <OriginProbe /> : null}
         <Routes>
@@ -253,7 +259,14 @@ describe('VendorDetailPage', () => {
             element={<div data-testid="invoice-detail-page">Invoice Detail</div>}
           />
         </Routes>
-      </MemoryRouter>,
+      </MemoryRouter>
+    );
+    return render(
+      options.withOpener === false ? (
+        tree
+      ) : (
+        <InvoiceCreateContext value={mockOpenForm}>{tree}</InvoiceCreateContext>
+      ),
     );
   }
 
@@ -1096,13 +1109,13 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders "Add Invoice" button', async () => {
+    it('renders the "New invoice" button', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'New invoice' })).toBeInTheDocument();
       });
     });
 
@@ -1467,259 +1480,88 @@ describe('VendorDetailPage', () => {
     });
   });
 
-  // ─── Create invoice modal ─────────────────────────────────────────────────
+  // ─── New invoice (#2241) ──────────────────────────────────────────────────
 
-  describe('create invoice modal', () => {
-    it('opens the "Add Invoice" modal when "Add Invoice" button is clicked', async () => {
+  describe('New invoice', () => {
+    it('shows a secondary "New invoice" button in the Invoices card, and no inline modal markup', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
+      renderPage();
 
+      const button = await screen.findByTestId('company-new-invoice');
+
+      expect(button).toHaveTextContent('New invoice');
+      expect(button.className).toMatch(/btnSecondary/);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.getElementById('create-invoice-number')).toBeNull();
+    });
+
+    it('opens the invoice form for this company with the page behind as origin and the button as focus target', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      await user.click(await screen.findByTestId('company-new-invoice'));
+
+      expect(mockOpenForm).toHaveBeenCalledTimes(1);
+      const request = mockOpenForm.mock.calls[0]![0];
+      expect(request.kind).toBe('invoice');
+      expect(request.company).toEqual({ id: sampleVendor.id, name: sampleVendor.name });
+      expect(request.originState).toEqual({
+        origin: { to: '/companies/vendor-1', name: sampleVendor.name },
       });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /add invoice/i })).toBeInTheDocument();
+      expect(request.returnFocusRef?.current).toBe(screen.getByTestId('company-new-invoice'));
     });
 
-    it('shows Amount and Invoice Date fields in create modal', async () => {
+    it('has no New invoice button outside the invoice provider', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      renderPage('vendor-1', { withOpener: false });
 
-      const user = userEvent.setup();
-      renderPage();
+      await screen.findByRole('heading', { name: /^invoices$/i });
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByLabelText(/amount/i)).toBeInTheDocument();
-      expect(within(dialog).getByLabelText(/invoice date/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('company-new-invoice')).toBeNull();
     });
 
-    it('"Add Invoice" submit button is disabled when amount and date are empty', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+    it.each(['invoice', 'offer'])(
+      'reloads the invoice list and the stat cards when an %s is created behind the dialog',
+      async (kind) => {
+        mockFetchVendor.mockResolvedValue(sampleVendor);
+        renderPage();
+        await screen.findByTestId('company-new-invoice');
+        const invoiceCalls = mockFetchInvoices.mock.calls.length;
+        const vendorCalls = mockFetchVendor.mock.calls.length;
 
-      const user = userEvent.setup();
-      renderPage();
+        act(() => notifyObjectCreated(kind));
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
+        await waitFor(() => {
+          expect(mockFetchInvoices.mock.calls.length).toBeGreaterThan(invoiceCalls);
+          expect(mockFetchVendor.mock.calls.length).toBeGreaterThan(vendorCalls);
+        });
+      },
+    );
 
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      // The submit button is "Add Invoice" inside the form/dialog
-      const submitBtn = within(dialog).getByRole('button', { name: /^add invoice$/i });
-      expect(submitBtn).toBeDisabled();
-    });
-
-    it('opens the create modal with the status preset to To pay (Offer must be chosen)', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const status = within(screen.getByRole('dialog')).getByLabelText(/status/i);
-      expect((status as HTMLSelectElement).value).toBe('pending');
-    });
-
-    it('closes the create modal when Cancel is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('successfully creates an invoice and closes the modal', async () => {
-      const newInvoice: Invoice = { ...sampleInvoice, id: 'invoice-new', amount: 750 };
-
+    it('shows the newly created invoice in the list after the reload', async () => {
       mockFetchVendor.mockResolvedValue(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-      mockCreateInvoice.mockResolvedValueOnce(newInvoice);
-
-      const user = userEvent.setup();
       renderPage();
+      await screen.findByTestId('company-new-invoice');
+      expect(screen.queryByText(sampleInvoice.invoiceNumber!)).toBeNull();
+      mockFetchInvoices.mockResolvedValue([sampleInvoice]);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
+      act(() => notifyObjectCreated('invoice'));
 
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-
-      // Fill in amount
-      const amountInput = within(dialog).getByLabelText(/amount/i);
-      fireEvent.change(amountInput, { target: { value: '750' } });
-
-      // Fill in date
-      const dateInput = within(dialog).getByLabelText(/invoice date/i);
-      fireEvent.change(dateInput, { target: { value: '2026-02-20' } });
-
-      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
-
-      await waitFor(() => {
-        expect(mockCreateInvoice).toHaveBeenCalledWith(
-          'vendor-1',
-          expect.objectContaining({ amount: 750, date: '2026-02-20' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
+      expect((await screen.findAllByText(sampleInvoice.invoiceNumber!)).length).toBeGreaterThan(0);
     });
 
-    it('adds the newly created invoice to the list', async () => {
-      const newInvoice: Invoice = {
-        ...sampleInvoice,
-        id: 'invoice-new',
-        amount: 4200,
-        invoiceNumber: 'INV-999',
-      };
-
+    it('does not reload for another kind of object', async () => {
       mockFetchVendor.mockResolvedValue(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-      mockCreateInvoice.mockResolvedValueOnce(newInvoice);
-
-      const user = userEvent.setup();
       renderPage();
+      await screen.findByTestId('company-new-invoice');
+      await act(async () => {});
+      const invoiceCalls = mockFetchInvoices.mock.calls.length;
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
+      act(() => notifyObjectCreated('company'));
+      await act(async () => {});
 
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      const amountInput = within(dialog).getByLabelText(/amount/i);
-      fireEvent.change(amountInput, { target: { value: '4200' } });
-
-      const dateInput = within(dialog).getByLabelText(/invoice date/i);
-      fireEvent.change(dateInput, { target: { value: '2026-02-20' } });
-
-      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/INV-999/).length).toBeGreaterThan(0);
-      });
-    });
-
-    it('shows create error when API call fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-      mockCreateInvoice.mockRejectedValueOnce(
-        new ApiClientError(400, {
-          code: 'VALIDATION_ERROR',
-          message: 'RAW-SERVER-SENTINEL',
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      const amountInput = within(dialog).getByLabelText(/amount/i);
-      fireEvent.change(amountInput, { target: { value: '100' } });
-      const dateInput = within(dialog).getByLabelText(/invoice date/i);
-      fireEvent.change(dateInput, { target: { value: '2026-02-20' } });
-
-      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows generic create error for non-ApiClientError failures', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-      mockCreateInvoice.mockRejectedValueOnce(new Error('Network failure'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      const amountInput = within(dialog).getByLabelText(/amount/i);
-      fireEvent.change(amountInput, { target: { value: '200' } });
-      const dateInput = within(dialog).getByLabelText(/invoice date/i);
-      fireEvent.change(dateInput, { target: { value: '2026-02-20' } });
-
-      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(/failed to create invoice/i)).toBeInTheDocument();
-      });
-    });
-
-    it('stays open after create failure', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([]);
-      mockCreateInvoice.mockRejectedValueOnce(new Error('Network failure'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /add invoice/i }));
-
-      const dialog = screen.getByRole('dialog');
-      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '100' } });
-      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
-        target: { value: '2026-02-20' },
-      });
-
-      await user.click(within(dialog).getByRole('button', { name: /^add invoice$/i }));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(/failed to create invoice/i)).toBeInTheDocument();
-      });
-
-      // Modal should still be open
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(mockFetchInvoices.mock.calls.length).toBe(invoiceCalls);
     });
   });
 
@@ -2248,110 +2090,6 @@ describe('VendorDetailPage', () => {
           expect.objectContaining({ tradeId: 'trade-electrics' }),
         ),
       );
-    });
-  });
-
-  describe('create invoice form details (#2232 coverage)', () => {
-    async function openCreate() {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      const user = userEvent.setup();
-      renderPage();
-      await user.click(await screen.findByRole('button', { name: /add invoice/i }));
-      return { user, dialog: screen.getByRole('dialog') };
-    }
-
-    it('rejects a negative amount', async () => {
-      const { dialog } = await openCreate();
-      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '-5' } });
-      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
-        target: { value: '2026-02-01' },
-      });
-
-      fireEvent.submit(dialog.querySelector('form')!);
-
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-        'Amount must be a positive number.',
-      );
-      expect(mockCreateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('asks for the invoice date', async () => {
-      const { dialog } = await openCreate();
-      fireEvent.change(within(dialog).getByLabelText(/amount/i), { target: { value: '5' } });
-
-      fireEvent.submit(dialog.querySelector('form')!);
-
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-        'Invoice date is required.',
-      );
-      expect(mockCreateInvoice).not.toHaveBeenCalled();
-    });
-
-    it('sends every field of the form, trimmed, and wheel does not change the amount', async () => {
-      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice);
-      const { dialog } = await openCreate();
-      const amount = within(dialog).getByLabelText(/amount/i);
-      fireEvent.change(document.getElementById('create-invoice-number')!, {
-        target: { value: ' INV-XYZ ' },
-      });
-      fireEvent.change(amount, { target: { value: '99.5' } });
-      fireEvent.wheel(amount);
-      fireEvent.change(within(dialog).getByLabelText(/invoice date/i), {
-        target: { value: '2026-02-01' },
-      });
-      fireEvent.change(within(dialog).getByLabelText(/due date/i), {
-        target: { value: '2026-03-01' },
-      });
-      fireEvent.change(within(dialog).getByLabelText(/status/i), {
-        target: { value: 'quotation' },
-      });
-      fireEvent.change(within(dialog).getByLabelText(/notes/i), { target: { value: ' Hello ' } });
-
-      fireEvent.submit(dialog.querySelector('form')!);
-
-      await waitFor(() =>
-        expect(mockCreateInvoice).toHaveBeenCalledWith('vendor-1', {
-          invoiceNumber: 'INV-XYZ',
-          amount: 99.5,
-          date: '2026-02-01',
-          dueDate: '2026-03-01',
-          status: 'quotation',
-          notes: 'Hello',
-        }),
-      );
-    });
-
-    it('closes on a backdrop click, but not while the invoice is being created', async () => {
-      let finish: (v: Invoice) => void = () => {};
-      mockCreateInvoice.mockReturnValueOnce(
-        new Promise<Invoice>((resolve) => {
-          finish = resolve;
-        }),
-      );
-      const { dialog } = await openCreate();
-      const backdrop = dialog.querySelector('[class*="modalBackdrop"]')!;
-
-      // idle: the backdrop closes the form
-      fireEvent.click(backdrop);
-      expect(screen.queryByRole('dialog')).toBeNull();
-
-      // creating: the backdrop is ignored
-      await userEvent.click(screen.getByRole('button', { name: /add invoice/i }));
-      const again = screen.getByRole('dialog');
-      fireEvent.change(within(again).getByLabelText(/amount/i), { target: { value: '5' } });
-      fireEvent.change(within(again).getByLabelText(/invoice date/i), {
-        target: { value: '2026-02-01' },
-      });
-      fireEvent.submit(again.querySelector('form')!);
-      await waitFor(() => expect(mockCreateInvoice).toHaveBeenCalled());
-
-      fireEvent.click(again.querySelector('[class*="modalBackdrop"]')!);
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-      await act(async () => {
-        finish(sampleInvoice);
-      });
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
   });
 });

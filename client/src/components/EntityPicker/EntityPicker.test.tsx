@@ -24,6 +24,8 @@ import type * as OrientationApiTypes from '../../lib/orientationApi.js';
 import type * as TradesApiTypes from '../../lib/tradesApi.js';
 import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import type * as DocumentLinksApiTypes from '../../lib/documentLinksApi.js';
 import type * as PickerModule from './EntityPicker.js';
 import type * as KindsModule from './entityPickerKinds.js';
 import type { EntityOption, EntityPickerProps } from './types.js';
@@ -35,6 +37,31 @@ const mockFetchOrientations = jest.fn<typeof OrientationApiTypes.fetchOrientatio
 const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
+const mockListAllLinkedDocumentIds =
+  jest.fn<typeof DocumentLinksApiTypes.listAllLinkedDocumentIds>();
+
+// The picker formats document dates, so it reads the locale.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  listPaperlessDocuments: mockListPaperlessDocuments,
+}));
+jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
+  listAllLinkedDocumentIds: mockListAllLinkedDocumentIds,
+}));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
@@ -165,6 +192,8 @@ describe('EntityPicker', () => {
       mockFetchTrades,
       mockFetchCategories,
       mockListWorkItems,
+      mockListPaperlessDocuments,
+      mockListAllLinkedDocumentIds,
       onChange,
       requestCompany,
       requestTag,
@@ -180,6 +209,8 @@ describe('EntityPicker', () => {
     mockFetchTrades.mockResolvedValue({ trades: [] } as never);
     mockFetchCategories.mockResolvedValue({ categories: [] } as never);
     mockListWorkItems.mockResolvedValue({ items: [] } as never);
+    mockListPaperlessDocuments.mockResolvedValue({ documents: [] } as never);
+    mockListAllLinkedDocumentIds.mockResolvedValue([]);
     if (!Module) {
       Module = await import('./EntityPicker.js');
       Kinds = await import('./entityPickerKinds.js');
@@ -1658,6 +1689,150 @@ describe('EntityPicker', () => {
       await user.type(input(), 'zz');
 
       expect(await screen.findByText('No tasks or purchases match.')).toBeInTheDocument();
+    });
+  });
+  describe('document', () => {
+    const doc = (id: number, title: string, correspondent: string | null, created: string | null) =>
+      ({ id, title, correspondent, created }) as never;
+
+    const respond = (...documents: unknown[]) =>
+      mockListPaperlessDocuments.mockResolvedValue({ documents } as never);
+
+    it('lists the newest documents on focus, sorted by creation date, with a placeholder and the linked-hidden hint', async () => {
+      const user = userEvent.setup();
+      respond(doc(1, 'Roof quote', 'Acme Roofing', '2026-04-02'));
+      render(<Harness kind="document" />);
+
+      await user.click(input());
+
+      expect(input()).toHaveAttribute('placeholder', 'Search your documents');
+      expect(await screen.findByRole('option', { name: /Roof quote/ })).toBeInTheDocument();
+      expect(mockListPaperlessDocuments).toHaveBeenCalledWith({
+        pageSize: 25,
+        sortBy: 'created',
+        sortOrder: 'desc',
+      });
+    });
+
+    it('sends the typed text without a sort', async () => {
+      const user = userEvent.setup();
+      respond();
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'roof');
+
+      await waitFor(() =>
+        expect(mockListPaperlessDocuments).toHaveBeenLastCalledWith({
+          query: 'roof',
+          pageSize: 25,
+        }),
+      );
+    });
+
+    it('shows the correspondent and the formatted date as the second line, or nothing', async () => {
+      const user = userEvent.setup();
+      respond(
+        doc(1, 'Both', 'Acme Roofing', '2026-04-02'),
+        doc(2, 'Correspondent only', 'Birch Tiling', null),
+        doc(3, 'Date only', null, '2026-04-02'),
+        doc(4, 'Neither', null, null),
+      );
+      render(<Harness kind="document" />);
+
+      await user.click(input());
+
+      const options = await screen.findAllByRole('option');
+      expect(options[0]).toHaveTextContent(/Acme Roofing · .*2026/);
+      expect(options[1]).toHaveTextContent(/^Correspondent onlyBirch Tiling$/);
+      expect(options[2]).toHaveTextContent(/^Date only.*2026$/);
+      expect(options[3]).toHaveTextContent(/^Neither$/);
+    });
+
+    it('leaves out documents that are already linked', async () => {
+      const user = userEvent.setup();
+      mockListAllLinkedDocumentIds.mockResolvedValue([2]);
+      respond(doc(1, 'Free one', null, null), doc(2, 'Linked one', null, null));
+      render(<Harness kind="document" />);
+
+      await user.click(input());
+
+      expect(await screen.findByRole('option', { name: /Free one/ })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Linked one/ })).toBeNull();
+    });
+
+    it('loads the linked ids once across several searches', async () => {
+      const user = userEvent.setup();
+      respond(doc(1, 'Free one', null, null));
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'fr');
+      await screen.findByRole('option', { name: /Free one/ });
+      await user.type(input(), 'ee');
+      await waitFor(() => expect(mockListPaperlessDocuments.mock.calls.length).toBeGreaterThan(1));
+
+      expect(mockListAllLinkedDocumentIds).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries the linked-ids load after a failure and still lists the documents', async () => {
+      const user = userEvent.setup();
+      mockListAllLinkedDocumentIds.mockRejectedValueOnce(new Error('down'));
+      respond(doc(1, 'Free one', null, null));
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'f');
+      expect(await screen.findByRole('option', { name: /Free one/ })).toBeInTheDocument();
+      await user.type(input(), 'r');
+      await waitFor(() => expect(mockListAllLinkedDocumentIds).toHaveBeenCalledTimes(2));
+    });
+
+    it('says when no document matches', async () => {
+      const user = userEvent.setup();
+      respond();
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'zz');
+
+      expect(await screen.findByText('No documents found.')).toBeInTheDocument();
+    });
+
+    it('says when the documents could not be loaded', async () => {
+      const user = userEvent.setup();
+      mockListPaperlessDocuments.mockRejectedValue(new Error('down'));
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'zz');
+
+      expect(await screen.findByText("Couldn't load documents.")).toBeInTheDocument();
+    });
+
+    it('offers no create row, even for text that matches nothing', async () => {
+      const user = userEvent.setup();
+      respond();
+      render(<Harness kind="document" />);
+
+      await user.type(input(), 'zz');
+      await screen.findByText('No documents found.');
+
+      expect(screen.queryByRole('option', { name: /^New/ })).toBeNull();
+    });
+
+    it('reports the picked document with its id, title, correspondent and date', async () => {
+      const user = userEvent.setup();
+      respond(doc(7, 'Roof quote', 'Acme Roofing', '2026-04-02'));
+      render(<Harness kind="document" />);
+
+      await user.click(input());
+      await user.click(await screen.findByRole('option', { name: /Roof quote/ }));
+
+      expect(onChange).toHaveBeenCalledWith(
+        '7',
+        expect.objectContaining({
+          id: '7',
+          entityId: '7',
+          label: 'Roof quote',
+          document: { title: 'Roof quote', correspondent: 'Acme Roofing', created: '2026-04-02' },
+        }),
+      );
     });
   });
 });

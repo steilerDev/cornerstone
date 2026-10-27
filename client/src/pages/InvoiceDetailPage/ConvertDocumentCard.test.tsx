@@ -1,49 +1,44 @@
 /**
  * @jest-environment jsdom
  *
- * ConvertDocumentCard (#2240): pick a Paperless document and read its amounts. The hook state is
- * a plain object; the picker modal is a probe (it has its own test).
+ * ConvertDocumentCard (#2240, #2241): pick a Paperless document with the document picker and read
+ * its amounts. The hook state is a plain object; the picker is the real EntityPicker over mocked
+ * Paperless calls.
  *
  * Mutations these tests catch:
  *  - Read amounts shown without the AI reader or without a document;
  *  - a read result passed to the form when the read failed (null);
- *  - the picker's close or select not returning focus to Select / Change document;
+ *  - picking not selecting, or the picker's clear button not removing, the document;
+ *  - the picker unlabelled, or not disabled while the page saves;
  *  - mismatch / no-lines / error copy shown outside its state;
- *  - the picker receiving the wrong Paperless URL.
+ *  - Try again not returning focus to Read amounts.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type { UseConvertDocument } from './useConvertDocument.js';
 import type * as CardModule from './ConvertDocumentCard.js';
 
-jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
-  InvoicePaperlessPickerModal: (props: {
-    onDocumentSelected: (doc: { id: number; title: string }) => void;
-    onManualEntry: () => void;
-    onClose: () => void;
-    paperlessUrl: string | null;
-  }) => (
-    <div role="dialog" aria-label="picker-probe" data-url={props.paperlessUrl ?? ''}>
-      <button
-        type="button"
-        onClick={() => props.onDocumentSelected({ id: 7, title: 'Picked.pdf' })}
-      >
-        probe-select
-      </button>
-      <button type="button" onClick={props.onManualEntry}>
-        probe-manual
-      </button>
-      <button type="button" onClick={props.onClose}>
-        probe-close
-      </button>
-    </div>
-  ),
+const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  listPaperlessDocuments: mockListPaperlessDocuments,
+}));
+jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
+  listAllLinkedDocumentIds: jest.fn(() => Promise.resolve([])),
 }));
 
 let Card: (typeof CardModule)['ConvertDocumentCard'];
 
 beforeEach(async () => {
+  mockListPaperlessDocuments.mockReset();
+  mockListPaperlessDocuments.mockResolvedValue({
+    documents: [
+      { id: 7, title: 'Picked.pdf', correspondent: null, created: null },
+      { id: 8, title: 'Other.pdf', correspondent: null, created: null },
+    ],
+  } as never);
   ({ ConvertDocumentCard: Card } = (await import('./ConvertDocumentCard.js')) as typeof CardModule);
 });
 
@@ -53,9 +48,6 @@ function makeDoc(over: Partial<UseConvertDocument> = {}): UseConvertDocument {
     paperlessUrl: 'https://paperless.example',
     llmEnabled: true,
     document: null,
-    pickerOpen: false,
-    openPicker: jest.fn(),
-    closePicker: jest.fn(),
     select: jest.fn(),
     remove: jest.fn(),
     aiState: 'idle',
@@ -77,57 +69,88 @@ function ui(doc: UseConvertDocument, onRead = jest.fn(), disabled = false) {
 
 const PICKED = { id: 5, title: 'Offer.pdf' };
 
+const picker = () => screen.getByLabelText('Source document') as HTMLInputElement;
+
 describe('without a document', () => {
-  it('prompts to pre-fill and offers only Select document', () => {
+  it('labels the picker "Source document", prompts to pre-fill and offers only the picker', () => {
     render(ui(makeDoc()));
     expect(screen.getByRole('heading', { name: 'Document' })).toBeInTheDocument();
     expect(screen.getByText('Pre-fill the final invoice from a document.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Select document' })).toBeEnabled();
-    expect(screen.queryByTestId('convert-remove-document')).toBeNull();
+    expect(picker()).toBeEnabled();
+    expect(picker()).toHaveAttribute('id', 'convert-document-picker');
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).toBeNull();
     expect(screen.queryByTestId('convert-ai-prefill')).toBeNull();
-    expect(screen.queryByTestId('convert-selected-document')).toBeNull();
     expect(screen.queryByText(/linked to the final invoice/)).toBeNull();
   });
 
-  it('Select document opens the picker', () => {
+  it('keeps none of the removed select, change and remove controls', () => {
+    render(ui(makeDoc({ document: PICKED })));
+    for (const id of [
+      'convert-select-document',
+      'convert-remove-document',
+      'convert-selected-document',
+    ]) {
+      expect(screen.queryByTestId(id)).toBeNull();
+    }
+  });
+
+  it('picking a document hands its id and title to the hook', async () => {
     const doc = makeDoc();
     render(ui(doc));
-    fireEvent.click(screen.getByTestId('convert-select-document'));
-    expect(doc.openPicker).toHaveBeenCalledTimes(1);
+    await userEvent.click(picker());
+    await userEvent.click(await screen.findByRole('option', { name: /Picked\.pdf/ }));
+    expect(doc.select).toHaveBeenCalledWith({ id: 7, title: 'Picked.pdf' });
+    expect(doc.remove).not.toHaveBeenCalled();
+  });
+
+  it('searches the documents when the picker is opened', async () => {
+    render(ui(makeDoc()));
+    await userEvent.click(picker());
+    await screen.findByRole('option', { name: /Other\.pdf/ });
+    expect(mockListPaperlessDocuments).toHaveBeenCalled();
   });
 });
 
 describe('with a document', () => {
-  it('shows its title, Change document, Remove, Read amounts and the linked note', () => {
+  it('shows its title in the picker, Read amounts and the linked note', () => {
     render(ui(makeDoc({ document: PICKED })));
-    const name = screen.getByTestId('convert-selected-document');
-    expect(name).toHaveTextContent('Offer.pdf');
-    expect(name).toHaveAttribute('title', 'Offer.pdf');
-    expect(screen.getByTestId('convert-select-document')).toHaveTextContent('Change document');
-    expect(screen.getByTestId('convert-remove-document')).toBeInTheDocument();
+    expect(screen.getByText('Offer.pdf')).toBeInTheDocument();
     expect(screen.getByTestId('convert-ai-prefill')).toHaveTextContent('Read amounts');
     expect(screen.getByText('The selected document is linked to the final invoice.')).toBeVisible();
-    expect(screen.queryByText('Pre-fill the final invoice from a document.')).toBeNull();
+    expect(screen.queryByText('Pre-fill the final invoice from a document.')).not.toBeNull();
   });
 
   it('has no Read amounts without the AI reader', () => {
     render(ui(makeDoc({ document: PICKED, llmEnabled: false })));
     expect(screen.queryByTestId('convert-ai-prefill')).toBeNull();
-    expect(screen.getByTestId('convert-remove-document')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
   });
 
-  it('Remove clears the document', () => {
+  it("the picker's clear button removes the document and puts focus in the picker", async () => {
     const doc = makeDoc({ document: PICKED });
     render(ui(doc));
-    fireEvent.click(screen.getByTestId('convert-remove-document'));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
     expect(doc.remove).toHaveBeenCalledTimes(1);
+    expect(doc.select).not.toHaveBeenCalled();
   });
 
-  it('disables the buttons while the page is saving', () => {
+  it('after the document is cleared, focus lands in the picker input, not on the body', async () => {
+    const { rerender } = render(ui(makeDoc({ document: PICKED })));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    rerender(ui(makeDoc({ document: null })));
+    await waitFor(() => expect(picker()).toHaveFocus());
+    expect(document.body).not.toHaveFocus();
+  });
+
+  it('disables the picker and Read amounts while the page is saving', () => {
     render(ui(makeDoc({ document: PICKED }), jest.fn(), true));
-    for (const id of ['convert-select-document', 'convert-remove-document', 'convert-ai-prefill']) {
-      expect(screen.getByTestId(id)).toBeDisabled();
-    }
+    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
+    expect(screen.getByTestId('convert-ai-prefill')).toBeDisabled();
+  });
+
+  it('disables the empty picker while the page is saving', () => {
+    render(ui(makeDoc(), jest.fn(), true));
+    expect(picker()).toBeDisabled();
   });
 });
 
@@ -214,84 +237,7 @@ describe('reading', () => {
   });
 });
 
-describe('picker', () => {
-  it('is not mounted while closed', () => {
-    render(ui(makeDoc()));
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('opens with the Paperless URL', () => {
-    render(ui(makeDoc({ pickerOpen: true })));
-    expect(screen.getByRole('dialog', { name: 'picker-probe' })).toHaveAttribute(
-      'data-url',
-      'https://paperless.example',
-    );
-  });
-
-  it('passes a missing URL as null', () => {
-    render(ui(makeDoc({ pickerOpen: true, paperlessUrl: null })));
-    expect(screen.getByRole('dialog')).toHaveAttribute('data-url', '');
-  });
-
-  it('selecting a document hands its id and title to the hook', () => {
-    const doc = makeDoc({ pickerOpen: true });
-    render(ui(doc));
-    fireEvent.click(screen.getByText('probe-select'));
-    expect(doc.select).toHaveBeenCalledWith({ id: 7, title: 'Picked.pdf' });
-  });
-
-  it.each(['probe-manual', 'probe-close'])('%s closes the picker', (label) => {
-    const doc = makeDoc({ pickerOpen: true });
-    render(ui(doc));
-    fireEvent.click(screen.getByText(label));
-    expect(doc.closePicker).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns focus to Select document once the picker has closed', () => {
-    const doc = makeDoc({ pickerOpen: true });
-    const { rerender } = render(ui(doc));
-    fireEvent.click(screen.getByText('probe-close'));
-    rerender(ui(makeDoc({ pickerOpen: false })));
-    expect(screen.getByTestId('convert-select-document')).toHaveFocus();
-  });
-
-  it('returns focus to Change document after selecting', () => {
-    const { rerender } = render(ui(makeDoc({ pickerOpen: true })));
-    fireEvent.click(screen.getByText('probe-select'));
-    rerender(ui(makeDoc({ pickerOpen: false, document: PICKED })));
-    expect(screen.getByTestId('convert-select-document')).toHaveFocus();
-    expect(screen.getByTestId('convert-select-document')).toHaveTextContent('Change document');
-  });
-
-  it('does not take focus on mount or when the picker was never opened', () => {
-    const { rerender } = render(ui(makeDoc()));
-    expect(screen.getByTestId('convert-select-document')).not.toHaveFocus();
-    rerender(ui(makeDoc({ document: PICKED })));
-    expect(screen.getByTestId('convert-select-document')).not.toHaveFocus();
-  });
-
-  it('moves focus once, not on every later render', () => {
-    const { rerender } = render(ui(makeDoc({ pickerOpen: true })));
-    fireEvent.click(screen.getByText('probe-close'));
-    rerender(ui(makeDoc({ pickerOpen: false })));
-    screen.getByTestId('convert-select-document').blur();
-    rerender(ui(makeDoc({ pickerOpen: false, aiState: 'success' })));
-    expect(screen.getByTestId('convert-select-document')).not.toHaveFocus();
-  });
-});
-
 describe('focus never falls to the body', () => {
-  it('Remove hands focus to Select document once the document is gone', () => {
-    const { rerender } = render(ui(makeDoc({ document: PICKED })));
-    const remove = screen.getByTestId('convert-remove-document');
-    remove.focus();
-    fireEvent.click(remove);
-    rerender(ui(makeDoc({ document: null })));
-    expect(screen.queryByTestId('convert-remove-document')).toBeNull();
-    expect(screen.getByTestId('convert-select-document')).toHaveFocus();
-    expect(document.body).not.toHaveFocus();
-  });
-
   it('Try again hands focus to Read amounts once the error has cleared, not before', async () => {
     const doc = makeDoc({
       document: PICKED,

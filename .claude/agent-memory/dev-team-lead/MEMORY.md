@@ -75,4 +75,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [ObjectList adopter specs](object-list-adopter-specs.md) — template gaps (child cells, All count, slots), chip-scoped column prefs, refresh() clears rows, last figure surface
 - [First detail-page adopter specs](first-detail-page-adopter-specs.md) — list-only money fields, false "existing" premises, lazy tabs vs header dialogs, final-row counts, figure guard literals, closure pre-measure
 - [Convert page specs](convert-page-specs.md) — portaled dialog forms submit the page form, stale blocking premises, document-row payload ids, route-flip E2E sweeps
+- [Invoice dialog specs](invoice-dialog-specs.md) — async ctx writes hit the top step, Number(null) finite, redirect `to` wipes carried params, false UX premises
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

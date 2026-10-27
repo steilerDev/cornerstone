@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewAutoItemize } from '../../lib/invoiceAutoItemizeApi.js';
-import { fetchConfig } from '../../lib/configApi.js';
-import { getPaperlessStatus } from '../../lib/paperlessApi.js';
+import { useDocumentIntegration } from '../../hooks/useDocumentIntegration.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { fromCents, hasTotalMismatch, toCents } from '../../lib/quotationConversion.js';
@@ -18,15 +17,6 @@ export interface ConvertDocument {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-interface DocumentConfig {
-  readonly configured: boolean;
-  readonly paperlessUrl: string | null;
-  readonly llmEnabled: boolean;
-}
-
-/** Paperless and AI off: the Document card is not shown. */
-const NOT_CONFIGURED: DocumentConfig = { configured: false, paperlessUrl: null, llmEnabled: false };
-
 /**
  * The Convert page's document: whether Paperless (and the AI reader) is available, the selected
  * document, and `analyze`, which reads it and returns the values it found for the form's fields.
@@ -34,9 +24,8 @@ const NOT_CONFIGURED: DocumentConfig = { configured: false, paperlessUrl: null, 
 export function useConvertDocument() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
-  const [config, setConfig] = useState<DocumentConfig>(NOT_CONFIGURED);
+  const integration = useDocumentIntegration();
   const [document, setDocument] = useState<ConvertDocument | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [aiState, setAiState] = useState<ConvertAiState>('idle');
   const [aiError, setAiError] = useState('');
   const [mismatch, setMismatch] = useState<{ readonly extracted: number } | null>(null);
@@ -44,23 +33,12 @@ export function useConvertDocument() {
   // Invalidates a read that is still running when the document changes or the page unmounts.
   const sessionRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([getPaperlessStatus(), fetchConfig()])
-      .then(([status, appConfig]) => {
-        if (cancelled) return;
-        setConfig({
-          configured: status.configured && status.reachable,
-          paperlessUrl: status.paperlessUrl ?? null,
-          llmEnabled: appConfig.llmEnabled,
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
+  useEffect(
+    () => () => {
       sessionRef.current += 1;
-    };
-  }, []);
+    },
+    [],
+  );
 
   const resetRead = () => {
     sessionRef.current += 1;
@@ -70,12 +48,8 @@ export function useConvertDocument() {
     setNoLines(false);
   };
 
-  const openPicker = useCallback(() => setPickerOpen(true), []);
-  const closePicker = useCallback(() => setPickerOpen(false), []);
-
   const select = (selected: ConvertDocument) => {
     setDocument({ id: selected.id, title: selected.title });
-    setPickerOpen(false);
     resetRead();
   };
 
@@ -134,13 +108,10 @@ export function useConvertDocument() {
   };
 
   return {
-    configured: config.configured,
-    paperlessUrl: config.paperlessUrl,
-    llmEnabled: config.llmEnabled,
+    configured: integration.available,
+    paperlessUrl: integration.status?.paperlessUrl ?? null,
+    llmEnabled: integration.llmEnabled,
     document,
-    pickerOpen,
-    openPicker,
-    closePicker,
     select,
     remove,
     aiState,

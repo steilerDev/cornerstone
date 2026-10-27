@@ -67,3 +67,18 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.aiLink {
+  composes: btnSecondaryCompact from '../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  text-decoration: none;
+  margin-top: var(--spacing-2);
+}
+
+.aiHint {
+  margin: var(--spacing-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

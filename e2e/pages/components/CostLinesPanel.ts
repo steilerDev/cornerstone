@@ -44,6 +44,8 @@ export class CostLinesPanel {
   readonly root: Locator;
   readonly addButton: Locator;
   readonly addGridButton: Locator;
+  /** "New invoice" (task and purchase pages; opens the New invoice dialog with the item set, #2241). */
+  readonly newInvoiceButton: Locator;
   /** The always-mounted `role="status"` ("Saved.", "12 lines saved.", ...). */
   readonly status: Locator;
   readonly emptyTitle: Locator;
@@ -60,6 +62,7 @@ export class CostLinesPanel {
     this.root = page.getByTestId(prefix);
     this.addButton = page.getByTestId(`${prefix}-add`);
     this.addGridButton = page.getByTestId(`${prefix}-add-grid`);
+    this.newInvoiceButton = page.getByTestId(`${prefix}-new-invoice`);
     this.status = page.getByTestId(`${prefix}-status`);
     this.emptyTitle = this.section.getByText('There are no cost lines yet', { exact: true });
     this.deleteDialog = new ConfirmDialogControl(page, 'cost-line-delete');

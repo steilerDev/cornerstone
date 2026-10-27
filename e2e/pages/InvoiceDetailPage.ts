@@ -35,6 +35,7 @@ import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 import { CostLinesPanel } from './components/CostLinesPanel.js';
+import { InvoiceFormDialog } from './components/InvoiceFormDialog.js';
 import { ObjectHeaderControl } from './components/ObjectHeaderControl.js';
 import { ObjectTabsControl } from './components/ObjectTabsControl.js';
 import { RelatedListControl } from './components/RelatedListControl.js';
@@ -85,6 +86,7 @@ export class InvoiceDetailPage {
   readonly historyShowAll: Locator;
 
   // Edit dialog (the "Edit details" modal)
+  readonly editDialog: InvoiceFormDialog;
   readonly editModal: Locator;
   readonly editNumberInput: Locator;
   readonly editAmountInput: Locator;
@@ -167,27 +169,23 @@ export class InvoiceDetailPage {
 
     this.historyShowAll = page.getByTestId('invoice-history-show-all');
 
-    // The shared Modal names the dialog by its title: "Edit details"
-    this.editModal = page.getByRole('dialog', { name: 'Edit details', exact: true });
-    this.editNumberInput = page.locator('#edit-invoice-number');
-    this.editAmountInput = page.locator('#edit-amount');
-    this.editDateInput = page.locator('#edit-date');
-    this.editDueDateInput = page.locator('#edit-due-date');
-    this.editStatusSelect = page.locator('#edit-status');
-    this.editNotesInput = page.locator('#edit-notes');
-    this.editSaveButton = this.editModal.getByRole('button', {
-      name: /Save Changes|Saving\.\.\./i,
-    });
-    this.editCancelButton = this.editModal.getByRole('button', { name: 'Cancel', exact: true });
-    this.editErrorBanner = this.editModal.locator('[role="alert"]');
+    // The Edit details ObjectForm (#2241): fields keep the member names they had as the old modal
+    this.editDialog = new InvoiceFormDialog(page, 'edit');
+    this.editModal = this.editDialog.dialog;
+    this.editNumberInput = this.editDialog.number;
+    this.editAmountInput = this.editDialog.amount;
+    this.editDateInput = this.editDialog.date;
+    this.editDueDateInput = this.editDialog.dueDate;
+    this.editStatusSelect = this.editDialog.status;
+    this.editNotesInput = this.editDialog.notes;
+    this.editSaveButton = this.editDialog.saveButton;
+    this.editCancelButton = this.editDialog.cancelButton;
+    this.editErrorBanner = this.editDialog.errorBanner;
 
-    // The vendor SearchPicker shows its selectedDisplay chip while a vendor is chosen
-    this.editVendorSelectedDisplay = this.editModal.locator('[class*="selectedDisplay"]');
-    this.editVendorInput = page.locator('#edit-vendor');
-    // FormError variant="field" has no role="alert": walk from the label to the field's last div
-    this.editVendorError = this.editModal
-      .locator('label[for="edit-vendor"]')
-      .locator('xpath=parent::div/div[last()]');
+    // The company EntityPicker shows its selectedDisplay chip while a company is chosen
+    this.editVendorSelectedDisplay = this.editDialog.companyChip();
+    this.editVendorInput = this.editDialog.company.input;
+    this.editVendorError = this.editDialog.fieldError('vendorId');
 
     this.deleteDialog = new ConfirmDialogControl(page, 'invoice-delete');
     this.deleteModal = this.deleteDialog.dialog;
@@ -362,7 +360,11 @@ export class InvoiceDetailPage {
    */
   async closeEditModal(): Promise<void> {
     await this.editCancelButton.click();
-    await this.editModal.waitFor({ state: 'hidden' });
+    const discard = this.editDialog.discardConfirm;
+    await expect(async () => {
+      if (await discard.dialog.isVisible()) await discard.confirmButton.click();
+      await expect(this.editModal).toBeHidden({ timeout: 1_000 });
+    }).toPass();
   }
 
   /**
@@ -394,6 +396,7 @@ export class InvoiceDetailPage {
       await this.editStatusSelect.selectOption(data.status);
     }
     if (data.notes !== undefined) {
+      await this.editDialog.expandMoreDetails();
       await this.editNotesInput.clear();
       await this.editNotesInput.fill(data.notes);
     }

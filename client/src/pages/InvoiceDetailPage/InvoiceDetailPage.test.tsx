@@ -118,8 +118,8 @@ jest.unstable_mockModule('../../components/DocumentsPanel/index.js', () => ({
   }),
 }));
 
-jest.unstable_mockModule('./InvoiceEditModal.js', () => ({
-  InvoiceEditModal: (props: { onSaved: () => Promise<unknown>; onClose: () => void }) => (
+jest.unstable_mockModule('./InvoiceEditDialog.js', () => ({
+  InvoiceEditDialog: (props: { onSaved: () => Promise<unknown>; onClose: () => void }) => (
     <div role="dialog" aria-label="edit-probe">
       <button type="button" onClick={() => void props.onSaved()}>
         edit-saved

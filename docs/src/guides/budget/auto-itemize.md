@@ -10,7 +10,7 @@ When a company sends you a PDF invoice, Cornerstone can read the rows off the pa
 This feature is **opt-in** and disabled by default. You connect Cornerstone to any LLM provider that speaks the OpenAI chat-completions API -- Google Gemini, Anthropic, OpenAI, or a self-hosted model running on your own machine. Cornerstone never sends the binary PDF off your server; only the OCR text and a few invoice details (company name, total, date) leave your host.
 
 :::tip Create a whole invoice from a document
-You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless and Auto-itemize are both configured, **New Invoice** opens a document picker, extracts the metadata and rows, and creates the invoice and its cost lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
+You can also go the other way: start from a Paperless document and let Cornerstone build the invoice for you. When Paperless-ngx and an LLM provider are configured, pick the document in the **New invoice** dialog and select **Read amounts and lines with AI**. That opens a review screen that extracts the metadata and rows, and creates the invoice and its cost lines in one step. See [Creating an Invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document). The review screen is the same one described below.
 :::
 
 ## Prerequisites

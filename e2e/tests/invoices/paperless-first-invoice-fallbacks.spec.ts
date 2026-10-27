@@ -2,8 +2,7 @@
  * E2E tests for Paperless-first invoice creation fallback flows (Story #1679).
  *
  * Scenarios covered:
- *   10. Manual escape from picker → picker closes → manual create modal opens
- *   11. Not configured fallback → New Invoice opens manual modal directly (picker never shown)
+ *   11. Paperless not configured → New invoice dialog has no document row; AI off → document row, no AI link
  *   12. Abandon review → navigate back → invoice NOT in list
  *   13. Vendor required validation → confirm blocked, error shown
  *   14. Extraction failure → error state shown with Back-to-Invoices button
@@ -146,7 +145,7 @@ async function mockDocuments(page: Page): Promise<void> {
  * usePaperless Phase 2 fetches documents AND tags in a Promise.all().
  * Without this mock, the tags request fails, usePaperless enters error state,
  * and DocumentBrowser renders a role="alert" error div instead of the grid.
- * Must be registered before the picker modal is opened.
+ * Must be registered before the review page is opened.
  */
 async function mockTags(page: Page): Promise<void> {
   await page.route('**/api/paperless/tags', async (route: Route) => {
@@ -231,59 +230,11 @@ async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10 — Manual escape from picker
+// Scenario 11 — Not-configured fallback: New invoice opens the dialog directly
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 10 — Manual escape from picker', () => {
-  test('"Enter invoice manually" closes picker and opens manual create modal', async ({
-    page,
-    testPrefix,
-  }) => {
-    let vendorId = '';
-
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} PF ManualEscape Vendor`);
-
-      await mockPaperlessConfigured(page);
-      await mockConfig(page, true);
-      await mockCorrespondents(page);
-      await mockDocuments(page);
-      await mockTags(page);
-
-      const invoicesPage = new InvoicesPage(page);
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
-
-      // Click New Invoice → picker opens
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await expect(pickerModal.modal).toBeVisible();
-
-      // Click "Enter invoice manually" escape button
-      await pickerModal.clickManualEntry();
-
-      // Picker modal closes
-      await expect(pickerModal.modal).not.toBeVisible();
-
-      // Manual create modal opens
-      const manualModal = await invoicesPage.waitForManualModal();
-      await expect(manualModal).toBeVisible();
-
-      // Manual modal should be functional — cancel it
-      await invoicesPage.createCancelButton.click();
-      await expect(manualModal).not.toBeVisible();
-    } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 11 — Not-configured fallback: New Invoice opens manual modal directly
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 11 — Not-configured fallback to manual modal', () => {
-  test('With Paperless not configured, New Invoice opens manual modal directly (picker never shown)', async ({
+test.describe('Scenario 11 — Not-configured fallback: dialog without document row', () => {
+  test('With Paperless not configured, New invoice opens the dialog directly, without a document row', async ({
     page,
     testPrefix,
   }) => {
@@ -302,21 +253,18 @@ test.describe('Scenario 11 — Not-configured fallback to manual modal', () => {
 
       await invoicesPage.clickNewInvoice();
 
-      // Manual modal should open directly (no picker modal)
-      const manualModal = await invoicesPage.waitForManualModal();
-      await expect(manualModal).toBeVisible();
+      // The dialog opens directly, without a "Start from a document" row
+      await invoicesPage.createDialog.waitForOpen();
+      await expect(invoicesPage.createDialog.company.input).toBeVisible();
+      await expect(invoicesPage.createDialog.documentPicker.input).toHaveCount(0);
 
-      // Picker modal should NOT be visible
-      const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
-      await expect(pickerDialogLocator).not.toBeVisible();
-
-      await invoicesPage.createCancelButton.click();
+      await invoicesPage.closeCreateModal();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
   });
 
-  test('With autoItemizeEnabled=false, New Invoice opens manual modal directly', async ({
+  test('With autoItemizeEnabled=false, New invoice opens the dialog directly, with a document row but no AI link', async ({
     page,
     testPrefix,
   }) => {
@@ -335,15 +283,12 @@ test.describe('Scenario 11 — Not-configured fallback to manual modal', () => {
 
       await invoicesPage.clickNewInvoice();
 
-      // Manual modal should open directly
-      const manualModal = await invoicesPage.waitForManualModal();
-      await expect(manualModal).toBeVisible();
+      // The dialog opens directly; the document row only pre-fills (no AI link without the reader)
+      await invoicesPage.createDialog.waitForOpen();
+      await expect(invoicesPage.createDialog.documentPicker.input).toBeVisible();
+      await expect(invoicesPage.createDialog.readWithAi).toHaveCount(0);
 
-      // Picker modal should NOT be visible
-      const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
-      await expect(pickerDialogLocator).not.toBeVisible();
-
-      await invoicesPage.createCancelButton.click();
+      await invoicesPage.closeCreateModal();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -384,9 +329,8 @@ test.describe('Scenario 12 — Abandon review creates no invoice', () => {
       await invoicesPage.waitForLoaded();
 
       // Navigate to review page via picker flow
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -442,9 +386,8 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -488,9 +431,8 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -543,9 +485,8 @@ test.describe('Scenario 14 — Extraction failure error state', () => {
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);

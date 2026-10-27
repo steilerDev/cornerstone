@@ -34,7 +34,6 @@ import { InvoiceConvertPage } from '../../pages/InvoiceConvertPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { HomePage } from '../../pages/HomePage.js';
-import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import type { Page, Route } from '@playwright/test';
@@ -121,7 +120,7 @@ async function mockLlmEnabled(page: Page, llmEnabled: boolean): Promise<void> {
   });
 }
 
-/** Mocks everything the document picker modal needs. */
+/** Mocks everything the "Source document" picker needs. */
 async function mockPickerBackend(page: Page): Promise<void> {
   await page.route('**/paperless/correspondents', async (route: Route) => {
     await route.fulfill({
@@ -334,12 +333,9 @@ async function browserToday(page: Page): Promise<string> {
   });
 }
 
-/** Selects the mocked document through the picker modal that the Document card opens. */
-async function pickMockDocument(page: Page, convert: InvoiceConvertPage): Promise<void> {
-  await convert.selectDocument.click();
-  const picker = new PaperlessPickerModal(page);
-  await picker.waitForVisible();
-  await picker.selectDocument(MOCK_DOC.title);
+/** Picks the mocked document in the Document card's "Source document" picker (keyboard path). */
+async function pickMockDocument(_page: Page, convert: InvoiceConvertPage): Promise<void> {
+  await convert.documentPicker.pick(MOCK_DOC.title);
   await expect(convert.selectedDocument).toContainText(MOCK_DOC.title);
 }
 
@@ -1027,6 +1023,11 @@ test.describe('Convert page - AI unavailable (C14)', () => {
       await pickMockDocument(page, convert);
       await expect(convert.readAmounts).toHaveCount(0);
       await expect(convert.removeDocument).toBeVisible();
+
+      // I14 (#2241): the picker's clear button removes the document again
+      await convert.removeDocument.click();
+      await expect(convert.selectDocument).toBeVisible();
+      await expect(convert.selectedDocument).toHaveCount(0);
     } finally {
       await cleanup(page, fixture);
     }
