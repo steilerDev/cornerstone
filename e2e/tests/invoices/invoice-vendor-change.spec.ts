@@ -293,7 +293,7 @@ test.describe(
 
         // Vendor validation error message is displayed
         await expect(detailPage.editVendorError).toBeVisible();
-        await expect(detailPage.editVendorError).toContainText('Please select a vendor');
+        await expect(detailPage.editVendorError).toContainText('Please select a company');
 
         await detailPage.closeEditModal();
       } finally {

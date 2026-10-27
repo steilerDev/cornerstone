@@ -516,6 +516,29 @@ test.describe('Invoice page layout (E10 and E11)', { tag: '@responsive' }, () =>
     });
   }
 
+  test('E10: an offer on a phone keeps both header buttons inside the viewport and the strip compact', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(test.info().project.name !== 'mobile', 'sets its own viewport; run once');
+    const seed = await seedInvoice(page, testPrefix, { status: 'quotation', notes: LONG_NOTES });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const detail = new InvoiceDetailPage(page);
+    await detail.goto(seed.invoiceId);
+    await detail.costLines.waitForLoaded();
+
+    for (const button of [detail.addPaymentPrimary, detail.convertButton]) {
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box, 'header button box').not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    }
+    const strip = await detail.summary.stripBox();
+    expect(strip.bottom, 'header and strip bottom').toBeLessThanOrEqual(844);
+    expect(await detail.summary.columnCount(), 'distinct fact columns').toBe(2);
+  });
+
   for (const width of [1280, 390]) {
     for (const withDocuments of [true, false]) {
       test(`E11: the last fact of every row ends at the strip's right edge (${width}px, ${withDocuments ? 7 : 6} facts)`, async ({

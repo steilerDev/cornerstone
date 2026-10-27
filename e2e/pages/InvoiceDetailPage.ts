@@ -6,9 +6,10 @@
  * - `breadcrumbs` (Money › Invoices, optional origin Back) — #2203
  * - `header` (`invoice-header`): h1 "‹company› · ‹number›" (see invoiceTitle.ts), the description
  *   line with the company link (`invoice-company-link`) and the notes, the status chip
- *   (`invoice-status-badge`, absent on an offer), ONE primary (offer: `convert-quotation-button`;
+ *   (`invoice-status-badge`, absent on an offer), ONE primary (offer: `invoice-primary-add-payment`;
  *   To pay: `invoice-primary-mark-paid`; Paid: `invoice-primary-bank-report`; Submitted:
- *   `invoice-primary-add-payment`), at most one secondary (`invoice-secondary-add-payment`) and the
+ *   `invoice-primary-add-payment`), at most one secondary (`invoice-secondary-add-payment`; on an offer the secondary is
+ *   Convert, `convert-quotation-button`) and the
  *   ⋯ menu (Copy link, Print, Edit details `invoice-menu-edit`, separator, Delete
  *   `object-header-delete`)
  * - `summary` (`invoice-summary`): facts amount, paid, stillToPay | remainingOnOffer, due, split,

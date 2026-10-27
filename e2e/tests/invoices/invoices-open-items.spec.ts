@@ -1315,7 +1315,7 @@ test.describe(
           status: 'pending',
         });
 
-        // #2239: an offer's header has no status chip (Convert is its primary)
+        // #2239: an offer's header has no status chip (Convert is its secondary)
         await detailPage.goto(offer.id);
         await expect(detailPage.convertButton).toBeVisible();
         await expect(detailPage.statusBadge).toHaveCount(0);

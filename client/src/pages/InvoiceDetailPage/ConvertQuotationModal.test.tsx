@@ -487,7 +487,7 @@ describe('ConvertQuotationModal', () => {
 
       const row = screen.getByTestId('convert-delta');
       expect(row).toHaveAttribute('role', 'status');
-      expect(row).toHaveTextContent('Quoted $10000.00 → Final $10500.00');
+      expect(row).toHaveTextContent('Offer $10000.00 → Final $10500.00');
       const badge = within(row).getByText(label);
       expect(badge.className).toContain(cls);
     });

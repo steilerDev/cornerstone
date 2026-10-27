@@ -148,7 +148,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 112,
+      "count": 107,
       "values": [
         "(refund)",
         "(unnamed budget line)",
@@ -176,10 +176,7 @@
         "cost line",
         "cost lines",
         "deposit",
-        "deposits",
         "deposits & refunds",
-        "deposits and final payment",
-        "deposits are kept unchanged.",
         "direct amount",
         "enter a final amount.",
         "estimate",
@@ -214,7 +211,6 @@
         "new budget source",
         "new subsidy program",
         "no budget lines assigned",
-        "no deposits recorded.",
         "no more tags available",
         "no remaining payment.",
         "no subsidies linked",
@@ -242,7 +238,6 @@
         "project budget overview",
         "proposed amount for",
         "refund",
-        "refund for quotation conversion",
         "refunds",
         "refunds due",
         "remaining",

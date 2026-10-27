@@ -174,7 +174,7 @@ describe('InvoiceEditModal (S16)', () => {
     renderModal();
     await userEvent.click(screen.getByText('clear-company'));
     await userEvent.click(save());
-    expect(await screen.findByText('Please select a vendor')).toBeVisible();
+    expect(await screen.findByText('Please select a company')).toBeVisible();
     expect(mockUpdateInvoice).not.toHaveBeenCalled();
   });
 
@@ -265,7 +265,7 @@ describe('InvoiceEditModal (S16)', () => {
 
     it('a 404 NOT_FOUND shows the vendor-not-found copy', async () => {
       const alert = await submitWith(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
-      expect(alert).toHaveTextContent('The selected vendor could not be found');
+      expect(alert).toHaveTextContent('The selected company could not be found');
       expect(onClose).not.toHaveBeenCalled();
       expect(onSaved).not.toHaveBeenCalled();
     });
@@ -301,7 +301,7 @@ describe('InvoiceEditModal (S16)', () => {
       const alert = await submitWith(
         new ApiClientError(404, { code: 'VALIDATION_ERROR', message: 'x' }),
       );
-      expect(alert).not.toHaveTextContent('The selected vendor could not be found');
+      expect(alert).not.toHaveTextContent('The selected company could not be found');
     });
 
     it('a non-API failure shows the generic update error', async () => {

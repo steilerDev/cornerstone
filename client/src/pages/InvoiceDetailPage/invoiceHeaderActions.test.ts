@@ -9,7 +9,7 @@ describe('INVOICE_HEADER_ACTIONS (S10)', () => {
   });
 
   it.each<[InvoiceStatus, string, string | null]>([
-    ['quotation', 'convert', null],
+    ['quotation', 'addProgressPayment', 'convert'],
     ['pending', 'markPaid', 'addProgressPayment'],
     ['paid', 'prepareBankReport', 'addProgressPayment'],
     ['claimed', 'addProgressPayment', null],
@@ -24,9 +24,12 @@ describe('INVOICE_HEADER_ACTIONS (S10)', () => {
     }
   });
 
-  it('offers Convert only on an offer', () => {
+  it('Convert is only ever a secondary, and only on an offer', () => {
+    for (const status of INVOICE_STATUSES) {
+      expect(INVOICE_HEADER_ACTIONS[status].primary).not.toBe('convert');
+    }
     const withConvert = INVOICE_STATUSES.filter(
-      (s) => INVOICE_HEADER_ACTIONS[s].primary === 'convert',
+      (s) => INVOICE_HEADER_ACTIONS[s].secondary === 'convert',
     );
     expect(withConvert).toEqual(['quotation']);
   });

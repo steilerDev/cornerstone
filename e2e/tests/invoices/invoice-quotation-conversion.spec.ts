@@ -346,12 +346,14 @@ test.describe('Quotation conversion - entry point (Scenario 1)', { tag: '@respon
         quotation = await createQuotation(page, testPrefix, { lines: [] });
         pending = await createQuotation(page, `${testPrefix}P`, { status: 'pending', lines: [] });
 
-        // E3: an offer leads with Convert (the one primary), has no status chip and no secondary
+        // E3: an offer leads with Add progress payment (the one primary), keeps Convert as the
+        // secondary and has no status chip
         await detail.goto(quotation.invoiceId);
-        await expect(detail.convertButton).toBeVisible();
+        await expect(detail.addPaymentPrimary).toHaveText('Add progress payment');
+        await expect(detail.convertButton).toHaveText('Convert to final invoice');
         await expect(detail.statusBadge).toHaveCount(0);
         await expect(detail.addPaymentSecondary).toHaveCount(0);
-        await expect(detail.addPaymentPrimary).toHaveCount(0);
+        await expect(detail.markPaid.trigger).toHaveCount(0);
 
         // A pending invoice has the chip and no Convert
         await detail.goto(pending.invoiceId);
@@ -411,7 +413,7 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
       await expect(detail.heading).toBeFocused();
       await expect(detail.markPaid.trigger).toBeVisible();
       await expect(detail.summary.fact('amount')).toContainText('10,500.00');
-      await expect(detail.header.description).toContainText('Converted from quotation of');
+      await expect(detail.header.description).toContainText('Converted from offer of');
       await expect(detail.budgetLinesSection).toContainText('6,300.00');
       await expect(detail.budgetLinesSection).toContainText('3,150.00');
 
@@ -421,7 +423,7 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
       expect(invoice.status).toBe('pending');
       expect(invoice.amount).toBe(10500);
       expect(invoice.notes).toContain('Original quotation notes');
-      expect(invoice.notes).toContain('Converted from quotation of');
+      expect(invoice.notes).toContain('Converted from offer of');
       const byId = new Map(invoice.budgetLines.map((l) => [l.id, l.itemizedAmount]));
       expect(byId.get(line1)).toBe(6300);
       expect(byId.get(line2)).toBe(3150);

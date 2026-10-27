@@ -55,6 +55,17 @@ import {
   type InvoiceDepositRow,
 } from './shared/depositAggregateUtils.js';
 
+/** The (invoices LEFT JOIN invoice_deposits) column set the money helpers read (InvoiceDepositRow). */
+const RECORD_ROW_COLUMNS = {
+  invoice_id: invoices.id,
+  invoice_amount: invoices.amount,
+  invoice_status: invoices.status,
+  deposit_id: invoiceDeposits.id,
+  deposit_amount: invoiceDeposits.amount,
+  deposit_status: invoiceDeposits.status,
+  deposit_entry_type: invoiceDeposits.entryType,
+};
+
 /**
  * The money service's per-record figures (ADR-039), shared by list rows and the detail.
  * `recordRows` are the record's own (invoices LEFT JOIN invoice_deposits) rows.
@@ -481,15 +492,7 @@ export function listAllInvoices(
   // The page filters only narrow the listed rows; the header summary always shows totals
   // across the entire dataset so users can see what the other filter values would yield.
   const summaryRawRows = db
-    .select({
-      invoice_id: invoices.id,
-      invoice_amount: invoices.amount,
-      invoice_status: invoices.status,
-      deposit_id: invoiceDeposits.id,
-      deposit_amount: invoiceDeposits.amount,
-      deposit_status: invoiceDeposits.status,
-      deposit_entry_type: invoiceDeposits.entryType,
-    })
+    .select(RECORD_ROW_COLUMNS)
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
     .all();
@@ -696,15 +699,7 @@ export function getInvoiceDetail(db: DbType, invoiceId: string): InvoiceDetail {
     throw new NotFoundError('Invoice not found');
   }
   const rows = db
-    .select({
-      invoice_id: invoices.id,
-      invoice_amount: invoices.amount,
-      invoice_status: invoices.status,
-      deposit_id: invoiceDeposits.id,
-      deposit_amount: invoiceDeposits.amount,
-      deposit_status: invoiceDeposits.status,
-      deposit_entry_type: invoiceDeposits.entryType,
-    })
+    .select(RECORD_ROW_COLUMNS)
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
     .where(eq(invoices.id, invoiceId))

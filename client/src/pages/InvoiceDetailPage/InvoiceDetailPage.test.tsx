@@ -7,7 +7,7 @@
  *
  * Mutations these tests catch (each assertion below fails when the named change is made):
  *  - D-07: rendering the chip as a bare span instead of the shared Badge, or an Offer chip;
- *  - offer primary other than Convert, or a secondary on an offer;
+ *  - an offer whose primary is not Add progress payment, or whose secondary is not Convert;
  *  - bank report `sourceId` sent with zero or several sources;
  *  - `?payment=` ignored without `?tab=`: the Payments tab would not be selected;
  *  - the delete navigating with push instead of replace.
@@ -504,18 +504,18 @@ describe('InvoiceDetailPage header (S11)', () => {
   });
 
   describe('invoice vs offer', () => {
-    it('an offer: Convert to final invoice is the one primary, no chip and no secondary', async () => {
+    it('an offer: Add progress payment is the one primary, Convert is the secondary, and there is no chip', async () => {
       await loaded({ status: 'quotation' });
-      const primary = screen.getByTestId('convert-quotation-button');
-      expect(primary).toHaveTextContent('Convert to final invoice');
+      const primary = screen.getByTestId('invoice-primary-add-payment');
+      expect(primary).toHaveTextContent('Add progress payment');
       expect(primary.className).toContain('primary');
+      const secondary = screen.getByTestId('convert-quotation-button');
+      expect(secondary).toHaveTextContent('Convert to final invoice');
+      expect(secondary.className).toContain('btnSecondary');
+      expect(secondary.className).not.toContain('primary');
       expect(screen.queryByTestId('invoice-secondary-add-payment')).toBeNull();
       expect(screen.queryByTestId('invoice-status-badge')).toBeNull();
-      expect(
-        screen
-          .getByTestId('invoice-header')
-          .querySelectorAll('.primary, [data-testid$="-primary-mark-paid"]'),
-      ).toHaveLength(1);
+      expect(screen.getByTestId('invoice-header').querySelectorAll('.primary')).toHaveLength(1);
     });
 
     it('clicking Convert opens the conversion flow', async () => {

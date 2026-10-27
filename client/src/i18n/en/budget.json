@@ -536,7 +536,7 @@
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
     "form": {
       "invoiceNumber": "Invoice #",
-      "vendor": "Vendor",
+      "vendor": "Company",
       "amount": "Amount",
       "dueDate": "Due Date",
       "invoiceDate": "Invoice Date",
@@ -545,12 +545,12 @@
       "required": "*",
       "placeholders": {
         "invoiceNumber": "e.g., INV-001",
-        "vendor": "Search vendors…"
+        "vendor": "Search companies…"
       }
     },
     "validation": {
       "amountRequired": "Amount must be a positive number.",
-      "vendorRequired": "Please select a vendor"
+      "vendorRequired": "Please select a company"
     },
     "buttons": {
       "save": "Save changes",
@@ -564,8 +564,8 @@
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again.",
-      "vendorNotFound": "The selected vendor could not be found",
-      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first."
+      "vendorNotFound": "The selected company could not be found",
+      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized cost lines first."
     },
     "budgetLines": {
       "dismissErrorAriaLabel": "Dismiss error"
@@ -593,7 +593,7 @@
         "entryTypeLabel": "Entry type",
         "refundAmountHint": "Refund amounts are entered as a positive number.",
         "budgetSource": "Funding source",
-        "budgetSourceNone": "None (pro-rated)",
+        "budgetSourceNone": "None (spread pro rata)",
         "budgetSourceHintSingle": "Defaulted to {{name}}, this invoice's only funding source.",
         "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest funding source.",
         "budgetSourceHintNone": "This invoice has no cost lines yet. Pick a funding source, or leave it blank to spread this progress payment pro rata.",
@@ -604,10 +604,10 @@
         "refund": "Refund"
       },
       "errors": {
-        "refundExceedsTotal": "Refunds would exceed the larger of the invoice amount and the deposits recorded. Available headroom: {{availableHeadroom}}",
+        "refundExceedsTotal": "Refunds would exceed the larger of the invoice amount and the progress payments recorded. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
-        "saveError": "Failed to save deposit. Please try again.",
+        "saveError": "Failed to save progress payment. Please try again.",
         "amountRequired": "Amount must be a positive number.",
         "dueDateRequired": "Due date is required.",
         "paidDateRequired": "Paid date is required.",
@@ -615,18 +615,18 @@
       }
     },
     "convertModal": {
-      "title": "Convert quotation to final invoice",
-      "intro": "Review the final amount, itemized lines and deposits. Nothing is saved until you confirm.",
-      "confirm": "Convert to invoice",
+      "title": "Convert offer to final invoice",
+      "intro": "Review the final amount, itemized lines and progress payments. Nothing is saved until you confirm.",
+      "confirm": "Convert offer",
       "confirming": "Converting...",
       "cancel": "Cancel",
-      "saveError": "The quotation could not be converted. Nothing was changed.",
+      "saveError": "The offer could not be converted. Nothing was changed.",
       "history": {
-        "converted": "Converted from quotation of {{amount}} on {{date}}."
+        "converted": "Converted from offer of {{amount}} on {{date}}."
       },
       "errors": {
         "itemizedExceeds": "The itemized total exceeds the final amount. Adjust the itemized lines.",
-        "notQuotation": "This invoice is no longer a quotation. The page has been refreshed."
+        "notQuotation": "This invoice is no longer an offer. The page has been refreshed."
       },
       "source": {
         "heading": "Source document",
@@ -640,8 +640,8 @@
         "aiSuccess": "Prefilled from document. Review the values before confirming.",
         "aiError": "Analysis failed. Your entries are kept. Continue manually or try again.",
         "aiRetry": "Try again",
-        "aiTotalMismatch": "The document total ({{extracted}}) differs from the quoted amount ({{quoted}}) by more than 1%.",
-        "aiNoLines": "No line items were detected in the document, so the final amount was not prefilled."
+        "aiTotalMismatch": "The document total ({{extracted}}) differs from the offer amount ({{quoted}}) by more than 1%.",
+        "aiNoLines": "No lines were detected in the document, so the final amount was not prefilled."
       },
       "details": {
         "heading": "Invoice details",
@@ -650,8 +650,8 @@
         "invoiceNumber": "Invoice number",
         "dueDate": "Due date",
         "notes": "Notes",
-        "historyHint": "A note with the quoted amount is added automatically.",
-        "quotedAmount": "Quoted {{quoted}} → Final {{final}}",
+        "historyHint": "A note with the offer amount is added automatically.",
+        "quotedAmount": "Offer {{quoted}} → Final {{final}}",
         "deltaIncrease": "Increase: +{{amount}} (+{{percent}})",
         "deltaDecrease": "Decrease: −{{amount}} (−{{percent}})",
         "deltaNone": "No change",
@@ -668,7 +668,7 @@
         "proposalHint": "Proposed amounts are scaled pro rata to the final amount.",
         "columns": {
           "line": "Line",
-          "quoted": "Quoted",
+          "quoted": "Offer",
           "proposed": "Proposed",
           "keep": "Keep"
         },
@@ -677,7 +677,7 @@
         "proposedAria": "Proposed amount for {{name}}",
         "keepAria": "Keep existing amount for {{name}}",
         "itemizedTotal": "Itemized total",
-        "remainderDiscretionary": "Remainder to Discretionary",
+        "remainderDiscretionary": "Remainder to Own funds",
         "overAllocated": "Itemized total exceeds the final amount by {{amount}}.",
         "lineInvalid": "Enter an amount greater than 0.",
         "empty": "No itemized lines. Nothing to adjust.",
@@ -685,19 +685,19 @@
         "householdItem": "Household item"
       },
       "deposits": {
-        "heading": "Deposits and final payment",
-        "unchangedNote": "Deposits are kept unchanged.",
-        "empty": "No deposits recorded.",
+        "heading": "Progress payments and final payment",
+        "unchangedNote": "Progress payments are kept unchanged.",
+        "empty": "No progress payments recorded.",
         "finalAmount": "Final amount",
-        "depositsSubtotal": "Deposits",
+        "depositsSubtotal": "Progress payments",
         "finalPayment": "Final payment",
         "noRemaining": "No remaining payment."
       },
       "overpaid": {
-        "message": "The final amount is {{shortfall}} lower than the deposits recorded ({{deposits}}). You can still convert; add a refund entry if the vendor pays back the difference.",
+        "message": "The final amount is {{shortfall}} lower than the progress payments recorded ({{deposits}}). You can still convert; add a refund entry if the company pays back the difference.",
         "addRefund": "Add refund",
-        "resolved": "Deposits no longer exceed the final amount.",
-        "refundDescription": "Refund for quotation conversion"
+        "resolved": "Progress payments no longer exceed the final amount.",
+        "refundDescription": "Refund for the offer conversion"
       },
       "status": {
         "heading": "Payment status",

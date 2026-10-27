@@ -1500,10 +1500,10 @@
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
     "from": "/budget/invoices/:id (status Quotation) > 'Convert to final invoice' > modal (final amount, date, invoice #, due date, notes; quoted->final delta; payment status 'Leave as pending' / 'Already paid')",
-    "to": "Money > Invoice / Offer page (offer) > primary 'Convert to final invoice' -> Money > Convert page (/budget/invoices/:id/convert; dense cost-line table grouped by task); the record keeps its id and URL and leaves the Offers chip for the invoice chips of the same list",
+    "to": "Money > Invoice / Offer page (offer) > secondary 'Convert to final invoice' -> Money > Convert page (/budget/invoices/:id/convert; dense cost-line table grouped by task); the record keeps its id and URL and leaves the Offers chip for the invoice chips of the same list",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The Convert dialog stays until P4.8 #2240."
+    "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2239: The Convert dialog stays until P4.8 #2240. #2239: Convert is the secondary on an offer (the primary is Add progress payment)."
   },
   "MNY-086": {
     "name": "Attach the final document and AI-prefill values while converting a quotation",
@@ -1542,7 +1542,7 @@
   "MNY-090": {
     "name": "Record a deposit (staged payment) on an invoice",
     "from": "/budget/invoices/:id > Deposits > 'Add deposit' > modal (entry type, budget source, amount*, due date*, status, paid date, claimed date, description)",
-    "to": "Money > Invoice / Offer page > header 'Add progress payment' (secondary on To pay and Paid invoices, primary on Submitted) / Payments tab > Progress payments > 'Add progress payment'",
+    "to": "Money > Invoice / Offer page > header 'Add progress payment' (primary on offers and Submitted invoices, secondary on To pay and Paid invoices) / Payments tab > Progress payments > 'Add progress payment'",
     "change": "promoted",
     "gate": "none",
     "note": "Made more visible in Money because it serves a frequent job (monthly use). #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."

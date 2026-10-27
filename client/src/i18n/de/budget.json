@@ -387,7 +387,7 @@
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
     "form": {
       "invoiceNumber": "Rechnung #",
-      "vendor": "Auftragnehmer",
+      "vendor": "Firma",
       "amount": "Betrag",
       "dueDate": "Fälligkeitsdatum",
       "invoiceDate": "Rechnungsdatum",
@@ -396,12 +396,12 @@
       "required": "*",
       "placeholders": {
         "invoiceNumber": "z. B. RE-001",
-        "vendor": "Auftragnehmer suchen…"
+        "vendor": "Firmen suchen…"
       }
     },
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "vendorRequired": "Bitte wähle einen Auftragnehmer aus"
+      "vendorRequired": "Bitte wähle eine Firma aus"
     },
     "buttons": {
       "save": "Änderungen speichern",
@@ -415,8 +415,8 @@
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut.",
-      "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden",
-      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Budgetpositionen."
+      "vendorNotFound": "Die ausgewählte Firma konnte nicht gefunden werden",
+      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Kostenpositionen."
     },
     "budgetLines": {
       "form": {},
@@ -444,7 +444,7 @@
         "entryTypeLabel": "Eintragsart",
         "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben.",
         "budgetSource": "Finanzierungsquelle",
-        "budgetSourceNone": "Keine (anteilig)",
+        "budgetSourceNone": "Keine (anteilig verteilt)",
         "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Finanzierungsquelle dieser Rechnung.",
         "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt – die größte Finanzierungsquelle dieser Rechnung.",
         "budgetSourceHintNone": "Diese Rechnung hat noch keine Kostenpositionen. Wähle eine Finanzierungsquelle aus oder lass das Feld leer, um diese Abschlagszahlung anteilig zu verteilen.",
@@ -469,7 +469,7 @@
     "convertModal": {
       "title": "Angebot in Endrechnung umwandeln",
       "intro": "Überprüfe den Endbetrag, die aufgeschlüsselten Positionen und die Abschlagszahlungen. Nichts wird gespeichert, bis du bestätigst.",
-      "confirm": "In Rechnung umwandeln",
+      "confirm": "Angebot umwandeln",
       "confirming": "Wird umgewandelt...",
       "cancel": "Abbrechen",
       "saveError": "Das Angebot konnte nicht umgewandelt werden. Keine Änderungen wurden vorgenommen.",
@@ -492,7 +492,7 @@
         "aiSuccess": "Aus Dokument vorausgefüllt. Überprüfe die Werte vor dem Bestätigen.",
         "aiError": "Analyse fehlgeschlagen. Deine Einträge sind noch vorhanden. Fahre manuell fort oder versuche es erneut.",
         "aiRetry": "Erneut versuchen",
-        "aiTotalMismatch": "Die Dokumentensumme ({{extracted}}) unterscheidet sich um mehr als 1% vom angebotenen Betrag ({{quoted}}).",
+        "aiTotalMismatch": "Die Dokumentensumme ({{extracted}}) unterscheidet sich um mehr als 1% vom Angebotsbetrag ({{quoted}}).",
         "aiNoLines": "Im Dokument wurden keine Positionen erkannt, daher wurde der Endbetrag nicht vorausgefüllt."
       },
       "details": {
@@ -502,7 +502,7 @@
         "invoiceNumber": "Rechnungsnummer",
         "dueDate": "Fälligkeitsdatum",
         "notes": "Notizen",
-        "historyHint": "Eine Notiz mit dem angebotenen Betrag wird automatisch hinzugefügt.",
+        "historyHint": "Eine Notiz mit dem Angebotsbetrag wird automatisch hinzugefügt.",
         "quotedAmount": "Angebot {{quoted}} → Endbetrag {{final}}",
         "deltaIncrease": "Erhöhung: +{{amount}} (+{{percent}})",
         "deltaDecrease": "Reduktion: −{{amount}} (−{{percent}})",
@@ -529,7 +529,7 @@
         "proposedAria": "Vorgeschlagener Betrag für {{name}}",
         "keepAria": "Betrag beibehalten für {{name}}",
         "itemizedTotal": "Aufgeschlüsselte Summe",
-        "remainderDiscretionary": "Verbleibend für Diskretionär",
+        "remainderDiscretionary": "Verbleibend für Eigenmittel",
         "overAllocated": "Die aufgeschlüsselte Summe überschreitet den Endbetrag um {{amount}}.",
         "lineInvalid": "Gib einen Betrag größer als 0 ein.",
         "empty": "Keine aufgeschlüsselten Positionen. Nichts zum Anpassen.",
@@ -546,7 +546,7 @@
         "noRemaining": "Keine verbleibende Zahlung."
       },
       "overpaid": {
-        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Du kannst die Umwandlung durchführen; füge einen Rückerstattungseintrag hinzu, wenn der Auftragnehmer die Differenz erstattet.",
+        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Du kannst die Umwandlung durchführen; füge einen Rückerstattungseintrag hinzu, wenn die Firma die Differenz erstattet.",
         "addRefund": "Rückerstattung hinzufügen",
         "resolved": "Abschlagszahlungen übersteigen den Endbetrag nicht mehr.",
         "refundDescription": "Rückerstattung für Angebotsumwandlung"

@@ -190,7 +190,7 @@ function InvoiceDetailLoaded({
   useEffect(() => {
     if (focusHeadingAfterConvertRef.current) {
       focusHeadingAfterConvertRef.current = false;
-      headingRef.current!.focus();
+      headingRef.current?.focus();
     }
   }, [invoice]);
 
@@ -238,14 +238,6 @@ function InvoiceDetailLoaded({
   const actions = INVOICE_HEADER_ACTIONS[invoice.status];
   let primary: ObjectHeaderPrimary<InvoiceStatus>;
   switch (actions.primary) {
-    case 'convert':
-      primary = {
-        kind: 'button',
-        label: t('invoiceDetail.buttons.convertToFinal'),
-        onClick: convert.open,
-        testId: 'convert-quotation-button',
-      };
-      break;
     case 'markPaid':
       primary = {
         kind: 'status',
@@ -341,7 +333,16 @@ function InvoiceDetailLoaded({
         isOffer ? undefined : <StatusMenu {...statusMenuProps} testId="invoice-status-badge" />
       }
       secondary={
-        actions.secondary ? (
+        actions.secondary === 'convert' ? (
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            data-testid="convert-quotation-button"
+            onClick={convert.open}
+          >
+            {t('invoiceDetail.buttons.convertToFinal')}
+          </button>
+        ) : actions.secondary === 'addProgressPayment' ? (
           <button
             type="button"
             className={sharedStyles.btnSecondary}
