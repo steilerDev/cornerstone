@@ -147,16 +147,14 @@
       ]
     },
     "moneyLabels": {
-      "count": 82,
+      "count": 78,
       "values": [
         "(refund)",
-        "(unnamed budget line)",
         "actual cost",
         "add refund",
         "after grants",
         "allocated",
         "allocated amount",
-        "allocated source",
         "amount",
         "budget breakdown",
         "budget breakdown: no data",
@@ -170,7 +168,6 @@
         "cost line",
         "cost lines",
         "deposit",
-        "deposits & refunds",
         "direct amount",
         "eligible costs up to",
         "enter a final amount.",
@@ -191,7 +188,6 @@
         "invoice amount",
         "invoiced",
         "left to spend",
-        "less deposit",
         "loading budget lines",
         "mark paid",
         "net",
