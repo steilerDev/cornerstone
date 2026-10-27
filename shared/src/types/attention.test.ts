@@ -164,7 +164,7 @@ describe('row key pattern', () => {
 });
 
 describe('ATTENTION_LINK_ROUTES', () => {
-  it('lists the ten route ids a row may link to', () => {
+  it('lists the ten route ids a row may link to (grant and financing replace the interim lists, #2242)', () => {
     expect([...ATTENTION_LINK_ROUTES]).toEqual([
       'workItem',
       'workItems',
@@ -174,8 +174,8 @@ describe('ATTENTION_LINK_ROUTES', () => {
       'diaryEntry',
       'diaryEntryEdit',
       'bankReport',
-      'budgetSubsidies',
-      'budgetSources',
+      'grant',
+      'financing',
     ]);
   });
 

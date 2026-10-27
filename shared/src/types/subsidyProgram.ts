@@ -7,6 +7,8 @@
 import type { BudgetCategory } from './budgetCategory.js';
 import type { UserSummary } from './workItem.js';
 import type { SubsidyPaybackEntry } from './budget.js';
+import type { AreaSummary } from './area.js';
+import type { GrantMoney } from './money.js';
 
 /**
  * The type of cost reduction applied by a subsidy program.
@@ -65,6 +67,11 @@ export interface CreateSubsidyProgramRequest {
   maximumAmount?: number | null;
   categoryIds?: string[];
   includesNoCategoryItems?: boolean;
+  /**
+   * Tasks / purchases to cover, linked in the same transaction as the create (optional on the
+   * API; the dialog asks for at least one). At most 100.
+   */
+  items?: GrantItemRef[];
 }
 
 /**
@@ -119,4 +126,48 @@ export interface WorkItemSubsidyPaybackResponse {
   expectedTotalPayback: number;
   /** Per-subsidy breakdown. Empty array when no subsidies are linked. */
   subsidies: WorkItemSubsidyPaybackEntry[];
+}
+
+/** Item types a grant can cover. Runtime source of truth for the union. */
+export const GRANT_ITEM_TYPES = ['work_item', 'household_item'] as const;
+export type GrantItemType = (typeof GRANT_ITEM_TYPES)[number];
+
+/** A task or purchase referenced by a grant link request. */
+export interface GrantItemRef {
+  type: GrantItemType;
+  id: string;
+}
+
+/** One covered item of a grant (GET /api/subsidy-programs/:id/items). */
+export interface GrantCoveredItem {
+  type: GrantItemType;
+  id: string;
+  title: string;
+  area: AreaSummary | null;
+  /** Engine share of this grant for the item (expected scenario); 0 when rejected or none. */
+  covered: number;
+}
+
+/** Response for GET and POST /api/subsidy-programs/:id/items. */
+export interface GrantCoveredItemsResponse {
+  items: GrantCoveredItem[];
+}
+
+/** Request body for POST /api/subsidy-programs/:id/items. */
+export interface LinkGrantItemsRequest {
+  items: GrantItemRef[];
+}
+
+/** Response for GET /api/subsidy-programs/:id. */
+export interface SubsidyProgramDetailResponse {
+  subsidyProgram: SubsidyProgram;
+  money: GrantMoney;
+}
+
+/** A grant chip on a task / purchase list row. */
+export interface ItemGrantChip {
+  id: string;
+  name: string;
+  reductionType: SubsidyReductionType;
+  rate: number;
 }

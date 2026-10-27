@@ -834,7 +834,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       expect(section).toHaveAttribute('aria-labelledby', heading.id);
       expect(within(section).getByTestId('cost-lines-stub')).toBeInTheDocument();
       expect(
-        within(section).getByRole('heading', { name: 'Subsidies', level: 3 }),
+        within(section).getByRole('heading', { name: 'Grants', level: 3 }),
       ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Budget', level: 2 })).toBeNull();
     });

@@ -1,13 +1,14 @@
 /**
- * E2E tests for the Documents panel on its five hosts — EPIC-08 (Stories 8.4, 8.5, 8.7),
+ * E2E tests for the Documents panel on its hosts — EPIC-08 (Stories 8.4, 8.5, 8.7),
  * Story #1744 and #2233 (P4.1 detail template; the panel replaces LinkedDocumentsSection).
  *
  * The Documents panel ("Documents (n)" trigger + side sheet / full-screen sheet) is hosted by:
  *   - Task detail page (/project/work-items/:id)             trigger documents-panel-button
  *   - Purchase detail page (/project/household-items/:id)    trigger documents-panel-button
  *   - Invoice detail page (/budget/invoices/:id)             trigger summary-fact-documents (strip fact, value = count)
- *   - Funding source row (/budget/sources)                   trigger source-docs-<id>
- *   - Grant row (/budget/subsidies)                          trigger program-docs-<id>
+ *   - Funding source card (/budget/financing)                trigger financing-source-docs-<id>
+ *   - Grant card (/budget/financing)                         trigger financing-grant-docs-<id>
+ *   - Funding source page / Grant page (strip fact)          trigger summary-fact-documents
  *
  * In the E2E environment Paperless is NOT configured (#2217), so tests use route mocks:
  * - Paperless off + no links: no trigger, no panel, no "not configured" text, no env names
@@ -45,8 +46,9 @@ import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js';
-import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
-import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
+import { FinancingPage } from '../../pages/FinancingPage.js';
+import { FundingSourcePage } from '../../pages/FundingSourcePage.js';
+import { GrantPage } from '../../pages/GrantPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
@@ -108,7 +110,7 @@ async function deleteVendorViaApi(page: Page, vendorId: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The five hosts of the Documents panel
+// The hosts of the Documents panel
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface Host {
@@ -173,10 +175,10 @@ const HOSTS: readonly Host[] = [
     },
   },
   {
-    label: 'Funding source',
+    label: 'Funding source card',
     entityType: 'budget_source',
-    triggerTestId: (id) => `source-docs-${id}`,
-    triggerPattern: /^source-docs-/,
+    triggerTestId: (id) => `financing-source-docs-${id}`,
+    triggerPattern: /^financing-source-docs-/,
     triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createBudgetSourceViaApi(page, {
@@ -186,16 +188,14 @@ const HOSTS: readonly Host[] = [
       return { id, cleanup: () => deleteBudgetSourceViaApi(page, id) };
     },
     open: async (page) => {
-      const sourcesPage = new BudgetSourcesPage(page);
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
+      await new FinancingPage(page).goto();
     },
   },
   {
-    label: 'Grant',
+    label: 'Grant card',
     entityType: 'subsidy_program',
-    triggerTestId: (id) => `program-docs-${id}`,
-    triggerPattern: /^program-docs-/,
+    triggerTestId: (id) => `financing-grant-docs-${id}`,
+    triggerPattern: /^financing-grant-docs-/,
     triggerText: (count) => `Documents (${count})`,
     create: async (page, prefix) => {
       const id = await createSubsidyProgramViaApi(page, {
@@ -205,9 +205,41 @@ const HOSTS: readonly Host[] = [
       return { id, cleanup: () => deleteSubsidyProgramViaApi(page, id) };
     },
     open: async (page) => {
-      const subsidyPage = new SubsidyProgramsPage(page);
-      await subsidyPage.goto();
-      await subsidyPage.waitForProgramsLoaded();
+      await new FinancingPage(page).goto();
+    },
+  },
+  {
+    label: 'Funding source page',
+    entityType: 'budget_source',
+    triggerTestId: () => 'summary-fact-documents',
+    triggerPattern: /^summary-fact-documents$/,
+    triggerText: (count) => `${count}`,
+    create: async (page, prefix) => {
+      const id = await createBudgetSourceViaApi(page, {
+        name: `${prefix} Docs Host Source Page`,
+        totalAmount: 10000,
+      });
+      return { id, cleanup: () => deleteBudgetSourceViaApi(page, id) };
+    },
+    open: async (page, id) => {
+      await new FundingSourcePage(page).goto(id);
+    },
+  },
+  {
+    label: 'Grant page',
+    entityType: 'subsidy_program',
+    triggerTestId: () => 'summary-fact-documents',
+    triggerPattern: /^summary-fact-documents$/,
+    triggerText: (count) => `${count}`,
+    create: async (page, prefix) => {
+      const id = await createSubsidyProgramViaApi(page, {
+        name: `${prefix} Docs Host Grant Page`,
+        reductionValue: 10,
+      });
+      return { id, cleanup: () => deleteSubsidyProgramViaApi(page, id) };
+    },
+    open: async (page, id) => {
+      await new GrantPage(page).goto(id);
     },
   },
 ];

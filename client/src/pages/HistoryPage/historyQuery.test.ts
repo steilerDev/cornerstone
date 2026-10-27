@@ -43,10 +43,17 @@ describe('readHistoryFilters', () => {
   it('ignores invalid values', () => {
     const f = readHistoryFilters(
       new URLSearchParams(
-        'type=bogus&object=budget_source:x&dateFrom=01-01-2026&dateTo=nope&include=other',
+        'type=bogus&object=photo:x&dateFrom=01-01-2026&dateTo=nope&include=other',
       ),
     );
     expect(f).toEqual(EMPTY);
+  });
+
+  it('parses a funding source object (the Funding source History tab, #2242)', () => {
+    expect(readHistoryFilters(new URLSearchParams('object=budget_source:bs-1')).object).toEqual({
+      entityType: 'budget_source',
+      entityId: 'bs-1',
+    });
   });
 
   it('ignores an object without id and an unmatched pattern', () => {

@@ -163,6 +163,56 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe('useDocumentsPanel — openLink (#2242)', () => {
+  it('opens the panel straight in the Link document picker in full mode', async () => {
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('full'));
+
+    act(() => latest?.openLink());
+
+    expect(latest?.isOpen).toBe(true);
+    expect(await screen.findByTestId('document-browser')).toBeInTheDocument();
+    expect(screen.getByTestId('documents-back')).toBeInTheDocument();
+  });
+
+  it('applies the initial view each time the panel opens: Link opens the picker, open() the list again', async () => {
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent('full'));
+    act(() => latest?.openLink());
+    await screen.findByTestId('document-browser');
+    fireEvent.click(screen.getByRole('button', { name: /close/i }));
+    await waitFor(() => expect(latest?.isOpen).toBe(false));
+
+    act(() => latest?.open());
+
+    expect(latest?.isOpen).toBe(true);
+    expect(screen.queryByTestId('document-browser')).toBeNull();
+    expect(screen.getByTestId('documents-link-document')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['unreachable', { ...STATUS_ON, reachable: false }],
+    ['hidden', STATUS_OFF],
+  ])('is a no-op in %s mode (the picker needs Paperless)', async (mode, status) => {
+    mockGetPaperlessStatus.mockResolvedValue(status);
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('mode')).toHaveTextContent(mode));
+
+    act(() => latest?.openLink());
+
+    expect(latest?.isOpen).toBe(false);
+  });
+
+  it('is a no-op while the status is pending', () => {
+    mockGetPaperlessStatus.mockImplementation(() => new Promise(() => {}));
+    renderProbe();
+
+    act(() => latest?.openLink());
+
+    expect(latest?.isOpen).toBe(false);
+  });
+});
+
 describe('useDocumentsPanel — mode gating', () => {
   it('configured and reachable: full mode, fact with the count (0 included), panel mounted', async () => {
     renderProbe();

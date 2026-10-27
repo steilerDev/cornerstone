@@ -28,7 +28,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { FinancingFormDialog } from '../../pages/FinancingFormDialog.js';
 import {
   CREATE_ENTRY_LABELS,
   CreateMenu,
@@ -38,7 +38,6 @@ import {
 import { HouseholdItemCreatePage } from '../../pages/HouseholdItemCreatePage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { MilestoneCreatePage } from '../../pages/MilestoneCreatePage.js';
-import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
 import { VendorsPage } from '../../pages/VendorsPage.js';
 import { WorkItemCreatePage } from '../../pages/WorkItemCreatePage.js';
@@ -505,26 +504,27 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
       await createMenu.choose(entry);
     }
 
-    test('N5: Funding source opens the create form with its first field focused', async ({
+    test('N5: Funding source opens the New funding source dialog over Financing', async ({
       page,
     }) => {
-      const sources = new BudgetSourcesPage(page);
+      const dialog = new FinancingFormDialog(page, 'source');
       await chooseOnMoney(page, 'fundingSource');
 
-      await page.waitForURL(pathnameIs(routeUrl('budgetSources')));
-      await expect(sources.createFormHeading).toBeVisible();
-      await expect(sources.createNameInput).toBeFocused();
-      expect(new URL(page.url()).search).toBe('');
+      await page.waitForURL(pathnameIs(routeUrl('financing')));
+      await dialog.waitForOpen();
+      await expect(dialog.name).toBeFocused();
+      // ?create=1&kind=source is consumed
+      await expect.poll(() => new URL(page.url()).search).toBe('');
     });
 
-    test('N5: Grant opens the create form with its first field focused', async ({ page }) => {
-      const grants = new SubsidyProgramsPage(page);
+    test('N5: Grant opens the New grant dialog over Financing', async ({ page }) => {
+      const dialog = new FinancingFormDialog(page, 'grant');
       await chooseOnMoney(page, 'grant');
 
-      await page.waitForURL(pathnameIs(routeUrl('budgetSubsidies')));
-      await expect(grants.createFormHeading).toBeVisible();
-      await expect(grants.createNameInput).toBeFocused();
-      expect(new URL(page.url()).search).toBe('');
+      await page.waitForURL(pathnameIs(routeUrl('financing')));
+      await dialog.waitForOpen();
+      await expect(dialog.name).toBeFocused();
+      await expect.poll(() => new URL(page.url()).search).toBe('');
     });
 
     test('N5: Company opens the New company dialog over the page it was chosen on', async ({

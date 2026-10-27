@@ -8,7 +8,7 @@
  *
  * Scenarios:
  * - E1  (AC1/AC2/AC6) h1 and exact tab title for every Money route (overview, invoices, invoice,
- *                     offer, 404, funding sources, grants, bank report, New invoice, Split with AI)
+ *                     offer, 404, financing, funding source, grant, bank report, New invoice, Split with AI)
  * - E1b               the New invoice h1 is the same while the extraction is loading and after
  *                     (the extraction wording is a status line, not the heading)
  * - E2  (AC3)         breadcrumbs are parents only; the two views have none; the trail links work
@@ -37,7 +37,14 @@ import { test, expect } from '../../fixtures/auth.js';
 import type { Page, Route } from '@playwright/test';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { API } from '../../fixtures/testData.js';
-import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createBudgetSourceViaApi,
+  createSubsidyProgramViaApi,
+  createVendorViaApi,
+  deleteBudgetSourceViaApi,
+  deleteSubsidyProgramViaApi,
+  deleteVendorViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import {
   MOCK_DOC,
@@ -67,13 +74,15 @@ const runId = Date.now().toString(36);
 const NAMES = {
   company: `PI2203 Builders ${runId}`,
   invoiceNumber: `PI-${runId}`,
+  source: `PI2242 Loan ${runId}`,
+  grant: `PI2242 Grant ${runId}`,
 };
 /** The invoice page h1: ‹company› · ‹number› */
 const INVOICE_H1 = `${NAMES.company} · ${NAMES.invoiceNumber}`;
 /** The offer has no number: ‹company› · Offer */
 const OFFER_H1 = `${NAMES.company} · Offer`;
 
-const seed = { vendorId: '', invoiceId: '', offerId: '' };
+const seed = { vendorId: '', invoiceId: '', offerId: '', sourceId: '', grantId: '' };
 
 const DOC_TITLE = 'PI2203 Split Doc';
 const SPLIT_DOC_ID = 62203;
@@ -234,6 +243,15 @@ test.describe('Page identity: Money (#2203)', () => {
         date: '2026-03-02',
         status: 'quotation',
       });
+      seed.sourceId = await createBudgetSourceViaApi(page, {
+        name: NAMES.source,
+        sourceType: 'bank_loan',
+        totalAmount: 50000,
+      });
+      seed.grantId = await createSubsidyProgramViaApi(page, {
+        name: NAMES.grant,
+        reductionValue: 10,
+      });
     } finally {
       await context.close();
     }
@@ -250,6 +268,8 @@ test.describe('Page identity: Money (#2203)', () => {
         }
       }
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId);
+      if (seed.sourceId) await deleteBudgetSourceViaApi(page, seed.sourceId);
+      if (seed.grantId) await deleteSubsidyProgramViaApi(page, seed.grantId);
     } finally {
       await context.close();
     }
@@ -309,16 +329,22 @@ test.describe('Page identity: Money (#2203)', () => {
         title: () => `${OFFER_H1} · Money · ${HOUSE}`,
       },
       {
-        name: 'Funding sources',
-        path: () => routeUrl('budgetSources'),
-        h1: 'Funding sources',
-        title: `Funding sources · Money · ${HOUSE}`,
+        name: 'Financing',
+        path: () => routeUrl('financing'),
+        h1: 'Financing',
+        title: `Financing · Money · ${HOUSE}`,
       },
       {
-        name: 'Grants',
-        path: () => routeUrl('budgetSubsidies'),
-        h1: 'Grants',
-        title: `Grants · Money · ${HOUSE}`,
+        name: 'Funding source page',
+        path: () => routeUrl('fundingSource', { id: seed.sourceId }),
+        h1: () => NAMES.source,
+        title: () => `${NAMES.source} · Money · ${HOUSE}`,
+      },
+      {
+        name: 'Grant page',
+        path: () => routeUrl('grant', { id: seed.grantId }),
+        h1: () => NAMES.grant,
+        title: () => `${NAMES.grant} · Money · ${HOUSE}`,
       },
       {
         name: 'Bank report',
@@ -492,20 +518,29 @@ test.describe('Page identity: Money (#2203)', () => {
       await bc.expectTrail(['Money', 'Invoices']);
     });
 
-    for (const [label, route] of [
-      ['Funding sources', () => routeUrl('budgetSources')],
-      ['Grants', () => routeUrl('budgetSubsidies')],
-      ['Bank report', () => routeUrl('bankReport')],
-    ] as Array<[string, () => string]>) {
-      test(`E2: ${label} shows the single parent "Money"`, async ({ page }) => {
+    // Financing is a view (no trail); its pages and the Bank report sit under it
+    for (const [label, route, h1] of [
+      ['A funding source', () => routeUrl('fundingSource', { id: seed.sourceId }), NAMES.source],
+      ['A grant', () => routeUrl('grant', { id: seed.grantId }), NAMES.grant],
+      ['Bank report', () => routeUrl('bankReport'), 'Bank report'],
+    ] as Array<[string, () => string, string]>) {
+      test(`E2: ${label} shows the trail "Money › Financing"`, async ({ page }) => {
         const bc = new BreadcrumbsBar(page);
         await page.goto(route());
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText(h1);
 
-        await bc.expectTrail(['Money']);
+        await bc.expectTrail(['Money', 'Financing']);
         await bc.expectNoBack();
       });
     }
+
+    test('E2: Financing is a view and shows no breadcrumbs', async ({ page }) => {
+      const bc = new BreadcrumbsBar(page);
+      await page.goto(routeUrl('financing'));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Financing');
+      await expect(bc.row).toHaveCount(0);
+      await bc.expectNoTrail();
+    });
 
     test('E2: the Money overview and the Invoices list are views and show no breadcrumbs', async ({
       page,
@@ -536,12 +571,12 @@ test.describe('Page identity: Money (#2203)', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Invoices\b/);
     });
 
-    test('E2: the "Money" trail link of Funding sources leads to the Money overview', async ({
+    test('E2: the "Money" trail link of a funding source leads to the Money overview', async ({
       page,
     }) => {
       const bc = new BreadcrumbsBar(page);
-      await page.goto(routeUrl('budgetSources'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Funding sources');
+      await page.goto(routeUrl('fundingSource', { id: seed.sourceId }));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.source);
 
       await bc.trailLink('Money').click();
 
@@ -741,8 +776,9 @@ test.describe('Page identity: Money (#2203)', () => {
       ['the Money overview', () => routeUrl('budgetOverview')],
       ['the Invoices list', () => routeUrl('invoices')],
       ['an invoice page', () => routeUrl('invoice', { id: seed.invoiceId })],
-      ['Funding sources', () => routeUrl('budgetSources')],
-      ['Grants', () => routeUrl('budgetSubsidies')],
+      ['Financing', () => routeUrl('financing')],
+      ['a funding source page', () => routeUrl('fundingSource', { id: seed.sourceId })],
+      ['a grant page', () => routeUrl('grant', { id: seed.grantId })],
       ['the Bank report', () => routeUrl('bankReport')],
       ['a company page', () => routeUrl('company', { id: seed.vendorId })],
     ];
@@ -957,12 +993,15 @@ test.describe('Page identity: Money (#2203)', () => {
       await expect(bc.row.getByRole('link')).toHaveCount(1);
     });
 
-    test('E9: Funding sources shows the single parent "‹ Money" on a phone', async ({ page }) => {
+    test('E9: a funding source shows only the nearest parent "‹ Financing" on a phone', async ({
+      page,
+    }) => {
       const bc = new BreadcrumbsBar(page);
-      await page.goto(routeUrl('budgetSources'));
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Funding sources');
+      await page.goto(routeUrl('fundingSource', { id: seed.sourceId }));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.source);
 
-      await bc.expectTrail(['Money']);
+      await bc.expectTrail(['Money', 'Financing']);
+      await expect(bc.trailLink('Financing')).toBeVisible();
       await expect(bc.row.getByRole('link')).toHaveCount(1);
     });
   });

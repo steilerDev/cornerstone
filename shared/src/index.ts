@@ -229,6 +229,7 @@ export type {
   UpdateBudgetSourceRequest,
   BudgetSourceListResponse,
   BudgetSourceResponse,
+  BudgetSourceDetailResponse,
   BudgetSourceBudgetLine,
   BudgetSourceBudgetLinesResponse,
   MoveBudgetLinesRequest,
@@ -264,6 +265,13 @@ export type {
   UpdateSubsidyProgramRequest,
   SubsidyProgramListResponse,
   SubsidyProgramResponse,
+  SubsidyProgramDetailResponse,
+  GrantItemType,
+  GrantItemRef,
+  GrantCoveredItem,
+  GrantCoveredItemsResponse,
+  LinkGrantItemsRequest,
+  ItemGrantChip,
   WorkItemSubsidyPaybackEntry,
   WorkItemSubsidyPaybackResponse,
 } from './types/subsidyProgram.js';
@@ -289,6 +297,10 @@ export type {
   MoneyAreaFigures,
   MoneySourceFigures,
   MoneyGrantFigures,
+  FinancingSource,
+  FinancingGrant,
+  FinancingResponse,
+  GrantMoney,
   MoneySummary,
   BreakdownMoney,
 } from './types/money.js';
@@ -329,7 +341,7 @@ export {
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
 } from './types/invoice.js';
-export { SUBSIDY_APPLICATION_STATUSES } from './types/subsidyProgram.js';
+export { SUBSIDY_APPLICATION_STATUSES, GRANT_ITEM_TYPES } from './types/subsidyProgram.js';
 export { HOUSEHOLD_ITEM_STATUSES } from './types/householdItem.js';
 export { DIARY_SOURCE_ENTITY_TYPES, DIARY_ISSUE_RESOLUTIONS } from './types/diary.js';
 export { SCHEDULE_SIGNALS } from './types/schedule.js';

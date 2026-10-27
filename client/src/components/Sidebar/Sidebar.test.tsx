@@ -204,27 +204,29 @@ describe('Sidebar', () => {
       expect(view('milestones')).toHaveAttribute('aria-current', 'page');
     });
 
-    it('shows Invoices, Funding sources, Grants and Bank report under Money, without Financing', () => {
+    it('shows Invoices and Financing under Money, and no interim views (#2242)', () => {
       renderAt('/budget/invoices/i1');
 
-      expect(
-        ['invoices', 'budgetSources', 'budgetSubsidies', 'bankReport'].map(
-          (r) => view(r).textContent,
-        ),
-      ).toEqual(['Invoices', 'Funding sources', 'Grants', 'Bank report']);
+      expect(['invoices', 'financing'].map((r) => view(r).textContent)).toEqual([
+        'Invoices',
+        'Financing',
+      ]);
       expect(view('invoices')).toHaveAttribute('aria-current', 'page');
-      expect(hasView('financing')).toBe(false);
+      for (const retired of ['budgetSources', 'budgetSubsidies', 'bankReport']) {
+        expect(hasView(retired)).toBe(false);
+      }
       expect(section('money')).toHaveClass('sectionCurrent');
     });
 
     it.each([
-      ['/budget/sources', 'budgetSources'],
-      ['/budget/subsidies', 'budgetSubsidies'],
-      ['/budget/reports', 'bankReport'],
-    ])('highlights the interim Money view for %s', (path, route) => {
+      '/budget/financing',
+      '/budget/financing/sources/bs1',
+      '/budget/financing/grants/g1',
+      '/budget/reports',
+    ])('highlights Financing for %s', (path) => {
       renderAt(path);
 
-      expect(view(route)).toHaveAttribute('aria-current', 'page');
+      expect(view('financing')).toHaveAttribute('aria-current', 'page');
     });
 
     it('renders the nested lists only for the section you are in', () => {

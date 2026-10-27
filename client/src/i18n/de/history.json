@@ -24,7 +24,8 @@
       "work_item": "Aufgabe",
       "invoice": "Rechnung",
       "milestone": "Meilenstein",
-      "subsidy_program": "Förderprogramm"
+      "subsidy_program": "Förderprogramm",
+      "budget_source": "Finanzierungsquelle"
     },
     "from": "Von",
     "to": "Bis",

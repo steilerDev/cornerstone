@@ -17,6 +17,7 @@ import {
   BUDGET_VERDICTS,
   AUTOMATIC_DIARY_ENTRY_TYPES,
   DIARY_ISSUE_RESOLUTIONS,
+  GRANT_ITEM_TYPES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
@@ -90,8 +91,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 70 registered sets', () => {
-    expect(SETS).toHaveLength(70);
+  it('iterates all 72 registered sets', () => {
+    expect(SETS).toHaveLength(72);
   });
 });
 
@@ -226,6 +227,8 @@ describe('I18N_UNION_KEYS registry', () => {
       'whoKind',
       'invoiceFormTitle',
       'invoiceFormAdded',
+      'fundingSourceType',
+      'grantItemType',
       'entityPickerNew',
       'objectTab',
       'documentLinkEntity',
@@ -300,6 +303,16 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(sets.invoiceFormAdded.ns).toBe('budget');
     expect(sets.invoiceFormAdded.members).toBe(INVOICE_FORM_KINDS);
     expect(sets.invoiceFormAdded.key('invoice')).toBe('invoiceForm.added.invoice');
+  });
+
+  it('builds the #2242 funding source type and covered-item keys from their tuples', () => {
+    const sets = I18N_UNION_KEYS;
+    expect(sets.fundingSourceType.ns).toBe('budget');
+    expect(sets.fundingSourceType.members).toBe(BUDGET_SOURCE_TYPES);
+    expect(sets.fundingSourceType.key('discretionary')).toBe('financing.sourceType.discretionary');
+    expect(sets.grantItemType.ns).toBe('budget');
+    expect(sets.grantItemType.members).toBe(GRANT_ITEM_TYPES);
+    expect(sets.grantItemType.key('household_item')).toBe('financing.itemKind.household_item');
   });
 
   it('builds the #2230 Home and attention keys from their tuples', () => {

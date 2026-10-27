@@ -2,7 +2,44 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as subsidyProgramService from '../services/subsidyProgramService.js';
 import { runUndoable, undoStore } from '../services/undoService.js';
-import type { CreateSubsidyProgramRequest, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
+import { getGrantCoveredItems, getGrantMoney } from '../services/moneyService.js';
+import { GRANT_ITEM_TYPES } from '@cornerstone/shared';
+import type {
+  CreateSubsidyProgramRequest,
+  LinkGrantItemsRequest,
+  UpdateSubsidyProgramRequest,
+} from '@cornerstone/shared';
+
+// Shared by POST /api/subsidy-programs (optional `items`) and POST /:id/items (required).
+// `additionalProperties: false` strips unknown keys; it does not reject them.
+const grantItemsSchema = {
+  type: 'array',
+  maxItems: 100,
+  items: {
+    type: 'object',
+    required: ['type', 'id'],
+    properties: {
+      type: { type: 'string', enum: [...GRANT_ITEM_TYPES] },
+      id: { type: 'string', minLength: 1 },
+    },
+    additionalProperties: false,
+  },
+} as const;
+
+// JSON schema for POST /api/subsidy-programs/:id/items
+const linkGrantItemsSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: { id: { type: 'string' } },
+  },
+  body: {
+    type: 'object',
+    required: ['items'],
+    properties: { items: { ...grantItemsSchema, minItems: 1 } },
+    additionalProperties: false,
+  },
+};
 
 // JSON schema for POST /api/subsidy-programs (create program)
 const createSubsidyProgramSchema = {
@@ -28,6 +65,7 @@ const createSubsidyProgramSchema = {
         items: { type: 'string' },
       },
       includesNoCategoryItems: { type: 'boolean' },
+      items: grantItemsSchema,
     },
     additionalProperties: false,
   },
@@ -134,7 +172,46 @@ export default async function subsidyProgramRoutes(fastify: FastifyInstance) {
         fastify.db,
         request.params.id,
       );
-      return reply.status(200).send({ subsidyProgram });
+      const money = getGrantMoney(fastify.db, fastify.config.vatRate, request.params.id);
+      return reply.status(200).send({ subsidyProgram, money });
+    },
+  );
+
+  /**
+   * GET /api/subsidy-programs/:id/items
+   * Tasks and purchases covered by the grant, each with its computed share.
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/items',
+    { schema: programIdSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const response = getGrantCoveredItems(fastify.db, fastify.config.vatRate, request.params.id);
+      return reply.status(200).send(response);
+    },
+  );
+
+  /**
+   * POST /api/subsidy-programs/:id/items
+   * Link tasks / purchases to the grant in one transaction. Idempotent for pairs already linked;
+   * an unknown grant or item is a 404 and nothing is linked. Returns the full covered-item list.
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.post<{ Params: { id: string }; Body: LinkGrantItemsRequest }>(
+    '/:id/items',
+    { schema: linkGrantItemsSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      subsidyProgramService.linkGrantItems(fastify.db, request.params.id, request.body.items);
+      const response = getGrantCoveredItems(fastify.db, fastify.config.vatRate, request.params.id);
+      return reply.status(201).send(response);
     },
   );
 

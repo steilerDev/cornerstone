@@ -25,6 +25,8 @@ handling. **Before extending this page**, re-derive current UI/copy from
 this page alone to stay current -- the feature has a long history of fast iteration (see
 `[[release-notes-drift]]` if that file exists, or the product-owner memory directly).
 
+## Superseded by #2242: the wizard now has no sidebar entry (Financing, loan card ⋯, source page)
+
 ## Related fix in the same pass: subsidies.md was stale, not just missing "No Category"
 
 `docs/src/guides/budget/subsidies.md` described a **single** "Budget Category" field and a **4-status**

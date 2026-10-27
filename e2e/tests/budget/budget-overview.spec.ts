@@ -387,7 +387,7 @@ test.describe('Money overview — funding rows (AC2)', { tag: '@responsive' }, (
     await expect(loan).not.toContainText(/Unallocated|Remaining|Over-allocated/);
     await expect(overview.fundingRows.getByRole('button')).toHaveCount(0);
     await expect(overview.funding.getByRole('heading', { name: 'Funding sources' })).toBeVisible();
-    await expect(overview.fundingManageLink).toHaveAttribute('href', /\/budget\/sources/);
+    await expect(overview.fundingManageLink).toHaveAttribute('href', /\/budget\/financing/);
   });
 
   test('Only an over-allocation gets its own amount, shown as it is', async ({ page }) => {

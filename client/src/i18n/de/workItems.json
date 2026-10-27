@@ -266,9 +266,9 @@
       "linkedMilestoneAlreadyLinked": "Dieser Meilenstein ist bereits verknüpft",
       "removeLinkedMilestone": "Verknüpfter Meilenstein konnte nicht entfernt werden",
       "loadFailed": "Arbeitspaket konnte nicht geladen werden. Bitte erneut versuchen.",
-      "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
-      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",
-      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
+      "linkSubsidy": "Das Förderprogramm konnte nicht mit diesem Element verknüpft werden.",
+      "unlinkSubsidy": "Die Verknüpfung des Förderprogramms mit diesem Element konnte nicht gelöst werden.",
+      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits mit diesem Element verknüpft.",
       "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
     },
     "dismissError": "Fehler ausblenden",

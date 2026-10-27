@@ -22,6 +22,7 @@ import {
   milestones,
   vendors,
   subsidyPrograms,
+  budgetSources,
 } from '../db/schema.js';
 import {
   NotFoundError,
@@ -360,6 +361,15 @@ export function resolveSourceEntity(
           .select({ name: subsidyPrograms.name })
           .from(subsidyPrograms)
           .where(eq(subsidyPrograms.id, sourceEntityId))
+          .get();
+        return { title: result?.name ?? null, exists: result !== undefined };
+      }
+
+      case 'budget_source': {
+        const result = db
+          .select({ name: budgetSources.name })
+          .from(budgetSources)
+          .where(eq(budgetSources.id, sourceEntityId))
           .get();
         return { title: result?.name ?? null, exists: result !== undefined };
       }

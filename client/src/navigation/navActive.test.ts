@@ -67,9 +67,10 @@ describe('resolveNavActive exact results', () => {
     ['/budget/invoices', 'money/invoices'],
     ['/budget/invoices/i1', 'money/invoices'],
     ['/budget/invoices/i1/auto-itemize/d1', 'money/invoices'],
-    ['/budget/sources', 'money/budgetSources'],
-    ['/budget/subsidies', 'money/budgetSubsidies'],
-    ['/budget/reports', 'money/bankReport'],
+    ['/budget/financing', 'money/financing'],
+    ['/budget/financing/sources/bs1', 'money/financing'],
+    ['/budget/financing/grants/g1', 'money/financing'],
+    ['/budget/reports', 'money/financing'],
     ['/project/household-items', 'purchases/null'],
     ['/project/household-items/h1/edit', 'purchases/null'],
     ['/diary/e1/edit', 'diary/null'],
@@ -104,16 +105,18 @@ describe('resolveNavActive exact results', () => {
   });
 });
 
-describe('resolveNavActive interim lifecycle', () => {
-  it('falls back to the Money section once the interim views are gone (Financing served)', () => {
+describe('resolveNavActive when the Financing view is not among the given views (#2242)', () => {
+  it('falls back to the Money section for the pages of Financing', () => {
     const money = adminSections.find((s) => s.id === 'money') as NavSection;
-    const withoutInterim = adminSections.map((s) =>
-      s.id === 'money' ? { ...money, views: money.views.filter((v) => !v.interimUntil) } : s,
+    const withoutFinancing = adminSections.map((s) =>
+      s.id === 'money'
+        ? { ...money, views: money.views.filter((v) => v.route !== 'financing') }
+        : s,
     );
-    // bankReport -> financing (not a given view or section) -> budgetOverview (Money's route)
-    expect(result('/budget/reports', withoutInterim)).toBe('money/null');
-    expect(result('/budget/sources', withoutInterim)).toBe('money/null');
-    expect(result('/budget/invoices/i1', withoutInterim)).toBe('money/invoices');
+    // bankReport -> financing (not a given view) -> budgetOverview (Money's route)
+    expect(result('/budget/reports', withoutFinancing)).toBe('money/null');
+    expect(result('/budget/financing/sources/bs1', withoutFinancing)).toBe('money/null');
+    expect(result('/budget/invoices/i1', withoutFinancing)).toBe('money/invoices');
   });
 });
 
@@ -121,7 +124,7 @@ describe('resolveNavActive exact', () => {
   it.each([
     '/schedule/calendar',
     '/project/work-items',
-    '/budget/sources',
+    '/budget/financing',
     '/settings/profile',
     '/companies',
   ])('is true when %s is the entry itself', (path) => {
@@ -157,7 +160,7 @@ describe('navHref', () => {
   });
 
   it('throws for a planned route', () => {
-    expect(() => navHref('financing')).toThrow(/not served/);
+    expect(() => navHref('documents')).toThrow(/not served/);
   });
 
   it('throws for a parameterised route', () => {

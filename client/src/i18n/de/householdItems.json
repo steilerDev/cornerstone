@@ -46,7 +46,7 @@
       "targetDelivery": "Ziellieferdatum",
       "actualDelivery": "Tatsächliche Lieferung",
       "actualCost": "Tatsächliche Kosten",
-      "subsidyReduction": "Förderabzug",
+      "subsidyReduction": "Erwartete Förderung",
       "netCost": "Nettokosten",
       "orderDate": "Bestelldatum",
       "budgetLines": "Budgetpositionen",
@@ -293,9 +293,9 @@
       "itemNotFound": "Artikel nicht gefunden",
       "loadFailed": "Haushaltsartikel konnte nicht geladen werden. Bitte versuche es erneut.",
       "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuche es erneut.",
-      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
-      "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
-      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden"
+      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits mit diesem Element verknüpft.",
+      "linkSubsidy": "Das Förderprogramm konnte nicht mit diesem Element verknüpft werden.",
+      "unlinkSubsidy": "Die Verknüpfung des Förderprogramms mit diesem Element konnte nicht gelöst werden."
     },
     "closeErrorMessage": "Fehlermeldung schließen"
   }

@@ -145,14 +145,14 @@ Open the **⋯** menu and choose **Budget overview for the bank**. This opens th
 
 Linked offers count at their face value on Money > Overview, the same as on the task and purchase pages. A cost line linked to an offer shows the offer's amount in every view, with no range added to it. For more, see [Invoices & Companies](vendors-and-invoices).
 
-## Subsidies
+## Grants
 
-Only approved or received [subsidies](subsidies) count toward Expected grants and the headline. Eligible, applied and rejected subsidies are tracked but do not change the figures.
+Only approved or received [grants](subsidies) count toward Expected grants and the headline. Eligible, applied and rejected grants are tracked but do not change the figures. A grant counts only the tasks and purchases linked to it.
 
 ## Related Pages
 
 - [Budget](/guides/budget/) -- how the budget pieces fit together
 - [Work Items](../work-items/) -- track progress and link cost lines to construction tasks
 - [Household Items](../household-items/) -- manage furniture and appliance purchases with their own cost lines
-- [Financing Sources](financing-sources) -- detailed view of each funding source and its allocated lines
-- [Subsidies](subsidies) -- manage subsidy applications and their impact on your budget
+- [Financing](financing-sources) -- each funding source, its allocated lines, and your own funds
+- [Grants](subsidies) -- manage grant applications and their impact on your budget

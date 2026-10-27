@@ -153,8 +153,8 @@
       "work_item": "Arbeitspaket",
       "invoice": "Rechnung",
       "milestone": "Meilenstein",
-      "budget_source": "Budgetquellen",
-      "subsidy_program": "Förderprogramme"
+      "budget_source": "Finanzierungsquelle",
+      "subsidy_program": "Förderprogramm"
     }
   },
   "signature": {

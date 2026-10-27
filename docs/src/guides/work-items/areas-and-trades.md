@@ -43,7 +43,7 @@ Once you assign an area, Cornerstone displays the **full ancestor path** as a br
 - Work item and household item lists, detail pages, and create pages
 - Pickers that let you select a work item, household item, or budget line (the area appears as a secondary line under the title)
 - Embedded references -- diary entries, invoices, and household item dependencies that point back to a work item
-- The Budget Overview cost breakdown and the Budget Sources line panel (grouped by the full area hierarchy)
+- The Money Overview cost breakdown and the Cost tab of a funding source page (grouped by the full area hierarchy)
 
 The breadcrumb keeps each item grounded in its location at a glance, without having to click through to the detail page.
 

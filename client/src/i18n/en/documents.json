@@ -83,7 +83,9 @@
     "paperlessOff_one": "Paperless is not connected. {{count}} link is kept.",
     "paperlessOff_other": "Paperless is not connected. {{count}} links are kept.",
     "paperlessUnreachable": "Paperless is unreachable.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "link": "Link",
+    "linkFor": "Link a document to {{name}}"
   },
   "documentCard": {
     "documentLabel": "Document: {{title}}{{date}}",

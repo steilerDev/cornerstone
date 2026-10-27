@@ -2542,13 +2542,13 @@ describe('ReportWizardPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Bank report' })).toBeInTheDocument();
     });
 
-    it('offers Back to Funding sources when opened from that page', async () => {
+    it('offers Back to Invoices when opened from the invoices list, under Money > Financing (#2242)', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       render(
         <LocaleProvider>
           <MemoryRouter
             initialEntries={[
-              { pathname: '/budget/reports', state: { origin: { to: '/budget/sources' } } },
+              { pathname: '/budget/reports', state: { origin: { to: '/budget/invoices' } } },
             ]}
           >
             <ReportWizardPage />
@@ -2557,8 +2557,8 @@ describe('ReportWizardPage', () => {
       );
 
       const back = await screen.findByTestId('breadcrumbs-back');
-      expect(back).toHaveTextContent('Back to Funding sources');
-      expect(back).toHaveAttribute('href', '/budget/sources');
+      expect(back).toHaveTextContent('Back to Invoices');
+      expect(back).toHaveAttribute('href', '/budget/invoices');
     });
 
     it('does not navigate on mount', async () => {

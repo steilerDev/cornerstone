@@ -113,3 +113,4 @@ Running from the parent project root uses a different config and may not format 
 - [attention-service.md](attention-service.md) — #2229 attention rules/snooze entry points; holds-up single definition in shared/holdsUp.ts
 - [home-service.md](home-service.md) — #2230 /api/home/_, heldUpCauseOf, stillToPayCount, home._ prefs, migration 0048
 - [relation-unlink-undo.md](relation-unlink-undo.md) — #2236 snapshot/restore for relation DELETEs, helper locations
+- [financing-pages.md](financing-pages.md) — #2242 financing/grant backend entry points, contract 2a POST deviation, history budget_source

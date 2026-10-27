@@ -1,5 +1,6 @@
 import { routeUrl } from '@cornerstone/shared';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useImperativeHandle, useMemo, useRef } from 'react';
+import type { KeyboardEvent, Ref } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetSourceBudgetLinesResponse, BudgetSourceBudgetLine } from '@cornerstone/shared';
@@ -8,8 +9,17 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
+import { isEscapeHandled, markEscapeHandled } from '../Modal/useFocusTrap.js';
+import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js';
+import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
+import sharedStyles from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './SourceBudgetLinePanel.module.css';
+
+/** What the host can do with the panel (the "Move lines…" action lands on the first checkbox). */
+export interface SourceBudgetLinePanelHandle {
+  focusFirstCheckbox: () => void;
+}
 
 interface SourceBudgetLinePanelProps {
   sourceId: string;
@@ -18,15 +28,23 @@ interface SourceBudgetLinePanelProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
-  selectedLineIds?: Set<string>;
-  onSelectionChange?: (newSet: Set<string>) => void;
-  onMoveLines?: () => void;
+  selectedLineIds: Set<string>;
+  onSelectionChange: (newSet: Set<string>) => void;
+  /** Opens the host's "Move to another source" dialog for the selected lines. */
+  onMoveLines: () => void;
+  ref?: Ref<SourceBudgetLinePanelHandle>;
 }
+
+type ItemKind = 'work-item' | 'household-item';
+
+/** A budget line tagged with the kind of item (task or purchase) it belongs to. */
+type TaggedLine = BudgetSourceBudgetLine & { kind: ItemKind };
 
 interface ParentGroup {
   parentId: string;
   parentName: string;
-  lines: BudgetSourceBudgetLine[];
+  kind: ItemKind;
+  lines: TaggedLine[];
 }
 
 interface AreaNode {
@@ -40,24 +58,22 @@ interface AreaNode {
   children: AreaNode[];
 }
 
-interface AreaGroup {
-  areaId: string | null;
-  areaName: string;
-  areaColor: string | null;
-  depth: number;
-  ancestors: AreaAncestor[];
-  parentGroups: ParentGroup[];
-  totalLines: number;
-}
-
 // Group lines by parent within an area
-function buildParentGroups(lines: BudgetSourceBudgetLine[]): ParentGroup[] {
-  const parentMap = new Map<string, { name: string; lines: BudgetSourceBudgetLine[] }>();
+function buildParentGroups(lines: TaggedLine[]): ParentGroup[] {
+  const parentMap = new Map<
+    string,
+    { id: string; name: string; kind: ItemKind; lines: TaggedLine[] }
+  >();
 
   for (const line of lines) {
-    const parentKey = line.parentId;
+    const parentKey = `${line.kind}:${line.parentId}`;
     if (!parentMap.has(parentKey)) {
-      parentMap.set(parentKey, { name: line.parentName, lines: [] });
+      parentMap.set(parentKey, {
+        id: line.parentId,
+        name: line.parentName,
+        kind: line.kind,
+        lines: [],
+      });
     }
     parentMap.get(parentKey)!.lines.push(line);
   }
@@ -68,24 +84,25 @@ function buildParentGroups(lines: BudgetSourceBudgetLine[]): ParentGroup[] {
   }
 
   // Return sorted by parent name
-  return Array.from(parentMap.entries())
-    .map(([id, data]) => ({
-      parentId: id,
+  return Array.from(parentMap.values())
+    .map((data) => ({
+      parentId: data.id,
       parentName: data.name,
+      kind: data.kind,
       lines: data.lines,
     }))
     .sort((a, b) => a.parentName.localeCompare(b.parentName));
 }
 
 // Build a hierarchical area tree from lines
-function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
+function buildAreaTree(lines: TaggedLine[]): AreaNode[] {
   const areaMap = new Map<
     string | null,
     {
       name: string;
       color: string | null;
       ancestors: AreaAncestor[];
-      lines: BudgetSourceBudgetLine[];
+      lines: TaggedLine[];
     }
   >();
 
@@ -279,108 +296,87 @@ export function SourceBudgetLinePanel({
   selectedLineIds,
   onSelectionChange,
   onMoveLines,
+  ref,
 }: SourceBudgetLinePanelProps) {
   const { t } = useTranslation('budget');
+  const { t: tc } = useTranslation('common');
   const { formatCurrency } = useFormatters();
   const originState = useOriginState();
-  const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line @eslint-react/exhaustive-deps -- workItemLines is a derived array; the area-tree memo intentionally recomputes when data changes
-  const workItemLines = data?.workItemLines ?? [];
+  // The first checkbox of the panel is the first area's; rAF waits for the page to settle.
+  const focusFirstCheckbox = useCallback(() => {
+    requestAnimationFrame(() => {
+      rootRef.current?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+    });
+  }, []);
+  useImperativeHandle(ref, () => ({ focusFirstCheckbox }), [focusFirstCheckbox]);
 
-  // eslint-disable-next-line @eslint-react/exhaustive-deps -- householdItemLines is a derived array; the area-tree memo intentionally recomputes when data changes
-  const householdItemLines = data?.householdItemLines ?? [];
-
-  const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
-
-  // Build area trees for both work item and household item lines
-  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines), [workItemLines]);
-  const householdItemAreaTree = useMemo(
-    () => buildAreaTree(householdItemLines),
-    [householdItemLines],
+  // One tree for tasks and purchases: area > item > line. The item heading carries the kind word.
+  const lines = useMemo<TaggedLine[]>(
+    () => [
+      ...(data?.workItemLines ?? []).map((line) => ({ ...line, kind: 'work-item' as const })),
+      ...(data?.householdItemLines ?? []).map((line) => ({
+        ...line,
+        kind: 'household-item' as const,
+      })),
+    ],
+    [data],
   );
+  const isEmpty = lines.length === 0;
+  const areaTree = useMemo(() => buildAreaTree(lines), [lines]);
 
   // Compute area group selection states (including cascading for descendants)
   const areaGroupSelectionStates = useMemo(() => {
-    if (!isSelectable) return new Map<string, { allSelected: boolean; someSelected: boolean }>();
-
     const states = new Map<string, { allSelected: boolean; someSelected: boolean }>();
 
-    const computeForTree = (tree: AreaNode[]) => {
-      const traverse = (node: AreaNode) => {
-        // For this area, collect all lines in its subtree (including children)
-        const subtreeLineIds = getAreaSubtreeLineIds(tree, node.areaId);
-        const selectedInSubtree = Array.from(subtreeLineIds).filter((id) =>
-          selectedLineIds!.has(id),
-        );
-        const allSelected =
-          selectedInSubtree.length === subtreeLineIds.size && subtreeLineIds.size > 0;
-        const someSelected = selectedInSubtree.length > 0;
-
-        const key = node.areaId ?? 'unassigned';
-        states.set(key, { allSelected, someSelected });
-
-        for (const child of node.children) {
-          traverse(child);
-        }
-      };
-
-      for (const node of tree) {
-        traverse(node);
-      }
+    const traverse = (node: AreaNode) => {
+      // For this area, collect all lines in its subtree (including children)
+      const subtreeLineIds = getAreaSubtreeLineIds(areaTree, node.areaId);
+      const selectedInSubtree = Array.from(subtreeLineIds).filter((id) => selectedLineIds.has(id));
+      states.set(node.areaId ?? 'unassigned', {
+        allSelected: selectedInSubtree.length === subtreeLineIds.size && subtreeLineIds.size > 0,
+        someSelected: selectedInSubtree.length > 0,
+      });
+      for (const child of node.children) traverse(child);
     };
-
-    computeForTree(workItemAreaTree);
-    computeForTree(householdItemAreaTree);
+    for (const node of areaTree) traverse(node);
 
     return states;
-  }, [workItemAreaTree, householdItemAreaTree, selectedLineIds, isSelectable]);
+  }, [areaTree, selectedLineIds]);
 
   // Handle area group checkbox change (with cascading to descendants)
   const handleAreaGroupCheckboxChange = useCallback(
-    (areaGroup: AreaGroup, checked: boolean, sectionType: 'work-item' | 'household-item') => {
-      if (!isSelectable || !onSelectionChange) return;
-
-      // Get the appropriate tree for this section
-      const tree = sectionType === 'work-item' ? workItemAreaTree : householdItemAreaTree;
-
-      // Collect all line IDs in the area subtree
-      const subtreeLineIds = getAreaSubtreeLineIds(tree, areaGroup.areaId);
-
+    (areaId: string | null, checked: boolean) => {
+      const subtreeLineIds = getAreaSubtreeLineIds(areaTree, areaId);
       const newSelection = new Set(selectedLineIds);
-
       if (checked) {
         subtreeLineIds.forEach((id) => newSelection.add(id));
       } else {
         subtreeLineIds.forEach((id) => newSelection.delete(id));
       }
-
       onSelectionChange(newSelection);
     },
-    [isSelectable, selectedLineIds, onSelectionChange, workItemAreaTree, householdItemAreaTree],
+    [selectedLineIds, onSelectionChange, areaTree],
   );
 
   // Handle individual line checkbox change
   const handleLineCheckboxChange = useCallback(
     (lineId: string, checked: boolean) => {
-      if (!isSelectable || !onSelectionChange) return;
-
       const newSelection = new Set(selectedLineIds);
       if (checked) {
         newSelection.add(lineId);
       } else {
         newSelection.delete(lineId);
       }
-
       onSelectionChange(newSelection);
     },
-    [isSelectable, selectedLineIds, onSelectionChange],
+    [selectedLineIds, onSelectionChange],
   );
 
-  // Handle parent group (work item / household item) checkbox toggle
+  // Handle item (task / purchase) block toggle
   const handleParentGroupToggle = useCallback(
     (lineIds: string[], allSelected: boolean) => {
-      if (!isSelectable || !onSelectionChange) return;
       const newSelection = new Set(selectedLineIds);
       if (allSelected) {
         lineIds.forEach((id) => newSelection.delete(id));
@@ -389,22 +385,22 @@ export function SourceBudgetLinePanel({
       }
       onSelectionChange(newSelection);
     },
-    [isSelectable, selectedLineIds, onSelectionChange],
+    [selectedLineIds, onSelectionChange],
   );
 
+  // Escape inside the panel clears the selection (a dialog or picker that handled it first wins).
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Escape' || selectedLineIds.size === 0) return;
+    if (event.defaultPrevented || isEscapeHandled(event.nativeEvent)) return;
+    markEscapeHandled(event.nativeEvent);
+    onSelectionChange(new Set());
+  };
+
   // Render an area hierarchy recursively
-  const renderAreaNode = (node: AreaNode, parentType: 'work-item' | 'household-item') => {
+  const renderAreaNode = (node: AreaNode) => {
     const groupKey = node.areaId ?? 'unassigned';
     const selectionState = areaGroupSelectionStates.get(groupKey);
     const areaName = node.areaId === null ? t('sources.lines.unassignedArea') : node.areaName;
-
-    // Get all line IDs in this area's subtree (for clickable area name in selectable mode)
-    const selectableLineIdsInArea = Array.from(
-      getAreaSubtreeLineIds(
-        parentType === 'work-item' ? workItemAreaTree : householdItemAreaTree,
-        node.areaId,
-      ),
-    );
 
     return (
       <div
@@ -428,58 +424,16 @@ export function SourceBudgetLinePanel({
                 aria-hidden="true"
               />
             )}
-            {isSelectable && selectableLineIdsInArea.length > 0 ? (
-              <div
-                role="checkbox"
-                aria-checked={
-                  selectionState?.allSelected
-                    ? true
-                    : selectionState?.someSelected
-                      ? 'mixed'
-                      : false
-                }
-                aria-label={t('sources.budgetLines.move.selectGroupLabel', { name: areaName })}
-                tabIndex={0}
-                className={styles.areaNameClickable}
-                onClick={() =>
-                  handleAreaGroupCheckboxChange(
-                    {
-                      areaId: node.areaId,
-                      areaName: node.areaName,
-                      areaColor: node.areaColor,
-                      depth: node.depth,
-                      ancestors: node.ancestors,
-                      parentGroups: node.parentGroups,
-                      totalLines: node.totalLines,
-                    },
-                    !(selectionState?.allSelected ?? false),
-                    parentType,
-                  )
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleAreaGroupCheckboxChange(
-                      {
-                        areaId: node.areaId,
-                        areaName: node.areaName,
-                        areaColor: node.areaColor,
-                        depth: node.depth,
-                        ancestors: node.ancestors,
-                        parentGroups: node.parentGroups,
-                        totalLines: node.totalLines,
-                      },
-                      !(selectionState?.allSelected ?? false),
-                      parentType,
-                    );
-                  }
-                }}
-              >
-                {areaName}
-              </div>
-            ) : (
-              <span className={styles.areaName}>{areaName}</span>
-            )}
+            <TriStateCheckbox
+              checked={selectionState?.allSelected ?? false}
+              indeterminate={
+                !selectionState?.allSelected && (selectionState?.someSelected ?? false)
+              }
+              onChange={(checked) => handleAreaGroupCheckboxChange(node.areaId, checked)}
+              label={t('sources.budgetLines.move.selectGroupLabel', { name: areaName })}
+              hideLabel
+            />
+            <h3 className={styles.areaHeading}>{areaName}</h3>
             <span className={styles.areaLineCount}>
               {t('sources.lines.areaLineCount', { count: node.totalLines })}
             </span>
@@ -487,184 +441,121 @@ export function SourceBudgetLinePanel({
         </header>
 
         {node.parentGroups.map((parentGroup) => {
-          const selectableLineIdsInParent = parentGroup.lines.map((l) => l.id);
-          const parentSelectedCount = isSelectable
-            ? selectableLineIdsInParent.filter((id) => selectedLineIds!.has(id)).length
-            : 0;
+          const lineIdsInParent = parentGroup.lines.map((l) => l.id);
+          const parentSelectedCount = lineIdsInParent.filter((id) =>
+            selectedLineIds.has(id),
+          ).length;
           const parentAllSelected =
-            parentSelectedCount === selectableLineIdsInParent.length &&
-            selectableLineIdsInParent.length > 0;
+            parentSelectedCount === lineIdsInParent.length && lineIdsInParent.length > 0;
           const parentSomeSelected = parentSelectedCount > 0 && !parentAllSelected;
+          const kindWord = tc(
+            parentGroup.kind === 'work-item'
+              ? 'entityPicker.taskOrPurchase.kindTask'
+              : 'entityPicker.taskOrPurchase.kindPurchase',
+          );
 
-          if (isSelectable) {
-            return (
-              <div
-                key={parentGroup.parentId}
-                className={`${styles.parentItemBlock} ${
-                  parentAllSelected
-                    ? styles.parentItemBlockChecked
-                    : parentSomeSelected
-                      ? styles.parentItemBlockMixed
-                      : ''
-                }`}
-                role="checkbox"
-                aria-checked={parentAllSelected ? true : parentSomeSelected ? 'mixed' : false}
-                aria-label={t('sources.budgetLines.move.selectItemLabel', {
-                  name: parentGroup.parentName,
-                })}
-                tabIndex={0}
-                onClick={() =>
-                  handleParentGroupToggle(selectableLineIdsInParent, parentAllSelected)
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleParentGroupToggle(selectableLineIdsInParent, parentAllSelected);
-                  }
-                }}
-              >
-                <div className={styles.parentItemHeader}>
-                  <span className={styles.parentItemName}>{parentGroup.parentName}</span>
-                  <Link
-                    to={
-                      parentType === 'work-item'
-                        ? routeUrl('workItem', { id: parentGroup.parentId })
-                        : routeUrl('householdItem', { id: parentGroup.parentId })
-                    }
-                    state={originState}
-                    className={styles.parentItemNavLink}
-                    aria-label={t('sources.budgetLines.move.navigateToItem', {
-                      name: parentGroup.parentName,
-                    })}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                      <polyline points="15 3 21 3 21 9" />
-                      <line x1="10" y1="14" x2="21" y2="3" />
-                    </svg>
-                  </Link>
-                </div>
-
-                <ul role="list" className={styles.lineListSelectable}>
-                  {parentGroup.lines.map((line) => {
-                    const isSelected = selectedLineIds?.has(line.id) ?? false;
-                    const confidenceLabel = getConfidenceLabel(line, t);
-                    const invoiceStatusLabel = getInvoiceStatusLabel(line, t);
-
-                    return (
-                      <li
-                        key={line.id}
-                        role="listitem"
-                        className={`${styles.lineRow} ${isSelected ? styles.lineRowSelected : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          className={styles.checkbox}
-                          checked={isSelected}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleLineCheckboxChange(line.id, e.target.checked);
-                          }}
-                          aria-label={t('sources.budgetLines.move.checkboxLabel', {
-                            description: line.description ?? '—',
-                          })}
-                        />
-
-                        <span className={styles.lineDescription}>{line.description ?? '—'}</span>
-
-                        <span className={styles.lineType}>{confidenceLabel}</span>
-
-                        <span className={styles.lineStatus}>{invoiceStatusLabel}</span>
-
-                        <span className={styles.linePlannedAmount}>
-                          {formatCurrency(
-                            line.invoiceCount > 0 ? line.actualCost : line.plannedAmount,
-                          )}
-                        </span>
-                      </li>
-                    );
+          return (
+            <div
+              key={`${parentGroup.kind}:${parentGroup.parentId}`}
+              className={`${styles.parentItemBlock} ${
+                parentAllSelected
+                  ? styles.parentItemBlockChecked
+                  : parentSomeSelected
+                    ? styles.parentItemBlockMixed
+                    : ''
+              }`}
+              onClick={(event) => {
+                // A mouse convenience: clicking the block's own space toggles the item.
+                if ((event.target as HTMLElement).closest('input, a, button, label')) return;
+                handleParentGroupToggle(lineIdsInParent, parentAllSelected);
+              }}
+            >
+              <div className={styles.parentItemHeader}>
+                <TriStateCheckbox
+                  checked={parentAllSelected}
+                  indeterminate={parentSomeSelected}
+                  onChange={(checked) => handleParentGroupToggle(lineIdsInParent, !checked)}
+                  label={t('sources.budgetLines.move.selectItemLabel', {
+                    name: parentGroup.parentName,
                   })}
-                </ul>
-              </div>
-            );
-          } else {
-            // Non-selectable mode: render as before with Link wrapper
-            return (
-              <div key={parentGroup.parentId} className={styles.parentItemBlock}>
+                  hideLabel
+                />
+                <h4 className={styles.parentItemHeading}>
+                  <span className={styles.parentItemKind}>{kindWord}</span>
+                  <span className={styles.parentItemName}>{parentGroup.parentName}</span>
+                </h4>
                 <Link
                   to={
-                    parentType === 'work-item'
+                    parentGroup.kind === 'work-item'
                       ? routeUrl('workItem', { id: parentGroup.parentId })
                       : routeUrl('householdItem', { id: parentGroup.parentId })
                   }
                   state={originState}
-                  className={`${styles.parentItemHeader} ${styles.parentItemHeaderLink}`}
-                >
-                  {parentGroup.parentName}
-                </Link>
-
-                <ul role="list" className={styles.lineList}>
-                  {parentGroup.lines.map((line) => {
-                    const confidenceLabel = getConfidenceLabel(line, t);
-                    const invoiceStatusLabel = getInvoiceStatusLabel(line, t);
-
-                    return (
-                      <li key={line.id} role="listitem" className={styles.lineRow}>
-                        <span className={styles.lineDescription}>{line.description ?? '—'}</span>
-
-                        <span className={styles.lineType}>{confidenceLabel}</span>
-
-                        <span className={styles.lineStatus}>{invoiceStatusLabel}</span>
-
-                        <span className={styles.linePlannedAmount}>
-                          {formatCurrency(
-                            line.invoiceCount > 0 ? line.actualCost : line.plannedAmount,
-                          )}
-                        </span>
-                      </li>
-                    );
+                  className={styles.parentItemNavLink}
+                  aria-label={t('sources.budgetLines.move.navigateToItem', {
+                    name: parentGroup.parentName,
                   })}
-                </ul>
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </Link>
               </div>
-            );
-          }
+
+              <ul role="list" className={styles.lineListSelectable}>
+                {parentGroup.lines.map((line) => {
+                  const isSelected = selectedLineIds.has(line.id);
+                  return (
+                    <li
+                      key={line.id}
+                      role="listitem"
+                      className={`${styles.lineRow} ${isSelected ? styles.lineRowSelected : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className={styles.checkbox}
+                        checked={isSelected}
+                        onChange={(e) => handleLineCheckboxChange(line.id, e.target.checked)}
+                        aria-label={t('sources.budgetLines.move.checkboxLabel', {
+                          description: line.description ?? '—',
+                        })}
+                      />
+
+                      <span className={styles.lineDescription}>{line.description ?? '—'}</span>
+
+                      <span className={styles.lineType}>{getConfidenceLabel(line, t)}</span>
+
+                      <span className={styles.lineStatus}>{getInvoiceStatusLabel(line, t)}</span>
+
+                      <span className={styles.linePlannedAmount}>
+                        {formatCurrency(
+                          line.invoiceCount > 0 ? line.actualCost : line.plannedAmount,
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
         })}
 
         {/* Render child areas */}
-        {node.children.map((childNode) => renderAreaNode(childNode, parentType))}
-      </div>
-    );
-  };
-
-  // Render a section (work items or household items)
-  const renderSection = (
-    lines: BudgetSourceBudgetLine[],
-    titleKey: 'workItemSection' | 'householdItemSection',
-    parentType: 'work-item' | 'household-item',
-  ) => {
-    if (lines.length === 0) return null;
-
-    const tree = parentType === 'work-item' ? workItemAreaTree : householdItemAreaTree;
-
-    return (
-      <div key={titleKey} className={styles.section}>
-        <h4 className={styles.sectionHeader}>{t(`sources.lines.${titleKey}`)}</h4>
-
-        {tree.map((node) => renderAreaNode(node, parentType))}
+        {node.children.map((childNode) => renderAreaNode(childNode))}
       </div>
     );
   };
@@ -723,22 +614,34 @@ export function SourceBudgetLinePanel({
 
   return (
     <div
+      ref={rootRef}
       id={`source-lines-${sourceId}`}
       role="region"
       aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
       className={styles.linesPanel}
+      onKeyDown={handleKeyDown}
     >
-      {renderSection(workItemLines, 'workItemSection', 'work-item')}
-      {renderSection(householdItemLines, 'householdItemSection', 'household-item')}
-      {isSelectable && selectedLineIds.size > 0 && (
-        <div className={styles.actionBar}>
-          <span className={styles.actionBarCount} role="status" aria-atomic="true">
-            {t('sources.budgetLines.move.selectedCount', { count: selectedLineIds.size })}
-          </span>
-          <button type="button" className={styles.actionBarButton} onClick={onMoveLines}>
-            {t('sources.budgetLines.move.openModalButton')}
+      {areaTree.map((node) => renderAreaNode(node))}
+      {selectedLineIds.size > 0 && (
+        <SelectionActionBar
+          countLabel={t('sources.budgetLines.move.selectedCount', { count: selectedLineIds.size })}
+          clearLabel={tc('aria.clearSelection')}
+          onClear={() => {
+            onSelectionChange(new Set());
+            // The bar unmounts with the selection: focus moves to the panel's first checkbox.
+            focusFirstCheckbox();
+          }}
+          testId={`source-lines-${sourceId}-selection-bar`}
+        >
+          <button
+            type="button"
+            className={sharedStyles.btnSecondaryCompact}
+            onClick={onMoveLines}
+            data-testid={`source-lines-${sourceId}-move`}
+          >
+            {t('financing.moveToAnotherSource')}
           </button>
-        </div>
+        </SelectionActionBar>
       )}
     </div>
   );

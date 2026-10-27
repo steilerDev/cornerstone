@@ -31,6 +31,7 @@ import {
   DIARY_ISSUE_RESOLUTIONS,
   DIARY_SOURCE_ENTITY_TYPES,
   FUNDING_SOURCE_STATUS_ACTIONS,
+  GRANT_ITEM_TYPES,
   GRANT_STATUS_ACTIONS,
   HISTORY_EVENT_TYPES,
   HISTORY_OBJECT_TYPES,
@@ -291,6 +292,10 @@ export const I18N_UNION_KEYS = {
   invoiceFormTitle: unionKeySet('budget', 'invoiceForm.title', INVOICE_FORM_KINDS),
   /** budget — "added" confirmation of the New invoice / New offer dialog. */
   invoiceFormAdded: unionKeySet('budget', 'invoiceForm.added', INVOICE_FORM_KINDS),
+  /** budget — funding source type word (Financing cards, funding source page and form). */
+  fundingSourceType: unionKeySet('budget', 'financing.sourceType', BUDGET_SOURCE_TYPES),
+  /** budget — "Task" / "Purchase" word of a grant's covered item. */
+  grantItemType: unionKeySet('budget', 'financing.itemKind', GRANT_ITEM_TYPES),
   /** common — "New ‹kind› ‹text›" create row per creatable kind. */
   entityPickerNew: unionKeySet('common', 'entityPicker.new', ENTITY_CREATE_KINDS),
   /** common — object page tab label (Overview … History) (#2233). */

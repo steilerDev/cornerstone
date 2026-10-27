@@ -29,8 +29,8 @@ import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { ToastRegion } from '../../pages/components/ToastRegion.js';
 import { StatusMenuControl } from '../../pages/components/StatusMenuControl.js';
-import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
-import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { FundingSourcePage } from '../../pages/FundingSourcePage.js';
+import { GrantPage } from '../../pages/GrantPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
 import { API } from '../../fixtures/testData.js';
@@ -520,7 +520,7 @@ test.describe('StatusMenu — grant, funding source and defect', { tag: '@respon
     page,
     testPrefix,
   }) => {
-    const grants = new SubsidyProgramsPage(page);
+    const grants = new GrantPage(page);
     const toasts = new ToastRegion(page);
     const name = `${testPrefix} Sample Energy Grant`;
     const id = await createSubsidyProgramViaApi(page, {
@@ -530,9 +530,9 @@ test.describe('StatusMenu — grant, funding source and defect', { tag: '@respon
     });
 
     try {
-      await grants.goto();
-      await grants.waitForProgramsLoaded();
-      const menu = new StatusMenuControl(page, `grant-status-${id}`);
+      // The status chip of the grant page header (#2242)
+      await grants.goto(id);
+      const menu = grants.statusMenu;
       await expect(menu.trigger).toHaveText('Applied');
 
       // No date step: the move applies at once
@@ -555,15 +555,15 @@ test.describe('StatusMenu — grant, funding source and defect', { tag: '@respon
     page,
     testPrefix,
   }) => {
-    const sources = new BudgetSourcesPage(page);
+    const sources = new FundingSourcePage(page);
     const toasts = new ToastRegion(page);
     const name = `${testPrefix} Sample Savings`;
     const id = await createBudgetSourceViaApi(page, { name, totalAmount: 20000 });
 
     try {
-      await sources.goto();
-      await sources.waitForSourcesLoaded();
-      const menu = new StatusMenuControl(page, `funding-source-status-${id}`);
+      // The status chip of the funding source page header (#2242)
+      await sources.goto(id);
+      const menu = sources.statusMenu;
       await expect(menu.trigger).toHaveText('Active');
 
       await menu.pickRow('exhausted');

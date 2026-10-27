@@ -6,7 +6,7 @@
  *                    Companies; there is no top-level Schedule; Settings is a link in its own
  *                    landmark; each entry lands on its main view; the logo opens Home
  * - E3 (AC2/AC3)     Tasks views (Schedule, Calendar, Milestones) and Money views (Invoices,
- *                    Funding sources, Grants, Bank report) nest only inside their section; the
+ *                    Financing) nest only inside their section; the
  *                    current view is the one highlighted entry; view switches inside a
  *                    section replace, changing section pushes one entry (ADR-038 rule 8)
  * - E4 (AC4, D-23)   admin sees Settings, Account, Users, Backups; a member sees Settings and
@@ -187,14 +187,11 @@ test.describe('Sidebar Navigation', () => {
     await page.goto(routeUrl('invoices'));
     await expect(page.getByRole('heading', { level: 1, name: /^Invoices\b/ })).toBeVisible();
 
-    await expect(appShell.viewLinks).toHaveText([
-      'Invoices',
-      'Funding sources',
-      'Grants',
-      'Bank report',
-    ]);
-    // No Financing view until that page exists
-    await expect(appShell.viewLink('financing')).toHaveCount(0);
+    await expect(appShell.viewLinks).toHaveText(['Invoices', 'Financing']);
+    // The old Funding sources, Grants and Bank report views are gone (#2242)
+    for (const gone of ['budgetSources', 'budgetSubsidies', 'bankReport']) {
+      await expect(appShell.viewLink(gone)).toHaveCount(0);
+    }
     await expect(appShell.activeEntries).toHaveCount(1);
     await expect(appShell.viewLink('invoices')).toHaveAttribute('aria-current', 'page');
     await expect(appShell.sectionLink('money')).not.toHaveAttribute('aria-current', 'page');

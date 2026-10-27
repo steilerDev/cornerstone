@@ -82,7 +82,7 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
     expect(en.get('budget.invoices.list.chips.pending')).toBe('To pay');
     expect(en.get('budget.invoices.list.chips.claimed')).toBe('Submitted');
     expect(en.get('budget.invoices.list.chips.quotation')).toBe('Offers');
-    expect(en.get('budget.sources.barChart.claimed')).toBe('Submitted');
+    expect(en.get('budget.financing.figures.submitted')).toBe('Submitted');
     expect(en.get('budget.sourceReports.confirmClaimTitle')).toBe('Mark invoices as submitted?');
     expect(en.get('common.statusAction.progressPayment.markSubmitted')).toBe('Mark submitted');
     expect(en.get('errors.INVOICES_NOT_CLAIMABLE')).toContain('marked as submitted');
@@ -268,11 +268,11 @@ describe('Step 5 plural keys exist in both locales with one/other forms (AC6)', 
 });
 
 describe('AC4: no US-dollar labels and no fake money placeholders', () => {
-  it('Sources "Total amount" and Subsidies "Value" carry no currency symbol', () => {
-    expect(en.get('budget.sources.form.totalAmount')).toBe('Total amount');
-    expect(en.get('budget.subsidies.form.valueFixed')).toBe('Value');
-    expect(de.get('budget.sources.form.totalAmount')).toBe('Gesamtbetrag');
-    expect(de.get('budget.subsidies.form.valueFixed')).toBe('Wert');
+  it('Financing "Amount" and the grant "Fixed reduction" carry no currency symbol', () => {
+    expect(en.get('budget.financing.fields.amount')).toBe('Amount');
+    expect(en.get('budget.financing.grant.fixedReductionField')).toBe('Fixed reduction');
+    expect(de.get('budget.financing.fields.amount')).toBe('Betrag');
+    expect(de.get('budget.financing.grant.fixedReductionField')).toBe('Feste Minderung');
   });
 
   it('no en/de value contains a "($)" label', () => {

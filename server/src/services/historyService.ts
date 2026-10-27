@@ -225,7 +225,15 @@ export function listHistory(db: DbType, query: ParsedHistoryQuery): HistoryListR
 
   const autoConds: (SQL | undefined)[] = [eq(diaryEntries.isAutomatic, true)];
   autoConds.push(buildTypeCondition(query.types));
-  if (query.entityType && query.entityId) {
+  if (query.entityType === 'budget_source' && query.entityId) {
+    // A funding source's history is its bank-report batches (`metadata.budgetSourceId`), not
+    // events whose source entity is the source.
+    autoConds.push(
+      eq(diaryEntries.entryType, 'invoice_status'),
+      sql`${metaField('batchId')} IS NOT NULL`,
+      sql`${metaField('budgetSourceId')} = ${query.entityId}`,
+    );
+  } else if (query.entityType && query.entityId) {
     autoConds.push(
       eq(diaryEntries.sourceEntityType, query.entityType),
       eq(diaryEntries.sourceEntityId, query.entityId),
@@ -250,7 +258,8 @@ export function listHistory(db: DbType, query: ParsedHistoryQuery): HistoryListR
     where: and(...common),
     showHidden: query.showHidden === true,
     raw,
-    collapseBatches: !raw && !query.entityType && !query.batchId,
+    collapseBatches:
+      !raw && (!query.entityType || query.entityType === 'budget_source') && !query.batchId,
     page,
     pageSize,
   });

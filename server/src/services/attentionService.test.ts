@@ -360,12 +360,12 @@ describe('attentionService on the synthetic fixture', () => {
       });
     });
 
-    it('N11: eligible deadline T+14 and applied deadline T; interim link to the subsidies list', () => {
+    it('N11: eligible deadline T+14 and applied deadline T; link to the grant page', () => {
       const res = attention();
       expect(row(res, 'N11:subsidy_program:gr-1')).toMatchObject({
         date: '2026-03-24',
         params: { status: 'eligible', deadline: '2026-03-24', dueInDays: 14 },
-        link: { route: 'budgetSubsidies', params: {}, query: {} },
+        link: { route: 'grant', params: { id: 'gr-1' }, query: {} },
       });
       expect(row(res, 'N11:subsidy_program:gr-2').params).toMatchObject({
         status: 'applied',
@@ -470,7 +470,7 @@ describe('attentionService on the synthetic fixture', () => {
           subject: { type: 'budget_source', id: 'src-small', label: 'Loan B', area: null },
           amount: 4900,
           params: { rule: 'S1', allocated: 5000, sourceAmount: 100 },
-          link: { route: 'budgetSources', params: {}, query: {} },
+          link: { route: 'financing', params: {}, query: {} },
         },
       ]);
     });

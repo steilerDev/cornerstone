@@ -7,6 +7,9 @@ import {
   subsidyProgramCategories,
   budgetCategories,
   workItemSubsidies,
+  householdItemSubsidies,
+  workItems,
+  householdItems,
   users,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
@@ -17,6 +20,7 @@ import type {
   CreateSubsidyProgramRequest,
   UpdateSubsidyProgramRequest,
   BudgetCategory,
+  GrantItemRef,
   UserSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, SubsidyProgramInUseError } from '../errors/AppError.js';
@@ -155,6 +159,79 @@ function replaceCategoryLinks(db: DbType, subsidyProgramId: string, categoryIds:
 }
 
 /**
+ * Link tasks / purchases to a grant. Every item must exist (404, nothing linked); pairs that are
+ * already linked are skipped, so repeating a request changes nothing. Runs in the caller's
+ * transaction.
+ * @throws NotFoundError if an item does not exist
+ */
+function linkItems(
+  db: Pick<DbType, 'select' | 'insert'>,
+  subsidyProgramId: string,
+  items: readonly GrantItemRef[],
+): void {
+  const workItemIds = [...new Set(items.filter((i) => i.type === 'work_item').map((i) => i.id))];
+  const householdItemIds = [
+    ...new Set(items.filter((i) => i.type === 'household_item').map((i) => i.id)),
+  ];
+
+  if (workItemIds.length > 0) {
+    const found = db
+      .select({ id: workItems.id })
+      .from(workItems)
+      .where(inArray(workItems.id, workItemIds))
+      .all();
+    if (found.length !== workItemIds.length) {
+      throw new NotFoundError('Work item not found');
+    }
+  }
+  if (householdItemIds.length > 0) {
+    const found = db
+      .select({ id: householdItems.id })
+      .from(householdItems)
+      .where(inArray(householdItems.id, householdItemIds))
+      .all();
+    if (found.length !== householdItemIds.length) {
+      throw new NotFoundError('Household item not found');
+    }
+  }
+
+  if (workItemIds.length > 0) {
+    db.insert(workItemSubsidies)
+      .values(workItemIds.map((workItemId) => ({ workItemId, subsidyProgramId })))
+      .onConflictDoNothing()
+      .run();
+  }
+  if (householdItemIds.length > 0) {
+    db.insert(householdItemSubsidies)
+      .values(householdItemIds.map((householdItemId) => ({ householdItemId, subsidyProgramId })))
+      .onConflictDoNothing()
+      .run();
+  }
+}
+
+/**
+ * Link tasks / purchases to an existing grant in one transaction (idempotent).
+ * @throws NotFoundError if the grant or any item does not exist (nothing is linked)
+ */
+export function linkGrantItems(
+  db: DbType,
+  subsidyProgramId: string,
+  items: readonly GrantItemRef[],
+): void {
+  db.transaction((tx) => {
+    const grant = tx
+      .select({ id: subsidyPrograms.id })
+      .from(subsidyPrograms)
+      .where(eq(subsidyPrograms.id, subsidyProgramId))
+      .get();
+    if (!grant) {
+      throw new NotFoundError('Subsidy program not found');
+    }
+    linkItems(tx, subsidyProgramId, items);
+  });
+}
+
+/**
  * List all subsidy programs, sorted by name ascending.
  * Each program includes its applicable categories.
  */
@@ -255,6 +332,11 @@ export function createSubsidyProgram(
 
     if (categoryIds.length > 0) {
       replaceCategoryLinks(db, id, categoryIds);
+    }
+
+    // An unknown item throws (404) and rolls the whole create back
+    if (data.items && data.items.length > 0) {
+      linkItems(db, id, data.items);
     }
   });
 

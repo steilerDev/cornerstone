@@ -47,25 +47,38 @@ describe('navLabelKeyForRoute', () => {
   });
 });
 
-describe('navLabelKeyForRoute and the interim Money views', () => {
-  // The sidebar shows Funding sources, Grants and the Bank report as interim views, but page
-  // identity keeps treating them as non-views: they have no NavConfig label of their own.
-  it.each(['budgetSources', 'budgetSubsidies', 'bankReport'])(
-    'gives the interim view %s no NavConfig label',
+describe('navLabelKeyForRoute and the Money pages of Financing (#2242)', () => {
+  // The interim sidebar views are gone: Funding sources and Grants are sections of the Financing
+  // page, and the Bank report is a page of Financing. None has a NavConfig label of its own.
+  it.each(['budgetSources', 'budgetSubsidies', 'bankReport', 'fundingSource', 'grant'])(
+    'gives %s no NavConfig label',
     (id) => {
       expect(navLabelKeyForRoute(id)).toBeNull();
       expect(isNavView(id)).toBe(false);
     },
   );
 
-  it('still labels the three pages through the page labels', () => {
-    expect(pageLabelKeyForRoute('budgetSources')).toBe('navigation.fundingSources');
-    expect(originLabelKeyForPath('/budget/sources')).toBe('navigation.fundingSources');
+  it('labels the Financing view and labels the Bank report page through the page labels', () => {
+    expect(navLabelKeyForRoute('financing')).toBe('navigation.financing');
+    expect(isNavView('financing')).toBe(true);
+    expect(pageLabelKeyForRoute('bankReport')).toBe('navigation.bankReport');
+    expect(originLabelKeyForPath('/budget/reports')).toBe('navigation.bankReport');
     expect(navLabelKeyForPath('/budget/reports')).toBeNull();
   });
 
-  it('leaves the Money trail unchanged for an interim page', () => {
-    expect(breadcrumbChain('budgetSources', {}).map((c) => c.id)).toEqual(['budgetOverview']);
+  it('has no page label left for the retired Funding sources and Grants pages', () => {
+    expect(pageLabelKeyForRoute('budgetSources')).toBeNull();
+    expect(pageLabelKeyForRoute('budgetSubsidies')).toBeNull();
+  });
+
+  it('puts the Bank report, a funding source and a grant under Money > Financing', () => {
+    expect(breadcrumbChain('bankReport', {}).map((c) => c.id)).toEqual([
+      'budgetOverview',
+      'financing',
+    ]);
+    for (const id of ['fundingSource', 'grant']) {
+      expect(breadcrumbChain(id, {}).map((c) => c.id)).toEqual(['budgetOverview', 'financing']);
+    }
   });
 
   it('labels the real Money view Invoices in the first loop', () => {
@@ -160,9 +173,9 @@ describe('breadcrumbChain', () => {
     expect(breadcrumbChain('scheduleCalendar', {})).toEqual([]);
   });
 
-  it('skips planned (unserved) ancestors instead of showing them dead', () => {
+  it('shows the served Financing ancestor in the Bank report trail (#2242: no planned ancestor is left to skip)', () => {
     const chain = breadcrumbChain('bankReport', {});
-    expect(chain.map((c) => c.id)).toEqual(['budgetOverview']);
+    expect(chain.map((c) => c.id)).toEqual(['budgetOverview', 'financing']);
   });
 
   it('skips an ancestor whose param is missing and does not throw', () => {
@@ -251,11 +264,7 @@ describe('composeDocumentTitle', () => {
 });
 
 describe('pageLabelKeyForRoute', () => {
-  it.each([
-    ['bankReport', 'navigation.bankReport'],
-    ['budgetSources', 'navigation.fundingSources'],
-    ['budgetSubsidies', 'navigation.grants'],
-  ])('maps the page %s to %s', (id, key) => {
+  it.each([['bankReport', 'navigation.bankReport']])('maps the page %s to %s', (id, key) => {
     expect(pageLabelKeyForRoute(id)).toBe(key);
   });
 
@@ -266,11 +275,7 @@ describe('pageLabelKeyForRoute', () => {
   });
 
   it('keeps the page labels out of the view set', () => {
-    expect(Object.keys(PAGE_LABEL_KEYS).sort()).toEqual([
-      'bankReport',
-      'budgetSources',
-      'budgetSubsidies',
-    ]);
+    expect(Object.keys(PAGE_LABEL_KEYS).sort()).toEqual(['bankReport']);
     for (const id of Object.keys(PAGE_LABEL_KEYS)) {
       expect(isNavView(id)).toBe(false);
     }
@@ -280,7 +285,6 @@ describe('pageLabelKeyForRoute', () => {
 describe('originLabelKeyForPath', () => {
   it('resolves a non-view page through the page labels', () => {
     expect(originLabelKeyForPath('/budget/reports')).toBe('navigation.bankReport');
-    expect(originLabelKeyForPath('/budget/sources')).toBe('navigation.fundingSources');
   });
 
   it('lets the NavConfig label win over the page labels', () => {

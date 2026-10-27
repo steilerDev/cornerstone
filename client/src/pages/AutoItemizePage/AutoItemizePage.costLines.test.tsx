@@ -311,7 +311,7 @@ describe('AutoItemizePage with the cost line grid', () => {
 
       const note = await screen.findByRole('note');
       expect(note).toHaveAttribute('class', expect.stringContaining('discretionaryNote'));
-      expect(within(note).getByText(/Discretionary/i)).toBeInTheDocument();
+      expect(within(note).getByText(/Own funds/i)).toBeInTheDocument();
     });
 
     it('shows no note when no funding source is discretionary', async () => {

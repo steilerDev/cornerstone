@@ -18,6 +18,8 @@ export interface DocumentsPanelHost {
   readonly count: number | null;
   readonly isOpen: boolean;
   readonly open: () => void;
+  /** Opens the panel straight in the Link document picker; a no-op unless `mode` is `full`. */
+  readonly openLink: () => void;
   readonly triggerRef: RefObject<HTMLButtonElement | null>;
   /** The SummaryStrip fact; null while `pending` and when `hidden`. */
   readonly fact: SummaryFact | null;
@@ -45,6 +47,7 @@ export function useDocumentsPanel(
   const systemLinked = useAllLinkedDocumentIds();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [initialView, setInitialView] = useState<'list' | 'picker'>('list');
   const [status, setStatus] = useState<StatusState>({ state: 'pending' });
   const [statusAttempt, setStatusAttempt] = useState(0);
   const [autoItemizeEnabled, setAutoItemizeEnabled] = useState(false);
@@ -106,8 +109,15 @@ export function useDocumentsPanel(
   // Only a resolved panel can open, so a click before the status is known can never pop it later.
   const canOpen = mode !== 'pending' && mode !== 'hidden';
   const open = useCallback(() => {
-    if (canOpen) setIsOpen(true);
+    if (!canOpen) return;
+    setInitialView('list');
+    setIsOpen(true);
   }, [canOpen]);
+  const openLink = useCallback(() => {
+    if (mode !== 'full') return;
+    setInitialView('picker');
+    setIsOpen(true);
+  }, [mode]);
 
   // No fact while pending: a click would have no panel to open and the strip would read "Not set".
   const fact: SummaryFact | null =
@@ -130,6 +140,7 @@ export function useDocumentsPanel(
         entityType={entityType}
         entityId={entityId}
         open={isOpen}
+        initialView={initialView}
         onClose={close}
         triggerRef={triggerRef}
         mode={mode}
@@ -150,5 +161,5 @@ export function useDocumentsPanel(
       />
     ) : null;
 
-  return { mode, count, isOpen, open, triggerRef, fact, panel };
+  return { mode, count, isOpen, open, openLink, triggerRef, fact, panel };
 }

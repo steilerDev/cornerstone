@@ -266,9 +266,9 @@
       "linkedMilestoneAlreadyLinked": "This milestone is already linked",
       "removeLinkedMilestone": "Failed to remove linked milestone",
       "loadFailed": "Failed to load work item. Please try again.",
-      "linkSubsidy": "Failed to link subsidy program",
-      "unlinkSubsidy": "Failed to unlink subsidy program",
-      "alreadyLinkedSubsidy": "This subsidy program is already linked",
+      "linkSubsidy": "Could not link the grant to this item.",
+      "unlinkSubsidy": "Could not unlink the grant from this item.",
+      "alreadyLinkedSubsidy": "This grant is already linked to this item.",
       "deleteWorkItem": "Failed to delete work item"
     },
     "dismissError": "Dismiss error",

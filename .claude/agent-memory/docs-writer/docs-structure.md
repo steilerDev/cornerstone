@@ -43,3 +43,10 @@ Sidebar entries live in `sidebars.js`; keep it in sync when adding a page.
 - `docs/src/getting-started/configuration.md` is the only general env-var reference. It has `## Authentication Rate Limiting` (AUTH_RATE_LIMIT_MAX default 20, AUTH_RATE_LIMIT_WINDOW default `15 minutes`) and a `## Reverse Proxy` section explaining TRUST_PROXY. The setup endpoint's fixed limit is not configurable.
 - `guides/users/oidc-setup.md` has an OIDC-scoped var table only. It is not a second reference.
 - Diff `.env.example` against `server/src/plugins/config.ts` directly. Drift can exist even when `CLAUDE.md`'s table is current. Ignore the `EUR` false positive from `grep -oE "[A-Z][A-Z_]+"`.
+
+## Financing flow (#2242)
+
+- `financing-sources.md` is now the **Financing** page (title "Financing"); `subsidies.md` is now **Grants** (title "Grants"). Slugs are kept stable, so inbound links did not change.
+- The old Budget Sources and Subsidies pages, their routes, and the "Budget > Reports" sidebar entry are gone. The bank report wizard has no sidebar entry; it opens from Financing, a loan card's ⋯ menu, or a funding source page.
+- Old screenshots `budget-sources-light.png` and `budget-subsidies-light.png` were removed with the old pages. The new pages use `:::info Screenshot needed` until the screenshot capture covers them.
+- "Discretionary Funding" is now "Own funds" (migration 0049). Docs use "Own funds" everywhere.

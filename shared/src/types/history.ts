@@ -25,6 +25,7 @@ export const HISTORY_OBJECT_TYPES = [
   'invoice',
   'milestone',
   'subsidy_program',
+  'budget_source',
 ] as const;
 export type HistoryObjectType = (typeof HISTORY_OBJECT_TYPES)[number];
 

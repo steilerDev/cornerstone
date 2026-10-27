@@ -32,6 +32,7 @@ import {
 } from './diaryAutoEventService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateAreaId } from './shared/validators.js';
+import { loadGrantChips } from './shared/itemGrantChips.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -150,6 +151,16 @@ export function toWorkItemSummary(
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
   };
+}
+
+/** Attaches `grants` to list rows with one batched query (never per row). */
+function withGrantChips(db: DbType, rows: WorkItemSummary[]): WorkItemSummary[] {
+  const chips = loadGrantChips(
+    db,
+    'work_item',
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => ({ ...row, grants: chips.get(row.id)! }));
 }
 
 /**
@@ -779,7 +790,10 @@ export function listWorkItems(
     const filteredTotal = shown.length;
     const pageRows = shown.slice((page - 1) * pageSize, page * pageSize);
     return {
-      items: pageRows.map(({ row }) => toWorkItemSummary(db, row, areaMap, projection)),
+      items: withGrantChips(
+        db,
+        pageRows.map(({ row }) => toWorkItemSummary(db, row, areaMap, projection)),
+      ),
       pagination: {
         page,
         pageSize,
@@ -826,7 +840,10 @@ export function listWorkItems(
     .all();
 
   const projection = computeScheduleProjection(db);
-  const items = workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap, projection));
+  const items = withGrantChips(
+    db,
+    workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap, projection)),
+  );
 
   const filterMeta: FilterMeta = {
     budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },

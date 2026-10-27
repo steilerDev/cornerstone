@@ -6,7 +6,6 @@ import { render, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { InvoiceDetail } from '@cornerstone/shared';
-import * as sharedActual from '@cornerstone/shared';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
 import type { UseInvoiceCostLinesResult } from '../../components/CostLineTable/useInvoiceCostLines.js';
 import type { ObjectTabsController } from '../../components/ObjectTabs/useObjectTabs.js';
@@ -17,18 +16,6 @@ import {
   makeCostLine,
   makeInvoiceDetail,
 } from '../../test/invoiceDetailFixtures.js';
-
-let fundingSourceServed = false;
-jest.unstable_mockModule('@cornerstone/shared', () => ({
-  ...sharedActual,
-  isRouteServed: (id: string) =>
-    id === 'fundingSource' ? fundingSourceServed : sharedActual.isRouteServed(id as never),
-  // The planned route cannot be built by the real routeUrl; stand in for the served page.
-  routeUrl: (id: string, ...args: unknown[]) =>
-    id === 'fundingSource' && fundingSourceServed
-      ? `/budget/financing/sources/${encodeURIComponent(String((args[0] as { id: string }).id))}`
-      : (sharedActual.routeUrl as (...a: unknown[]) => string)(id, ...args),
-}));
 
 let useInvoiceSummaryFacts: (typeof HookModule)['useInvoiceSummaryFacts'];
 let LocaleProvider: (typeof LocaleModule)['LocaleProvider'];
@@ -102,7 +89,6 @@ function text(node: ReactNode): string {
 }
 
 beforeEach(async () => {
-  fundingSourceServed = false;
   select.mockReset();
   ({ useInvoiceSummaryFacts } = (await import('./useInvoiceSummaryFacts.js')) as typeof HookModule);
   ({ LocaleProvider } = await import('../../contexts/LocaleContext.js'));
@@ -286,7 +272,7 @@ describe('useInvoiceSummaryFacts (S12)', () => {
       expect(fact.value).toBeNull();
     });
 
-    it('shows the one source by name and links to the interim list while its page is planned', () => {
+    it('shows the one source by name and links to its own page', () => {
       const fact = byId(
         facts(
           makeInvoiceDetail(),
@@ -298,11 +284,10 @@ describe('useInvoiceSummaryFacts (S12)', () => {
         'fundingSource',
       );
       expect(fact.value).toBe('Loan Alpha');
-      expect(fact).toMatchObject({ kind: 'link', to: sharedActual.routeUrl('budgetSources') });
+      expect(fact).toMatchObject({ kind: 'link', to: '/budget/financing/sources/s1' });
     });
 
-    it('links the one source to its own page once that route is served', () => {
-      fundingSourceServed = true;
+    it('encodes the id of the one source in its page address', () => {
       const fact = byId(
         facts(
           makeInvoiceDetail(),
@@ -316,8 +301,7 @@ describe('useInvoiceSummaryFacts (S12)', () => {
       expect(fact).toMatchObject({ to: '/budget/financing/sources/src%2F1' });
     });
 
-    it('with several sources names the largest and counts the rest, linking to the list', () => {
-      fundingSourceServed = true;
+    it('with several sources names the largest and counts the rest, linking to Financing', () => {
       const fact = byId(
         facts(
           makeInvoiceDetail(),
@@ -332,7 +316,7 @@ describe('useInvoiceSummaryFacts (S12)', () => {
         'fundingSource',
       );
       expect(fact.value).toBe('Savings Beta +1');
-      expect(fact).toMatchObject({ to: sharedActual.routeUrl('budgetSources') });
+      expect(fact).toMatchObject({ to: '/budget/financing' });
     });
   });
 

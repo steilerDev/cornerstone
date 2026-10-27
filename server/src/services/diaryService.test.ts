@@ -37,7 +37,7 @@ import {
   AlreadySavedError,
 } from '../errors/AppError.js';
 import type { CreateDiaryEntryRequest, UpdateDiaryEntryRequest } from '@cornerstone/shared';
-import { workItems, invoices, milestones, vendors } from '../db/schema.js';
+import { workItems, invoices, milestones, vendors, budgetSources } from '../db/schema.js';
 
 // Local alias so tests can inspect vendorId/vendorName from metadata without
 // importing DailyLogMetadata twice (already imported by the production module).
@@ -2266,6 +2266,42 @@ describe('diaryService', () => {
       expect(goneItem.sourceEntityExists).toBe(false);
     });
 
+    it('resolves a funding source to its live name, and to exists=false once it is gone (#2242)', () => {
+      const now = new Date().toISOString();
+      db.insert(budgetSources)
+        .values({
+          id: 'bs-live',
+          name: 'Loan Alpha',
+          sourceType: 'bank_loan',
+          totalAmount: 1000,
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const live = insertAuto(1, {
+        entryType: 'invoice_status',
+        sourceEntityType: 'budget_source',
+        sourceEntityId: 'bs-live',
+      });
+      const gone = insertAuto(2, {
+        entryType: 'invoice_status',
+        sourceEntityType: 'budget_source',
+        sourceEntityId: 'bs-gone',
+      });
+
+      const items = listDiaryEntries(db, {}).items;
+
+      expect(items.find((i) => i.id === live)).toMatchObject({
+        sourceEntityTitle: 'Loan Alpha',
+        sourceEntityExists: true,
+      });
+      expect(items.find((i) => i.id === gone)).toMatchObject({
+        sourceEntityTitle: null,
+        sourceEntityExists: false,
+      });
+    });
+
     it('sets sourceEntityExists for work items and milestones, and leaves it unset otherwise', () => {
       const now = new Date().toISOString();
       db.insert(workItems)
@@ -2299,8 +2335,8 @@ describe('diaryService', () => {
       });
       const otherType = insertAuto(4, {
         entryType: 'budget_breach',
-        sourceEntityType: 'budget_source',
-        sourceEntityId: 'bs-1',
+        sourceEntityType: 'photo',
+        sourceEntityId: 'ph-1',
         metadata: JSON.stringify({ v: 1, event: 'legacy' }),
         title: 'Over budget 2',
         body: 'Text',

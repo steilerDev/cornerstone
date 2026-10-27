@@ -9,6 +9,11 @@ export interface DocumentsPanelButtonProps {
   /** Names the record on pages with several panels (a row of a list): "Documents (2) for Bank loan". */
   readonly contextName?: string;
   readonly testId?: string;
+  /**
+   * Adds a "Link" button after the count (Paperless reachable only) that opens the panel in the
+   * Link document picker. It needs `contextName` to name the record.
+   */
+  readonly linkAction?: boolean;
   /** Class of a wrapper `div` that exists only while the button shows (no empty box when hidden). */
   readonly wrapperClassName?: string;
 }
@@ -24,6 +29,7 @@ export function DocumentsPanelButton({
   entityId,
   contextName,
   testId = 'documents-panel-button',
+  linkAction = false,
   wrapperClassName,
 }: DocumentsPanelButtonProps) {
   const { t } = useTranslation('documents');
@@ -52,6 +58,21 @@ export function DocumentsPanelButton({
       >
         {label}
       </button>
+      {linkAction && host.mode === 'full' && (
+        <>
+          <span aria-hidden="true"> · </span>
+          <button
+            type="button"
+            className={styles.link}
+            aria-haspopup="dialog"
+            aria-label={contextName ? t('panel.linkFor', { name: contextName }) : undefined}
+            onClick={host.openLink}
+            data-testid={`${testId}-link`}
+          >
+            {t('panel.link')}
+          </button>
+        </>
+      )}
       {host.panel}
     </>
   );

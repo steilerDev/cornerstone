@@ -16,12 +16,13 @@ describe('history tuples', () => {
     ]);
   });
 
-  it('HISTORY_OBJECT_TYPES lists the four filterable objects', () => {
+  it('HISTORY_OBJECT_TYPES lists the five filterable objects (budget_source last, #2242)', () => {
     expect([...HISTORY_OBJECT_TYPES]).toEqual([
       'work_item',
       'invoice',
       'milestone',
       'subsidy_program',
+      'budget_source',
     ]);
   });
 });

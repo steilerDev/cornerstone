@@ -1014,7 +1014,7 @@
     "to": "Money > Financing > Loans & own funds cards (type, status, amount, rate)",
     "change": "same",
     "gate": "none",
-    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2209: Money › Financing › Funding sources › row StatusMenu chip; \"Exhausted\" reads \"Used up\"."
+    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2209: Money › Financing › Funding sources › row StatusMenu chip; \"Exhausted\" reads \"Used up\". #2242: Money › Financing shows one card per loan or own-funds source (type, status, rate, amount, allocated, paid, submitted, unallocated) from the money service (GET /api/budget/financing); the interim Funding sources view is deleted."
   },
   "MNY-023": {
     "name": "See each source's utilization bar with segment tooltips",
@@ -1022,7 +1022,7 @@
     "to": "Money > Financing > card bar (overflow segment visible) and Money > Funding source page > bar",
     "change": "same",
     "gate": "none",
-    "note": "Over-allocation made visible (D-05). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05). #2200: dark projected segment is opaque blue-300 (5.74:1 against the track)."
+    "note": "Over-allocation made visible (D-05). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05). #2200: dark projected segment is opaque blue-300 (5.74:1 against the track). #2242: The card bar draws Submitted, Paid (not submitted) and Allocated (not paid), capped to the amount; over-allocation is the striped overflow with \"Over-allocated by ‹amount›\". The funding source page repeats it under Overview › Allocation with a text legend."
   },
   "MNY-024": {
     "name": "See each source's projected range, paid and claimed totals with remaining amounts",
@@ -1031,15 +1031,15 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Funding source page summary: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated (projected range shown per line state in the Cost tab).",
-    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2228: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated per source in `money.sources` (Rail A/B reused); UI in 4.10."
+    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2228: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated per source in `money.sources` (Rail A/B reused); UI in 4.10. #2242: Funding source page summary strip: Amount, Allocated, Paid (tab to Cost), Submitted (tab to Cost), Unallocated (signed and wide when over-allocated), Rate (omitted for Own funds), Documents."
   },
   "MNY-025": {
     "name": "Create a financing source (bank loan, credit line, savings, other)",
     "from": "/budget/sources > header 'Add Source' > inline 'New Budget Source' form (name*, type*, status, total amount*, interest rate, terms, reference, contact address, notes)",
-    "to": "Global > New menu > Funding source (context: Money > Financing) -> New funding source dialog (ObjectForm)",
+    "to": "Global > New menu > Funding source (context: Money > Financing) and Money > Financing > Add funding source -> New funding source dialog (ObjectForm): Name, Type, Amount, Interest rate, Status; More details: Terms, Reference, Contact address, Notes",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use). #2212 (interim until the Financing page): Global › New menu › Funding source (on Money pages only) → the Funding sources page with its create form open (?create=1)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use). #2212 (interim until the Financing page): Global › New menu › Funding source (on Money pages only) → the Funding sources page with its create form open (?create=1). #2242: Money › Financing › Add funding source and Global › New menu › Funding source open the New funding source ObjectForm in place (FinancingCreateProvider, ?create=1&kind=source). Essentials: Name, Type, Amount, Interest rate, Status; More details: Terms, Reference, Contact address, Notes. Own funds is never created. Add another is offered."
   },
   "MNY-026": {
     "name": "Edit a financing source inline",
@@ -1048,7 +1048,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "New detail page for the object (today an inline card). #2209: Money › Financing › Funding sources › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it."
+    "note": "New detail page for the object (today an inline card). #2209: Money › Financing › Funding sources › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it. #2242: Funding source page › Overview › Details › Edit (explicit Save): name, type (hidden for Own funds), amount (0 or more for Own funds, above 0 otherwise), interest rate 0–100, terms, reference, contact address, notes. Status moves through the header chip."
   },
   "MNY-027": {
     "name": "Mark a financing source active, exhausted or closed",
@@ -1056,7 +1056,7 @@
     "to": "Money > Funding source page > StatusMenu (Active / Used up / Closed)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2242: The header StatusMenu chip with Undo; the primary is the next forward move for types other than loans (savings, other, Own funds), and Log once there is none."
   },
   "MNY-028": {
     "name": "Delete a financing source",
@@ -1065,7 +1065,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Funding sources › Delete (ConfirmDialog with counts)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Funding sources › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete opens a ConfirmDialog with the delete impact counts; a 409 shows the translated error in the dialog. Own funds has no Delete. After delete the Financing page opens and takes focus."
   },
   "MNY-029": {
     "name": "Park not-yet-allocated costs on the built-in Discretionary Funding source",
@@ -1073,7 +1073,7 @@
     "to": "Money > Financing > 'Own funds' source (system; renamable; no delete)",
     "change": "same",
     "gate": "none",
-    "note": "'Discretionary' and the 'System' badge retired as words."
+    "note": "'Discretionary' and the 'System' badge retired as words. #2242: Migration 0049 renames the system source to \"Own funds\" (type label too); it cannot be deleted and shows no interest rate."
   },
   "MNY-030": {
     "name": "Expand a source to list every budget line it funds",
@@ -1082,7 +1082,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Show lines rows no longer overlap on phones."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Show lines rows no longer overlap on phones. #2242: Cost tab (count = lines) shows one tree: area › task or purchase (with its kind word) › line; the lines load once at page level."
   },
   "MNY-031": {
     "name": "Open a work item or household item from a source's line list",
@@ -1091,7 +1091,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use). #2242: Each task or purchase heading in the Cost tab has an open-page link with origin state."
   },
   "MNY-032": {
     "name": "Multi-select budget lines within a source (single line, item group or area subtree)",
@@ -1100,7 +1100,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2196: selectable Show lines rows no longer collide with the checkbox on phones."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2196: selectable Show lines rows no longer collide with the checkbox on phones. #2242: Tri-state checkboxes at area, item and line level; the selection bar shows the count and Clear selection; Escape clears it."
   },
   "MNY-033": {
     "name": "Mass-move selected budget lines to another financing source",
@@ -1109,7 +1109,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2242: Selection bar › Move to another source (MassMoveModal at page level); success toasts \"Moved ‹n› lines to ‹name›.\", reloads the lines and the figures, and clears the selection. No Undo (the move returns no token). The over-allocation warning offers \"Move lines…\", which opens the Cost tab on its first checkbox and never pre-selects."
   },
   "MNY-035": {
     "name": "Start a bank report preset to a specific source",
@@ -1117,7 +1117,7 @@
     "to": "Money > Funding source page > primary 'Prepare bank report'; Money > Financing > primary 'Prepare bank report' + card ⋯; Home > Needs attention N8 'Ready to submit' (one definition: not submitted, To pay or Paid, funded by a bank loan or credit line — the same set the draw-down request lists)",
     "change": "promoted",
     "gate": "none",
-    "note": "On real data one loan source has a single item ready to submit. Own-funds items never count (R-m7). #2228: Ready to submit = the bank report's draw-down set (one predicate, `getDrawDownSet`); loan and credit-line sources only; own funds never count."
+    "note": "On real data one loan source has a single item ready to submit. Own-funds items never count (R-m7). #2228: Ready to submit = the bank report's draw-down set (one predicate, `getDrawDownSet`); loan and credit-line sources only; own funds never count. #2242: Financing header primary Prepare bank report and the loan card ⋯ item (…/bank-report?sourceId=); the funding source page leads with it for bank loans and credit lines. Ready to submit shows on loan and credit-line cards only, as count and amount."
   },
   "MNY-036": {
     "name": "View subsidy programs with status, reduction, cap, oversubscription, deadline and categories",
@@ -1126,16 +1126,16 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Financing); every old URL redirects there in one hop.",
-    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3). #2203: interim h1 \"Grants\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
+    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3). #2203: interim h1 \"Grants\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2242: Financing › Grants cards: status, rate (a legacy fixed grant shows its amount, \"Fixed reduction ‹amount›\"), eligible-costs cap, Expected, Covered items (link to the Work tab), deadline with Overdue. Rejected grants are listed; they count 0."
   },
   "MNY-037": {
     "name": "Create a subsidy program",
     "from": "/budget/subsidies > header 'Add Program' > inline 'New Subsidy Program' form (name*, reduction type*, value*, application status, deadline, maximum amount, description, eligibility, notes, applicable categories)",
-    "to": "Money > Financing > Add grant (also New menu > Grant): Name, Eligible items, Rate, optional Eligible costs up to; Status, Deadline; no provider, no payout field; percentage only (owner, 7 Oct)",
+    "to": "Money > Financing > Add grant (also New menu > Grant): Name, Rate (%), Eligible tasks and purchases (at least one), optional Eligible costs up to; More details: Status, Deadline, Cost categories (incl. No category), Description, Eligibility, Notes; no provider, no payout field; percentage only (owner, 7 Oct)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > New menu); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2212 (interim until the Financing page): Global › New menu › Grant (on Money pages only) → the Grants page with its create form open (?create=1)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2212 (interim until the Financing page): Global › New menu › Grant (on Money pages only) → the Grants page with its create form open (?create=1). #2242: Money › Financing › Add grant and Global › New menu › Grant open the New grant ObjectForm (?create=1&kind=grant). Essentials: Name, Rate (%), Eligible tasks and purchases (at least one), Eligible costs up to; More details: Status, Deadline, Cost categories (with No category), Description, Eligibility, Notes. Percentage only: no reduction type, provider or project-wide option. The grant and its links are created in one request."
   },
   "MNY-038": {
     "name": "Edit a subsidy program inline",
@@ -1144,7 +1144,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "New detail page for grants. #2209: Money › Financing › Grants › row StatusMenu chip; the inline edit loses Status."
+    "note": "New detail page for grants. #2209: Money › Financing › Grants › row StatusMenu chip; the inline edit loses Status. #2242: Grant page › Overview › Details and Eligibility, each with its own Edit and explicit Save. A legacy fixed grant edits \"Fixed reduction\" and keeps its type."
   },
   "MNY-039": {
     "name": "Track a subsidy application status (eligible, applied, approved, received, rejected)",
@@ -1152,7 +1152,7 @@
     "to": "Money > Grant page > StatusMenu (Eligible / Applied / Approved / Received / Rejected)",
     "change": "promoted",
     "gate": "none",
-    "note": "Status change without opening the edit form. #2195: grant status words read the canonical grant key set (AC3). #2209: Money › Financing › Grants › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it."
+    "note": "Status change without opening the edit form. #2195: grant status words read the canonical grant key set (AC3). #2209: Money › Financing › Grants › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it. #2242: Header StatusMenu chip with Undo and the forward-status primary (Log at the end)."
   },
   "MNY-040": {
     "name": "Delete a subsidy program",
@@ -1161,7 +1161,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Grants › Delete (ConfirmDialog with counts)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Grants › Delete (ConfirmDialog with counts). #2242: Header ⋯ › Delete with impact counts; while tasks are linked the server answers 409 and the dialog says to remove them on the Work tab first. Linked purchases are unlinked."
   },
   "MNY-041": {
     "name": "Scope a subsidy program to budget categories (incl. 'No Category', select/deselect all)",
@@ -1169,7 +1169,7 @@
     "to": "Money > Grant page > Eligibility section Edit > 'Applies to cost categories'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2242: Eligibility › Edit › Cost categories (EntityMultiPicker with chips and a No category row); read mode lists the names and \"Includes costs without a category\"."
   },
   "MNY-042": {
     "name": "Cap a subsidy payout (maximum amount) and see oversubscription flags",
@@ -1177,17 +1177,17 @@
     "to": "Money > Grant page > summary strip (Eligible-costs cap, Expected grant, eligible costs above the cap)",
     "change": "same",
     "gate": "none",
-    "note": "The cap is the eligible-costs cap of the grant letter; the payout itself is not tracked (owner, 7 Oct, PLAN §2.0 #15)."
+    "note": "The cap is the eligible-costs cap of the grant letter; the payout itself is not tracked (owner, 7 Oct, PLAN §2.0 #15). #2242: Grant page strip: Rate, Eligible costs up to (or No cap), Expected, Deadline, Documents; Overview › \"How the expected grant is calculated\" states the rule in one sentence."
   },
   "MNY-044": {
     "name": "Link or unlink a subsidy program on a work item or household item",
     "from": "/project/work-items/:id > Budget section > 'Subsidies' subsection > program select + 'Add Subsidy' / unlink x | /project/household-items/:id > Budget section > 'Subsidies' subsection > same controls | /project/work-items/:id > Budget > Subsidies > \"Select subsidy program...\" dropdown + \"Add Subsidy\" | /project/work-items/:id > Budget > Subsidies > × on a linked program | /project/household-items/:id > \"Budget\" > \"Subsidies\" subsection > \"Select subsidy program…\" + \"Add Subsidy\" | /project/household-items/:id > \"Subsidies\" list > \"×\"",
-    "to": "Task / Purchase page > Cost tab > Grants > Add / Remove; Money > Grant page > Work tab > 'Link tasks / purchases' (multi-select)",
+    "to": "Money > Grant page > Work tab > 'Link tasks / purchases' (multi-select) [done in #2242]; Task / Purchase page > Cost tab > Grants > Add / Remove [stays until P5.4 / P5.5]",
     "change": "promoted",
     "gate": "none",
     "clicks": 2,
     "clickPath": "Purchase page > Cost tab (1) > Grants > Add (2)",
-    "note": "Reverse entry from the grant (J12 34 clicks -> ~15)."
+    "note": "Reverse entry from the grant (J12 34 clicks -> ~15). #2242: Grant side done: Work tab › Covered items (RelatedList): each row shows the computed share (no Edit, the amount is not stored), Remove with Undo, and Link tasks / purchases (multi-select, one atomic request). Task and purchase pages are unchanged until P5.4 / P5.5."
   },
   "MNY-045": {
     "name": "See expected cost, planned cost and expected payback for one work item or household item",
@@ -2749,7 +2749,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Invoice / Offer page > History tab and Funding source page > History tab show invoice and report events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16. Listed on the History page (#2224). A bank-report submission is one History row (batchId)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16. Listed on the History page (#2224). A bank-report submission is one History row (batchId). #2242: Funding source page › History tab lists the budget_source events, bank-report submissions collapsed to one row per batch; Grant page › History (subsidy_program); both via ObjectHistorySection with a link to the History page filtered to the object."
   },
   "JRN-036": {
     "name": "Log projected milestone delays automatically",
@@ -3074,7 +3074,7 @@
     "change": "moved",
     "gate": "paperless",
     "acceptance": "Funding source / Grant page summary fact 'Documents (n)' opens the Documents panel; Financing card 'Documents (n) · Link'.",
-    "note": "57 documents sit on the two loans; the Financing card keeps a one-click entry (R-m6). Gated like every Documents surface (C-05). #2233: interim — each source/grant row has a 'Documents (n)' button that opens the panel (no expand toggle)."
+    "note": "57 documents sit on the two loans; the Financing card keeps a one-click entry (R-m6). Gated like every Documents surface (C-05). #2233: interim — each source/grant row has a 'Documents (n)' button that opens the panel (no expand toggle). #2242: Financing cards and the funding source and grant pages show \"Documents (n)\"; the cards add a Link button that opens the panel in the document picker."
   },
   "JRN-075": {
     "name": "Link a Paperless document to a record through the document picker",

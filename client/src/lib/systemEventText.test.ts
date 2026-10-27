@@ -383,7 +383,7 @@ describe('renderSystemEvent: legacy rows', () => {
           sourceEntityId: 'gr-1',
         }),
       ).link?.to,
-    ).toBe('/budget/subsidies');
+    ).toBe('/budget/financing/grants/gr-1');
     const budgetSource = render(
       makeEntry({
         metadata: null,
@@ -433,13 +433,18 @@ describe('renderSystemEvent: links', () => {
       'Open refund',
     ],
     ['milestone', milestone(), '/project/milestones/ms-1', 'Open milestone'],
-    ['grant (interim page)', grant(), '/budget/subsidies', 'Open grant'],
+    ['grant page', grant(), '/budget/financing/grants/gr-1', 'Open grant'],
     ['recorded invoice', recorded(), '/budget/invoices/inv-2', 'Open invoice'],
   ])('%s: href and visible label', (_name, entry, to, label) => {
     const view = render(entry as DiaryEntrySummary);
     expect(view.link?.to).toBe(to);
     expect(view.link?.label).toBe(label);
     expect(view.removed).toBe(false);
+  });
+
+  it('a grant status event without a stored grant id has no link (nothing to open, #2242)', () => {
+    const view = render(grant({ sourceEntityId: null }));
+    expect(view.link).toBeNull();
   });
 
   it('the accessible name starts with the visible text', () => {

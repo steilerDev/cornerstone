@@ -19,7 +19,7 @@ The household items system provides:
 - **Invoice Linking** -- Link vendor offers and invoices to household item cost lines to track actual costs
 - **Document Linking** -- Attach documents from [Paperless-ngx](/guides/documents) (product specs, receipts, warranties) to household items
 - **Areas & Notes** -- Assign items to project areas and add timestamped notes
-- **Subsidy Support** -- Apply subsidy programs to household item costs for budget reduction
+- **Grant Support** -- Link grants to household items so the grant covers their costs
 
 ## Categories
 
@@ -62,7 +62,7 @@ The **Area** filter supports the full area hierarchy: picking a parent area also
 
 ## Detail View
 
-Click any household item to see its full detail page with all fields, budget lines, notes, dependencies, linked work items, linked documents (open them with the **Documents (n)** button), and applied subsidies. Fields can be edited inline by clicking on them.
+Click any household item to see its full detail page with all fields, budget lines, notes, dependencies, linked work items, linked documents (open them with the **Documents (n)** button), and linked grants. Fields can be edited inline by clicking on them.
 
 ![Household item detail page](/img/screenshots/household-item-detail-light.png)
 

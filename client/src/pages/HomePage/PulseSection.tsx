@@ -60,8 +60,7 @@ function PulseTiles({ data }: { data: HomePulseResponse }) {
           figure={'–'}
           figureLabel={t('pulse.leftToSpend.noFigure')}
           detail={t('pulse.leftToSpend.needsSetup')}
-          // Interim until the Financing route (4.10).
-          to={routeUrl('budgetSources')}
+          to={routeUrl('financing')}
           state={originState}
           testId="home-pulse-left-to-spend"
         />

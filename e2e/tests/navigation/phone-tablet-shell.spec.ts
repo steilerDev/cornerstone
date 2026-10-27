@@ -529,9 +529,9 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await page.goto(ROUTES.home);
       await expect(appShell.bottomBar).toBeVisible();
 
-      // Home -> Money (push) -> Funding sources (replace)
-      await appShell.navigateTo('budgetSources');
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetSources'));
+      // Home -> Money (push) -> Financing (replace)
+      await appShell.navigateTo('financing');
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('financing'));
 
       await page.getByTestId('breadcrumbs-parent').click();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetOverview'));

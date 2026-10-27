@@ -30,7 +30,7 @@
       "Home": 15,
       "Home (/) — landing page after sign-in": 1,
       "Home (phone and tablet order): 'Where are you?' area chips with the last log, Needs attention, Tidy up, This week, Pulse, Latest from the site": 1,
-      "Money": 108,
+      "Money": 109,
       "Operator (container env) BACKUP_RETENTION — shown in Settings": 1,
       "Operator (container env) CURRENCY, VAT_RATE — shown read-only in Settings": 1,
       "Operator (container env) PHOTO_STORAGE_PATH, PHOTO_MAX_FILE_SIZE_MB — shown in Settings": 1,
@@ -64,7 +64,7 @@
       "System (no UI) (de-duplicated: once per state change, none after the milestone is reached) -> Tasks": 1,
       "Task / Purchase / Invoice / Offer / Funding source / Grant page": 1,
       "Task / Purchase / Invoice / Offer page": 8,
-      "Task / Purchase page": 8,
+      "Task / Purchase page": 7,
       "Tasks": 94
     },
     "byDomain": { "household": 59, "journal": 87, "money": 130, "platform": 123, "work": 103 },

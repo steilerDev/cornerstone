@@ -21,17 +21,21 @@ import { test, expect } from '../../fixtures/auth.js';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
 import {
   createAreaViaApi,
+  createBudgetSourceViaApi,
   createDiaryEntryViaApi,
   createHouseholdItemViaApi,
   createMilestoneViaApi,
   createOrientationViaApi,
+  createSubsidyProgramViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
   deleteAreaViaApi,
+  deleteBudgetSourceViaApi,
   deleteDiaryEntryViaApi,
   deleteHouseholdItemViaApi,
   deleteMilestoneViaApi,
   deleteOrientationViaApi,
+  deleteSubsidyProgramViaApi,
   deleteVendorViaApi,
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
@@ -69,6 +73,8 @@ const seed = {
   offerId: '',
   areaId: '',
   orientationId: '',
+  sourceId: '',
+  grantId: '',
 };
 
 /** Served pages the checks skip (Paperless+AI gate redirects when the integration is off). */
@@ -95,8 +101,9 @@ const PATHS: Record<string, () => string> = {
   invoices: () => routeUrl('invoices'),
   invoice: () => routeUrl('invoice', { id: seed.invoiceId }),
   invoiceConvert: () => routeUrl('invoiceConvert', { id: seed.offerId }),
-  budgetSources: () => routeUrl('budgetSources'),
-  budgetSubsidies: () => routeUrl('budgetSubsidies'),
+  financing: () => routeUrl('financing'),
+  fundingSource: () => routeUrl('fundingSource', { id: seed.sourceId }),
+  grant: () => routeUrl('grant', { id: seed.grantId }),
   bankReport: () => routeUrl('bankReport'),
   diary: () => routeUrl('diary'),
   diaryEntryNew: () => routeUrl('diaryEntryNew'),
@@ -191,6 +198,15 @@ test.describe('Phase 1 exit checks (#2219)', { tag: '@responsive' }, () => {
       });
       expect(offer.ok(), `POST offer failed: ${offer.status()}`).toBeTruthy();
       seed.offerId = ((await offer.json()) as { invoice: { id: string } }).invoice.id;
+      seed.sourceId = await createBudgetSourceViaApi(page, {
+        name: `E2E P1Exit ${runId} loan`,
+        sourceType: 'bank_loan',
+        totalAmount: 50000,
+      });
+      seed.grantId = await createSubsidyProgramViaApi(page, {
+        name: `E2E P1Exit ${runId} grant`,
+        reductionValue: 10,
+      });
     } finally {
       await context.close();
     }
@@ -207,6 +223,12 @@ test.describe('Phase 1 exit checks (#2219)', { tag: '@responsive' }, () => {
         await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.offerId}`);
       }
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId).catch(() => undefined);
+      if (seed.sourceId) {
+        await deleteBudgetSourceViaApi(page, seed.sourceId).catch(() => undefined);
+      }
+      if (seed.grantId) {
+        await deleteSubsidyProgramViaApi(page, seed.grantId).catch(() => undefined);
+      }
       if (seed.diaryId) await deleteDiaryEntryViaApi(page, seed.diaryId).catch(() => undefined);
       if (seed.areaId) await deleteAreaViaApi(page, seed.areaId).catch(() => undefined);
       if (seed.orientationId) {

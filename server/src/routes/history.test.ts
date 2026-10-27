@@ -172,8 +172,18 @@ describe('GET /api/history', () => {
     }
   });
 
-  it('rejects entityType=budget_source', async () => {
+  it('accepts entityType=budget_source (the funding source History tab, #2242)', async () => {
     const res = await get('?entityType=budget_source&entityId=src-1');
+    expect(res.statusCode).toBe(200);
+    expect(res.json<HistoryListResponse>().object).toMatchObject({
+      entityType: 'budget_source',
+      entityId: 'src-1',
+      exists: false,
+    });
+  });
+
+  it('rejects an unknown entityType', async () => {
+    const res = await get('?entityType=budget_sourcez&entityId=src-1');
     expect(res.statusCode).toBe(400);
   });
 

@@ -545,7 +545,7 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByText('No funding sources added yet')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Add your first funding source' })).toHaveAttribute(
         'href',
-        routeUrl('budgetSources'),
+        routeUrl('financing'),
       );
     });
   });

@@ -636,4 +636,84 @@ describe('historyService.listHistory', () => {
       expect(raw.hiddenCount).toBe(1);
     });
   });
+  describe('budget_source object (#2242, JRN-035)', () => {
+    beforeEach(() => {
+      insertSource('src-a', 'Loan Alpha');
+      insertSource('src-b', 'Loan Beta');
+    });
+
+    it('returns only the submission batches of that source, one collapsed row per batch', () => {
+      batchEvent('a-1', 1, 'batch-a', 'inv-1', { amount: 100, budgetSourceId: 'src-a' });
+      batchEvent('a-2', 2, 'batch-a', 'inv-2', { amount: 50, budgetSourceId: 'src-a' });
+      batchEvent('a-3', 3, 'batch-a2', 'inv-3', { amount: 25, budgetSourceId: 'src-a' });
+      batchEvent('b-1', 4, 'batch-b', 'inv-4', { amount: 70, budgetSourceId: 'src-b' });
+
+      const r = list({ entityType: 'budget_source', entityId: 'src-a', pageSize: 100 });
+
+      expect(r.items.map((i) => i.id)).toEqual(['a-3', 'a-1']);
+      expect(r.items.find((i) => i.id === 'a-1')!.batch).toMatchObject({
+        batchId: 'batch-a',
+        invoiceCount: 2,
+        amount: 150,
+      });
+      expect(r.object).toEqual({
+        entityType: 'budget_source',
+        entityId: 'src-a',
+        title: 'Loan Alpha',
+        exists: true,
+      });
+    });
+
+    it('excludes a non-submission invoice event and an event whose source entity is the source', () => {
+      batchEvent('a-1', 1, 'batch-a', 'inv-1', { amount: 1, budgetSourceId: 'src-a' });
+      // Same metadata field, but not a batch
+      auto({
+        id: 'no-batch',
+        createdAt: at(2),
+        metadata: statusMeta('paid', { budgetSourceId: 'src-a' }),
+      });
+      // A source entity that is the source itself is not what its history shows
+      auto({
+        id: 'as-source',
+        createdAt: at(3),
+        sourceEntityType: 'budget_source',
+        sourceEntityId: 'src-a',
+        metadata: statusMeta('claimed', { batchId: 'batch-x', budgetSourceId: 'src-b' }),
+      });
+      // A different entry type with a batch id
+      auto({
+        id: 'other-type',
+        createdAt: at(4),
+        entryType: 'subsidy_status',
+        metadata: statusMeta('claimed', { batchId: 'batch-y', budgetSourceId: 'src-a' }),
+      });
+
+      expect(ids({ entityType: 'budget_source', entityId: 'src-a' })).toEqual(['a-1']);
+    });
+
+    it('a deleted source resolves to exists=false and no title, and lists nothing', () => {
+      const r = list({ entityType: 'budget_source', entityId: 'src-gone' });
+      expect(r.items).toEqual([]);
+      expect(r.object).toEqual({
+        entityType: 'budget_source',
+        entityId: 'src-gone',
+        title: null,
+        exists: false,
+      });
+    });
+
+    it('a batchId filter still shows the raw members of a batch (no collapse)', () => {
+      batchEvent('a-1', 1, 'batch-a', 'inv-1', { amount: 100, budgetSourceId: 'src-a' });
+      batchEvent('a-2', 2, 'batch-a', 'inv-2', { amount: 50, budgetSourceId: 'src-a' });
+
+      expect(
+        ids({ entityType: 'budget_source', entityId: 'src-a', batchId: 'batch-a' }).sort(),
+      ).toEqual(['a-1', 'a-2']);
+    });
+
+    it('treats the id as data: a quote in it matches nothing and breaks nothing', () => {
+      batchEvent('a-1', 1, 'batch-a', 'inv-1', { amount: 1, budgetSourceId: 'src-a' });
+      expect(ids({ entityType: 'budget_source', entityId: "src-a' OR '1'='1" })).toEqual([]);
+    });
+  });
 });

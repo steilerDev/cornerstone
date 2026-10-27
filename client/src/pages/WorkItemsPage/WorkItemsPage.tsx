@@ -17,6 +17,7 @@ import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { GrantChips } from '../../components/Badge/GrantChips.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -231,12 +232,16 @@ export function WorkItemsPage() {
         sortable: true,
         sortKey: 'title',
         defaultVisible: true,
-        render: (item) => (
+        render: (item, surface) => (
           <div className={styles.titleCell}>
             <Link to={routeUrl('workItem', { id: item.id })} className={styles.itemLink}>
               {item.title}
             </Link>
             <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+            <GrantChips
+              grants={item.grants}
+              testId={dataTableTestId('work-item-grants', item.id, surface)}
+            />
           </div>
         ),
       },

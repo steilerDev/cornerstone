@@ -172,6 +172,27 @@ describe('resolveLocation', () => {
     expect(resolveLocation(from, ADMIN)).toMatchObject({ kind: 'redirect', to });
   });
 
+  it.each([
+    ['/budget/sources', '/budget/financing#sources'],
+    ['/budget/subsidies', '/budget/financing#grants'],
+    ['/budget/financing/sources', '/budget/financing#sources'],
+    ['/budget/financing/grants', '/budget/financing#grants'],
+  ])(
+    'redirects the retired %s to its Financing section; the target hash wins (#2242)',
+    (from, to) => {
+      expect(resolveLocation(from, ADMIN)).toMatchObject({ kind: 'redirect', to });
+      expect(resolveLocation(`${from}#other`, ADMIN)).toMatchObject({ kind: 'redirect', to });
+    },
+  );
+
+  it.each([
+    ['/budget/financing', 'financing'],
+    ['/budget/financing/sources/bs-1', 'fundingSource'],
+    ['/budget/financing/grants/sp-1', 'grant'],
+  ])('serves %s as the %s page (#2242)', (url, id) => {
+    expect(pageId(resolveLocation(url, MEMBER))).toBe(id);
+  });
+
   it('keeps the query and hash when redirecting the old overview to Home (#2230)', () => {
     expect(resolveLocation('/project/overview?x=1#h', ADMIN)).toMatchObject({
       kind: 'redirect',

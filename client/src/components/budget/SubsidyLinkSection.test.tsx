@@ -96,13 +96,13 @@ describe('SubsidyLinkSection', () => {
   it('renders the empty state message when no subsidies are linked', () => {
     render(<SubsidyLinkSection {...buildProps()} />);
 
-    expect(screen.getByText('No subsidies linked')).toBeInTheDocument();
+    expect(screen.getByText('No grants are linked to this item.')).toBeInTheDocument();
   });
 
   it('does not render the empty state when at least one subsidy is linked', () => {
     render(<SubsidyLinkSection {...buildProps({ linkedSubsidies: [makeSubsidy()] })} />);
 
-    expect(screen.queryByText('No subsidies linked')).not.toBeInTheDocument();
+    expect(screen.queryByText('No grants are linked to this item.')).not.toBeInTheDocument();
   });
 
   // ─── Linked subsidies: percentage / fixed reduction rendering ─────────────
@@ -172,7 +172,7 @@ describe('SubsidyLinkSection', () => {
     render(<SubsidyLinkSection {...buildProps({ linkedSubsidies: [subsidy] })} />);
 
     expect(
-      screen.getByRole('button', { name: 'Unlink subsidy Solar Panel Grant' }),
+      screen.getByRole('button', { name: 'Unlink the grant Solar Panel Grant from this item' }),
     ).toBeInTheDocument();
   });
 
@@ -180,7 +180,9 @@ describe('SubsidyLinkSection', () => {
     const subsidy = makeSubsidy();
     render(<SubsidyLinkSection {...buildProps({ linkedSubsidies: [subsidy] })} />);
 
-    fireEvent.click(screen.getByRole('button', { name: `Unlink subsidy ${subsidy.name}` }));
+    fireEvent.click(
+      screen.getByRole('button', { name: `Unlink the grant ${subsidy.name} from this item` }),
+    );
 
     expect(onUnlinkSubsidy).toHaveBeenCalledTimes(1);
     expect(onUnlinkSubsidy).toHaveBeenCalledWith(subsidy.id);
@@ -192,7 +194,7 @@ describe('SubsidyLinkSection', () => {
     render(<SubsidyLinkSection {...buildProps({ availableSubsidies: [] })} />);
 
     expect(
-      screen.queryByRole('combobox', { name: 'Select subsidy program to link' }),
+      screen.queryByRole('combobox', { name: 'Select a grant to link to this item' }),
     ).not.toBeInTheDocument();
   });
 
@@ -203,9 +205,9 @@ describe('SubsidyLinkSection', () => {
     ];
     render(<SubsidyLinkSection {...buildProps({ availableSubsidies: available })} />);
 
-    const select = screen.getByRole('combobox', { name: 'Select subsidy program to link' });
+    const select = screen.getByRole('combobox', { name: 'Select a grant to link to this item' });
     expect(select).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Select subsidy program...' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Select a grant to link...' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Program A' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Program B' })).toBeInTheDocument();
   });
@@ -214,7 +216,7 @@ describe('SubsidyLinkSection', () => {
     const available = [makeSubsidy({ id: 'a-1', name: 'Program A' })];
     render(<SubsidyLinkSection {...buildProps({ availableSubsidies: available })} />);
 
-    const select = screen.getByRole('combobox', { name: 'Select subsidy program to link' });
+    const select = screen.getByRole('combobox', { name: 'Select a grant to link to this item' });
     fireEvent.change(select, { target: { value: 'a-1' } });
 
     expect(onSelectSubsidy).toHaveBeenCalledTimes(1);
@@ -231,7 +233,7 @@ describe('SubsidyLinkSection', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Add Subsidy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add grant to this item' })).toBeInTheDocument();
   });
 
   it('shows "Linking..." on the add button and disables the select while isLinking is true', () => {
@@ -248,7 +250,9 @@ describe('SubsidyLinkSection', () => {
 
     expect(screen.getByRole('button', { name: 'Linking...' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Linking...' })).toBeDisabled();
-    expect(screen.getByRole('combobox', { name: 'Select subsidy program to link' })).toBeDisabled();
+    expect(
+      screen.getByRole('combobox', { name: 'Select a grant to link to this item' }),
+    ).toBeDisabled();
   });
 
   it('disables the add button when no subsidy is selected', () => {
@@ -259,7 +263,7 @@ describe('SubsidyLinkSection', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Add Subsidy' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add grant to this item' })).toBeDisabled();
   });
 
   it('fires onLinkSubsidy when the add button is clicked', () => {
@@ -270,7 +274,7 @@ describe('SubsidyLinkSection', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add grant to this item' }));
 
     expect(onLinkSubsidy).toHaveBeenCalledTimes(1);
   });

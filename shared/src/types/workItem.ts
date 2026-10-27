@@ -10,6 +10,7 @@ import type { WorkItemBudgetLine } from './workItemBudget.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
 import type { FilterMeta } from './filterMeta.js';
+import type { ItemGrantChip } from './subsidyProgram.js';
 
 /**
  * Work item status enum.
@@ -94,6 +95,8 @@ export interface WorkItemSummary extends WorkItemScheduleFields {
   assignedVendor: VendorSummary | null;
   area: AreaSummary | null;
   budgetLineCount: number;
+  /** Always sent on GET list rows (rejected grants excluded, by name); absent elsewhere. */
+  grants?: ItemGrantChip[];
   createdAt: string;
   updatedAt: string;
 }

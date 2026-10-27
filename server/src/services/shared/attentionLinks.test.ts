@@ -6,7 +6,8 @@
  *  - a progress payment linking to the deposit id instead of the invoice id;
  *  - N2 group linking to a single task;
  *  - an N11/S1 link to a route that is still planned (routeUrl throws on the client);
- *  - the interim N11/S1 targets staying in place after the grant/fundingSource routes are served.
+ *  - N11 falling back to the retired subsidies list, or S1 to the retired sources list, instead
+ *    of the grant page and Money › Financing (#2242).
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -72,14 +73,14 @@ describe('attentionLinkOf', () => {
     });
   });
 
-  it('N11 links to the subsidies list (interim) and S1 to the sources list (interim)', () => {
+  it('N11 links to the grant page with the grant id and S1 to Money > Financing (#2242)', () => {
     expect(attentionLinkOf({ rule: 'N11', subjectId: 'gr-1' })).toEqual({
-      route: 'budgetSubsidies',
-      params: {},
+      route: 'grant',
+      params: { id: 'gr-1' },
       query: {},
     });
     expect(attentionLinkOf({ rule: 'S1', subjectId: 'src-2' })).toEqual({
-      route: 'budgetSources',
+      route: 'financing',
       params: {},
       query: {},
     });
@@ -119,12 +120,19 @@ describe('attentionLinkOf', () => {
   });
 });
 
-describe('interim link targets (spec test)', () => {
-  it('the grant route is still planned: when it is served, switch the N11 link in attentionLinks.ts to route "grant"', () => {
-    expect(getRouteEntry('grant').stage).toBe('planned');
+describe('N11 / S1 link targets (#2242)', () => {
+  it('the grant and financing routes are served, and the retired interim routes are no link target', () => {
+    expect(getRouteEntry('grant').stage).toBe('done');
+    expect(getRouteEntry('financing').stage).toBe('done');
+    expect(ATTENTION_LINK_ROUTES).toEqual(expect.arrayContaining(['grant', 'financing']));
+    expect(ATTENTION_LINK_ROUTES as readonly string[]).not.toContain('budgetSubsidies');
+    expect(ATTENTION_LINK_ROUTES as readonly string[]).not.toContain('budgetSources');
   });
 
-  it('the fundingSource route is still planned: when it is served, switch the S1 link in attentionLinks.ts to route "fundingSource"', () => {
-    expect(getRouteEntry('fundingSource').stage).toBe('planned');
+  it('the grant link builds /budget/financing/grants/<id>', () => {
+    const link = attentionLinkOf({ rule: 'N11', subjectId: 'gr-1' });
+    expect((routeUrl as (id: string, p: object) => string)(link.route, link.params)).toMatch(
+      /gr-1$/,
+    );
   });
 });

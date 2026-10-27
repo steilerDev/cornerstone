@@ -77,7 +77,7 @@ describe('findSearchDestinations: AC4 alias words', () => {
     ['Household item', 'householdItems'],
     ['Quotation', 'invoices'],
     ['Budget', 'budgetOverview'],
-    ['Subsidy', 'budgetSubsidies'],
+    ['Subsidy', 'financing'],
   ] as [string, RouteId][])('other former name "%s" is reachable via %s', (word, route) => {
     expect(routesOf(word)).toContain(route);
   });
@@ -339,6 +339,17 @@ describe('findSearchDestinations: role and gating', () => {
     expect(routesOf('Benutzerverwaltung', MEMBER)).not.toContain('settingsUsers');
   });
 
+  it.each([
+    ['Funding source', 'financing'],
+    ['Grant', 'financing'],
+    ['Bank report', 'bankReport'],
+  ] as [string, RouteId][])(
+    '"%s" resolves to %s now that the interim views are gone (#2242)',
+    (word, route) => {
+      expect(routesOf(word)[0]).toBe(route);
+    },
+  );
+
   it('a member still gets ordinary destinations', () => {
     expect(routesOf('Zeitplan', MEMBER)[0]).toBe('scheduleGantt');
   });
@@ -368,6 +379,7 @@ describe('findSearchDestinations: role and gating', () => {
     allRoutes.add('invoices');
     allRoutes.add('companies');
     allRoutes.add('budgetOverview');
+    allRoutes.add('bankReport'); // a page of Financing, reached by its own name (#2242)
     for (const word of ['a', 'e', 'o', 'r', 's']) {
       for (const hit of findSearchDestinations(word, MEMBER, EN)) {
         expect(allRoutes.has(hit.route)).toBe(true);

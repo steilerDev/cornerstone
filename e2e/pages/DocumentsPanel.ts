@@ -7,7 +7,9 @@
  *
  * Hosts and their trigger test ids:
  *   - Task / Purchase / Invoice detail pages: `documents-panel-button` ("Documents (n)")
- *   - Funding source row: `source-docs-<id>`; Grant row: `program-docs-<id>`
+ *   - Financing cards: `financing-source-docs-<id>` / `financing-grant-docs-<id>` (+ a `-link`
+ *     sibling opening the panel in the Link document picker); Funding source and Grant pages:
+ *     the `summary-fact-documents` strip fact
  *
  * List view: `documents-list` of `linked-document-<id>` cards, each with a "Details" toggle
  * (`document-details-<id>`) and a ⋯ menu (`document-menu-<id>` wrapper; items Open in Paperless

@@ -14,9 +14,11 @@ import {
 import { ROUTE_MAP } from './routeMap.js';
 import type { RouteMapEntry } from './types.js';
 
-/** The 26 plain redirects the router serves today, in route-map order (a set; order is incidental). */
+/** The 30 plain redirects the router serves today, in route-map order (a set; order is incidental). */
 const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/project/overview', '/'],
+  ['/budget/sources', '/budget/financing#sources'],
+  ['/budget/subsidies', '/budget/financing#grants'],
   ['/settings/vendors', '/companies'],
   ['/settings/vendors/:id', '/companies/:id'],
   ['/project', '/'],
@@ -42,6 +44,8 @@ const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/budget/vendors/:id', '/companies/:id'],
   ['/schedule/milestones', '/project/milestones'],
   ['/schedule/milestones/:id', '/project/milestones/:id'],
+  ['/budget/financing/sources', '/budget/financing#sources'],
+  ['/budget/financing/grants', '/budget/financing#grants'],
 ];
 
 function base(over: Partial<RouteMapEntry>): RouteMapEntry {
@@ -61,8 +65,8 @@ function base(over: Partial<RouteMapEntry>): RouteMapEntry {
 }
 
 describe('LIVE_REDIRECT_ROUTES', () => {
-  it('equals the frozen 26-row table of today redirects', () => {
-    expect(FROZEN_LIVE_REDIRECTS).toHaveLength(26);
+  it('equals the frozen 30-row table of today redirects', () => {
+    expect(FROZEN_LIVE_REDIRECTS).toHaveLength(30);
     expect(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
   });
 
@@ -79,6 +83,26 @@ describe('LIVE_REDIRECT_ROUTES', () => {
     expect(froms).not.toContain('/companies');
     expect(froms).not.toContain('/companies/:id');
     expect(froms).not.toContain('/companies/new');
+  });
+
+  it('serves the four retired Money URLs as live redirects with a target hash (#2242)', () => {
+    const targets = new Map(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target]));
+    expect(targets.get('/budget/sources')).toBe('/budget/financing#sources');
+    expect(targets.get('/budget/subsidies')).toBe('/budget/financing#grants');
+    expect(targets.get('/budget/financing/sources')).toBe('/budget/financing#sources');
+    expect(targets.get('/budget/financing/grants')).toBe('/budget/financing#grants');
+  });
+
+  it('resolves each of the four to the section anchor, the target hash winning over the incoming one', () => {
+    for (const [from, hash] of [
+      ['/budget/sources', '#sources'],
+      ['/budget/subsidies', '#grants'],
+      ['/budget/financing/sources', '#sources'],
+      ['/budget/financing/grants', '#grants'],
+    ] as const) {
+      const target = LIVE_REDIRECT_ROUTES.find((r) => r.from === from)!.target;
+      expect(resolveRedirect(target, {}, '', '#other')).toBe(`/budget/financing${hash}`);
+    }
   });
 
   it('carries only from, target and queryMaps', () => {

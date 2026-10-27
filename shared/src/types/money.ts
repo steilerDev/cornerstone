@@ -127,3 +127,47 @@ export interface BreakdownMoney {
   orphanLines: MoneyCostFigures;
   notYetSplit: NotYetSplit;
 }
+
+/**
+ * One funding source of the Financing page (#2242): the money service's source figures plus the
+ * interest rate. Same entry as `MoneySummary.sources`.
+ */
+export interface FinancingSource extends MoneySourceFigures {
+  interestRate: number | null;
+}
+
+/** One grant of the Financing page (#2242): every grant, rejected ones included. */
+export interface FinancingGrant {
+  id: string;
+  name: string;
+  /** all statuses, rejected included */
+  status: SubsidyApplicationStatus;
+  reductionType: SubsidyReductionType;
+  /** reduction_value: percent for 'percentage', legacy fixed amount for 'fixed' */
+  rate: number;
+  /** maximum_amount */
+  eligibleCostCap: number | null;
+  /** application_deadline (YYYY-MM-DD) */
+  deadline: string | null;
+  /** linked tasks plus linked purchases (link tables) */
+  coveredItemCount: number;
+  /** engine payout; the zero range for a rejected grant */
+  expected: MoneyRange;
+  /** true for approved / received */
+  counted: boolean;
+}
+
+/** Response for GET /api/budget/financing. */
+export interface FinancingResponse {
+  sources: FinancingSource[];
+  grants: FinancingGrant[];
+}
+
+/** Money of one grant (detail response of GET /api/subsidy-programs/:id). */
+export interface GrantMoney {
+  expected: MoneyRange;
+  eligibleCost: MoneyRange;
+  capped: boolean;
+  counted: boolean;
+  coveredItemCount: number;
+}

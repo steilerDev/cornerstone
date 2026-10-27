@@ -1,72 +1,127 @@
 ---
 sidebar_position: 2
-title: Financing Sources
+title: Financing
 ---
 
-# Financing Sources
+# Financing
 
-Financing sources represent where the money for your construction project comes from -- your construction loan, savings, a family loan, a subsidy. Each source has a total amount, and Cornerstone tracks how much of each source has been depleted based on actual invoice costs.
+Financing is where the money for your project is set up and tracked. Open **Money > Financing** to see every way the project is paid for, in two groups on one page:
 
-## Examples
+- **Loans & own funds** -- your funding sources: a bank loan, a credit line, savings, other money, and your **Own funds**
+- **Grants** -- subsidies and grant programs that reduce the cost, covered in [Grants](subsidies)
 
-- **Construction Loan** -- $250,000
-- **Savings** -- $50,000
-- **Family Loan** -- $20,000
+Each card shows the figures for one source or grant. Select its name to open its page.
 
-## Creating a Financing Source
-
-Navigate to **Budget > Sources** in the sidebar. Click **New Source** and provide:
-
-- **Name** -- A descriptive label (e.g., "Construction Loan")
-- **Total Amount** -- The total amount available from this source
-
-## Depletion Tracking
-
-Each financing source shows how much has been spent. Depletion is calculated from the actual cost of invoices linked to budget lines that use this source:
-
-- **Invoiced amounts** are summed to show how much of the source has been used
-- A progress bar shows the percentage depleted
-- The remaining balance updates automatically as invoices are added
-
-## Inline Budget Line Expansion
-
-Click any source row on the sources page to expand it inline and see **every budget line attached to that source** directly beneath it -- no navigation away, no separate tab. The expanded panel is structured as a **hierarchical area tree** so you can see exactly which rooms, floors, and zones the source is funding:
-
-- Budget lines are grouped first by their **work item or household item**, with the full area breadcrumb (e.g. `House / Ground Floor / Kitchen`) shown next to the group header.
-- Work item groups are separated by horizontal dividers for easy scanning.
-- Each budget line is a **dense columnar row** showing the category, planned amount, invoiced amount, and status.
-- Clicking a work item or household item link jumps to that item's detail page, with the correct area ancestor resolved.
-
-![Financing sources page with inline expansion](/img/screenshots/budget-sources-light.png)
-
-## Multi-Select and Mass-Move
-
-Need to reassign a batch of budget lines from one source to another -- for example, when a subsidy payout comes in and you want to move those lines off your construction loan? The sources page supports **multi-select across groups**:
-
-1. Expand one or more sources.
-2. Tick the checkboxes next to any number of budget lines -- your selection is **preserved as you expand and collapse different areas or sources**, so you can build up a batch across the tree.
-3. Click **Move selected** to open the **mass-move modal**.
-4. Pick the target financing source and confirm.
-
-Every selected line is reassigned to the new source in a single operation, and the depletion totals on both the source you moved from and the source you moved to update immediately.
-
-:::tip
-The mass-move modal is the fastest way to model a "what if" on your budget -- for example, splitting costs that were originally booked against your savings onto a newly approved loan, without editing each budget line individually.
+:::info Screenshot needed
+A screenshot of the Financing page is not available yet.
 :::
 
-## Linked Documents
+## Glossary
 
-When Paperless-ngx is connected, each source row has a **Documents (n)** button showing how many documents are linked to it, such as loan contracts. Click it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for the details.
+| Term | Meaning |
+|------|---------|
+| **Funding source** | A place the money comes from: a bank loan, a credit line, savings, other money, or your Own funds |
+| **Grant** | A subsidy or grant program that reduces the cost of the tasks and purchases it covers |
+| **Own funds** | Your own money, kept as a built-in funding source. Renamed from "Discretionary Funding" when you upgrade |
+| **Allocated** | The expected cost of the cost lines a funding source pays for |
+| **Paid** | Money already paid out for invoices funded by the source |
+| **Submitted** | Invoices already sent to the bank in a bank report |
+| **Ready to submit** | Invoices that can go into the next bank report for a loan or credit line |
+| **Unallocated** | The part of the amount that no cost line uses yet. When a source is over-allocated, it shows as a negative figure |
+
+## The Financing Page
+
+The page header has **Prepare bank report** as its main action and a page actions menu with **Print**. Next to the group headings are two buttons, **Add funding source** and **Add grant**.
+
+### Funding source cards
+
+Each funding source card shows:
+
+- The **name**, its **type** (Bank loan, Credit line, Savings, Other, or Own funds), and its **status** (Active, Used up, or Closed)
+- The **rate**, when one is set
+- The figures **Amount**, **Allocated**, **Paid**, **Submitted**, and **Unallocated**
+- A bar that shows how much of the amount is submitted, paid, and allocated
+- **Ready to submit** with a count and an amount, on bank loan and credit line cards only
+- **Documents (n)** with a **Link** action, when Paperless-ngx is connected
+
+Bank loan and credit line cards also have a **⋯** menu with **Prepare bank report**, which opens the [Bank Reports](bank-reports) wizard with that loan already selected.
+
+### Own funds
+
+**Own funds** is a funding source that Cornerstone creates for you. It cannot be deleted, and it does not show **Ready to submit**, because it is not a loan. You can rename it, and you can set its amount to 0 or more.
+
+Lines that [Split with AI](auto-itemize) creates are funded from Own funds by default, until you choose a different source for each line.
+
+### Grant cards
+
+Each grant card shows the name, status, and rate (or the stored fixed reduction on older grants). It also lists:
+
+- **Eligible costs up to** -- the cap, or **No cap**
+- **Expected** -- the amount the grant is expected to pay
+- **Covered items** -- how many tasks and purchases the grant is linked to
+- **Deadline** -- with the word **Overdue** when the deadline has passed and the grant is not yet received or rejected
+
+## Adding a Funding Source
+
+Select **Add funding source** on the Financing page, or choose **Funding source** from the **New** menu. The dialog asks for:
+
+- **Name** (required)
+- **Type** (required): Bank loan, Credit line, Savings, or Other
+- **Amount** (required): the total available from this source, more than 0
+- **Status**
+- **Interest rate** (optional, 0 to 100)
+
+Under **More details** you can add the terms, a reference number, a contact address, and notes. A reference number and a contact address are what the bank report needs for its cover letter.
+
+## The Funding Source Page
+
+Select a funding source's name to open its page.
+
+### Header
+
+- The **status** chip (Active, Used up, or Closed). Select it to change the status. Use **Undo** right after a change to revert it.
+- The main action. For a bank loan or a credit line it is **Prepare bank report**. For other types it is the next status step.
+- **⋯** menu with **Delete**. Delete is not offered for Own funds. Deleting asks for confirmation and shows how many lines and documents are affected. A source that cost lines still use cannot be deleted; move those lines first.
+
+### Summary strip
+
+The strip shows **Amount**, **Allocated**, **Paid**, **Submitted**, **Unallocated**, **Rate** (when set), and **Documents (n)**.
+
+When the source is over-allocated, the **Unallocated** figure shows the negative amount in red, and a warning appears above the tabs: **Over-allocated by ...** with a **Move lines…** button. Select **Move lines…** to go to the **Cost** tab and pick the lines to move.
+
+### Overview tab
+
+- **Allocation** -- the bar and a legend for Submitted, Paid, and Allocated
+- **Details** -- name, type, amount, interest rate, terms, reference, contact address, and notes. Select **Edit** to change them and save
+
+### Cost tab
+
+The **Cost** tab lists every cost line this source pays for, grouped by area, then by task or purchase, then by line. Each task or purchase heading shows whether it is a **Task** or a **Purchase**, and links to its page.
+
+To move lines to another source:
+
+1. Tick the checkbox next to one or more lines. Your selection stays while you expand and collapse areas.
+2. Select **Move to another source** in the selection bar.
+3. Pick the target funding source and confirm.
+
+The lines move to the new source, and both sources update. The move has no **Undo**. To reverse it, move the lines back.
+
+:::tip
+Use the Cost tab to model a what-if. For example, move the lines of a payment that a grant will cover to a different source, and compare the figures on the two cards.
+:::
+
+### History tab
+
+The **History** tab lists the events for this source. When you send invoices to the bank in one bank report, the history shows the whole submission as one row, with the **Submission** badge. Select **Show all in History** to open the full History page.
+
+## Documents
+
+When Paperless-ngx is connected, each funding source has a **Documents (n)** button, such as for loan contracts. Select it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for details.
 
 If Paperless-ngx is not connected and the source has no linked documents, the button is not shown.
 
-## Managing Sources
+## Related Pages
 
-From the sources page you can:
-
-- **Edit** a source's name or total amount
-- **Delete** a source that is no longer needed
-
-:::caution
-Deleting a financing source will fail if any budget lines reference it. Use mass-move to reassign those lines first, then delete.
-:::
+- [Grants](subsidies) -- the grants that appear under **Grants** on this page
+- [Bank Reports](bank-reports) -- prepare a report for a loan or credit line
+- [Money Overview](budget-overview) -- the funding sources in the overall budget

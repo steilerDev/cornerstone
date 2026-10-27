@@ -42,10 +42,6 @@ const ALLOW_LIST: readonly { file: string; snippet: string }[] = [
     snippet: 't(`sourceReports.table.attachmentsNote_${',
   },
   // Local copy-key tables / title keys, not shared unions
-  {
-    file: 'components/SourceBudgetLinePanel/SourceBudgetLinePanel.tsx',
-    snippet: 't(`sources.lines.${',
-  },
   // Capitalised palette colour key
   { file: 'components/photos/PhotoAnnotator/ToolPalette.tsx', snippet: 't(`color${' },
   // Not an i18n key: a user-preference storage key

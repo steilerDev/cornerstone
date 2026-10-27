@@ -239,7 +239,10 @@ test.describe('Invoice page summary strip (E4)', { tag: '@responsive' }, () => {
     await expect(strip.fact('due')).not.toHaveText('');
     await expect(strip.fact('split')).toContainText('33%');
     await expect(strip.fact('fundingSource')).toHaveText(`${testPrefix} Strip Savings`);
-    await expect(strip.fact('fundingSource')).toHaveAttribute('href', /\/budget\/.*sources/);
+    await expect(strip.fact('fundingSource')).toHaveAttribute(
+      'href',
+      routeUrl('fundingSource', { id: sourceId }),
+    );
     // The same markers the consistency test reads
     await expect(strip.figure('paid')).toHaveCount(1);
     await expect(strip.figure('still-to-pay')).toHaveCount(1);

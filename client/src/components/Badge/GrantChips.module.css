@@ -1,0 +1,15 @@
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+/* The name is cut with an ellipsis; the full text is the badge's title. Two classes beat the
+   badge's own inline-flex. */
+.chips .chip {
+  display: block;
+  max-inline-size: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -81,8 +81,8 @@
       "work_item": "Work Item",
       "invoice": "Invoice",
       "milestone": "Milestone",
-      "budget_source": "Budget Sources",
-      "subsidy_program": "Subsidy Programs"
+      "budget_source": "Funding Source",
+      "subsidy_program": "Grant"
     }
   },
   "signature": {

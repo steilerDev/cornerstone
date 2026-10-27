@@ -5,7 +5,16 @@ title: Bank Reports
 
 # Bank Reports
 
-Most construction loans and subsidy programs require you to prove how money was spent -- a claim submission to your bank, a proof-of-funds statement, or a general budget overview for your own records. The **Report Wizard** (**Budget > Reports**) turns your invoices and budget lines into a formatted PDF you can hand to a lender, submit for a subsidy claim, or file away, without you having to assemble it by hand.
+Most construction loans and grant programs require you to prove how money was spent -- a claim submission to your bank, a proof-of-funds statement, or a general budget overview for your own records. The **bank report** wizard turns your invoices and budget lines into a formatted PDF you can hand to a lender, submit for a grant claim, or file away, without you having to assemble it by hand.
+
+## Where to Start
+
+The wizard has no sidebar entry. Open it from one of these places:
+
+- **Money > Financing** -- **Prepare bank report** is the main action in the page header.
+- **Money > Financing**, on a bank loan or credit line card -- open the card's **⋯** menu and choose **Prepare bank report**. The wizard opens with that loan selected.
+- **A funding source page** -- for a bank loan or credit line, **Prepare bank report** is the main action in the header. The wizard opens with that source selected.
+- **Money > Overview**, **⋯** menu -- choose **Budget overview for the bank** to open the wizard with the **Budget Overview** report type selected.
 
 ## When to Use It
 
@@ -14,10 +23,10 @@ The wizard supports three report types, chosen in step 1:
 | Report Type | Purpose | Invoices Included |
 |---|---|---|
 | **Budget Overview** | A summary of all invoices and their allocations for a source, for your own records | All invoices for the selected source |
-| **Claim** | Document invoices marked as paid or claimed, for submitting a reimbursement claim to a bank or subsidy program | Invoices in `pending` or `paid` status |
+| **Claim** | Document invoices marked as paid or claimed, for submitting a reimbursement claim to a bank or grant program | Invoices in `pending` or `paid` status |
 | **Proof of Funds** | Show only claimed invoices, as evidence that previously claimed funds were actually spent | Invoices in `claimed` status |
 
-Each report is generated for a single **budget source** at a time (a specific loan, credit line, or savings account) -- see [Financing Sources](financing-sources).
+Each report is generated for a single **budget source** at a time (a specific loan, credit line, or savings account) -- see [Financing](financing-sources).
 
 ## The Five Steps
 

@@ -1,10 +1,6 @@
 /**
  * Deep links of attention rows (#2229): a served route id of the shared route map plus its
  * params and query. The client builds the URL with `routeUrl`; the server never sends a path.
- *
- * Interim: the `grant` and `fundingSource` routes are `planned` in the route map, so N11 and S1
- * link to `budgetSubsidies` / `budgetSources`. The story that serves those routes switches the
- * N11 and S1 cases here (and nowhere else).
  */
 
 import type { AttentionLink, AttentionRule, AttentionStandingRule } from '@cornerstone/shared';
@@ -53,13 +49,13 @@ export function attentionLinkOf(input: AttentionLinkInput): AttentionLink {
     case 'N10':
       return link('householdItem', { id: subjectId });
     case 'N11':
-      return link('budgetSubsidies');
+      return link('grant', { id: subjectId });
     case 'N12':
       return link('diaryEntry', { id: subjectId });
     case 'H1':
       return link('diaryEntryEdit', { id: subjectId });
     case 'S1':
-      return link('budgetSources');
+      return link('financing');
     default: {
       const unreachable: never = rule;
       throw new Error(`Unknown attention rule ${String(unreachable)}`);

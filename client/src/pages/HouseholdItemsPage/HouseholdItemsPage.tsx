@@ -27,6 +27,7 @@ import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { GrantChips } from '../../components/Badge/GrantChips.js';
 import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
@@ -233,12 +234,16 @@ export function HouseholdItemsPage() {
         sortable: true,
         sortKey: 'name',
         defaultVisible: true,
-        render: (item) => (
+        render: (item, surface) => (
           <div className={styles.titleCell}>
             <Link to={routeUrl('householdItem', { id: item.id })} className={styles.itemLink}>
               {item.name}
             </Link>
             <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+            <GrantChips
+              grants={item.grants}
+              testId={dataTableTestId('household-item-grants', item.id, surface)}
+            />
           </div>
         ),
       },
