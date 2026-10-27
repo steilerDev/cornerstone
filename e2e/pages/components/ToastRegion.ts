@@ -5,6 +5,7 @@
  * Undo toasts show for 6 s: act on them immediately after the triggering action.
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 
 export class ToastRegion {
@@ -40,13 +41,14 @@ export class ToastRegion {
    * the toast appears under the pointer that just tapped the menu item.
    */
   async dismissUndoToasts(): Promise<void> {
-    while ((await this.undoToast.count()) > 0) {
+    // At most MAX_TOASTS (3) toasts exist; each click must drop the count by exactly one
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const before = await this.undoToast.count();
+      if (before === 0) break;
       await this.dismissUndoButton.click();
-      await this.undoToast
-        .first()
-        .waitFor({ state: 'detached' })
-        .catch(() => undefined);
+      await expect(this.undoToast).toHaveCount(before - 1);
     }
+    await expect(this.undoToast).toHaveCount(0);
   }
 
   get undoneToast(): Locator {
