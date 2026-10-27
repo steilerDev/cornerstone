@@ -768,11 +768,13 @@ test.describe('Legacy URL walk (route map)', () => {
     await installRouteLog(page);
     await mockPaperlessConfigured(page);
     await mockConfig(page, false);
-    await mockDocumentDetail(page, MOCK_DOC.id);
     await mockLinkedIds(page);
     await mockCorrespondents(page);
     await mockTags(page);
+    // Routes registered later win: the list glob (`**/paperless/documents**`) also matches
+    // `/documents/9001`, so the detail mock must come after it
     await mockDocuments(page);
+    await mockDocumentDetail(page, MOCK_DOC.id);
 
     await page.goto(`${routeUrl('invoicePaperlessReview')}?documentId=${MOCK_DOC.id}`);
 

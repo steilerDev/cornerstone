@@ -19,6 +19,7 @@ jest.unstable_mockModule('../../lib/integrationsApi.js', () => ({
 }));
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: jest.fn(),
 }));
 
 let mockLocale = 'en';

@@ -66,6 +66,7 @@ jest.unstable_mockModule('../../lib/sourceReportsApi.js', () => ({
 const mockGetPaperlessStatus = jest.fn<() => Promise<PaperlessStatusResponse>>();
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: jest.fn(),
 }));
 
 const mockGenerateReportPdf = jest.fn<typeof ReportPdfIndexTypes.generateReportPdf>();

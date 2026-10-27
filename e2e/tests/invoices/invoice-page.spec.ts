@@ -590,6 +590,8 @@ test.describe('Invoice page delete (E12)', { tag: '@responsive' }, () => {
     await addDeposit(page, seed.invoiceId, { amount: 100, dueDate: '2026-06-20' });
     const detail = new InvoiceDetailPage(page);
     await page.goto(routeUrl('invoices'));
+    // Let the list settle before the next goto: its load can otherwise be interrupted mid-flight
+    await expect(page.getByRole('heading', { level: 1, name: /^Invoices/ })).toBeVisible();
     await page.goto(routeUrl('invoice', { id: seed.invoiceId }));
     await expect(detail.heading).toBeVisible();
 

@@ -117,6 +117,9 @@ export class InvoiceFormDialog extends ObjectFormDialog {
 
   /** Pick a Paperless document by title (keyboard path). */
   async pickDocument(title: string): Promise<void> {
+    // Initial focus is on Company, whose list opens with it; click into the document field first,
+    // like a user (focus leaving Company closes its list), so exactly one listbox is open.
+    await this.documentPicker.input.click();
     await this.documentPicker.pick(title);
     await expect(this.documentChip()).toContainText(title);
   }

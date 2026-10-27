@@ -674,7 +674,7 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
       // The error sits under Amount (the ObjectForm maps ITEMIZED_SUM_EXCEEDS_INVOICE) and the
       // dialog stays open
       await expect(detailPage.editDialog.fieldError('amount')).toContainText(
-        /can.t be lower than the cost lines/i,
+        /can.t be lower than .*600.*cost lines/i,
       );
       await expect(detailPage.editModal).toBeVisible();
 
