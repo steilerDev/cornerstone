@@ -166,7 +166,41 @@ function loadBatchSummaries(
     grouped.set(row.batchId, list);
   }
 
+  // Submission batches that a revert batch names in `revertOf` (one query per page)
+  const revertedIds = new Set<string>();
+  const revertedRows = db
+    .select({ revertOf: sql<string>`${metaField('revertOf')}` })
+    .from(diaryEntries)
+    .where(
+      and(
+        eq(diaryEntries.isAutomatic, true),
+        eq(diaryEntries.entryType, 'invoice_status'),
+        sql`${metaField('revertOf')} IN (${sql.join(
+          batchIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      ),
+    )
+    .groupBy(sql`${metaField('revertOf')}`)
+    .all();
+  for (const r of revertedRows) revertedIds.add(r.revertOf);
+
   for (const [batchId, members] of grouped) {
+    const kind = members.some((m) => typeof m.meta.revertOf === 'string') ? 'revert' : 'submission';
+    // Distinct invoices (no depositId) by their status before the submission
+    const invoicesFrom = { pending: 0, paid: 0 };
+    const countedInvoices = new Set<string>();
+    let progressPaymentCount = 0;
+    for (const m of members) {
+      if (typeof m.meta.depositId === 'string') {
+        progressPaymentCount += 1;
+        continue;
+      }
+      if (!m.invoiceId || countedInvoices.has(m.invoiceId)) continue;
+      countedInvoices.add(m.invoiceId);
+      const before = kind === 'revert' ? m.meta.to : m.meta.from;
+      if (before === 'pending' || before === 'paid') invoicesFrom[before] += 1;
+    }
     // Distinct invoices in first-event order
     const invoiceIds: string[] = [];
     const snapshots = new Map<string, string | null>();
@@ -210,6 +244,10 @@ function loadBatchSummaries(
       budgetSourceId: firstSourceId ?? null,
       budgetSourceName,
       budgetSourceExists,
+      kind,
+      reverted: kind === 'submission' && revertedIds.has(batchId),
+      invoicesFrom,
+      progressPaymentCount,
     });
   }
   return result;

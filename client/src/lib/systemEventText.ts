@@ -53,6 +53,8 @@ export interface SystemEventView {
   removed: boolean;
   /** Second badge (real text): "Payment" or "Submission"; null otherwise. */
   extraBadge: string | null;
+  /** "Reverted" on a submission row that was reverted; null otherwise. */
+  revertedBadge: string | null;
   repeat: { badge: string; detail: string } | null;
   afterReached: { badge: string; detail: string } | null;
 }
@@ -146,6 +148,7 @@ export function renderSystemEvent(
       link,
       removed,
       extraBadge: null,
+      revertedBadge: null,
       repeat,
       afterReached,
     };
@@ -192,6 +195,7 @@ export function renderSystemEvent(
           : kind === 'payment'
             ? dt('event.badge.payment')
             : null,
+      revertedBadge: null,
       repeat,
       afterReached,
     };
@@ -263,12 +267,13 @@ export function renderSystemEvent(
       const count = batch.invoiceCount;
       const numbers = batch.invoiceLabels.map((l) => l ?? dt('event.noNumber')).join(', ');
       const more = count - batch.invoiceLabels.length;
+      const isRevert = batch.kind === 'revert';
       const sourceLink =
         batch.budgetSourceExists === true && batch.budgetSourceId
           ? (() => {
               const label = dt('event.link.open', { object: batch.budgetSourceName });
               return {
-                to: routeUrl('bankReport', undefined, { sourceId: batch.budgetSourceId }),
+                to: routeUrl('fundingSource', { id: batch.budgetSourceId }),
                 label,
                 ariaLabel: label,
               };
@@ -277,13 +282,16 @@ export function renderSystemEvent(
       return {
         kind: 'submission',
         typeLabel: t(typeKey.key, { ns: typeKey.ns }) as string,
-        sentence:
+        sentence: dt(
           batch.amount === null
-            ? dt('event.submission.sentenceNoAmount', { count })
-            : dt('event.submission.sentence', {
-                count,
-                amount: f.formatCurrency(batch.amount),
-              }),
+            ? isRevert
+              ? 'event.submission.revertedNoAmount'
+              : 'event.submission.sentenceNoAmount'
+            : isRevert
+              ? 'event.submission.reverted'
+              : 'event.submission.sentence',
+          batch.amount === null ? { count } : { count, amount: f.formatCurrency(batch.amount) },
+        ),
         isLegacyText: false,
         detail:
           more > 0
@@ -293,6 +301,8 @@ export function renderSystemEvent(
         link: sourceLink,
         removed: batch.budgetSourceExists === false,
         extraBadge: dt('event.badge.submission'),
+        revertedBadge:
+          batch.kind === 'submission' && batch.reverted ? dt('event.badge.reverted') : null,
         repeat,
         afterReached,
       };
@@ -304,7 +314,13 @@ export function renderSystemEvent(
       : I18N_UNION_KEYS.statusVocabularyInvoice;
     const from = fromLabel(set);
     const to = toLabel(set);
-    const kind = m.batchId ? 'submission' : m.to === 'paid' ? 'payment' : 'statusChange';
+    const kind = m.revertOf
+      ? 'statusChange'
+      : m.batchId
+        ? 'submission'
+        : m.to === 'paid'
+          ? 'payment'
+          : 'statusChange';
     const invoiceObject = dt(OBJECT_KEYS.invoice);
     const heading = dt('event.heading.objectNumber', { object: invoiceObject, number });
     const invoiceId = entry.sourceEntityId;

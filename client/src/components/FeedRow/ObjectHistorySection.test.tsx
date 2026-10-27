@@ -20,9 +20,18 @@ jest.unstable_mockModule('../../lib/historyApi.js', () => ({ listHistory: mockLi
 
 const mockFeedRow = jest.fn();
 jest.unstable_mockModule('./SystemEventFeedRow.js', () => ({
-  SystemEventFeedRow: (props: { as?: string; entry: { id: string; summary?: string } }) => {
+  SystemEventFeedRow: (props: {
+    as?: string;
+    entry: { id: string; summary?: string };
+    actions?: React.ReactNode;
+  }) => {
     mockFeedRow(props);
-    return <li data-testid={`feed-${props.entry.id}`}>{props.entry.id}</li>;
+    return (
+      <li data-testid={`feed-${props.entry.id}`}>
+        {props.entry.id}
+        {props.actions}
+      </li>
+    );
   },
 }));
 
@@ -48,6 +57,7 @@ function renderPanel(
   entityId = 'inv-1',
   entityType: 'invoice' | 'budget_source' | 'subsidy_program' = 'invoice',
   testIdPrefix = 'invoice-history',
+  renderRowActions?: (entry: DiaryEntrySummary) => React.ReactNode,
 ) {
   const element = (nextRevision: number, id: string) => (
     <MemoryRouter>
@@ -57,6 +67,7 @@ function renderPanel(
         revision={nextRevision}
         labels={labels}
         testIdPrefix={testIdPrefix}
+        renderRowActions={renderRowActions}
       />
     </MemoryRouter>
   );
@@ -269,5 +280,32 @@ describe('ObjectHistorySection (ported from InvoiceHistoryPanel, S15)', () => {
     );
     expect(await screen.findByText('Nothing yet.')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Grant events' })).toBeVisible();
+  });
+});
+
+describe('ObjectHistorySection renderRowActions (#2243)', () => {
+  it('forwards the node returned for each entry to its feed row as `actions`', async () => {
+    mockListHistory.mockResolvedValue(page(['e1', 'e2']));
+    renderPanel(0, 'src-1', 'budget_source', 'source-history', (e) =>
+      e.id === 'e1' ? <button type="button">Revert e1</button> : undefined,
+    );
+
+    await screen.findByTestId('feed-e1');
+    expect(screen.getByRole('button', { name: 'Revert e1' })).toBeInTheDocument();
+    expect(screen.getByTestId('feed-e2')).toHaveTextContent('e2');
+    expect(screen.getAllByRole('button', { name: /Revert/ })).toHaveLength(1);
+    const calls = mockFeedRow.mock.calls.map(
+      (c) => c[0] as { entry: { id: string }; actions: unknown },
+    );
+    expect(calls.find((p) => p.entry.id === 'e2')!.actions).toBeUndefined();
+    expect(calls.find((p) => p.entry.id === 'e1')!.actions).toBeDefined();
+  });
+
+  it('passes no actions when the host gives no renderRowActions', async () => {
+    mockListHistory.mockResolvedValue(page(['e1']));
+    renderPanel();
+
+    await screen.findByTestId('feed-e1');
+    expect((mockFeedRow.mock.calls[0]![0] as { actions: unknown }).actions).toBeUndefined();
   });
 });

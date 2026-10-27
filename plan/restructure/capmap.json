@@ -1728,11 +1728,11 @@
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",
     "from": "/budget/reports > step 1 'Report Type' radio cards > 'Next'",
-    "to": "Money > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money › Financing) > step 1 type (Draw-down request / Budget overview / Proof of funds); presets from Home N8, Money > Financing and the funding source page; Money > Overview ⋯ > 'Budget overview for the bank'",
+    "to": "Money > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money › Financing) > step 1 type (Draw-down request / Budget overview / Proof of funds, in that order); presets from Home N8, Money > Financing and the funding source page; Money > Overview ⋯ > 'Budget overview for the bank'",
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served. #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2237: Money › Overview › ⋯ › \"Budget overview for the bank\" → /budget/reports?type=budget-overview (preset applied once)."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served. #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2237: Money › Overview › ⋯ › \"Budget overview for the bank\" → /budget/reports?type=budget-overview (preset applied once). #2243: Step 1 lists Draw-down request, Budget overview, Proof of funds (AC1 order). Every in-app entry sends ?type=: Home N8 and the source primary and Financing card send type=claim&sourceId, Financing primary sends type=claim, Money › Overview keeps type=budget-overview; the word Claim is retired in the bank-report texts (Draw-down request)."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -1740,7 +1740,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 2 funding source",
     "change": "same",
     "gate": "none",
-    "note": "Preselected when started from a funding source or Home. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2196: discretionary source rows keep full contrast."
+    "note": "Preselected when started from a funding source or Home. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2196: discretionary source rows keep full contrast. #2243: Landing rule (resolveReportPreset): a valid type with a known sourceId opens step 3; an unknown sourceId opens step 2 with an error; a type alone opens step 3 when exactly one open loan or credit line exists, else step 2."
   },
   "MNY-118": {
     "name": "Move back and forth through the five report wizard steps",
@@ -1748,7 +1748,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > stepper Back / Next",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Deep entry marks the earlier steps reached and lands on step 2 or 3 without moving focus to a heading."
   },
   "MNY-119": {
     "name": "Select the invoices to include in the report",
@@ -1756,7 +1756,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 select invoices (grouped by company)",
     "change": "same",
     "gate": "none",
-    "note": "Scales to 57 invoices (VR-BM-12). #2196: invoice rows use a phone layout without overlaps."
+    "note": "Scales to 57 invoices (VR-BM-12). #2196: invoice rows use a phone layout without overlaps. #2243: Step 3 groups by company (subtotal per group), pages 25 at a time through the shared infinite-scroll footer, select all covers every invoice (m), summary 'n of m invoices selected · Total'; one selection sum (computeIncludedTotal) shared with step 5 and the mark dialog; Next is aria-disabled with a stated reason when none is selected."
   },
   "MNY-120": {
     "name": "Inspect an invoice's lines, deposits, split and attachment status inside the report",
@@ -1780,7 +1780,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 > 'Not split to this source' group",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2196: unallocated group keeps full contrast and wraps on phones."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2196: unallocated group keeps full contrast and wraps on phones. #2243: Group title 'Not split to this source (n)'."
   },
   "MNY-123": {
     "name": "Choose the report language independently of the UI language",
@@ -1820,7 +1820,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Cover letter fields (sender from Settings > Project setup > House, linked)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Sender helper under the field links Project setup › House in a new tab (the wizard state lives in memory only); an empty sender shows a stronger hint."
   },
   "MNY-128": {
     "name": "Choose report table columns and edit per-invoice usage text and attachment notes",
@@ -1836,39 +1836,39 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > 'Draft with AI' (AI only)",
     "change": "same",
     "gate": "ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Button reads 'Draft with AI'."
   },
   "MNY-130": {
     "name": "Preview the generated report PDF before exporting",
     "from": "/budget/reports > step 5 > 'Preview PDF' > modal (part selector when split)",
-    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Preview PDF",
+    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > block 'Get the report' > Preview PDF",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Step 5 block 'Get the report' (Preview, Download, Upload) is separate from the claim-only block 'After you send it'."
   },
   "MNY-131": {
     "name": "Download the report PDF(s)",
     "from": "/budget/reports > step 5 > 'Download PDF' / 'Download all (n PDFs)' / per-file 'Download'",
-    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Download PDF(s)",
+    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > block 'Get the report' > Download PDF(s)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Download is the one primary action of step 5, in the 'Get the report' block."
   },
   "MNY-132": {
     "name": "Upload the report PDF(s) to Paperless-ngx",
     "from": "/budget/reports > step 5 > 'Upload to Paperless' / 'Upload all (n) to Paperless' / 'Retry failed (n)' | Budget > Reports (/budget/reports) > report wizard output > upload to Paperless",
-    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > Upload to Paperless (Paperless only)",
+    "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 5 > block 'Get the report' > Upload to Paperless (Paperless only)",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2243: Upload sits in the 'Get the report' block."
   },
   "MNY-133": {
     "name": "Mark the included invoices and source deposits as claimed after a claim report",
     "from": "/budget/reports > step 5 (Claim only) > 'Mark n invoices as claimed' > confirm modal / 'Finish without marking' > success 'View invoices'",
-    "to": "Money > Bank report > step 5 > 'Mark N as submitted' (modal with count and sum, separate from Download); recovery: History page / funding source page > History tab > submission row > 'Revert submission' (modal)",
+    "to": "Money > Bank report > step 5 > block 'After you send it' > 'Mark N as submitted' (modal with count and sum, separate from Download); recovery: History page / funding source page > History tab > submission row > 'Revert submission' (modal)",
     "change": "same",
     "gate": "none",
-    "note": "One safety mechanism per action (SIM-13): no persistent 'Undo last submission' button in the Financing header. #2195: step 5 action uses plural 'submitted' keys and is disabled with a stated reason at zero invoices (D-36)."
+    "note": "One safety mechanism per action (SIM-13): no persistent 'Undo last submission' button in the Financing header. #2195: step 5 action uses plural 'submitted' keys and is disabled with a stated reason at zero invoices (D-36). #2243: Block 'After you send it' (claim only): 'Mark n as submitted' opens a ConfirmDialog with count, total and the move to Submitted; errors stay in the dialog; success banner links View invoices and Open History (funding source page › History tab); submissions are reverted from the History page or the funding source History tab (batch row, all or nothing)."
   },
   "MNY-134": {
     "name": "Browse vendors with trade and contact details",
@@ -2749,7 +2749,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Invoice / Offer page > History tab and Funding source page > History tab show invoice and report events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16. Listed on the History page (#2224). A bank-report submission is one History row (batchId). #2242: Funding source page › History tab lists the budget_source events, bank-report submissions collapsed to one row per batch; Grant page › History (subsidy_program); both via ObjectHistorySection with a link to the History page filtered to the object."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3). #2223: written once with v1 parameters (no English text), rendered in the UI language by `FeedRow` through `lib/systemEventText.ts`; legacy rows backfilled by migration 0047; exact repeats collapsed and post-reached delay notes hidden server-side (R1/R2); the site diary's filter chip is now 'History'. Progress-payment events link to the invoice's payment row (`?payment=`), D-16. Listed on the History page (#2224). A bank-report submission is one History row (batchId). #2242: Funding source page › History tab lists the budget_source events, bank-report submissions collapsed to one row per batch; Grant page › History (subsidy_program); both via ObjectHistorySection with a link to the History page filtered to the object. #2243: A submission batch row on the History page and the Funding source page › History tab shows Revert submission or Reverted; a revert writes its own batch row linked to the submission (progress-payment reverts to pending also write a row); the row's 'Open source' link goes to the funding source page."
   },
   "JRN-036": {
     "name": "Log projected milestone delays automatically",

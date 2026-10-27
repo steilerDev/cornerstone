@@ -11,6 +11,7 @@ import type * as ApiClientTypes from './apiClient.js';
 import type {
   SourceReportResponse,
   MarkClaimedResponse,
+  RevertSubmissionResponse,
   GenerateReportContentRequest,
   GenerateReportContentResponse,
 } from '@cornerstone/shared';
@@ -100,6 +101,7 @@ describe('getSourceReport', () => {
 describe('markInvoicesClaimed', () => {
   it('calls POST /source-reports/mark-claimed with the sourceId, invoiceIds and depositIds body', async () => {
     const response: MarkClaimedResponse = {
+      batchId: 'batch-1',
       claimedInvoiceIds: ['inv-1', 'inv-2'],
       claimedDepositIds: ['dep-1'],
     };
@@ -121,7 +123,11 @@ describe('markInvoicesClaimed', () => {
   });
 
   it('handles empty invoiceIds and depositIds arrays', async () => {
-    const response: MarkClaimedResponse = { claimedInvoiceIds: [], claimedDepositIds: [] };
+    const response: MarkClaimedResponse = {
+      batchId: 'batch-1',
+      claimedInvoiceIds: [],
+      claimedDepositIds: [],
+    };
     mockPost.mockResolvedValueOnce(response);
 
     const result = await sourceReportsApi.markInvoicesClaimed('src-1', [], []);
@@ -215,5 +221,35 @@ describe('generateReportContent (Story #1901)', () => {
     await expect(sourceReportsApi.generateReportContent(requestBody)).rejects.toThrow(
       '503 Service Unavailable',
     );
+  });
+});
+
+describe('revertSubmission (#2243)', () => {
+  const response: RevertSubmissionResponse = {
+    batchId: 'revert-1',
+    restoredInvoiceIds: ['inv-1'],
+    restoredDepositIds: ['dep-1'],
+  };
+
+  it('POSTs to the batch revert route with no body and returns the unwrapped response', async () => {
+    mockPost.mockResolvedValueOnce(response);
+
+    const result = await sourceReportsApi.revertSubmission('batch-1');
+
+    expect(mockPost).toHaveBeenCalledWith('/source-reports/batches/batch-1/revert');
+    expect(result).toEqual(response);
+  });
+
+  it('encodes the batch id in the path', async () => {
+    mockPost.mockResolvedValueOnce(response);
+
+    await sourceReportsApi.revertSubmission('a/b c?d');
+
+    expect(mockPost).toHaveBeenCalledWith('/source-reports/batches/a%2Fb%20c%3Fd/revert');
+  });
+
+  it('propagates a rejected request', async () => {
+    mockPost.mockRejectedValueOnce(new Error('409'));
+    await expect(sourceReportsApi.revertSubmission('b')).rejects.toThrow('409');
   });
 });

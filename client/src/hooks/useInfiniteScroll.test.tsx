@@ -13,7 +13,7 @@
  * setupTests.ts.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { act, render, renderHook, waitFor } from '@testing-library/react';
+import { act, render, screen, renderHook, waitFor } from '@testing-library/react';
 import type { InfiniteScrollPage } from './useInfiniteScroll.js';
 import { useInfiniteScroll } from './useInfiniteScroll.js';
 
@@ -742,5 +742,102 @@ describe('useInfiniteScroll', () => {
     // The "Load more" button path (loadMore) still works without an observer.
     act(() => view.latest().loadMore());
     await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+  });
+
+  // ─── Live geometry check on observer entries (stale entry guard) ─────────────
+
+  describe('stale intersecting entries', () => {
+    const rect = (top: number, bottom = top + 10) =>
+      ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top }) as DOMRect;
+
+    function placeSentinel(node: Element, top: number, bottom?: number) {
+      node.getBoundingClientRect = () => rect(top, bottom);
+    }
+
+    async function mountWithFirstPageLoaded(root?: Element) {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+      const results: ReturnType<typeof useInfiniteScroll<string>>[] = [];
+      function Harness() {
+        const hook = useInfiniteScroll<string>({ fetchPage, resetKey: 'k', root });
+        results.push(hook);
+        return <div data-testid="sentinel" ref={hook.sentinelRef} />;
+      }
+      render(<Harness />);
+      await waitFor(() => expect(results[results.length - 1]!.status).toBe('idle'));
+      return { fetchPage, sentinel: screen.getByTestId('sentinel') };
+    }
+
+    it('a stale entry whose sentinel is now below the viewport plus lookahead does NOT load page 2', async () => {
+      const { fetchPage, sentinel } = await mountWithFirstPageLoaded();
+      placeSentinel(sentinel, window.innerHeight + 601);
+
+      act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+
+    it('an entry whose sentinel is within the lookahead still loads page 2', async () => {
+      const { fetchPage, sentinel } = await mountWithFirstPageLoaded();
+      placeSentinel(sentinel, window.innerHeight + 600);
+
+      act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+      await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+      expect(fetchPage).toHaveBeenNthCalledWith(2, 2);
+    });
+
+    it('a sentinel entirely above the viewport does not load (it has scrolled past)', async () => {
+      const { fetchPage, sentinel } = await mountWithFirstPageLoaded();
+      placeSentinel(sentinel, -50, -1);
+
+      act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+
+    it('a non-intersecting entry never loads, however near the sentinel is', async () => {
+      const { fetchPage, sentinel } = await mountWithFirstPageLoaded();
+      placeSentinel(sentinel, 10);
+
+      act(() => MockIntersectionObserver.instances[0]!.trigger(false));
+
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+
+    describe('with a root element', () => {
+      function makeRoot() {
+        const root = document.createElement('div');
+        root.getBoundingClientRect = () => rect(100, 400);
+        return root;
+      }
+
+      it('measures against the root rect: below root bottom plus lookahead does NOT load', async () => {
+        const { fetchPage, sentinel } = await mountWithFirstPageLoaded(makeRoot());
+        placeSentinel(sentinel, 1001);
+
+        act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+        expect(fetchPage).toHaveBeenCalledTimes(1);
+      });
+
+      it('measures against the root rect: within root bottom plus lookahead loads', async () => {
+        const { fetchPage, sentinel } = await mountWithFirstPageLoaded(makeRoot());
+        placeSentinel(sentinel, 1000);
+
+        act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+        await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+      });
+
+      it('above the root top does not load', async () => {
+        const { fetchPage, sentinel } = await mountWithFirstPageLoaded(makeRoot());
+        placeSentinel(sentinel, 20, 99);
+
+        act(() => MockIntersectionObserver.instances[0]!.trigger(true));
+
+        expect(fetchPage).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 });

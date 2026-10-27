@@ -229,7 +229,7 @@ function InvoiceDetailLoaded({
         to: routeUrl(
           'bankReport',
           undefined,
-          sources.length === 1 && only ? { sourceId: only.id } : undefined,
+          sources.length === 1 && only ? { type: 'claim', sourceId: only.id } : { type: 'claim' },
         ),
         state: originState,
         testId: 'invoice-primary-bank-report',

@@ -28,6 +28,10 @@ export interface ObjectListGroupProps {
   /** Columns of the table (the heading cell spans them). */
   readonly columnCount: number;
   readonly testIdPrefix: string;
+  /** Heading level of the group title; 3 when the list sits under a page section heading. Default 2. */
+  readonly headingLevel?: 2 | 3;
+  /** Extra content after the title inside the heading row (e.g. a subtotal). */
+  readonly aside?: ReactNode;
   /** The group's rows (`<tr>`s on the table surface, `<li>`s on the card surface). */
   readonly children: ReactNode;
 }
@@ -49,6 +53,8 @@ export function ObjectListGroup({
   select,
   columnCount,
   testIdPrefix,
+  headingLevel = 2,
+  aside,
   children,
 }: ObjectListGroupProps) {
   const { t } = useTranslation('common');
@@ -58,6 +64,8 @@ export function ObjectListGroup({
     loaded < count
       ? t('objectList.group.countOf', { loaded, count })
       : t('objectList.group.count', { count });
+
+  const Title = headingLevel === 3 ? 'h3' : 'h2';
 
   const heading = (
     <div className={styles.groupHeadInner}>
@@ -71,7 +79,7 @@ export function ObjectListGroup({
           className={styles.groupCheck}
         />
       ) : null}
-      <h2 id={headingId} className={styles.groupTitle}>
+      <Title id={headingId} className={styles.groupTitle}>
         <button
           type="button"
           className={styles.groupToggle}
@@ -87,7 +95,8 @@ export function ObjectListGroup({
             ▸
           </span>
         </button>
-      </h2>
+      </Title>
+      {aside}
     </div>
   );
 

@@ -77,6 +77,11 @@ jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
   fetchDeleteImpact: mockFetchDeleteImpact,
 }));
 
+const mockRevertSubmission = jest.fn<(batchId: string) => Promise<unknown>>();
+jest.unstable_mockModule('../../lib/sourceReportsApi.js', () => ({
+  revertSubmission: mockRevertSubmission,
+}));
+
 const mockShowToast = jest.fn();
 const mockShowUndoToast = jest.fn();
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
@@ -229,6 +234,7 @@ beforeEach(async () => {
   mockFetchDeleteImpact
     .mockReset()
     .mockResolvedValue({ entityType: 'budget_source', id: ID, effects: [] });
+  mockRevertSubmission.mockReset();
   mockShowToast.mockReset();
   mockShowUndoToast.mockReset();
   mockFocusHeading.mockClear();
@@ -395,7 +401,7 @@ describe('FundingSourcePage', () => {
 
       const primary = screen.getByTestId('source-primary-bank-report');
       expect(primary).toHaveTextContent('Prepare bank report');
-      expect(primary).toHaveAttribute('href', `/budget/reports?sourceId=${ID}`);
+      expect(primary).toHaveAttribute('href', `/budget/reports?type=claim&sourceId=${ID}`);
       expect(screen.queryByTestId('source-primary-status')).toBeNull();
       expect(screen.queryByTestId('source-primary-log')).toBeNull();
     });
@@ -710,6 +716,103 @@ describe('FundingSourcePage', () => {
         ),
       );
       expect(await screen.findByText('No history yet.')).toBeInTheDocument();
+    });
+
+    function submissionEntry(over: Record<string, unknown> = {}) {
+      return {
+        id: 'ev-1',
+        entryType: 'invoice_status',
+        entryDate: '2026-03-10',
+        title: null,
+        body: '',
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'pending',
+          to: 'claimed',
+          subjectLabel: 'T-001',
+          batchId: 'batch-1',
+        },
+        isAutomatic: true,
+        isSigned: false,
+        status: 'saved',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-1',
+        sourceEntityArea: null,
+        sourceEntityTitle: 'T-001',
+        sourceEntityExists: true,
+        photoCount: 0,
+        createdBy: null,
+        createdAt: '2026-03-10T10:00:00.000Z',
+        updatedAt: '2026-03-10T10:00:00.000Z',
+        batch: {
+          batchId: 'batch-1',
+          invoiceCount: 2,
+          amount: 300,
+          invoiceLabels: ['T-001', 'T-002'],
+          budgetSourceId: ID,
+          budgetSourceName: 'Loan Alpha',
+          budgetSourceExists: true,
+          kind: 'submission',
+          reverted: false,
+          invoicesFrom: { pending: 2, paid: 0 },
+          progressPaymentCount: 0,
+          ...over,
+        },
+      };
+    }
+
+    function historyWith(...items: unknown[]) {
+      mockListHistory.mockResolvedValue({
+        items,
+        pagination: { page: 1, pageSize: 20, totalItems: items.length, totalPages: 1 },
+      });
+    }
+
+    it('offers Revert submission on an unreverted submission row only', async () => {
+      const user = userEvent.setup();
+      historyWith(
+        submissionEntry(),
+        { ...submissionEntry({ batchId: 'batch-2', reverted: true }), id: 'ev-2' },
+        { ...submissionEntry({ batchId: 'batch-3', kind: 'revert' }), id: 'ev-3' },
+      );
+      renderPage();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: 'History' }));
+
+      expect(await screen.findByTestId('revert-submission-batch-1')).toBeInTheDocument();
+      expect(screen.queryByTestId('revert-submission-batch-2')).toBeNull();
+      expect(screen.queryByTestId('revert-submission-batch-3')).toBeNull();
+    });
+
+    it('a revert refreshes the record, the cost lines and the history, and toasts', async () => {
+      const user = userEvent.setup();
+      historyWith(submissionEntry());
+      mockRevertSubmission.mockResolvedValue({
+        batchId: 'r',
+        restoredInvoiceIds: ['inv-1', 'inv-2'],
+        restoredDepositIds: [],
+      });
+      renderPage();
+      await loaded();
+      await user.click(screen.getByRole('tab', { name: 'History' }));
+      await user.click(await screen.findByTestId('revert-submission-batch-1'));
+      const recordBefore = mockFetchBudgetSource.mock.calls.length;
+      const linesBefore = mockFetchLines.mock.calls.length;
+      const historyBefore = mockListHistory.mock.calls.length;
+
+      await user.click(await screen.findByTestId('revert-submission-confirm'));
+
+      await waitFor(() => expect(mockRevertSubmission).toHaveBeenCalledWith('batch-1'));
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'info',
+        'Submission reverted. 2 invoices are back to To pay or Paid.',
+      );
+      await waitFor(() =>
+        expect(mockFetchBudgetSource.mock.calls.length).toBeGreaterThan(recordBefore),
+      );
+      await waitFor(() => expect(mockFetchLines.mock.calls.length).toBeGreaterThan(linesBefore));
+      await waitFor(() => expect(mockListHistory.mock.calls.length).toBeGreaterThan(historyBefore));
     });
   });
 

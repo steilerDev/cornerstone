@@ -42,7 +42,7 @@ export function attentionLinkOf(input: AttentionLinkInput): AttentionLink {
         ? link('invoice', { id: input.invoiceId ?? subjectId }, { payment: input.depositId })
         : link('invoice', { id: input.invoiceId ?? subjectId });
     case 'N8':
-      return link('bankReport', {}, { sourceId: subjectId });
+      return link('bankReport', {}, { type: 'claim', sourceId: subjectId });
     case 'N9':
     case 'H2':
       return link('invoice', { id: subjectId });

@@ -83,7 +83,10 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
     expect(en.get('budget.invoices.list.chips.claimed')).toBe('Submitted');
     expect(en.get('budget.invoices.list.chips.quotation')).toBe('Offers');
     expect(en.get('budget.financing.figures.submitted')).toBe('Submitted');
-    expect(en.get('budget.sourceReports.confirmClaimTitle')).toBe('Mark invoices as submitted?');
+    expect(en.get('budget.sourceReports.mark.title_other')).toBe(
+      'Mark {{count}} invoices as submitted?',
+    );
+    expect(en.get('budget.sourceReports.mark.confirm')).toBe('Mark as submitted');
     expect(en.get('common.statusAction.progressPayment.markSubmitted')).toBe('Mark submitted');
     expect(en.get('errors.INVOICES_NOT_CLAIMABLE')).toContain('marked as submitted');
     expect(en.get('common.statusVocabulary.milestone.upcoming')).toBe('Upcoming');
@@ -239,8 +242,8 @@ describe('Step 5 plural keys exist in both locales with one/other forms (AC6)', 
     'budget.sourceReports.markSubmitted',
     'budget.sourceReports.invoiceCount',
     'budget.sourceReports.progressPaymentCount',
-    'budget.sourceReports.confirmClaimBody',
     'budget.sourceReports.confirmClaimExcludedItemsWarning',
+    'budget.sourceReports.mark.title',
   ];
 
   it.each(['en', 'de'] as const)('%s has _one and _other for every plural key', (locale) => {

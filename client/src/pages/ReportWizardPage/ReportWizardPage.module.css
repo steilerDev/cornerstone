@@ -244,6 +244,74 @@
   gap: var(--spacing-2);
 }
 
+.inertPrimary[aria-disabled='true'] {
+  background-color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+button.inertPrimary[aria-disabled='true']:hover {
+  background-color: var(--color-text-disabled);
+}
+
+.inertSecondary[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.inertSecondary[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.getReport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.afterSend {
+  margin-top: var(--spacing-8);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.afterSend h3 {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.afterSend p {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.afterSendActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.stepHelper {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.markTotal {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.markMoves {
+  margin: var(--spacing-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
 .aiGenerateRow {
   display: flex;
   align-items: center;
@@ -292,37 +360,6 @@
   display: flex;
   gap: var(--spacing-2);
   justify-content: flex-end;
-}
-
-/* ---- Warning Block (ported from MassMoveModal) ---- */
-
-.warningBlock {
-  display: flex;
-  gap: var(--spacing-3);
-  background-color: var(--color-warning-bg);
-  border: 1px solid var(--color-warning);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-3) var(--spacing-4);
-  margin-top: var(--spacing-4);
-}
-
-.warningIconContainer {
-  flex-shrink: 0;
-  padding-top: var(--spacing-1);
-}
-
-.warningIcon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--color-warning);
-  flex-shrink: 0;
-}
-
-.warningBody {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  line-height: 1.5;
 }
 
 .previewModalContent {

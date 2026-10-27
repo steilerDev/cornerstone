@@ -127,12 +127,22 @@ export function nextRequestId(): string {
 export type WizardAction =
   | { type: 'SELECT_USE_CASE'; payload: { useCase: SourceReportType; step2RequestId: string } }
   | { type: 'SELECT_SOURCE'; payload: { sourceId: string; requestId: string } }
+  | {
+      type: 'APPLY_PRESET';
+      payload: {
+        useCase: SourceReportType;
+        sourceId: string | null;
+        step2RequestId: string;
+        reportRequestId: string | null;
+      };
+    }
   | { type: 'STEP2_AMOUNTS_LOADED'; payload: { requestId: string; amounts: Map<string, number> } }
   | { type: 'REPORT_LOADED'; payload: { requestId: string; report: SourceReportResponse } }
   | { type: 'REPORT_ERROR'; payload: { requestId: string } }
   | { type: 'REPORT_REFRESHED'; payload: { report: SourceReportResponse } }
   | { type: 'TOGGLE_INVOICE'; payload: { invoiceId: string; excluded: boolean } }
   | { type: 'TOGGLE_ALL_INVOICES'; payload: { excludeAll: boolean } }
+  | { type: 'SET_INVOICES_EXCLUDED'; payload: { invoiceIds: readonly string[]; excluded: boolean } }
   | { type: 'TOGGLE_LINE'; payload: { lineId: string; excluded: boolean } }
   | { type: 'SET_REPORT_LANGUAGE'; payload: { lang: ResolvedLocale } }
   | { type: 'SET_ATTACH_DOCUMENTS'; payload: { value: boolean } }
@@ -179,6 +189,26 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         currentStep: Math.min(state.currentStep, 2),
         maxReachedStep: 2,
       };
+
+    case 'APPLY_PRESET': {
+      // A deep link lands on step 2 (no source) or step 3 (known source) with both fetches started.
+      const { useCase, sourceId, step2RequestId, reportRequestId } = action.payload;
+      const step = sourceId ? 3 : 2;
+      return {
+        ...state,
+        ...freshSelectionTier(),
+        ...freshSourcesTier(),
+        ...freshReportTier(),
+        ...freshContentTier(),
+        useCase,
+        sourceId,
+        step2RequestId,
+        step2Loading: true,
+        reportRequestId,
+        currentStep: step,
+        maxReachedStep: step,
+      };
+    }
 
     case 'SELECT_SOURCE':
       // M-I: preserve aiError by spreading freshContentTier() then overriding aiError back.
@@ -249,6 +279,15 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           ? new Set(state.report.invoices.map((inv) => inv.invoiceId))
           : new Set<string>(),
       };
+
+    case 'SET_INVOICES_EXCLUDED': {
+      const next = new Set(state.excludedInvoiceIds);
+      for (const id of action.payload.invoiceIds) {
+        if (action.payload.excluded) next.add(id);
+        else next.delete(id);
+      }
+      return { ...state, excludedInvoiceIds: next };
+    }
 
     case 'TOGGLE_LINE': {
       const next = new Set(state.excludedLineIds);

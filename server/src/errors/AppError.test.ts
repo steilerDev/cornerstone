@@ -23,6 +23,8 @@ import {
   BackupFailedError,
   RestoreFailedError,
   ReorderSetMismatchError,
+  SubmissionAlreadyRevertedError,
+  SubmissionChangedError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -362,6 +364,27 @@ describe('ReorderSetMismatchError', () => {
   });
 });
 
+describe('submission revert errors (#2243)', () => {
+  it('SubmissionAlreadyRevertedError is a 409 SUBMISSION_ALREADY_REVERTED with details', () => {
+    const e = new SubmissionAlreadyRevertedError(undefined, { a: 1 });
+    expect(e).toBeInstanceOf(AppError);
+    expect(e.statusCode).toBe(409);
+    expect(e.code).toBe('SUBMISSION_ALREADY_REVERTED');
+    expect(e.name).toBe('SubmissionAlreadyRevertedError');
+    expect(e.details).toEqual({ a: 1 });
+  });
+
+  it('SubmissionChangedError is a 409 SUBMISSION_CHANGED carrying details.items', () => {
+    const items = [{ type: 'invoice', id: 'i', status: null }];
+    const e = new SubmissionChangedError(undefined, { items });
+    expect(e.statusCode).toBe(409);
+    expect(e.code).toBe('SUBMISSION_CHANGED');
+    expect(e.name).toBe('SubmissionChangedError');
+    expect(e.details).toEqual({ items });
+    expect(new SubmissionChangedError('custom').message).toBe('custom');
+  });
+});
+
 describe('every AppError subclass', () => {
   type ErrorCtor = new (...args: unknown[]) => AppError;
   const subclasses = Object.entries(errorModule).filter(
@@ -369,7 +392,7 @@ describe('every AppError subclass', () => {
   ) as [string, ErrorCtor][];
 
   it('is discovered (guards against the table silently becoming empty)', () => {
-    expect(subclasses).toHaveLength(45);
+    expect(subclasses).toHaveLength(47);
   });
 
   it.each(subclasses)(
@@ -383,6 +406,17 @@ describe('every AppError subclass', () => {
       expect(error.code).toMatch(/^[A-Z][A-Z_]+$/);
       expect(error.statusCode).toBeGreaterThanOrEqual(400);
       expect(error.statusCode).toBeLessThan(600);
+      expect(error.message.length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each(subclasses)(
+    '%s falls back to its default message when built with no arguments',
+    (name, Ctor) => {
+      const error = new Ctor();
+
+      expect(error.name).toBe(name);
+      expect(typeof error.message).toBe('string');
       expect(error.message.length).toBeGreaterThan(0);
     },
   );

@@ -22,7 +22,11 @@ describe('attentionLinkOf', () => {
     ['H4', 'wi-6', { route: 'workItem', params: { id: 'wi-6' }, query: {} }],
     ['N2', 'wi-7', { route: 'workItem', params: { id: 'wi-7' }, query: {} }],
     ['N3', '12', { route: 'milestone', params: { id: '12' }, query: {} }],
-    ['N8', 'src-1', { route: 'bankReport', params: {}, query: { sourceId: 'src-1' } }],
+    [
+      'N8',
+      'src-1',
+      { route: 'bankReport', params: {}, query: { type: 'claim', sourceId: 'src-1' } },
+    ],
     ['N9', 'off-1', { route: 'invoice', params: { id: 'off-1' }, query: {} }],
     ['H2', 'inv-9', { route: 'invoice', params: { id: 'inv-9' }, query: {} }],
     ['N10', 'hi-1', { route: 'householdItem', params: { id: 'hi-1' }, query: {} }],

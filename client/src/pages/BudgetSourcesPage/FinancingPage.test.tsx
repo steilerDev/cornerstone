@@ -161,7 +161,7 @@ describe('FinancingPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Financing' })).toBeInTheDocument();
       const primary = screen.getByTestId('financing-prepare-bank-report');
       expect(primary).toHaveTextContent('Prepare bank report');
-      expect(primary).toHaveAttribute('href', '/budget/reports');
+      expect(primary).toHaveAttribute('href', '/budget/reports?type=claim');
       expect(screen.getByTestId('financing-page-actions')).toBeInTheDocument();
     });
 
@@ -423,7 +423,9 @@ describe('FinancingPage', () => {
       await user.click(screen.getByRole('button', { name: 'Actions for Loan Alpha' }));
       await user.click(await screen.findByTestId('financing-source-bank-report-bs-a'));
 
-      expect(screen.getByTestId('where')).toHaveTextContent('/budget/reports?sourceId=bs-a');
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        '/budget/reports?type=claim&sourceId=bs-a',
+      );
     });
 
     it.each([

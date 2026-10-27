@@ -12,7 +12,7 @@
  * - H1  Sidebar / More sheet -> History: h1, URL; the fixture's events sit newest first under a
  *       "Today" heading (all viewports) [smoke]
  * - H2  A bank submission is one row: both badges, the sentence, both invoice numbers, and the
- *       "Open ‹source›" link to the bank report
+ *       "Open ‹source›" link to the funding source page
  * - H3  Type chips: Payment, pressed again clears, Submission
  * - H4  Object filter: pick a task, only its rows, survives a reload, Escape returns focus
  * - H5  From / To limit the rows; "Include site diary entries" adds a saved entry to the day group
@@ -248,7 +248,7 @@ test.describe('History: reach and order (H1)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('History: bank submission row (H2)', { tag: '@responsive' }, () => {
-  test('H2: two invoices submitted together are one row with a link to the bank report', async ({
+  test('H2: two invoices submitted together are one row with a link to the funding source', async ({
     page,
     testPrefix,
   }) => {
@@ -269,18 +269,13 @@ test.describe('History: bank submission row (H2)', { tag: '@responsive' }, () =>
       await expect(row).toContainText(seed.invoiceANumber);
       await expect(row).toContainText(seed.invoiceBNumber);
 
-      // The link row goes to the funding source's bank report
+      // The link row goes to the funding source's own page (#2243: no longer the bank report)
       const link = row.getByRole('link', { name: `Open ${seed.sourceName}` });
       await expect(link).toBeVisible();
-      await expect(link).toHaveAttribute(
-        'href',
-        routeUrl('bankReport', undefined, { sourceId: seed.sourceId }),
-      );
+      await expect(link).toHaveAttribute('href', routeUrl('fundingSource', { id: seed.sourceId }));
       await link.click();
       await expect(page).toHaveURL(
-        (url) =>
-          url.pathname === routeUrl('bankReport') &&
-          url.searchParams.get('sourceId') === seed?.sourceId,
+        (url) => url.pathname === routeUrl('fundingSource', { id: seed?.sourceId ?? '' }),
       );
     } finally {
       await cleanupFixtures(page, seed);

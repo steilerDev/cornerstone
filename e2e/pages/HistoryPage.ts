@@ -132,6 +132,16 @@ export class HistoryPage {
     return this.page.getByTestId(`system-event-${id}-link`);
   }
 
+  /** The "Revert submission" button of an unreverted submission batch row (#2243). */
+  revertButton(batchId: string): Locator {
+    return this.page.getByTestId(`revert-submission-${batchId}`);
+  }
+
+  /** The "Reverted" badges of the feed (one per reverted submission row; `q` isolates a test's). */
+  revertedBadges(): Locator {
+    return this.feed.locator('[data-testid^="system-event-"][data-testid$="-reverted"]');
+  }
+
   /** The type badge text element of a system event ("Task status", "Invoice status", ...). */
   systemEventType(id: string): Locator {
     return this.page.getByTestId(`system-event-${id}-type`);

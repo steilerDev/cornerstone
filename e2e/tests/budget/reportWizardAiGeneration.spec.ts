@@ -1,14 +1,14 @@
 /**
  * E2E tests for the Bank Report Wizard's AI-generated usage descriptions and cover letter
- * (Story #1901, REWORKED by Issue #1931 — `/budget/reports`). Step 5 (Preview & Export) shows
- * an "Enhance with AI" button, gated purely on `llmEnabled` (`GET /api/config`), that issues ONE
+ * (Story #1901, REWORKED by Issue #1931 — `/budget/reports`). Step 5 (Preview and export) shows
+ * a "Draft with AI" button, gated purely on `llmEnabled` (`GET /api/config`), that issues ONE
  * batched `POST /api/source-reports/generate-content` call and populates the editable content
  * baseline (`ReportWizardPage.tsx`'s `aiContent` state, applied via `applyAiContent` — see
  * `e2e/pages/ReportWizardPage.ts`'s class docstring for the full DOM/state reference).
  *
  * **Issue #1931** deleted the Step 4 "Enable AI assistance" checkbox entirely (it was a pure
  * double opt-in — the toggle carried no state of its own beyond revealing the Step 5 button) and
- * renamed the button "Generate with AI" -> "Enhance with AI". A visually-hidden description
+ * renamed the button "Generate with AI" -> "Enhance with AI" (and "Draft with AI" in #2243). A visually-hidden description
  * (`enhanceWithAiDescription`, wired via `aria-describedby`) was added to the button so
  * screen-reader users still get an advance explanation of the overwrite behavior that the
  * deleted checkbox's helper text used to provide. See `reachStep5WithAiConfigured` below (renamed
@@ -25,7 +25,7 @@
  *   `e2e/containers/cornerstoneContainer.ts`'s `environment` object, which has no `LLM_*` key),
  *   so `GET /api/config`'s `llmEnabled` is deterministically `false` in this environment. Step 5
  *   shows no AI row, button, spinner, note, or error slot of any kind.
- * - Scenario 2: With `llmEnabled` mocked `true` — the "Enhance with AI" button is visible on
+ * - Scenario 2: With `llmEnabled` mocked `true` — the "Draft with AI" button is visible on
  *   Step 5 immediately, with no Step 4 interaction beyond the existing language/document-options
  *   controls, and stays visible across a Step 5 -> Step 4 -> Step 5 round trip (no toggle to
  *   persist or lose).
@@ -35,8 +35,8 @@
  *   with NO edited-dot indicator anywhere (AI content is a baseline, not a manual override);
  *   the provenance note is absent before generation and visible after.
  * - Scenario 4: Overwrite-confirm modal — with a manual edit present, clicking "Enhance with
- *   AI" shows the modal instead of calling the endpoint; "Keep Editing" closes it with zero
- *   calls made and the manual edit intact; a subsequent "Overwrite and Generate" calls the
+ *   AI" shows the modal instead of calling the endpoint; "Keep editing" closes it with zero
+ *   calls made and the manual edit intact; a subsequent "Overwrite and generate" calls the
  *   endpoint exactly once and replaces the content (edited-dot clears, since the manual
  *   override is discarded as part of accepting the AI baseline).
  * - Scenario 5: Regenerating with NO manual edits present (including immediately after a prior
@@ -323,7 +323,7 @@ test.describe('Report wizard AI generation — not configured (Scenario 1)', () 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — single opt-in, no Step 4 interaction required (Scenario 2)', () => {
-  test('With llmEnabled true, the "Enhance with AI" button is visible on Step 5 immediately with no Step 4 interaction, and stays visible after navigating back to Step 4 and forward again', async ({
+  test('With llmEnabled true, the "Draft with AI" button is visible on Step 5 immediately with no Step 4 interaction, and stays visible after navigating back to Step 4 and forward again', async ({
     page,
     testPrefix,
   }) => {
@@ -459,7 +459,7 @@ test.describe('Report wizard AI generation — happy path (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario 4)', () => {
-  test('With a manual edit present, Generate shows an overwrite-confirm modal; "Keep Editing" makes no call, "Overwrite and Generate" calls once and replaces the content', async ({
+  test('With a manual edit present, Generate shows an overwrite-confirm modal; "Keep editing" makes no call, "Overwrite and generate" calls once and replaces the content', async ({
     page,
     testPrefix,
   }) => {
@@ -502,7 +502,7 @@ test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario
       await wizard.editField(subject, 'A manual edit that must be protected');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
-      // "Keep Editing" — modal shown, but the endpoint is never called and the edit survives.
+      // "Keep editing" — modal shown, but the endpoint is never called and the edit survives.
       await wizard.clickGenerateWithAi();
       await expect(wizard.aiOverwriteConfirmModal).toBeVisible();
       await wizard.cancelAiOverwrite();
@@ -511,7 +511,7 @@ test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario
       await expect(subject).toHaveValue('A manual edit that must be protected');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
-      // "Overwrite and Generate" — the endpoint is called exactly once and the content is
+      // "Overwrite and generate" — the endpoint is called exactly once and the content is
       // replaced; the discarded manual override means the new AI text is NOT itself "edited".
       await wizard.clickGenerateWithAi();
       await expect(wizard.aiOverwriteConfirmModal).toBeVisible();
@@ -753,7 +753,7 @@ test.describe('Report wizard AI generation — discard clears AI content (Scenar
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — area meta text survives generation (Scenario 8)', () => {
-  test('A row\'s read-only area meta text is still present after "Enhance with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
+  test('A row\'s read-only area meta text is still present after "Draft with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
     page,
     testPrefix,
   }) => {
@@ -830,11 +830,11 @@ test.describe('Report wizard AI generation — area meta text survives generatio
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Accessible description on the "Enhance with AI" button (Issue #1931 a11y addition)
+// Scenario 9: Accessible description on the "Draft with AI" button (Issue #1931 a11y addition)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — accessible description on the button (Scenario 9)', () => {
-  test('The "Enhance with AI" button carries aria-describedby pointing at a visually-hidden sibling span with the expected overwrite-behavior text, rendered unconditionally with no manual edits yet', async ({
+  test('The "Draft with AI" button carries aria-describedby pointing at a visually-hidden sibling span with the expected overwrite-behavior text, rendered unconditionally with no manual edits yet', async ({
     page,
     testPrefix,
   }) => {

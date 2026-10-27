@@ -2,6 +2,7 @@ import type {
   SourceReportResponse,
   SourceReportType,
   MarkClaimedResponse,
+  RevertSubmissionResponse,
   GenerateReportContentRequest,
   GenerateReportContentResponse,
 } from '@cornerstone/shared';
@@ -32,4 +33,10 @@ export function generateReportContent(
   body: GenerateReportContentRequest,
 ): Promise<GenerateReportContentResponse> {
   return post<GenerateReportContentResponse>('/source-reports/generate-content', body);
+}
+
+export function revertSubmission(batchId: string): Promise<RevertSubmissionResponse> {
+  return post<RevertSubmissionResponse>(
+    `/source-reports/batches/${encodeURIComponent(batchId)}/revert`,
+  );
 }

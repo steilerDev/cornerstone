@@ -20,10 +20,13 @@
   color: var(--color-text-primary);
 }
 
-.headerTitle {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+.groupSubtotal {
+  flex-shrink: 0;
+  margin-inline-end: var(--spacing-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .attachmentsNote {
@@ -359,10 +362,6 @@
   .checkboxWithContent {
     grid-column: 2 / -1;
     min-width: 0;
-  }
-
-  .headerTitle {
-    grid-column: 2 / -1;
   }
 
   .statusChip {

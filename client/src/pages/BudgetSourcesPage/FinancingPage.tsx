@@ -111,7 +111,7 @@ export function FinancingPage() {
   const action = (
     <div className={styles.headerActions}>
       <NavAnchor
-        to={routeUrl('bankReport')}
+        to={routeUrl('bankReport', undefined, { type: 'claim' })}
         state={originState}
         className={styles.primaryLink}
         data-testid="financing-prepare-bank-report"

@@ -318,6 +318,10 @@ describe('historyService.listHistory', () => {
         budgetSourceId: 'src-1',
         budgetSourceName: 'Bank A',
         budgetSourceExists: true,
+        kind: 'submission',
+        reverted: false,
+        invoicesFrom: { pending: 2, paid: 0 },
+        progressPaymentCount: 2,
       });
     });
 
@@ -410,6 +414,132 @@ describe('historyService.listHistory', () => {
       const r = list({ entityType: 'invoice', entityId: 'inv-a' });
       expect(r.items.map((i) => i.id).sort()).toEqual(['b-1', 'b-2', 'b-3']);
       expect(r.items.every((i) => i.batch === undefined)).toBe(true);
+    });
+
+    describe('submission and revert summaries (#2243)', () => {
+      function submission(batchId: string, startMinute: number): void {
+        const x = { budgetSourceId: 'src-1', amount: 10 };
+        batchEvent(`${batchId}-1`, startMinute, batchId, 'inv-a', x, 'A');
+        batchEvent(`${batchId}-2`, startMinute + 1, batchId, 'inv-b', { ...x }, 'B');
+        // inv-b was paid before the submission
+        sqlite
+          .prepare(
+            "UPDATE diary_entries SET metadata = replace(metadata, 'pending', 'paid') WHERE id = ?",
+          )
+          .run(`${batchId}-2`);
+        batchEvent(`${batchId}-3`, startMinute + 2, batchId, 'inv-a', {
+          ...x,
+          depositId: 'd1',
+          depositEntryType: 'deposit',
+        });
+        batchEvent(`${batchId}-4`, startMinute + 3, batchId, 'inv-a', {
+          ...x,
+          depositId: 'd2',
+          depositEntryType: 'deposit',
+        });
+      }
+
+      function revert(batchId: string, revertOf: string, startMinute: number): void {
+        const meta = (to: string, extra: Record<string, unknown>) =>
+          JSON.stringify({
+            v: 1,
+            event: 'status_changed',
+            from: 'claimed',
+            to,
+            subjectLabel: 'T',
+            batchId,
+            budgetSourceId: 'src-1',
+            ...extra,
+            revertOf,
+          });
+        auto({
+          id: `${batchId}-1`,
+          createdAt: at(startMinute),
+          sourceEntityId: 'inv-a',
+          metadata: meta('pending', {}),
+        });
+        auto({
+          id: `${batchId}-2`,
+          createdAt: at(startMinute + 1),
+          sourceEntityId: 'inv-b',
+          metadata: meta('paid', {}),
+        });
+        auto({
+          id: `${batchId}-3`,
+          createdAt: at(startMinute + 2),
+          sourceEntityId: 'inv-a',
+          metadata: meta('pending', { depositId: 'd1', depositEntryType: 'deposit' }),
+        });
+        // A repeated event for the same invoice counts the invoice once
+        auto({
+          id: `${batchId}-4`,
+          createdAt: at(startMinute + 3),
+          sourceEntityId: 'inv-a',
+          metadata: meta('pending', { amount: 5 }),
+        });
+      }
+
+      beforeEach(() => {
+        insertSource('src-1', 'Bank A');
+        insertInvoice('inv-a', 'T-001');
+        insertInvoice('inv-b', 'T-002');
+      });
+
+      it('summarises a submission: kind, not reverted, invoices by prior status, progress payments', () => {
+        submission('batch-s', 1);
+        const batch = list().items[0]!.batch!;
+        expect(batch).toMatchObject({
+          kind: 'submission',
+          reverted: false,
+          invoicesFrom: { pending: 1, paid: 1 },
+          progressPaymentCount: 2,
+          invoiceCount: 2,
+        });
+      });
+
+      it('marks the submission reverted and collapses the revert batch into one revert row', () => {
+        submission('batch-s', 1);
+        revert('batch-r', 'batch-s', 10);
+
+        const r = list();
+        expect(r.items.map((i) => i.id)).toEqual(['batch-r-1', 'batch-s-1']);
+        expect(r.pagination.totalItems).toBe(2);
+        const sub = r.items.find((i) => i.id === 'batch-s-1')!.batch!;
+        const rev = r.items.find((i) => i.id === 'batch-r-1')!.batch!;
+        expect(sub.reverted).toBe(true);
+        expect(sub.kind).toBe('submission');
+        expect(rev).toMatchObject({
+          batchId: 'batch-r',
+          kind: 'revert',
+          reverted: false,
+          invoicesFrom: { pending: 1, paid: 1 },
+          progressPaymentCount: 1,
+          invoiceCount: 2,
+          budgetSourceId: 'src-1',
+          budgetSourceName: 'Bank A',
+        });
+      });
+
+      it('only the named submission is reverted; another submission stays unreverted', () => {
+        submission('batch-s', 1);
+        submission('batch-t', 5);
+        revert('batch-r', 'batch-t', 10);
+        const byBatch = new Map(list().items.map((i) => [i.batch!.batchId, i.batch!]));
+        expect(byBatch.get('batch-t')!.reverted).toBe(true);
+        expect(byBatch.get('batch-s')!.reverted).toBe(false);
+      });
+
+      it('the revert batch shows under the budget_source filter and the submission type, not payment', () => {
+        submission('batch-s', 1);
+        revert('batch-r', 'batch-s', 10);
+
+        expect(ids({ entityType: 'budget_source', entityId: 'src-1' })).toEqual([
+          'batch-r-1',
+          'batch-s-1',
+        ]);
+        expect(ids({ types: ['submission'] })).toEqual(['batch-r-1', 'batch-s-1']);
+        expect(ids({ types: ['payment'] })).toEqual([]);
+      });
     });
 
     it('the batchId filter lists the members uncollapsed', () => {

@@ -24,7 +24,7 @@ export interface StatusChangedMetadataV1 {
   batchId?: string;
   /** Bank-report submission (W5): the funding source the batch was submitted for (#2224). */
   budgetSourceId?: string;
-  /** Reserved for contract 14. */
+  /** Revert submission (#2243): the submission batchId this event reverts. */
   revertOf?: string;
 }
 
@@ -82,4 +82,12 @@ export interface SystemEventBatchSummary {
   budgetSourceName: string | null;
   /** null when the batch names no source (written before #2224). */
   budgetSourceExists: boolean | null;
+  /** 'revert' when the batch's events carry `revertOf` (a Revert submission). */
+  kind: 'submission' | 'revert';
+  /** submission: a revert batch names this batch in `revertOf`. revert: always false. */
+  reverted: boolean;
+  /** Distinct invoices by status before the submission (submission: event `from`; revert: event `to`). */
+  invoicesFrom: { pending: number; paid: number };
+  /** Progress-payment and refund events in the batch. */
+  progressPaymentCount: number;
 }

@@ -220,7 +220,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["sourceId", "type"],
-    "note": "Bank report, child of Financing (breadcrumb Money › Financing). ?sourceId= kept; new ?type= preset."
+    "note": "Bank report, child of Financing (breadcrumb Money › Financing). ?sourceId= kept; new ?type= preset. #2243: every in-app entry sends type (claim, or budget-overview from Money); with a known sourceId the wizard opens on step 3, with an unknown one on step 2 with an error, with type alone on step 3 when exactly one open loan or credit line exists."
   },
   {
     "from": "/schedule/gantt",

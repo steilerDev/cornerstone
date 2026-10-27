@@ -631,24 +631,24 @@
   "sourceReports": {
     "subtitle": "Generate financial reports for funding sources",
     "stepper": {
-      "useCase": "Report Type",
+      "useCase": "Report type",
       "source": "Funding source",
-      "invoices": "Select Invoices",
+      "invoices": "Select invoices",
       "settings": "Settings",
-      "actions": "Preview & Export"
+      "actions": "Preview and export"
     },
     "stepperAriaLabel": "Report wizard steps",
     "mobileStepLabel": "Step {{current}} of {{total}}",
     "useCaseLabel": "Which report do you need?",
     "useCase": {
-      "budget-overview": "Budget Overview",
-      "claim": "Claim",
-      "proof-of-funds": "Proof of Funds"
+      "budget-overview": "Budget overview",
+      "claim": "Draw-down request",
+      "proof-of-funds": "Proof of funds"
     },
     "useCaseHelper": {
-      "budget-overview": "A summary of all invoices and their allocations",
-      "claim": "Invoices to pay or paid that are not yet submitted",
-      "proof-of-funds": "Show only submitted invoices"
+      "budget-overview": "Offers and invoices to pay, paid or submitted.",
+      "claim": "Invoices to pay or paid that are not yet submitted to the bank.",
+      "proof-of-funds": "Only invoices already submitted to the bank."
     },
     "sourceLabel": "Select the funding source for this report",
     "amountLabel": {
@@ -657,13 +657,12 @@
       "proofOfFunds": "Submitted"
     },
     "discretionary": "Own funds",
-    "selectAllInvoices": "Select all invoices",
+    "selectAllInvoices": "Select all invoices ({{count}})",
     "toggleInvoice": "Toggle invoice {{vendor}} #{{number}}",
-    "invoicesHeading": "Select Invoices to Include",
-    "unallocatedGroupTitle": "Unallocated Invoices ({{count}})",
-    "unallocatedExplained": "These invoices have no allocation for this source",
-    "emptyInvoices": "No invoices found",
-    "emptyInvoicesDescription": "This funding source has no invoices for this report type",
+    "unallocatedGroupTitle": "Not split to this source ({{count}})",
+    "unallocatedExplained": "These invoices are not split to this funding source.",
+    "emptyInvoices": "No invoices to include",
+    "emptyInvoicesDescription": "No invoice of this funding source matches this report type.",
     "selectAtLeastOne": "Select at least one invoice to proceed",
     "settingsStep": {
       "languageHeading": "Report language",
@@ -682,12 +681,11 @@
     "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
     "includeCoverLetter": "Include cover letter",
     "includeCoverLetterHelper": "Adds a formal letter to the report",
-    "coverLetterDisabledReason": "This source has no contact address or reference number—cover letter is not available",
+    "coverLetterDisabledReason": "This funding source has no contact address or reference number—cover letter is not available",
     "download": "Download PDF",
     "finishWithoutMarking": "Finish without marking",
     "uploadPaperless": "Upload to Paperless",
     "uploadSuccess": "Document uploaded to Paperless",
-    "confirmClaimTitle": "Mark invoices as submitted?",
     "claimSuccess": "{{invoices}} and {{progressPayments}} marked as submitted",
     "claimNothingClaimable": "Nothing can be marked as submitted: all selected invoices have excluded line items and no progress payments are left to submit.",
     "finishedWithoutMarkingSuccess": "Report finished without marking invoices as submitted.",
@@ -710,7 +708,7 @@
     "splitTooltip": "This invoice is split across multiple sources",
     "openInvoiceAriaLabel": "Open invoice {{vendor}}, {{invoiceNumber}} in new tab",
     "openInvoiceTooltip": "Open invoice in new tab",
-    "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
+    "selectedCount": "{{count}} of {{totalCount}} invoices selected · Total {{totalAmount}}",
     "resetSelection": "Reset selection",
     "parts": {
       "letter": {
@@ -766,13 +764,13 @@
       "dateLabel": "Date",
       "reference": "Reference",
       "subject": {
-        "budget-overview": "Project Budget Overview",
-        "claim": "Claim Documentation",
-        "proof-of-funds": "Proof of Funds"
+        "budget-overview": "Project budget overview",
+        "claim": "Draw-down request",
+        "proof-of-funds": "Proof of funds"
       },
       "body": {
         "budget-overview": "Please find attached the budget overview for our project totaling {{total}}.",
-        "claim": "We are submitting a claim for invoices totaling {{total}}.",
+        "claim": "We are requesting a draw-down for invoices totaling {{total}}.",
         "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
       },
       "opening": "Dear Sir or Madam,",
@@ -787,7 +785,7 @@
       "bodyLabel": "Body",
       "openingLabel": "Opening",
       "closingLabel": "Closing",
-      "attachmentsNoteLabel": "Attachments Note",
+      "attachmentsNoteLabel": "Attachments note",
       "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
       "attachmentsNoteAriaLabel": "Attachments note for {{vendor}}, {{invoiceNumber}}",
       "editedSuffix": " (edited)",
@@ -796,48 +794,51 @@
       "overMaxLengthHint": "Longer than the recommended limit; shortening it is optional.",
       "maxLengthReachedAnnouncement": "Maximum length reached.",
       "previewPdf": "Preview PDF",
-      "previewModalTitle": "PDF Preview",
+      "previewModalTitle": "PDF preview",
       "discardConfirmTitle": "Discard your edits?",
       "discardConfirmTitleGenerating": "Cancel AI generation?",
       "discardConfirmBody": "Changing this will regenerate the report content and your edits will be lost.",
       "discardConfirmBodyGenerating": "An AI generation is in progress. Changing this will cancel it.",
-      "discardAndContinue": "Discard and Continue",
-      "keepEditing": "Keep Editing",
-      "coverLetterHeading": "Cover Letter",
-      "tableHeading": "Report Table",
+      "discardAndContinue": "Discard and continue",
+      "keepEditing": "Keep editing",
+      "coverLetterHeading": "Cover letter",
+      "tableHeading": "Report table",
       "columnVisibilityLabel": "Show/hide columns",
       "allocatedAmountRequiredHint": "Required — every report includes the allocated amount.",
       "usageHiddenAttachmentsWarning": "Attachments are enabled, but hiding Usage removes the reference connecting each row to its attached document(s) in the PDF.",
-      "enhanceWithAi": "Enhance with AI",
+      "enhanceWithAi": "Draft with AI",
       "enhanceWithAiDescription": "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
       "generating": "Generating… ({{seconds}}s)",
       "aiGeneratedNote": "Content generated with AI — review before submitting.",
       "aiGenerationFailed": "AI generation failed. Please try again.",
       "aiOverwriteConfirmTitle": "Overwrite your edits?",
       "aiOverwriteConfirmBody": "Regenerating with AI will replace your manual edits with newly generated text.",
-      "aiOverwriteAndGenerate": "Overwrite and Generate"
+      "aiOverwriteAndGenerate": "Overwrite and generate",
+      "senderHelp": "Taken from <houseLink>Project setup › House</houseLink>. Changes here apply to this report only.",
+      "senderEmpty": "No sender set. Add your name and address in <houseLink>Project setup › House</houseLink>.",
+      "opensNewTab": " (opens in a new tab)"
     },
     "table": {
       "title": {
-        "budget-overview": "Budget Overview",
-        "claim": "Claim Report",
-        "proof-of-funds": "Proof of Funds"
+        "budget-overview": "Budget overview",
+        "claim": "Draw-down request",
+        "proof-of-funds": "Proof of funds"
       },
-      "source": "Source",
-      "sourceType": "Source Type",
+      "source": "Funding source",
+      "sourceType": "Type of this funding source",
       "reference": "Reference",
       "generatedAt": "Generated",
       "pageLabel": "Page",
-      "vendor": "Vendor",
+      "vendor": "Company",
       "invoiceNumber": "Invoice No.",
       "date": "Date",
       "status": "Status",
-      "invoiceAmount": "Invoice Amount",
-      "allocatedAmount": "Allocated Amount",
+      "invoiceAmount": "Invoice amount",
+      "allocatedAmount": "Allocated amount",
       "usage": "Usage",
       "attachmentType": {
-        "quotation": "Quotation",
-        "deposit": "Deposit",
+        "quotation": "Offer",
+        "deposit": "Progress‑payment",
         "invoice": "Invoice"
       },
       "attachmentsNote_one": "{{count}} attachment: {{types}}",
@@ -848,14 +849,14 @@
       "refundNote": "(refund)",
       "footnoteFetchFailed": "Document could not be retrieved",
       "footnoteInvalidPdf": "Document is not a valid PDF",
-      "splitFootnote": "Amount shown reflects only the portion allocated to this source.",
+      "splitFootnote": "Amount shown reflects only the portion allocated to this funding source.",
       "depositReducedFootnote": "This position reflects progress payments submitted separately.",
       "splitInlineLabel": "partial",
-      "depositReducedInlineLabel": "less deposit"
+      "depositReducedInlineLabel": "less part‑payment"
     },
     "sourceType": {
-      "bank_loan": "Bank Loan",
-      "credit_line": "Credit Line",
+      "bank_loan": "Bank loan",
+      "credit_line": "Credit line",
       "savings": "Savings",
       "other": "Other",
       "discretionary": "Own funds"
@@ -863,12 +864,12 @@
     "expand": {
       "expandInvoice": "Expand invoice details",
       "collapseInvoice": "Collapse invoice details",
-      "itemsHeading": "Budget Lines",
-      "depositsHeading": "Deposits & Refunds",
-      "itemsEmpty": "No budget lines for this invoice",
-      "depositsEmpty": "No deposits or refunds for this invoice",
+      "itemsHeading": "Cost lines",
+      "depositsHeading": "Progress payments and refunds of this invoice",
+      "itemsEmpty": "No cost lines for this invoice",
+      "depositsEmpty": "No progress payments or refunds for this invoice",
       "excludeItemAriaLabel": "Exclude {{name}} from report",
-      "unnamedLine": "(Unnamed budget line)",
+      "unnamedLine": "Cost line without a name",
       "linkedColumnHeader": "Linked to",
       "itemColumnHeader": "Item",
       "allocatedColumnHeader": "Allocated",
@@ -876,9 +877,9 @@
       "amountColumnHeader": "Amount",
       "statusColumnHeader": "Status",
       "datesColumnHeader": "Dates",
-      "entryTypeColumnHeader": "Entry Type",
-      "allocatedSourceColumnHeader": "Allocated Source",
-      "entryTypeDeposit": "Deposit",
+      "entryTypeColumnHeader": "Entry type",
+      "allocatedSourceColumnHeader": "Funding source",
+      "entryTypeDeposit": "Progress payment",
       "entryTypeRefund": "Refund",
       "dueDate": "Due",
       "paidDate": "Paid",
@@ -895,15 +896,38 @@
     },
     "markSubmitted_one": "Mark {{count}} invoice as submitted",
     "markSubmitted_other": "Mark {{count}} invoices as submitted",
-    "markSubmittedNone": "No invoices to mark as submitted",
+    "markSubmittedNone": "Mark as submitted",
     "invoiceCount_one": "{{count}} invoice",
     "invoiceCount_other": "{{count}} invoices",
     "progressPaymentCount_one": "{{count}} progress payment",
     "progressPaymentCount_other": "{{count}} progress payments",
-    "confirmClaimBody_one": "This will mark {{count}} invoice as submitted ({{pendingCount}} still to pay). This cannot be undone.",
-    "confirmClaimBody_other": "This will mark {{count}} invoices as submitted ({{pendingCount}} still to pay). This cannot be undone.",
     "confirmClaimExcludedItemsWarning_one": "{{count}} invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.",
-    "confirmClaimExcludedItemsWarning_other": "{{count}} invoices have excluded line items and keep their current status. The excluded part can be submitted in a later report."
+    "confirmClaimExcludedItemsWarning_other": "{{count}} invoices have excluded line items and keep their current status. The excluded part can be submitted in a later report.",
+    "invoicesHelper": "{{type}} for {{source}}. {{helper}}",
+    "presetSourceMissing": "That funding source no longer exists. Choose one.",
+    "groupSubtotal": "Subtotal",
+    "paging": {
+      "loadMore": "Show more invoices",
+      "loading": "Loading more invoices…",
+      "error": "More invoices could not be shown.",
+      "end": "All {{count}} invoices shown",
+      "shown": "Showing {{count}} of {{total}} invoices"
+    },
+    "mark": {
+      "title_one": "Mark {{count}} invoice as submitted?",
+      "title_other": "Mark {{count}} invoices as submitted?",
+      "total": "Total: {{amount}}",
+      "moves": "They move from To pay or Paid to Submitted for {{source}}.",
+      "confirm": "Mark as submitted",
+      "busy": "Marking…",
+      "zeroReason": "Select at least one invoice in step 3."
+    },
+    "afterSend": {
+      "heading": "After you send it",
+      "text_one": "When the bank has the report, record it. This invoice then leaves the Draw-down request list. You can revert this later in the funding source's History.",
+      "text_other": "When the bank has the report, record it. These {{count}} invoices then leave the Draw-down request list. You can revert this later in the funding source's History."
+    },
+    "openHistory": "Open History"
   },
   "common": {
     "loading": "Loading...",

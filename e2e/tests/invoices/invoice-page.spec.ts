@@ -194,7 +194,7 @@ test.describe('Invoice page Mark paid (E2)', { tag: '@responsive' }, () => {
     await expect(detail.bankReportLink).toHaveText('Prepare bank report');
     await expect(detail.bankReportLink).toHaveAttribute(
       'href',
-      new RegExp(`/budget/reports\\?sourceId=${sourceId}`),
+      new RegExp(`/budget/reports\\?type=claim&sourceId=${sourceId}$`),
     );
     await expect(detail.markPaid.trigger).toHaveCount(0);
 

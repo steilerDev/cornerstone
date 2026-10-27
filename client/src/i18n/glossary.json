@@ -361,7 +361,9 @@
       "groups": ["supportingNoun"],
       "en": {
         "singular": "Progress payment",
-        "plural": "Progress payments"
+        "plural": "Progress payments",
+        "shortForm": "Part‑payment",
+        "shortFormNote": "product-owner-approved (#2243 PO ruling) PDF-only English short form of 'Progress payment', with U+2011 NON-BREAKING HYPHEN in 'Part‑payment' (do not replace it with a regular hyphen-minus, which would let the label wrap). Its only slot is the inline reduced-amount label sourceReports.table.depositReducedInlineLabel, rendered as '(less part‑payment)', the English parallel of the German 'abzgl. Abschlag' (see the German shortFormNote). The UI, docs and History keep 'Progress payment'."
       },
       "de": {
         "singular": "Abschlagszahlung",

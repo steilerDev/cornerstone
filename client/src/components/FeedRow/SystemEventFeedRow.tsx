@@ -14,7 +14,7 @@ export interface SystemEventFeedRowProps {
   as?: 'li' | 'div';
   /** `detail`: no time (entry page). `compact`: no link row (dashboard). */
   variant?: 'list' | 'detail' | 'compact';
-  /** Row actions after the link row (P4.11 "Revert submission"); forwarded to FeedRow. */
+  /** Row actions after the link row (Revert submission); forwarded to FeedRow. */
   actions?: ReactNode;
 }
 
@@ -44,6 +44,13 @@ export function SystemEventFeedRow({
           variants={{ extra: { label: view.extraBadge, className: badgeStyles.neutral } }}
           value="extra"
           testId={`system-event-${entry.id}-extra`}
+        />
+      ) : null}
+      {view.revertedBadge ? (
+        <Badge
+          variants={{ reverted: { label: view.revertedBadge, className: badgeStyles.neutral } }}
+          value="reverted"
+          testId={`system-event-${entry.id}-reverted`}
         />
       ) : null}
       {view.repeat ? (

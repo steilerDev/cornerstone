@@ -328,7 +328,7 @@ describe('attentionService on the synthetic fixture', () => {
         amount: 5000,
         params: { rule: 'N8', sourceType: 'bank_loan', count: 1 },
         actions: ['prepare_bank_report'],
-        link: { route: 'bankReport', params: {}, query: { sourceId: 'src-loan' } },
+        link: { route: 'bankReport', params: {}, query: { type: 'claim', sourceId: 'src-loan' } },
       });
     });
 

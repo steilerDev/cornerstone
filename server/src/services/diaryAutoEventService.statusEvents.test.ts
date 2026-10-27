@@ -318,6 +318,14 @@ describe('diaryAutoEventService status events (#2209, ADR-040 W1/W3/W4)', () => 
       expect(rows()).toHaveLength(0);
     });
 
+    it('writes a row for a move to pending when it reverts a submission (revertOf, #2243)', () => {
+      onDepositStatusChanged(db, deposit('d'), 'N', 'claimed', 'pending', U1, {
+        batchId: 'b2',
+        revertOf: 'b1',
+      });
+      expect(rows('invoice_status')).toHaveLength(1);
+    });
+
     it('pending -> paid -> pending leaves zero rows; pending -> paid -> claimed -> paid keeps two', () => {
       onDepositStatusChanged(db, deposit('d'), 'N', 'pending', 'paid', U1);
       onDepositStatusChanged(db, deposit('d'), 'N', 'paid', 'pending', U1);

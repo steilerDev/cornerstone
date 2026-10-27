@@ -330,6 +330,23 @@ export class InvoicesNotClaimableError extends AppError {
   }
 }
 
+export class SubmissionAlreadyRevertedError extends AppError {
+  constructor(message = 'This submission was already reverted', details?: Record<string, unknown>) {
+    super('SUBMISSION_ALREADY_REVERTED', 409, message, details);
+    this.name = 'SubmissionAlreadyRevertedError';
+  }
+}
+
+export class SubmissionChangedError extends AppError {
+  constructor(
+    message = 'Items of this submission changed since it was submitted',
+    details?: Record<string, unknown>,
+  ) {
+    super('SUBMISSION_CHANGED', 409, message, details);
+    this.name = 'SubmissionChangedError';
+  }
+}
+
 export class InvoiceNotQuotationError extends AppError {
   constructor(
     message = 'Only invoices with status quotation can be converted',

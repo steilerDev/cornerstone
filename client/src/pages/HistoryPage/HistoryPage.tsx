@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary, HistoryObjectRef } from '@cornerstone/shared';
 import { DiaryEntryFeedRow } from '../../components/FeedRow/DiaryEntryFeedRow.js';
 import { FeedGroup } from '../../components/FeedRow/FeedGroup.js';
+import { useRevertSubmission } from '../../components/FeedRow/useRevertSubmission.js';
 import { SystemEventFeedRow } from '../../components/FeedRow/SystemEventFeedRow.js';
 import { previousIsoDate } from '../../components/DateChips/DateChips.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
@@ -65,6 +66,8 @@ export default function HistoryPage() {
   const [hiddenCount, setHiddenCount] = useState(0);
   const [objectRef, setObjectRef] = useState<HistoryObjectRef | null>(null);
   const [firstBatchFailed, setFirstBatchFailed] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const totalItemsRef = useRef(0);
   const focusEmptyStateAfterRetryRef = useRef(false);
   const emptyMessageRef = useRef<HTMLHeadingElement | HTMLParagraphElement>(null);
@@ -124,7 +127,13 @@ export default function HistoryPage() {
     filters.dateTo,
     filters.includeDiary,
     showHidden,
+    reloadNonce,
   ].join('|');
+
+  const revert = useRevertSubmission({
+    onChanged: () => setReloadNonce((n) => n + 1),
+    returnFocusRef: headingRef,
+  });
 
   const {
     items: entries,
@@ -138,11 +147,10 @@ export default function HistoryPage() {
     fetchPage: fetchHistoryPage,
     resetKey,
     onPageApplied: (meta) => {
-      if (meta) {
-        totalItemsRef.current = meta.totalItems;
-        setHiddenCount(meta.hiddenCount);
-        setObjectRef(meta.object);
-      }
+      // fetchHistoryPage always returns meta.
+      totalItemsRef.current = meta!.totalItems;
+      setHiddenCount(meta!.hiddenCount);
+      setObjectRef(meta!.object);
       setFirstBatchFailed(false);
     },
     onPageFailed: (_err, page) => {
@@ -187,7 +195,7 @@ export default function HistoryPage() {
       isFirstResetRef.current = false;
       return;
     }
-    const top = feedRef.current?.getBoundingClientRect().top ?? 0;
+    const top = feedRef.current!.getBoundingClientRect().top;
     if (top < 0 && typeof window.scrollTo === 'function') window.scrollTo({ top: 0 });
   }, [resetKey]);
 
@@ -199,7 +207,7 @@ export default function HistoryPage() {
   useLayoutEffect(() => {
     if (status === 'loading') return;
     if (focusEmptyStateAfterRetryRef.current && status === 'done' && entries.length === 0) {
-      emptyMessageRef.current?.focus();
+      emptyMessageRef.current!.focus();
     }
     focusEmptyStateAfterRetryRef.current = false;
   }, [status, entries.length]);
@@ -209,7 +217,7 @@ export default function HistoryPage() {
   useLayoutEffect(() => {
     if (!anythingSet && pendingChipFocusRef.current) {
       pendingChipFocusRef.current = false;
-      filtersRootRef.current?.querySelector<HTMLElement>('button')?.focus();
+      filtersRootRef.current!.querySelector<HTMLElement>('button')!.focus();
     }
   }, [anythingSet]);
 
@@ -236,7 +244,7 @@ export default function HistoryPage() {
       : null;
 
   return (
-    <PageLayout title={pageTitle}>
+    <PageLayout title={pageTitle} headingRef={headingRef}>
       <div className={styles.column}>
         <p className={styles.description}>{t('description')}</p>
 
@@ -359,8 +367,11 @@ export default function HistoryPage() {
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .map((entry) =>
                     entry.isAutomatic ? (
-                      // P4.11 wires "Revert submission" here for rows with `batch`; nothing renders today.
-                      <SystemEventFeedRow key={entry.id} entry={entry} actions={undefined} />
+                      <SystemEventFeedRow
+                        key={entry.id}
+                        entry={entry}
+                        actions={revert.renderRowActions(entry)}
+                      />
                     ) : (
                       <DiaryEntryFeedRow key={entry.id} entry={entry} />
                     ),
@@ -385,6 +396,8 @@ export default function HistoryPage() {
           />
         )}
       </div>
+
+      {revert.dialog}
     </PageLayout>
   );
 }

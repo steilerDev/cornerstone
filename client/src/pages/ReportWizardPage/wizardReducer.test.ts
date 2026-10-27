@@ -1036,3 +1036,86 @@ describe('SET_MAX_FILE_SIZE', () => {
     expect(next.maxFileSizeInput).toBe('12.5');
   });
 });
+
+// ─── #2243: APPLY_PRESET and SET_INVOICES_EXCLUDED ───────────────────────────
+
+describe('APPLY_PRESET', () => {
+  it('with a known source lands on step 3, both steps completed, report fetch pending', () => {
+    const next = wizardReducer(makeState(), {
+      type: 'APPLY_PRESET',
+      payload: {
+        useCase: 'claim',
+        sourceId: 'src-1',
+        step2RequestId: 's2',
+        reportRequestId: 'r1',
+      },
+    });
+    expect(next).toMatchObject({
+      useCase: 'claim',
+      sourceId: 'src-1',
+      step2RequestId: 's2',
+      step2Loading: true,
+      reportRequestId: 'r1',
+      reportStatus: 'loading',
+      currentStep: 3,
+      maxReachedStep: 3,
+    });
+  });
+
+  it('without a source lands on step 2', () => {
+    const next = wizardReducer(makeState(), {
+      type: 'APPLY_PRESET',
+      payload: {
+        useCase: 'proof-of-funds',
+        sourceId: null,
+        step2RequestId: 's2',
+        reportRequestId: null,
+      },
+    });
+    expect(next).toMatchObject({
+      useCase: 'proof-of-funds',
+      sourceId: null,
+      reportRequestId: null,
+      currentStep: 2,
+      maxReachedStep: 2,
+    });
+  });
+
+  it('discards earlier selection, report, exclusions and content edits', () => {
+    const state = makeState({
+      useCase: 'budget-overview',
+      sourceId: 'old',
+      report: makeReport('old'),
+      excludedInvoiceIds: new Set(['inv-1']),
+      overrides: { letterBody: 'edited' },
+    });
+    const next = wizardReducer(state, {
+      type: 'APPLY_PRESET',
+      payload: { useCase: 'claim', sourceId: 'src-1', step2RequestId: 's', reportRequestId: 'r' },
+    });
+    expect(next.report).toBeNull();
+    expect(next.excludedInvoiceIds.size).toBe(0);
+    expect(next.overrides).toEqual({});
+  });
+});
+
+describe('SET_INVOICES_EXCLUDED', () => {
+  it('excludes a group of ids at once and keeps other exclusions', () => {
+    const state = makeState({ excludedInvoiceIds: new Set(['other']) });
+    const next = wizardReducer(state, {
+      type: 'SET_INVOICES_EXCLUDED',
+      payload: { invoiceIds: ['a', 'b'], excluded: true },
+    });
+    expect([...next.excludedInvoiceIds].sort()).toEqual(['a', 'b', 'other']);
+    expect(state.excludedInvoiceIds.size).toBe(1); // input not mutated
+  });
+
+  it('re-includes only the given ids', () => {
+    const state = makeState({ excludedInvoiceIds: new Set(['a', 'b', 'other']) });
+    const next = wizardReducer(state, {
+      type: 'SET_INVOICES_EXCLUDED',
+      payload: { invoiceIds: ['a', 'b', 'never-excluded'], excluded: false },
+    });
+    expect([...next.excludedInvoiceIds]).toEqual(['other']);
+  });
+});

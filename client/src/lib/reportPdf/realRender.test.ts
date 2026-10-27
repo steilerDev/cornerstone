@@ -986,7 +986,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         [
           tEn,
           formattersFor('en-US'),
-          { single: '1 attachment: Invoice', multi: '2 attachments: Quotation, Invoice' },
+          { single: '1 attachment: Invoice', multi: '2 attachments: Offer, Invoice' },
         ],
         [
           tDe,
@@ -1032,7 +1032,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           tEn,
           formattersFor('en-US'),
           {
-            depositLabel: ' (Deposit)',
+            depositLabel: ' (Progress\u2011payment)',
             // NON-BREAKING SPACE, written as an escape ON PURPOSE. `depositReducedInlineLabel` is
             // the only inline label in either locale with an internal space, and at 8pt in the
             // narrow allocated-amount column it wrapped at that space — putting the opening and
@@ -1047,12 +1047,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             // difference reviewable. See also the locale-level invariant in
             // client/src/i18n/i18n.parity.test.ts, which fails if any inline label regains a
             // breaking space.
-            depositReducedLabel: ' (less\u00A0deposit)',
+            depositReducedLabel: ' (less\u00A0part\u2011payment)',
             splitLabel: ' (partial)',
             // The footnote WORDINGS that must no longer appear anywhere in the tree.
             goneFootnotes: ['This is a deposit'],
             depositFootnoteText: 'This position reflects progress payments submitted separately.',
-            splitFootnoteText: 'Amount shown reflects only the portion allocated to this source.',
+            splitFootnoteText:
+              'Amount shown reflects only the portion allocated to this funding source.',
           },
         ],
         [
@@ -1068,7 +1069,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             depositFootnoteText:
               'Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
             splitFootnoteText:
-              'Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.',
+              'Der angezeigte Betrag umfasst nur den dieser Finanzierungsquelle zugeordneten Anteil.',
           },
         ],
       ] as const) {
@@ -2925,7 +2926,7 @@ describe('production i18n singleton — getFixedT resolves a language independen
     // language — a fixed TFunction is a read, not a global language switch.
     expect(i18n.language).toBe('en');
     const fixedEn = i18n.getFixedT('en', 'budget');
-    expect(fixedEn('sourceReports.table.vendor')).toBe('Vendor');
+    expect(fixedEn('sourceReports.table.vendor')).toBe('Company');
   });
 
   // Story #1923 follow-up: the Deposit badge label moved into the shared content model
@@ -3011,7 +3012,7 @@ describe('production i18n singleton — getFixedT resolves a language independen
         household: null,
       },
     );
-    expect(contentEn.labels.deposit).toBe('Deposit');
+    expect(contentEn.labels.deposit).toBe('Progress\u2011payment');
 
     // Pipeline pin: the rendered PDF's inline deposit run for the constituted-deposit row carries
     // the same real German label sourced from content.labels.deposit — overviewPdf.ts never
@@ -3076,10 +3077,10 @@ describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (colu
 
   it('EN vendor and invoiceAmount labels are unchanged from their baseline values', () => {
     // EN labels are stable reference points: "Vendor" (6 chars, fits the 45pt column);
-    // "Invoice Amount" (14 chars) has an internal space so pdfmake wraps at the word boundary —
+    // "Invoice amount" (14 chars) has an internal space so pdfmake wraps at the word boundary —
     // it never needs break-all and is not subject to the single-token width constraint.
-    expect(tEn('sourceReports.table.vendor')).toBe('Vendor');
-    expect(tEn('sourceReports.table.invoiceAmount')).toBe('Invoice Amount');
+    expect(tEn('sourceReports.table.vendor')).toBe('Company');
+    expect(tEn('sourceReports.table.invoiceAmount')).toBe('Invoice amount');
   });
 });
 
@@ -3964,6 +3965,82 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
     // No throw, at least one page, for the maximal shape.
     expect(maximal.pageCount).toBeGreaterThanOrEqual(1);
   });
+
+  // #2243 PO acceptance: the en inline labels ("Progress‑payment" with U+2011, "less part‑payment"
+  // with U+00A0 between the words) must fit the PINNED 75pt allocated-amount column. Read from
+  // pdfmake's own post-render `_minWidth` (the widest atom it could not break), per label alone.
+  describe('#2243 inline label widths in the 75pt allocated column (en)', () => {
+    async function measureAlone(
+      which: 'deposit' | 'reduced' | 'partial',
+      useCase: 'budget-overview' | 'claim',
+    ) {
+      const formatters = formattersFor('en-US');
+      const base = makeMaximalReport('both');
+      const inv = base.invoices[0]!;
+      const common = { lineKind: 'invoice' as const, allocatedAmount: 150 };
+      const invoice =
+        which === 'deposit'
+          ? { ...inv, ...common, splitKind: null }
+          : which === 'reduced'
+            ? {
+                ...inv,
+                ...common,
+                splitKind: 'deposits' as const,
+                depositsVisibleToSource: inv.depositsVisibleToSource.map((d) => ({
+                  ...d,
+                  budgetSourceId: 'other-src',
+                })),
+              }
+            : { ...inv, ...common, splitKind: 'lines' as const, depositsVisibleToSource: [] };
+      const report = { ...base, invoices: [invoice] };
+      const content = buildReportContent(
+        report,
+        new Set([inv.invoiceId]),
+        useCase,
+        tEn,
+        formatters,
+        {
+          includeCoverLetter: false,
+          household: null,
+        },
+      );
+      const row = content.rows[0]!;
+      return {
+        flags: { deposit: row.isDeposit, partial: row.isPartial, reduced: row.isDepositReduced },
+        ...(await renderAllocatedCell(report, useCase, tEn, formatters)),
+      };
+    }
+
+    it.each(['budget-overview', 'claim'] as const)(
+      'the "(Progress‑payment)" label alone fits the column and does not wrap mid-word (%s)',
+      async (useCase) => {
+        const m = await measureAlone('deposit', useCase);
+        expect(m.flags).toEqual({ deposit: true, partial: false, reduced: false });
+        // Measured 70.46pt of 75pt (4.54pt slack).
+        expect(m.minWidth).toBeLessThanOrEqual(m.calcWidth);
+      },
+    );
+
+    it.each(['budget-overview', 'claim'] as const)(
+      'the "(partial)" label alone fits the column (%s)',
+      async (useCase) => {
+        const m = await measureAlone('partial', useCase);
+        expect(m.flags).toEqual({ deposit: false, partial: true, reduced: false });
+        expect(m.minWidth).toBeLessThanOrEqual(m.calcWidth);
+      },
+    );
+
+    // The PO-ruled short form "less\u00a0part\u2011payment" is a single unbreakable atom, so it has to
+    // fit the pinned 75pt column by itself. Read from pdfmake's own post-render `_minWidth`.
+    it.each(['budget-overview', 'claim'] as const)(
+      'the "(less part‑payment)" label alone fits the column without wrapping (%s)',
+      async (useCase) => {
+        const m = await measureAlone('reduced', useCase);
+        expect(m.flags).toEqual({ deposit: false, partial: false, reduced: true });
+        expect(m.minWidth).toBeLessThanOrEqual(m.calcWidth);
+      },
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -4222,18 +4299,18 @@ describe('#2159: cover-letter opening and German copy (real bundles, real pdfmak
     return positions[0]!;
   }
 
-  it('de claim letter: subject "Betreff: Abruf Kreditmittel", opening "Sehr geehrte Damen und Herren,", old subject gone', async () => {
+  it('de claim letter: subject "Betreff: Mittelabruf", opening "Sehr geehrte Damen und Herren,", old subject gone', async () => {
     const { baseline, strings } = await letterFor('claim', 'de-DE');
-    expect(baseline.coverLetter!.subject).toBe('Abruf Kreditmittel');
+    expect(baseline.coverLetter!.subject).toBe('Mittelabruf');
     expect(baseline.coverLetter!.opening).toBe('Sehr geehrte Damen und Herren,');
-    expect(strings).toContain('Betreff: Abruf Kreditmittel');
+    expect(strings).toContain('Betreff: Mittelabruf');
     expect(strings).toContain('Sehr geehrte Damen und Herren,');
     expect(strings.some((s) => s.includes('Einreichungsunterlagen'))).toBe(false);
   });
 
-  it('en claim letter: subject "Subject: Claim Documentation", opening "Dear Sir or Madam,"', async () => {
+  it('en claim letter: subject "Subject: Draw-down request", opening "Dear Sir or Madam,"', async () => {
     const { strings } = await letterFor('claim', 'en-US');
-    expect(strings).toContain('Subject: Claim Documentation');
+    expect(strings).toContain('Subject: Draw-down request');
     expect(strings).toContain('Dear Sir or Madam,');
   });
 
@@ -4266,7 +4343,7 @@ describe('#2159: cover-letter opening and German copy (real bundles, real pdfmak
 
     await renderCoverLetterPdfContent(pdfContent);
 
-    const subject = firstPosition(nodeWithText(pdfContent, 'Betreff: Abruf Kreditmittel'));
+    const subject = firstPosition(nodeWithText(pdfContent, 'Betreff: Mittelabruf'));
     const opening = firstPosition(nodeWithText(pdfContent, 'Sehr geehrte Damen und Herren,'));
     const firstBody = firstPosition(nodeWithText(pdfContent, paragraph(1)));
     const closing = firstPosition(nodeWithText(pdfContent, 'Mit freundlichen Grüßen'));

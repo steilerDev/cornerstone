@@ -1,0 +1,20 @@
+.revertButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.revertButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 1023px) {
+  .revertButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 479px) {
+  .revertButton {
+    width: 100%;
+  }
+}

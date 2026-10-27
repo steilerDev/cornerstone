@@ -588,6 +588,10 @@ const batchSummary = (over: Record<string, unknown> = {}) => ({
   budgetSourceId: 'src-1',
   budgetSourceName: 'Bank A',
   budgetSourceExists: true,
+  kind: 'submission',
+  reverted: false,
+  invoicesFrom: { pending: 2, paid: 0 },
+  progressPaymentCount: 0,
   ...over,
 });
 
@@ -658,9 +662,9 @@ describe('renderSystemEvent: submission (batch) view', () => {
     );
   });
 
-  it('links to the bank report of the funding source when it still exists', () => {
+  it('links to the funding source page (not the bank report) when it still exists', () => {
     expect(render(submission()).link).toEqual({
-      to: '/budget/reports?sourceId=src-1',
+      to: '/budget/financing/sources/src-1',
       label: 'Open Bank A',
       ariaLabel: 'Open Bank A',
     });
@@ -684,5 +688,63 @@ describe('renderSystemEvent: submission (batch) view', () => {
     const view = render(submission(), 'de');
     expect(view.extraBadge).toBe('Einreichung');
     expect(view.typeLabel).toBe('Rechnungsstatus');
+  });
+});
+
+describe('renderSystemEvent: reverted submissions and revert rows (#2243)', () => {
+  it('a reverted submission carries the Reverted badge, still reading as a submission', () => {
+    const view = render(submission({ reverted: true }));
+    expect(view.kind).toBe('submission');
+    expect(view.revertedBadge).toBe('Reverted');
+    expect(view.extraBadge).toBe('Submission');
+    expect(view.sentence).toBe('2 invoices submitted to the bank, €1,500.00');
+  });
+
+  it('an unreverted submission has no Reverted badge', () => {
+    expect(render(submission()).revertedBadge).toBeNull();
+  });
+
+  it('the Reverted badge is localized', () => {
+    expect(render(submission({ reverted: true }), 'de').revertedBadge).toBe('Rückgängig gemacht');
+  });
+
+  it('a revert batch row reads "Submission of N invoices reverted" and is never badged Reverted', () => {
+    const view = render(submission({ kind: 'revert', reverted: false }));
+    expect(view.kind).toBe('submission');
+    expect(view.sentence).toBe('Submission of 2 invoices reverted, €1,500.00');
+    expect(view.revertedBadge).toBeNull();
+    expect(view.extraBadge).toBe('Submission');
+  });
+
+  it('a revert batch even with reverted=true (defensive) shows no Reverted badge', () => {
+    expect(render(submission({ kind: 'revert', reverted: true })).revertedBadge).toBeNull();
+  });
+
+  it('uses the singular and the no-amount variants for a revert batch', () => {
+    const one = submission({ kind: 'revert', invoiceCount: 1, invoiceLabels: ['T-001'] });
+    expect(render(one).sentence).toBe('Submission of 1 invoice reverted, €1,500.00');
+    const none = submission({ kind: 'revert', amount: null });
+    expect(render(none).sentence).toBe('Submission of 2 invoices reverted');
+    const noneOne = submission({
+      kind: 'revert',
+      amount: null,
+      invoiceCount: 1,
+      invoiceLabels: ['T-001'],
+    });
+    expect(render(noneOne).sentence).toBe('Submission of 1 invoice reverted');
+  });
+
+  it('an individual revert event (revertOf, no collapsed batch) is a plain status change, not a submission', () => {
+    const view = render(
+      invoice({}, { from: 'claimed', to: 'pending', batchId: 'b-2', revertOf: 'b-1' }),
+    );
+    expect(view.kind).toBe('statusChange');
+    expect(view.extraBadge).toBeNull();
+    expect(view.revertedBadge).toBeNull();
+  });
+
+  it('a claimed event with a batchId and no revertOf is still a submission', () => {
+    const view = render(invoice({}, { batchId: 'b-1' }));
+    expect(view.kind).toBe('submission');
   });
 });

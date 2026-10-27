@@ -234,10 +234,10 @@ async function clickNext(user: User) {
   await user.click(primary[primary.length - 1]!);
 }
 
-/** Picks use case index 1 (claim) and the first source, then walks to the given step. */
+/** Picks use case index 0 (claim) and the first source, then walks to the given step. */
 async function walkTo(user: User, step: 3 | 4 | 5) {
   await waitFor(() => screen.getByRole('radiogroup'));
-  await user.click(screen.getAllByRole('radio')[1]!);
+  await user.click(screen.getAllByRole('radio')[0]!);
   await clickNext(user);
   await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
   await user.click(screen.getAllByRole('radio')[0]!);
@@ -246,49 +246,150 @@ async function walkTo(user: User, step: 3 | 4 | 5) {
     expect(primary[primary.length - 1]).not.toBeDisabled();
   });
   await clickNext(user);
-  await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
   if (step >= 4) await clickNext(user);
   if (step >= 5) await clickNext(user);
 }
 
-/** From a `?type=&sourceId=` deep link: Next through steps 1, 2, 3 and 4 to step 5. */
+/**
+ * From a `?sourceId=` deep link to an id that is not among the sources (no `type`, so the normal
+ * step 1 flow runs and the id is applied once a type is picked): Next through the steps to step 5.
+ */
 async function deepLinkToStep5(user: User) {
-  await waitFor(() => expect(screen.getAllByRole('radio')[1]).toBeChecked());
+  await waitFor(() => screen.getByRole('radiogroup'));
+  await user.click(screen.getAllByRole('radio')[0]!); // claim
   await clickNext(user); // 1 -> 2
   await waitFor(() => {
     const primary = screen.getAllByRole('button').filter((b) => b.className.includes('btnPrimary'));
     expect(primary[primary.length - 1]).not.toBeDisabled();
   });
   await clickNext(user); // 2 -> 3
-  await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
   await clickNext(user); // 3 -> 4
   await clickNext(user); // 4 -> 5
 }
 
-// ─── ?type= preset ──────────────────────────────────────────────────────────
+// ─── ?type= / ?sourceId= presets (#2243 D1) ─────────────────────────────────
 
-describe('ReportWizardPage ?type= preset', () => {
-  it('selects the budget overview use case and loads the per-source amounts', async () => {
+describe('ReportWizardPage ?type= / ?sourceId= presets', () => {
+  const stepHeading = () => screen.getByRole('heading', { level: 2 });
+  const stepperButton = (name: string) => screen.getByRole('button', { name });
+  const currentStepText = () => document.querySelector('[aria-current="step"]')?.textContent ?? '';
+  const sourceRadio = (id: string) =>
+    screen.getAllByRole('radio').find((r) => (r as HTMLInputElement).value === id) as
+      HTMLInputElement | undefined;
+
+  function twoSources() {
+    mockFetchBudgetSources.mockResolvedValue({
+      budgetSources: [
+        makeSource({ id: 'src-1' }),
+        makeSource({ id: 'src-2', name: 'Credit Line', sourceType: 'credit_line' }),
+      ],
+    });
+  }
+
+  it('a known type and source land on step 3 with steps 1 and 2 completed and clickable', async () => {
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Select invoices'));
+    expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-1');
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+    expect(currentStepText()).toContain('Select invoices');
+    expect(stepperButton('Report type')).toBeEnabled();
+    expect(stepperButton('Funding source')).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull();
+  });
+
+  it('Back from the preset landing goes to step 2 with the source radio checked', async () => {
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Funding source'));
+    expect(sourceRadio('src-1')).toBeChecked();
+  });
+
+  it('a type without a source preselects the only candidate source and lands on step 3', async () => {
+    renderPage('/money/reports?type=proof-of-funds');
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Select invoices'));
+    expect(mockGetSourceReport).toHaveBeenCalledWith('proof-of-funds', 'src-1');
+  });
+
+  it('a type without a source lands on step 2 when two sources qualify, loading every amount', async () => {
+    twoSources();
     renderPage('/money/reports?type=budget-overview');
 
-    await waitFor(() => expect(screen.getAllByRole('radio')[0]).toBeChecked());
-    expect(screen.getAllByRole('radio')[1]).not.toBeChecked();
-    await waitFor(() =>
-      expect(mockGetSourceReport).toHaveBeenCalledWith('budget-overview', 'src-1'),
-    );
-    // The Next button of step 1 appears because a use case is now chosen.
-    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Funding source'));
+    await waitFor(() => {
+      expect(mockGetSourceReport).toHaveBeenCalledWith('budget-overview', 'src-1');
+      expect(mockGetSourceReport).toHaveBeenCalledWith('budget-overview', 'src-2');
+    });
+    await waitFor(() => expect(sourceRadio('src-1')).toBeDefined());
+    expect(sourceRadio('src-1')).not.toBeChecked();
+    expect(sourceRadio('src-2')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.queryByText('That funding source no longer exists. Choose one.')).toBeNull();
   });
 
-  it.each([
-    ['claim', 1],
-    ['proof-of-funds', 2],
-  ] as const)('selects the %s use case', async (type, index) => {
-    renderPage(`/money/reports?type=${type}`);
-    await waitFor(() => expect(screen.getAllByRole('radio')[index]).toBeChecked());
+  it('a savings source or a closed loan is not a candidate: step 2 even with one such source', async () => {
+    mockFetchBudgetSources.mockResolvedValue({
+      budgetSources: [makeSource({ id: 'src-1', status: 'closed' })],
+    });
+    renderPage('/money/reports?type=claim');
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Funding source'));
   });
 
-  it('ignores an unknown type value and leaves no use case chosen', async () => {
+  it('an unknown source id lands on step 2 with an error that clears when a source is picked', async () => {
+    twoSources();
+    renderPage('/money/reports?type=claim&sourceId=ghost');
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Funding source'));
+    expect(
+      screen.getByText('That funding source no longer exists. Choose one.'),
+    ).toBeInTheDocument();
+    expect(mockGetSourceReport).not.toHaveBeenCalledWith('claim', 'ghost');
+
+    await waitFor(() => expect(sourceRadio('src-2')).toBeDefined());
+    await user.click(sourceRadio('src-2')!);
+
+    expect(screen.queryByText('That funding source no longer exists. Choose one.')).toBeNull();
+    await waitFor(() => expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-2'));
+  });
+
+  it('does not re-apply ?sourceId= after the use case is changed', async () => {
+    twoSources();
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+
+    await user.click(stepperButton('Report type'));
+    await user.click(screen.getAllByRole('radio')[1]!); // budget-overview
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Funding source'));
+    await waitFor(() => expect(sourceRadio('src-1')).toBeDefined());
+    expect(sourceRadio('src-1')).not.toBeChecked();
+    expect(sourceRadio('src-2')).not.toBeChecked();
+  });
+
+  it('applies the preset only once: choosing another use case is not overridden', async () => {
+    renderPage('/money/reports?type=claim');
+    const user = userEvent.setup();
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Select invoices'));
+
+    await user.click(stepperButton('Report type'));
+    await user.click(screen.getAllByRole('radio')[2]!);
+
+    await waitFor(() => expect(screen.getAllByRole('radio')[2]).toBeChecked());
+    expect(screen.getAllByRole('radio')[0]).not.toBeChecked();
+  });
+
+  it('ignores an unknown type value and stays on step 1 with nothing chosen', async () => {
     renderPage('/money/reports?type=bogus');
     await waitFor(() => screen.getByRole('radiogroup'));
     // Let the initial data load settle: the preset would have fired by now.
@@ -306,21 +407,25 @@ describe('ReportWizardPage ?type= preset', () => {
     for (const radio of screen.getAllByRole('radio')) expect(radio).not.toBeChecked();
   });
 
-  it('combines ?type= with ?sourceId= so the report for that source is loaded', async () => {
+  it('keeps focus off the step heading on mount and on a preset landing, and moves it after Next', async () => {
     renderPage('/money/reports?type=claim&sourceId=src-1');
-    await waitFor(() => expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-1'));
-    await waitFor(() => expect(screen.getAllByRole('radio')[1]).toBeChecked());
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+    // Two animation frames: a wrongly scheduled heading focus would have landed by now.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(stepHeading()).not.toHaveFocus();
+
+    await clickNext(user); // 3 -> 4
+    await waitFor(() => expect(stepHeading()).toHaveTextContent('Settings'));
+    await waitFor(() => expect(stepHeading()).toHaveFocus());
   });
 
-  it('applies the preset only once: choosing another use case is not overridden', async () => {
-    renderPage('/money/reports?type=claim');
-    const user = userEvent.setup();
-    await waitFor(() => expect(screen.getAllByRole('radio')[1]).toBeChecked());
-
-    await user.click(screen.getAllByRole('radio')[2]!);
-
-    await waitFor(() => expect(screen.getAllByRole('radio')[2]).toBeChecked());
-    expect(screen.getAllByRole('radio')[1]).not.toBeChecked();
+  it('does not focus the step 1 heading on a plain page mount either', async () => {
+    renderPage('/money/reports');
+    await waitFor(() => screen.getByRole('radiogroup'));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    expect(stepHeading()).not.toHaveFocus();
   });
 });
 
@@ -328,7 +433,7 @@ describe('ReportWizardPage ?type= preset', () => {
 
 describe('ReportWizardPage with a source id that is not among the sources', () => {
   it('Download does nothing and generates no PDF', async () => {
-    renderPage('/money/reports?type=claim&sourceId=ghost-source');
+    renderPage('/money/reports?sourceId=ghost-source');
     const user = userEvent.setup();
     await deepLinkToStep5(user);
 
@@ -347,7 +452,7 @@ describe('ReportWizardPage with a source id that is not among the sources', () =
       paperlessUrl: null,
       filterTag: null,
     });
-    renderPage('/money/reports?type=claim&sourceId=ghost-source');
+    renderPage('/money/reports?sourceId=ghost-source');
     const user = userEvent.setup();
     await deepLinkToStep5(user);
 
@@ -365,7 +470,7 @@ async function confirmClaim(user: User) {
   await user.click(
     await screen.findByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }),
   );
-  await user.click(await screen.findByRole('button', { name: 'Confirm' }));
+  await user.click(await screen.findByTestId('report-mark-confirm'));
 }
 
 describe('ReportWizardPage claim edge cases', () => {
@@ -431,7 +536,7 @@ describe('ReportWizardPage claim edge cases', () => {
 
     await confirmClaim(user);
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('report-mark-confirm')).toBeNull());
     expect(screen.queryByText(/Could not mark invoices/)).toBeNull();
     expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
   });
@@ -455,11 +560,11 @@ describe('ReportWizardPage AI generation with every invoice deselected', () => {
     // button is disabled when nothing is selected, the stepper is not).
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Select all invoices' }));
+    await user.click(await screen.findByRole('checkbox', { name: /^Select all invoices/ }));
     const stepper = screen.getByRole('navigation', { name: 'Report wizard steps' });
-    await user.click(within(stepper).getByRole('button', { name: /Preview & Export/ }));
+    await user.click(within(stepper).getByRole('button', { name: /Preview and export/ }));
 
-    await user.click(await screen.findByRole('button', { name: 'Enhance with AI' }));
+    await user.click(await screen.findByRole('button', { name: 'Draft with AI' }));
 
     expect(await screen.findByText('Select at least one invoice.')).toBeInTheDocument();
     expect(mockGenerateReportContent).not.toHaveBeenCalled();
@@ -531,5 +636,154 @@ describe('ReportWizardPage skipped documents and preview', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Step 3 summary, Mark dialog and success banner (#2243 AC3, AC5) ────────
+
+describe('ReportWizardPage selection and the Mark as submitted dialog', () => {
+  function twoInvoices() {
+    mockGetSourceReport.mockResolvedValue(
+      makeReport({
+        invoices: [
+          makeInvoice({ invoiceId: 'inv-1', invoiceNumber: 'INV-001', allocatedAmount: 1000 }),
+          makeInvoice({
+            invoiceId: 'inv-2',
+            vendorId: 'vend-2',
+            vendorName: 'Beta',
+            invoiceNumber: 'INV-002',
+            allocatedAmount: 500,
+            invoiceAmount: 500,
+          }),
+        ],
+        totalAmount: 1500,
+      }),
+    );
+  }
+
+  async function toStep5WithSecondExcluded(user: User) {
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+    await user.click(screen.getByRole('checkbox', { name: /Beta.*INV-002/ }));
+    await clickNext(user); // 3 -> 4
+    await clickNext(user); // 4 -> 5
+    await screen.findByRole('button', { name: 'Mark 1 invoice as submitted' });
+  }
+
+  it('shows one count and total in the step 3 summary, the step 5 block, and the Mark dialog', async () => {
+    twoInvoices();
+    const user = userEvent.setup();
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+
+    await user.click(screen.getByRole('checkbox', { name: /Beta.*INV-002/ }));
+    expect(screen.getByText(/1 of 2 invoices selected · Total .*1,000\.00/)).toBeInTheDocument();
+
+    await clickNext(user);
+    await clickNext(user);
+    expect(
+      await screen.findByText(/This invoice then leaves the Draw-down request list/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Mark 1 invoice as submitted' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Mark 1 invoice as submitted?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Total: .*1,000\.00/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('They move from To pay or Paid to Submitted for Home Loan.'),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('report-mark-cancel')).toHaveFocus();
+  });
+
+  it('marks, closes the dialog, shows the success banner with both links, and focuses the step 5 heading', async () => {
+    twoInvoices();
+    mockMarkInvoicesClaimed.mockResolvedValue({
+      batchId: 'batch-1',
+      claimedInvoiceIds: ['inv-1'],
+      claimedDepositIds: [],
+    });
+    const user = userEvent.setup();
+    await toStep5WithSecondExcluded(user);
+
+    await user.click(screen.getByRole('button', { name: 'Mark 1 invoice as submitted' }));
+    await user.click(await screen.findByTestId('report-mark-confirm'));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', ['inv-1'], []);
+    const banner = screen
+      .getAllByRole('status')
+      .find((el) => el.className.includes('bannerSuccess'))!;
+    expect(banner).toHaveTextContent('1 invoice and 0 progress payments marked as submitted');
+    expect(within(banner).getByRole('link', { name: 'View invoices' })).toHaveAttribute(
+      'href',
+      '/budget/invoices',
+    );
+    expect(within(banner).getByRole('link', { name: 'Open History' })).toHaveAttribute(
+      'href',
+      '/budget/financing/sources/src-1?tab=history',
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 2, name: 'Preview and export' })).toHaveFocus(),
+    );
+  });
+
+  it('INVOICES_NOT_CLAIMABLE keeps the dialog open with the reason, hides the action, and refetches', async () => {
+    twoInvoices();
+    const { ApiClientError } = await import('../../lib/apiClient.js');
+    mockMarkInvoicesClaimed.mockRejectedValueOnce(
+      new ApiClientError(409, {
+        code: 'INVOICES_NOT_CLAIMABLE',
+        message: 'not claimable',
+        details: { invoiceIds: ['inv-1'] },
+      }),
+    );
+    const user = userEvent.setup();
+    await toStep5WithSecondExcluded(user);
+    const callsBefore = mockGetSourceReport.mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Mark 1 invoice as submitted' }));
+    await user.click(await screen.findByTestId('report-mark-confirm'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      await within(dialog).findByText(/Could not mark invoices INV-001 as submitted/),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('report-mark-confirm')).toBeNull();
+    await waitFor(() => expect(mockGetSourceReport.mock.calls.length).toBeGreaterThan(callsBefore));
+
+    // Cancel closes it; opening it again starts clean
+    await user.click(screen.getByTestId('report-mark-cancel'));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await user.click(screen.getByRole('button', { name: 'Mark 1 invoice as submitted' }));
+    expect(await screen.findByTestId('report-mark-confirm')).toBeInTheDocument();
+    expect(screen.queryByText(/Could not mark invoices/)).toBeNull();
+  });
+
+  it('Finish without marking shows View invoices but no Open History', async () => {
+    twoInvoices();
+    const user = userEvent.setup();
+    await toStep5WithSecondExcluded(user);
+
+    await user.click(screen.getByRole('button', { name: 'Finish without marking' }));
+
+    expect(screen.getByRole('link', { name: 'View invoices' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open History' })).toBeNull();
+    expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
+  });
+
+  it('keeps Next on step 3 inert (aria-disabled, with its reason) when every invoice is deselected', async () => {
+    twoInvoices();
+    const user = userEvent.setup();
+    renderPage('/money/reports?type=claim&sourceId=src-1');
+    await waitFor(() => expect(screen.getAllByText('ACME')[0]).toBeInTheDocument());
+
+    await user.click(screen.getByRole('checkbox', { name: /^Select all invoices/ }));
+
+    const next = screen.getByRole('button', { name: 'Next' });
+    expect(next).toHaveAttribute('aria-disabled', 'true');
+    expect(next.className).toContain('inertPrimary');
+    expect(next).toHaveAccessibleDescription('Select at least one invoice to proceed');
+    await user.click(next);
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Select invoices');
   });
 });

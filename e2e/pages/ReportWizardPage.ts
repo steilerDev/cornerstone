@@ -25,7 +25,7 @@
  *     each containing either a `<button class*="stepButton">` (reachable step, stepNum <=
  *     maxReachedStep) or a non-interactive `<div class*="stepButtonDisabled">` (forward-locked
  *     step — NOT a button, not in the a11y/tab tree). Now 5 items (`stepItems.nth(3)` =
- *     "Settings", `stepItems.nth(4)` = "Preview & Export").
+ *     "Settings", `stepItems.nth(4)` = "Preview and export").
  *   - Mobile (<768px, visible): `<p class*="stepCount">` (now "Step N of 5") + `<div
  *     class*="dotIndicators"><div class*="dot">` (now 5 dots).
  *
@@ -115,7 +115,7 @@
  *     button (`sourceReports.editable.previewPdf`) which is now the ONLY way to see rendered
  *     PDF output on step 5 — clicking it calls `generatePdfFromContent()` fresh (always a new
  *     `URL.createObjectURL()` blob, never memoized/skipped) and opens a wide `Modal`
- *     (`role="dialog"`, name `sourceReports.editable.previewModalTitle` = "PDF Preview")
+ *     (`role="dialog"`, name `sourceReports.editable.previewModalTitle` = "PDF preview")
  *     wrapping the UNCHANGED `ReportPdfPreview.tsx` — same `iframe[title="Report PDF
  *     preview"]`/`[class*="pdfLoadingOverlay"]`/`[class*="pdfPreviewWrapper"]` structure as
  *     before, just now scoped INSIDE the modal instead of permanently mounted on the page. The
@@ -135,10 +135,10 @@
  * - Discard-edits confirmation modal (Story #1900): `role="dialog"` (name
  *   `sourceReports.editable.discardConfirmTitle` = "Discard your edits?"), shown whenever a
  *   guarded step 1-4 mutation (use case, source, any invoice/line toggle, settings toggle) is
- *   attempted while `overrides` is non-empty (`isDirty`). "Keep Editing"
- *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and Continue"
+ *   attempted while `overrides` is non-empty (`isDirty`). "Keep editing"
+ *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and continue"
  *   (`[class*="btnPrimary"]`) clears `overrides` THEN applies the originally-attempted change.
- * - Claim confirmation modal: `role="dialog"` (name "Mark Invoices as Claimed?"). Structurally
+ * - Claim confirmation dialog: `role="alertdialog"` (name "Mark n invoice(s) as submitted?", #2243). Structurally
  *   never concurrent with the PDF preview modal or the discard-confirm modal (all three are
  *   independent `showX` booleans, only one user action path opens any given one at a time) —
  *   but if a PDF preview modal IS left open, its backdrop/overlay will intercept clicks
@@ -159,7 +159,7 @@
  *   containers (`e2e/containers/cornerstoneContainer.ts`) set no `LLM_*` environment variables at
  *   all, so against the real, unmocked backend `llmEnabled` is always `false` — the only way to
  *   reach the `true` branch in E2E is `page.route('**\/api/config', ...)`. The block contains: an
- *   "Enhance with AI" button (`generateWithAiButton`, `sourceReports.editable.enhanceWithAi` —
+ *   "Draft with AI" button (`generateWithAiButton`, `sourceReports.editable.enhanceWithAi` — renamed again by #2243 (was "Enhance with AI"); earlier history:
  *   renamed from "Generate with AI" by Issue #1931, since the action improves existing
  *   deterministic content rather than generating from nothing) that disables itself
  *   (`isGeneratingAi`) for the duration of the call and carries
@@ -189,9 +189,9 @@
  *   no manual edits since the first generation runs immediately, no overwrite modal. With a
  *   manual edit present, it shows the SAME `Modal` component family as the discard-confirm modal
  *   (`role="dialog"`, name `sourceReports.editable.aiOverwriteConfirmTitle` = "Overwrite your
- *   edits?"): "Overwrite and Generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
+ *   edits?"): "Overwrite and generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
  *   generation immediately (clearing `overrides` as a side effect of `runAiGeneration` succeeding
- *   — see `applyAiContent`'s docstring); "Keep Editing" (`btnSecondary`, same translation key/
+ *   — see `applyAiContent`'s docstring); "Keep editing" (`btnSecondary`, same translation key/
  *   button as the discard modal) closes without ever calling the generate-content endpoint.
  * - A confirmed step 1-4 mutation via the discard-confirm modal (`guardedUpdate`) clears BOTH
  *   `overrides` AND `aiContent` (`isDirty = overrides.length > 0 || aiContent !== null`) —
@@ -235,7 +235,7 @@
  *   locators reflect the current design and are correct.
  *   Instead, a split row appends a grey inline `<span class*="inlineNote">` reading `(partial)`
  *   (de: `(Teilbetrag)`, `sourceReports.table.splitInlineLabel`) INSIDE the Allocated Amount
- *   cell, and a deposit-reduced row one reading `(less deposit)` (de: `(abzgl. Abschlag)`,
+ *   cell, and a deposit-reduced row one reading `(less part‑payment)` (de: `(abzgl. Abschlag)`,
  *   `depositReducedInlineLabel`) — same cell, same pattern as the existing inline Deposit badge.
  *   See `inlineNote()`/`mobileInlineNote()` below; the desktop copy carries a leading space
  *   inside the span (` (partial)`), which `toHaveText`'s whitespace normalization absorbs.
@@ -261,7 +261,7 @@
  *   `depositBadge` — the old array-length gate used to suppress `(partial)` here; `splitKind`
  *   alone decides now, and `row.isDeposit`'s trigger is unrelated to it. See Scenario 17 in
  *   `reportWizardEditableContent.spec.ts`.
- * - `(less deposit)` now fires ONLY when a deposit is tagged to a source OTHER than the one being
+ * - `(less part‑payment)` now fires ONLY when a deposit is tagged to a source OTHER than the one being
  *   reported. An UNTAGGED deposit (`budgetSourceId: null`) never triggers it — untagged deposits
  *   are apportioned pro-rata back INTO the reported source, not claimed separately (Issue #1965's
  *   "separately" wording is audit-load-bearing, which is what made the old over-inclusive
@@ -287,6 +287,29 @@
  *   classNames and DOM structure (`container > [label?, fieldWrapper, resetButton?]`) are
  *   UNCHANGED, so `resetButtonFor`/`hasEditedIndicator`/`resetField` below still resolve
  *   correctly without any locator changes.
+ *
+ * Story #2243: bank report restructure ("Draw-down request").
+ * - Step labels are sentence case: Report type, Funding source, Select invoices, Settings,
+ *   Preview and export. Step 1 lists Draw-down request (`claim`), Budget overview, Proof of
+ *   funds, in that order.
+ * - Landing rule for `?type=` / `?sourceId=` (`resolveReportPreset`): a valid type plus a known
+ *   source opens step 3 (steps 1-2 completed); an unknown source opens step 2 with a FormError;
+ *   a type alone opens step 3 only when exactly ONE non-closed bank_loan / credit_line exists
+ *   (else step 2). No valid type: the old step 1 flow, `sourceId` applied once a type is picked.
+ *   The shared E2E database holds other tests' loans, so preset scenarios mock
+ *   `GET /api/budget-sources` (see `mockBudgetSources`). Page mount and preset landings do not
+ *   focus a step heading, so `waitForStepSettled` belongs only after button navigation.
+ * - Step 3 groups the invoices by company (h3 groups, testids `report-invoices-group-mobile-<vendorId>`
+ *   and `report-invoices-group-toggle-mobile-<vendorId>`, the `card` surface), shows 25 per batch
+ *   (`REPORT_INVOICE_PAGE_SIZE`) behind an `InfiniteScrollFooter` (testIdPrefix `report-invoices`),
+ *   and the selection (select all "Select all invoices (n)", count, total) always covers every
+ *   invoice. Next is `aria-disabled` (not natively disabled) at zero selected.
+ * - Step 5 has two blocks: "Get the report" (Preview, Download = the one primary, Paperless) and
+ *   `section.afterSend` (claim reports only): "Mark n invoices as submitted" (secondary,
+ *   aria-disabled at zero) and "Finish without marking". Mark opens a `ConfirmDialog`
+ *   (`alertdialog`, testIds `report-mark-confirm` / `report-mark-cancel`; Cancel returns focus
+ *   to Mark). A nothing-claimable or 409 result shows its message INSIDE the dialog and hides
+ *   the action. The success banner (`role="status"`) offers "View invoices" and "Open History".
  *
  * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
  * `step4NextButton`/`step5BackButton`, etc.): every step body is rendered from a single
@@ -339,7 +362,7 @@
  *   `deposit.budgetSourceId === report.source.id` (the CURRENTLY viewed source); any other
  *   value (including a different source's id) renders a plain `—` — deposits tagged to a
  *   different source are never shown as tagged in someone else's report.
- * - Claim confirm modal warning block: `[role="alert"]` (`class*="warningBlock"`) rendered
+ * - Claim confirm dialog warning block: `bannerWarning` (no alert role since #2243) rendered
  *   inside the modal ONLY when at least one included (non invoice-excluded) invoice has one
  *   or more excluded lines — text is `sourceReports.confirmClaimExcludedItemsWarning`
  *   ("{{count}} invoice(s) have excluded line items and will keep their current claim status —
@@ -423,14 +446,21 @@ export class ReportWizardPage {
   readonly mobileStepCount: Locator;
   readonly mobileDots: Locator;
 
+  // Page-level step heading (the single h2 inside the wizard card).
+  readonly stepHeading: Locator;
+
   // Step 1: Use case
   readonly useCaseRadioGroup: Locator;
+  readonly useCaseCards: Locator;
+  readonly useCaseTitles: Locator;
+  readonly useCaseHelpers: Locator;
   readonly step1NextButton: Locator;
 
   // Step 2: Source
   readonly sourceRadioGroup: Locator;
   readonly step2BackButton: Locator;
   readonly step2NextButton: Locator;
+  readonly presetSourceMissingBanner: Locator;
 
   // Step 3: Invoices
   readonly selectAllCheckbox: Locator;
@@ -443,6 +473,13 @@ export class ReportWizardPage {
   readonly emptyState: Locator;
   readonly step3BackButton: Locator;
   readonly step3NextButton: Locator;
+  // #2243: company groups, paging footer, status region, zero-selection reason.
+  readonly invoiceGroups: Locator;
+  readonly invoiceGroupHeadings: Locator;
+  readonly invoicesFooter: Locator;
+  readonly invoicesLoadMoreButton: Locator;
+  readonly invoicesEndOfList: Locator;
+  readonly invoicesStatus: Locator;
 
   // Step 4: Settings (report language + attach-documents/cover-letter options)
   readonly reportLanguageGroup: Locator;
@@ -462,7 +499,13 @@ export class ReportWizardPage {
   readonly claimErrorBanner: Locator;
   readonly claimSuccessBanner: Locator;
   readonly claimSuccessInvoicesLink: Locator;
+  readonly claimSuccessHistoryLink: Locator;
   readonly skippedDocumentsNote: Locator;
+  // #2243: the two step-5 blocks and the sender helper.
+  readonly getReportBlock: Locator;
+  readonly afterSendBlock: Locator;
+  readonly senderHelp: Locator;
+  readonly senderHelpLink: Locator;
   readonly step5BackButton: Locator;
 
   // Story #2161: maximum file size (step 4) and multi-PDF split (step 5).
@@ -511,7 +554,7 @@ export class ReportWizardPage {
   // The footnotes block (`.footnotes` / its `<li>` entries). Issue #1959 replaced the `†`/`‡`
   // split + deposit-reduced glyphs with inline labels (see `inlineNote()`), but Issue #1965
   // restored legend population: `buildReportContent.ts` now pushes ONE deduplicated sentence per
-  // active flag (`isPartial` → "Amount shown reflects only the portion allocated to this source.",
+  // active flag (`isPartial` → "Amount shown reflects only the portion allocated to this funding source.",
   // `isDepositReduced` → the corresponding deposit-reduced sentence) whenever any row in the
   // report carries that flag. Scenarios with split or deposit-reduced rows must assert a positive
   // count; scenarios with neither (e.g., constituted-deposit-only rows — Scenario 17) correctly
@@ -589,7 +632,12 @@ export class ReportWizardPage {
     this.mobileStepCount = page.locator('[class*="stepCount"]');
     this.mobileDots = page.locator('[class*="dotIndicators"] [class*="dot"]');
 
+    this.stepHeading = page.locator('[class*="metadataCard"] h2');
+
     this.useCaseRadioGroup = page.getByRole('radiogroup', { name: 'Which report do you need?' });
+    this.useCaseCards = page.locator('label[class*="useCaseCard"]');
+    this.useCaseTitles = page.locator('[class*="useCaseTitle"]');
+    this.useCaseHelpers = page.locator('[class*="useCaseHelper"]');
     this.step1NextButton = page.locator('[class*="metadataCard"] [class*="btnPrimary"]').first();
 
     this.sourceRadioGroup = page.getByRole('radiogroup', {
@@ -597,6 +645,9 @@ export class ReportWizardPage {
     });
     this.step2BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').first();
     this.step2NextButton = page.locator('[class*="buttonRow"] [class*="btnPrimary"]').first();
+    this.presetSourceMissingBanner = page
+      .locator('[class*="metadataCard"] [role="alert"]')
+      .filter({ hasText: 'That funding source no longer exists' });
 
     // Issue #1933: `.headerCheckbox` was removed (it fought `.checkboxWithContent`'s
     // alignment — see class docstring) — scope via the still-present `.listHeader`
@@ -613,6 +664,14 @@ export class ReportWizardPage {
     this.emptyState = page.locator('[class*="emptyState"]');
     this.step3BackButton = this.step2BackButton;
     this.step3NextButton = this.step2NextButton;
+    // #2243. The group sections use the `card` surface testid; the toggles share the prefix
+    // `report-invoices-group`, so the anchored pattern keeps them out of `invoiceGroups`.
+    this.invoiceGroups = page.getByTestId(/^report-invoices-group-mobile-/);
+    this.invoiceGroupHeadings = page.locator('[class*="metadataCard"] h3');
+    this.invoicesFooter = page.getByTestId('report-invoices-footer');
+    this.invoicesLoadMoreButton = page.getByTestId('report-invoices-load-more-button');
+    this.invoicesEndOfList = page.getByTestId('report-invoices-end-of-list');
+    this.invoicesStatus = page.getByTestId('report-invoices-status');
 
     this.reportLanguageGroup = page.getByRole('group', { name: 'Report language' });
     this.attachDocumentsCheckbox = page.locator('#attachDocuments');
@@ -631,9 +690,20 @@ export class ReportWizardPage {
     });
     this.finishWithoutMarkingButton = page.getByRole('button', { name: 'Finish without marking' });
     this.uploadPaperlessButton = page.getByRole('button', { name: 'Upload to Paperless' });
-    this.claimErrorBanner = page.locator('[class*="bannerError"]');
+    // #2243: claim errors (nothing claimable, 409) render inside the mark dialog (FormError).
+    this.claimErrorBanner = page.getByRole('alertdialog').getByRole('alert');
     this.claimSuccessBanner = page.locator('[class*="bannerSuccess"]');
-    this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
+    // #2243: the banner has two links (View invoices, Open History).
+    this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link', {
+      name: 'View invoices',
+    });
+    this.claimSuccessHistoryLink = this.claimSuccessBanner.getByRole('link', {
+      name: 'Open History',
+    });
+    this.getReportBlock = page.locator('[class*="getReport"]');
+    this.afterSendBlock = page.locator('section[class*="afterSend"]');
+    this.senderHelp = page.getByTestId('report-sender-help');
+    this.senderHelpLink = this.senderHelp.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
     this.step5BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').last();
 
@@ -652,7 +722,7 @@ export class ReportWizardPage {
     this.previewPartSelect = page.locator('#previewPart');
 
     // Story #1900: on-demand PDF preview modal.
-    this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF Preview' });
+    this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF preview' });
     this.pdfPreviewModalCloseButton = this.pdfPreviewModal.getByRole('button', {
       name: 'Close dialog',
     });
@@ -691,21 +761,26 @@ export class ReportWizardPage {
     this.columnToggleGroup = page.getByRole('group', { name: 'Show/hide columns' });
     this.usageHiddenAttachmentsWarning = page.locator('[class*="bannerWarning"]');
 
-    this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark invoices as submitted?' });
-    this.claimConfirmModalBody = this.claimConfirmModal.locator('p');
-    this.claimConfirmConfirmButton = this.claimConfirmModal.locator('[class*="btnPrimary"]');
-    this.claimConfirmCancelButton = this.claimConfirmModal.locator('[class*="btnSecondary"]');
+    // #2243: a ConfirmDialog (`alertdialog`) titled "Mark n invoice(s) as submitted?". Its
+    // description (the lead: "Total: …", "They move from …") carries no testid, so it is found by
+    // the dialog's own description class; the buttons have the `report-mark` testIdPrefix.
+    this.claimConfirmModal = page.getByRole('alertdialog', {
+      name: /^Mark \d+ invoices? as submitted\?$/,
+    });
+    this.claimConfirmModalBody = this.claimConfirmModal.locator('[class*="description"]');
+    this.claimConfirmConfirmButton = page.getByTestId('report-mark-confirm');
+    this.claimConfirmCancelButton = page.getByTestId('report-mark-cancel');
 
     this.errorLoadingDataBanner = page.locator('[class*="metadataCard"] [role="alert"]').first();
 
-    // Warning block ([role="alert"], class*="warningBlock") shown inside the claim-confirm
-    // modal only when an included invoice has excluded lines (see class docstring above).
-    this.markClaimedWarningBlock = this.claimConfirmModal.locator('[role="alert"]');
+    // Warning block (shared `bannerWarning`, no alert role since #2243) shown inside the mark
+    // dialog only when an included invoice has excluded lines (see class docstring above).
+    this.markClaimedWarningBlock = this.claimConfirmModal.locator('[class*="bannerWarning"]');
 
     // Story #1901 / Issue #1931: AI-generated usage descriptions and cover letter.
     this.aiGenerateRow = page.locator('[class*="aiGenerateRow"]');
     this.generateWithAiButton = this.aiGenerateRow.getByRole('button', {
-      name: 'Enhance with AI',
+      name: 'Draft with AI',
     });
     this.enhanceWithAiDescription = page.locator('#enhanceWithAiDescription');
     this.aiGeneratingCaption = this.aiGenerateRow.locator('[class*="aiGeneratingCaption"]');
@@ -731,10 +806,66 @@ export class ReportWizardPage {
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /** Open the wizard with the `?type=` preset (#2237: "Budget overview for the bank"). */
-  async gotoWithType(type: string): Promise<void> {
-    await this.page.goto(`${REPORT_WIZARD_ROUTE}?type=${encodeURIComponent(type)}`);
+  /**
+   * Open the wizard with the `?type=` preset (#2237: "Budget overview for the bank") and, from
+   * #2243, an optional `sourceId`. Where it lands depends on the funding sources (see the class
+   * docstring's landing rule), so callers that need a deterministic step mock the sources.
+   */
+  async gotoWithType(type: string, sourceId?: string): Promise<void> {
+    const source = sourceId === undefined ? '' : `&sourceId=${encodeURIComponent(sourceId)}`;
+    await this.page.goto(`${REPORT_WIZARD_ROUTE}?type=${encodeURIComponent(type)}${source}`);
     await this.heading.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Asserts the wizard sits on step `n`: the desktop stepper marks it `aria-current="step"`
+   * (present in the DOM at every width, only hidden below 768px), every earlier step is
+   * `stepCompleted`, and the step heading names it. Waits through the preset's fetches.
+   */
+  async expectOnStep(n: number, headingText: string): Promise<void> {
+    await expect(this.stepHeading).toHaveText(headingText);
+    await expect(this.stepItems.nth(n - 1).locator('[aria-current="step"]')).toHaveCount(1);
+    for (let i = 0; i < n - 1; i += 1) {
+      await expect(this.stepItems.nth(i)).toHaveClass(/stepCompleted/);
+    }
+  }
+
+  // ─── Step 3: company groups and paging (#2243) ───────────────────────────
+
+  /** The company group section (`card` surface) for a vendor id. */
+  invoiceGroup(vendorId: string): Locator {
+    return this.page.getByTestId(`report-invoices-group-mobile-${vendorId}`);
+  }
+
+  /** The group's h3 disclosure button (company name + count). */
+  invoiceGroupToggle(vendorId: string): Locator {
+    return this.page.getByTestId(`report-invoices-group-toggle-mobile-${vendorId}`);
+  }
+
+  /** The group's own include checkbox (visually unlabelled; named "Select <company>"). */
+  invoiceGroupCheckbox(vendorId: string, vendorName: string): Locator {
+    return this.invoiceGroup(vendorId).getByRole('checkbox', {
+      name: `Select ${vendorName}`,
+      exact: true,
+    });
+  }
+
+  /** Select-all by its count-bearing name ("Select all invoices (n)"). */
+  selectAllCheckboxFor(totalCount: number): Locator {
+    return this.page.getByRole('checkbox', {
+      name: `Select all invoices (${totalCount})`,
+      exact: true,
+    });
+  }
+
+  /**
+   * Triggers the footer's "Show more invoices" button without scrolling to it. A plain click
+   * scrolls the footer toward the sentinel, which also fires its IntersectionObserver, and the
+   * auto-loaded batch can remove the button mid-click. Specs that count batches also stub the
+   * observer (`reportWizardPresets.spec.ts`, `openPagedReport`).
+   */
+  async loadMoreInvoices(): Promise<void> {
+    await this.invoicesLoadMoreButton.dispatchEvent('click');
   }
 
   // ─── Step 1 ──────────────────────────────────────────────────────────────
@@ -1285,7 +1416,7 @@ export class ReportWizardPage {
    * badge CAN co-occur with an `inlineNote()` `(partial)` label when the invoice's own budget
    * lines are foreign to the reported source (`splitKind: 'lines'` — see Scenario 17 in
    * `reportWizardEditableContent.spec.ts`) — it is no longer guaranteed to be the row's ONLY
-   * annotation. `(less deposit)` still never co-occurs with the badge on the SAME source's own
+   * annotation. `(less part‑payment)` still never co-occurs with the badge on the SAME source's own
    * tagged deposit (that would require a foreign-tagged deposit, which is a different row shape).
    * Scoped to the row so it never collides with `mobileDepositBadge`'s copy
    * (both trees share the `depositBadge` class and are always in the DOM simultaneously, per
@@ -1327,7 +1458,7 @@ export class ReportWizardPage {
   /**
    * The grey inline note(s) (`[class*="inlineNote"]`) appended INSIDE a desktop row's Allocated
    * Amount cell by Issue #1959, which replaced the `†`/`‡` footnote markers: `(partial)` when
-   * `row.isPartial` and `(less deposit)` when `row.isDepositReduced`. Since Issue #1911 both flags
+   * `row.isPartial` and `(less part‑payment)` when `row.isDepositReduced`. Since Issue #1911 both flags
    * are driven purely by the server's `splitKind` (`'lines'`/`'both'` → `isPartial`;
    * `'deposits'`/`'both'` → `isDepositReduced`), independently of `row.isDeposit` (the
    * constituted-deposit badge trigger, unchanged) — a row CAN carry the `depositBadge` AND an
@@ -1384,13 +1515,13 @@ export class ReportWizardPage {
 
   // ─── Story #1900: discard-edits confirmation modal ──────────────────────────────────────────
 
-  /** "Discard and Continue" — clears all overrides then applies the originally-attempted change. */
+  /** "Discard and continue" — clears all overrides then applies the originally-attempted change. */
   async confirmDiscard(): Promise<void> {
     await this.discardConfirmDiscardButton.click();
     await this.discardConfirmModal.waitFor({ state: 'hidden' });
   }
 
-  /** "Keep Editing" — closes the modal without discarding anything or applying the change. */
+  /** "Keep editing" — closes the modal without discarding anything or applying the change. */
   async cancelDiscard(): Promise<void> {
     await this.discardConfirmKeepEditingButton.click();
     await this.discardConfirmModal.waitFor({ state: 'hidden' });
@@ -1408,13 +1539,13 @@ export class ReportWizardPage {
     await this.generateWithAiButton.click();
   }
 
-  /** "Overwrite and Generate" — closes the AI overwrite modal and runs the generation. */
+  /** "Overwrite and generate" — closes the AI overwrite modal and runs the generation. */
   async confirmAiOverwrite(): Promise<void> {
     await this.aiOverwriteAndGenerateButton.click();
     await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });
   }
 
-  /** "Keep Editing" — closes the AI overwrite modal WITHOUT ever calling generate-content. */
+  /** "Keep editing" — closes the AI overwrite modal WITHOUT ever calling generate-content. */
   async cancelAiOverwrite(): Promise<void> {
     await this.aiOverwriteKeepEditingButton.click();
     await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });

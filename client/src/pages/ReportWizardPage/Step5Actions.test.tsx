@@ -30,7 +30,7 @@ function baseProps() {
     useCase: 'claim' as SourceReportType,
     paperlessStatus: null as PaperlessStatusResponse | null,
     isMarkingClaimed: false,
-    claimError: null as string | null,
+    sourceId: 'src-1',
     claimSuccess: false,
     claimedInvoiceCount: 0,
     claimedDepositCount: 0,
@@ -307,35 +307,15 @@ describe('Step5Actions — Paperless upload gating', () => {
   });
 });
 
-describe('Step5Actions — claim error banner', () => {
-  it('renders the claim error banner when claimError is set', () => {
-    renderStep5({ ...baseProps(), claimError: 'Something went wrong' });
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-  });
-
-  it('renders the error banner with the bannerError class and role="alert" when claimError is set', () => {
-    const { container } = renderStep5({ ...baseProps(), claimError: 'Something went wrong' });
-    expect(container.querySelector('.bannerError')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong');
-  });
-
-  it('renders no error banner when claimError is null', () => {
-    const { container } = renderStep5({ ...baseProps(), claimError: null });
-    expect(container.querySelector('.bannerError')).not.toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-});
-
 describe('Step5Actions — claimSuccess', () => {
-  it('replaces the action buttons (including Preview PDF) with a success banner when claimSuccess is true', () => {
-    renderStep5({ ...baseProps(), useCase: 'claim', claimSuccess: true });
+  it('replaces only the "After you send it" block with the success banner; the report actions stay', () => {
+    const { container } = renderStep5({ ...baseProps(), useCase: 'claim', claimSuccess: true });
     expect(
-      screen.queryByRole('button', { name: /sourceReports.editable.previewPdf/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'sourceReports.download' }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: /sourceReports.editable.previewPdf/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'sourceReports.download' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: markClaimedName(3) })).not.toBeInTheDocument();
+    expect(container.querySelector('section.afterSend')).toBeNull();
   });
 
   it('interpolates the real claimedInvoiceCount/claimedDepositCount into the success banner text', () => {
@@ -395,15 +375,17 @@ describe('Step5Actions — Mark as submitted wording (AC6, real resources)', () 
 
   it('states its reason and is disabled when no invoice is selected (never "0 invoices")', () => {
     renderReal({ selectedInvoiceCount: 0 });
-    const button = screen.getByRole('button', { name: 'No invoices to mark as submitted' });
-    expect(button).toBeDisabled();
+    const button = screen.getByRole('button', { name: 'Mark as submitted' });
+    // aria-disabled (not disabled) so the reason stays reachable by keyboard and screen reader
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription('Select at least one invoice in step 3.');
     expect(screen.queryByRole('button', { name: /Mark 0/ })).not.toBeInTheDocument();
   });
 
   it('does not call onMarkClaimed when the zero-state button is clicked', () => {
     const onMarkClaimed = jest.fn();
     renderReal({ selectedInvoiceCount: 0, onMarkClaimed });
-    fireEvent.click(screen.getByRole('button', { name: 'No invoices to mark as submitted' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as submitted' }));
     expect(onMarkClaimed).not.toHaveBeenCalled();
   });
 
@@ -426,5 +408,90 @@ describe('Step5Actions — Mark as submitted wording (AC6, real resources)', () 
     renderReal({ selectedInvoiceCount: 2 }, deT);
     const button = screen.getByRole('button', { name: /eingereicht/ });
     expect(button).toHaveTextContent('2 Rechnungen als eingereicht markieren');
+  });
+});
+
+// #2243 AC5: block structure, Mark styling and the success banner links.
+describe('Step5Actions — two blocks, Mark as submitted and the success banner (#2243)', () => {
+  it('renders the report actions and the after-send section as separate containers', () => {
+    const { container } = renderStep5({ ...baseProps(), useCase: 'claim' });
+    const getReport = container.querySelector('.getReport')!;
+    const afterSend = container.querySelector('section.afterSend')!;
+    expect(getReport).not.toBeNull();
+    expect(afterSend).not.toBeNull();
+    expect(getReport.contains(afterSend)).toBe(false);
+    expect(afterSend.contains(getReport)).toBe(false);
+    expect(
+      within(getReport as HTMLElement).getByRole('button', { name: 'sourceReports.download' }),
+    ).toBeInTheDocument();
+    expect(within(afterSend as HTMLElement).getByRole('heading', { level: 3 })).toHaveTextContent(
+      'sourceReports.afterSend.heading',
+    );
+    expect(afterSend).toHaveTextContent('sourceReports.afterSend.text::{"count":3}');
+  });
+
+  it('shows no after-send section for the other report types', () => {
+    const { container } = renderStep5({ ...baseProps(), useCase: 'budget-overview' });
+    expect(container.querySelector('section.afterSend')).toBeNull();
+  });
+
+  it('Download is the only primary of the step; Mark is secondary', () => {
+    renderStep5({ ...baseProps(), useCase: 'claim' });
+    const primaries = screen
+      .getAllByRole('button')
+      .filter((b) => b.className.includes('btnPrimary'));
+    expect(primaries.map((b) => b.textContent)).toEqual(['sourceReports.download']);
+    const mark = screen.getByRole('button', { name: markClaimedName(3) });
+    expect(mark.className).toContain('btnSecondary');
+  });
+
+  it('Mark carries the inert style while aria-disabled at zero, and calls nothing', () => {
+    const onMarkClaimed = jest.fn();
+    renderStep5({ ...baseProps(), selectedInvoiceCount: 0, onMarkClaimed });
+    const mark = screen.getByRole('button', { name: 'sourceReports.markSubmittedNone' });
+    expect(mark).toHaveAttribute('aria-disabled', 'true');
+    expect(mark.className).toContain('inertSecondary');
+    expect(mark).toHaveAttribute('aria-describedby');
+    expect(document.getElementById(mark.getAttribute('aria-describedby')!)).toHaveTextContent(
+      'sourceReports.mark.zeroReason',
+    );
+    fireEvent.click(mark);
+    expect(onMarkClaimed).not.toHaveBeenCalled();
+  });
+
+  it('an enabled Mark has no aria-disabled or description and calls onMarkClaimed', () => {
+    const onMarkClaimed = jest.fn();
+    renderStep5({ ...baseProps(), onMarkClaimed });
+    const mark = screen.getByRole('button', { name: markClaimedName(3) });
+    expect(mark).not.toHaveAttribute('aria-disabled');
+    expect(mark).not.toHaveAttribute('aria-describedby');
+    fireEvent.click(mark);
+    expect(onMarkClaimed).toHaveBeenCalledTimes(1);
+  });
+
+  it('the success banner is a status with View invoices and Open History links', () => {
+    renderStep5({
+      ...baseProps(),
+      sourceId: 'src-42',
+      claimSuccess: true,
+      claimedInvoiceCount: 2,
+    });
+    const banner = screen
+      .getAllByRole('status')
+      .find((el) => el.className.includes('bannerSuccess'))!;
+    expect(
+      within(banner).getByRole('link', { name: 'sourceReports.viewInvoices' }),
+    ).toHaveAttribute('href', '/budget/invoices');
+    expect(within(banner).getByRole('link', { name: 'sourceReports.openHistory' })).toHaveAttribute(
+      'href',
+      '/budget/financing/sources/src-42?tab=history',
+    );
+  });
+
+  it('finishing without marking shows View invoices but no Open History', () => {
+    renderStep5({ ...baseProps(), claimSuccess: true, finishedWithoutMarking: true });
+    expect(screen.getByText('sourceReports.finishedWithoutMarkingSuccess')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'sourceReports.viewInvoices' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'sourceReports.openHistory' })).toBeNull();
   });
 });

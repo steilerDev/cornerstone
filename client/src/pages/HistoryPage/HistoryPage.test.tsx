@@ -8,6 +8,7 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import type { DiaryEntrySummary, HistoryListResponse, HistoryObjectRef } from '@cornerstone/shared';
 import type React from 'react';
 import type * as HistoryApiTypes from '../../lib/historyApi.js';
+import type * as SourceReportsApiTypes from '../../lib/sourceReportsApi.js';
 import { createRouterLog, RecordingRouter } from '../../test/recordingRouter.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
@@ -17,6 +18,15 @@ import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 const TODAY = '2026-03-14';
 
 const mockListHistory = jest.fn<typeof HistoryApiTypes.listHistory>();
+const mockRevertSubmission = jest.fn<typeof SourceReportsApiTypes.revertSubmission>();
+const mockShowToast = jest.fn();
+
+jest.unstable_mockModule('../../lib/sourceReportsApi.js', () => ({
+  revertSubmission: mockRevertSubmission,
+}));
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: jest.fn() }),
+}));
 
 jest.unstable_mockModule('../../lib/historyApi.js', () => ({ listHistory: mockListHistory }));
 jest.unstable_mockModule('../../lib/localDate.js', () => ({ todayLocalIsoDate: () => TODAY }));
@@ -172,6 +182,8 @@ describe('HistoryPage', () => {
   beforeEach(async () => {
     if (!HistoryPage) ({ default: HistoryPage } = await import('./HistoryPage.js'));
     mockListHistory.mockReset();
+    mockRevertSubmission.mockReset();
+    mockShowToast.mockReset();
     media = installMatchMedia({ '(min-width: 768px)': true });
     originalObserver = globalThis.IntersectionObserver;
     (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
@@ -467,6 +479,17 @@ describe('HistoryPage', () => {
       await waitFor(() => expect(mockListHistory).toHaveBeenCalled());
       expect(log.actions).toEqual([]);
       expect(lastQuery()).toMatchObject({ type: 'payment', q: 'T-001' });
+    });
+
+    it('changing a filter on the empty state reloads with that filter from page 1', async () => {
+      const user = userEvent.setup();
+      mockListHistory.mockResolvedValue(response([]));
+      renderPage();
+      await screen.findByText('Nothing has changed yet');
+
+      await user.click(screen.getByTestId('history-type-payment'));
+
+      await waitFor(() => expect(lastQuery()).toMatchObject({ type: 'payment', page: 1 }));
     });
 
     it('pressing a type chip writes type and deselecting deletes it', async () => {
@@ -901,6 +924,104 @@ describe('HistoryPage', () => {
       expect(box().value).toBe('ab');
       await waitFor(() => expect(search()).toBe('?q=ab'));
       expect(box().value).toBe('ab');
+    });
+  });
+
+  describe('Revert submission (#2243)', () => {
+    function submissionRow(
+      id: string,
+      createdAt: string,
+      batchOver: Record<string, unknown> = {},
+    ): DiaryEntrySummary {
+      return task(id, createdAt, {
+        entryType: 'invoice_status',
+        sourceEntityType: 'invoice',
+        sourceEntityId: 'inv-1',
+        sourceEntityTitle: 'T-001',
+        metadata: {
+          v: 1,
+          event: 'status_changed',
+          from: 'pending',
+          to: 'claimed',
+          subjectLabel: 'T-001',
+          batchId: `batch-${id}`,
+        },
+        batch: {
+          batchId: `batch-${id}`,
+          invoiceCount: 2,
+          amount: 300,
+          invoiceLabels: ['T-001', 'T-002'],
+          budgetSourceId: 'src-1',
+          budgetSourceName: 'Bank A',
+          budgetSourceExists: true,
+          kind: 'submission',
+          reverted: false,
+          invoicesFrom: { pending: 2, paid: 0 },
+          progressPaymentCount: 0,
+          ...batchOver,
+        },
+      } as unknown as Partial<DiaryEntrySummary>);
+    }
+
+    it('offers the button only on unreverted submission rows, not on other rows', async () => {
+      mockListHistory.mockResolvedValue(
+        response([
+          submissionRow('a', at(14)),
+          submissionRow('b', at(14, 11), { reverted: true }),
+          submissionRow('c', at(14, 10), { kind: 'revert' }),
+          task('t', at(14, 9)),
+        ]),
+      );
+      renderPage();
+
+      await screen.findByTestId('revert-submission-batch-a');
+      expect(screen.queryByTestId('revert-submission-batch-b')).toBeNull();
+      expect(screen.queryByTestId('revert-submission-batch-c')).toBeNull();
+      expect(screen.getAllByRole('button', { name: /^Revert submission of/ })).toHaveLength(1);
+    });
+
+    it('reverts, toasts, reloads the feed from page 1 and focuses the h1', async () => {
+      mockListHistory.mockResolvedValue(response([submissionRow('a', at(14))]));
+      mockRevertSubmission.mockResolvedValue({
+        batchId: 'r',
+        restoredInvoiceIds: ['i1', 'i2'],
+        restoredDepositIds: [],
+      });
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByTestId('revert-submission-batch-a'));
+      const callsBefore = mockListHistory.mock.calls.length;
+
+      await user.click(await screen.findByTestId('revert-submission-confirm'));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(mockRevertSubmission).toHaveBeenCalledWith('batch-a');
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'info',
+        'Submission reverted. 2 invoices are back to To pay or Paid.',
+      );
+      await waitFor(() => expect(mockListHistory.mock.calls.length).toBeGreaterThan(callsBefore));
+      expect(mockListHistory.mock.lastCall?.[0]).toMatchObject({ page: 1 });
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
+    });
+
+    it('a 409 hides the action and reloads the feed once the dialog is closed', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      mockListHistory.mockResolvedValue(response([submissionRow('a', at(14))]));
+      mockRevertSubmission.mockRejectedValue(
+        new ApiClientError(409, { code: 'SUBMISSION_CHANGED', message: 'x' } as never),
+      );
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByTestId('revert-submission-batch-a'));
+      await user.click(await screen.findByTestId('revert-submission-confirm'));
+      await screen.findByText(/Some invoices changed since the submission/);
+      expect(screen.queryByTestId('revert-submission-confirm')).toBeNull();
+      const callsBefore = mockListHistory.mock.calls.length;
+
+      await user.click(screen.getByTestId('revert-submission-cancel'));
+
+      await waitFor(() => expect(mockListHistory.mock.calls.length).toBeGreaterThan(callsBefore));
     });
   });
 });

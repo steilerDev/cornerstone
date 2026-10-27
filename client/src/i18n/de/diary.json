@@ -383,7 +383,8 @@
     "hiddenShowing_other": "{{count}} spätere Verzögerungshinweise werden angezeigt.",
     "badge": {
       "payment": "Zahlung",
-      "submission": "Einreichung"
+      "submission": "Einreichung",
+      "reverted": "Rückgängig gemacht"
     },
     "submission": {
       "sentence_one": "{{count}} Rechnung an die Bank eingereicht, {{amount}}",
@@ -392,7 +393,30 @@
       "sentenceNoAmount_other": "{{count}} Rechnungen an die Bank eingereicht",
       "invoices_one": "Rechnung {{numbers}}",
       "invoices_other": "Rechnungen {{numbers}}",
-      "invoicesMore": "Rechnungen {{numbers}} und {{more}} weitere"
+      "invoicesMore": "Rechnungen {{numbers}} und {{more}} weitere",
+      "reverted_one": "Einreichung von {{count}} Rechnung rückgängig gemacht, {{amount}}",
+      "reverted_other": "Einreichung von {{count}} Rechnungen rückgängig gemacht, {{amount}}",
+      "revertedNoAmount_one": "Einreichung von {{count}} Rechnung rückgängig gemacht",
+      "revertedNoAmount_other": "Einreichung von {{count}} Rechnungen rückgängig gemacht"
+    },
+    "revert": {
+      "action": "Einreichung rückgängig machen",
+      "actionLabel_one": "Einreichung von {{count}} Rechnung, eingereicht am {{date}}, rückgängig machen",
+      "actionLabel_other": "Einreichung von {{count}} Rechnungen, eingereicht am {{date}}, rückgängig machen",
+      "title_one": "Einreichung von {{count}} Rechnung rückgängig machen?",
+      "title_other": "Einreichung von {{count}} Rechnungen rückgängig machen?",
+      "lead": "Eingereicht am {{date}}. Gesamt {{amount}}. Jede Rechnung kehrt in den Status zurück, den sie zuvor hatte.",
+      "leadNoAmount": "Eingereicht am {{date}}. Jede Rechnung kehrt in den Status zurück, den sie zuvor hatte.",
+      "toPending": "Rechnungen, die zurück zu „Zu zahlen“ gehen",
+      "toPaid": "Rechnungen, die zurück zu „Bezahlt“ gehen",
+      "payments": "Abschlagszahlungen, die zurückgesetzt werden",
+      "confirm": "Einreichung rückgängig machen",
+      "busy": "Wird rückgängig gemacht…",
+      "keep": "Einreichung behalten",
+      "done_one": "Einreichung rückgängig gemacht. {{count}} Rechnung ist wieder „Zu zahlen“ oder „Bezahlt“.",
+      "done_other": "Einreichung rückgängig gemacht. {{count}} Rechnungen sind wieder „Zu zahlen“ oder „Bezahlt“.",
+      "doneNoInvoices": "Einreichung rückgängig gemacht.",
+      "failed": "Die Einreichung konnte nicht rückgängig gemacht werden. Bitte versuche es erneut."
     }
   }
 }

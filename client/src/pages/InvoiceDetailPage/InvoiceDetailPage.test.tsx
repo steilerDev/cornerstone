@@ -638,7 +638,7 @@ describe('InvoiceDetailPage header (S11)', () => {
         ),
       );
       expect(screen.getByTestId('invoice-primary-bank-report').getAttribute('href')).toBe(
-        '/budget/reports?sourceId=s1',
+        '/budget/reports?type=claim&sourceId=s1',
       );
     });
 
@@ -651,13 +651,13 @@ describe('InvoiceDetailPage header (S11)', () => {
         expect(screen.getByTestId('summary-fact-fundingSource')).toHaveTextContent('+1'),
       );
       expect(screen.getByTestId('invoice-primary-bank-report').getAttribute('href')).toBe(
-        '/budget/reports',
+        '/budget/reports?type=claim',
       );
     });
 
     it('sends no sourceId with no source at all', async () => {
       const link = await paidWith([makeCostLine({ budgetSourceId: null })]);
-      expect(link.getAttribute('href')).toBe('/budget/reports');
+      expect(link.getAttribute('href')).toBe('/budget/reports?type=claim');
     });
 
     it('follows the link with this page as origin', async () => {

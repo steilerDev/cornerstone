@@ -9,7 +9,7 @@ interface Step1UseCaseProps {
   t: TFunction;
 }
 
-const USE_CASES: readonly SourceReportType[] = ['budget-overview', 'claim', 'proof-of-funds'];
+const USE_CASES: readonly SourceReportType[] = ['claim', 'budget-overview', 'proof-of-funds'];
 
 export function Step1UseCase({ value, onChange, t }: Step1UseCaseProps) {
   return (

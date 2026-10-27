@@ -69,9 +69,12 @@ export function FinancingSourceCard({ source, originState }: FinancingSourceCard
                 id: 'bank-report',
                 label: t('financing.actions.prepareBankReport'),
                 onClick: () =>
-                  void navigate(routeUrl('bankReport', undefined, { sourceId: id }), {
-                    state: originState,
-                  }),
+                  void navigate(
+                    routeUrl('bankReport', undefined, { type: 'claim', sourceId: id }),
+                    {
+                      state: originState,
+                    },
+                  ),
                 testId: `financing-source-bank-report-${id}`,
               },
             ]}

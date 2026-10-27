@@ -344,7 +344,12 @@ test.describe('Financing: legacy URLs and actions', () => {
     await expect(page.locator('main [class*="btnPrimary"]')).toHaveCount(1);
     await expect(financing.prepareBankReport).toHaveClass(/btnPrimary/);
     await financing.prepareBankReport.click();
-    await expect(page).toHaveURL((url) => url.pathname === routeUrl('bankReport'));
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === routeUrl('bankReport') &&
+        url.searchParams.get('type') === 'claim' &&
+        !url.searchParams.has('sourceId'),
+    );
   });
 
   test('F3: Add funding source opens the dialog; Save lands on the new page with the h1 focused', async ({
@@ -414,7 +419,9 @@ test.describe('Financing: legacy URLs and actions', () => {
       await financing.cardMenuBankReport(sourceId).click();
       await expect(page).toHaveURL(
         (url) =>
-          url.pathname === routeUrl('bankReport') && url.searchParams.get('sourceId') === sourceId,
+          url.pathname === routeUrl('bankReport') &&
+          url.searchParams.get('type') === 'claim' &&
+          url.searchParams.get('sourceId') === sourceId,
       );
     } finally {
       await runCleanup(cleanup);

@@ -1,6 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
-import { getSourceReport, markInvoicesClaimed } from '../services/sourceReportService.js';
+import {
+  getSourceReport,
+  markInvoicesClaimed,
+  revertSubmission,
+} from '../services/sourceReportService.js';
 import { generateReportContent } from '../services/reportContentGenerationService.js';
 import type {
   SourceReportType,
@@ -117,6 +121,41 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
         depositIds,
         request.user.id,
       );
+
+      return reply.status(200).send(response);
+    },
+  );
+
+  /**
+   * POST /api/source-reports/batches/:batchId/revert
+   * Revert a bank-report submission: every item it claimed returns to its previous status.
+   * Returns: { batchId, restoredInvoiceIds, restoredDepositIds }
+   * Errors: 404 NOT_FOUND, 409 SUBMISSION_ALREADY_REVERTED, 409 SUBMISSION_CHANGED
+   * Auth required: Yes (both admin and member)
+   * Story #2243
+   */
+  fastify.post<{
+    Params: { batchId: string };
+  }>(
+    '/batches/:batchId/revert',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            batchId: { type: 'string' },
+          },
+          required: ['batchId'],
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const response = revertSubmission(fastify.db, request.params.batchId, request.user.id);
 
       return reply.status(200).send(response);
     },

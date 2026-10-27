@@ -311,7 +311,8 @@
     "hiddenShowing_other": "Showing {{count}} later delay notes.",
     "badge": {
       "payment": "Payment",
-      "submission": "Submission"
+      "submission": "Submission",
+      "reverted": "Reverted"
     },
     "submission": {
       "sentence_one": "{{count}} invoice submitted to the bank, {{amount}}",
@@ -320,7 +321,30 @@
       "sentenceNoAmount_other": "{{count}} invoices submitted to the bank",
       "invoices_one": "Invoice {{numbers}}",
       "invoices_other": "Invoices {{numbers}}",
-      "invoicesMore": "Invoices {{numbers}} and {{more}} more"
+      "invoicesMore": "Invoices {{numbers}} and {{more}} more",
+      "reverted_one": "Submission of {{count}} invoice reverted, {{amount}}",
+      "reverted_other": "Submission of {{count}} invoices reverted, {{amount}}",
+      "revertedNoAmount_one": "Submission of {{count}} invoice reverted",
+      "revertedNoAmount_other": "Submission of {{count}} invoices reverted"
+    },
+    "revert": {
+      "action": "Revert submission",
+      "actionLabel_one": "Revert submission of {{count}} invoice submitted on {{date}}",
+      "actionLabel_other": "Revert submission of {{count}} invoices submitted on {{date}}",
+      "title_one": "Revert submission of {{count}} invoice?",
+      "title_other": "Revert submission of {{count}} invoices?",
+      "lead": "Submitted on {{date}}. Total {{amount}}. Each invoice returns to the status it had before.",
+      "leadNoAmount": "Submitted on {{date}}. Each invoice returns to the status it had before.",
+      "toPending": "Invoices that go back to To pay",
+      "toPaid": "Invoices that go back to Paid",
+      "payments": "Progress payments that go back",
+      "confirm": "Revert submission",
+      "busy": "Reverting…",
+      "keep": "Keep submission",
+      "done_one": "Submission reverted. {{count}} invoice is back to To pay or Paid.",
+      "done_other": "Submission reverted. {{count}} invoices are back to To pay or Paid.",
+      "doneNoInvoices": "Submission reverted.",
+      "failed": "Reverting the submission failed. Please try again."
     }
   },
   "unfinished": {

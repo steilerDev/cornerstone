@@ -28,7 +28,7 @@
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PhotoSpotViewerPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "ProfilePage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
-      "ReportWizardPage": { "destinations": 4, "primaryButtons": 13, "searchFields": 0 },
+      "ReportWizardPage": { "destinations": 3, "primaryButtons": 11, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
@@ -147,16 +147,14 @@
       ]
     },
     "moneyLabels": {
-      "count": 84,
+      "count": 78,
       "values": [
         "(refund)",
-        "(unnamed budget line)",
         "actual cost",
         "add refund",
         "after grants",
         "allocated",
         "allocated amount",
-        "allocated source",
         "amount",
         "budget breakdown",
         "budget breakdown: no data",
@@ -170,7 +168,6 @@
         "cost line",
         "cost lines",
         "deposit",
-        "deposits & refunds",
         "direct amount",
         "eligible costs up to",
         "enter a final amount.",
@@ -191,7 +188,6 @@
         "invoice amount",
         "invoiced",
         "left to spend",
-        "less deposit",
         "loading budget lines",
         "mark paid",
         "net",
@@ -200,7 +196,6 @@
         "no more tags available",
         "not invoiced",
         "not yet paid",
-        "of | total",
         "on budget",
         "outstanding",
         "outstanding balance",
@@ -231,7 +226,6 @@
         "total amount",
         "total invoices",
         "unallocated",
-        "unallocated invoices ()",
         "unit price"
       ]
     },
