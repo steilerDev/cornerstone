@@ -7,7 +7,7 @@
  */
 
 import type { PaginationMeta } from './pagination.js';
-import type { SubsidyApplicationStatus } from './subsidyProgram.js';
+import type { ItemGrantChip, SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { UserSummary } from './workItem.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
@@ -204,6 +204,8 @@ export interface HouseholdItemSummary {
   budgetLineCount: number;
   totalPlannedAmount: number;
   budgetSummary: HouseholdItemBudgetAggregate;
+  /** Always sent on GET list rows (rejected grants excluded, by name); absent elsewhere. */
+  grants?: ItemGrantChip[];
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

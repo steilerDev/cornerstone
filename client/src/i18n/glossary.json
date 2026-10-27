@@ -549,6 +549,19 @@
       "doNotUse": [],
       "formerly": ["Claim"]
     },
+    "Covered items": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Covered items"
+      },
+      "de": {
+        "singular": "Abgedeckte Posten"
+      },
+      "deSource": "approved",
+      "definition": "The tasks and purchases a grant pays a share of.",
+      "doNotUse": [],
+      "formerly": ["Subsidy items"]
+    },
     "Bank report": {
       "groups": ["supportingNoun"],
       "en": {

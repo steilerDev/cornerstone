@@ -194,12 +194,7 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
     // #2205: the Money views live in the sidebar, not in an in-page tab row
     // Below 1024px the views live in the title menu (open it; the current row carries a check mark)
     await appShell.revealViews();
-    await expect(appShell.viewLinks).toContainText([
-      'Invoices',
-      'Funding sources',
-      'Grants',
-      'Bank report',
-    ]);
+    await expect(appShell.viewLinks).toContainText(['Invoices', 'Financing']);
     await expect(appShell.viewLink('invoices')).toHaveAttribute('aria-current', 'page');
     await expect(appShell.activeEntries).toHaveCount(1);
   });

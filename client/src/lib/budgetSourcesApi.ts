@@ -1,6 +1,7 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
   BudgetSource,
+  BudgetSourceDetailResponse,
   BudgetSourceListResponse,
   BudgetSourceResponse,
   CreateBudgetSourceRequest,
@@ -18,10 +19,10 @@ export function fetchBudgetSources(): Promise<BudgetSourceListResponse> {
 }
 
 /**
- * Fetches a single budget source by ID.
+ * Fetches a single budget source by ID, with the money service's figures for it.
  */
-export function fetchBudgetSource(id: string): Promise<BudgetSourceResponse> {
-  return get<BudgetSourceResponse>(`/budget-sources/${id}`);
+export function fetchBudgetSource(id: string): Promise<BudgetSourceDetailResponse> {
+  return get<BudgetSourceDetailResponse>(`/budget-sources/${id}`);
 }
 
 /**

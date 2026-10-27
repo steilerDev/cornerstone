@@ -119,7 +119,7 @@ describe('SetupChecklist', () => {
     renderChecklist(setupOf());
 
     expect(step('house')).toHaveAttribute('href', '/settings/manage#house');
-    expect(step('funding').getAttribute('href')).toMatch(/^\/budget\/sources\?/);
+    expect(step('funding').getAttribute('href')).toMatch(/^\/budget\/financing\?/);
     expect(step('companies').getAttribute('href')).toMatch(/^\/companies\/new/);
     expect(step('tasks').getAttribute('href')).toMatch(/^\/project\/work-items\/new/);
     expect(step('household')).toHaveAttribute('href', '/settings/users');

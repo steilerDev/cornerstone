@@ -21,6 +21,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { ServedRouteId } from '../../shared/src/routes/index.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BudgetOverviewPage } from '../pages/BudgetOverviewPage.js';
+import { FinancingPage } from '../pages/FinancingPage.js';
 import { HomePage } from '../pages/HomePage.js';
 import { InvoicesPage } from '../pages/InvoicesPage.js';
 import { TimelinePage } from '../pages/TimelinePage.js';
@@ -55,11 +56,20 @@ export interface TaskSubject {
 export interface InvoiceSubject {
   invoiceId: string;
 }
+export interface SourceSubject {
+  sourceId: string;
+}
 
 export interface SubjectSurface<S> {
   id: string;
   story: string;
-  kind: 'company-still-to-pay' | 'holds-up' | 'invoice-paid' | 'invoice-still-to-pay';
+  kind:
+    | 'company-still-to-pay'
+    | 'holds-up'
+    | 'invoice-paid'
+    | 'invoice-still-to-pay'
+    | 'source-paid'
+    | 'source-ready-to-submit';
   /** Every marker of the kind on the surface (a company page shows its balance twice). */
   readAll(page: Page, subject: S): Promise<Array<number | null>>;
 }
@@ -171,7 +181,7 @@ export const PROJECT_SURFACES: ProjectSurface[] = [
     },
     // The To pay chip footer: "Still to pay" while no search or filter is active. There is no
     // Paid footer (a Paid-chip sum is not the money service's Paid) and the Ready to submit card
-    // is retired (D-30); Financing (4.10) brings it back.
+    // is retired (D-30); Financing (4.10) shows it per loan card (FINANCING_READY_SURFACE).
     read: {
       async stillToPay(page) {
         const invoices = new InvoicesPage(page);
@@ -184,7 +194,13 @@ export const PROJECT_SURFACES: ProjectSurface[] = [
 ];
 
 /** AC4: the screens that must show at most one Left to spend figure. */
-export const LEFT_SCREENS: ServedRouteId[] = ['home', 'budgetOverview', 'invoices', 'company'];
+export const LEFT_SCREENS: ServedRouteId[] = [
+  'home',
+  'budgetOverview',
+  'invoices',
+  'company',
+  'financing',
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Subject figures
@@ -271,12 +287,60 @@ export const INVOICE_STILL_TO_PAY_SURFACE: SubjectSurface<InvoiceSubject> = {
   readAll: (page, subject) => readInvoiceStrip(page, subject, 'still-to-pay'),
 };
 
+/**
+ * A funding source's Paid on the Financing card and on the source page strip (#2242, story 4.10):
+ * both are the money service's `paid` for that source.
+ */
+export const FINANCING_SOURCE_PAID_SURFACE: SubjectSurface<SourceSubject> = {
+  id: 'financing.source.paid',
+  story: '4.10',
+  kind: 'source-paid',
+  async readAll(page, subject) {
+    const financing = new FinancingPage(page);
+    await financing.goto();
+    const card = financing.cardFigure(subject.sourceId, 'paid');
+    const fromCard = parseMoney(await figureText(card));
+
+    await page.goto(routeUrl('fundingSource', { id: subject.sourceId }));
+    const strip = page.getByTestId('source-summary');
+    await strip.getByTestId('summary-fact-amount').waitFor({ state: 'visible' });
+    const fromStrip = await strip.locator('[data-figure="paid"]').allInnerTexts();
+    return [fromCard, ...fromStrip.map((text) => parseMoney(text))];
+  },
+};
+
+/**
+ * A loan's Ready to submit on its Financing card: the amount is the `[data-figure]` span, the
+ * count sits in a sibling span (`financing-source-ready-count-<id>`) so the digits of the count
+ * never leak into the money reading (#2242, D7).
+ */
+export const FINANCING_READY_SURFACE: SubjectSurface<SourceSubject> = {
+  id: 'financing.source.readyToSubmit',
+  story: '4.10',
+  kind: 'source-ready-to-submit',
+  async readAll(page, subject) {
+    const financing = new FinancingPage(page);
+    await financing.goto();
+    return [parseMoney(await figureText(financing.readyAmount(subject.sourceId)))];
+  },
+};
+
+/** The count next to the Ready to submit amount of a loan card. */
+export async function readFinancingReadyCount(page: Page, subject: SourceSubject): Promise<number> {
+  const financing = new FinancingPage(page);
+  await financing.goto();
+  const text = await figureText(financing.readyCount(subject.sourceId));
+  return Number(text);
+}
+
 export const SUBJECT_SURFACES = [
   COMPANY_SURFACE,
   HOME_ATTENTION_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,
+  FINANCING_SOURCE_PAID_SURFACE,
+  FINANCING_READY_SURFACE,
 ] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -284,12 +348,6 @@ export const SUBJECT_SURFACES = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PENDING_SURFACES: PendingSurface[] = [
-  {
-    story: '4.10',
-    screen: 'financing',
-    figures: ['readyToSubmit', 'paid'],
-    note: 'Financing: per-source Ready to submit and Paid. Served when the financing route is done.',
-  },
   {
     story: '4.12',
     screen: 'Company summary',

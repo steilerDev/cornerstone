@@ -7,6 +7,7 @@ import { CostLinesSection } from '../../components/CostLineTable/index.js';
 import { useInvoiceCostLines } from '../../components/CostLineTable/useInvoiceCostLines.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDocumentsPanel } from '../../components/DocumentsPanel/index.js';
+import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
 import { ObjectHeader } from '../../components/ObjectHeader/index.js';
 import type { ObjectHeaderPrimary } from '../../components/ObjectHeader/index.js';
 import { ObjectTabs } from '../../components/ObjectTabs/ObjectTabs.js';
@@ -34,7 +35,6 @@ import { useOriginState } from '../../navigation/useOriginState.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import sharedStyles from '../../styles/shared.module.css';
 import { InvoiceEditDialog } from './InvoiceEditDialog.js';
-import { InvoiceHistoryPanel } from './InvoiceHistoryPanel.js';
 import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
 import { INVOICE_HEADER_ACTIONS } from './invoiceHeaderActions.js';
 import { invoiceSources } from './invoiceSources.js';
@@ -386,7 +386,21 @@ function InvoiceDetailLoaded({
               originState={originState}
             />
           ),
-          history: () => <InvoiceHistoryPanel invoiceId={id} revision={record.revision} />,
+          history: () => (
+            <ObjectHistorySection
+              entityType="invoice"
+              entityId={id}
+              revision={record.revision}
+              testIdPrefix="invoice-history"
+              labels={{
+                title: t('invoicePage.history.title'),
+                empty: t('invoicePage.history.empty'),
+                loadError: t('invoicePage.history.loadError'),
+                retry: t('invoicePage.history.retry'),
+                showAll: t('invoicePage.history.showAll'),
+              }}
+            />
+          ),
         }}
       />
 

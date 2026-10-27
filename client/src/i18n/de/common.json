@@ -50,8 +50,6 @@
     "newInvoice": "Neue Rechnung",
     "splitWithAi": "Mit KI aufschlüsseln",
     "bankReport": "Bankbericht",
-    "fundingSources": "Finanzierungsquellen",
-    "grants": "Förderprogramme",
     "diaryEntry": "Tagebucheintrag",
     "diaryEntryNotFound": "Tagebucheintrag nicht gefunden",
     "diaryEntryUntitled": "{{type}} · {{date}}"

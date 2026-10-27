@@ -35,6 +35,7 @@ Index only. Detail lives in the linked topic files.
 - [Issue #2046 translation](issue-2046-open-items-translation.md) — open-items keys; overdue and included/excluded distinctions
 - [En-diff key sync (#2209)](en-diff-key-sync-2209.md) — script de edits from an en diff; keep de order
 - [Parent move patterns](parent-move-patterns.md) — parent-move wording patterns
+- [Financing vocabulary #2242](financing-vocabulary-2242.md) — per-kind gender templates, Covered items, Own funds, PERMANENT_ALIASES gotcha
 
 ## Audit history
 

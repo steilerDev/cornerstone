@@ -111,7 +111,7 @@ describe('useOpenCreate', () => {
     const log = setup(<Opener id="grant" />);
     fireEvent.click(screen.getByTestId('open'));
     expect(log.actions).toEqual([
-      `PUSH ${routeUrl('budgetSubsidies', undefined, { create: '1' })}`,
+      `PUSH ${routeUrl('financing', undefined, { create: '1', kind: 'grant' })}`,
     ]);
     expect(log.states[0]).not.toHaveProperty('background');
   });

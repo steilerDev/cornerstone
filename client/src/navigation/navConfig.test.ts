@@ -3,6 +3,7 @@ import { getRouteEntry, isRouteServed, routePattern } from '@cornerstone/shared'
 import type { ServedRouteId } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
 import deCommon from '../i18n/de/common.json';
+import { ROUTE_MAP } from '@cornerstone/shared';
 import { GLOSSARY } from '../i18n/glossary.js';
 import {
   MORE_SHEET,
@@ -11,6 +12,7 @@ import {
   PHONE_BAR,
   PHONE_BAR_SECTIONS,
   navSections,
+  paperlessStatusNeeded,
   type NavContext,
   type NavSection,
   type NavSectionId,
@@ -159,7 +161,8 @@ describe('NAV_SECTIONS', () => {
 
 describe('NAV_LABEL_KEYS', () => {
   it('is a literal tuple of navigation.* keys without duplicates', () => {
-    expect(NAV_LABEL_KEYS).toHaveLength(24);
+    expect(NAV_LABEL_KEYS).toHaveLength(21);
+    expect(NAV_LABEL_KEYS).not.toContain('navigation.bankReport');
     expect(new Set(NAV_LABEL_KEYS).size).toBe(NAV_LABEL_KEYS.length);
     for (const key of NAV_LABEL_KEYS) expect(key).toMatch(/^navigation\.[A-Za-z]+$/);
   });
@@ -203,6 +206,8 @@ describe('NAV_LABEL_KEYS', () => {
     'invoiceNotFound',
     'newInvoice',
     'splitWithAi',
+    // #2242: the Bank report is a page of Financing, labelled through PAGE_LABEL_KEYS
+    'bankReport',
     // #2204: diary entry words
     'diaryEntry',
     'diaryEntryNotFound',
@@ -249,44 +254,28 @@ describe('NAV_LABEL_KEYS', () => {
   });
 });
 
-describe('Money views (interim staging until Financing is served)', () => {
+describe('Money views (#2242: the interim views are gone)', () => {
   const money = NAV_SECTIONS.find((s) => s.id === 'money');
 
-  it('defines the Money views in order, the three interim ones carrying interimUntil financing', () => {
-    expect(viewRoutes(money)).toEqual([
-      'invoices',
-      'budgetSources',
-      'budgetSubsidies',
-      'bankReport',
-      'financing',
-    ]);
-    const interim = money?.views.filter((v) => v.interimUntil !== undefined) ?? [];
-    expect(interim.map((v) => v.route)).toEqual(['budgetSources', 'budgetSubsidies', 'bankReport']);
-    for (const view of interim) expect(view.interimUntil).toBe('financing');
+  it('defines exactly Invoices and Financing, in that order', () => {
+    expect(viewRoutes(money)).toEqual(['invoices', 'financing']);
   });
 
-  it('labels the interim views Funding sources, Grants and Bank report', () => {
+  it('labels them Invoices and Financing', () => {
     const labels = Object.fromEntries(
       (money?.views ?? []).map((v) => [v.route, lookup(enCommon, v.labelKey)]),
     );
-    expect(labels).toMatchObject({
-      budgetSources: 'Funding sources',
-      budgetSubsidies: 'Grants',
-      bankReport: 'Bank report',
-    });
+    expect(labels).toEqual({ invoices: 'Invoices', financing: 'Financing' });
   });
 
-  it('still has every interimUntil target unserved: serving it forces the cleanup of the interim views', () => {
-    const interim = allViews.filter(({ view }) => view.interimUntil !== undefined);
-    expect(interim.length).toBeGreaterThan(0);
-    for (const { view } of interim) {
-      // When this fails, the story that serves the target must delete the interim views from
-      // NavConfig (they already vanish from navSections on their own) and this guard.
-      const targetServed = isRouteServed(view.interimUntil as never);
-      expect({ route: view.route, targetServed }).toEqual({
-        route: view.route,
-        targetServed: false,
-      });
+  it('has no view left that waits on a route to be served (no interimUntil anywhere)', () => {
+    expect(allViews.filter(({ view }) => view.interimUntil !== undefined)).toEqual([]);
+  });
+
+  it('keeps Funding sources, Grants and Bank report out of the navigation (they are pages of Financing)', () => {
+    const routes = allViews.map(({ view }) => view.route as string);
+    for (const retired of ['budgetSources', 'budgetSubsidies', 'bankReport']) {
+      expect(routes).not.toContain(retired);
     }
   });
 
@@ -375,9 +364,9 @@ describe('navSections', () => {
     expect(ids(navSections(ADMIN))).toContain('companies');
   });
 
-  it('hides planned views: financing', () => {
+  it('shows the served Financing view (#2242)', () => {
     const sections = navSections(ADMIN);
-    expect(viewRoutes(sections.find((s) => s.id === 'money'))).not.toContain('financing');
+    expect(viewRoutes(sections.find((s) => s.id === 'money'))).toContain('financing');
   });
 
   it('serves Integrations (no longer a planned view) as the last Settings view for an admin', () => {
@@ -393,12 +382,7 @@ describe('navSections', () => {
       'scheduleCalendar',
       'milestones',
     ]);
-    expect(viewRoutes(sections.find((s) => s.id === 'money'))).toEqual([
-      'invoices',
-      'budgetSources',
-      'budgetSubsidies',
-      'bankReport',
-    ]);
+    expect(viewRoutes(sections.find((s) => s.id === 'money'))).toEqual(['invoices', 'financing']);
     expect(viewRoutes(sections.find((s) => s.id === 'settings'))).toEqual([
       'settingsProfile',
       'settingsUsers',
@@ -417,7 +401,7 @@ describe('navSections', () => {
     expect(ids(navSections(MEMBER))).toEqual(ids(navSections(ADMIN)));
   });
 
-  it('shows the interim Money views to a member as well as an admin', () => {
+  it('shows the Money views to a member as well as an admin', () => {
     expect(viewRoutes(navSections(MEMBER).find((s) => s.id === 'money'))).toEqual(
       viewRoutes(navSections(ADMIN).find((s) => s.id === 'money')),
     );
@@ -436,5 +420,40 @@ describe('navSections', () => {
     const before = NAV_SECTIONS.map((s) => s.views.length);
     navSections(MEMBER);
     expect(NAV_SECTIONS.map((s) => s.views.length)).toEqual(before);
+  });
+});
+
+describe('paperlessStatusNeeded', () => {
+  const gatedRoute = (ROUTE_MAP as readonly { id?: string; gate: string; stage: string }[]).find(
+    (e) =>
+      e.id !== undefined &&
+      e.stage === 'done' &&
+      (e.gate === 'paperless' || e.gate === 'paperless+ai'),
+  )!.id as never;
+  const section = (over: Partial<NavSection>): NavSection => ({
+    ...NAV_SECTIONS.find((s) => s.id === 'photos')!,
+    views: [],
+    ...over,
+  });
+
+  it('is false for the real navigation, whose destinations are not Paperless-gated', () => {
+    expect(paperlessStatusNeeded()).toBe(false);
+    expect(paperlessStatusNeeded(NAV_SECTIONS)).toBe(false);
+  });
+
+  it('is true when a served section route or a served view route is Paperless-gated', () => {
+    const view = NAV_SECTIONS[0]!.views[0] ?? {
+      route: 'home',
+      labelKey: 'navigation.home',
+      term: 'Home',
+    };
+    expect(paperlessStatusNeeded([section({ route: gatedRoute })])).toBe(true);
+    expect(
+      paperlessStatusNeeded([section({ views: [{ ...view, route: gatedRoute }] as never })]),
+    ).toBe(true);
+  });
+
+  it('ignores a gated route that is not served yet', () => {
+    expect(paperlessStatusNeeded([section({ route: 'documents' })])).toBe(false);
   });
 });

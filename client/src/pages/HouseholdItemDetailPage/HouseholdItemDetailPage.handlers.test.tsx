@@ -573,7 +573,7 @@ describe('HouseholdItemDetailPage — handlers and arms', () => {
         mockFetchHouseholdItemSubsidies.mockResolvedValue([program('s1', 'Energy Grant')] as never);
         renderPage();
         await waitForPageLoad();
-        const select = await screen.findByRole('combobox', { name: /select subsidy program/i });
+        const select = await screen.findByRole('combobox', { name: /select a grant to link/i });
         expect(within(select).getByRole('option', { name: /Solar Grant/ })).toBeInTheDocument();
         expect(within(select).queryByRole('option', { name: /Energy Grant/ })).toBeNull();
       });

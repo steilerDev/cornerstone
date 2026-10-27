@@ -29,7 +29,7 @@ export function FundingSection({ sources }: FundingSectionProps) {
           {t('overview.funding.heading')}
         </h2>
         <NavAnchor
-          to={routeUrl('budgetSources')}
+          to={routeUrl('financing')}
           state={originState}
           className={styles.fundingManage}
           data-testid="money-funding-manage"
@@ -42,7 +42,7 @@ export function FundingSection({ sources }: FundingSectionProps) {
           message={t('overview.funding.empty')}
           action={{
             label: t('overview.funding.emptyAction'),
-            href: routeUrl('budgetSources'),
+            href: routeUrl('financing'),
             state: originState,
           }}
         />

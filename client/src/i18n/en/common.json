@@ -50,8 +50,6 @@
     "newInvoice": "New invoice",
     "splitWithAi": "Split with AI",
     "bankReport": "Bank report",
-    "fundingSources": "Funding sources",
-    "grants": "Grants",
     "diaryEntry": "Diary entry",
     "diaryEntryNotFound": "Diary entry not found",
     "diaryEntryUntitled": "{{type}} · {{date}}"

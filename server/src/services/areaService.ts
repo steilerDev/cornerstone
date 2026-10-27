@@ -8,6 +8,7 @@ import type {
   UpdateAreaRequest,
   AreaResponse,
   AreaAncestor,
+  AreaSummary,
 } from '@cornerstone/shared';
 import {
   NotFoundError,
@@ -175,6 +176,24 @@ export function resolveAreaAncestors(
 
   ancestors.reverse();
   return ancestors;
+}
+
+/**
+ * The `AreaSummary` (area plus ancestors) of an area id from a pre-built area map, or null for a
+ * null id. The id must come from a row that references `areas`, so it is always in the map.
+ */
+export function getAreaSummary(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary | null {
+  if (!areaId) return null;
+  const entry = areaMap.get(areaId)!;
+  return {
+    id: entry.id,
+    name: entry.name,
+    color: entry.color,
+    ancestors: resolveAreaAncestors(areaId, areaMap),
+  };
 }
 
 /**

@@ -723,9 +723,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
     await expect(left.getByTestId('home-pulse-left-to-spend-figure')).toContainText('2,300.00');
   });
 
-  test('H8c: no verdict yet shows a dash, the reason and a link to Funding sources', async ({
-    page,
-  }) => {
+  test('H8c: no verdict yet shows a dash, the reason and a link to Financing', async ({ page }) => {
     const state = newHomeMockState({
       pulse: pulseResponse({
         leftToSpend: { expected: 0, worst: 0, best: 0, verdict: null },
@@ -738,7 +736,7 @@ test.describe('Pulse (H8)', { tag: '@responsive' }, () => {
     const left = home.pulseTile('left-to-spend');
     await expect(left.getByRole('img', { name: 'No figure yet' })).toHaveText('–');
     await expect(left).toContainText('Add a funding source and a cost to see this.');
-    await expect(left).toHaveAttribute('href', routeUrl('budgetSources'));
+    await expect(left).toHaveAttribute('href', routeUrl('financing'));
     await expect(left).not.toContainText('On budget');
     await expect(left).not.toContainText('Over budget');
   });

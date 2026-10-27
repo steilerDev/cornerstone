@@ -42,10 +42,12 @@ describe('createEntries', () => {
     expect(visibleCreateEntries(false)).toContain('invoice');
     expect(visibleCreateEntries(true)).toContain('invoice');
     // The Money-only rows open their own ?create=1 surfaces the same way.
+    // ... and open the Financing page's New funding source / New grant dialog (#2242).
     expect(createHref('fundingSource', {})).toBe(
-      routeUrl('budgetSources', undefined, { create: '1' }),
+      routeUrl('financing', undefined, { create: '1', kind: 'source' }),
     );
-    expect(createHref('grant', {})).toBe(routeUrl('budgetSubsidies', undefined, { create: '1' }));
+    expect(createHref('fundingSource', {})).toBe('/budget/financing?create=1&kind=source');
+    expect(createHref('grant', {})).toBe('/budget/financing?create=1&kind=grant');
   });
 
   it('marks only the four ObjectForm targets as dialogs', () => {
@@ -83,12 +85,8 @@ describe('createEntries', () => {
         routeUrl('diaryEntryNew', undefined, { areaId: 'a1', date: '2026-03-01' }),
       );
       expect(createHref('company', all)).toBe(routeUrl('companyNew'));
-      expect(createHref('fundingSource', all)).toBe(
-        routeUrl('budgetSources', undefined, { create: '1' }),
-      );
-      expect(createHref('grant', all)).toBe(
-        routeUrl('budgetSubsidies', undefined, { create: '1' }),
-      );
+      expect(createHref('fundingSource', all)).toBe('/budget/financing?create=1&kind=source');
+      expect(createHref('grant', all)).toBe('/budget/financing?create=1&kind=grant');
     });
 
     it('presets kind=offer only for the Offer row', () => {

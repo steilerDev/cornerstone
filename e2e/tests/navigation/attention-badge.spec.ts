@@ -338,7 +338,7 @@ test.describe('Attention badge: every viewport', { tag: '@responsive' }, () => {
             subject: { type: 'budget_source', id: 'src-1', label: 'Mock source', area: null },
             amount: 1000,
             params: { rule: 'S1', allocated: 1000, sourceAmount: 2000 },
-            link: { route: 'budgetSources', params: {}, query: {} },
+            link: { route: 'financing', params: {}, query: {} },
           },
         ],
       }),

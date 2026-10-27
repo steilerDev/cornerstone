@@ -1261,8 +1261,8 @@ describe('DiaryEntryDetailPage', () => {
       ['work_item', '/project/work-items/src-1'],
       ['invoice', '/budget/invoices/src-1'],
       ['milestone', '/project/milestones/src-1'],
-      ['budget_source', '/budget/sources'],
-      ['subsidy_program', '/budget/subsidies'],
+      ['budget_source', '/budget/financing/sources/src-1'],
+      ['subsidy_program', '/budget/financing/grants/src-1'],
     ])('links a %s source to %s', async (type, href) => {
       mockGetDiaryEntry.mockResolvedValueOnce(auto(type, 'Source Title'));
       renderDetailPage('de-auto-src');
@@ -1275,7 +1275,9 @@ describe('DiaryEntryDetailPage', () => {
     it('uses the translated type label when the source has no title', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(auto('budget_source', null));
       renderDetailPage('de-auto-src');
-      expect(await screen.findByRole('link', { name: 'Budget Sources' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('link', { name: enDiary.detailPage.sourceType.budget_source }),
+      ).toBeInTheDocument();
     });
 
     it.each(DIARY_SOURCE_ENTITY_TYPES)(
@@ -1690,8 +1692,8 @@ describe('DiaryEntryDetailPage', () => {
       ['work_item', '/project/work-items/src-1'],
       ['invoice', '/budget/invoices/src-1'],
       ['milestone', '/project/milestones/src-1'],
-      ['budget_source', '/budget/sources'],
-      ['subsidy_program', '/budget/subsidies'],
+      ['budget_source', '/budget/financing/sources/src-1'],
+      ['subsidy_program', '/budget/financing/grants/src-1'],
     ] as const)('links a %s source to %s', async (sourceEntityType, href) => {
       mockGetDiaryEntry.mockResolvedValueOnce({
         ...baseDetail,

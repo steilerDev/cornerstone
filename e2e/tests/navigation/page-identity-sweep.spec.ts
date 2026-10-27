@@ -26,17 +26,21 @@ import type { Page } from '@playwright/test';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
 import {
   createAreaViaApi,
+  createBudgetSourceViaApi,
   createDiaryEntryViaApi,
   createHouseholdItemViaApi,
   createMilestoneViaApi,
   createOrientationViaApi,
+  createSubsidyProgramViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
   deleteAreaViaApi,
+  deleteBudgetSourceViaApi,
   deleteDiaryEntryViaApi,
   deleteHouseholdItemViaApi,
   deleteMilestoneViaApi,
   deleteOrientationViaApi,
+  deleteSubsidyProgramViaApi,
   deleteVendorViaApi,
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
@@ -56,6 +60,8 @@ const NAMES = {
   area: `E2E Sweep ${runId} Area`,
   orientation: `E2E Sweep ${runId} North`,
   invoiceNumber: `SW-${runId}`,
+  source: `E2E Sweep ${runId} loan`,
+  grant: `E2E Sweep ${runId} grant`,
 };
 const INVOICE_H1 = `${NAMES.company} · ${NAMES.invoiceNumber}`;
 const SPOT_H1 = `${NAMES.area} · ${NAMES.orientation}`;
@@ -77,6 +83,8 @@ const seed = {
   offerId: '',
   areaId: '',
   orientationId: '',
+  sourceId: '',
+  grantId: '',
 };
 
 /** Ids of served pages that the sweep deliberately skips (Paperless+AI gate redirects). */
@@ -238,26 +246,34 @@ const ROWS: SweepRow[] = [
     crumbs: true,
     active: 'sidebar-view-invoices',
   },
+  // Financing (#2242): a view, with a funding source page, a grant page and the Bank report under it
   {
-    id: 'budgetSources',
-    path: () => routeUrl('budgetSources'),
-    h1: 'Funding sources',
-    crumbs: true,
-    active: 'sidebar-view-budgetSources',
+    id: 'financing',
+    path: () => routeUrl('financing'),
+    h1: 'Financing',
+    crumbs: false,
+    active: 'sidebar-view-financing',
   },
   {
-    id: 'budgetSubsidies',
-    path: () => routeUrl('budgetSubsidies'),
-    h1: 'Grants',
+    id: 'fundingSource',
+    path: () => routeUrl('fundingSource', { id: seed.sourceId }),
+    h1: NAMES.source,
     crumbs: true,
-    active: 'sidebar-view-budgetSubsidies',
+    active: 'sidebar-view-financing',
+  },
+  {
+    id: 'grant',
+    path: () => routeUrl('grant', { id: seed.grantId }),
+    h1: NAMES.grant,
+    crumbs: true,
+    active: 'sidebar-view-financing',
   },
   {
     id: 'bankReport',
     path: () => routeUrl('bankReport'),
     h1: 'Bank report',
     crumbs: true,
-    active: 'sidebar-view-bankReport',
+    active: 'sidebar-view-financing',
   },
   // Site diary
   { id: 'diary', path: () => routeUrl('diary'), h1: 'Site diary', crumbs: false, active: DIARY },
@@ -488,6 +504,15 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
       });
       expect(offer.ok(), `POST offer failed: ${offer.status()}`).toBeTruthy();
       seed.offerId = ((await offer.json()) as { invoice: { id: string } }).invoice.id;
+      seed.sourceId = await createBudgetSourceViaApi(page, {
+        name: NAMES.source,
+        sourceType: 'bank_loan',
+        totalAmount: 50000,
+      });
+      seed.grantId = await createSubsidyProgramViaApi(page, {
+        name: NAMES.grant,
+        reductionValue: 10,
+      });
     } finally {
       await context.close();
     }
@@ -505,6 +530,12 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
         await page.request.delete(`${API.vendors}/${seed.vendorId}/invoices/${seed.offerId}`);
       }
       if (seed.vendorId) await deleteVendorViaApi(page, seed.vendorId).catch(() => undefined);
+      if (seed.sourceId) {
+        await deleteBudgetSourceViaApi(page, seed.sourceId).catch(() => undefined);
+      }
+      if (seed.grantId) {
+        await deleteSubsidyProgramViaApi(page, seed.grantId).catch(() => undefined);
+      }
       if (seed.diaryId) await deleteDiaryEntryViaApi(page, seed.diaryId).catch(() => undefined);
       if (seed.areaId) await deleteAreaViaApi(page, seed.areaId).catch(() => undefined);
       if (seed.orientationId) {

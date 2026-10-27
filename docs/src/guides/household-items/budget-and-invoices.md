@@ -64,11 +64,11 @@ Linked lines keep their state chip, so you can see at a glance which purchases a
 
 See [Invoices & Companies](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
 
-## Subsidies
+## Grants
 
-Purchases can benefit from subsidy programs. On the detail page, you can link applicable subsidy programs to the item. Only subsidies with **Approved** or **Disbursed** status affect budget calculations.
+Purchases can be covered by grants. On the purchase's detail page you can link applicable grants to the item, and the grant's **Work** tab on the Financing page can link several tasks and purchases at once. Only grants with **Approved** or **Received** status affect budget calculations.
 
-See [Subsidies](/guides/budget/subsidies) for details on managing subsidy programs.
+See [Grants](/guides/budget/subsidies) for details on managing grants.
 
 ## Money Overview Integration
 

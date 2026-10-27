@@ -7,7 +7,9 @@ import type { ObjectHeaderPrimary } from './ObjectHeader.js';
  * and origin (never a bare navigate). An offer's primary is "Convert to invoice" instead, a plain
  * `{ kind: 'link', to: routeUrl(…) }` that the invoice page builds.
  */
-export function useLogPrimary(testId = 'object-header-log'): ObjectHeaderPrimary {
+export function useLogPrimary(
+  testId = 'object-header-log',
+): Extract<ObjectHeaderPrimary, { readonly kind: 'link' }> {
   const { t } = useTranslation('common');
   const link = useCreateEntryLink('diaryEntry');
   return { kind: 'link', label: t('objectHeader.log'), to: link.to, state: link.state, testId };

@@ -352,6 +352,43 @@ describe('History page rollout (#2224)', () => {
       );
     });
 
+    it.each(['financing', 'fundingSource', 'grant'])('serves the %s page as done (#2242)', (id) => {
+      const entry = (ROUTE_MAP as readonly { id?: string }[]).find((e) => e.id === id)!;
+      expect(entry).toMatchObject({ kind: 'page', stage: 'done' });
+      expect(entry).not.toHaveProperty('interim');
+    });
+
+    it('the Financing page carries create and kind (the New menu and the retired URLs open its dialogs, #2242)', () => {
+      const entry = (ROUTE_MAP as readonly { id?: string; carries?: readonly string[] }[]).find(
+        (e) => e.id === 'financing',
+      )!;
+      expect(entry.carries).toEqual(['create', 'kind']);
+    });
+
+    it.each([
+      ['/budget/subsidies?create=1', '/budget/financing?create=1#grants'],
+      ['/budget/sources?create=1', '/budget/financing?create=1#sources'],
+    ])('redirecting %s keeps create and lands on %s', (from, to) => {
+      expect(resolveLocation(from, ADMIN_CTX)).toMatchObject({ kind: 'redirect', to });
+    });
+
+    it.each([
+      ['budgetSources', '/budget/sources', '/budget/financing#sources'],
+      ['budgetSubsidies', '/budget/subsidies', '/budget/financing#grants'],
+    ])('serves %s as a done redirect with no interim form (#2242)', (id, from, to) => {
+      const entry = (ROUTE_MAP as readonly { id?: string }[]).find((e) => e.id === id)!;
+      expect(entry).toMatchObject({ from, to, kind: 'redirect', stage: 'done' });
+      expect(entry).not.toHaveProperty('interim');
+    });
+
+    it.each([
+      ['/budget/financing/sources', '/budget/financing#sources'],
+      ['/budget/financing/grants', '/budget/financing#grants'],
+    ])('serves the repair redirect %s as done (#2242)', (from, to) => {
+      const entry = ROUTE_MAP.find((e) => e.from === from)!;
+      expect(entry).toMatchObject({ to, kind: 'redirect', stage: 'done' });
+    });
+
     it('resolves / as the home page and the retired overview URLs to /', () => {
       expect(resolveLocation('/', ADMIN_CTX)).toMatchObject({ kind: 'page' });
       expect(resolveLocation('/project/overview', ADMIN_CTX)).toMatchObject({

@@ -259,7 +259,7 @@ export class AppShellPage {
 
   /**
    * A nested view by route id (scheduleGantt, scheduleCalendar, milestones, invoices,
-   * budgetSources, budgetSubsidies, bankReport, settingsProfile, settingsUsers, settingsBackups, settingsIntegrations).
+   * financing, settingsProfile, settingsUsers, settingsBackups, settingsIntegrations).
    * Desktop: `sidebar-view-<route>` (only inside the active section). Compact:
    * `view-menu-item-<route>` (only while the title menu is open, see revealViews()).
    */

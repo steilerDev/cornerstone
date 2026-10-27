@@ -19,6 +19,12 @@ import type {
   BreakdownMoney,
   BudgetBreakdown,
   BudgetSourceStatus,
+  FinancingGrant,
+  FinancingResponse,
+  FinancingSource,
+  GrantCoveredItem,
+  GrantCoveredItemsResponse,
+  GrantMoney,
   InvoiceStatus,
   BudgetSourceType,
   MoneyCostFigures,
@@ -29,7 +35,9 @@ import type {
   SubsidyPaybackEntry,
   SubsidyReductionType,
 } from '@cornerstone/shared';
+import { NotFoundError } from '../errors/AppError.js';
 import { toCents } from './shared/money.js';
+import { getAreaSummary, loadAreaMap } from './areaService.js';
 import {
   computeOpenPaymentItems,
   type InvoiceDepositRow,
@@ -663,4 +671,187 @@ export function getExpectedGrantsByHouseholdItem(db: DbType, vatRate: number): M
     }
   }
   return map;
+}
+
+// ─── Financing, funding source and grant pages (#2242) ───────────────────────
+
+/** Linked tasks plus purchases per grant (both link tables, one query). */
+function loadCoveredItemCounts(db: Pick<DbType, 'all'>): Map<string, number> {
+  const rows = db.all<{ subsidyProgramId: string; itemCount: number }>(
+    sql`SELECT subsidy_program_id AS subsidyProgramId, COUNT(*) AS itemCount
+    FROM (
+      SELECT subsidy_program_id FROM work_item_subsidies
+      UNION ALL
+      SELECT subsidy_program_id FROM household_item_subsidies
+    )
+    GROUP BY subsidy_program_id`,
+  );
+  return new Map(rows.map((row) => [row.subsidyProgramId, row.itemCount]));
+}
+
+interface GrantRow {
+  id: string;
+  name: string;
+  status: SubsidyApplicationStatus;
+  reductionType: SubsidyReductionType;
+  reductionValue: number;
+  maximumAmount: number | null;
+  applicationDeadline: string | null;
+}
+
+/** Every grant (rejected included), by name then id. */
+function loadGrantRows(db: Pick<DbType, 'all'>): GrantRow[] {
+  return db.all<GrantRow>(
+    sql`SELECT
+      id                   AS id,
+      name                 AS name,
+      application_status   AS status,
+      reduction_type       AS reductionType,
+      reduction_value      AS reductionValue,
+      maximum_amount       AS maximumAmount,
+      application_deadline AS applicationDeadline
+    FROM subsidy_programs
+    ORDER BY name ASC, id ASC`,
+  );
+}
+
+/** The engine's figures of one grant; a rejected grant (not in the engine run) is all zero. */
+function grantFigures(
+  figures: Map<string, MoneyGrantFigures>,
+  id: string,
+): Pick<MoneyGrantFigures, 'expected' | 'eligibleCost' | 'capped' | 'counted'> {
+  const found = figures.get(id);
+  if (found) {
+    return {
+      expected: found.expected,
+      eligibleCost: found.eligibleCost,
+      capped: found.capped,
+      counted: found.counted,
+    };
+  }
+  return {
+    expected: toMoneyRange(zeroScen()),
+    eligibleCost: toMoneyRange(zeroScen()),
+    capped: false,
+    counted: false,
+  };
+}
+
+/**
+ * Money › Financing: every funding source and every grant. Source figures are the
+ * `summary.sources` entries (`buildSources`) and grant figures the engine's (`buildGrants`), so
+ * they equal the overview's `money.sources` / `money.grants`.
+ */
+export function getFinancing(db: DbType, vatRate: number): FinancingResponse {
+  const project = computeProjectMoney(db, vatRate);
+  const rates = new Map(
+    db
+      .all<{ id: string; interestRate: number | null }>(
+        sql`SELECT id AS id, interest_rate AS interestRate FROM budget_sources`,
+      )
+      .map((row) => [row.id, row.interestRate]),
+  );
+  const sources: FinancingSource[] = project.summary.sources.map((source) => ({
+    ...source,
+    interestRate: rates.get(source.id)!,
+  }));
+
+  const figures = new Map(project.summary.grants.map((grant) => [grant.id, grant]));
+  const counts = loadCoveredItemCounts(db);
+  const grants: FinancingGrant[] = loadGrantRows(db).map((row) => {
+    const { expected, counted } = grantFigures(figures, row.id);
+    return {
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      reductionType: row.reductionType,
+      rate: row.reductionValue,
+      eligibleCostCap: row.maximumAmount,
+      deadline: row.applicationDeadline,
+      coveredItemCount: counts.get(row.id) ?? 0,
+      expected,
+      counted,
+    };
+  });
+  return { sources, grants };
+}
+
+/** Money of one funding source: the `summary.sources` entry. */
+export function getSourceMoney(db: DbType, vatRate: number, id: string): MoneySourceFigures {
+  const result = computeMoney(loadMoneyInput(db, vatRate));
+  const source = buildSources(db, result).sources.find((entry) => entry.id === id);
+  if (!source) {
+    throw new NotFoundError('Budget source not found');
+  }
+  return source;
+}
+
+/** Money of one grant, built from the same engine figures as the overview. */
+export function getGrantMoney(db: DbType, vatRate: number, id: string): GrantMoney {
+  const exists = db.get<{ id: string }>(
+    sql`SELECT id AS id FROM subsidy_programs WHERE id = ${id}`,
+  );
+  if (!exists) {
+    throw new NotFoundError('Subsidy program not found');
+  }
+  const result = computeMoney(loadMoneyInput(db, vatRate));
+  const figures = new Map(buildGrants(result).map((grant) => [grant.id, grant]));
+  const { expected, eligibleCost, capped, counted } = grantFigures(figures, id);
+  return {
+    expected,
+    eligibleCost,
+    capped,
+    counted,
+    coveredItemCount: loadCoveredItemCounts(db).get(id) ?? 0,
+  };
+}
+
+/**
+ * Every task and purchase linked to a grant, with the grant's engine share for it (expected
+ * scenario; 0 for a rejected grant). Tasks first, then purchases, each by title.
+ */
+export function getGrantCoveredItems(
+  db: DbType,
+  vatRate: number,
+  id: string,
+): GrantCoveredItemsResponse {
+  const exists = db.get<{ id: string }>(
+    sql`SELECT id AS id FROM subsidy_programs WHERE id = ${id}`,
+  );
+  if (!exists) {
+    throw new NotFoundError('Subsidy program not found');
+  }
+  const result = computeMoney(loadMoneyInput(db, vatRate));
+  const grantResult = result.grants.find((grant) => grant.input.id === id);
+  const areaMap = loadAreaMap(db);
+
+  const rows = db.all<{
+    type: GrantCoveredItem['type'];
+    id: string;
+    title: string;
+    areaId: string | null;
+  }>(
+    sql`SELECT 'work_item' AS type, wi.id AS id, wi.title AS title, wi.area_id AS areaId
+    FROM work_item_subsidies link
+    INNER JOIN work_items wi ON wi.id = link.work_item_id
+    WHERE link.subsidy_program_id = ${id}
+    UNION ALL
+    SELECT 'household_item' AS type, hi.id AS id, hi.name AS title, hi.area_id AS areaId
+    FROM household_item_subsidies link
+    INNER JOIN household_items hi ON hi.id = link.household_item_id
+    WHERE link.subsidy_program_id = ${id}
+    ORDER BY type DESC, title COLLATE NOCASE ASC, id ASC`,
+  );
+
+  const items = rows.map((row): GrantCoveredItem => {
+    const share = grantResult?.itemTotals.get(itemKey(row.type, row.id));
+    return {
+      type: row.type,
+      id: row.id,
+      title: row.title,
+      area: getAreaSummary(row.areaId, areaMap),
+      covered: toMajor(share?.expected ?? 0),
+    };
+  });
+  return { items };
 }

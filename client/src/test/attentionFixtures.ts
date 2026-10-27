@@ -230,7 +230,7 @@ const BASES: Record<AttentionRule, RowBase> = {
     date: '2026-03-20',
     amount: null,
     actions: ['open'],
-    link: { route: 'budgetSubsidies', params: {}, query: {} },
+    link: { route: 'grant', params: { id: 'sp-1' }, query: {} },
     params: { rule: 'N11', status: 'eligible', deadline: '2026-03-20', dueInDays: 10 },
   },
   N12: {

@@ -11,6 +11,31 @@
       "kind": "redirect",
       "target": "/settings/manage#cost-categories"
     },
+    { "path": "/budget/financing", "guard": "member", "kind": "page", "element": "FinancingPage" },
+    {
+      "path": "/budget/financing/grants",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/budget/financing#grants"
+    },
+    {
+      "path": "/budget/financing/grants/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "GrantPage"
+    },
+    {
+      "path": "/budget/financing/sources",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/budget/financing#sources"
+    },
+    {
+      "path": "/budget/financing/sources/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "FundingSourcePage"
+    },
     { "path": "/budget/invoices", "guard": "member", "kind": "page", "element": "InvoicesPage" },
     {
       "path": "/budget/invoices/:id",
@@ -47,14 +72,14 @@
     {
       "path": "/budget/sources",
       "guard": "member",
-      "kind": "page",
-      "element": "BudgetSourcesPage"
+      "kind": "redirect",
+      "target": "/budget/financing#sources"
     },
     {
       "path": "/budget/subsidies",
       "guard": "member",
-      "kind": "page",
-      "element": "SubsidyProgramsPage"
+      "kind": "redirect",
+      "target": "/budget/financing#grants"
     },
     { "path": "/budget/vendors", "guard": "member", "kind": "redirect", "target": "/companies" },
     {

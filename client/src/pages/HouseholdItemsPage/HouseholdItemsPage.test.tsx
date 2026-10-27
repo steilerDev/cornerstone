@@ -90,16 +90,28 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
 // Mock useTableState — use a stable Map reference to prevent infinite useEffect re-renders.
 const stableFiltersHI = new Map<string, { value: string }>();
 const mockSetFilterHI = jest.fn<(key: string, value: string | null) => void>();
+const mockTableHI: { search: string; sortBy: string | null; sortDir: 'asc' | 'desc' | null } = {
+  search: '',
+  sortBy: null,
+  sortDir: null,
+};
+const mockTableStateHI = {
+  get search() {
+    return mockTableHI.search;
+  },
+  get sortBy() {
+    return mockTableHI.sortBy;
+  },
+  get sortDir() {
+    return mockTableHI.sortDir;
+  },
+  filters: stableFiltersHI,
+  page: 1,
+  pageSize: 25,
+};
 jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
   useTableState: () => ({
-    tableState: {
-      search: '',
-      filters: stableFiltersHI,
-      sortBy: null,
-      sortDir: null,
-      page: 1,
-      pageSize: 25,
-    },
+    tableState: mockTableStateHI,
     searchInput: '',
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
@@ -212,6 +224,9 @@ describe('HouseholdItemsPage', () => {
     mockFetchVendor.mockReset();
     mockSetFilterHI.mockReset();
     stableFiltersHI.clear();
+    mockTableHI.search = '';
+    mockTableHI.sortBy = null;
+    mockTableHI.sortDir = null;
     mockFetchHouseholdItemCategories.mockReset();
     mockListPreferencesHI.mockReset();
     mockListPreferencesHI.mockResolvedValue([]);
@@ -365,6 +380,295 @@ describe('HouseholdItemsPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('grant chips (#2242, AC6)', () => {
+    const grant = (id: string, name: string, rate: number) => ({
+      id,
+      name,
+      reductionType: 'percentage' as const,
+      rate,
+    });
+
+    it('shows the first grant as "name · rate", +n for more, and nothing without grants', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(
+        defaultListResponse([
+          makeHouseholdItem({
+            id: 'hi-1',
+            name: 'Oven',
+            grants: [grant('a', 'Alpha', 10), grant('b', 'Beta', 20)],
+          }),
+          makeHouseholdItem({ id: 'hi-2', name: 'Sink', grants: [] }),
+          makeHouseholdItem({ id: 'hi-3', name: 'Lamp' }),
+        ]),
+      );
+
+      renderPage();
+
+      expect(await screen.findByTestId('household-item-grants-hi-1-first')).toHaveTextContent(
+        'Alpha · 10%',
+      );
+      expect(screen.getByTestId('household-item-grants-hi-1-more')).toHaveTextContent('+1');
+      expect(screen.getAllByText('Grants: Alpha, Beta').length).toBeGreaterThan(0);
+      expect(screen.queryByTestId('household-item-grants-hi-2')).toBeNull();
+      expect(screen.queryByTestId('household-item-grants-hi-3')).toBeNull();
+      expect(screen.getByTestId('household-item-grants-mobile-hi-1')).toBeInTheDocument();
+    });
+  });
+
+  describe('URL sync of the table state', () => {
+    function Where() {
+      const location = useLocation();
+      return <output data-testid="where">{location.search}</output>;
+    }
+    const params = () => new URLSearchParams(screen.getByTestId('where').textContent ?? '');
+    function renderWithUrl(entry = '/project/household-items') {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={[entry]}>
+            <HouseholdItemsPage />
+            <Where />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    beforeEach(() => {
+      mockListHouseholdItems.mockResolvedValue(
+        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
+      );
+    });
+
+    it('typing in the search box writes ?q= after the debounce; an empty search removes it', async () => {
+      const user = userEvent.setup();
+      renderWithUrl('/project/household-items?q=old');
+      await screen.findByTestId('hi-menu-button-hi-1');
+
+      const box = screen.getByRole('searchbox');
+      await user.clear(box);
+      await user.type(box, 'oven');
+      await waitFor(() => expect(params().get('q')).toBe('oven'));
+      expect(params().get('page')).toBe('1');
+      expect(params().get('pageSize')).toBe('25');
+
+      mockTableHI.search = 'oven';
+      await user.clear(box);
+      await waitFor(() => expect(params().has('q')).toBe(false));
+    });
+
+    it('sorting writes sortBy and sortOrder, then desc, then removes both', async () => {
+      const user = userEvent.setup();
+      renderWithUrl();
+      await screen.findByTestId('hi-menu-button-hi-1');
+      const header = () => screen.getByRole('columnheader', { name: /Name/ });
+
+      await user.click(header());
+      await waitFor(() => expect(params().get('sortOrder')).toBe('asc'));
+      expect(params().get('sortBy')).toBeTruthy();
+
+      mockTableHI.sortBy = params().get('sortBy');
+      mockTableHI.sortDir = 'asc';
+      await user.click(header());
+      await waitFor(() => expect(params().get('sortOrder')).toBe('desc'));
+
+      mockTableHI.sortDir = 'desc';
+      await user.click(header());
+      await waitFor(() => expect(params().has('sortBy')).toBe(false));
+      expect(params().has('sortOrder')).toBe(false);
+    });
+
+    it('a sort column with no direction falls back to ascending', async () => {
+      const user = userEvent.setup();
+      mockTableHI.sortBy = 'name';
+      mockTableHI.sortDir = null;
+      renderWithUrl();
+      await screen.findByTestId('hi-menu-button-hi-1');
+      await user.type(screen.getByRole('searchbox'), 'x');
+      await waitFor(() => expect(params().get('sortOrder')).toBe('asc'));
+    });
+
+    it('writes filters with a value, drops empty ones and removes stale filter params', async () => {
+      const user = userEvent.setup();
+      stableFiltersHI.set('status', { value: 'planned' });
+      stableFiltersHI.set('category', { value: '' });
+      renderWithUrl('/project/household-items?budgetLines=1-2&unrelated=keep');
+      await screen.findByTestId('hi-menu-button-hi-1');
+
+      await user.type(screen.getByRole('searchbox'), 'x');
+
+      await waitFor(() => expect(params().get('status')).toBe('planned'));
+      expect(params().has('category')).toBe(false);
+      expect(params().has('budgetLines')).toBe(false);
+      expect(params().get('unrelated')).toBe('keep');
+    });
+  });
+
+  describe('optional columns and the list response', () => {
+    const allColumns = [
+      'name',
+      'category',
+      'area',
+      'vendor',
+      'actualDelivery',
+      'actualCost',
+      'subsidyReduction',
+      'netCost',
+      'orderDate',
+    ];
+
+    it('shows every chosen column with values, and a dash or zero when the item has none', async () => {
+      mockListPreferencesHI.mockResolvedValue([
+        { key: 'table.householdItems.columns', value: JSON.stringify(allColumns), updatedAt: '' },
+      ]);
+      mockFetchHouseholdItemCategories.mockResolvedValue({
+        categories: [{ id: 'hic-furniture', name: 'Furniture', translationKey: null }],
+      } as never);
+      mockListHouseholdItems.mockResolvedValue(
+        defaultListResponse([
+          makeHouseholdItem({
+            id: 'hi-1',
+            name: 'Oven',
+            category: 'hic-furniture',
+            vendor: { id: 'v-1', name: 'Acme Appliances' } as never,
+            area: { id: 'ar-1', name: 'Kitchen', color: null, ancestors: [] } as never,
+            actualDeliveryDate: '2026-02-03',
+            orderDate: '2026-01-02',
+            budgetSummary: {
+              totalPlanned: 900,
+              totalActual: 800,
+              subsidyReduction: 100,
+              netCost: 700,
+            },
+          }),
+          makeHouseholdItem({
+            id: 'hi-2',
+            name: 'Lamp',
+            category: 'hic-unknown',
+            budgetSummary: undefined as never,
+          }),
+        ]),
+      );
+
+      renderPage();
+
+      await screen.findByTestId('hi-menu-button-hi-1');
+      await waitFor(() =>
+        expect(
+          screen
+            .getAllByRole('columnheader')
+            .map((h) => h.textContent)
+            .join('|'),
+        ).toMatch(/Order Date/),
+      );
+      const cells = (id: string) =>
+        Array.from(
+          screen.getByTestId(`hi-menu-button-${id}`).closest('tr')!.querySelectorAll('td'),
+        ).map((td) => td.textContent);
+      expect(cells('hi-1')).toEqual(
+        expect.arrayContaining(['Furniture', 'Acme Appliances', '€800.00', '€100.00', '€700.00']),
+      );
+      expect(cells('hi-2')).toEqual(expect.arrayContaining(['hic-unknown']));
+      expect(cells('hi-2').filter((text) => text === '—').length).toBeGreaterThanOrEqual(3);
+      expect(cells('hi-2').filter((text) => text === '€0.00').length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('offers the areas as filter options, with their parent', async () => {
+      mockUseAreas.mockReturnValue({
+        areas: [
+          { id: 'ar-1', name: 'House', parentId: null },
+          { id: 'ar-2', name: 'Kitchen', parentId: 'ar-1' },
+        ],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      } as never);
+      mockListHouseholdItems.mockResolvedValue(
+        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
+      );
+      renderPage();
+      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+    });
+
+    it('copes with a list response that carries no filter meta', async () => {
+      mockListHouseholdItems.mockResolvedValue({
+        items: [makeHouseholdItem({ id: 'hi-1', name: 'Oven' })],
+        pagination: makePagination({ totalItems: 1 }),
+      } as never);
+      renderPage();
+      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+    });
+
+    it('a categories failure is logged and the list still loads', async () => {
+      const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchHouseholdItemCategories.mockRejectedValue(new Error('offline'));
+      mockListHouseholdItems.mockResolvedValue(
+        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
+      );
+      renderPage();
+      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+      expect(log).toHaveBeenCalledWith('Failed to load categories:', expect.any(Error));
+      log.mockRestore();
+    });
+  });
+
+  describe('row action menu', () => {
+    async function withRow() {
+      mockListHouseholdItems.mockResolvedValue(
+        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
+      );
+      renderPage();
+      return screen.findByTestId('hi-menu-button-hi-1');
+    }
+
+    it('the menu button toggles the menu', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
+      fireEvent.click(button);
+      expect(screen.queryByTestId('hi-view-hi-1')).toBeNull();
+    });
+
+    it('a click outside closes the menu, a click inside it does not', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.mouseDown(screen.getByTestId('hi-view-hi-1'));
+      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
+    });
+
+    it('Escape closes the menu; another key does not', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.keyDown(document, { key: 'a' });
+      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
+    });
+
+    it('Edit opens the purchase and closes the menu', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.click(screen.getByTestId('hi-view-hi-1'));
+      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
+    });
+
+    it('Delete asks first; Cancel deletes nothing', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
+
+      expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
     });
   });
 

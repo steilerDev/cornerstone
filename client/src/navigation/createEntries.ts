@@ -33,8 +33,7 @@ export interface CreateTarget {
     | 'invoices'
     | 'companyNew'
     | 'milestoneNew'
-    | 'budgetSources'
-    | 'budgetSubsidies'
+    | 'financing'
   >;
   readonly query: Readonly<Record<string, string>>;
   /** Pre-fill keys this target accepts. */
@@ -84,15 +83,15 @@ export const CREATE_TARGETS: Readonly<Record<CreateEntryId, CreateTarget>> = {
     dialog: true,
   },
   fundingSource: {
-    route: 'budgetSources',
-    query: { [CREATE_PARAM]: '1' },
+    route: 'financing',
+    query: { [CREATE_PARAM]: '1', [CREATE_KIND_PARAM]: 'source' },
     prefill: [],
     moneyOnly: true,
     dialog: false,
   },
   grant: {
-    route: 'budgetSubsidies',
-    query: { [CREATE_PARAM]: '1' },
+    route: 'financing',
+    query: { [CREATE_PARAM]: '1', [CREATE_KIND_PARAM]: 'grant' },
     prefill: [],
     moneyOnly: true,
     dialog: false,

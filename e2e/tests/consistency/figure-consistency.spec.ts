@@ -15,6 +15,7 @@
  * FC4 (@responsive, AC4)   at most one Left to spend figure per screen; no former names visible
  * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
  * FC6 (desktop, #2239)     an invoice page's Paid and Still to pay equal the record's API figures
+ * FC7 (desktop, #2242)     a loan's Paid (card and source page) and Ready to submit (card) equal the money service
  */
 
 import fs from 'node:fs';
@@ -30,17 +31,28 @@ import { API } from '../../fixtures/testData.js';
 import { dayOffset } from '../../fixtures/homeMocks.js';
 import {
   COMPANY_SURFACE,
+  FINANCING_READY_SURFACE,
+  FINANCING_SOURCE_PAID_SURFACE,
   HOME_ATTENTION_SURFACE,
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,
   LEFT_SCREENS,
   PENDING_SURFACES,
   PROJECT_SURFACES,
+  readFinancingReadyCount,
   SCHEDULE_TOOLTIP_SURFACE,
 } from '../../fixtures/figureSurfaces.js';
 import type { ProjectFigure } from '../../fixtures/figureSurfaces.js';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
+import {
+  createInvoice,
+  createLinkedCostLine,
+  createTask,
+  createVendor,
+  newCleanup,
+  runCleanup,
+} from '../../fixtures/costLineSeed.js';
 import { HomePage } from '../../pages/HomePage.js';
 
 test.use({
@@ -262,6 +274,95 @@ test.describe('Figure consistency', () => {
     }
   });
 
+  test("FC7: a loan's Paid and Ready to submit are the money service's figures on the card and the source page (#2242)", async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 1440) < 1024,
+      'desktop only (the figures are viewport-independent)',
+    );
+    const cleanup = newCleanup();
+    try {
+      // A bank loan; one paid invoice (not yet submitted) and one still To pay, both on it
+      const created = await page.request.post(API.budgetSources, {
+        data: {
+          name: `${testPrefix} FC7 Loan`,
+          sourceType: 'bank_loan',
+          status: 'active',
+          totalAmount: 100000,
+        },
+      });
+      expect(created.ok(), `POST source: ${created.status()}`).toBeTruthy();
+      const sourceId = ((await created.json()) as { budgetSource: { id: string } }).budgetSource.id;
+      cleanup.fns.push(async () => {
+        await page.request.delete(`${API.budgetSources}/${sourceId}`);
+      });
+      const vendorId = await createVendor(page, cleanup, `${testPrefix} FC7 Company`);
+      const taskId = await createTask(page, cleanup, `${testPrefix} FC7 Task`);
+      const paidInvoice = await createInvoice(page, cleanup, vendorId, {
+        amount: 500,
+        status: 'paid',
+        invoiceNumber: `${testPrefix}-FC7-PAID`,
+      });
+      const openInvoice = await createInvoice(page, cleanup, vendorId, {
+        amount: 300,
+        status: 'pending',
+        invoiceNumber: `${testPrefix}-FC7-OPEN`,
+      });
+      await createLinkedCostLine(page, paidInvoice.id, {
+        kind: 'work_item',
+        hostId: taskId,
+        budgetSourceId: sourceId,
+        description: 'FC7 paid line',
+        plannedAmount: 500,
+        itemizedAmount: 500,
+      });
+      await createLinkedCostLine(page, openInvoice.id, {
+        kind: 'work_item',
+        hostId: taskId,
+        budgetSourceId: sourceId,
+        description: 'FC7 open line',
+        plannedAmount: 300,
+        itemizedAmount: 300,
+      });
+
+      // The money service's answer: the Financing endpoint and the overview agree
+      const financingResponse = await page.request.get('/api/budget/financing');
+      expect(financingResponse.ok(), `GET financing: ${financingResponse.status()}`).toBeTruthy();
+      const financing = (
+        (await financingResponse.json()) as {
+          sources: Array<{
+            id: string;
+            paid: number;
+            readyToSubmit: { amount: number; count: number };
+          }>;
+        }
+      ).sources.find((source) => source.id === sourceId);
+      expect(financing, 'the loan is in the Financing response').toBeTruthy();
+      const overview = (await (await page.request.get(API.budgetOverview)).json()) as {
+        money: { sources: Array<{ id: string; paid: number }> };
+      };
+      const fromOverview = overview.money.sources.find((source) => source.id === sourceId);
+      expect(fromOverview?.paid).toBe(financing!.paid);
+      expect(cents(financing!.paid)).toBeGreaterThan(0);
+
+      // Card Paid = source page strip Paid = API Paid
+      const paid = await FINANCING_SOURCE_PAID_SURFACE.readAll(page, { sourceId });
+      expect(paid).toEqual([cents(financing!.paid), cents(financing!.paid)]);
+
+      // Card Ready to submit: amount and count are the API's
+      expect(await FINANCING_READY_SURFACE.readAll(page, { sourceId })).toEqual([
+        cents(financing!.readyToSubmit.amount),
+      ]);
+      expect(await readFinancingReadyCount(page, { sourceId })).toBe(
+        financing!.readyToSubmit.count,
+      );
+    } finally {
+      await runCleanup(cleanup);
+    }
+  });
+
   test('FC3: "Holds up n tasks" is one number on the API, Home and the Schedule (AC1)', async ({
     page,
     testPrefix,
@@ -368,6 +469,7 @@ test.describe('Figure consistency', () => {
           budgetOverview: routeUrl('budgetOverview'),
           invoices: routeUrl('invoices'),
           company: routeUrl('company', { id: vendorId }),
+          financing: routeUrl('financing'),
         } as never;
 
         for (const screen of LEFT_SCREENS) {
@@ -409,8 +511,10 @@ test.describe('Figure surface registry', () => {
     const entries = ROUTE_MAP as unknown as ReadonlyArray<{ id: string; stage: string }>;
     const routeIds = new Set(entries.map((entry) => entry.id));
     const gated = PENDING_SURFACES.filter((pending) => routeIds.has(pending.screen));
-    // At least the Financing surface (4.10) is tied to a route
-    expect(gated.map((pending) => pending.screen)).toContain('financing');
+    // The Financing surface (4.10) is built: it is registered, no longer pending
+    expect(PENDING_SURFACES.map((pending) => pending.story)).not.toContain('4.10');
+    expect(FINANCING_SOURCE_PAID_SURFACE.story).toBe('4.10');
+    expect(FINANCING_READY_SURFACE.story).toBe('4.10');
     for (const pending of gated) {
       const entry = entries.find((candidate) => candidate.id === pending.screen);
       expect(

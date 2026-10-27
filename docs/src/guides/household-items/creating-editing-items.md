@@ -56,5 +56,5 @@ Household items share the same area system as work items. Type in the **Area** f
 On the detail page, click the **Delete** button. A confirmation dialog will appear before the item is permanently removed.
 
 :::caution
-Deleting a household item also removes all associated budget lines, notes, dependencies, subsidy links, and document links. This action cannot be undone.
+Deleting a household item also removes all associated budget lines, notes, dependencies, grant links, and document links. This action cannot be undone.
 :::

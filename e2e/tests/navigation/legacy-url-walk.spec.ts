@@ -6,7 +6,7 @@
  * where the map says, in ONE hop, with its query string and hash intact.
  *
  * Scenarios:
- * - E0  The map and the frozen table of today's 26 live redirects agree (fails when a route
+ * - E0  The map and the frozen table of today's 30 live redirects agree (fails when a route
  *       is added to / removed from the map without updating this walk)
  * - E1  Every live redirect lands on its target in one hop (bare, and with ?q=walk#walk);
  *       /schedule?view=calendar is the one live query map (D-11, #2202) and lands on
@@ -45,14 +45,18 @@ import type { RouteId, RouteMapEntry } from '../../../shared/src/routes/index.js
 const ENTRIES: readonly RouteMapEntry[] = ROUTE_MAP;
 import { API } from '../../fixtures/testData.js';
 import {
+  createBudgetSourceViaApi,
   createDiaryEntryViaApi,
   createHouseholdItemViaApi,
   createMilestoneViaApi,
+  createSubsidyProgramViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
+  deleteBudgetSourceViaApi,
   deleteDiaryEntryViaApi,
   deleteHouseholdItemViaApi,
   deleteMilestoneViaApi,
+  deleteSubsidyProgramViaApi,
   deleteVendorViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
@@ -76,7 +80,7 @@ import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPa
 // Frozen expectations (written out by hand on purpose, NOT derived from the map)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Today's 26 live redirects: legacy/section path -> landing path (query/hash handled apart). */
+/** Today's 30 live redirects: legacy/section path -> landing path (query/hash handled apart). */
 const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   // Section roots (PLT-012)
   // Home is served at `/` since #2230: the old dashboard URL and the Project root land on it
@@ -109,6 +113,11 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   // Companies moved out of Settings (#2213); /companies and /companies/:id are served pages now
   ['/settings/vendors', '/companies'],
   ['/settings/vendors/:id', '/companies/:id'],
+  // Funding sources and Grants merged into Financing (#2242): the group is the hash anchor
+  ['/budget/sources', '/budget/financing'],
+  ['/budget/subsidies', '/budget/financing'],
+  ['/budget/financing/sources', '/budget/financing'],
+  ['/budget/financing/grants', '/budget/financing'],
 ];
 
 /**
@@ -117,6 +126,10 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
  */
 const TARGET_HASH: Readonly<Record<string, string>> = {
   '/budget/categories': '#cost-categories',
+  '/budget/sources': '#sources',
+  '/budget/subsidies': '#grants',
+  '/budget/financing/sources': '#sources',
+  '/budget/financing/grants': '#grants',
 };
 
 /**
@@ -161,6 +174,15 @@ const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
   },
   { name: 'repairs', from: ['/schedule/milestones', '/schedule/milestones/:id'] },
   { name: 'companies', from: ['/settings/vendors', '/settings/vendors/:id'] },
+  {
+    name: 'financing',
+    from: [
+      '/budget/sources',
+      '/budget/subsidies',
+      '/budget/financing/sources',
+      '/budget/financing/grants',
+    ],
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,6 +228,8 @@ const NAMES = {
   milestone: `Route walk milestone ${runId}`,
   household: `Route walk purchase ${runId}`,
   company: `Route walk company ${runId}`,
+  source: `Route walk loan ${runId}`,
+  grant: `Route walk grant ${runId}`,
 };
 
 const seed = {
@@ -215,6 +239,8 @@ const seed = {
   vendorId: '',
   invoiceId: '',
   diaryEntryId: '',
+  sourceId: '',
+  grantId: '',
 };
 
 const NONEXISTENT_UUID = '00000000-0000-4000-8000-000000000000';
@@ -249,6 +275,8 @@ function withSeed(pattern: string, strict = true): string {
   else if (/(^|\/)(vendors|companies)\//.test(path)) id = seed.vendorId;
   else if (/(^|\/)invoices\//.test(path)) id = seed.invoiceId;
   else if (/^\/diary\//.test(path)) id = seed.diaryEntryId;
+  else if (/^\/budget\/financing\/sources\//.test(path)) id = seed.sourceId;
+  else if (/^\/budget\/financing\/grants\//.test(path)) id = seed.grantId;
   else if (!strict) id = NONEXISTENT_UUID;
   else {
     throw new Error(
@@ -285,6 +313,15 @@ test.describe('Legacy URL walk (route map)', () => {
       });
       expect(invoiceResp.ok(), `POST invoice failed: ${invoiceResp.status()}`).toBeTruthy();
       seed.invoiceId = ((await invoiceResp.json()) as { invoice: { id: string } }).invoice.id;
+      seed.sourceId = await createBudgetSourceViaApi(page, {
+        name: NAMES.source,
+        sourceType: 'bank_loan',
+        totalAmount: 50000,
+      });
+      seed.grantId = await createSubsidyProgramViaApi(page, {
+        name: NAMES.grant,
+        reductionValue: 10,
+      });
       seed.diaryEntryId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-01-15',
@@ -300,6 +337,8 @@ test.describe('Legacy URL walk (route map)', () => {
     const context = await browser.newContext({ storageState: 'test-results/.auth/admin.json' });
     const page = await context.newPage();
     try {
+      if (seed.sourceId) await deleteBudgetSourceViaApi(page, seed.sourceId);
+      if (seed.grantId) await deleteSubsidyProgramViaApi(page, seed.grantId);
       if (seed.diaryEntryId) await deleteDiaryEntryViaApi(page, seed.diaryEntryId);
       if (seed.invoiceId) await page.request.delete(`/api/invoices/${seed.invoiceId}`);
       if (seed.householdItemId) await deleteHouseholdItemViaApi(page, seed.householdItemId);
@@ -319,8 +358,8 @@ test.describe('Legacy URL walk (route map)', () => {
   // E0 — the map and this walk agree
   // ───────────────────────────────────────────────────────────────────────────
 
-  test('E0: the live redirects of the route map are exactly the 26 frozen below', () => {
-    expect(LIVE_REDIRECTS).toHaveLength(26);
+  test('E0: the live redirects of the route map are exactly the 30 frozen below', () => {
+    expect(LIVE_REDIRECTS).toHaveLength(30);
     // Same set of source paths, same count: an unmapped (or newly mapped) route fails here.
     expect(LIVE_REDIRECT_ROUTES.map((rule) => rule.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
@@ -337,7 +376,7 @@ test.describe('Legacy URL walk (route map)', () => {
     expect(withMaps[0]?.queryMaps).toEqual([
       { query: { view: 'calendar' }, target: routeUrl('scheduleCalendar') },
     ]);
-    // The groups below cover every one of the 26.
+    // The groups below cover every one of the 30.
     expect(GROUPS.flatMap((group) => group.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
     );

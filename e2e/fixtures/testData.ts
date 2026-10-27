@@ -33,8 +33,7 @@ export const ROUTES = {
   companies: routeUrl('companies'),
   /** Kept for older specs: the Companies list (it left Settings in #2213). */
   settingsVendors: routeUrl('companies'),
-  budgetSources: routeUrl('budgetSources'),
-  budgetSubsidies: routeUrl('budgetSubsidies'),
+  financing: routeUrl('financing'),
   budgetReports: routeUrl('bankReport'),
   manage: routeUrl('settingsManage'),
   timeline: routeUrl('schedule'),

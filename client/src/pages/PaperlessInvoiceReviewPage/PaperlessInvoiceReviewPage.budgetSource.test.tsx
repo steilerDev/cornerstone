@@ -449,7 +449,7 @@ function rowSources(): string[] {
 }
 
 function getTopSelect(): HTMLSelectElement {
-  return screen.getByLabelText('Budget source') as HTMLSelectElement;
+  return screen.getByLabelText('Funding source') as HTMLSelectElement;
 }
 
 function statusText(): string {
@@ -517,7 +517,7 @@ function createdLine(id: string) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Issue #2158)', () => {
-  it('AC1: renders a "Budget source" select between status and notes with None + all sources', async () => {
+  it('AC1: renders a "Funding source" select between status and notes with None + all sources', async () => {
     await renderReady();
 
     const select = getTopSelect();
@@ -567,7 +567,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await setTopSource('src-sav');
 
     expect(rowSources()).toEqual(['src-sav', 'src-sav', 'src-sav']);
-    expect(statusText()).toBe('Budget source "Savings" applied to 3 lines');
+    expect(statusText()).toBe('Funding source "Savings" applied to 3 lines');
   });
 
   it('AC6: a row linked to an existing cost line keeps its own values and is not counted', async () => {
@@ -589,7 +589,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
 
     await setTopSource('src-sav');
 
-    expect(statusText()).toBe('Budget source "Savings" applied to 1 line');
+    expect(statusText()).toBe('Funding source "Savings" applied to 1 line');
     mockCreateWorkItemBudget.mockResolvedValue(createdLine('bl-new'));
     const lines = await clickSaveAndGetCommitLines();
     expect(lines).toHaveLength(2);
@@ -659,7 +659,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await setTopSource('src-loan');
 
     expect(statusText()).not.toBe(first);
-    expect(statusText()).toBe('Budget source "Bank Loan" applied to 1 line');
+    expect(statusText()).toBe('Funding source "Bank Loan" applied to 1 line');
   });
 
   it('AC10: a merged line takes the invoice default source', async () => {

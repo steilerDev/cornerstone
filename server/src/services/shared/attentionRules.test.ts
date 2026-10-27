@@ -1296,7 +1296,7 @@ describe('N11 grant deadline', () => {
       holdsUp: null,
       params: { rule: 'N11', status: 'eligible', deadline: '2026-03-24', dueInDays: 14 },
       actions: ['open'],
-      link: { route: 'budgetSubsidies', params: {}, query: {} },
+      link: { route: 'grant', params: { id: 'gr-1' }, query: {} },
       snoozedUntil: null,
     });
   });
@@ -1797,7 +1797,7 @@ describe('S1 over-allocated (standing)', () => {
         subject: { type: 'budget_source', id: 'src-small', label: 'Loan B', area: null },
         amount: 4900,
         params: { rule: 'S1', allocated: 5000, sourceAmount: 100 },
-        link: { route: 'budgetSources', params: {}, query: {} },
+        link: { route: 'financing', params: {}, query: {} },
       },
     ]);
   });

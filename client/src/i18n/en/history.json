@@ -24,7 +24,8 @@
       "work_item": "Task",
       "invoice": "Invoice",
       "milestone": "Milestone",
-      "subsidy_program": "Grant"
+      "subsidy_program": "Grant",
+      "budget_source": "Funding source"
     },
     "from": "From",
     "to": "To",

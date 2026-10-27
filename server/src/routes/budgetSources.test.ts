@@ -4,10 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
+import { createMoneySeed } from '../test/moneyDb.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type {
+  BudgetSourceDetailResponse,
   BudgetSource,
   BudgetSourceListResponse,
   BudgetSourceResponse,
@@ -845,6 +847,98 @@ describe('Budget Source Routes', () => {
       expect(body.budgetSource.claimedAmount).toBe(0);
       expect(body.budgetSource.unclaimedAmount).toBe(0);
       expect(body.budgetSource.actualAvailableAmount).toBe(60000);
+    });
+
+    it('serves { budgetSource, money } with the money service figures of the source (#2242)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      app.db
+        .insert(vendors)
+        .values({ id: 'vendor', name: 'Company One', createdAt: 'x', updatedAt: 'x' })
+        .run();
+      const seed = createMoneySeed(app.db);
+      seed.source('bs-money', 'bank_loan', 10000, 'active', 'Loan Money');
+      seed.workItem('wi-money');
+      seed.wiLine('l-money', 'wi-money', {
+        planned: 4000,
+        confidence: 'own_estimate',
+        source: 'bs-money',
+      });
+      seed.invoice('inv-money', 1500, 'paid');
+      seed.link('inv-money', 'l-money', 'work_item', 1500);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources/bs-money',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetSourceDetailResponse>();
+      expect(Object.keys(body).sort()).toEqual(['budgetSource', 'money']);
+      expect(body.budgetSource.id).toBe('bs-money');
+      expect(body.money).toMatchObject({
+        id: 'bs-money',
+        amount: 10000,
+        allocated: 1500, // an invoiced line counts at its invoice, not its estimate
+        paid: 1500,
+        overAllocated: 0,
+      });
+
+      // The same entry the overview serves
+      const overview = await app.inject({
+        method: 'GET',
+        url: '/api/budget/overview',
+        headers: { cookie },
+      });
+      expect(
+        overview.json().money.sources.find((s: { id: string }) => s.id === 'bs-money'),
+      ).toEqual(body.money);
+    });
+
+    it('shows the over-allocation of an over-booked source in money', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const seed = createMoneySeed(app.db);
+      seed.source('bs-over', 'savings', 1000, 'active', 'Savings Over');
+      seed.workItem('wi-over');
+      seed.wiLine('l-over', 'wi-over', {
+        planned: 1800,
+        confidence: 'own_estimate',
+        source: 'bs-over',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources/bs-over',
+        headers: { cookie },
+      });
+
+      const money = response.json<BudgetSourceDetailResponse>().money;
+      expect(money.allocated).toBe(1800);
+      expect(money.overAllocated).toBe(800);
+      expect(money.unallocated).toBe(0);
+    });
+
+    it('deleting the system Own funds source is a 409 DISCRETIONARY_SOURCE with the Own funds wording', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/budget-sources/discretionary-system',
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(409);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('DISCRETIONARY_SOURCE');
+      expect(error.message).toBe('Own funds cannot be deleted');
+    });
+
+    it('the system Own funds source is named "Own funds" (migration 0049)', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-sources/discretionary-system',
+        headers: { cookie },
+      });
+      expect(response.json<BudgetSourceDetailResponse>().budgetSource.name).toBe('Own funds');
     });
 
     it('returns 404 NOT_FOUND for non-existent source', async () => {

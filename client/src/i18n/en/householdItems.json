@@ -46,7 +46,7 @@
       "targetDelivery": "Target Delivery",
       "actualDelivery": "Actual Delivery",
       "actualCost": "Actual Cost",
-      "subsidyReduction": "Subsidy Reduction",
+      "subsidyReduction": "Expected grants",
       "netCost": "Net Cost",
       "orderDate": "Order Date",
       "budgetLines": "Budget Lines",
@@ -293,9 +293,9 @@
       "itemNotFound": "Item not found",
       "loadFailed": "Failed to load household item. Please try again.",
       "deleteFailed": "Failed to delete household item. Please try again.",
-      "alreadyLinkedSubsidy": "This subsidy program is already linked",
-      "linkSubsidy": "Failed to link subsidy program",
-      "unlinkSubsidy": "Failed to unlink subsidy program"
+      "alreadyLinkedSubsidy": "This grant is already linked to this item.",
+      "linkSubsidy": "Could not link the grant to this item.",
+      "unlinkSubsidy": "Could not unlink the grant from this item."
     },
     "closeErrorMessage": "Close error message"
   }

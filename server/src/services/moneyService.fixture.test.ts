@@ -41,10 +41,19 @@ import type {
   MoneySummary,
 } from '@cornerstone/shared';
 import { buildApp } from '../app.js';
+import { NotFoundError } from '../errors/AppError.js';
 import * as schema from '../db/schema.js';
 import * as userService from './userService.js';
 import * as sessionService from './sessionService.js';
-import { computeProjectMoney, getBreakdownMoney, loadMoneyInput } from './moneyService.js';
+import {
+  computeProjectMoney,
+  getBreakdownMoney,
+  getFinancing,
+  getGrantCoveredItems,
+  getGrantMoney,
+  getSourceMoney,
+  loadMoneyInput,
+} from './moneyService.js';
 import { computeMoney, toMoneyRange } from './shared/moneyEngine.js';
 import { getSourceReport } from './sourceReportService.js';
 
@@ -775,6 +784,100 @@ function describeConsistency(getCtx: () => Ctx): void {
       expect(paidCents).toBe(Math.round(money.paid * 100));
       expect(openCents).toBe(Math.round(money.stillToPay * 100));
     });
+    it('14. (#2242, AC10) the financing figures are the overview figures: sources, grants, detail money', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      const financing = getFinancing(ctx.app.db, VAT);
+
+      // Sources: the summary entry plus the interest rate, same order
+      expect(financing.sources.map(({ interestRate: _rate, ...figures }) => figures)).toEqual(
+        money.sources,
+      );
+      expect(financing.sources.find((s) => s.id === 'bs-a')?.interestRate).toBe(
+        ctx.app.db
+          .select({ rate: schema.budgetSources.interestRate })
+          .from(schema.budgetSources)
+          .where(eq(schema.budgetSources.id, 'bs-a'))
+          .get()?.rate ?? null,
+      );
+      // Migration 0049 renamed the system source
+      expect(financing.sources.find((s) => s.id === 'discretionary-system')?.name).toBe(
+        'Own funds',
+      );
+      for (const source of money.sources) {
+        expect(getSourceMoney(ctx.app.db, VAT, source.id)).toEqual(source);
+      }
+
+      // Grants: every row (the rejected one too), name order, counted grants equal the overview
+      expect(financing.grants.map((g) => g.id)).toEqual(['sp-5', 'sp-4', 'sp-1', 'sp-3', 'sp-2']);
+      for (const grant of money.grants) {
+        const row = financing.grants.find((g) => g.id === grant.id)!;
+        expect(row.expected).toEqual(grant.expected);
+        expect(row.counted).toBe(grant.counted);
+        const detail = getGrantMoney(ctx.app.db, VAT, grant.id);
+        expect(detail.expected).toEqual(row.expected);
+        expect(detail.eligibleCost).toEqual(grant.eligibleCost);
+        expect(detail.capped).toBe(grant.capped);
+        expect(detail.coveredItemCount).toBe(row.coveredItemCount);
+      }
+
+      // A rejected grant: zero range, not counted, but its links still count as covered items
+      const rejected = financing.grants.find((g) => g.id === 'sp-5')!;
+      expect(rejected.status).toBe('rejected');
+      expect(range(rejected.expected)).toEqual([0, 0, 0]);
+      expect(rejected.counted).toBe(false);
+      expect(rejected.coveredItemCount).toBe(1);
+      expect(range(getGrantMoney(ctx.app.db, VAT, 'sp-5').eligibleCost)).toEqual([0, 0, 0]);
+
+      // Row fields come from the grant record
+      const one = financing.grants.find((g) => g.id === 'sp-1')!;
+      expect([one.rate, one.eligibleCostCap, one.coveredItemCount, one.reductionType]).toEqual([
+        20,
+        30000,
+        3,
+        'percentage',
+      ]);
+      expect(financing.grants.find((g) => g.id === 'sp-4')?.eligibleCostCap).toBeNull();
+    });
+
+    it('15. (#2242) the covered-item shares of a percentage grant add up to its expected payout', () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      for (const grant of money.grants.filter((g) => g.eligibleItemCount > 0)) {
+        const { items } = getGrantCoveredItems(ctx.app.db, VAT, grant.id);
+        const total = items.reduce((sum, item) => sum + Math.round(item.covered * 100), 0);
+        expect([grant.id, total]).toEqual([grant.id, Math.round(grant.expected.expected * 100)]);
+      }
+      const one = getGrantCoveredItems(ctx.app.db, VAT, 'sp-1').items;
+      expect(one.map((i) => [i.type, i.id])).toEqual([
+        ['work_item', 'wi-1'],
+        ['work_item', 'wi-2'],
+        ['household_item', 'hi-1'],
+      ]);
+      // A rejected grant covers nothing, but its linked task is still listed
+      expect(getGrantCoveredItems(ctx.app.db, VAT, 'sp-5').items).toEqual([
+        expect.objectContaining({ type: 'work_item', id: 'wi-1', covered: 0 }),
+      ]);
+    });
+
+    it('an unknown funding source or grant is a NotFoundError, never a zero row (#2242)', () => {
+      const ctx = getCtx();
+      expect(() => getSourceMoney(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
+      expect(() => getGrantMoney(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
+      expect(() => getGrantCoveredItems(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
+    });
+
+    it('16. (#2242) GET /api/budget-sources/:id money equals the financing row; the unknown id is 404', async () => {
+      const ctx = getCtx();
+      const financing = getFinancing(ctx.app.db, VAT);
+      for (const source of financing.sources) {
+        const { interestRate: _rate, ...figures } = source;
+        const body = await getJson<{ money: unknown }>(ctx, `/api/budget-sources/${source.id}`);
+        expect(body.money).toEqual(figures);
+      }
+      const grant = await getJson<{ money: unknown }>(ctx, '/api/subsidy-programs/sp-1');
+      expect(grant.money).toEqual(getGrantMoney(ctx.app.db, VAT, 'sp-1'));
+    });
   });
 }
 
@@ -849,13 +952,13 @@ describe('money service: AC8 synthetic fixture', () => {
     });
   });
 
-  describe('sources (Credit Beta, Discretionary Funding, Loan Alpha, Loan Closed)', () => {
+  describe('sources (Credit Beta, Loan Alpha, Loan Closed, Own funds)', () => {
     it('lists every source in name order, any status', () => {
       expect(summary.sources.map((s) => s.id)).toEqual([
         'bs-b',
-        'discretionary-system',
         'bs-a',
         'bs-c',
+        'discretionary-system',
       ]);
     });
 

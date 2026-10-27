@@ -165,7 +165,7 @@ describe('empty state and funding note', () => {
     setup(
       makeState({ rows: [row('a', { description: 'Tile', budgetSourceId: 'disc' }), row('b')] }),
     );
-    expect(screen.getByRole('note')).toHaveTextContent(/Discretionary Funding source/);
+    expect(screen.getByRole('note')).toHaveTextContent(/Own funds source/);
   });
 
   it('shows no note for other sources, linked rows or a missing discretionary source', () => {

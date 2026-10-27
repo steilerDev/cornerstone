@@ -11,7 +11,7 @@
  * - Purchases   Purchases
  * - Site diary  Site diary (plus the New slot below 1024px)
  * - Photos      Photos
- * - Money       Money, Invoices, Funding sources, Grants, Bank report
+ * - Money       Money, Invoices, Financing
  * - Companies   Companies (served on /companies since #2213)
  * - History     History (served since #2224)
  * - Settings    Project setup, Account, Users, Backups (admin session)
@@ -48,13 +48,7 @@ const AREAS = [
   { area: 'Photos', rows: [{ route: 'photos' }] },
   {
     area: 'Money',
-    rows: [
-      { route: 'budgetOverview' },
-      { route: 'invoices' },
-      { route: 'budgetSources' },
-      { route: 'budgetSubsidies' },
-      { route: 'bankReport' },
-    ],
+    rows: [{ route: 'budgetOverview' }, { route: 'invoices' }, { route: 'financing' }],
   },
   { area: 'Companies', rows: [{ route: 'companies' }] },
   { area: 'Areas', rows: [{ route: 'areas' }] },

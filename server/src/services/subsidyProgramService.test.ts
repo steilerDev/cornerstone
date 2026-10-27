@@ -1421,4 +1421,130 @@ describe('Subsidy Program Service', () => {
       expect(events()).toHaveLength(0);
     });
   });
+  describe('defensive validation and includesNoCategoryItems (#2242)', () => {
+    const base: CreateSubsidyProgramRequest = {
+      name: 'Defensive',
+      reductionType: 'percentage',
+      reductionValue: 10,
+    };
+
+    it('create rejects a non-numeric maximumAmount that bypassed the route schema', () => {
+      expect(() =>
+        subsidyProgramService.createSubsidyProgram(
+          db,
+          { ...base, maximumAmount: '5' as unknown as number },
+          TEST_USER_ID,
+        ),
+      ).toThrow(ValidationError);
+    });
+
+    it('update rejects a non-numeric maximumAmount that bypassed the route schema', () => {
+      const id = insertRawProgram({ name: 'Existing' });
+      expect(() =>
+        subsidyProgramService.updateSubsidyProgram(db, id, {
+          maximumAmount: '5' as unknown as number,
+        }),
+      ).toThrow(ValidationError);
+    });
+
+    it('update sets and clears includesNoCategoryItems', () => {
+      const id = insertRawProgram({ name: 'Existing' });
+      const on = subsidyProgramService.updateSubsidyProgram(db, id, {
+        includesNoCategoryItems: true,
+      });
+      expect(on.includesNoCategoryItems).toBe(true);
+      const off = subsidyProgramService.updateSubsidyProgram(db, id, {
+        includesNoCategoryItems: false,
+      });
+      expect(off.includesNoCategoryItems).toBe(false);
+    });
+  });
+
+  describe('linkGrantItems() and create with items (#2242)', () => {
+    function seedItems(): void {
+      const now = new Date().toISOString();
+      db.insert(schema.workItems)
+        .values({
+          id: 'wi-1',
+          title: 'Task',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItems)
+        .values({ id: 'hi-1', name: 'Purchase', createdAt: now, updatedAt: now } as never)
+        .run();
+    }
+    const links = () => ({
+      work: db.select().from(schema.workItemSubsidies).all().length,
+      household: db.select().from(schema.householdItemSubsidies).all().length,
+    });
+
+    it('links tasks and purchases once, however often it is repeated', () => {
+      seedItems();
+      const id = insertRawProgram({ name: 'Grant' });
+      const items = [
+        { type: 'work_item', id: 'wi-1' },
+        { type: 'household_item', id: 'hi-1' },
+      ] as const;
+      subsidyProgramService.linkGrantItems(db, id, items);
+      subsidyProgramService.linkGrantItems(db, id, items);
+      expect(links()).toEqual({ work: 1, household: 1 });
+    });
+
+    it('throws NotFoundError for an unknown grant, task or purchase and links nothing', () => {
+      seedItems();
+      const id = insertRawProgram({ name: 'Grant' });
+      expect(() =>
+        subsidyProgramService.linkGrantItems(db, 'nope', [{ type: 'work_item', id: 'wi-1' }]),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        subsidyProgramService.linkGrantItems(db, id, [
+          { type: 'household_item', id: 'hi-1' },
+          { type: 'work_item', id: 'nope' },
+        ]),
+      ).toThrow(NotFoundError);
+      expect(() =>
+        subsidyProgramService.linkGrantItems(db, id, [
+          { type: 'work_item', id: 'wi-1' },
+          { type: 'household_item', id: 'nope' },
+        ]),
+      ).toThrow(NotFoundError);
+      expect(links()).toEqual({ work: 0, household: 0 });
+    });
+
+    it('create with items links them; an unknown item rolls the whole create back', () => {
+      seedItems();
+      const created = subsidyProgramService.createSubsidyProgram(
+        db,
+        {
+          ...{ name: 'With items', reductionType: 'percentage', reductionValue: 5 },
+          items: [{ type: 'work_item', id: 'wi-1' }],
+        },
+        TEST_USER_ID,
+      );
+      expect(created.name).toBe('With items');
+      expect(links()).toEqual({ work: 1, household: 0 });
+
+      expect(() =>
+        subsidyProgramService.createSubsidyProgram(
+          db,
+          {
+            name: 'Doomed',
+            reductionType: 'percentage',
+            reductionValue: 5,
+            items: [{ type: 'household_item', id: 'nope' }],
+          },
+          TEST_USER_ID,
+        ),
+      ).toThrow(NotFoundError);
+      const names = db
+        .select()
+        .from(schema.subsidyPrograms)
+        .all()
+        .map((r) => r.name);
+      expect(names).toEqual(['With items']);
+    });
+  });
 });

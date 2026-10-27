@@ -1999,10 +1999,10 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
         'sub-1',
       );
-      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
 
       const matches = await screen.findAllByText(ie.linkSubsidy);
       expect(matches).toHaveLength(1);
@@ -2329,7 +2329,7 @@ describe('WorkItemDetailPage', () => {
       expect(section).toHaveAttribute('aria-labelledby', heading.id);
       expect(within(section).getByTestId('cost-lines-stub')).toBeInTheDocument();
       expect(
-        within(section).getByRole('heading', { name: 'Subsidies', level: 3 }),
+        within(section).getByRole('heading', { name: 'Grants', level: 3 }),
       ).toBeInTheDocument();
     });
 
@@ -2400,10 +2400,10 @@ describe('WorkItemDetailPage', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
       renderPage();
       await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
         'sub-1',
       );
-      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
       await screen.findByRole('alert');
 
       const budgetCalls = mockFetchWorkItemBudgets.mock.calls.length;
@@ -2443,10 +2443,10 @@ describe('WorkItemDetailPage', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
       renderPage();
       await user.selectOptions(
-        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        await screen.findByRole('combobox', { name: /select a grant to link to this item/i }),
         'sub-1',
       );
-      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+      await user.click(screen.getByRole('button', { name: 'Add grant to this item' }));
       const alert = await screen.findByRole('alert');
       await user.click(within(alert).getByRole('button'));
       expect(screen.queryByRole('alert')).toBeNull();

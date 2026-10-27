@@ -35,6 +35,8 @@ export interface DocumentsPanelProps {
   readonly entityType: DocumentLinkEntityType;
   readonly entityId: string;
   readonly open: boolean;
+  /** The view the panel shows each time it opens (default `list`; `picker` = Link document). */
+  readonly initialView?: 'list' | 'picker';
   readonly onClose: () => void;
   /** The host's trigger (the Documents fact or button): focus returns here on close. */
   readonly triggerRef: RefObject<HTMLButtonElement | null>;
@@ -79,6 +81,7 @@ export function DocumentsPanel({
   entityType,
   entityId,
   open,
+  initialView = 'list',
   onClose,
   triggerRef,
   mode,
@@ -107,6 +110,12 @@ export function DocumentsPanel({
   const sheetId = useId();
 
   const [view, setView] = useState<'list' | 'picker'>('list');
+  // Each time the panel opens it starts in the host's view (the "Link" action opens the picker).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setView(initialView);
+  }
   const [linkError, setLinkError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [updatingTypeId, setUpdatingTypeId] = useState<string | null>(null);

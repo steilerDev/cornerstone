@@ -40,7 +40,7 @@
  * - Step 1 (`Step1UseCase.tsx`): `role="radiogroup"` (aria-label "Which report do you need?"),
  *   3 `<label class*="useCaseCard">` cards, each with a hidden radio input
  *   (`input[name="useCase"][value="budget-overview"|"claim"|"proof-of-funds"]`).
- * - Step 2 (`Step2Source.tsx`): `role="radiogroup"` (aria-label "Select a budget source"),
+ * - Step 2 (`Step2Source.tsx`): `role="radiogroup"` (aria-label "Select the funding source for this report"),
  *   `<label class*="sourceRow">` per source, `input[name="source"][value=<sourceId>]`,
  *   discretionary sources sorted last with `class*="sourceRowDisc"`.
  * - Step 3 (`ReportInvoiceList.tsx`, `client/src/components/reports/`): header
@@ -592,7 +592,9 @@ export class ReportWizardPage {
     this.useCaseRadioGroup = page.getByRole('radiogroup', { name: 'Which report do you need?' });
     this.step1NextButton = page.locator('[class*="metadataCard"] [class*="btnPrimary"]').first();
 
-    this.sourceRadioGroup = page.getByRole('radiogroup', { name: 'Select a budget source' });
+    this.sourceRadioGroup = page.getByRole('radiogroup', {
+      name: 'Select the funding source for this report',
+    });
     this.step2BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').first();
     this.step2NextButton = page.locator('[class*="buttonRow"] [class*="btnPrimary"]').first();
 

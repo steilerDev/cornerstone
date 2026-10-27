@@ -4,8 +4,8 @@
  * The in-page tab rows (Project, Budget, Settings and the Schedule view switch) are gone: the
  * sidebar lists the views of the section the user is in. On every page that used to carry a row
  * the page's `main` area holds no navigation landmark, except
- *  - the breadcrumb trail on non-view pages (Funding sources, Grants and Bank report show a
- *    "Money" trail), which is excluded by its row's test id, not by text, and
+ *  - the breadcrumb trail on non-view pages (the Bank report shows a
+ *    "Money › Financing" trail), which is excluded by its row's test id, not by text, and
  *  - the "Area path" trail inside list rows/cards (an object's data, not page navigation),
  *  - the report wizard's step indicator on Bank report ("Report wizard steps").
  *
@@ -24,8 +24,7 @@ const PAGES = [
   ['Calendar', () => routeUrl('scheduleCalendar')],
   ['Money overview', () => routeUrl('budgetOverview')],
   ['Invoices', () => routeUrl('invoices')],
-  ['Funding sources', () => routeUrl('budgetSources')],
-  ['Grants', () => routeUrl('budgetSubsidies')],
+  ['Financing', () => routeUrl('financing')],
   ['Bank report', () => routeUrl('bankReport')],
   ['Account', () => routeUrl('settingsProfile')],
   ['Project setup', () => routeUrl('settingsManage')],

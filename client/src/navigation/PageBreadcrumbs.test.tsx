@@ -230,13 +230,13 @@ describe('PageBreadcrumbs', () => {
       expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
 
-    it('offers Back to Funding sources on the Bank report', () => {
+    it('shows Money > Financing on the Bank report and no Back when it came from Financing (#2242)', () => {
       renderAt('/budget/reports', {
-        state: originStateFor({ pathname: '/budget/sources', search: '', hash: '' }),
+        state: originStateFor({ pathname: '/budget/financing', search: '', hash: '' }),
       });
 
-      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Funding sources');
-      expect(trailLabels()).toEqual(['Money']);
+      expect(trailLabels()).toEqual(['Money', 'Financing']);
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
 
     it('labels Back with the page label of a non-view origin on a task page', () => {

@@ -143,7 +143,7 @@ This works identically on the [new-invoice review screen](vendors-and-invoices#c
 
 Each row has its own cells for the line's details:
 
-- **Cost category** and **Funding source.** Pick the cost category and which financing source pays for the line on the row. New lines default their funding source to **Discretionary Funding** (see [Funding source](#funding-source) below).
+- **Cost category** and **Funding source.** Pick the cost category and which financing source pays for the line on the row. New lines default their funding source to **Own funds** (see [Funding source](#funding-source) below).
 - **Belongs to.** Search for the **task** or **purchase** the line is for. Leave it empty to save the line as **Not assigned**, and assign it later. **Assign all to** sets the same target for every row at once.
 - **Include.** Switch the row on or off. Rows that are off are not saved.
 
@@ -161,11 +161,11 @@ An invoice-linked cost line is not locked to its first parent. You can later edi
 
 ## Funding source
 
-Every cost line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a subsidy, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
+Every cost line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a grant, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
 
-So auto-extracted lines default to the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from. You can override the funding source per line directly in the grid, using each row's **Funding source** cell.
+So auto-extracted lines default to the built-in **Own funds** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from. You can override the funding source per line directly in the grid, using each row's **Funding source** cell.
 
-A note above the **extracted lines** grid on the Split with AI page reminds you, before you save, that any lines still on Discretionary Funding can be moved onto a real source at any time -- nothing is locked in. It is just a sensible default to get lines recorded quickly.
+A note above the **extracted lines** grid on the Split with AI page reminds you, before you save, that any lines still on Own funds can be moved onto a real source at any time -- nothing is locked in. It is just a sensible default to get lines recorded quickly.
 
 ### Reassign a line's funding source
 
@@ -174,7 +174,7 @@ When you know which source should fund a line, change it from the line's edit vi
 1. Open the task or purchase the line is assigned to (or **Money > Overview**).
 2. Edit the line and pick the correct financing source from the source selector, then save.
 
-If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the [Financing Sources](financing-sources) page lets you multi-select lines and move them in a single operation. The depletion totals on both the old and new source update immediately.
+If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the **Cost** tab of that funding source's page (see [Financing](financing-sources)) lets you select lines and move them to another source in a single operation. The depletion totals on both the old and new source update immediately.
 
 :::tip Funding source is not the same as the linked item
 Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **task or purchase** (what the line is for). You can change either independently and as often as you like -- both the funding source and the parent item assignment can be edited later from the line's edit view.

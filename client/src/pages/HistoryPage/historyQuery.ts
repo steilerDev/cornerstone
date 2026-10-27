@@ -17,7 +17,7 @@ export interface HistoryFilters {
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const OBJECT_PATTERN = /^(work_item|invoice|milestone|subsidy_program):(.{1,64})$/;
+const OBJECT_PATTERN = /^([a-z_]+):(.{1,64})$/;
 
 function readDate(value: string | null): string {
   return value !== null && DATE_PATTERN.test(value) ? value : '';

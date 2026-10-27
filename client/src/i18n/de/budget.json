@@ -101,98 +101,12 @@
     "expectedPayback": "Erwartete Rückzahlung"
   },
   "sources": {
-    "sectionTitle": "Quellen",
-    "addSource": "Quelle hinzufügen",
-    "loading": "Budgetquellen werden geladen...",
-    "error": "Fehler",
-    "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuche es später erneut.",
-    "retry": "Erneut versuchen",
-    "newBudgetSource": "Neue Budgetquelle",
-    "newBudgetSourceDescription": "Budgetquellen stellen Finanzierung für dein Projekt dar (z. B. Bankkredite, Kreditlinien, Ersparnisse).",
-    "form": {
-      "name": "Name",
-      "type": "Typ",
-      "status": "Status",
-      "totalAmount": "Gesamtbetrag",
-      "interestRate": "Zinssatz (%)",
-      "terms": "Bedingungen",
-      "reference": "Referenz",
-      "contactAddress": "Kontaktadresse",
-      "notes": "Notizen",
-      "required": "*",
-      "placeholders": {
-        "name": "z. B. Hauptbankkredite",
-        "interestRate": "z. B. 3,50",
-        "terms": "z. B. 30-jähriger fester Satz, monatliche Zahlungen",
-        "reference": "z. B. Darlehen Nr. 12345",
-        "contactAddress": "z. B. Musterstraße 1, 12345 Musterstadt",
-        "notes": "Optionale Notizen"
-      }
-    },
-    "validation": {
-      "nameRequired": "Quellenname ist erforderlich",
-      "amountRequired": "Gesamtbetrag muss eine nicht-negative Zahl sein",
-      "interestRateInvalid": "Zinssatz muss eine nicht-negative Zahl sein"
-    },
-    "buttons": {
-      "create": "Quelle erstellen",
-      "creating": "Wird erstellt...",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "edit": "Bearbeiten",
-      "delete": "Löschen"
-    },
-    "sourcesList": {
-      "title": "Quellen",
-      "empty": "Noch keine Budgetquellen. Füge deine erste Finanzierungsquelle hinzu, um die Projektfinanzierung zu verfolgen.",
-      "system": "System"
-    },
-    "deleteModal": {
-      "conflictError": "Diese Budgetquelle kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
-    },
-    "messages": {
-      "created": "Budgetquelle „{{name}}“ erfolgreich erstellt",
-      "updated": "Budgetquelle „{{name}}“ erfolgreich aktualisiert",
-      "deleted": "Budgetquelle „{{name}}“ erfolgreich gelöscht",
-      "createError": "Budgetquelle konnte nicht erstellt werden. Bitte versuche es später erneut.",
-      "updateError": "Budgetquelle konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
-      "deleteError": "Budgetquelle konnte nicht gelöscht werden. Bitte versuche es später erneut."
-    },
-    "sourceTypes": {
-      "bank_loan": "Bankdarlehen",
-      "credit_line": "Kreditlinie",
-      "savings": "Ersparnisse",
-      "other": "Sonstiges",
-      "discretionary": "Diskretionär"
-    },
-    "barChart": {
-      "claimed": "Eingereicht",
-      "paidUnclaimed": "Bezahlt",
-      "projected": "Projiziert",
-      "projectedRange": "Projiziert",
-      "projectedUncertainty": "Prognoseunsicherheit",
-      "overflow": "Überlauf",
-      "ofTotal": "der Summe",
-      "remaining": "Verbleibend",
-      "rate": "Rate",
-      "headroom": "Spielraum",
-      "totalBadge": "Gesamt: {{amount}}",
-      "totalBadgeAriaLabel": "Gesamtbetrag: {{amount}}",
-      "summaryProjectedLabel": "Projiziert",
-      "summaryPaidLabel": "Bezahlt",
-      "summaryClaimedLabel": "Eingereicht",
-      "srOnly": "Eingereicht {{submitted}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}",
-      "overAllocated": "Überzogen um {{amount}}"
-    },
     "lines": {
       "expand": "Positionen einblenden",
       "collapse": "Positionen ausblenden",
       "loadingLabel": "Budgetpositionen werden geladen…",
       "empty": "Keine Budgetpositionen zugeordnet",
       "emptyDescription": "Budgetpositionen aus Arbeitspaketen und Haushaltsartikeln erscheinen hier, wenn sie dieser Quelle zugeordnet sind.",
-      "workItemSection": "Arbeitspaket-Positionen",
-      "householdItemSection": "Haushaltsartikel-Positionen",
       "unassignedArea": "Kein Bereich",
       "fetchError": "Budgetpositionen konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
@@ -223,7 +137,6 @@
         "navigateToItem": "{{name}} öffnen",
         "selectedCount_one": "{{count}} Position ausgewählt",
         "selectedCount_other": "{{count}} Positionen ausgewählt",
-        "openModalButton": "In andere Quelle verschieben…",
         "modalTitle": "Positionen in andere Quelle verschieben",
         "movingCount_one": "{{count}} Position von {{sourceName}} wird verschoben",
         "movingCount_other": "{{count}} Positionen von {{sourceName}} werden verschoben",
@@ -237,16 +150,9 @@
         "confirmButton": "Positionen verschieben",
         "confirmDisabledHint": "Aktiviere das Kontrollkästchen „Ich verstehe“, um die Bestätigung zu ermöglichen",
         "confirmDisabledNoTarget": "Wähle eine Zielquelle aus, um die Bestätigung zu ermöglichen",
-        "successToast_one": "{{count}} Position wurde nach {{targetName}} verschoben",
-        "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
         "genericError": "Positionen konnten nicht verschoben werden. Bitte versuche es erneut."
       }
-    },
-    "summary": {
-      "remainingLabel": "Verbleibend"
-    },
-    "generateReport": "Bericht erstellen",
-    "generateReportMenuAriaLabel": "Bericht für {{name}} erstellen"
+    }
   },
   "vendors": {
     "sectionTitle": "Auftragnehmer",
@@ -517,95 +423,16 @@
     }
   },
   "subsidies": {
-    "title": "Förderprogramme",
-    "sectionTitle": "Förderprogramme",
-    "addProgram": "Programm hinzufügen",
-    "loading": "Förderprogramme werden geladen...",
-    "error": "Fehler",
-    "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuche es später erneut.",
-    "retry": "Erneut versuchen",
-    "noProgramsTitle": "Noch keine Förderprogramme",
-    "noProgramsDescription": "Füge dein erstes Programm hinzu, um verfügbare Zuschüsse und Regierungsanreize für dein Projekt zu verfolgen.",
-    "programsCount": "Programme ({{count}})",
-    "newSubsidyProgram": "Neues Förderprogramm",
-    "subsidyDescription": "Förderprogramme stellen staatliche oder institutionelle Programme dar, die Baukosten durch prozentuale oder pauschale Reduktionen senken.",
-    "form": {
-      "name": "Name",
-      "reductionType": "Reduktionstyp",
-      "reductionValue": "Reduktionswert",
-      "valuePercentage": "Wert (%)",
-      "valueFixed": "Wert",
-      "applicationStatus": "Bewerbungsstatus",
-      "deadline": "Frist",
-      "maximumAmount": "Maximalbetrag (€)",
-      "description": "Beschreibung",
-      "eligibility": "Anforderungen",
-      "notes": "Notizen",
-      "applicableCategories": "Anwendbare Budgetkategorien",
-      "noCategoryLabel": "Ohne Kategorie",
-      "selectAll": "Alle auswählen",
-      "deselectAll": "Alle abwählen",
-      "required": "*",
-      "placeholders": {
-        "name": "z. B. Energieeffizienz-Zuschuss",
-        "reductionValuePercentage": "15",
-        "reductionValueFixed": "5000",
-        "description": "Optionale Programmbeschreibung",
-        "eligibility": "Optionale Zulassungskriterien",
-        "notes": "Optionale zusätzliche Notizen",
-        "maximumAmount": "Keine Begrenzung"
-      }
-    },
-    "validation": {
-      "nameRequired": "Programmname ist erforderlich",
-      "reductionValueRequired": "Reduktionswert muss eine nicht-negative Zahl sein",
-      "percentageMax": "Prozentuale Reduktion kann 100% nicht überschreiten"
-    },
-    "reductionTypeLabels": {
-      "percentage": "Prozentual (%)",
-      "fixed": "Festbetrag (€)"
-    },
     "oversubscribed": "Überzeichnet",
     "linkSection": {
-      "emptyState": "Keine Förderprogramme verknüpft",
-      "selectAriaLabel": "Förderprogramm zum Verknüpfen auswählen",
-      "selectPlaceholder": "Förderprogramm auswählen...",
-      "addButton": "Förderprogramm hinzufügen",
+      "emptyState": "Mit diesem Element sind keine Förderprogramme verknüpft.",
+      "selectAriaLabel": "Förderprogramm zum Verknüpfen mit diesem Element auswählen",
+      "selectPlaceholder": "Förderprogramm zum Verknüpfen auswählen...",
+      "addButton": "Förderprogramm zu diesem Element hinzufügen",
       "linking": "Wird verknüpft...",
-      "unlinkAriaLabel": "Förderprogramm {{name}} trennen",
+      "unlinkAriaLabel": "Verknüpfung des Förderprogramms {{name}} mit diesem Element lösen",
       "reductionPercentage": "{{value}}% Reduktion",
       "reductionFixed": "{{amount}} Reduktion"
-    },
-    "editForm": {
-      "placeholders": {
-        "description": "Optionale Beschreibung",
-        "eligibility": "Optionale Zulassungskriterien",
-        "notes": "Optionale Notizen"
-      }
-    },
-    "buttons": {
-      "create": "Programm erstellen",
-      "creating": "Wird erstellt...",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "editAria": "{{name}} bearbeiten",
-      "deleteAria": "{{name}} löschen",
-      "selectAll": "Alle auswählen",
-      "deselectAll": "Alle abwählen"
-    },
-    "modal": {
-      "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
-    },
-    "messages": {
-      "createError": "Förderprogramm konnte nicht erstellt werden. Bitte versuche es später erneut.",
-      "updateError": "Förderprogramm konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
-      "deleteError": "Förderprogramm konnte nicht gelöscht werden. Bitte versuche es später erneut.",
-      "created": "Förderprogramm „{{name}}“ erfolgreich erstellt",
-      "updated": "Förderprogramm „{{name}}“ erfolgreich aktualisiert",
-      "deleted": "Förderprogramm „{{name}}“ erfolgreich gelöscht"
     }
   },
   "health": {
@@ -762,7 +589,7 @@
     "modeAppend": "Zu bestehenden Positionen hinzufügen",
     "modeReplace": "Bestehende Positionen ersetzen",
     "extractedLines": "Extrahierte Positionen",
-    "discretionaryFundingNote": "Neue Positionen werden aus deiner Diskretionären Finanzierungsquelle finanziert. Du kannst die Finanzierungsquelle für jede Position unten neu zuweisen.",
+    "discretionaryFundingNote": "Neue Kostenpositionen werden aus deiner Finanzierungsquelle Eigenmittel finanziert. Du kannst die Finanzierungsquelle jeder Kostenposition unten neu zuordnen.",
     "amount": "Betrag",
     "categoryRequiredError": "Bitte wähle für alle einbezogenen Positionen eine Kategorie aus",
     "total": "Gesamt",
@@ -780,10 +607,10 @@
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmer suchen…",
     "vendorRequired": "Auftragnehmer ist erforderlich",
-    "budgetSource": "Budgetquelle",
+    "budgetSource": "Finanzierungsquelle",
     "budgetSourceNone": "Kein Standard",
-    "budgetSourceApplied_one": "Budgetquelle „{{name}}“ auf {{count}} Position angewendet",
-    "budgetSourceApplied_other": "Budgetquelle „{{name}}“ auf {{count}} Positionen angewendet",
+    "budgetSourceApplied_one": "Finanzierungsquelle „{{name}}“ auf {{count}} Position angewendet",
+    "budgetSourceApplied_other": "Finanzierungsquelle „{{name}}“ auf {{count}} Positionen angewendet",
     "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
     "createAndItemize": "Rechnung erstellen & aufschlüsseln",
     "extractionStarted": "Dokument wird mit KI analysiert…",
@@ -809,10 +636,10 @@
     "selectLinkedReason": "Eine Position, die mit einer bestehenden Kostenposition verknüpft ist, kann nicht zusammengeführt werden."
   },
   "sourceReports": {
-    "subtitle": "Finanzberichte für Budgetquellen erstellen",
+    "subtitle": "Finanzberichte für Finanzierungsquellen erstellen",
     "stepper": {
       "useCase": "Berichtsart",
-      "source": "Budgetquelle",
+      "source": "Finanzierungsquelle",
       "invoices": "Rechnungen auswählen",
       "settings": "Einstellungen",
       "actions": "Vorschau & Export"
@@ -843,20 +670,20 @@
       "claim": "Zu zahlende oder bezahlte Rechnungen, die noch nicht eingereicht sind",
       "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
     },
-    "sourceLabel": "Wähle eine Budgetquelle aus",
+    "sourceLabel": "Wähle eine Finanzierungsquelle aus",
     "amountLabel": {
       "overview": "Gesamtbetrag",
       "claim": "Zu zahlen oder bezahlt, nicht eingereicht",
       "proofOfFunds": "Eingereicht"
     },
-    "discretionary": "Diskretionär",
+    "discretionary": "Eigenmittel",
     "selectAllInvoices": "Alle Rechnungen auswählen",
     "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
     "invoicesHeading": "Einzubeziehende Rechnungen auswählen",
     "unallocatedGroupTitle": "Nicht zugeordnete Rechnungen ({{count}})",
-    "unallocatedExplained": "Diese Rechnungen sind dieser Budgetquelle nicht zugeordnet",
+    "unallocatedExplained": "Diese Rechnungen sind dieser Finanzierungsquelle nicht zugeordnet",
     "emptyInvoices": "Keine Rechnungen gefunden",
-    "emptyInvoicesDescription": "Diese Budgetquelle hat keine Rechnungen für diesen Berichtstyp",
+    "emptyInvoicesDescription": "Diese Finanzierungsquelle hat keine Rechnungen für diesen Berichtstyp",
     "selectAtLeastOne": "Wähle mindestens eine Rechnung aus, um fortzufahren",
     "attachDocuments": "Rechnungs-PDFs anhängen",
     "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
@@ -1003,7 +830,7 @@
         "claim": "Einreichungsbericht",
         "proof-of-funds": "Verwendungsnachweis"
       },
-      "source": "Budgetquelle",
+      "source": "Finanzierungsquelle",
       "sourceType": "Quellentyp",
       "reference": "Referenz",
       "generatedAt": "Erstellt am",
@@ -1038,7 +865,7 @@
       "credit_line": "Kreditlinie",
       "savings": "Ersparnisse",
       "other": "Sonstiges",
-      "discretionary": "Diskretionär"
+      "discretionary": "Eigenmittel"
     },
     "expand": {
       "expandInvoice": "Rechnungsdetails einblenden",
@@ -1246,6 +1073,155 @@
     "converted": "Angebot in Endrechnung umgewandelt.",
     "history": {
       "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
+    }
+  },
+  "financing": {
+    "nouns": {
+      "source": "Finanzierungsquelle",
+      "sources": "Finanzierungsquellen",
+      "grant": "Förderprogramm",
+      "grants": "Förderprogramme",
+      "sourceTitle": "Finanzierungsquelle",
+      "grantTitle": "Förderprogramm"
+    },
+    "actions": {
+      "prepareBankReport": "Bankbericht vorbereiten",
+      "addSource": "{{object}} hinzufügen",
+      "addGrant": "{{object}} hinzufügen"
+    },
+    "groups": {
+      "sources": "Darlehen und Eigenmittel",
+      "grants": "Förderprogramme"
+    },
+    "empty": {
+      "sources": "Noch keine {{objects}}",
+      "grants": "Noch keine {{objects}}"
+    },
+    "loadError": "Finanzierung konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "figures": {
+      "amount": "Betrag",
+      "allocated": "Zugeordnet",
+      "paid": "Bezahlt",
+      "submitted": "Eingereicht",
+      "unallocated": "Frei",
+      "rate": "Satz"
+    },
+    "rateValue": "Satz {{rate}}",
+    "readyToSubmit": "Einreichbar",
+    "overAllocatedBy": "Überzogen um {{amount}}",
+    "overAllocatedWarning": "Überzogen um {{amount}}. Diese Quelle wird über ihren Betrag hinaus genutzt.",
+    "moveLines": "Positionen verschieben…",
+    "moveToAnotherSource": "Auf eine andere Quelle verschieben",
+    "moved_one": "{{count}} Position nach {{name}} verschoben.",
+    "moved_other": "{{count}} Positionen nach {{name}} verschoben.",
+    "cardActions": "Aktionen für {{name}}",
+    "sourceType": {
+      "bank_loan": "Bankdarlehen",
+      "credit_line": "Kreditlinie",
+      "savings": "Ersparnisse",
+      "other": "Sonstiges",
+      "discretionary": "Eigenmittel"
+    },
+    "grant": {
+      "cap": "Förderfähig bis",
+      "noCap": "Ohne Obergrenze",
+      "expected": "Erwartet",
+      "covered": "Abgedeckte Posten",
+      "coveredCount_one": "{{count}} Posten",
+      "coveredCount_other": "{{count}} Posten",
+      "deadline": "Frist",
+      "overdue": "Überfällig",
+      "fixedReduction": "Feste Minderung {{amount}}",
+      "fixedReductionField": "Feste Minderung",
+      "explanationTitle": "So wird die erwartete Förderung berechnet",
+      "explanation": "Erwartet sind {{rate}} von {{covered}} abgedeckten Kosten, höchstens {{cap}}.",
+      "explanationNoCap": "Erwartet sind {{rate}} von {{covered}} abgedeckten Kosten.",
+      "explanationFixed": "Erwartet sind {{amount}} je abgedecktem Posten, höchstens {{cap}}.",
+      "explanationFixedNoCap": "Erwartet sind {{amount}} je abgedecktem Posten."
+    },
+    "grantChips": {
+      "more": "Förderprogramme: {{names}}"
+    },
+    "itemKind": {
+      "work_item": "Aufgabe",
+      "household_item": "Anschaffung"
+    },
+    "work": {
+      "link": "Aufgaben / Anschaffungen verknüpfen",
+      "linkCount_one": "{{count}} Posten verknüpfen",
+      "linkCount_other": "{{count}} Posten verknüpfen",
+      "linked_one": "{{count}} Posten verknüpft.",
+      "linked_other": "{{count}} Posten verknüpft.",
+      "empty": "Noch keine abgedeckten Posten.",
+      "emptyDetail": "Die erwartete Förderung beträgt {{amount}}, bis du Aufgaben oder Anschaffungen verknüpfst.",
+      "removeChip": "{{name}} entfernen",
+      "selected": "{{count}} ausgewählt"
+    },
+    "sections": {
+      "details": "Details",
+      "allocation": "Zuordnung",
+      "eligibility": "Förderfähigkeit"
+    },
+    "fields": {
+      "name": "Name",
+      "type": "Typ",
+      "amount": "Betrag",
+      "interestRate": "Zinssatz",
+      "status": "Status",
+      "terms": "Bedingungen",
+      "reference": "Referenz",
+      "contactAddress": "Kontaktadresse",
+      "notes": "Notizen",
+      "rate": "Satz (%)",
+      "items": "Förderfähige Aufgaben und Anschaffungen",
+      "categories": "Kostenkategorien",
+      "noCategory": "Ohne Kategorie",
+      "includesNoCategory": "Schließt Kosten ohne Kategorie ein",
+      "description": "Beschreibung",
+      "eligibility": "Förderfähigkeit",
+      "deadline": "Frist"
+    },
+    "hints": {
+      "rate": "Anteil der abgedeckten Kosten, den das Förderprogramm übernimmt",
+      "categories": "Nur Kosten in diesen Kategorien zählen"
+    },
+    "errors": {
+      "itemsRequired": "Wähle mindestens eine Aufgabe oder Anschaffung.",
+      "nameRequired": "Gib einen Namen ein.",
+      "amountInvalid": "Gib einen Betrag größer als 0 ein.",
+      "interestInvalid": "Gib einen Zinssatz zwischen 0 und 100 ein.",
+      "rateInvalid": "Gib einen Satz größer als 0 und bis zu 100 ein.",
+      "amountNotNegative": "Gib einen Betrag von 0 oder mehr ein."
+    },
+    "form": {
+      "titleNewSource": "Neue Finanzierungsquelle",
+      "titleNewGrant": "Neues Förderprogramm",
+      "added": "{{name}} hinzugefügt."
+    },
+    "delete": {
+      "titleSource": "{{object}} löschen?",
+      "titleGrant": "{{object}} löschen?"
+    },
+    "deleted": "{{name}} gelöscht.",
+    "sourcePage": {
+      "notFound": "Diese Finanzierungsquelle konnte nicht gefunden werden.",
+      "loadError": "Die Finanzierungsquelle konnte nicht geladen werden.",
+      "saveError": "Die Änderungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+      "deleteError": "Die Finanzierungsquelle konnte nicht gelöscht werden. Bitte versuche es erneut."
+    },
+    "history": {
+      "title": "Verlauf",
+      "empty": "Noch kein Verlauf vorhanden.",
+      "loadError": "Der Verlauf konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "showAll": "Alle im Verlauf anzeigen"
+    },
+    "grantPage": {
+      "notFound": "Dieses Förderprogramm konnte nicht gefunden werden.",
+      "loadError": "Das Förderprogramm konnte nicht geladen werden.",
+      "saveError": "Die Änderungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+      "deleteError": "Das Förderprogramm konnte nicht gelöscht werden. Bitte versuche es erneut."
     }
   }
 }

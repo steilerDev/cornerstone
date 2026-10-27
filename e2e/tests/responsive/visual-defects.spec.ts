@@ -54,7 +54,7 @@ import {
 } from '../../fixtures/apiHelpers.js';
 import { AreasIndexPage } from '../../pages/AreasIndexPage.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
-import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { FundingSourcePage } from '../../pages/FundingSourcePage.js';
 import { HomePage } from '../../pages/HomePage.js';
 import { installHomeMocks, newHomeMockState } from '../../fixtures/homeMocks.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
@@ -732,7 +732,7 @@ test.describe(
   'Visual defects — rows never overlap their cells (AC10)',
   { tag: '@responsive' },
   () => {
-    test('D-28: Sources > Show lines: description and amount do not collide, with and without selection', async ({
+    test('D-28: Funding source > Cost tab: description and amount do not collide, with and without selection', async ({
       page,
       testPrefix,
     }) => {
@@ -750,11 +750,10 @@ test.describe(
         description: `${LONG_DESCRIPTION} second circuit ${'z'.repeat(20)}`,
       });
 
-      const sources = new BudgetSourcesPage(page);
-      await page.goto(ROUTES.budgetSources);
-      await sources.expandSourceLines(sourceName);
+      const sources = new FundingSourcePage(page);
+      await sources.goto(sourceId, { tab: 'cost' });
 
-      const rows = sources.getLineRows(sourceId);
+      const rows = sources.linesPanel(sourceId).locator('li[class*="lineRow"]');
       await expect(rows).toHaveCount(2);
 
       const checkAllRows = async (stage: string) => {

@@ -106,7 +106,7 @@ describe('PulseSection', () => {
     expect(left).toHaveTextContent('Add a funding source and a cost to see this.');
     expect(left).not.toHaveTextContent('On budget');
     expect(left).not.toHaveTextContent('Over budget');
-    expect(hrefOf('home-pulse-left-to-spend')).toBe('/budget/sources');
+    expect(hrefOf('home-pulse-left-to-spend')).toBe('/budget/financing');
   });
 
   it('#2232: marks the Left to spend figure data-figure="left-to-spend" with the expected value', async () => {

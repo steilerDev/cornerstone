@@ -253,7 +253,7 @@ export function renderSystemEvent(
     return view('grantStatus', sentence, {
       heading: grantName,
       linkObject: 'grant',
-      linkTo: routeUrl('budgetSubsidies'),
+      linkTo: entry.sourceEntityId ? routeUrl('grant', { id: entry.sourceEntityId }) : null,
     });
   }
 
@@ -392,7 +392,7 @@ function linkTarget(
     case 'milestone':
       return { to: routeUrl('milestone', { id }), object: 'milestone' };
     case 'subsidy_program':
-      return { to: routeUrl('budgetSubsidies'), object: 'grant' };
+      return { to: routeUrl('grant', { id }), object: 'grant' };
     default:
       return null;
   }

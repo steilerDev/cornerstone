@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
 import type { Page, APIRequestContext } from '@playwright/test';
 import { ROUTES, API } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import {
   agendaItem,
   attentionResponse,
@@ -589,11 +590,11 @@ test.describe('Documentation screenshots', () => {
     }
   });
 
-  test('Budget financing sources', async ({ page }) => {
-    await page.goto(`${baseUrl}${ROUTES.budgetSources}`);
+  test('Financing', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.financing}`);
     await page.waitForLoadState('networkidle');
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Funding sources', exact: true }),
+      page.getByRole('heading', { level: 1, name: 'Financing', exact: true }),
     ).toBeVisible();
     await page.waitForTimeout(500);
 
@@ -604,12 +605,37 @@ test.describe('Documentation screenshots', () => {
     }
   });
 
-  test('Budget subsidies', async ({ page }) => {
-    await page.goto(`${baseUrl}${ROUTES.budgetSubsidies}`);
+  test('Funding source page', async ({ page }) => {
+    const res = await page.request.get(`${baseUrl}${API.budgetSources}`);
+    const body = (await res.json()) as { budgetSources?: Array<{ id: string }> };
+    const sourceId = body.budgetSources?.[0]?.id;
+    if (!sourceId) {
+      test.skip(true, 'No funding sources available');
+      return;
+    }
+    await page.goto(`${baseUrl}${routeUrl('fundingSource', { id: sourceId })}`);
     await page.waitForLoadState('networkidle');
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Grants', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByTestId('source-summary')).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'budget-source-page', theme);
+    }
+  });
+
+  test('Grant page', async ({ page }) => {
+    const res = await page.request.get(`${baseUrl}${API.subsidyPrograms}`);
+    const body = (await res.json()) as { subsidyPrograms?: Array<{ id: string }> };
+    const grantId = body.subsidyPrograms?.[0]?.id;
+    if (!grantId) {
+      test.skip(true, 'No grants available');
+      return;
+    }
+    await page.goto(`${baseUrl}${routeUrl('grant', { id: grantId })}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('grant-summary')).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {

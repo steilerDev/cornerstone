@@ -12,7 +12,6 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import type { areas } from '../db/schema.js';
 import {
   householdItems,
   householdItemCategories,
@@ -29,10 +28,11 @@ import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { getExpectedGrantsByHouseholdItem } from './moneyService.js';
-import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
+import { getAreaSummary, loadAreaMap, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
-import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
+import { toUserSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
+import { loadGrantChips } from './shared/itemGrantChips.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
@@ -82,7 +82,7 @@ function getBudgetLineCount(db: DbType, householdItemId: string): number {
     .from(householdItemBudgets)
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
-  return result?.count ?? 0;
+  return result!.count;
 }
 
 /**
@@ -104,7 +104,7 @@ function getTotalPlannedAmount(db: DbType, householdItemId: string, vatRate: num
     .from(householdItemBudgets)
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
-  return result?.total ?? 0;
+  return result!.total;
 }
 
 /**
@@ -122,7 +122,7 @@ function getTotalActualAmount(db: DbType, householdItemId: string): number {
     )
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
-  return result?.total ?? 0;
+  return result!.total;
 }
 
 /**
@@ -152,29 +152,6 @@ function getBudgetSummary(
 }
 
 /**
- * Get area with ancestors resolved from the area map.
- * Returns null if areaId is null or area is not found in the map.
- */
-function getAreaWithAncestors(
-  areaId: string | null,
-  areaMap: Map<string, AreaMapEntry>,
-): ReturnType<typeof toAreaSummary> {
-  if (!areaId) return null;
-  const entry = areaMap.get(areaId);
-  if (!entry) return null;
-  const ancestors = resolveAreaAncestors(areaId, areaMap);
-  return toAreaSummary(
-    {
-      id: entry.id,
-      name: entry.name,
-      color: entry.color,
-      parentId: entry.parentId,
-    } as typeof areas.$inferSelect,
-    ancestors,
-  );
-}
-
-/**
  * Convert database household item row to HouseholdItemSummary shape.
  */
 export function toHouseholdItemSummary(
@@ -185,14 +162,14 @@ export function toHouseholdItemSummary(
   expectedGrants?: Map<string, number>,
 ): HouseholdItemSummary {
   const vendor = item.vendorId
-    ? (db.select().from(vendors).where(eq(vendors.id, item.vendorId)).get() ?? null)
+    ? db.select().from(vendors).where(eq(vendors.id, item.vendorId)).get()!
     : null;
 
   const createdByUser = item.createdBy
-    ? (db.select().from(users).where(eq(users.id, item.createdBy)).get() ?? null)
+    ? db.select().from(users).where(eq(users.id, item.createdBy)).get()!
     : null;
 
-  const area = getAreaWithAncestors(item.areaId, areaMap);
+  const area = getAreaSummary(item.areaId, areaMap);
 
   return {
     id: item.id,
@@ -607,7 +584,7 @@ export function listHouseholdItems(
     .from(householdItems)
     .where(whereClause)
     .get();
-  const totalItems = countResult?.count ?? 0;
+  const totalItems = countResult!.count;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
@@ -644,14 +621,20 @@ export function listHouseholdItems(
 
   // Counted grant shares are computed once for the whole page (money service, ADR-039)
   const expectedGrants = getExpectedGrantsByHouseholdItem(db, vatRate);
-  const items = itemRows.map((item) =>
-    toHouseholdItemSummary(db, item, areaMap, vatRate, expectedGrants),
+  const chips = loadGrantChips(
+    db,
+    'household_item',
+    itemRows.map((item) => item.id),
   );
+  const items = itemRows.map((item) => ({
+    ...toHouseholdItemSummary(db, item, areaMap, vatRate, expectedGrants),
+    grants: chips.get(item.id)!,
+  }));
 
   const filterMeta: FilterMeta = {
-    plannedCost: { min: metaRow?.plannedCostMin ?? 0, max: metaRow?.plannedCostMax ?? 0 },
-    actualCost: { min: metaRow?.actualCostMin ?? 0, max: metaRow?.actualCostMax ?? 0 },
-    budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
+    plannedCost: { min: metaRow!.plannedCostMin, max: metaRow!.plannedCostMax },
+    actualCost: { min: metaRow!.actualCostMin, max: metaRow!.actualCostMax },
+    budgetLines: { min: metaRow!.budgetLinesMin, max: metaRow!.budgetLinesMax },
   };
 
   return {

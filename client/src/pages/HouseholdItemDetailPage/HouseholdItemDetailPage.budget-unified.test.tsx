@@ -460,9 +460,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       });
 
       // Subsidies must NOT exist as a top-level h2 — it is an h3 subsection inside Budget
-      expect(
-        screen.queryByRole('heading', { name: 'Subsidies', level: 2 }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Grants', level: 2 })).not.toBeInTheDocument();
     });
 
     it('renders Subsidies as an h3 subsection inside the Budget section', async () => {
@@ -475,7 +473,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('heading', { name: 'Subsidies', level: 3 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Grants', level: 3 })).toBeInTheDocument();
     });
   });
 

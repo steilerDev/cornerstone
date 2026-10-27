@@ -32,6 +32,7 @@ const FIGURE_FILES = [
   'client/src/components/StatTile/StatTile.tsx',
   'client/src/components/SummaryStrip/SummaryStrip.tsx',
   'client/src/pages/BudgetOverviewPage/BudgetOverviewPage.tsx',
+  'client/src/pages/BudgetSourcesPage/FinancingSourceCard.tsx',
   'client/src/pages/HomePage/PulseSection.tsx',
   'client/src/pages/InvoicesPage/InvoicesPage.tsx',
   'client/src/pages/VendorDetailPage/VendorDetailPage.tsx',
@@ -143,10 +144,8 @@ describe('figure marker guard (#2232)', () => {
 
   it('uses every kind in the list that the UI can produce today', () => {
     const used = new Set(scanned.flatMap((f) => markerKinds(f.source)));
-    // Reserved until their surfaces are rebuilt: `paid` (4.5/4.10/4.12) and `ready-to-submit`
-    // (4.10; the Invoices stat cards that showed it were retired by 4.6, D-30). The rest are live.
-    const RESERVED = ['paid', 'ready-to-submit'];
-    for (const kind of FIGURE_KINDS.filter((k) => !RESERVED.includes(k))) {
+    // Every kind is live: `paid` and `ready-to-submit` are on the Financing source card (#2242).
+    for (const kind of FIGURE_KINDS) {
       expect(used).toContain(kind);
     }
   });

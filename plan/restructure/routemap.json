@@ -399,8 +399,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [],
-    "note": "NEW Money › Financing (h1 'Financing'): funding sources and grants; Add funding source, Add grant (§2.0 #11); Prepare bank report."
+    "carries": ["create", "kind"],
+    "note": "NEW Money › Financing (h1 'Financing'): funding sources and grants; Add funding source, Add grant (§2.0 #11); Prepare bank report. Live since #2242."
   },
   {
     "from": "/budget/financing/sources/:id",
@@ -412,7 +412,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["tab"],
-    "note": "NEW Funding source page (summary, Overview, Cost with Move, History incl. bank report events; Documents panel when Paperless is on)."
+    "note": "NEW Funding source page (summary, Overview, Cost with Move, History incl. bank report events; Documents panel when Paperless is on). Live since #2242."
   },
   {
     "from": "/budget/financing/grants/:id",
@@ -424,7 +424,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["tab"],
-    "note": "NEW Grant page: rate, eligible-costs cap, expected grant, eligible tasks and purchases (linking from the grant side), History."
+    "note": "NEW Grant page: rate, eligible-costs cap, expected grant, eligible tasks and purchases (linking from the grant side), History. Live since #2242."
   },
   {
     "from": "/budget/invoices/:id/convert",
@@ -568,7 +568,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Merged into Financing; query string carried."
+    "note": "Merged into Financing; query string carried. Live since #2242."
   },
   {
     "from": "/budget/subsidies",
@@ -580,7 +580,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Merged into Financing (grants section); query string carried."
+    "note": "Merged into Financing (grants section); query string carried. Live since #2242."
   },
   {
     "from": "/settings/vendors",
@@ -892,7 +892,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "New index route so the parent of a funding source page never 404s (C-13)."
+    "note": "New index route so the parent of a funding source page never 404s (C-13). Live since #2242."
   },
   {
     "from": "/budget/financing/grants",
@@ -904,7 +904,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "New index route so the parent of a grant page never 404s (C-13)."
+    "note": "New index route so the parent of a grant page never 404s (C-13). Live since #2242."
   },
   {
     "from": "/diary?filterMode=automatic",

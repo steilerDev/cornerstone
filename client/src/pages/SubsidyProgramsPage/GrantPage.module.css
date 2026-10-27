@@ -1,0 +1,133 @@
+.errorCard {
+  composes: card from '../../styles/shared.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.danger {
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Details ---- */
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-1);
+}
+
+.detailRow dt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.detailRow dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.required {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 768px) {
+  .detailRow {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--spacing-4);
+  }
+
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .linkButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.noCategory {
+  color: var(--color-text-secondary);
+}
+
+.explanation {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+/* ---- Link tasks / purchases picker ---- */
+
+.linkPicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.linkFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.linkButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.linkButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.linkCancel {
+  composes: btnText from '../../styles/shared.module.css';
+}

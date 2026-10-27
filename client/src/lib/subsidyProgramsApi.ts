@@ -1,6 +1,7 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
   SubsidyProgram,
+  SubsidyProgramDetailResponse,
   SubsidyProgramListResponse,
   SubsidyProgramResponse,
   CreateSubsidyProgramRequest,
@@ -15,14 +16,14 @@ export function fetchSubsidyPrograms(): Promise<SubsidyProgramListResponse> {
 }
 
 /**
- * Fetches a single subsidy program by ID.
+ * Fetches a single subsidy program by ID, with the money service's figures for it.
  */
-export function fetchSubsidyProgram(id: string): Promise<SubsidyProgramResponse> {
-  return get<SubsidyProgramResponse>(`/subsidy-programs/${id}`);
+export function fetchSubsidyProgram(id: string): Promise<SubsidyProgramDetailResponse> {
+  return get<SubsidyProgramDetailResponse>(`/subsidy-programs/${id}`);
 }
 
 /**
- * Creates a new subsidy program.
+ * Creates a new subsidy program (optionally linking `data.items` in the same request).
  */
 export async function createSubsidyProgram(
   data: CreateSubsidyProgramRequest,

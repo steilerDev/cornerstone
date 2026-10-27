@@ -1,71 +1,133 @@
 ---
 sidebar_position: 6
-title: Subsidies
+title: Grants
 ---
 
-# Subsidies
+# Grants
 
-Subsidy programs reduce the effective cost of your construction project. Cornerstone supports both percentage-based and fixed-amount subsidies, each scoped to a specific budget category.
+A **grant** is a subsidy or grant program that pays back part of the cost of specific work. Grants appear under **Grants** on the **Money > Financing** page, next to your [funding sources](financing-sources). Each grant has a rate, an optional cap, and a list of the tasks and purchases it covers.
 
-## Subsidy Types
+:::info Screenshot needed
+A screenshot of the grant page is not available yet.
+:::
 
-| Type | How It Works | Example |
-|------|-------------|---------|
-| **Percentage** | Reduces costs in the linked category by a percentage | 15% energy efficiency rebate on HVAC costs |
-| **Fixed Amount** | Reduces costs in the linked category by a flat amount | $2,000 insulation grant |
+## Adding a Grant
 
-## Creating a Subsidy
+Select **Add grant** on the Financing page, or choose **Grant** from the **New** menu. The dialog asks for:
 
-Navigate to **Budget > Subsidies** in the sidebar. Click **Add Program** and provide:
+- **Name** (required)
+- **Rate (%)** (required): the share of the covered costs the grant pays, above 0 and up to 100
+- **Link tasks / purchases** (required): choose at least one task or purchase the grant covers
+- **Eligible costs up to** (optional): a cap on the amount the grant can pay
 
-- **Name** -- A descriptive label (e.g., "Energy Efficiency Rebate Program")
-- **Reduction Type** -- Percentage or Fixed Amount
-- **Reduction Value** -- The percentage rate or fixed amount
-- **Applicable Budget Categories** -- Which categories this program applies to (see [Applicable Categories](#applicable-categories) below)
-- **Maximum Amount** -- Optional cap on the total subsidy payout
-- **Application Status** -- The current status of the subsidy application
-- **Deadline**, **Eligibility Requirements**, **Notes** -- Optional reference fields
+Under **More details** you can set the status, the deadline, the cost categories, a description, the eligibility rules, and notes.
 
-## Applicable Categories
+New grants are percentage-based. The dialog does not offer a fixed amount.
 
-A subsidy program can target one or more [budget categories](categories) at once -- tick the categories it applies to, or use **Select All** / **Deselect All**. Two special cases:
-
-- **No categories selected** -- the subsidy is treated as universal and applies to every budget line, regardless of category.
-- **No Category** -- a separate checkbox (independent of the category list) that includes budget lines that have no category assigned at all. Leave it unchecked to exclude uncategorized lines even when the program targets specific categories.
-
-## Application Statuses
+## Grant Statuses
 
 | Status | Meaning |
 |--------|---------|
-| **Eligible** | Identified as a program you qualify for, not yet applied |
+| **Eligible** | Identified as a grant you qualify for, not yet applied |
 | **Applied** | Application has been submitted, awaiting decision |
-| **Approved** | Subsidy approved but funds not yet received |
-| **Received** | Subsidy funds have been received |
+| **Approved** | Grant approved but money not yet received |
+| **Received** | Grant money has been received |
 | **Rejected** | Application was denied |
 
-Only subsidies with **Approved** or **Received** status are applied to budget calculations. Eligible, applied, and rejected subsidies are tracked but do not affect the Money Overview.
+Only grants with **Approved** or **Received** status count toward **Expected** on the [Money Overview](budget-overview) and the Financing page. Eligible, applied, and rejected grants are tracked but do not change the figures.
 
-## How Subsidies Affect the Budget
+## Covered Items
 
-Approved and received grants count as **Expected grants** on the [Money Overview](budget-overview). A subsidy applies to every budget line that matches its applicable categories (see above), across all work items and [household items](/guides/household-items):
+A grant pays only for the tasks and purchases linked to it, on its **Work** tab. A grant with cost categories but no linked tasks or purchases counts **0** until you link items. This is the most common reason a grant shows a small **Expected** amount.
 
-- **Percentage subsidy**: Reduces the total of matching lines by the specified percentage
-- **Fixed-amount subsidy**: Subtracts the flat amount from the total of matching lines
+Within a linked item, the grant applies to:
 
-Multiple subsidies can apply to the same budget line, and their reductions stack.
+- every cost of the item, when the grant has no cost categories
+- only the costs in the grant's cost categories, when it has categories
+- costs without a category too, when **No category** is ticked
 
-### Maximum Amount Cap
+### Linking tasks and purchases
 
-For percentage-based subsidies, you can set a **maximum amount** to cap the payout. For example, a 15% rebate with a maximum of $5,000 will reduce costs by 15% up to $5,000 -- even if 15% of the category total exceeds that amount. The **How is this calculated?** note on the [Money Overview](budget-overview) lists every grant that has hit its cap, so you can see where the cap is limiting your savings.
+1. Open the grant and select the **Work** tab.
+2. Select **Link tasks / purchases**. A picker opens.
+3. Tick one or more tasks or purchases. Each one appears as a chip. Remove a chip to untick it.
+4. Select **Link n items**.
 
-### Amount Used for Subsidy Calculations
+Items that are already linked do not appear in the picker again.
 
-When a budget line is linked to an invoice with an itemized amount, the subsidy calculation uses the **itemized invoice amount** instead of the planned amount. This ensures subsidy reductions reflect the actual cost attribution from invoices, not the original estimate.
+### Covered items list
 
-## Linked Documents
+Each covered item shows its kind (Task or Purchase), its area, and the **covered amount**: the part of its cost that the grant pays, as the Money Overview calculates it. The covered amount is computed from the item's cost lines. You cannot type it in, and rows have no Edit action.
 
-When Paperless-ngx is connected, each grant row has a **Documents (n)** button showing how many documents are linked to it, such as application forms and approval letters. Click it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for the details.
+To remove an item, select **Remove** on its row. Cornerstone shows an **Undo** message for a short time, so you can restore it.
+
+Removing an item from a grant does not change the item itself.
+
+:::note
+If you link no items yet, the Work tab says **No covered items yet** and shows **Expected** as 0. The grant starts to count once you link tasks or purchases.
+:::
+
+## Expected Amount
+
+The **Expected** figure is the grant's payout for the covered costs:
+
+- **Percentage grants:** the rate applied to the covered costs, capped at **Eligible costs up to** if you set a cap
+- **Legacy fixed grants:** the stored amount for each covered item, capped the same way
+
+The **Overview** tab repeats this in the section **How the expected grant is calculated**, with the actual rate, covered costs, and cap.
+
+A task or purchase can be covered by several grants. Each grant shows its own covered amount.
+
+## Legacy Fixed-Amount Grants
+
+Earlier versions let you create grants with a fixed amount, such as a $2,000 insulation grant. Those grants keep working, and they show the stored amount everywhere a rate would show, with the label **Fixed reduction** and the amount. Their figures do not change.
+
+To edit a fixed-amount grant, open its **Details** and change the **Fixed reduction** amount. New grants cannot be created as fixed amounts.
+
+## The Grant Page
+
+Select a grant's name on the Financing page to open it.
+
+### Header
+
+- The **status** chip. Select it to change the status, and use **Undo** right after a change to revert it.
+- The main action is the next status step for the grant.
+- **⋯** menu with **Delete**. See [Deleting a grant](#deleting-a-grant).
+
+### Summary strip
+
+The strip shows the **Rate** (or the fixed reduction for legacy grants), **Eligible costs up to** (or **No cap**), **Expected**, **Deadline**, and **Documents (n)**.
+
+### Overview tab
+
+- **Details** -- name, rate, status, deadline, description, and notes. Select **Edit** to change them and save
+- **Eligibility** -- the cost categories, the **No category** option, and the eligibility rules. Select **Edit** to change them
+- **How the expected grant is calculated** -- the explanation described above
+
+### Work tab
+
+The **Work** tab holds the covered items described above. Use it to link and remove tasks and purchases.
+
+### History tab
+
+The **History** tab lists the events recorded for this grant.
+
+## Deleting a grant
+
+Select **⋯ > Delete** on the grant page. Cornerstone asks for confirmation first.
+
+A grant that still covers tasks cannot be deleted. The message reads: "This grant covers tasks. Remove them on its Work tab first." Remove the tasks on the **Work** tab, then delete the grant.
+
+Purchases do not block deletion. When you delete a grant, its linked purchases are unlinked, and the purchases themselves stay.
+
+## Documents
+
+When Paperless-ngx is connected, each grant has a **Documents (n)** button, such as for application forms and approval letters. Select it to open the Documents panel, where you can link, open, and unlink documents. See [Linking Documents](/guides/documents/linking-documents) for details.
 
 If Paperless-ngx is not connected and the grant has no linked documents, the button is not shown.
 
-![Subsidies page](/img/screenshots/budget-subsidies-light.png)
+## Related Pages
+
+- [Financing](financing-sources) -- funding sources and the Financing page
+- [Money Overview](budget-overview) -- the expected grants in the overall budget
+- [Household Items](/guides/household-items) -- purchases that a grant can cover

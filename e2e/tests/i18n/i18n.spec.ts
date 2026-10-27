@@ -287,15 +287,9 @@ test.describe('i18n: Language Switching', () => {
     await expect(page).toHaveTitle(/^Rechnung nicht gefunden · Finanzen · [^·]+$/);
 
     // Fixed-name pages: h1 and title carry the German label and the section
-    await page.goto(routeUrl('budgetSources'));
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Finanzierungsquellen' }),
-    ).toBeVisible();
-    await expect(page).toHaveTitle(/^Finanzierungsquellen · Finanzen · [^·]+$/);
-
-    await page.goto(routeUrl('budgetSubsidies'));
-    await expect(page.getByRole('heading', { level: 1, name: 'Förderprogramme' })).toBeVisible();
-    await expect(page).toHaveTitle(/^Förderprogramme · Finanzen · [^·]+$/);
+    await page.goto(routeUrl('financing'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Finanzierung' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Finanzierung · Finanzen · [^·]+$/);
 
     await page.goto(routeUrl('bankReport'));
     await expect(page.getByRole('heading', { level: 1, name: 'Bankbericht' })).toBeVisible();

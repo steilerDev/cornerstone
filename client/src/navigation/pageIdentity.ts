@@ -50,8 +50,6 @@ export function navLabelKeyForPath(pathname: string): NavLabelKey | null {
 /** Fixed h1 keys of non-view pages, used as origin labels and chain-label fallback. Views stay in NavConfig. */
 export const PAGE_LABEL_KEYS = {
   bankReport: 'navigation.bankReport',
-  budgetSources: 'navigation.fundingSources',
-  budgetSubsidies: 'navigation.grants',
 } as const satisfies Partial<Record<RouteId, string>>;
 
 export type PageLabelKey = (typeof PAGE_LABEL_KEYS)[keyof typeof PAGE_LABEL_KEYS];

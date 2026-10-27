@@ -28,7 +28,7 @@ beforeEach(() => {
   mockEntriesLanguage = null;
 });
 
-const SOURCES_URL = routeUrl('budgetSources');
+const SOURCES_URL = routeUrl('financing');
 
 function renderSection(sources: readonly MoneySourceFigures[]) {
   return render(
@@ -93,7 +93,7 @@ describe('FundingSection', () => {
     expect(within(list).queryAllByRole('link')).toEqual([]);
   });
 
-  it('links "Edit or add funding sources" to the funding sources page with the origin', async () => {
+  it('links "Edit or add funding sources" to Money > Financing with the origin', async () => {
     const user = userEvent.setup();
     renderSection([savings]);
     const link = screen.getByRole('link', { name: /Edit or add funding sources/ });

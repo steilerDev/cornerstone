@@ -66,15 +66,9 @@ describe('viewMenuFor', () => {
     expect(routes).toEqual(expect.arrayContaining(['settingsUsers', 'settingsBackups']));
   });
 
-  it('offers the interim Money views while Financing is not served', () => {
+  it('offers the Money views Invoices and Financing (#2242)', () => {
     const menu = menuAt(navHref('budgetOverview'));
-    expect(menu?.entries.map((e) => e.route)).toEqual([
-      'budgetOverview',
-      'invoices',
-      'budgetSources',
-      'budgetSubsidies',
-      'bankReport',
-    ]);
+    expect(menu?.entries.map((e) => e.route)).toEqual(['budgetOverview', 'invoices', 'financing']);
     expect(menu?.current).toBe('budgetOverview');
   });
 });

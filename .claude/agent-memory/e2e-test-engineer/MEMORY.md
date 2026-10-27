@@ -73,3 +73,4 @@
 - [story-2237-money-overview.md](story-2237-money-overview.md) — #2237 Money overview POM/test ids, mockMoneyOverview + buildMockBreakdown, table-vs-list container query, live-run traps.
 - [story-2239-offer-invoice-page.md](story-2239-offer-invoice-page.md) — #2239 invoice page POM composition, test ids, changed behaviours, static-only verification.
 - [story-2241-invoice-dialog.md](story-2241-invoice-dialog.md) — #2241 InvoiceFormDialog POM, company child step, removed picker scenarios, static-only verification.
+- [story-2242-financing.md](story-2242-financing.md) — #2242 Financing/source/grant POMs, seed helpers, grant-delete cleanup trap, strip fact order.

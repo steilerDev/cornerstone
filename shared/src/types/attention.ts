@@ -114,8 +114,8 @@ export const ATTENTION_LINK_ROUTES = [
   'diaryEntry',
   'diaryEntryEdit',
   'bankReport',
-  'budgetSubsidies',
-  'budgetSources',
+  'grant',
+  'financing',
 ] as const satisfies readonly ServedRouteId[];
 export type AttentionLinkRoute = (typeof ATTENTION_LINK_ROUTES)[number];
 

@@ -8,3 +8,28 @@
     min-height: var(--touch-target-min);
   }
 }
+
+/* Text-style "Link" action next to the count: padding and the matching negative margin give it a
+   44px target without moving the text. */
+.link {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  padding: 0 var(--spacing-2);
+  margin: 0 calc(-1 * var(--spacing-2));
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--color-primary-hover);
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

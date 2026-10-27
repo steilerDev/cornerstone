@@ -1,5 +1,5 @@
 /**
- * Defence-in-depth guards of `routes/budgetOverview.ts` (#2237): without the auth plugin a
+ * Defence-in-depth guards of `routes/budgetOverview.ts` (#2237, #2242 financing): without the auth plugin a
  * request that carries no user is answered 401 by each handler's own `request.user` guard.
  * The handlers throw before touching the database, so no db plugin is registered.
  *
@@ -34,6 +34,7 @@ describe('budgetOverview.ts handlers without an authenticated user', () => {
 
   it.each([
     '/api/budget/overview',
+    '/api/budget/financing',
     '/api/budget/breakdown',
     '/api/budget/breakdown?deselectedSources=bs-a',
   ])('GET %s answers 401 UNAUTHORIZED from the handler guard', async (url) => {

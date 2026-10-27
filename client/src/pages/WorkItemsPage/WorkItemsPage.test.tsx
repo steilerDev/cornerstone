@@ -73,16 +73,29 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 const stableFilters = new Map<string, { value: string }>();
 const mockSetFilter = jest.fn<(key: string, value: string | null) => void>();
+// Tests that exercise the URL sync set these (the object identity is stable, as the real hook's).
+const mockTable: { search: string; sortBy: string | null; sortDir: 'asc' | 'desc' | null } = {
+  search: '',
+  sortBy: null,
+  sortDir: null,
+};
+const mockTableState = {
+  get search() {
+    return mockTable.search;
+  },
+  get sortBy() {
+    return mockTable.sortBy;
+  },
+  get sortDir() {
+    return mockTable.sortDir;
+  },
+  filters: stableFilters,
+  page: 1,
+  pageSize: 25,
+};
 jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
   useTableState: () => ({
-    tableState: {
-      search: '',
-      filters: stableFilters,
-      sortBy: null,
-      sortDir: null,
-      page: 1,
-      pageSize: 25,
-    },
+    tableState: mockTableState,
     searchInput: '',
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
@@ -124,7 +137,11 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDayRange: (start: Date, end: Date) =>
       `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatDate: fmtDate,
-    useFormatters: () => ({ formatDate: fmtDate }),
+    useFormatters: () => ({
+      formatDate: fmtDate,
+      formatCurrency: (n: number) => `€${n.toFixed(2)}`,
+      formatPercent: (n: number, digits = 1) => `${n.toFixed(digits)}%`,
+    }),
   };
 });
 
@@ -183,6 +200,9 @@ describe('WorkItemsPage', () => {
     mockFetchVendor.mockReset();
     mockSetFilter.mockReset();
     stableFilters.clear();
+    mockTable.search = '';
+    mockTable.sortBy = null;
+    mockTable.sortDir = null;
     mockListPreferences.mockReset();
     mockListPreferences.mockResolvedValue([]);
     mockUseAreas.mockReset();
@@ -358,6 +378,336 @@ describe('WorkItemsPage', () => {
 
       expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
       expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+  });
+
+  describe('columns and filter options (coverage of the list definition)', () => {
+    it('shows the assignee, the company, the area and a dash for none, and offers users and areas as filter options', async () => {
+      mockListUsers.mockResolvedValue({
+        users: [
+          { id: 'u-1', displayName: 'Ada', deactivatedAt: null },
+          { id: 'u-2', displayName: 'Gone', deactivatedAt: '2025-01-01T00:00:00Z' },
+        ],
+      } as never);
+      mockUseAreas.mockReturnValue({
+        areas: [
+          { id: 'ar-1', name: 'House', parentId: null },
+          { id: 'ar-2', name: 'Kitchen', parentId: 'ar-1' },
+        ],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      } as never);
+      mockListWorkItems.mockResolvedValue({
+        ...makeListResponse([
+          makeWorkItemSummary({
+            id: 'wi-1',
+            title: 'Tiling',
+            assignedUser: { id: 'u-1', displayName: 'Ada' } as never,
+            assignedVendor: null,
+            area: { id: 'ar-2', name: 'Kitchen', color: null, ancestors: [] } as never,
+          }),
+          makeWorkItemSummary({
+            id: 'wi-2',
+            title: 'Roofing',
+            assignedUser: null,
+            assignedVendor: { id: 'v-1', name: 'Acme' } as never,
+          }),
+          makeWorkItemSummary({ id: 'wi-3', title: 'Plain' }),
+        ]),
+        filterMeta: { budgetLines: { min: 0, max: 3 } },
+      } as never);
+
+      renderPage();
+
+      const first = await screen.findByTestId('wi-menu-button-wi-1');
+      const rowOf = (id: string) => screen.getByTestId(`wi-menu-button-${id}`).closest('tr')!;
+      expect(first).toBeInTheDocument();
+      expect(rowOf('wi-1')).toHaveTextContent('Ada');
+      expect(rowOf('wi-1')).toHaveTextContent('Kitchen');
+      expect(rowOf('wi-2')).toHaveTextContent('Acme');
+      expect(rowOf('wi-3')).toHaveTextContent('—');
+    });
+  });
+
+  describe('row action menu (coverage of the list definition)', () => {
+    async function withRow() {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([makeWorkItemSummary({ id: 'wi-1', title: 'Roof' })]),
+      );
+      renderPage();
+      return screen.findByTestId('wi-menu-button-wi-1');
+    }
+
+    it('the menu button toggles the menu; a second click closes it', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
+      fireEvent.click(button);
+      expect(screen.queryByTestId('wi-view-wi-1')).toBeNull();
+    });
+
+    it('a click outside closes the open menu, a click inside it does not', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+
+      fireEvent.mouseDown(screen.getByTestId('wi-view-wi-1'));
+      expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+      await waitFor(() => expect(screen.queryByTestId('wi-view-wi-1')).toBeNull());
+    });
+
+    it('Escape closes the open menu (document listener and page shortcut)', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByTestId('wi-view-wi-1')).toBeNull());
+
+      fireEvent.click(button);
+      fireEvent.keyDown(document, { key: 'a' });
+      expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
+    });
+
+    it('View opens the task and closes the menu', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.click(screen.getByTestId('wi-view-wi-1'));
+      await waitFor(() => expect(screen.queryByTestId('wi-view-wi-1')).toBeNull());
+    });
+
+    it('Delete asks first; Escape cancels the dialog without deleting', async () => {
+      const button = await withRow();
+      fireEvent.click(button);
+      fireEvent.click(screen.getByTestId('wi-delete-wi-1'));
+
+      expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(mockDeleteWorkItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('URL sync of the table state', () => {
+    function Where() {
+      const location = useLocation();
+      return <output data-testid="where">{location.search}</output>;
+    }
+    const params = () => new URLSearchParams(screen.getByTestId('where').textContent ?? '');
+
+    function renderWithUrl(entry = '/project/work-items') {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={[entry]}>
+            <WorkItemsPageModule.WorkItemsPage />
+            <Where />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    beforeEach(() => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([makeWorkItemSummary({ id: 'wi-1', title: 'Roof' })]),
+      );
+    });
+
+    it('typing in the search box writes ?q= (after the debounce) and an empty search removes it', async () => {
+      const user = userEvent.setup();
+      renderWithUrl('/project/work-items?q=old');
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      const box = screen.getByRole('searchbox');
+      await user.clear(box);
+      await user.type(box, 'tile');
+      await waitFor(() => expect(params().get('q')).toBe('tile'));
+      expect(params().get('page')).toBe('1');
+      expect(params().get('pageSize')).toBe('25');
+
+      mockTable.search = 'tile';
+      await user.clear(box);
+      await waitFor(() => expect(params().has('q')).toBe(false));
+    });
+
+    it('sorting writes sortBy and sortOrder; the third click removes them', async () => {
+      const user = userEvent.setup();
+      renderWithUrl();
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      await user.click(screen.getByRole('columnheader', { name: /Title/ }));
+      await waitFor(() => expect(params().get('sortBy')).toBe('title'));
+      expect(params().get('sortOrder')).toBe('asc');
+    });
+
+    it('sorting down and off: desc is written, then both params go', async () => {
+      const user = userEvent.setup();
+      mockTable.sortBy = 'title';
+      mockTable.sortDir = 'asc';
+      renderWithUrl('/project/work-items?sortBy=title&sortOrder=asc');
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      await user.click(screen.getByRole('columnheader', { name: /Title/ }));
+      await waitFor(() => expect(params().get('sortOrder')).toBe('desc'));
+
+      mockTable.sortDir = 'desc';
+      await user.click(screen.getByRole('columnheader', { name: /Title/ }));
+      await waitFor(() => expect(params().has('sortBy')).toBe(false));
+      expect(params().has('sortOrder')).toBe(false);
+    });
+
+    it('a sort column with no direction falls back to ascending', async () => {
+      const user = userEvent.setup();
+      mockTable.sortBy = 'title';
+      mockTable.sortDir = null;
+      renderWithUrl();
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      await user.type(screen.getByRole('searchbox'), 'x');
+
+      await waitFor(() => expect(params().get('sortOrder')).toBe('asc'));
+    });
+
+    it('filters with a value are written, empty ones are dropped, and stale filter params are removed first', async () => {
+      const user = userEvent.setup();
+      stableFilters.set('status', { value: 'in_progress' });
+      stableFilters.set('assignedTo', { value: '' });
+      renderWithUrl('/project/work-items?budgetLines=1-2&unrelated=keep');
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      await user.type(screen.getByRole('searchbox'), 'x');
+
+      await waitFor(() => expect(params().get('status')).toBe('in_progress'));
+      expect(params().has('assignedTo')).toBe(false);
+      expect(params().has('budgetLines')).toBe(false);
+      expect(params().get('unrelated')).toBe('keep');
+    });
+  });
+
+  describe('optional columns and the list response', () => {
+    it('shows the company and area columns once chosen, with a dash when empty', async () => {
+      mockListPreferences.mockResolvedValue([
+        {
+          key: 'table.workItems.columns',
+          value: JSON.stringify(['title', 'vendor', 'area']),
+          updatedAt: '',
+        },
+      ]);
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({
+            id: 'wi-1',
+            title: 'Roof',
+            assignedVendor: { id: 'v-1', name: 'Acme Roofing' } as never,
+            area: { id: 'ar-1', name: 'Attic', color: null, ancestors: [] } as never,
+          }),
+          makeWorkItemSummary({ id: 'wi-2', title: 'Fence' }),
+        ]),
+      );
+
+      renderPage();
+
+      await screen.findByTestId('wi-menu-button-wi-1');
+      // The saved column choice arrives after the first render: the Area column header appears.
+      await waitFor(() =>
+        expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(
+          expect.arrayContaining([expect.stringMatching(/Area/)]),
+        ),
+      );
+      const withValues = screen.getByTestId('wi-menu-button-wi-1').closest('tr')!;
+      const empty = screen.getByTestId('wi-menu-button-wi-2').closest('tr')!;
+      const cells = (row: HTMLElement) =>
+        Array.from(row.querySelectorAll('td')).map((td) => td.textContent);
+      expect(cells(withValues)).toEqual(expect.arrayContaining(['Acme Roofing']));
+      expect(cells(withValues).filter((text) => text === 'Attic')).toHaveLength(1);
+      expect(cells(empty).filter((text) => text === '—').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('copes with a list response that carries no filter meta', async () => {
+      mockListWorkItems.mockResolvedValue({
+        items: [makeWorkItemSummary({ id: 'wi-1', title: 'Roof' })],
+        pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+      } as never);
+      renderPage();
+      expect(await screen.findByTestId('wi-menu-button-wi-1')).toBeInTheDocument();
+    });
+  });
+
+  describe('Escape with nothing open', () => {
+    it('does nothing: no dialog appears and the list stays', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([makeWorkItemSummary({ id: 'wi-1', title: 'Roof' })]),
+      );
+      renderPage();
+      await screen.findByTestId('wi-menu-button-wi-1');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.getByTestId('wi-menu-button-wi-1')).toBeInTheDocument();
+    });
+  });
+
+  describe('grant chips (#2242, AC6)', () => {
+    const grant = (id: string, name: string, rate: number) => ({
+      id,
+      name,
+      reductionType: 'percentage' as const,
+      rate,
+    });
+
+    it('shows the first grant as "name · rate" in the title cell, and nothing for a task without grants', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({ id: 'wi-1', title: 'Roof', grants: [grant('sp-1', 'Energy', 30)] }),
+          makeWorkItemSummary({ id: 'wi-2', title: 'Paint', grants: [] }),
+          makeWorkItemSummary({ id: 'wi-3', title: 'Fence' }),
+        ]),
+      );
+
+      renderPage();
+
+      const chip = await screen.findByTestId('work-item-grants-wi-1-first');
+      expect(chip).toHaveTextContent('Energy · 30%');
+      expect(screen.queryByTestId('work-item-grants-wi-2')).toBeNull();
+      expect(screen.queryByTestId('work-item-grants-wi-3')).toBeNull();
+      expect(screen.queryByTestId('work-item-grants-wi-1-more')).toBeNull();
+    });
+
+    it('shows +n for further grants, names them all for screen readers, and keeps test ids unique across table and cards', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({
+            id: 'wi-1',
+            title: 'Roof',
+            grants: [grant('a', 'Alpha', 10), grant('b', 'Beta', 20), grant('c', 'Gamma', 5)],
+          }),
+        ]),
+      );
+
+      const { container } = renderPage();
+
+      expect(await screen.findByTestId('work-item-grants-wi-1-more')).toHaveTextContent('+2');
+      expect(screen.getAllByText('Grants: Alpha, Beta, Gamma').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('work-item-grants-mobile-wi-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+
+    it('does not make the chip a link: the row click still opens the task', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({ id: 'wi-1', title: 'Roof', grants: [grant('a', 'Alpha', 10)] }),
+        ]),
+      );
+      renderPage();
+
+      const chip = await screen.findByTestId('work-item-grants-wi-1-first');
+
+      expect(chip.closest('a')).toBeNull();
     });
   });
 

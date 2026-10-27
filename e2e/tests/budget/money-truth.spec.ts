@@ -32,7 +32,7 @@ import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
-import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { FinancingPage } from '../../pages/FinancingPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
@@ -166,7 +166,7 @@ function amountRegex(whole: number): RegExp {
 
 test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive' }, () => {
   test(
-    'Sources page states "Over-allocated by 250" with a visible overflow segment',
+    'The Financing card states "Over-allocated by 250" with a visible overflow segment',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const sourceName = `${testPrefix} Money Truth Bank ${Date.now()}`;
@@ -179,25 +179,24 @@ test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive
         budgetSourceId: sourceId,
       });
 
-      // Budget › Sources
-      const sourcesPage = new BudgetSourcesPage(page);
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
+      // Money › Financing
+      const financing = new FinancingPage(page);
+      await financing.goto();
 
-      const note = sourcesPage.overAllocatedNote(sourceName);
+      const note = financing.overAllocatedNote(sourceId);
       await expect(note).toBeVisible();
       await expect(note).toContainText('Over-allocated by');
       await expect(note).toContainText(amountRegex(250));
 
       // The overflow segment is not clipped: it has a real, non-zero width
-      const segment = sourcesPage.overflowSegment(sourceName);
+      const segment = financing.overflowSegment(sourceId);
       await expect(segment).toBeVisible();
       const segmentBox = await segment.boundingBox();
       expect(segmentBox).not.toBeNull();
       expect(segmentBox!.width).toBeGreaterThan(0);
 
       // The note sits under the bar (wraps below it, never beside/over it) and stays on screen
-      const barBox = await sourcesPage.budgetBar(sourceName).boundingBox();
+      const barBox = await financing.bar(sourceId).boundingBox();
       const noteBox = await note.boundingBox();
       expect(barBox).not.toBeNull();
       expect(noteBox).not.toBeNull();
@@ -210,7 +209,7 @@ test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive
       // Dark mode keeps the note visible
       await setDarkMode(page);
       await expect(note).toBeVisible();
-      await expect(sourcesPage.overflowSegment(sourceName)).toBeVisible();
+      await expect(financing.overflowSegment(sourceId)).toBeVisible();
 
       // The Home source card is retired (#2230): the over-allocation note lives on Money only
     },
@@ -230,12 +229,11 @@ test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive
       budgetSourceId: sourceId,
     });
 
-    const sourcesPage = new BudgetSourcesPage(page);
-    await sourcesPage.goto();
-    await sourcesPage.waitForSourcesLoaded();
-    await expect(sourcesPage.sourceRow(sourceName)).toBeVisible();
-    await expect(sourcesPage.overAllocatedNote(sourceName)).toHaveCount(0);
-    await expect(sourcesPage.overflowSegment(sourceName)).toHaveCount(0);
+    const financing = new FinancingPage(page);
+    await financing.goto();
+    await expect(financing.sourceCard(sourceId)).toBeVisible();
+    await expect(financing.overAllocatedNote(sourceId)).toHaveCount(0);
+    await expect(financing.overflowSegment(sourceId)).toHaveCount(0);
   });
 });
 

@@ -88,6 +88,9 @@ const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
   '/admin/users': '/settings/users',
   '/budget': '/budget/overview',
   '/budget/categories': '/settings/manage',
+  // #2242: the interim Funding sources and Grants pages are gone; both land on Financing.
+  '/budget/sources': '/budget/financing',
+  '/budget/subsidies': '/budget/financing',
   '/budget/vendors': '/companies',
   '/budget/vendors/:id': '/companies/:id',
   '/household-items': '/project/household-items',

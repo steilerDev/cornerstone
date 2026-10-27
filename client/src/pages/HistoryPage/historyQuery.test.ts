@@ -43,10 +43,52 @@ describe('readHistoryFilters', () => {
   it('ignores invalid values', () => {
     const f = readHistoryFilters(
       new URLSearchParams(
-        'type=bogus&object=budget_source:x&dateFrom=01-01-2026&dateTo=nope&include=other',
+        'type=bogus&object=photo:x&dateFrom=01-01-2026&dateTo=nope&include=other',
       ),
     );
     expect(f).toEqual(EMPTY);
+  });
+
+  it('parses a funding source object (the Funding source History tab, #2242)', () => {
+    expect(readHistoryFilters(new URLSearchParams('object=budget_source:bs-1')).object).toEqual({
+      entityType: 'budget_source',
+      entityId: 'bs-1',
+    });
+  });
+
+  it.each([
+    ['work_item', 'wi-1'],
+    ['invoice', 'inv-1'],
+    ['milestone', '12'],
+    ['subsidy_program', 'sp-1'],
+    ['budget_source', 'bs-1'],
+  ])('parses the %s object', (entityType, entityId) => {
+    expect(
+      readHistoryFilters(new URLSearchParams(`object=${entityType}:${entityId}`)).object,
+    ).toEqual({
+      entityType,
+      entityId,
+    });
+  });
+
+  it.each(['bogus:1', 'a:b', 'Foo_bar:1', 'photo:x', 'budget_sources:1', ':1'])(
+    'rejects the object %s (a well-formed pattern is not enough: the type must be known)',
+    (value) => {
+      expect(readHistoryFilters(new URLSearchParams({ object: value })).object).toBeNull();
+    },
+  );
+
+  it('accepts an id of exactly 64 characters and rejects 65', () => {
+    const ok = 'x'.repeat(64);
+    expect(
+      readHistoryFilters(new URLSearchParams({ object: `budget_source:${ok}` })).object,
+    ).toEqual({
+      entityType: 'budget_source',
+      entityId: ok,
+    });
+    expect(
+      readHistoryFilters(new URLSearchParams({ object: `budget_source:${ok}x` })).object,
+    ).toBeNull();
   });
 
   it('ignores an object without id and an unmatched pattern', () => {

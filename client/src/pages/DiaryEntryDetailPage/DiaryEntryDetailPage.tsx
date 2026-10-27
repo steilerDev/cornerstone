@@ -504,9 +504,9 @@ function SourceEntityLink({
       case 'milestone':
         return routeUrl('milestone', { id: sourceId });
       case 'budget_source':
-        return routeUrl('budgetSources');
+        return routeUrl('fundingSource', { id: sourceId });
       case 'subsidy_program':
-        return routeUrl('budgetSubsidies');
+        return routeUrl('grant', { id: sourceId });
       default:
         return null;
     }

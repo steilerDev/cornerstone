@@ -5,6 +5,7 @@ import type * as ButtonModule from './DocumentsPanelButton.js';
 import type { DocumentsPanelHost } from './useDocumentsPanel.js';
 
 const mockOpen = jest.fn();
+const mockOpenLink = jest.fn();
 let mockHost: DocumentsPanelHost;
 let mockArgs: unknown[] = [];
 
@@ -22,6 +23,7 @@ const makeHost = (overrides: Partial<DocumentsPanelHost> = {}): DocumentsPanelHo
   count: 3,
   isOpen: false,
   open: mockOpen,
+  openLink: mockOpenLink,
   triggerRef: createRef<HTMLButtonElement>(),
   fact: null,
   panel: <div data-testid="the-panel" />,
@@ -31,6 +33,7 @@ const makeHost = (overrides: Partial<DocumentsPanelHost> = {}): DocumentsPanelHo
 beforeEach(async () => {
   ({ DocumentsPanelButton } = (await import('./DocumentsPanelButton.js')) as typeof ButtonModule);
   mockOpen.mockReset();
+  mockOpenLink.mockReset();
   mockArgs = [];
   mockHost = makeHost();
 });
@@ -145,5 +148,47 @@ describe('DocumentsPanelButton', () => {
     render(<DocumentsPanelButton entityType="work_item" entityId="wi-1" testId="source-docs-s1" />);
 
     expect(mockHost.triggerRef.current).toBe(screen.getByTestId('source-docs-s1'));
+  });
+
+  describe('linkAction (#2242, MNY-030 / JRN-074)', () => {
+    it('shows a Link button after the count in full mode and opens the picker through the host', () => {
+      render(
+        <DocumentsPanelButton
+          entityType="budget_source"
+          entityId="src-1"
+          contextName="Loan Alpha"
+          linkAction
+          testId="docs"
+        />,
+      );
+
+      const link = screen.getByTestId('docs-link');
+      expect(link).toHaveTextContent('Link');
+      expect(link).toHaveAttribute('aria-haspopup', 'dialog');
+      expect(link).toHaveAccessibleName('Link a document to Loan Alpha');
+      fireEvent.click(link);
+      expect(mockOpenLink).toHaveBeenCalledTimes(1);
+      expect(mockOpen).not.toHaveBeenCalled();
+    });
+
+    it('has no aria-label without a contextName', () => {
+      render(
+        <DocumentsPanelButton entityType="work_item" entityId="wi-1" linkAction testId="docs" />,
+      );
+      expect(screen.getByTestId('docs-link')).not.toHaveAttribute('aria-label');
+    });
+
+    it.each(['readOnly', 'unreachable'] as const)('is absent in %s mode', (mode) => {
+      mockHost = makeHost({ mode });
+      render(
+        <DocumentsPanelButton entityType="work_item" entityId="wi-1" linkAction testId="docs" />,
+      );
+      expect(screen.queryByTestId('docs-link')).toBeNull();
+    });
+
+    it('is absent unless asked for', () => {
+      render(<DocumentsPanelButton entityType="work_item" entityId="wi-1" testId="docs" />);
+      expect(screen.queryByTestId('docs-link')).toBeNull();
+    });
   });
 });

@@ -36,7 +36,12 @@
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import type { Page } from '@playwright/test';
 import { routeUrl } from '../../../shared/src/routes/index.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteBudgetSourceViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { CreateMenu } from '../../pages/components/CreateMenu.js';
@@ -522,19 +527,35 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       });
     });
 
-    test('S6: Back from a Money view goes to Money, not to Home (history rule)', async ({
+    test('S6: the parent link of a Money page goes to its parent view, not to Home (history rule)', async ({
       page,
+      testPrefix,
     }) => {
       const appShell = new AppShellPage(page);
-      await page.goto(ROUTES.home);
-      await expect(appShell.bottomBar).toBeVisible();
+      const sourceName = `${testPrefix} S6 Loan`;
+      const sourceId = await createBudgetSourceViaApi(page, {
+        name: sourceName,
+        sourceType: 'bank_loan',
+        totalAmount: 1000,
+      });
+      try {
+        await page.goto(ROUTES.home);
+        await expect(appShell.bottomBar).toBeVisible();
 
-      // Home -> Money (push) -> Funding sources (replace)
-      await appShell.navigateTo('budgetSources');
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetSources'));
+        // Home -> Money (push) -> Financing (replace); Financing is a view, so it has no parent link
+        await appShell.navigateTo('financing');
+        await expect(page).toHaveURL((url) => url.pathname === routeUrl('financing'));
 
-      await page.getByTestId('breadcrumbs-parent').click();
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetOverview'));
+        // A funding source page sits under Financing: its one parent link leads back there
+        await page.getByRole('link', { name: sourceName, exact: true }).click();
+        await expect(page).toHaveURL(
+          (url) => url.pathname === routeUrl('fundingSource', { id: sourceId }),
+        );
+        await page.getByTestId('breadcrumbs-parent').click();
+        await expect(page).toHaveURL((url) => url.pathname === routeUrl('financing'));
+      } finally {
+        await deleteBudgetSourceViaApi(page, sourceId);
+      }
     });
 
     test('S7: the Schedule h1 is a menu of the Tasks views; picking one replaces history', async ({

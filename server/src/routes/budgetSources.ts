@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as budgetSourceService from '../services/budgetSourceService.js';
+import { getSourceMoney } from '../services/moneyService.js';
 import { runUndoable, undoStore } from '../services/undoService.js';
 import type {
   CreateBudgetSourceRequest,
@@ -154,7 +155,7 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /api/budget-sources/:id
-   * Get a single budget source by ID.
+   * Get a single budget source by ID, with the money service's figures for it (`money`).
    * Auth required: Yes (both admin and member)
    */
   fastify.get<{ Params: { id: string } }>(
@@ -170,7 +171,8 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         request.params.id,
         fastify.config.vatRate,
       );
-      return reply.status(200).send({ budgetSource });
+      const money = getSourceMoney(fastify.db, fastify.config.vatRate, request.params.id);
+      return reply.status(200).send({ budgetSource, money });
     },
   );
 

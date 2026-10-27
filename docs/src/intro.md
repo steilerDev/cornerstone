@@ -39,7 +39,7 @@ Break the project into [work items](guides/work-items) organized by [area and tr
 
 ### Know where every euro goes
 
-Spread costs across [loans, subsidies, and your own funds](guides/budget/financing-sources). Track quotes, [invoices](guides/budget/vendors-and-invoices), and [staged payments](guides/budget/invoice-deposits) against every budget line, and see at a glance what is spent, what is committed, and what is left in the [budget overview](guides/budget/budget-overview). When the bank asks for proof, generate a ready-to-send [bank report](guides/budget/bank-reports) in a few clicks.
+Spread costs across [loans, grants, and your own funds](guides/budget/financing-sources). Track quotes, [invoices](guides/budget/vendors-and-invoices), and [staged payments](guides/budget/invoice-deposits) against every budget line, and see at a glance what is spent, what is committed, and what is left in the [budget overview](guides/budget/budget-overview). When the bank asks for proof, generate a ready-to-send [bank report](guides/budget/bank-reports) in a few clicks.
 
 ### Let AI handle the paperwork
 
@@ -63,7 +63,7 @@ Track [furniture, appliances, and fixtures](guides/household-items) alongside th
 
 - [Getting Started](getting-started) -- Deploy Cornerstone with Docker in minutes
 - [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
-- [Budget Guide](guides/budget) -- Track costs, invoices, and financing sources
+- [Budget Guide](guides/budget) -- Track costs, invoices, financing, and grants
 - [Timeline Guide](guides/timeline) -- Gantt chart, calendar view, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases
 - [Diary Guide](guides/diary) -- Construction diary with manual entries and system events

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isRouteServed, routeUrl } from '@cornerstone/shared';
-import type { ServedRouteId } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import type { InvoiceDetail } from '@cornerstone/shared';
 import { remainingState } from '../../components/CostLineTable/costLineRows.js';
 import type { UseInvoiceCostLinesResult } from '../../components/CostLineTable/useInvoiceCostLines.js';
@@ -20,17 +19,6 @@ export interface UseInvoiceSummaryFactsArgs {
   readonly documentsFact: SummaryFact | null;
   readonly tabs: ObjectTabsController;
   readonly originState: OriginState;
-}
-
-/** Where a funding source lives: its own page once served, otherwise the interim list. */
-function fundingSourceUrl(id: string): string {
-  return isRouteServed('fundingSource')
-    ? // 'fundingSource' is planned, so routeUrl's types reject it until the route is served.
-      (routeUrl as unknown as (route: ServedRouteId, params: { id: string }) => string)(
-        'fundingSource' as ServedRouteId,
-        { id },
-      )
-    : routeUrl('budgetSources');
 }
 
 /** The summary strip facts of an offer or invoice: amount, paid, still to pay, due, split, source. */
@@ -137,7 +125,10 @@ export function useInvoiceSummaryFacts({
     facts.push({
       id: 'fundingSource',
       kind: 'link',
-      to: sources.length === 1 && first ? fundingSourceUrl(first.id) : routeUrl('budgetSources'),
+      to:
+        sources.length === 1 && first
+          ? routeUrl('fundingSource', { id: first.id })
+          : routeUrl('financing'),
       state: originState,
       label: t('invoicePage.facts.fundingSource'),
       value: loading ? null : sourceValue,

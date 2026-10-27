@@ -82,4 +82,4 @@ Deposits are owned by the parent invoice. Deleting an invoice cascades and remov
 
 - [Invoices & Companies](vendors-and-invoices) -- creating invoices and linking them to cost lines
 - [Money Overview](budget-overview) -- how deposit-aware totals roll up across categories and sources
-- [Subsidies](subsidies) -- subsidy calculations also use itemized amounts and respect deposit status
+- [Grants](subsidies) -- grant calculations also use itemized amounts and respect deposit status

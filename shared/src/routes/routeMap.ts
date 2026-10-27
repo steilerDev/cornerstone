@@ -460,8 +460,8 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: [],
-    stage: 'planned',
+    carries: ['create', 'kind'],
+    stage: 'done',
     parent: 'budgetOverview',
   },
   {
@@ -475,7 +475,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['tab'],
-    stage: 'planned',
+    stage: 'done',
     parent: 'financing',
   },
   {
@@ -489,7 +489,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['tab'],
-    stage: 'planned',
+    stage: 'done',
     parent: 'financing',
   },
   {
@@ -653,8 +653,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: 'page',
+    stage: 'done',
     parent: 'budgetOverview',
   },
   {
@@ -668,8 +667,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: 'page',
+    stage: 'done',
     parent: 'budgetOverview',
   },
   {
@@ -990,7 +988,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'done',
   },
   {
     from: '/budget/financing/grants',
@@ -1002,7 +1000,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'done',
   },
   {
     from: '/diary?filterMode=automatic',

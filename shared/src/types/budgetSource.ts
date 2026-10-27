@@ -7,6 +7,7 @@
 import type { UserSummary } from './workItem.js';
 import type { BaseBudgetLine } from './budget.js';
 import type { AreaSummary } from './area.js';
+import type { MoneySourceFigures } from './money.js';
 
 /**
  * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
@@ -147,4 +148,13 @@ export interface MoveBudgetLinesRequest {
 export interface MoveBudgetLinesResponse {
   movedWorkItemLines: number;
   movedHouseholdItemLines: number;
+}
+
+/**
+ * Response for GET /api/budget-sources/:id: the source plus the money service's figures for it
+ * (the same entry as `MoneySummary.sources`).
+ */
+export interface BudgetSourceDetailResponse {
+  budgetSource: BudgetSource;
+  money: MoneySourceFigures;
 }
