@@ -159,13 +159,13 @@ async function mockConfigEnabled(page: Page): Promise<void> {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...real, autoItemizeEnabled: true }),
+        body: JSON.stringify({ ...real, autoItemizeEnabled: true, llmEnabled: true }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true }),
+        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true, llmEnabled: true }),
       });
     }
   });

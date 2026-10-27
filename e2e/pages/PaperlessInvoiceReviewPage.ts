@@ -284,7 +284,9 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
-   * Navigate directly to the review page. The document id lives in the URL
+   * Navigate directly to the review page. The route's gate redirects to the New invoice dialog
+   * when `/api/config` reports `llmEnabled: false` (#2241), so register the config mock (both
+   * `llmEnabled` and `autoItemizeEnabled` true; see `mockConfig`) BEFORE calling this. The document id lives in the URL
    * (`?documentId=`), so a bookmark / reload / login redirect all work.
    * Omit the id to reach the "No document chosen" state.
    */

@@ -1192,13 +1192,13 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+            body: JSON.stringify({ ...realBody, autoItemizeEnabled: true, llmEnabled: true }),
           });
         } catch {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true }),
+            body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true, llmEnabled: true }),
           });
         }
       });

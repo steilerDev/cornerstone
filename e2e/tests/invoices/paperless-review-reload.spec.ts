@@ -81,9 +81,9 @@ async function mockConfig(page: Page, autoItemizeEnabled: boolean): Promise<void
     try {
       const realResp = await route.fetch();
       const realBody = (await realResp.json()) as Record<string, unknown>;
-      await json(route, { ...realBody, autoItemizeEnabled });
+      await json(route, { ...realBody, autoItemizeEnabled, llmEnabled: autoItemizeEnabled });
     } catch {
-      await json(route, { currency: 'EUR', autoItemizeEnabled });
+      await json(route, { currency: 'EUR', autoItemizeEnabled, llmEnabled: autoItemizeEnabled });
     }
   });
 }

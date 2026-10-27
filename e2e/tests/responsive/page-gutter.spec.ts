@@ -6,6 +6,7 @@
  * The first block under `main` is measured: its box is the page's content column.
  */
 
+import { mockConfig } from '../../fixtures/paperlessInvoiceMocks.js';
 import type { Page } from '@playwright/test';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { test, expect } from '../../fixtures/auth.js';
@@ -57,7 +58,10 @@ test.describe('Phone page gutter', { tag: '@responsive' }, () => {
   });
 
   test('the Paperless review page heading sits 16px from the left edge', async ({ page }) => {
+    // With the AI reader off the route redirects to the New invoice dialog (#2241): turn it on
+    await mockConfig(page, true);
     await page.goto(routeUrl('invoicePaperlessReview', undefined, { documentId: 1 }));
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoicePaperlessReview'));
     const heading = page.locator('main h1').first();
     await expect(heading).toBeVisible();
     const box = await heading.boundingBox();
