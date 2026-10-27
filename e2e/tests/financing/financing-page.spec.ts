@@ -340,8 +340,9 @@ test.describe('Financing: legacy URLs and actions', () => {
 
     await expect(financing.prepareBankReport).toBeVisible();
     await expect(financing.prepareBankReport).toHaveText('Prepare bank report');
-    // The Add buttons are secondary: nothing else on the page is styled as a primary button
-    await expect(page.locator('main [class*="btnPrimary"]')).toHaveCount(0);
+    // The Add buttons are secondary: the only element styled as a primary is Prepare bank report
+    await expect(page.locator('main [class*="btnPrimary"]')).toHaveCount(1);
+    await expect(financing.prepareBankReport).toHaveClass(/btnPrimary/);
     await financing.prepareBankReport.click();
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('bankReport'));
   });

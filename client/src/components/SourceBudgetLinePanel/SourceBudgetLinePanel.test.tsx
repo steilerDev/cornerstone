@@ -629,6 +629,67 @@ describe('SourceBudgetLinePanel', () => {
         },
       );
 
+      it('moves to the first checkbox when focus has fallen back to the page body meanwhile', async () => {
+        const { ref, rerender } = setup({ isLoading: true });
+        act(() => ref.current!.focusFirstCheckbox());
+        await waitFor(() => expect(region()).toHaveFocus());
+        region().blur();
+        expect(document.body).toHaveFocus();
+
+        rerender({ isLoading: false, data: data() });
+
+        await waitFor(() => expect(box('Select all in House')).toHaveFocus());
+      });
+
+      it('does not pull focus back when the person moved on to another element while it loaded', async () => {
+        const { ref, rerender } = setup({ isLoading: true });
+        act(() => ref.current!.focusFirstCheckbox());
+        await waitFor(() => expect(region()).toHaveFocus());
+        const elsewhere = document.createElement('button');
+        document.body.appendChild(elsewhere);
+        elsewhere.focus();
+        expect(elsewhere).toHaveFocus();
+
+        rerender({ isLoading: false, data: data() });
+        await act(async () => {
+          await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        });
+
+        expect(elsewhere).toHaveFocus();
+        expect(box('Select all in House')).not.toHaveFocus();
+        elsewhere.remove();
+      });
+
+      it('after a person moved on, the pending request is spent: a later reload does not steal focus', async () => {
+        const { ref, rerender } = setup({ isLoading: true });
+        act(() => ref.current!.focusFirstCheckbox());
+        await waitFor(() => expect(region()).toHaveFocus());
+        const elsewhere = document.createElement('button');
+        document.body.appendChild(elsewhere);
+        elsewhere.focus();
+        rerender({ isLoading: false, data: data() });
+        rerender({ isLoading: true });
+        rerender({ isLoading: false, data: data() });
+        await act(async () => {
+          await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        });
+
+        expect(elsewhere).toHaveFocus();
+        elsewhere.remove();
+      });
+
+      it('a request whose frame arrives after the panel was left does nothing and does not throw', async () => {
+        const { ref, unmount } = setup({ isLoading: true });
+        act(() => ref.current!.focusFirstCheckbox());
+        unmount();
+
+        await act(async () => {
+          await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        });
+
+        expect(document.body).toHaveFocus();
+      });
+
       it('a request made after the load goes straight to the first checkbox', async () => {
         const { ref } = setup({ data: data() });
         act(() => ref.current!.focusFirstCheckbox());

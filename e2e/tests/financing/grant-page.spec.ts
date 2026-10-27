@@ -230,7 +230,7 @@ test.describe('Grant page: Work tab', { tag: '@responsive' }, () => {
       await grant.goto(grantId, { tab: 'work' });
       await expect(grant.coveredItems.rows).toHaveCount(1);
 
-      await grant.coveredItems.addButton.click();
+      await grant.openLinkPicker();
       await grant.linkPicker.waitFor({ state: 'visible' });
       await grant.linkPickerInput.fill(taskTitle);
       // Nothing to offer: the only match is already covered

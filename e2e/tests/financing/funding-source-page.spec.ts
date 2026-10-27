@@ -396,6 +396,9 @@ test.describe('Funding source page: Cost tab', { tag: '@responsive' }, () => {
       await input.fill(`${testPrefix} F8 Esc`);
       await expect(page.getByRole('option', { name: nameB })).toBeVisible();
       await expect(page.getByRole('option', { name: nameA })).toHaveCount(0);
+      // The open list covers the footer: a click on the title blurs the input and closes it
+      await source.moveModal.getByRole('heading', { level: 2 }).click();
+      await expect(page.getByRole('option')).toHaveCount(0);
       await source.moveModalCancelButton.click();
       await expect(source.moveModal).toBeHidden();
     } finally {

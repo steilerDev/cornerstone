@@ -45,14 +45,18 @@ import type { RouteId, RouteMapEntry } from '../../../shared/src/routes/index.js
 const ENTRIES: readonly RouteMapEntry[] = ROUTE_MAP;
 import { API } from '../../fixtures/testData.js';
 import {
+  createBudgetSourceViaApi,
   createDiaryEntryViaApi,
   createHouseholdItemViaApi,
   createMilestoneViaApi,
+  createSubsidyProgramViaApi,
   createVendorViaApi,
   createWorkItemViaApi,
+  deleteBudgetSourceViaApi,
   deleteDiaryEntryViaApi,
   deleteHouseholdItemViaApi,
   deleteMilestoneViaApi,
+  deleteSubsidyProgramViaApi,
   deleteVendorViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
@@ -224,6 +228,8 @@ const NAMES = {
   milestone: `Route walk milestone ${runId}`,
   household: `Route walk purchase ${runId}`,
   company: `Route walk company ${runId}`,
+  source: `Route walk loan ${runId}`,
+  grant: `Route walk grant ${runId}`,
 };
 
 const seed = {
@@ -233,6 +239,8 @@ const seed = {
   vendorId: '',
   invoiceId: '',
   diaryEntryId: '',
+  sourceId: '',
+  grantId: '',
 };
 
 const NONEXISTENT_UUID = '00000000-0000-4000-8000-000000000000';
@@ -267,6 +275,8 @@ function withSeed(pattern: string, strict = true): string {
   else if (/(^|\/)(vendors|companies)\//.test(path)) id = seed.vendorId;
   else if (/(^|\/)invoices\//.test(path)) id = seed.invoiceId;
   else if (/^\/diary\//.test(path)) id = seed.diaryEntryId;
+  else if (/^\/budget\/financing\/sources\//.test(path)) id = seed.sourceId;
+  else if (/^\/budget\/financing\/grants\//.test(path)) id = seed.grantId;
   else if (!strict) id = NONEXISTENT_UUID;
   else {
     throw new Error(
@@ -303,6 +313,15 @@ test.describe('Legacy URL walk (route map)', () => {
       });
       expect(invoiceResp.ok(), `POST invoice failed: ${invoiceResp.status()}`).toBeTruthy();
       seed.invoiceId = ((await invoiceResp.json()) as { invoice: { id: string } }).invoice.id;
+      seed.sourceId = await createBudgetSourceViaApi(page, {
+        name: NAMES.source,
+        sourceType: 'bank_loan',
+        totalAmount: 50000,
+      });
+      seed.grantId = await createSubsidyProgramViaApi(page, {
+        name: NAMES.grant,
+        reductionValue: 10,
+      });
       seed.diaryEntryId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-01-15',
@@ -318,6 +337,8 @@ test.describe('Legacy URL walk (route map)', () => {
     const context = await browser.newContext({ storageState: 'test-results/.auth/admin.json' });
     const page = await context.newPage();
     try {
+      if (seed.sourceId) await deleteBudgetSourceViaApi(page, seed.sourceId);
+      if (seed.grantId) await deleteSubsidyProgramViaApi(page, seed.grantId);
       if (seed.diaryEntryId) await deleteDiaryEntryViaApi(page, seed.diaryEntryId);
       if (seed.invoiceId) await page.request.delete(`/api/invoices/${seed.invoiceId}`);
       if (seed.householdItemId) await deleteHouseholdItemViaApi(page, seed.householdItemId);

@@ -325,7 +325,10 @@ export function SourceBudgetLinePanel({
   useEffect(() => {
     if (!pendingFocusRef.current || isLoading) return;
     pendingFocusRef.current = false;
-    firstCheckbox()?.focus();
+    // Only while focus is still where "Move lines…" left it (the region or nowhere): a person who
+    // moved on in the meantime is not pulled back.
+    const active = document.activeElement;
+    if (active === document.body || rootRef.current?.contains(active)) firstCheckbox()?.focus();
   });
 
   // One tree for tasks and purchases: area > item > line. The item heading carries the kind word.

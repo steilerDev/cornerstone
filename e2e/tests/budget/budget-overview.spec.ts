@@ -419,7 +419,7 @@ test.describe('Money overview — funding rows (AC2)', { tag: '@responsive' }, (
     await expect(overview.funding).toContainText('No funding sources added yet');
     await expect(
       overview.funding.getByRole('link', { name: 'Add your first funding source' }),
-    ).toHaveAttribute('href', /\/budget\/sources/);
+    ).toHaveAttribute('href', /\/budget\/financing/);
   });
 });
 

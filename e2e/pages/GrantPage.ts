@@ -119,7 +119,8 @@ export class GrantPage {
     this.linkPickerInput = this.linkPicker.locator('input');
     this.linkPickerChips = page.getByTestId('grant-link-picker-chips');
 
-    this.history = page.getByTestId('grant-history');
+    // ObjectHistorySection is a SectionCard without a test id: `section-<prefix>`
+    this.history = page.getByTestId('section-grant-history');
   }
 
   async goto(id: string, query?: Record<string, string>): Promise<void> {
@@ -142,9 +143,25 @@ export class GrantPage {
     return `${type}:${id}`;
   }
 
+  /**
+   * The "Link tasks / purchases" action: the header button once rows exist, the EmptyState's
+   * button (no test id) while the list is empty.
+   */
+  get linkAction(): Locator {
+    return this.coveredItems.addButton
+      .or(
+        this.coveredItems.root.getByRole('button', { name: 'Link tasks / purchases', exact: true }),
+      )
+      .first();
+  }
+
+  async openLinkPicker(): Promise<void> {
+    await this.linkAction.click();
+  }
+
   /** Open the Link picker, pick the items by keyboard and submit ("Link n items"). */
   async linkItems(titles: readonly string[]): Promise<void> {
-    await this.coveredItems.addButton.click();
+    await this.openLinkPicker();
     await this.linkPicker.waitFor({ state: 'visible' });
     const picker = new EntityPickerControl(this.page, this.linkPickerInput);
     for (const title of titles) {

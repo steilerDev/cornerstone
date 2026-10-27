@@ -244,7 +244,7 @@ test.describe('Paperless invoice review: default budget source (#2158)', () => {
       const reviewPage = await openReviewPage(page, { lineCount: 2 });
 
       await expect(reviewPage.budgetSourceSelect).toBeVisible();
-      await expect(page.getByLabel('Budget source', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Funding source', { exact: true })).toBeVisible();
 
       const overflow = await reviewPage.formColumn.first().evaluate((el) => ({
         scrollWidth: el.scrollWidth,

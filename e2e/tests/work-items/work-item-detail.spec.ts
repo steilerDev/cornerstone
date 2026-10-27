@@ -269,7 +269,7 @@ test.describe('Cost section loads without error (Scenario 5)', { tag: '@responsi
     }
   });
 
-  test('Cost section shows Add cost line and the Subsidies subsection', async ({
+  test('Cost section shows Add cost line and the Grants subsection', async ({
     page,
     testPrefix,
   }) => {
@@ -290,11 +290,11 @@ test.describe('Cost section loads without error (Scenario 5)', { tag: '@responsi
       // Add cost line button is visible
       await expect(detailPage.addBudgetLineButton).toBeVisible();
 
-      // Subsidies subsection heading is visible
+      // Grants subsection heading is visible
       await expect(
         detailPage.budgetSection.getByRole('heading', {
           level: 3,
-          name: 'Subsidies',
+          name: 'Grants',
           exact: true,
         }),
       ).toBeVisible();

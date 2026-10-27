@@ -118,7 +118,8 @@ export class FundingSourcePage {
     this.contactInput = page.getByTestId('source-field-contact');
     this.notesInput = page.getByTestId('source-field-notes');
 
-    this.history = page.getByTestId('source-history');
+    // ObjectHistorySection is a SectionCard without a test id: `section-<prefix>`
+    this.history = page.getByTestId('section-source-history');
     this.historyShowAll = page.getByTestId('source-history-show-all');
 
     this.moveModal = page.getByRole('dialog', { name: 'Move lines to another source' });
@@ -181,13 +182,13 @@ export class FundingSourcePage {
     return this.linesPanel(sourceId).getByRole('link', { name: `Open ${itemName}` });
   }
 
-  /** Area headings (h3), item headings (h4) of the tree, in DOM order. */
+  /** Area headings (h2), item headings (h3) of the tree, in DOM order. */
   areaHeadings(sourceId: string): Locator {
-    return this.linesPanel(sourceId).locator('h3');
+    return this.linesPanel(sourceId).locator('h2');
   }
 
   itemHeadings(sourceId: string): Locator {
-    return this.linesPanel(sourceId).locator('h4');
+    return this.linesPanel(sourceId).locator('h3');
   }
 
   selectionBar(sourceId: string): Locator {

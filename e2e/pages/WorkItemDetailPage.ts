@@ -15,7 +15,7 @@
  *     the table with State chips and a ⋯ menu per row), the cost overview and the grant links
  *     - Inline form for adding/editing budget lines (planned amount, confidence,
  *       description, category, source, vendor)
- *     - h3 "Subsidies" — linked subsidy list, subsidy picker select
+ *     - h3 "Grants" — linked subsidy list, subsidy picker select
  *       (aria-label="Select subsidy program to link"), "Add Subsidy" button
  * - Right column sections:
  *   - h2 "Notes" — textarea (placeholder "Add a note..."), "Add Note" submit button, notes list
