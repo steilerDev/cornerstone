@@ -523,7 +523,8 @@ test.describe('Funding source page: History', () => {
       await source.goto(sourceId, { tab: 'history' });
       await expect(source.history).toBeVisible();
       await expect(source.history).toContainText('submitted to the bank');
-      await expect(source.historyShowAll).toBeVisible();
+      // One batch row is the whole history: "Show all in History" appears only when more exist
+      await expect(source.historyShowAll).toHaveCount(0);
     } finally {
       await runCleanup(cleanup);
     }
