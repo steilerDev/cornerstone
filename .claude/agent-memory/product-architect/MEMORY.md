@@ -36,6 +36,7 @@
 - ["As route X" contract refs](recurring-patterns.md) — open a cited model route before naming it; route fixes still need wiki (PR #2334)
 - ["Is filtered" over URL id sets](recurring-patterns.md) — `size > 0` counts stale ids; intersect with live keys; stub label members = make optional (PR #2335)
 - [List totals reuse money helpers](recurring-patterns.md) — filtered totals = money helper on the subset; ids param 400s over cap (#2238)
+- [Pre-fill key vs page carries](recurring-patterns.md) — new `prefillKeys` entry must join the page `carries` (3 places); grep wiki for deleted parts as live consumers (PR #2342)
 - [Privacy-scan false positives](privacy-scan-false-positives.md) — date at diff-line start = phone, `16384 UTF` = postcode; reword (#2229)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Per-line payment attribution](per-line-payment-attribution.md) — #2237 ADR-039 §5: sub-cent reconcile; tagged payments to the tagged source's lines (option B); residual gaps vs Rail A/B

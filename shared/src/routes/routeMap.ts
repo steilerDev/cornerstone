@@ -197,6 +197,7 @@ export const ROUTE_MAP = [
       'create',
       'kind',
       'companyId',
+      'documentId',
       'openOnly',
     ],
     stage: 'done',
