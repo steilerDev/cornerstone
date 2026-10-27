@@ -27,6 +27,9 @@ import { useConvertDocument } from './useConvertDocument.js';
 import { useConvertOffer } from './useConvertOffer.js';
 import type { ConvertProblem } from './useConvertOffer.js';
 
+/** How long the figures stay quiet before they are announced. */
+const FIGURES_DELAY_MS = 500;
+
 export interface ConvertOfferFormProps {
   readonly invoice: InvoiceDetail;
   readonly rows: readonly CostLineRow[];
@@ -144,6 +147,19 @@ export function ConvertOfferForm({
           })
         : t('convertPage.lines.remainder.over', { amount: formatCurrency(-convert.remainder) });
 
+  // The live region settles on the latest figures once typing pauses.
+  const figuresText = [
+    rows.length > 0 ? remainderText : '',
+    shortfall > 0 ? t('convertPage.refund.heading', { amount: formatCurrency(shortfall) }) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const [settledFigures, setSettledFigures] = useState(figuresText);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledFigures(figuresText), FIGURES_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [figuresText]);
+
   const announcement = isSaving
     ? t('convertPage.actions.saving')
     : saveError ||
@@ -166,6 +182,11 @@ export function ConvertOfferForm({
     >
       <div role="status" className={sharedStyles.srOnly} data-testid="convert-proposal-status">
         {convert.proposalAnnouncement}
+      </div>
+
+      {/* One live region for the figures that change as the user types (the table shows them twice). */}
+      <div role="status" className={sharedStyles.srOnly} data-testid="convert-figures-status">
+        {settledFigures}
       </div>
 
       {saveError && (
@@ -220,7 +241,9 @@ export function ConvertOfferForm({
               <button
                 type="button"
                 className={styles.textButton}
-                onClick={convert.resetProposal}
+                onClick={() => {
+                  if (!convert.allKept) convert.resetProposal();
+                }}
                 aria-disabled={convert.allKept ? 'true' : undefined}
                 data-testid="convert-reset-proposal"
               >
@@ -235,7 +258,11 @@ export function ConvertOfferForm({
               groupProposedTotals={convert.groupProposedTotals}
               offeredTotal={convert.offeredTotal}
               proposedTotal={convert.proposedTotal}
-              remainder={<span data-state={convert.remainderState}>{remainderText}</span>}
+              remainder={
+                <span className={styles.remainder} data-state={convert.remainderState}>
+                  {remainderText}
+                </span>
+              }
               onChangeProposed={convert.setLineProposed}
               onToggleKeep={convert.setLineKeep}
               disabled={isSaving}

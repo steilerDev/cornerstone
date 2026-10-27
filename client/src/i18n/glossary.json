@@ -404,6 +404,32 @@
       "doNotUse": [],
       "formerly": []
     },
+    "Final amount": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Final amount"
+      },
+      "de": {
+        "singular": "Endbetrag"
+      },
+      "deSource": "approved",
+      "definition": "The total of a final invoice, before progress payments are deducted.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Final invoice": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Final invoice"
+      },
+      "de": {
+        "singular": "Endrechnung"
+      },
+      "deSource": "approved",
+      "definition": "The invoice an offer becomes after it is converted.",
+      "doNotUse": [],
+      "formerly": []
+    },
     "Final payment": {
       "groups": ["supportingNoun"],
       "en": {

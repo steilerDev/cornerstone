@@ -334,12 +334,137 @@ describe('cost lines card', () => {
     );
   });
 
+  it.each([
+    ['notYetSplit', null, '€1,000.00 not yet split'],
+    ['none', '7000', 'Nothing left to split'],
+    ['over', '7500', '€500.00 more than the final amount'],
+  ] as const)(
+    'the remainder is styled and marked %s on both surfaces',
+    async (state, typed, text) => {
+      renderForm();
+      await act(async () => undefined);
+      if (typed) type('convert-lines-input-ibl-1', typed);
+      for (const id of ['convert-lines-remainder-all', 'convert-lines-remainder-mobile-all']) {
+        const span = within(screen.getByTestId(id)).getByText(text);
+        expect(span).toHaveAttribute('data-state', state);
+        // CSS modules resolve to their own class name in tests (identity-obj-proxy).
+        expect(span).toHaveClass('remainder');
+      }
+    },
+  );
+
   it('a status line under the bar shows the final amount and the final payment', async () => {
     renderForm({ invoice: makeOffer({ deposits: [makePayment({ id: 'd1', amount: 2500 })] }) });
     await act(async () => undefined);
     expect(screen.getByTestId('convert-actions')).toHaveTextContent(
       'Final €10,000.00 · Final payment €7,500.00',
     );
+  });
+});
+
+describe('Reset to proposal with every line kept', () => {
+  it('does nothing and stays aria-disabled', async () => {
+    renderForm();
+    await act(async () => undefined);
+    type('convert-lines-input-ibl-1', '1234');
+    fireEvent.click(within(screen.getByTestId('convert-keep-all')).getByRole('checkbox'));
+    const reset = screen.getByTestId('convert-reset-proposal');
+    expect(reset).toHaveAttribute('aria-disabled', 'true');
+    const before = screen.getByTestId('convert-lines-input-ibl-1');
+    expect(before).toHaveValue(6000);
+    fireEvent.click(reset);
+    expect(reset).toHaveAttribute('aria-disabled', 'true');
+    for (const id of ['ibl-1', 'ibl-2']) {
+      expect(screen.getByTestId(`convert-lines-keep-${id}`)).toBeChecked();
+    }
+    expect(screen.getByTestId('convert-lines-input-ibl-1')).toHaveValue(6000);
+  });
+});
+
+describe('figures live region', () => {
+  const region = () => screen.getByTestId('convert-figures-status');
+  const advance = (ms: number) =>
+    act(async () => {
+      await jest.advanceTimersByTimeAsync(ms);
+    });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('is a status region that starts with the current figures, announcing nothing on mount', async () => {
+    renderForm();
+    await advance(0);
+    expect(region()).toHaveAttribute('role', 'status');
+    expect(region()).toHaveTextContent('€1,000.00 not yet split');
+  });
+
+  it('settles on the new remainder 500 ms after the last change, not before', async () => {
+    renderForm();
+    await advance(0);
+    type('convert-lines-input-ibl-1', '7000');
+    await advance(499);
+    expect(region()).toHaveTextContent('€1,000.00 not yet split');
+    await advance(1);
+    expect(region()).toHaveTextContent('Nothing left to split');
+  });
+
+  it('typing again restarts the wait', async () => {
+    renderForm();
+    await advance(0);
+    type('convert-lines-input-ibl-1', '7000');
+    await advance(300);
+    type('convert-lines-input-ibl-1', '7500');
+    await advance(300);
+    expect(region()).toHaveTextContent('€1,000.00 not yet split');
+    await advance(200);
+    expect(region()).toHaveTextContent('€500.00 more than the final amount');
+  });
+
+  it('adds the Refund due while one is due, and drops it when it is settled', async () => {
+    mockFetchInvoiceById.mockResolvedValue(
+      makeOffer({
+        deposits: [makePayment({ id: 'd1', amount: 12000 }), REFUND],
+      }),
+    );
+    renderForm({
+      invoice: makeOffer({ deposits: [makePayment({ id: 'd1', amount: 12000 })] }),
+    });
+    await advance(0);
+    expect(region()).toHaveTextContent('€1,000.00 not yet split Refund due: €2,000.00');
+    fireEvent.click(screen.getByTestId('convert-add-refund'));
+    fireEvent.click(screen.getByText('probe-save'));
+    await advance(0);
+    await advance(500);
+    expect(region()).not.toHaveTextContent('Refund due');
+    expect(region()).toHaveTextContent('€1,000.00 not yet split');
+  });
+
+  it('holds only the Refund due when the offer has no cost lines', async () => {
+    renderForm({
+      invoice: makeOffer({ deposits: [makePayment({ id: 'd1', amount: 12000 })] }),
+      rows: [],
+    });
+    await advance(0);
+    expect(region()).toHaveTextContent(/^Refund due: €2,000\.00$/);
+  });
+
+  it('is empty without cost lines and without a refund due', async () => {
+    renderForm({ rows: [] });
+    await advance(0);
+    expect(region()).toBeEmptyDOMElement();
+  });
+
+  it('clears its timer on unmount', async () => {
+    const { unmount } = renderForm();
+    await advance(0);
+    type('convert-lines-input-ibl-1', '7000');
+    expect(jest.getTimerCount()).toBeGreaterThan(0);
+    unmount();
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
 

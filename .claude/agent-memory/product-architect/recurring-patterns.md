@@ -2198,3 +2198,13 @@ Fix at contract time: totals = the money helper (`computeOpenAmounts`, `computeP
 matching records' `InvoiceDepositRow`s, row fields = the same helper on one record, and the fixture
 consistency block asserts the unfiltered call equals `money.*`. Also: a refresh-by-`ids` param must
 ignore `page`/`pageSize` and 400 above its cap; silent truncation reads as "row removed".
+
+## State-styling hooks passed as ReactNode props (PR #2341)
+
+A host passed `remainder={<span data-state={state}>…</span>}` into a shared table and styled it with
+`.remainder[data-state='over']` in its _own_ CSS module. The span carried no class, and the table's
+`.remainder` lives in a different module (different hash), so the compound selector never matched:
+the blocking "over" state rendered unstyled and every test still passed, because they only checked
+text. Whenever a module selector compounds a class with `[data-*]`/`[aria-*]`, grep for the JSX site
+and confirm the same element carries `styles.<thatClass>` from the same module. Ask for a test that
+asserts the class on each surface.

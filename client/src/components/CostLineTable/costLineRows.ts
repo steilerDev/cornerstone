@@ -252,7 +252,10 @@ export function groupForDocument(rows: readonly CostLineRow[]): CostLineGroup[] 
  * purchase budget id there, which the convert request must never use.
  */
 export function invoiceLineKey(row: CostLineRow): string {
-  return row.invoiceBudgetLineId!;
+  if (row.invoiceBudgetLineId === null) {
+    throw new Error(`Cost line ${row.id} has no invoice budget line id (not a document-mode row)`);
+  }
+  return row.invoiceBudgetLineId;
 }
 
 /** What is left of an offer or invoice once its lines are subtracted. */

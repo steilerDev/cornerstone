@@ -484,6 +484,16 @@ describe('invoiceLineKey (#2240, D4)', () => {
   });
 });
 
+describe('invoiceLineKey without an invoice line', () => {
+  it('throws, naming the row, instead of returning null', () => {
+    const row = rowFromInvoiceLine(invoiceLine({ id: 'ibl-1' }), DOC, VAT, new Map());
+    const estimate = { ...row, id: 'wb-5', invoiceBudgetLineId: null };
+    expect(() => invoiceLineKey(estimate)).toThrow(
+      'Cost line wb-5 has no invoice budget line id (not a document-mode row)',
+    );
+  });
+});
+
 describe('remainingState', () => {
   it('0.99 is none, 1.00 is notYetSplit, -0.01 is over', () => {
     expect(remainingState(0.99)).toBe('none');
