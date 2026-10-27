@@ -16,8 +16,8 @@
       "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "HouseholdItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
       "IntegrationsPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
-      "InvoiceDetailPage": { "destinations": 0, "primaryButtons": 8, "searchFields": 1 },
-      "InvoicesPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 2 },
+      "InvoiceDetailPage": { "destinations": 0, "primaryButtons": 7, "searchFields": 1 },
+      "InvoicesPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "LoginPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "ManagePage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 },
       "MilestoneDetailPage": { "destinations": 4, "primaryButtons": 6, "searchFields": 0 },
@@ -34,13 +34,13 @@
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 4, "searchFields": 1 },
       "TimelinePage": { "destinations": 3, "primaryButtons": 9, "searchFields": 0 },
       "UserManagementPage": { "destinations": 0, "primaryButtons": 8, "searchFields": 1 },
-      "VendorDetailPage": { "destinations": 0, "primaryButtons": 7, "searchFields": 0 },
+      "VendorDetailPage": { "destinations": 0, "primaryButtons": 5, "searchFields": 0 },
       "VendorsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
       "WorkItemDetailPage": { "destinations": 3, "primaryButtons": 10, "searchFields": 1 },
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 103,
+      "count": 102,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -130,7 +130,6 @@
         "documents/DocumentDetailPanel",
         "documents/DocumentSkeleton",
         "documents/LinkedDocumentCard",
-        "invoices/InvoicePaperlessPickerModal",
         "photos/PhotoAnnotator/PhotoAnnotator",
         "photos/PhotoCard",
         "photos/PhotoDetailsPanel",
@@ -257,7 +256,7 @@
       ]
     },
     "windowConfirm": 0,
-    "handRolledDialogs": 3
+    "handRolledDialogs": 2
   },
   "allowedAdditions": { "sharedComponents": ["ReschedulePanel", "UndoToast"] },
   "audited": {

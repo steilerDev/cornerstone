@@ -50,9 +50,21 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoiceById: mockFetchInvoiceById,
 }));
 const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
+const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   ...actualPaperlessApi,
   getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: mockListPaperlessDocuments,
+}));
+// The shared status cache would carry one test's answer into the next.
+jest.unstable_mockModule('../../lib/paperlessStatusCache.js', () => ({
+  getSharedPaperlessStatus: () => mockGetPaperlessStatus(),
+  resetPaperlessStatusCache: jest.fn(),
+}));
+const actualDocumentLinksApi = await import('../../lib/documentLinksApi.js');
+jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
+  ...actualDocumentLinksApi,
+  listAllLinkedDocumentIds: jest.fn(() => Promise.resolve([])),
 }));
 const mockFetchConfig = jest.fn<typeof ConfigApiTypes.fetchConfig>();
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
@@ -99,22 +111,6 @@ jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
     </div>
   ),
 }));
-jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
-  InvoicePaperlessPickerModal: (props: {
-    onDocumentSelected: (doc: { id: number; title: string }) => void;
-    onClose: () => void;
-  }) => (
-    <div role="dialog" aria-label="picker-probe">
-      <button type="button" onClick={() => props.onDocumentSelected({ id: 7, title: 'Final.pdf' })}>
-        probe-pick
-      </button>
-      <button type="button" onClick={props.onClose}>
-        probe-picker-close
-      </button>
-    </div>
-  ),
-}));
-
 const { ApiClientError } = await import('../../lib/apiClient.js');
 let Form: (typeof FormModule)['ConvertOfferForm'];
 
@@ -197,6 +193,13 @@ const convertButton = () => screen.getByTestId('convert-confirm');
 const type = (testId: string, value: string) =>
   fireEvent.change(screen.getByTestId(testId), { target: { value } });
 
+/** Opens the document picker and picks Final.pdf (id 7). */
+async function pickDocument() {
+  fireEvent.focus(screen.getByLabelText('Source document'));
+  fireEvent.click(screen.getByLabelText('Source document'));
+  fireEvent.click(await screen.findByRole('option', { name: /Final\.pdf/ }));
+}
+
 /** jsdom has no layout: only inputs outside the card surface count as shown. */
 function showTableSurface() {
   HTMLElement.prototype.getClientRects = function (this: HTMLElement) {
@@ -208,6 +211,9 @@ beforeEach(async () => {
   mockConvertQuotation.mockReset().mockResolvedValue({} as never);
   mockFetchInvoiceById.mockReset();
   mockGetPaperlessStatus.mockReset().mockResolvedValue(status({ configured: false }));
+  mockListPaperlessDocuments.mockReset().mockResolvedValue({
+    documents: [{ id: 7, title: 'Final.pdf', correspondent: null, created: null }],
+  } as never);
   mockFetchConfig.mockReset().mockResolvedValue(config(false));
   mockPreview.mockReset();
   mockShowToast.mockReset();
@@ -236,9 +242,8 @@ describe('cards', () => {
     mockGetPaperlessStatus.mockResolvedValue(status());
     renderForm();
     expect(await screen.findByTestId('convert-document')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('convert-select-document'));
-    fireEvent.click(screen.getByText('probe-pick'));
-    expect(screen.getByTestId('convert-selected-document')).toHaveTextContent('Final.pdf');
+    await pickDocument();
+    expect(screen.getByText('Final.pdf')).toBeInTheDocument();
     expect(screen.queryByTestId('convert-ai-prefill')).toBeNull();
   });
 
@@ -247,8 +252,7 @@ describe('cards', () => {
     mockFetchConfig.mockResolvedValue(config(true));
     renderForm();
     await screen.findByTestId('convert-document');
-    fireEvent.click(screen.getByTestId('convert-select-document'));
-    fireEvent.click(screen.getByText('probe-pick'));
+    await pickDocument();
     await waitFor(() => expect(screen.getByTestId('convert-ai-prefill')).toBeInTheDocument());
   });
 
@@ -593,15 +597,14 @@ describe('converting', () => {
     mockConvertQuotation.mockReturnValue(new Promise((r) => (resolve = r)));
     const { onDone } = renderForm();
     await screen.findByTestId('convert-document');
-    fireEvent.click(screen.getByTestId('convert-select-document'));
-    fireEvent.click(screen.getByText('probe-pick'));
+    await pickDocument();
     fireEvent.click(convertButton());
     await waitFor(() => expect(convertButton()).toHaveAttribute('aria-busy', 'true'));
     expect(convertButton()).toHaveTextContent('Converting…');
     expect(convertButton()).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByTestId('convert-page')).toHaveAttribute('aria-busy', 'true');
     expect(amountInput()).toBeDisabled();
-    expect(screen.getByTestId('convert-select-document')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
     expect(screen.getByTestId('convert-actions-status')).toHaveTextContent('Converting the offer…');
     expect(mockConvertQuotation.mock.calls[0]![1]).toMatchObject({ paperlessDocumentId: 7 });
     await act(async () => {
@@ -717,8 +720,7 @@ describe('Cancel and unsaved changes', () => {
     mockGetPaperlessStatus.mockResolvedValue(status());
     const { onDone } = renderForm();
     await screen.findByTestId('convert-document');
-    fireEvent.click(screen.getByTestId('convert-select-document'));
-    fireEvent.click(screen.getByText('probe-pick'));
+    await pickDocument();
     fireEvent.click(screen.getByTestId('convert-cancel'));
     expect(onDone).not.toHaveBeenCalled();
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();

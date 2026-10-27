@@ -97,6 +97,8 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
 class MockNetworkError extends Error {}
 
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+  getBaseUrl: () => '/api',
+  toApiClientError: jest.fn(),
   NetworkError: MockNetworkError,
   ApiClientError: class MockApiClientError extends Error {
     constructor(

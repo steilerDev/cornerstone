@@ -141,6 +141,18 @@ export interface CreateInvoiceRequest {
   notes?: string | null;
 }
 
+/** A new cost line on a task or purchase for the full invoice amount (#2241). */
+export interface CreateInvoiceCostLine {
+  targetType: 'work_item' | 'household_item';
+  targetId: string;
+}
+
+/** Body of POST /api/vendors/:vendorId/invoices: the invoice plus optional links, written atomically. */
+export interface CreateVendorInvoiceRequest extends CreateInvoiceRequest {
+  costLine?: CreateInvoiceCostLine;
+  paperlessDocumentId?: number;
+}
+
 /**
  * Request body for updating an invoice.
  * All fields are optional; at least one must be provided.

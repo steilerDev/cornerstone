@@ -37,6 +37,8 @@ export interface ObjectFormRenderContext {
   readonly createChild: (child: ObjectFormChild) => void;
   /** The current values of the whole step, read-only (fields that depend on other fields). */
   readonly values: ObjectFormValues;
+  /** Merges several values at once (e.g. a picked document pre-fills fields), optionally announcing it. */
+  readonly setValues: (values: ObjectFormValues, announcement?: string) => void;
 }
 
 export interface ObjectFormField {
@@ -48,7 +50,8 @@ export interface ObjectFormField {
   readonly essential?: boolean;
   readonly required?: boolean;
   readonly width?: 'half' | 'full';
-  readonly hint?: string;
+  /** A text, or a function of the step's values (resolved per render). */
+  readonly hint?: string | ((values: ObjectFormValues) => string | undefined);
   /** A field-level problem not caused by the value (e.g. its options failed to load). */
   readonly notice?: string;
   readonly placeholder?: string;
@@ -60,9 +63,13 @@ export interface ObjectFormField {
   readonly defaultFromOptions?: 'first';
   /** Kept by "Add another". */
   readonly keep?: boolean;
-  /** Hidden by the host when Paperless is off (no field uses it yet). */
+  /** Unused: a schema omits a gated field instead (e.g. the invoice form without Paperless). */
   readonly gate?: 'paperless';
   readonly min?: number;
+  /** Number inputs only. */
+  readonly step?: number;
+  /** Number inputs only. */
+  readonly inputMode?: 'decimal' | 'numeric';
   readonly maxLength?: number;
   readonly testId?: string;
   /** The field is rendered only while this returns true; hidden fields take no part in focus, "More details" or errors. */
@@ -91,7 +98,12 @@ export interface ObjectFormSchema {
    * e.g. a 409 CONFLICT to a duplicate-name error on a field. Return `null` (or an empty map)
    * to fall through; a non-empty result shows no banner.
    */
-  readonly mapError?: (code: string, values: ObjectFormValues) => ObjectFormErrors | null;
+  readonly mapError?: (
+    code: string,
+    values: ObjectFormValues,
+    /** The API error's `details`, when it carries any (e.g. a figure for the message). */
+    details?: Record<string, unknown>,
+  ) => ObjectFormErrors | null;
   /** Text of the Add-another confirmation, e.g. "Task ‘X’ added." */
   readonly addedMessage?: (result: ObjectFormResult) => string;
 }

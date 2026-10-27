@@ -197,6 +197,7 @@ export const ROUTE_MAP = [
       'create',
       'kind',
       'companyId',
+      'documentId',
       'openOnly',
     ],
     stage: 'done',
@@ -1217,7 +1218,7 @@ export const ROUTE_MAP = [
   },
   {
     from: '/budget/invoices/new/paperless (AI off)',
-    to: '/budget/invoices?create=1&documentId=',
+    to: '/budget/invoices?create=1',
     kind: 'redirect',
     change: 'conditional',
     section: 'Money',
@@ -1225,7 +1226,7 @@ export const ROUTE_MAP = [
     gate: 'paperless',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'done',
     match: {
       condition: 'ai-off',
       appliesTo: ['invoicePaperlessReview'],

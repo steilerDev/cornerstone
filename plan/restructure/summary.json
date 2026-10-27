@@ -10,7 +10,7 @@
       "promoted": 47,
       "same": 334
     },
-    "byGate": { "ai": 1, "none": 451, "oidc": 8, "paperless": 21, "paperless+ai": 21 },
+    "byGate": { "ai": 1, "none": 451, "oidc": 8, "paperless": 22, "paperless+ai": 20 },
     "byDestinationSection": {
       "404 page": 1,
       "All lists": 3,

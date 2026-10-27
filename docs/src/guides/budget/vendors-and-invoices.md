@@ -1,41 +1,41 @@
 ---
 sidebar_position: 4
-title: Invoices & Vendors
+title: Invoices & Companies
 ---
 
-# Invoices & Vendors
+# Invoices & Companies
 
 Invoices track the real cost of your project -- the receipts from everyone you pay. Each invoice can be split into cost lines across your tasks and purchases, and each company can have any number of invoices attached.
 
-:::info Vendors now live under Settings
-Vendor records have moved out of the Budget subnav and into **Settings > Vendors**. That makes sense because a vendor's name, trade, and contact details are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. All existing links between invoices, cost lines, and vendors are preserved; only the menu location has changed.
+:::info Companies have their own page
+Companies are a page of their own in the main navigation, separate from the budget. A company's name, trade, and contact details are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. All existing links between invoices, cost lines, and companies are preserved.
 :::
 
-## Vendors (under Settings)
+## Companies
 
-### Vendor List
+### Company List
 
-Navigate to **Settings > Vendors** in the sidebar to see all vendors. The list supports:
+Navigate to **Companies** in the main navigation to see all companies. The list supports:
 
 - **Search** -- Find companies by name
 - **Sorting** -- Sort by name or creation date
 - **Pagination** -- Browse through large company lists
 
-### Creating a Vendor
+### Creating a Company
 
-Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Type in the **Trade** field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
+Click **New company** and provide the company's name and optionally assign a **trade** to indicate the company's specialty (e.g., Electrical, Plumbing). Type in the **Trade** field to search. If no trade matches, choose **New trade ‹text›**. Trades are managed on the Companies page (see [Areas & Trades](/guides/work-items/areas-and-trades#trades)).
 
-### Vendor Detail
+### Company Detail
 
-Click a company to see their detail page, which shows the company's information, assigned trade, and all their invoices. From the company edit page, you can navigate directly to any invoice detail by clicking on it.
+Click a company to see its detail page, which shows the company's information, assigned trade, and all its invoices. From the company edit page, you can navigate directly to any invoice detail by clicking on it.
 
-![Vendor detail page](/img/screenshots/budget-vendor-detail-light.png)
+![Company detail page](/img/screenshots/budget-vendor-detail-light.png)
 
 ## Invoices
 
 ### Invoice List
 
-Navigate to **Budget > Invoices** in the sidebar to see every invoice and offer across all companies. The page heading shows how many rows there are, such as **Invoices (24)**. Invoices remain in the Budget section; only the company records themselves moved to Settings.
+Navigate to **Budget > Invoices** in the sidebar to see every invoice and offer across all companies. The page heading shows how many rows there are, such as **Invoices (24)**. Invoices stay in the Budget section, and companies have their own page.
 
 The list loads more rows as you scroll down, so there are no pages to step through.
 
@@ -118,21 +118,55 @@ On the offer rows, the columns show each offer's **Offered**, **Paid**, **Remain
 
 Links from before this list was redesigned still work. `?status=quotation` opens the **Offers** chip, and `?openOnly=true` opens the **To pay** chip. The **Still to pay** figure on [Money Overview](budget-overview) and on the Home page links to the **To pay** chip.
 
-### Creating an Invoice
+### Adding an Invoice or Offer
 
-Click **New Invoice** -- either from a company's detail page or from the top of the **Budget > Invoices** list. Provide:
+Open the dialog from any of these places. It opens over the page you are on, so that page stays visible behind it:
 
-- **Invoice Number** -- The company's invoice reference number
-- **Date** -- The invoice date
-- **Amount** -- The total invoice amount
+- **New menu** -- choose **Invoice** or **Offer**. On a company's page, the company is already filled in.
+- **Budget > Invoices** -- select **New invoice**. On the **Offers** chip the button reads **New offer**.
+- **Company page** -- in the **Invoices** card, select **New invoice**. The company is already filled in.
+- **Task or purchase page** -- in the **Cost lines** section, select **New invoice**. The task or purchase is already filled in.
 
-Cost lines are added after creation from the invoice detail page (see [Splitting an offer or invoice into cost lines](#splitting-an-offer-or-invoice-into-cost-lines) below).
+The dialog title says **New invoice** or **New offer**, depending on what you are adding. To add an offer for a task or purchase, use the New menu and choose **Offer**, then pick the task or purchase under **For task / purchase**.
+
+The fields are:
+
+- **Company** -- Choose an existing company. If it does not exist yet, type its name and choose **New company ‹text›**. The company form opens with the name filled in, and the new company is selected when you save it.
+- **Number** -- The company's reference number, such as `INV-001`. Optional.
+- **Amount** -- The total, greater than 0. Required.
+- **Date** -- The invoice date. Required, and set to today when you open the dialog.
+- **Due date** -- Optional. If you enter one, it must be on or after the date.
+- **Status** -- Invoices only: **To pay** (the default), **Paid** or **Submitted**. An offer has no status.
+- **For task / purchase** -- Optional. Choose a task or purchase to create one cost line for the full amount on it. Leave it empty to save the invoice without a cost line, and split it later from the invoice page.
+- **Notes** -- Optional. Notes sit under **More details**.
+
+Select **Save** to create the invoice or offer. The app opens its page. To enter several in a row, tick **Add another after saving**: the dialog stays open for the next one instead of opening the saved record.
+
+#### Starting from a Paperless document
+
+When [Paperless-ngx](/guides/documents/setup) is configured, the dialog has a **Start from a document** field at the top. Search for the scanned PDF by its title and select it. Documents that are already linked to something in Cornerstone are not listed here. Any document can still be linked afterwards from the Documents panel.
+
+With only Paperless-ngx configured, picking a document fills in what it can and nothing else:
+
+- **Date** -- the document's date, but only when the date still shows today's default or is empty.
+- **Company** -- only when exactly one company has the same name as the document's correspondent. If there is no match, or more than one, Company stays empty.
+- **Notes** -- the document's title, but only when Notes is empty.
+
+Amount and Number are never filled from the document. Type them yourself, and check the other values.
+
+When an LLM provider is also configured, the field shows an extra link, **Read amounts and lines with AI**, once a document is picked. It opens the review screen described in [Creating an Invoice from a Paperless document](#creating-an-invoice-from-a-paperless-document) for that document. The dialog closes and nothing from it is saved.
+
+To remove the document from the dialog, clear the **Start from a document** field.
+
+### Editing an Invoice or Offer
+
+On an invoice or offer page, open the **⋯** menu and select **Edit details**. The form has the same fields as the new-invoice dialog, with Notes always visible. It has no document field, no task or purchase field and no **Add another** option, and an offer has no **Status** field.
+
+An invoice cannot be turned back into an offer from this form. The only way from an offer to an invoice is the **Convert to final invoice** page (see [Converting an Offer to a Final Invoice](#converting-an-offer-to-a-final-invoice)).
 
 ### Creating an Invoice from a Paperless document
 
-If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](auto-itemize) configured, **New Invoice** becomes a faster, document-first flow. Instead of the blank form, it opens a **document picker**: choose the scanned PDF the vendor sent you, and Cornerstone reads the invoice straight off the page.
-
-Picking a document takes you to a multi-step review screen:
+If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](auto-itemize) configured, the review screen can build the whole invoice from its PDF. Pick the document in the **New invoice** dialog and select **Read amounts and lines with AI**. Cornerstone reads the invoice straight off the page and opens a multi-step review screen:
 
 **Step 1: Company & Status**
 
@@ -147,28 +181,30 @@ Picking a document takes you to a multi-step review screen:
 
 Click **Create Invoice & Itemize** to create the invoice and its cost lines in one step. The new-invoice review screen and the existing-invoice [Split with AI](auto-itemize) page share the same grid, so line editing, assignment, and funding-source behaviour is identical in both. See [Assign each line](auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source) for the details.
 
-The extraction also benefits from the [human-authored metadata you keep in Paperless](auto-itemize#what-data-leaves-your-server) -- title, correspondent, document type, tags, and date -- so the suggested vendor and dates tend to land closer to correct.
+The extraction also benefits from the [human-authored metadata you keep in Paperless](auto-itemize#what-data-leaves-your-server) -- title, correspondent, document type, tags, and date -- so the suggested company and dates tend to land closer to correct.
 
-If Paperless or Auto-itemize is not configured, **New Invoice** opens the plain form described above -- there is no document step. You can also fall back to manual entry from the picker at any time.
+Without Paperless-ngx, the **Start from a document** field and the review screen do not appear, and you enter the invoice by hand.
+
 
 ### Invoice Statuses
 
-Invoices have four statuses:
+Invoices have three statuses. An offer is a separate kind of record and has no status:
 
 | Status | Meaning |
 |--------|---------|
-| **Offer** | A formal offer from the company -- not yet an actual cost |
 | **To pay** | Invoice received but not yet paid |
 | **Paid** | Invoice has been paid to the company |
 | **Submitted** | Paid or due, and included in a draw-down request to the bank (a claim for reimbursement from the financing source) |
 
 :::tip
-Use the **Offer** status for company offers that you want to track alongside actual invoices. Cost lines linked to an offer count at their face value on the task and purchase pages and on **Money > Overview**. The offer's amount is not shown as a range.
+Add company offers with **New offer** (on the **Offers** chip) or from the New menu, so they sit alongside actual invoices. Cost lines linked to an offer count at their face value on the task and purchase pages and on **Money > Overview**. The offer's amount is not shown as a range.
 :::
 
 ### Converting an Offer to a Final Invoice
 
 When the company sends the final invoice for an offer, convert the offer on the **Convert to final invoice** page. The offer keeps its record, its ID and its URL, so it becomes the final invoice in place. Nothing is saved until you select **Convert to final invoice** on the page.
+
+This is the only way to turn an offer into an invoice. The edit form cannot do it (see [Editing an Invoice or Offer](#editing-an-invoice-or-offer)).
 
 To open the page, open the offer and select **Convert to final invoice** in its header. You can also select **Convert** on the offer's row in **Needs attention** on the Home page. The breadcrumb reads Money › Invoices › the company and offer number.
 
@@ -176,7 +212,7 @@ The page has up to four cards, from top to bottom.
 
 **Document** (only when Paperless-ngx is configured)
 
-- **Select document** picks the PDF of the final invoice from Paperless-ngx. The document is linked to the final invoice. **Change document** picks a different one, and **Remove** clears the selection.
+- **Source document** is a picker for the PDF of the final invoice in Paperless-ngx. Pick a document and it is linked to the final invoice. Pick another one to replace it, or clear the picker to remove it.
 - **Read amounts** (needs an LLM provider as well) reads the selected document and suggests values for the final amount, invoice date, invoice number, due date and notes.
 - Read amounts fills only empty fields. A field you have typed in, or one that already holds saved data from the offer, such as the notes or the invoice number, is not overwritten. It shows a suggestion you can apply instead.
 - If the document total differs from the offer total, the page says so.

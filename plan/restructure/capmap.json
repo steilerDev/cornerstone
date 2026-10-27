@@ -1006,7 +1006,7 @@
     "to": "Global > New menu > Invoice / Offer / Company (company pre-filled on a company page)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer; company pre-filled on a company page). #2237: the Money › Overview Add dropdown is deleted; placement is Global › New menu › Invoice / Offer (D-35 now tested in createEntries.test.ts)."
+    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer; company pre-filled on a company page). #2237: the Money › Overview Add dropdown is deleted; placement is Global › New menu › Invoice / Offer (D-35 now tested in createEntries.test.ts). #2241: Global › New menu › Invoice / Offer opens the New invoice / New offer ObjectForm in place on Money › Invoices (?create=1; company pre-filled on a company page, ?documentId= from the AI-off redirect)."
   },
   "MNY-022": {
     "name": "View all financing sources with type, status, total and interest rate",
@@ -1300,15 +1300,15 @@
     "to": "Global > New menu > Invoice / Offer (company pre-filled on a company page); Money > Invoices > primary 'New invoice' ('New offer' on the Offers chip); Companies > Company page > Payments tab > 'New invoice'; Task / Purchase page > Cost tab > 'New invoice' -> one New invoice / New offer dialog (ObjectForm) with 'For task / purchase' (allocates the full amount at create) and the 'Add another after saving' checkbox",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer (quotation); company pre-filled on a company page). The ObjectForm schema arrives with 4.9. #2236: the create modal's company field is EntityPicker kind 'company' (inline 'New company')."
+    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer (quotation); company pre-filled on a company page). The ObjectForm schema arrives with 4.9. #2236: the create modal's company field is EntityPicker kind 'company' (inline 'New company'). #2241: One New invoice / New offer ObjectForm (InvoiceCreateProvider, in place). The Company page today has an Invoices card 'New invoice' (Payments tab with P4.12). Task / Purchase today have a Cost lines 'New invoice' (Cost tab later). 'For task / purchase' creates one cost line for the full amount in the same request. An offer has no status (D-17)."
   },
   "MNY-061": {
     "name": "Choose a Paperless document as the starting point for a new invoice",
     "from": "/budget/invoices > 'Add Invoice' > 'Select Invoice Document' modal (search, tag chips, correspondent filter, 'Hide already-linked documents' checkbox, infinite scroll) | Budget > Invoices > add invoice (or invoice detail) > picker modal: correspondent search + document browser + manual-entry escape",
     "to": "Money > New invoice / New offer dialog > 'Start from a document' (Paperless only: without AI the document's title, correspondent and date pre-fill the dialog; line extraction on the New from document page is Paperless + AI only)",
     "change": "promoted",
-    "gate": "paperless+ai",
-    "note": "Document-first path also without AI (capability-judge blind spot 3): 22 document links per session were a separate step."
+    "gate": "paperless",
+    "note": "Document-first path also without AI (capability-judge blind spot 3): 22 document links per session were a separate step. #2241: 'Start from a document' is EntityPicker kind 'document'. Without AI it pre-fills date, company (exact folded name) and notes (title). With AI, 'Read amounts and lines with AI' opens the New from document page with ?documentId. InvoicePaperlessPickerModal retired (AC7). Already-linked documents are not listed; thumbnails, the correspondent filter and the Hide toggle are gone (link any document from the Documents panel)."
   },
   "MNY-062": {
     "name": "Let AI extract invoice header data and line items from the chosen document",
@@ -1316,7 +1316,7 @@
     "to": "Money > New from document page (Paperless + AI only) (document id kept in the URL)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Survives reload (D-12). #2197: the document id is read from ?documentId=, so reload and direct links restore the page; without an id the page explains how to start again (D-12). #2203: h1 \"New invoice\" in every state; extraction wording is a status line; creating replaces the review page in history."
+    "note": "Survives reload (D-12). #2197: the document id is read from ?documentId=, so reload and direct links restore the page; without an id the page explains how to start again (D-12). #2203: h1 \"New invoice\" in every state; extraction wording is a status line; creating replaces the review page in history. #2241: entry from the dialog's 'Read amounts and lines with AI' link; the AI-off redirect is live (opens the dialog with ?documentId= picked)."
   },
   "MNY-063": {
     "name": "Confirm or change the AI-suggested vendor",
@@ -1478,7 +1478,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Edit details (section form; same field sections as create)",
     "change": "same",
     "gate": "none",
-    "note": "Vendor picker identical to create (PAT-05). #2236: the Edit invoice modal's company field is EntityPicker kind 'company', identical to create (PAT-05). #2239: ⋯ > Edit details opens the edit dialog with the create fields; ObjectForm comes with P4.9."
+    "note": "Vendor picker identical to create (PAT-05). #2236: the Edit invoice modal's company field is EntityPicker kind 'company', identical to create (PAT-05). #2239: ⋯ > Edit details opens the edit dialog with the create fields; ObjectForm comes with P4.9. #2241: Edit details is the invoice ObjectForm (same schema as create; Notes shown; no document, task/purchase or Add another)."
   },
   "MNY-083": {
     "name": "Change an invoice's payment status (Quotation / Pending / Paid / Claimed)",
@@ -1487,7 +1487,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q3",
-    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › header StatusMenu chip (Mark paid, no date step; Back to “To pay”); Submitted and Offer stay plain badges; the Edit modal keeps its Status select until 4.11 / the offers story. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History)."
+    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › header StatusMenu chip (Mark paid, no date step; Back to “To pay”); Submitted and Offer stay plain badges; the Edit modal keeps its Status select until 4.11 / the offers story. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2241: the edit form offers To pay / Paid / Submitted; offers have no status; invoice → offer is no longer offered (D5)."
   },
   "MNY-084": {
     "name": "Delete an invoice",
@@ -1508,7 +1508,7 @@
   "MNY-086": {
     "name": "Attach the final document and AI-prefill values while converting a quotation",
     "from": "/budget/invoices/:id > Convert modal > 'Source document' > 'Select Paperless document' / 'Change document' / 'Remove' > 'Prefill from document'",
-    "to": "Money > Convert page (/budget/invoices/:id/convert) > Document > 'Select document' / 'Change document' / 'Remove' > 'Read amounts' (Paperless only; Read amounts needs AI too)",
+    "to": "Money > Convert page (/budget/invoices/:id/convert) > Document > 'Source document' picker (clear removes) > 'Read amounts' (Paperless only; Read amounts needs AI too)",
     "change": "same",
     "gate": "paperless+ai",
     "note": "Paperless only; the prefill from the document needs AI as well. #2239: Built on the shared object page (ObjectHeader, SummaryStrip, ObjectTabs: Cost, Payments, History). #2240: Built on the Convert page's Document card."

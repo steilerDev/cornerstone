@@ -10,6 +10,7 @@ import type {
 import { buildTree } from '../../lib/areaTreeUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import { listPaperlessDocuments } from '../../lib/paperlessApi.js';
 import { fetchOrientations } from '../../lib/orientationApi.js';
 import { searchEverywhere } from '../../lib/searchApi.js';
 import { fetchTrades } from '../../lib/tradesApi.js';
@@ -27,6 +28,7 @@ export const ENTITY_PICKER_KINDS = [
   'category',
   'task',
   'taskOrPurchase',
+  'document',
 ] as const;
 export type EntityPickerKind = (typeof ENTITY_PICKER_KINDS)[number];
 
@@ -85,6 +87,19 @@ export function itemValue(target: {
   readonly id: string;
 }): string {
   return `${target.type}:${target.id}`;
+}
+
+/** Inverse of `itemValue`; anything else (including '') is null. */
+export function parseItemValue(
+  value: string,
+): { readonly type: 'work_item' | 'household_item'; readonly id: string } | null {
+  for (const type of ['work_item', 'household_item'] as const) {
+    const prefix = `${type}:`;
+    if (value.startsWith(prefix) && value.length > prefix.length) {
+      return { type, id: value.slice(prefix.length) };
+    }
+  }
+  return null;
 }
 
 export function notExcluded(option: EntityOption, excludeIds: readonly string[]): boolean {
@@ -326,4 +341,33 @@ export async function searchTaskOrPurchaseOptions(
     }
   }
   return options;
+}
+
+// ---- document (Paperless) ----
+
+const DOCUMENT_PAGE_SIZE = 25;
+
+/** Server search over Paperless documents; documents that are already linked are not listed. */
+export async function searchDocumentOptions(
+  query: string,
+  linkedIds: ReadonlySet<number>,
+  dateText: (iso: string) => string,
+): Promise<EntityOption[]> {
+  const trimmed = query.trim();
+  const response = await listPaperlessDocuments(
+    trimmed
+      ? { query: trimmed, pageSize: DOCUMENT_PAGE_SIZE }
+      : { pageSize: DOCUMENT_PAGE_SIZE, sortBy: 'created', sortOrder: 'desc' },
+  );
+  return response.documents
+    .filter((doc) => !linkedIds.has(doc.id))
+    .map((doc) => ({
+      id: String(doc.id),
+      label: doc.title,
+      entityId: String(doc.id),
+      secondary:
+        [doc.correspondent, doc.created && dateText(doc.created)].filter(Boolean).join(' · ') ||
+        undefined,
+      document: { title: doc.title, correspondent: doc.correspondent, created: doc.created },
+    }));
 }

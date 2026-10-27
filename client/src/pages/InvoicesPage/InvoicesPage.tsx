@@ -1,12 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { routeUrl } from '@cornerstone/shared';
 import type { InvoiceDeposit, InvoiceListRow } from '@cornerstone/shared';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
 import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
 import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
+import { useDocumentIntegration } from '../../hooks/useDocumentIntegration.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useActiveShowOnlyLabels } from './InvoiceListFilters.js';
@@ -26,16 +28,17 @@ function InvoicesList() {
   useDocumentTitle(tCommon('navigation.invoices'));
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // The create flow reloads the list, and the list's filters need to know about Paperless.
-  const refreshRef = useRef<() => void>(() => undefined);
-  const create = useInvoiceCreate({ onCreated: () => refreshRef.current() });
+  // The list's filters need to know about Paperless; null until the status is known.
+  const integration = useDocumentIntegration();
+  const paperlessConfigured = integration.loaded ? integration.status?.configured === true : null;
   const { list, config, labels, meta, scopeTotal, searchingAll, refreshRows } = useInvoicesList({
-    paperlessConfigured: create.paperlessConfigured,
+    paperlessConfigured,
   });
   const { refresh } = list;
-  useEffect(() => {
-    refreshRef.current = refresh;
-  }, [refresh]);
+  const offersChip = list.query.chip === 'quotation';
+  const create = useInvoiceCreate({ defaultKind: offersChip ? 'offer' : 'invoice' });
+  useOnObjectCreated('invoice', refresh);
+  useOnObjectCreated('offer', refresh);
 
   const actions = useInvoiceMarkPaid({ refreshRows, refresh, headingRef });
   const rows = useInvoiceRows({ chip: list.query.chip, actions });
@@ -47,8 +50,8 @@ function InvoicesList() {
       config={config}
       labels={labels}
       primary={{
-        label: t('invoices.list.new'),
-        onClick: create.open,
+        label: offersChip ? t('invoices.list.newOffer') : t('invoices.list.new'),
+        onClick: () => create.open(),
         testId: 'new-invoice-button',
       }}
       titleHeader={t('invoices.list.titleHeader')}
@@ -60,7 +63,7 @@ function InvoicesList() {
       searchingAll={searchingAll}
       scopeTotal={scopeTotal}
       aboveList={
-        meta && list.query.chip === 'quotation' ? (
+        meta && offersChip ? (
           <div className={styles.offersSummary}>
             <SummaryStrip
               typeLabel={t('invoices.list.offers.summaryType')}
@@ -94,9 +97,7 @@ function InvoicesList() {
           : undefined
       }
       headingRef={headingRef}
-    >
-      {create.dialogs}
-    </ObjectList>
+    />
   );
 }
 

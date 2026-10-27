@@ -55,14 +55,14 @@ A single purchase can have multiple cost lines. For example, a kitchen appliance
 
 When a company's offer or invoice arrives for a purchase purchase, you can link the item's cost lines to it. You can do this from either direction:
 
-- **From the invoice detail page** -- split the invoice into cost lines on the household item. The grid is described in [Invoices & Vendors](/guides/budget/vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
+- **From the invoice detail page** -- split the invoice into cost lines on the household item. The grid is described in [Invoices & Companies](/guides/budget/vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
 - **From the Cost section of the purchase page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice, then enter the amount for this line
 
 A single invoice can cover cost lines across different items. When several cost lines on the same purchase belong to the same invoice, they appear together in one group headed by the invoice number and its total.
 
 Linked lines keep their state chip, so you can see at a glance which purchases are still waiting for an invoice and which are paid.
 
-See [Invoices & Vendors](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
+See [Invoices & Companies](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
 
 ## Subsidies
 

@@ -13,5 +13,5 @@ Convert page (InvoiceConvertPage + ConvertOfferForm + 3 cards + useConvertOffer/
 - `useInvoiceRecord`/`useInvoiceCostLines` can fetch twice at mount (t identity changes): use `mockRejectedValue`, not `...Once`, for error-state tests.
 - `SectionCard` adds a sr-only `role=status`: use `getAllByRole('status')`.
 - Jest only runs from the repo root here (running from `client/` fails Babel on `import type`); filter noise with `grep -v "Jest: importing JSON"`.
-- App.tsx whole-file coverage is 82.8% statements on baseline: 16 lazy page loaders of unrelated routes are never visited by App.test. Not caused by a story; the diff itself is 100%.
+- App.tsx whole-file coverage is only 100% when `App.test.tsx` AND `App.lazyRoutes.test.tsx` run together (App.test alone is 82.8%: the 16 lazy loaders are visited by the lazyRoutes stubs). Always pass both files when measuring App.tsx.
 - Equivalent/unkillable: "status arrives after unmount" (React 19 drops the setState silently) and `selectRef.current?.focus()` optional chain in ConvertDocumentCard (button always mounted).

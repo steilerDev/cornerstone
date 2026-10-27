@@ -1,12 +1,9 @@
 /**
- * Page Object Model for the InvoicePaperlessPickerModal component.
+ * Page Object Model for the Paperless document browser inside the Documents panel's
+ * "Link document" picker view (#2241 removed the invoice picker modal this POM was written for).
  *
- * Rendered when Paperless is configured+reachable AND autoItemizeEnabled=true,
- * and the user clicks "New Invoice" on the Invoices list page.
- *
- * DOM observations from InvoicePaperlessPickerModal.tsx:
- * - Modal title: "Select Invoice Document"
- *   (budget.json key: invoices.pickerModal.title)
+ * DOM observations (DocumentBrowser in modal mode):
+ * - Dialog title: "Link document"
  * - Correspondent SearchPicker: id="correspondent-picker"
  *   placeholder="Filter by correspondent…" (documents.json: browser.correspondentPlaceholder)
  *   SearchPicker portal dropdown: [data-search-picker-dropdown] in document.body
@@ -24,9 +21,6 @@
  * - "Open in Paperless" anchor per document:
  *   aria-label="Open '{title}' in Paperless" (documents.json: documentCard.openInPaperlessAriaLabel)
  *   href={paperlessUrl}/documents/{id}/details, target="_blank"
- * - Footer button "Enter invoice manually"
- *   aria-label="Create invoice manually without selecting a document"
- *   (budget.json key: invoices.pickerModal.manualEntryAriaLabel)
  * - Modal close: standard close button inside the Modal component
  */
 
@@ -38,9 +32,6 @@ export class PaperlessPickerModal {
 
   /** The modal dialog element */
   readonly modal: Locator;
-
-  /** "Enter invoice manually" footer escape button */
-  readonly manualEntryButton: Locator;
 
   /** Correspondent SearchPicker input (id="correspondent-picker") */
   readonly correspondentInput: Locator;
@@ -86,19 +77,14 @@ export class PaperlessPickerModal {
 
   /**
    * @param page - Playwright page
-   * @param dialogName - Accessible name of the hosting dialog. Defaults to the invoice picker
-   *   ("Select Invoice Document"); pass 'Link document' for the Documents panel's picker view.
+   * @param dialogName - Accessible name of the hosting dialog ('Link document' for the Documents
+   *   panel's picker view).
    */
-  constructor(page: Page, dialogName: RegExp | string = /Select Invoice Document/i) {
+  constructor(page: Page, dialogName: RegExp | string = 'Link document') {
     this.page = page;
 
-    // Modal is identified by its title heading (default: "Select Invoice Document")
+    // Modal is identified by its title heading (default: "Link document")
     this.modal = page.getByRole('dialog', { name: dialogName });
-
-    // Manual entry escape button
-    this.manualEntryButton = this.modal.getByRole('button', {
-      name: /Create invoice manually without selecting a document/i,
-    });
 
     // Correspondent SearchPicker input — id="correspondent-picker" inside the modal
     this.correspondentInput = this.modal.locator('#correspondent-picker');
@@ -135,7 +121,7 @@ export class PaperlessPickerModal {
 
   /**
    * Scroll the grid's nearest scrollable ancestor (the picker's own scroller: `.pickerBody` in
-   * the Documents panel's picker view, `.modalBody` in InvoicePaperlessPickerModal) to its bottom, which
+   * the Documents panel's picker view) to its bottom, which
    * brings the footer sentinel within the observer's lookahead. No-op when nothing scrolls.
    */
   async scrollToBottom(): Promise<void> {
@@ -230,14 +216,6 @@ export class PaperlessPickerModal {
     const card = this.modal.getByRole('button', { name: new RegExp(title, 'i') }).first();
     await card.waitFor({ state: 'visible' });
     await card.click();
-  }
-
-  /**
-   * Click the "Enter invoice manually" escape button.
-   * This closes the picker and opens the manual create modal.
-   */
-  async clickManualEntry(): Promise<void> {
-    await this.manualEntryButton.click();
   }
 
   /**

@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AreaResponse } from '@cornerstone/shared';
 import type { ObjectFormRenderContext } from '../components/ObjectForm/types.js';
+import { LocaleProvider } from '../contexts/LocaleContext.js';
 import { AreaField, buildAreaSummary } from './AreaField.js';
 
 function area(
@@ -33,6 +34,7 @@ function ctxOf(over: Partial<ObjectFormRenderContext> = {}): ObjectFormRenderCon
     invalid: false,
     describedBy: undefined,
     createChild: jest.fn(),
+    setValues: jest.fn(),
     values: {},
     ...over,
   };
@@ -64,7 +66,11 @@ describe('AreaField', () => {
   it('is an area EntityPicker with the form field id and a "No area" row', async () => {
     const user = userEvent.setup();
     const setValue = jest.fn();
-    render(<AreaField ctx={ctxOf({ setValue })} areas={AREAS} />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ setValue })} areas={AREAS} />
+      </LocaleProvider>,
+    );
 
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('id', 'area-field');
@@ -78,7 +84,11 @@ describe('AreaField', () => {
   it('writes the picked area id to the form', async () => {
     const user = userEvent.setup();
     const setValue = jest.fn();
-    render(<AreaField ctx={ctxOf({ setValue })} areas={AREAS} />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ setValue })} areas={AREAS} />
+      </LocaleProvider>,
+    );
 
     await user.click(screen.getByRole('textbox'));
     await user.click(await screen.findByRole('option', { name: 'Ground floor, Hallway' }));
@@ -87,32 +97,52 @@ describe('AreaField', () => {
   });
 
   it('shows the current area as its full path', () => {
-    render(<AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} />
+      </LocaleProvider>,
+    );
 
     expect(screen.getByText('Ground floor › Hallway › Closet')).toBeInTheDocument();
   });
 
   it('treats a non-text value as no area', () => {
-    render(<AreaField ctx={ctxOf({ value: undefined })} areas={AREAS} preview />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ value: undefined })} areas={AREAS} preview />
+      </LocaleProvider>,
+    );
 
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).toBeNull();
   });
 
   it('is disabled while the form is busy', () => {
-    render(<AreaField ctx={ctxOf({ busy: true })} areas={AREAS} />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ busy: true })} areas={AREAS} />
+      </LocaleProvider>,
+    );
 
     expect(screen.getByRole('textbox')).toBeDisabled();
   });
 
   it('shows no breadcrumb preview by default', () => {
-    render(<AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} />
+      </LocaleProvider>,
+    );
 
     expect(screen.queryByRole('navigation')).toBeNull();
   });
 
   it('shows the breadcrumb of the chosen area when preview is on', () => {
-    render(<AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} preview />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ value: 'a-3' })} areas={AREAS} preview />
+      </LocaleProvider>,
+    );
 
     const trail = screen.getByRole('navigation');
     expect(trail).toHaveTextContent('Ground floor');
@@ -121,7 +151,11 @@ describe('AreaField', () => {
   });
 
   it('shows no preview while nothing is chosen', () => {
-    render(<AreaField ctx={ctxOf({ value: '' })} areas={AREAS} preview />);
+    render(
+      <LocaleProvider>
+        <AreaField ctx={ctxOf({ value: '' })} areas={AREAS} preview />
+      </LocaleProvider>,
+    );
 
     expect(screen.queryByRole('navigation')).toBeNull();
   });

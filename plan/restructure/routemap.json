@@ -169,9 +169,10 @@
       "create",
       "kind",
       "companyId",
+      "documentId",
       "openOnly"
     ],
-    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) on the ObjectList template (#2238): status chips To pay · Offers · Paid · Submitted · All with counts; ?status= keeps the stored values (pending, quotation, paid, claimed) plus the template's all, absent = To pay. Paging retired (page/pageSize no longer carried): load-all up to 100, then batches. Filters panel: ?vendorId= (Company), ?date= / ?dueDate= (Invoice date, Due date ranges), ?amount= (range), Show only ?notYetSplit=1 · ?withoutDocument=1 · ?refundsDue=1 · ?due=1 (written only when on). ?group= Group by, ?sortBy= due_date|date|amount|vendor_name|invoice_number with ?sortOrder=. ?create=1 opens the New invoice dialog (kind=offer presets Offer; ?companyId= pre-fills the company); the page then removes these keys (replace). ?openOnly=true is served by the page: one replace to ?status=pending (the To pay chip); Home's Still to pay tile and Money's Still to pay fact link to routeUrl('invoices'), whose default chip is To pay."
+    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) on the ObjectList template (#2238): status chips To pay · Offers · Paid · Submitted · All with counts; ?status= keeps the stored values (pending, quotation, paid, claimed) plus the template's all, absent = To pay. Paging retired (page/pageSize no longer carried): load-all up to 100, then batches. Filters panel: ?vendorId= (Company), ?date= / ?dueDate= (Invoice date, Due date ranges), ?amount= (range), Show only ?notYetSplit=1 · ?withoutDocument=1 · ?refundsDue=1 · ?due=1 (written only when on). ?group= Group by, ?sortBy= due_date|date|amount|vendor_name|invoice_number with ?sortOrder=. ?create=1 opens the New invoice dialog (kind=offer presets Offer; ?companyId= pre-fills the company; ?documentId= picks that Paperless document and pre-fills date, company and title); the page then removes these keys (replace). ?openOnly=true is served by the page: one replace to ?status=pending (the To pay chip); Home's Still to pay tile and Money's Still to pay fact link to routeUrl('invoices'), whose default chip is To pay."
   },
   {
     "from": "/budget/invoices/new/paperless",
@@ -1051,7 +1052,7 @@
   },
   {
     "from": "/budget/invoices/new/paperless (AI off)",
-    "to": "/budget/invoices?create=1&documentId=",
+    "to": "/budget/invoices?create=1",
     "kind": "redirect",
     "change": "conditional",
     "section": "Money",
@@ -1059,7 +1060,7 @@
     "gate": "paperless",
     "permanent": false,
     "carries": ["*"],
-    "note": "When Paperless is on but AI is off: the New invoice dialog opens with the document's title, correspondent and date pre-filled (document-first without AI)."
+    "note": "Live since #2241: the New invoice dialog opens with the document (?documentId carried) picked and its date, company and title pre-filled."
   },
   {
     "from": "/budget/invoices/:id/auto-itemize/:documentId (Paperless or AI off)",

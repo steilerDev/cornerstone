@@ -293,7 +293,7 @@
     "totalInvoices": "Total Invoices",
     "outstandingBalance": "Outstanding Balance",
     "invoices": "Invoices",
-    "addInvoice": "Add Invoice",
+    "addInvoice": "New invoice",
     "invoicesLoading": "Loading invoices...",
     "invoiceEditAria": "Edit invoice {{number}}",
     "invoiceDeleteAria": "Delete invoice {{number}}",
@@ -338,18 +338,6 @@
       "editRow": "Edit",
       "deleteRow": "Delete"
     },
-    "invoiceForm": {
-      "title": "Add Invoice",
-      "invoiceNumber": "Invoice #",
-      "invoiceNumberPlaceholder": "e.g., INV-001",
-      "amount": "Amount",
-      "invoiceDate": "Invoice Date",
-      "dueDate": "Due Date",
-      "status": "Status",
-      "notes": "Notes",
-      "add": "Add Invoice",
-      "adding": "Adding..."
-    },
     "deleteInvoiceModal": {
       "noNumber": "this invoice"
     },
@@ -365,63 +353,18 @@
     "invoiceCard": {
       "noInvoiceNumber": "No Invoice #"
     },
-    "modal": {
-      "addInvoiceTitle": "Add Invoice",
-      "editInvoiceTitle": "Edit Invoice",
-      "deleteInvoiceTitle": "Delete Invoice",
-      "deleteInvoiceConfirm": "Are you sure you want to delete invoice {{number}}?",
-      "deleteInvoiceWarning": "This action cannot be undone."
-    },
     "messages": {
       "updateError": "Failed to update vendor. Please try again.",
       "deleteError": "Failed to delete vendor. Please try again.",
-      "invoiceCreateError": "Failed to create invoice. Please try again.",
-      "invoiceUpdateError": "Failed to update invoice. Please try again.",
       "invoiceDeleteError": "Failed to delete invoice. Please try again."
     }
   },
   "invoices": {
     "error": "Error",
     "errorMessage": "Failed to load invoices. Please try again.",
-    "form": {
-      "vendor": "Vendor",
-      "invoiceNumber": "Invoice #",
-      "amount": "Amount",
-      "invoiceDate": "Invoice Date",
-      "dueDate": "Due Date",
-      "status": "Status",
-      "notes": "Notes",
-      "required": "*",
-      "placeholders": {
-        "vendor": "Select a vendor...",
-        "invoiceNumber": "e.g., INV-001",
-        "notes": "Optional notes about this invoice"
-      }
-    },
-    "validation": {
-      "vendorRequired": "Please select a vendor.",
-      "amountRequired": "Amount must be a positive number.",
-      "dateRequired": "Invoice date is required."
-    },
-    "buttons": {
-      "create": "Add Invoice",
-      "creating": "Adding...",
-      "cancel": "Cancel"
-    },
-    "modal": {
-      "title": "Add Invoice",
-      "description": "Fill in the details below to add a new invoice."
-    },
-    "messages": {
-      "createError": "Failed to create invoice. Please try again."
-    },
-    "pickerModal": {
-      "title": "Select Invoice Document",
-      "manualEntry": "Enter invoice manually",
-      "manualEntryAriaLabel": "Create invoice manually without selecting a document"
-    },
     "list": {
       "new": "New invoice",
+      "newOffer": "New offer",
       "search": "Search invoices",
       "resultCount_one": "{{count}} invoice",
       "resultCount_other": "{{count}} invoices",
@@ -534,38 +477,14 @@
     "error": "Error",
     "retry": "Retry",
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
-    "form": {
-      "invoiceNumber": "Invoice #",
-      "vendor": "Company",
-      "amount": "Amount",
-      "dueDate": "Due Date",
-      "invoiceDate": "Invoice Date",
-      "status": "Status",
-      "notes": "Notes",
-      "required": "*",
-      "placeholders": {
-        "invoiceNumber": "e.g., INV-001",
-        "vendor": "Search companies…"
-      }
-    },
-    "validation": {
-      "amountRequired": "Amount must be a positive number.",
-      "vendorRequired": "Please select a company"
-    },
     "buttons": {
-      "save": "Save changes",
-      "saving": "Saving...",
-      "cancel": "Cancel",
       "convertToFinal": "Convert to final invoice"
     },
     "modal": {
       "editTitle": "Edit details"
     },
     "messages": {
-      "updateError": "Failed to update invoice. Please try again.",
-      "deleteError": "Failed to delete invoice. Please try again.",
-      "vendorNotFound": "The selected company could not be found",
-      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized cost lines first."
+      "deleteError": "Failed to delete invoice. Please try again."
     },
     "budgetLines": {
       "dismissErrorAriaLabel": "Dismiss error"
@@ -613,6 +532,61 @@
         "paidDateRequired": "Paid date is required.",
         "claimedDateRequired": "Submitted date is required."
       }
+    }
+  },
+  "invoiceForm": {
+    "title": {
+      "invoice": "New invoice",
+      "offer": "New offer"
+    },
+    "added": {
+      "invoice": "Invoice ‘{{name}}’ added.",
+      "offer": "Offer ‘{{name}}’ added."
+    },
+    "document": {
+      "label": "Start from a document",
+      "filled": "Filled from {{title}}.",
+      "readWithAi": "Read amounts and lines with AI",
+      "readWithAiHint": "Opens the document review; this dialog closes.",
+      "loadError": "Couldn't open that document."
+    },
+    "company": {
+      "label": "Company",
+      "unknown": "That company no longer exists."
+    },
+    "number": {
+      "label": "Number",
+      "placeholder": "e.g. INV-001"
+    },
+    "amount": {
+      "label": "Amount",
+      "hint": "In {{currency}}"
+    },
+    "date": {
+      "label": "Date"
+    },
+    "dueDate": {
+      "label": "Due date"
+    },
+    "status": {
+      "label": "Status"
+    },
+    "forItem": {
+      "label": "For task / purchase",
+      "hint": "Creates one cost line for the full amount.",
+      "hintFilled": "One cost line of {{amount}} on {{title}}."
+    },
+    "notes": {
+      "label": "Notes"
+    },
+    "errors": {
+      "companyRequired": "Choose a company.",
+      "amountRequired": "Enter an amount greater than 0.",
+      "amountForCostLine": "Enter the amount so the cost line can be created.",
+      "dateRequired": "Enter a date.",
+      "dueBeforeDate": "The due date must be on or after the date.",
+      "amountBelowItemized": "The amount can't be lower than {{itemizedTotal}}, the total of the cost lines on it. Lower the cost lines first.",
+      "amountBelowItemizedNoTotal": "The amount can't be lower than the cost lines on it. Lower the cost lines first."
     }
   },
   "invoicePage": {
@@ -1174,9 +1148,6 @@
     "document": {
       "title": "Document",
       "prompt": "Pre-fill the final invoice from a document.",
-      "select": "Select document",
-      "change": "Change document",
-      "remove": "Remove",
       "read": "Read amounts",
       "reading": "Reading document…",
       "readDone": "Document read. Review the suggestions.",
@@ -1184,7 +1155,8 @@
       "tryAgain": "Try again",
       "mismatch": "The document total {{extracted}} differs from the offer total {{offered}}.",
       "noLines": "The document has no lines, so the final amount was not pre-filled.",
-      "linkedNote": "The selected document is linked to the final invoice."
+      "linkedNote": "The selected document is linked to the final invoice.",
+      "label": "Source document"
     },
     "details": {
       "title": "Final invoice details",

@@ -1,13 +1,15 @@
 /** Query vocabulary of the create targets (`?create=1`, `kind`, pre-fill keys). */
 export const CREATE_PARAM = 'create';
 export const CREATE_KIND_PARAM = 'kind';
-export const CREATE_PREFILL_KEYS = ['areaId', 'companyId', 'date'] as const;
+export const CREATE_PREFILL_KEYS = ['areaId', 'companyId', 'date', 'documentId'] as const;
 export type CreatePrefillKey = (typeof CREATE_PREFILL_KEYS)[number];
 export type CreatePrefill = Readonly<Partial<Record<CreatePrefillKey, string>>>;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_ID_LENGTH = 64;
+/** A Paperless document id: a positive integer of at most ten digits. */
+const DOCUMENT_ID_PATTERN = /^[1-9]\d{0,9}$/;
 
 function isRealDate(value: string): boolean {
   if (!DATE_PATTERN.test(value)) return false;
@@ -22,13 +24,19 @@ function isValidId(value: string): boolean {
   return value.length > 0 && value.length <= MAX_ID_LENGTH && ID_PATTERN.test(value);
 }
 
-/** Keeps only valid pre-fill keys: `date` is a real YYYY-MM-DD day, ids are short slugs. */
+function isValidValue(key: CreatePrefillKey, value: string): boolean {
+  if (key === 'date') return isRealDate(value);
+  if (key === 'documentId') return DOCUMENT_ID_PATTERN.test(value);
+  return isValidId(value);
+}
+
+/** Keeps only valid pre-fill keys: `date` is a real YYYY-MM-DD day, ids are short slugs, `documentId` a positive integer. */
 export function sanitizePrefill(input: Partial<Record<CreatePrefillKey, unknown>>): CreatePrefill {
   const out: Partial<Record<CreatePrefillKey, string>> = {};
   for (const key of CREATE_PREFILL_KEYS) {
     const value = input[key];
     if (typeof value !== 'string') continue;
-    if (key === 'date' ? isRealDate(value) : isValidId(value)) out[key] = value;
+    if (isValidValue(key, value)) out[key] = value;
   }
   return out;
 }
@@ -39,6 +47,7 @@ export function prefillFromSearch(params: URLSearchParams): CreatePrefill {
     areaId: params.get('areaId') ?? undefined,
     companyId: params.get('companyId') ?? undefined,
     date: params.get('date') ?? undefined,
+    documentId: params.get('documentId') ?? undefined,
   });
 }
 

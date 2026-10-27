@@ -161,6 +161,8 @@ export type {
   InvoiceDepositStatus,
   InvoiceDepositEntryType,
   CreateInvoiceRequest,
+  CreateInvoiceCostLine,
+  CreateVendorInvoiceRequest,
   UpdateInvoiceRequest,
   CreateDepositRequest,
   UpdateDepositRequest,

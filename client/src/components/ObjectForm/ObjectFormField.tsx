@@ -14,6 +14,7 @@ export interface ObjectFormFieldProps {
   readonly error: string | undefined;
   readonly busy: boolean;
   readonly onChange: (value: unknown) => void;
+  readonly onSetValues: (values: ObjectFormValues, announcement?: string) => void;
   readonly createChild: (child: ObjectFormChild) => void;
 }
 
@@ -31,11 +32,13 @@ export function ObjectFormField({
   error,
   busy,
   onChange,
+  onSetValues,
   createChild,
 }: ObjectFormFieldProps) {
   const { t } = useTranslation('common');
   const { name, label, kind, required } = field;
-  const hintId = field.hint ? `${name}-hint` : undefined;
+  const hint = typeof field.hint === 'function' ? field.hint(values) : field.hint;
+  const hintId = hint ? `${name}-hint` : undefined;
   const errorId = error ? `${name}-error` : undefined;
   const noticeId = field.notice ? `${name}-notice` : undefined;
   const describedBy = [hintId, noticeId, errorId].filter(Boolean).join(' ') || undefined;
@@ -66,6 +69,9 @@ export function ObjectFormField({
       describedBy,
       createChild,
       values,
+      setValues: (next, announcement) => {
+        if (!busy) onSetValues(next, announcement);
+      },
     });
   } else if (kind === 'color') {
     control = (
@@ -118,6 +124,8 @@ export function ObjectFormField({
         className={cx(styles.input, invalid && styles.inputError)}
         value={text}
         min={kind === 'number' ? field.min : undefined}
+        step={kind === 'number' ? field.step : undefined}
+        inputMode={kind === 'number' ? field.inputMode : undefined}
         maxLength={field.maxLength}
         placeholder={field.placeholder}
         readOnly={busy}
@@ -154,9 +162,9 @@ export function ObjectFormField({
         </label>
       )}
       {control}
-      {field.hint && (
+      {hint && (
         <p id={hintId} className={styles.hint}>
-          {field.hint}
+          {hint}
         </p>
       )}
       <FormError variant="field" id={noticeId} message={field.notice} />

@@ -17,6 +17,7 @@ import type * as OrientationApiTypes from '../../lib/orientationApi.js';
 import type * as TradesApiTypes from '../../lib/tradesApi.js';
 import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as Kinds from './entityPickerKinds.js';
 import type { EntityOption } from './types.js';
 
@@ -26,6 +27,7 @@ const mockFetchOrientations = jest.fn<typeof OrientationApiTypes.fetchOrientatio
 const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: mockSearchCompanies,
@@ -42,6 +44,9 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
 }));
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   listWorkItems: mockListWorkItems,
+}));
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  listPaperlessDocuments: mockListPaperlessDocuments,
 }));
 
 const signal = new AbortController().signal;
@@ -645,8 +650,96 @@ describe('entityPickerKinds', () => {
     });
   });
 
+  describe('parseItemValue', () => {
+    it.each([
+      ['work_item:wi-1', { type: 'work_item', id: 'wi-1' }],
+      ['household_item:hi-1', { type: 'household_item', id: 'hi-1' }],
+      ['work_item:a:b', { type: 'work_item', id: 'a:b' }],
+    ])('reads %s', (value, expected) => {
+      expect(K.parseItemValue(value)).toEqual(expected);
+    });
+
+    it.each(['', 'work_item:', 'household_item:', 'vendor:v-1', 'wi-1', 'work_item'])(
+      'returns null for %p',
+      (value) => {
+        expect(K.parseItemValue(value)).toBeNull();
+      },
+    );
+
+    it('is the inverse of itemValue', () => {
+      const target = { type: 'household_item', id: 'hi-9' } as const;
+      expect(K.parseItemValue(K.itemValue(target))).toEqual(target);
+    });
+  });
+
+  describe('searchDocumentOptions', () => {
+    const doc = (id: number, correspondent: string | null, created: string | null) => ({
+      id,
+      title: `Doc ${id}`,
+      correspondent,
+      created,
+    });
+    const respond = (...documents: ReturnType<typeof doc>[]) =>
+      mockListPaperlessDocuments.mockResolvedValue({ documents } as never);
+    const dateText = (iso: string) => `D(${iso})`;
+
+    beforeEach(() => {
+      mockListPaperlessDocuments.mockReset();
+    });
+
+    it('asks for the newest documents when the query is empty', async () => {
+      respond();
+      await K.searchDocumentOptions('', new Set(), dateText);
+      expect(mockListPaperlessDocuments).toHaveBeenCalledWith({
+        pageSize: 25,
+        sortBy: 'created',
+        sortOrder: 'desc',
+      });
+    });
+
+    it('treats a blank query as empty', async () => {
+      respond();
+      await K.searchDocumentOptions('   ', new Set(), dateText);
+      expect(mockListPaperlessDocuments).toHaveBeenCalledWith({
+        pageSize: 25,
+        sortBy: 'created',
+        sortOrder: 'desc',
+      });
+    });
+
+    it('sends a trimmed query and no sort', async () => {
+      respond();
+      await K.searchDocumentOptions('  roof ', new Set(), dateText);
+      expect(mockListPaperlessDocuments).toHaveBeenCalledWith({ query: 'roof', pageSize: 25 });
+    });
+
+    it('filters out linked ids and maps the rest', async () => {
+      respond(doc(1, 'Acme', '2026-04-02'), doc(2, null, null), doc(3, 'Birch', null));
+      const result = await K.searchDocumentOptions('', new Set([2]), dateText);
+      expect(result.map((o) => o.id)).toEqual(['1', '3']);
+      expect(result[0]).toEqual({
+        id: '1',
+        label: 'Doc 1',
+        entityId: '1',
+        secondary: 'Acme · D(2026-04-02)',
+        document: { title: 'Doc 1', correspondent: 'Acme', created: '2026-04-02' },
+      });
+    });
+
+    it.each([
+      ['both', 'Acme', '2026-04-02', 'Acme · D(2026-04-02)'],
+      ['the correspondent only', 'Acme', null, 'Acme'],
+      ['the date only', null, '2026-04-02', 'D(2026-04-02)'],
+      ['neither', null, null, undefined],
+    ])('builds the second line from %s', async (_name, correspondent, created, expected) => {
+      respond(doc(1, correspondent, created));
+      const [option] = await K.searchDocumentOptions('', new Set(), dateText);
+      expect(option?.secondary).toBe(expected);
+    });
+  });
+
   describe('kinds', () => {
-    it('lists the eight kinds', () => {
+    it('lists the nine kinds', () => {
       expect([...K.ENTITY_PICKER_KINDS]).toEqual([
         'company',
         'who',
@@ -656,6 +749,7 @@ describe('entityPickerKinds', () => {
         'category',
         'task',
         'taskOrPurchase',
+        'document',
       ]);
     });
 

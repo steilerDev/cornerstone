@@ -22,6 +22,22 @@ const hook = {
   deleteTrade: jest.fn<(id: string) => Promise<void>>(),
   mergeTrade: jest.fn<(id: string, targetId: string) => Promise<TradeMergeResponse>>(),
 };
+// EntityPicker formats document dates, so it reads the locale.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../hooks/useTrades.js', () => ({ useTrades: () => hook }));
 
 // The merge dialog's "Keep this trade" field is an EntityPicker (kind trade): it lists the trades

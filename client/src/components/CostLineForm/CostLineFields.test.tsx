@@ -39,6 +39,7 @@ describe('CostLineFields', () => {
     invalid: false,
     describedBy: undefined,
     createChild: jest.fn(),
+    setValues: jest.fn(),
     values: {},
     ...over,
   });

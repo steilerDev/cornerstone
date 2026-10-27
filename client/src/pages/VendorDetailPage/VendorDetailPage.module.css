@@ -161,33 +161,6 @@
 
 /* ---- Coming soon placeholder (kept for reference, no longer used) ---- */
 
-/* ---- Select element ---- */
-
-.select {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition: var(--transition-input);
-  width: 100%;
-  box-sizing: border-box;
-  cursor: pointer;
-}
-
-.select:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.select:disabled {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
 /* ---- Invoice section header ---- */
 
 .invoiceHeaderRight {
@@ -203,12 +176,6 @@
 
 .outstandingAmount {
   color: var(--color-danger);
-}
-
-/* ---- Wide modal (for invoice forms) ---- */
-
-.modalContentWide {
-  max-width: 38rem;
 }
 
 /* ---- Invoice table (desktop) ---- */
@@ -677,53 +644,6 @@
   cursor: not-allowed;
 }
 
-/* ---- Modal ---- */
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modalBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-overlay);
-}
-
-.modalContent {
-  position: relative;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  padding: var(--spacing-6);
-  max-width: 28rem;
-  width: calc(100% - var(--spacing-8));
-  margin: var(--spacing-4);
-}
-
-.modalTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-}
-
 /* ============================================================
  * RESPONSIVE — Mobile (max 767px)
  * ============================================================ */
@@ -791,27 +711,6 @@
     width: 100%;
     text-align: center;
     min-height: 44px;
-  }
-
-  /* Modal */
-  .modalContent {
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-
-  .modalActions .cancelButton {
-    width: 100%;
-    text-align: center;
   }
 
   .errorActions {

@@ -14,6 +14,10 @@ import {
   invoiceDeposits,
   invoiceBudgetLines,
   workItemBudgets,
+  workItems,
+  householdItems,
+  documentLinks,
+  diaryEntries,
 } from '../db/schema.js';
 
 describe('Invoice Routes', () => {
@@ -534,6 +538,227 @@ describe('Invoice Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<{ invoice: Invoice }>();
       expect(body.invoice.status).toBe('claimed');
+    });
+  });
+
+  // ─── POST with costLine / paperlessDocumentId (#2241) ───────────────────────
+
+  describe('POST /api/vendors/:vendorId/invoices with a cost line and a document (#2241)', () => {
+    function seedWorkItem(id = 'wi-cost'): string {
+      const now = new Date().toISOString();
+      app.db
+        .insert(workItems)
+        .values({ id, title: 'Roof', status: 'not_started', createdAt: now, updatedAt: now })
+        .run();
+      return id;
+    }
+
+    function seedHouseholdItem(id = 'hi-cost'): string {
+      const now = new Date().toISOString();
+      app.db
+        .insert(householdItems)
+        .values({ id, name: 'Sofa', categoryId: 'hic-furniture', createdAt: now, updatedAt: now })
+        .run();
+      return id;
+    }
+
+    function post(cookie: string, vendorId: string, payload: unknown) {
+      return app.inject({
+        method: 'POST',
+        url: `/api/vendors/${vendorId}/invoices`,
+        headers: { cookie },
+        payload: payload as Record<string, unknown>,
+      });
+    }
+
+    function rowCounts() {
+      const c = (t: string) =>
+        (app.db.$client.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get() as { c: number }).c;
+      return {
+        invoices: c('invoices'),
+        workItemBudgets: c('work_item_budgets'),
+        householdItemBudgets: c('household_item_budgets'),
+        links: c('invoice_budget_lines'),
+        documentLinks: c('document_links'),
+      };
+    }
+
+    it('creates a work-item cost line for the full amount and reports nothing remaining', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Cost Line Vendor');
+      const workItemId = seedWorkItem();
+
+      const response = await post(cookie, vendorId, {
+        amount: 900,
+        date: '2026-02-01',
+        costLine: { targetType: 'work_item', targetId: workItemId },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const { invoice } = response.json<{ invoice: Invoice }>();
+      expect(invoice.remainingAmount).toBe(0);
+      const line = app.db.select().from(workItemBudgets).get()!;
+      expect(line).toMatchObject({
+        workItemId,
+        plannedAmount: 900,
+        includesVat: true,
+        confidence: 'invoice',
+        vendorId,
+        budgetSourceId: 'discretionary-system',
+      });
+      const link = app.db
+        .select()
+        .from(invoiceBudgetLines)
+        .where(eq(invoiceBudgetLines.invoiceId, invoice.id))
+        .get()!;
+      expect(link.workItemBudgetId).toBe(line.id);
+      expect(link.itemizedAmount).toBe(900);
+    });
+
+    it('creates a household-item cost line for the full amount', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Purchase Vendor');
+      const householdItemId = seedHouseholdItem();
+
+      const response = await post(cookie, vendorId, {
+        amount: 300,
+        date: '2026-02-01',
+        costLine: { targetType: 'household_item', targetId: householdItemId },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json<{ invoice: Invoice }>().invoice.remainingAmount).toBe(0);
+      expect(rowCounts()).toMatchObject({ householdItemBudgets: 1, links: 1, workItemBudgets: 0 });
+    });
+
+    it('uses quote confidence and a quotation attachment for an offer', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Offer Vendor');
+      const workItemId = seedWorkItem();
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        status: 'quotation',
+        paperlessDocumentId: 5,
+        costLine: { targetType: 'work_item', targetId: workItemId },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(app.db.select().from(workItemBudgets).get()!.confidence).toBe('quote');
+      expect(app.db.select().from(documentLinks).get()!.attachmentType).toBe('quotation');
+    });
+
+    it('answers 404 and leaves zero rows when the cost-line target does not exist', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Missing Target Vendor');
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        paperlessDocumentId: 5,
+        costLine: { targetType: 'work_item', targetId: 'does-not-exist' },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(rowCounts()).toEqual({
+        invoices: 0,
+        workItemBudgets: 0,
+        householdItemBudgets: 0,
+        links: 0,
+        documentLinks: 0,
+      });
+    });
+
+    it('links the document as an invoice attachment', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Doc Vendor');
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        paperlessDocumentId: 12,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const { invoice } = response.json<{ invoice: Invoice }>();
+      const link = app.db.select().from(documentLinks).get()!;
+      expect(link).toMatchObject({
+        entityType: 'invoice',
+        entityId: invoice.id,
+        paperlessDocumentId: 12,
+        attachmentType: 'invoice',
+      });
+    });
+
+    it.each([
+      ['an unknown targetType', { costLine: { targetType: 'vendor', targetId: 'x' } }],
+      ['an empty targetId', { costLine: { targetType: 'work_item', targetId: '' } }],
+      ['a missing targetId', { costLine: { targetType: 'work_item' } }],
+      ['paperlessDocumentId 0', { paperlessDocumentId: 0 }],
+      ['a non-numeric paperlessDocumentId', { paperlessDocumentId: 'x' }],
+    ])('rejects %s with 400 and creates nothing', async (_name, extra) => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Bad Body Vendor');
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        ...extra,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(rowCounts().invoices).toBe(0);
+    });
+
+    it('strips an unknown costLine property (removeAdditional) and still creates the line', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Nested Extra Vendor');
+      const workItemId = seedWorkItem();
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        costLine: { targetType: 'work_item', targetId: workItemId, bogus: 1 },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(rowCounts().workItemBudgets).toBe(1);
+    });
+
+    it('strips an unknown top-level property and still creates the invoice', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Extra Prop Vendor');
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        bogus: true,
+      });
+
+      expect(response.statusCode).toBe(201);
+    });
+
+    it('emits the invoice-created diary event exactly once', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Diary Vendor');
+      const workItemId = seedWorkItem();
+
+      const response = await post(cookie, vendorId, {
+        amount: 450,
+        date: '2026-02-01',
+        paperlessDocumentId: 3,
+        costLine: { targetType: 'work_item', targetId: workItemId },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const { invoice } = response.json<{ invoice: Invoice }>();
+      const entries = app.db
+        .select()
+        .from(diaryEntries)
+        .where(eq(diaryEntries.entryType, 'invoice_created'))
+        .all();
+      expect(entries.filter((e) => e.sourceEntityId === invoice.id)).toHaveLength(1);
     });
   });
 

@@ -87,26 +87,11 @@
 
 /* ---- Document ---- */
 
-.documentBanner {
-  composes: bannerInfo bannerRow from '../../styles/shared.module.css';
-  flex-wrap: wrap;
-  gap: var(--spacing-3);
-}
-
 .documentActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-2);
-}
-
-.fileName {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: var(--font-weight-medium);
 }
 
 .readStatus {

@@ -351,7 +351,8 @@
       "company": "Firmen suchen",
       "who": "Firmen oder Haushaltsmitglieder suchen",
       "category": "Kategorie auswählen",
-      "taskOrPurchase": "Aufgaben oder Anschaffungen suchen"
+      "taskOrPurchase": "Aufgaben oder Anschaffungen suchen",
+      "document": "Deine Dokumente suchen"
     },
     "typeMore": "Gib mindestens 2 Buchstaben ein.",
     "task": {
@@ -370,6 +371,11 @@
       "tradeTitle": "Neues Gewerk",
       "categoryTitle": "Neue Anschaffungskategorie",
       "name": "Name"
+    },
+    "document": {
+      "noResults": "Keine Dokumente gefunden.",
+      "loadError": "Dokumente konnten nicht geladen werden.",
+      "linkedHidden": "Bereits verknüpfte Dokumente werden nicht angezeigt."
     }
   },
   "relatedList": {

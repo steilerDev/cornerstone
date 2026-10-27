@@ -293,7 +293,7 @@
     "totalInvoices": "Gesamtrechnungen",
     "outstandingBalance": "Ausstehender Saldo",
     "invoices": "Rechnungen",
-    "addInvoice": "Rechnung hinzufügen",
+    "addInvoice": "Neue Rechnung",
     "invoicesLoading": "Rechnungen werden geladen...",
     "invoiceEditAria": "Rechnung {{number}} bearbeiten",
     "invoiceDeleteAria": "Rechnung {{number}} löschen",
@@ -338,18 +338,6 @@
       "editRow": "Bearbeiten",
       "deleteRow": "Löschen"
     },
-    "invoiceForm": {
-      "title": "Rechnung hinzufügen",
-      "invoiceNumber": "Rechnung #",
-      "invoiceNumberPlaceholder": "z. B. RE-001",
-      "amount": "Betrag",
-      "invoiceDate": "Rechnungsdatum",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "add": "Rechnung hinzufügen",
-      "adding": "Wird hinzugefügt..."
-    },
     "deleteInvoiceModal": {
       "noNumber": "diese Rechnung"
     },
@@ -365,18 +353,9 @@
     "invoiceCard": {
       "noInvoiceNumber": "Keine Rechnungsnummer"
     },
-    "modal": {
-      "addInvoiceTitle": "Rechnung hinzufügen",
-      "editInvoiceTitle": "Rechnung bearbeiten",
-      "deleteInvoiceTitle": "Rechnung löschen",
-      "deleteInvoiceConfirm": "Bist du sicher, dass du die Rechnung {{number}} löschen möchtest?",
-      "deleteInvoiceWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
-    },
     "messages": {
       "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
       "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuche es später erneut.",
-      "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut.",
-      "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
     }
   },
@@ -385,38 +364,14 @@
     "error": "Fehler",
     "retry": "Erneut versuchen",
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
-    "form": {
-      "invoiceNumber": "Rechnung #",
-      "vendor": "Firma",
-      "amount": "Betrag",
-      "dueDate": "Fälligkeitsdatum",
-      "invoiceDate": "Rechnungsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "required": "*",
-      "placeholders": {
-        "invoiceNumber": "z. B. RE-001",
-        "vendor": "Firmen suchen…"
-      }
-    },
-    "validation": {
-      "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "vendorRequired": "Bitte wähle eine Firma aus"
-    },
     "buttons": {
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
       "convertToFinal": "In Endrechnung umwandeln"
     },
     "modal": {
       "editTitle": "Details bearbeiten"
     },
     "messages": {
-      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut.",
-      "vendorNotFound": "Die ausgewählte Firma konnte nicht gefunden werden",
-      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduziere zuerst die aufgeschlüsselten Kostenpositionen."
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
     },
     "budgetLines": {
       "form": {},
@@ -465,6 +420,61 @@
         "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
       },
       "paymentGone": "Diese Abschlagszahlung existiert nicht mehr."
+    }
+  },
+  "invoiceForm": {
+    "title": {
+      "invoice": "Neue Rechnung",
+      "offer": "Neues Angebot"
+    },
+    "added": {
+      "invoice": "Rechnung „{{name}}“ hinzugefügt.",
+      "offer": "Angebot „{{name}}“ hinzugefügt."
+    },
+    "document": {
+      "label": "Aus einem Dokument starten",
+      "filled": "Ausgefüllt aus {{title}}.",
+      "readWithAi": "Beträge und Positionen mit KI auslesen",
+      "readWithAiHint": "Öffnet die Dokumentprüfung; dieser Dialog wird geschlossen.",
+      "loadError": "Dieses Dokument konnte nicht geöffnet werden."
+    },
+    "company": {
+      "label": "Firma",
+      "unknown": "Diese Firma existiert nicht mehr."
+    },
+    "number": {
+      "label": "Nummer",
+      "placeholder": "z. B. RE-001"
+    },
+    "amount": {
+      "label": "Betrag",
+      "hint": "In {{currency}}"
+    },
+    "date": {
+      "label": "Datum"
+    },
+    "dueDate": {
+      "label": "Fälligkeitsdatum"
+    },
+    "status": {
+      "label": "Status"
+    },
+    "forItem": {
+      "label": "Für Aufgabe / Anschaffung",
+      "hint": "Erstellt eine Kostenposition über den vollen Betrag.",
+      "hintFilled": "Eine Kostenposition über {{amount}} auf {{title}}."
+    },
+    "notes": {
+      "label": "Notizen"
+    },
+    "errors": {
+      "companyRequired": "Wähle eine Firma.",
+      "amountRequired": "Gib einen Betrag größer als 0 ein.",
+      "amountForCostLine": "Gib den Betrag ein, damit die Kostenposition erstellt werden kann.",
+      "dateRequired": "Gib ein Datum ein.",
+      "dueBeforeDate": "Das Fälligkeitsdatum muss am Datum oder danach liegen.",
+      "amountBelowItemized": "Der Betrag darf nicht niedriger sein als {{itemizedTotal}}, die Summe der Kostenpositionen darauf. Reduziere zuerst die Kostenpositionen.",
+      "amountBelowItemizedNoTotal": "Der Betrag darf nicht niedriger sein als die Kostenpositionen darauf. Reduziere zuerst die Kostenpositionen."
     }
   },
   "invoicePage": {
@@ -612,50 +622,14 @@
     "error": "Fehler",
     "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuche es später erneut.",
     "tableHeaders": {},
-    "form": {
-      "vendor": "Auftragnehmer",
-      "invoiceNumber": "Rechnung #",
-      "amount": "Betrag",
-      "invoiceDate": "Rechnungsdatum",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "required": "*",
-      "placeholders": {
-        "vendor": "Auftragnehmer auswählen...",
-        "invoiceNumber": "z. B. RE-001",
-        "notes": "Optionale Notizen zu dieser Rechnung"
-      }
-    },
-    "validation": {
-      "vendorRequired": "Bitte wähle einen Auftragnehmer aus.",
-      "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "dateRequired": "Rechnungsdatum ist erforderlich."
-    },
-    "buttons": {
-      "create": "Rechnung hinzufügen",
-      "creating": "Wird hinzugefügt...",
-      "cancel": "Abbrechen"
-    },
-    "modal": {
-      "title": "Rechnung hinzufügen",
-      "description": "Fülle die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen."
-    },
     "actions": {},
-    "messages": {
-      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuche es später erneut."
-    },
     "attribution": {},
-    "pickerModal": {
-      "title": "Rechnungsdokument auswählen",
-      "manualEntry": "Rechnung manuell erfassen",
-      "manualEntryAriaLabel": "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
-    },
     "openItems": {
       "empty": {}
     },
     "list": {
       "new": "Neue Rechnung",
+      "newOffer": "Neues Angebot",
       "search": "Rechnungen durchsuchen",
       "resultCount_one": "{{count}} Rechnung",
       "resultCount_other": "{{count}} Rechnungen",
@@ -1181,9 +1155,6 @@
     "document": {
       "title": "Dokument",
       "prompt": "Fülle die Endrechnung aus einem Dokument vor.",
-      "select": "Dokument auswählen",
-      "change": "Dokument ändern",
-      "remove": "Entfernen",
       "read": "Beträge auslesen",
       "reading": "Dokument wird gelesen…",
       "readDone": "Dokument gelesen. Prüfe die Vorschläge.",
@@ -1191,7 +1162,8 @@
       "tryAgain": "Erneut versuchen",
       "mismatch": "Die Summe des Dokuments {{extracted}} weicht von der Angebotssumme {{offered}} ab.",
       "noLines": "Das Dokument enthält keine Positionen, daher wurde der Endbetrag nicht vorausgefüllt.",
-      "linkedNote": "Das ausgewählte Dokument ist mit der Endrechnung verknüpft."
+      "linkedNote": "Das ausgewählte Dokument ist mit der Endrechnung verknüpft.",
+      "label": "Quelldokument"
     },
     "details": {
       "title": "Details der Endrechnung",

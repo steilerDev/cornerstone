@@ -561,7 +561,7 @@ test.describe('Command search', () => {
 
     await page.goto(routeUrl('invoices'));
     await pageHeading(page);
-    // `n` follows the Add Invoice button: both wait for the integration status to load
+    // `n` follows the New invoice button: both wait for the integration status to load
     await expect(new InvoicesPage(page).newInvoiceButton).toBeEnabled();
     await page.keyboard.press('n');
     await expect(new InvoicesPage(page).createModal).toBeVisible();

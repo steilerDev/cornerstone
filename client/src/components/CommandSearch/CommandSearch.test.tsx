@@ -31,7 +31,10 @@ const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
 jest.unstable_mockModule('../../lib/tradesApi.js', () => ({ fetchTrades: mockFetchTrades }));
 
 const mockStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
-jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({ getPaperlessStatus: mockStatus }));
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockStatus,
+  listPaperlessDocuments: jest.fn(),
+}));
 
 const mockRefreshAuth = jest.fn<() => Promise<void>>();
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({

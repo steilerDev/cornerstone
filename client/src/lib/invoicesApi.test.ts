@@ -167,6 +167,25 @@ describe('invoicesApi', () => {
       );
     });
 
+    it('sends the optional cost line and document in the same request body (#2241)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ invoice: sampleInvoice }),
+      } as Response);
+
+      const data = {
+        amount: 1000,
+        date: '2026-01-15',
+        costLine: { targetType: 'household_item' as const, targetId: 'hi-1' },
+        paperlessDocumentId: 42,
+      };
+      await createInvoice('vendor-1', data);
+
+      const [, init] = mockFetch.mock.calls[0]!;
+      expect(JSON.parse((init as RequestInit).body as string)).toEqual(data);
+    });
+
     it('returns the created invoice (unwrapped from envelope)', async () => {
       const newInvoice: Invoice = { ...sampleInvoice, id: 'invoice-new', amount: 3000 };
 

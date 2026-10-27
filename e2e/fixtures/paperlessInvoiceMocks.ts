@@ -79,9 +79,13 @@ export async function mockConfig(page: Page, autoItemizeEnabled: boolean): Promi
     try {
       const realResp = await route.fetch();
       const realBody = (await realResp.json()) as Record<string, unknown>;
-      await route.fulfill(json({ ...realBody, autoItemizeEnabled }));
+      await route.fulfill(
+        json({ ...realBody, autoItemizeEnabled, llmEnabled: autoItemizeEnabled }),
+      );
     } catch {
-      await route.fulfill(json({ currency: 'EUR', autoItemizeEnabled }));
+      await route.fulfill(
+        json({ currency: 'EUR', autoItemizeEnabled, llmEnabled: autoItemizeEnabled }),
+      );
     }
   });
 }

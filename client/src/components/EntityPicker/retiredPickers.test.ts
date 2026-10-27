@@ -26,6 +26,7 @@ const RETIRED = [
   'CostLineTargetPicker',
   'CompanyPickerDialog',
   'TagPickerDialog',
+  'InvoicePaperlessPickerModal',
 ] as const;
 
 function walk(dir: string): string[] {

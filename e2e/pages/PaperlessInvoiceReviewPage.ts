@@ -2,8 +2,8 @@
  * Page Object Model for the PaperlessInvoiceReviewPage component.
  * Route: /budget/invoices/new/paperless
  *
- * This page is navigated to after selecting a document from the InvoicePaperlessPickerModal.
- * The documentId and documentTitle are passed as React Router location state.
+ * This page is reached from the New invoice dialog's "Read amounts and lines with AI" link, or
+ * directly with `?documentId=` (the document id is the only input; a reload or deep link works).
  *
  * DOM observations from PaperlessInvoiceReviewPage.tsx (updated for Story #1703/#1704/#1764):
  *
@@ -284,7 +284,9 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
-   * Navigate directly to the review page. The document id lives in the URL
+   * Navigate directly to the review page. The route's gate redirects to the New invoice dialog
+   * when `/api/config` reports `llmEnabled: false` (#2241), so register the config mock (both
+   * `llmEnabled` and `autoItemizeEnabled` true; see `mockConfig`) BEFORE calling this. The document id lives in the URL
    * (`?documentId=`), so a bookmark / reload / login redirect all work.
    * Omit the id to reach the "No document chosen" state.
    */

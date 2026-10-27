@@ -56,7 +56,16 @@ import {
   deleteVendorViaApi,
   deleteWorkItemViaApi,
 } from '../../fixtures/apiHelpers.js';
-import { mockConfig, mockPaperlessConfigured } from '../../fixtures/paperlessInvoiceMocks.js';
+import {
+  MOCK_DOC,
+  mockConfig,
+  mockCorrespondents,
+  mockDocumentDetail,
+  mockDocuments,
+  mockLinkedIds,
+  mockPaperlessConfigured,
+  mockTags,
+} from '../../fixtures/paperlessInvoiceMocks.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { LoginPage } from '../../pages/LoginPage.js';
@@ -745,14 +754,40 @@ test.describe('Legacy URL walk (route map)', () => {
 
     await page.goto(`${routeUrl('invoicePaperlessReview')}?documentId=7`);
 
-    await expect(page).toHaveURL(
-      (url) =>
-        url.pathname === routeUrl('invoices') &&
-        url.searchParams.get('create') === '1' &&
-        url.searchParams.get('documentId') === '7',
-    );
+    // One hop to the Invoices list, where the New invoice dialog opens. The `?create=1&documentId=`
+    // request is consumed (replaced away) by the page, so the final URL is clean.
     const invoicesPage = new InvoicesPage(page);
-    await expect(invoicesPage.createModal).toBeVisible();
+    await expect(invoicesPage.createDialog.dialog).toBeVisible();
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoices'));
+    await expectSingleHop(page, routeUrl('invoices'), true);
+  });
+
+  test('E4b: with Paperless on and AI off the review page sends you to the dialog with the document picked', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    await mockPaperlessConfigured(page);
+    await mockConfig(page, false);
+    await mockLinkedIds(page);
+    await mockCorrespondents(page);
+    await mockTags(page);
+    // Routes registered later win: the list glob (`**/paperless/documents**`) also matches
+    // `/documents/9001`, so the detail mock must come after it
+    await mockDocuments(page);
+    await mockDocumentDetail(page, MOCK_DOC.id);
+
+    await page.goto(`${routeUrl('invoicePaperlessReview')}?documentId=${MOCK_DOC.id}`);
+
+    const invoicesPage = new InvoicesPage(page);
+    const dialog = invoicesPage.createDialog;
+    await expect(dialog.dialog).toBeVisible();
+    // The document of the link is picked and pre-fills the form (Notes = the title)
+    await expect(dialog.documentChip()).toContainText(MOCK_DOC.title);
+    await dialog.expandMoreDetails();
+    await expect(dialog.notes).toHaveValue(MOCK_DOC.title);
+    // AI is off: no link to the review page
+    await expect(dialog.readWithAi).toHaveCount(0);
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoices'));
     await expectSingleHop(page, routeUrl('invoices'), true);
   });
 

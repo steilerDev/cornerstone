@@ -41,6 +41,7 @@ import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import { CostLineGridDialog } from '../../pages/components/CostLineGridDialog.js';
 import { CreateMenu } from '../../pages/components/CreateMenu.js';
+import { InvoiceFormDialog } from '../../pages/components/InvoiceFormDialog.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { SearchPickerControl } from '../../pages/components/SearchPickerControl.js';
 
@@ -301,21 +302,23 @@ test.describe('Money truth — company Still to pay (AC2)', { tag: '@responsive'
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Money truth — new invoice default status (AC3)', { tag: '@responsive' }, () => {
-  test('Invoices page Add Invoice defaults the status to pending', async ({ page }) => {
+  test('Invoices page New invoice defaults the status to pending', async ({ page }) => {
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
     await invoicesPage.openCreateModal();
-    await expect(invoicesPage.createStatusSelect).toHaveValue('pending');
+    await expect(invoicesPage.createDialog.status).toHaveValue('pending');
     await invoicesPage.closeCreateModal();
   });
 
-  test('Company page Add Invoice defaults the status to pending', async ({ page, testPrefix }) => {
+  test('Company page New invoice defaults the status to pending', async ({ page, testPrefix }) => {
     const vendorId = await makeVendor(page, `${testPrefix} Default Status Co ${Date.now()}`);
     const vendorPage = new VendorDetailPage(page);
+    const dialog = new InvoiceFormDialog(page, 'invoice');
     await vendorPage.goto(vendorId);
-    await vendorPage.addInvoiceButton.click();
-    await expect(vendorPage.createInvoiceStatusSelect).toBeVisible();
-    await expect(vendorPage.createInvoiceStatusSelect).toHaveValue('pending');
+    await vendorPage.newInvoiceButton.click();
+    await dialog.waitForOpen();
+    await expect(dialog.status).toBeVisible();
+    await expect(dialog.status).toHaveValue('pending');
   });
 });
 
@@ -638,11 +641,11 @@ test.describe(
   'Money truth — New invoice from the Money overview (AC8)',
   { tag: '@responsive' },
   () => {
-    test('D-35: New › Invoice opens the manual create modal with status pending', async ({
+    test('D-35: New › Invoice opens the New invoice dialog with status pending', async ({
       page,
     }) => {
       // The Money overview has no Add menu of its own (#2237): the global New menu creates
-      // the invoice. The test environment has no Paperless + AI, so the manual modal is expected
+      // the invoice. The test environment has no Paperless + AI, so the dialog has no document row
       await page.goto(ROUTES.budget);
       const overview = new BudgetOverviewPage(page);
       await expect(overview.heading).toBeVisible();
@@ -655,7 +658,7 @@ test.describe(
       await page.waitForURL(/\/budget\/invoices/);
       const invoicesPage = new InvoicesPage(page);
       await expect(invoicesPage.createModal).toBeVisible();
-      await expect(invoicesPage.createStatusSelect).toHaveValue('pending');
+      await expect(invoicesPage.createDialog.status).toHaveValue('pending');
       // The one-shot ?create=1 trigger is consumed
       expect(page.url()).not.toContain('create=1');
     });

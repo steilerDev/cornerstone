@@ -4,8 +4,10 @@ import type { BaseBudgetLine } from '@cornerstone/shared';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { undoChange } from '../../lib/undoApi.js';
 import type { OriginState } from '../../navigation/origin.js';
+import { useOpenInvoiceForm } from '../../objectForms/useOpenInvoiceForm.js';
 import { dataTableTestId } from '../DataTable/dataTableTestId.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { CostLineForm } from '../CostLineForm/CostLineForm.js';
@@ -214,6 +216,8 @@ function CostLinesView({
   const openerRef = useRef<HTMLElement | null>(null);
   const addRef = useRef<HTMLButtonElement | null>(null);
   const gridRef = useRef<HTMLButtonElement | null>(null);
+  const newInvoiceRef = useRef<HTMLButtonElement | null>(null);
+  const openInvoiceForm = useOpenInvoiceForm();
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const splitHandleRef = useRef<CostLineSplitHandle | null>(null);
@@ -234,6 +238,13 @@ function CostLinesView({
     mutations.clearError();
     setDialog(null);
   };
+
+  // An invoice or offer created from this page's dialog: reload the lines (item hosts only).
+  const reloadAfterCreate = () => {
+    if (!isDocument) void afterChange();
+  };
+  useOnObjectCreated('invoice', reloadAfterCreate);
+  useOnObjectCreated('offer', reloadAfterCreate);
 
   const saved = (message: string) => {
     setStatus(message);
@@ -492,6 +503,28 @@ function CostLinesView({
         >
           {t('section.addGrid')}
         </button>
+        {host.kind !== 'invoice' && openInvoiceForm && (
+          <button
+            type="button"
+            ref={newInvoiceRef}
+            className={styles.secondary}
+            onClick={() =>
+              openInvoiceForm({
+                kind: 'invoice',
+                item: {
+                  type: host.kind,
+                  id: host.id,
+                  label: host.label,
+                },
+                originState: linkState,
+                returnFocusRef: newInvoiceRef,
+              })
+            }
+            data-testid={`${testId}-new-invoice`}
+          >
+            {t('section.newInvoice')}
+          </button>
+        )}
       </RelatedListHeader>
       {dialog === null && mutations.error !== null ? <FormError message={mutations.error} /> : null}
       {body}

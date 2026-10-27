@@ -216,6 +216,17 @@ describe('legacy URLs stay one hop and permanent', () => {
 describe('Areas index rollout (#2218)', () => {
   const entry = (id: string) => ENTRIES.find((e) => e.id === id);
 
+  it('serves the AI-off review redirect live and sends it to the invoice dialog without an empty documentId', () => {
+    const rule = ROUTE_MAP.find((e) => e.from === '/budget/invoices/new/paperless (AI off)');
+    expect(rule).toMatchObject({
+      kind: 'redirect',
+      stage: 'done',
+      to: '/budget/invoices?create=1',
+      carries: ['*'],
+    });
+    expect(rule?.to).not.toContain('documentId');
+  });
+
   it('serves the Areas index and keeps the area detail planned', () => {
     expect(entry('areas')?.stage).toBe('done');
     expect(entry('area')?.stage).toBe('planned');

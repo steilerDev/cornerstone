@@ -30,18 +30,15 @@
  *   (`invoices-footer`, figure `invoices-footer-figure`, `data-figure="still-to-pay"` only while no
  *   search or filter is active). Selecting rows shows the bar (`invoices-selection-bar`) with the one
  *   bulk action "Mark paid (n)" (`invoices-bulk-mark-paid`).
- * - The create dialogs (`useInvoiceCreate`): unchanged from before the rebuild.
+ * - The New invoice / New offer dialog (#2241): `createDialog` / `offerDialog` (InvoiceFormDialog);
+ *   it opens in place over this page, and Save navigates to the new invoice's page.
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { EntityPickerControl } from './components/EntityPickerControl.js';
-import { PaperlessPickerModal } from './PaperlessPickerModal.js';
+import { InvoiceFormDialog } from './components/InvoiceFormDialog.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
-
-/** API (not app route) invoices-endpoint matcher. */
-const API_INVOICES_URL = /\/api\/(?:.*\/)?invoices/;
 
 export const INVOICES_ROUTE = routeUrl('invoices');
 
@@ -113,23 +110,13 @@ export class InvoicesPage {
   readonly selectionBar: Locator;
   readonly bulkMarkPaid: Locator;
 
-  // Create invoice modal
+  // New invoice / New offer dialog (#2241)
+  /** The New invoice dialog. */
+  readonly createDialog: InvoiceFormDialog;
+  /** The New offer dialog (opened from the Offers chip or the New menu's Offer entry). */
+  readonly offerDialog: InvoiceFormDialog;
+  /** Whichever create dialog is open (title "New invoice" or "New offer"). */
   readonly createModal: Locator;
-  /** The company picker's text input (#invoice-vendor; a SearchPicker since #2213). */
-  readonly createVendorSelect: Locator;
-  /** The company picker control (input, dropdown, "New company ‹text›" row, clear button). */
-  readonly createVendorPicker: CompanyPickerControl;
-  /** The picker's selected-company chip, shown once a company is chosen (or pre-filled). */
-  readonly createVendorSelected: Locator;
-  readonly createNumberInput: Locator;
-  readonly createAmountInput: Locator;
-  readonly createDateInput: Locator;
-  readonly createDueDateInput: Locator;
-  readonly createStatusSelect: Locator;
-  readonly createNotesInput: Locator;
-  readonly createSubmitButton: Locator;
-  readonly createCancelButton: Locator;
-  readonly createErrorBanner: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -171,29 +158,9 @@ export class InvoicesPage {
     this.selectionBar = page.getByTestId('invoices-selection-bar');
     this.bulkMarkPaid = page.getByTestId('invoices-bulk-mark-paid');
 
-    // Create invoice modal — Modal component renders with role="dialog" and a title heading
-    this.createModal = page.getByRole('dialog', { name: /Invoice/i });
-    this.createVendorSelect = page.locator('#invoice-vendor');
-    this.createVendorPicker = new CompanyPickerControl(page, 'invoice-vendor', this.createModal);
-    this.createVendorSelected = this.createModal
-      .locator('label[for="invoice-vendor"]')
-      .locator('xpath=..')
-      .locator('[class*="selectedDisplay"]');
-    this.createNumberInput = page.locator('#invoice-number');
-    this.createAmountInput = page.locator('#invoice-amount');
-    this.createDateInput = page.locator('#invoice-date');
-    this.createDueDateInput = page.locator('#invoice-due-date');
-    this.createStatusSelect = page.locator('#invoice-status');
-    this.createNotesInput = page.locator('#invoice-notes');
-    // Submit button cycles between "Add Invoice" and "Adding..."
-    this.createSubmitButton = this.createModal.getByRole('button', {
-      name: /Add Invoice|Adding\.\.\./i,
-    });
-    this.createCancelButton = this.createModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
-    this.createErrorBanner = this.createModal.locator('[role="alert"]');
+    this.createDialog = new InvoiceFormDialog(page, 'invoice');
+    this.offerDialog = new InvoiceFormDialog(page, 'offer');
+    this.createModal = InvoiceFormDialog.anyCreate(page);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -329,73 +296,45 @@ export class InvoicesPage {
     await expect(this.titleLinks.first().or(this.emptyState).or(this.retryButton)).toBeVisible();
   }
 
+  /** Open the New invoice dialog from the list's primary and wait for it. */
   async openCreateModal(): Promise<void> {
-    await this.newInvoiceButton.click();
-    await this.createModal.waitFor({ state: 'visible' });
+    await this.clickNewInvoice();
+    await this.createDialog.waitForOpen();
   }
 
+  /** Click the primary once its integration status loaded (it is disabled until then). */
   async clickNewInvoice(): Promise<void> {
-    // Wait for the button to become enabled (config+status fetch resolves)
     await this.newInvoiceButton.waitFor({ state: 'visible' });
-    await this.page.waitForFunction((btnTestId) => {
-      const el = document.querySelector(`[data-testid="${btnTestId}"]`) as HTMLButtonElement | null;
-      return el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
-    }, 'new-invoice-button');
+    await expect(this.newInvoiceButton).toBeEnabled();
     await this.newInvoiceButton.click();
   }
 
-  async waitForPickerModal(): Promise<PaperlessPickerModal> {
-    const pickerModal = new PaperlessPickerModal(this.page);
-    await pickerModal.waitForVisible();
-    return pickerModal;
-  }
-
-  async waitForManualModal(): Promise<Locator> {
-    await this.createModal.waitFor({ state: 'visible' });
-    return this.createModal;
-  }
-
+  /** Cancel the open create dialog, confirming "Discard changes?" when the form was edited. */
   async closeCreateModal(): Promise<void> {
-    await this.createCancelButton.click();
-    await this.createModal.waitFor({ state: 'hidden' });
+    await this.createModal.getByTestId('invoice-form-cancel').click();
+    const discard = this.createDialog.discardConfirm;
+    await expect(async () => {
+      if (await discard.dialog.isVisible()) await discard.confirmButton.click();
+      await expect(this.createModal).toBeHidden({ timeout: 1_000 });
+    }).toPass();
   }
 
-  async selectCreateVendor(vendorName: string): Promise<void> {
-    await this.createVendorSelect.fill(vendorName);
-    await this.createVendorPicker.dropdown
-      .getByRole('option', { name: vendorName, exact: true })
-      .click();
-    await expect(this.createVendorSelect).toBeHidden();
-  }
-
-  async createInvoice(data: CreateInvoiceData): Promise<void> {
-    await this.selectCreateVendor(data.vendorName);
-
-    if (data.invoiceNumber !== undefined) {
-      await this.createNumberInput.fill(data.invoiceNumber);
-    }
-    await this.createAmountInput.fill(data.amount);
-    await this.createDateInput.fill(data.date);
-
-    if (data.dueDate !== undefined) {
-      await this.createDueDateInput.fill(data.dueDate);
-    }
-    if (data.status !== undefined) {
-      await this.createStatusSelect.selectOption(data.status);
-    }
-    if (data.notes !== undefined) {
-      await this.createNotesInput.fill(data.notes);
-    }
-
-    const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        API_INVOICES_URL.test(resp.url()) &&
-        resp.request().method() === 'POST' &&
-        resp.status() === 201,
-    );
-    await this.createSubmitButton.click();
-    await responsePromise;
-    await this.createModal.waitFor({ state: 'hidden' });
+  /**
+   * Create an invoice through the dialog and land on its page. Notes open More details. Returns
+   * the new id.
+   */
+  async createInvoice(data: CreateInvoiceData): Promise<string> {
+    await this.openCreateModal();
+    await this.createDialog.fill({
+      company: data.vendorName,
+      number: data.invoiceNumber,
+      amount: data.amount,
+      date: data.date,
+      dueDate: data.dueDate,
+      status: data.status,
+      notes: data.notes,
+    });
+    return this.createDialog.saveAndGetId();
   }
 
   // ───────────────────────────────────────────────────────────────────────────

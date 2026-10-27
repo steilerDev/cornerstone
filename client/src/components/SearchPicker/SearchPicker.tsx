@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useId } from 'react';
+import type { FocusEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -307,6 +308,17 @@ export function SearchPicker<T>({
     openList();
   };
 
+  // Focus leaving the picker (Tab, programmatic focus elsewhere) closes the list. Focus moving into
+  // the listbox (portaled, but React bubbles its events here) or onto the picker's own controls keeps
+  // it open. Nothing is committed: only a selection sets the value.
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget as Node | null;
+    if (next && (containerRef.current!.contains(next) || refs.floating.current?.contains(next))) {
+      return;
+    }
+    setIsOpen(false);
+  };
+
   // A click on the already focused, closed input opens it like focus would (no focus event fires)
   const handleClick = () => {
     if (isOpen) return;
@@ -448,12 +460,18 @@ export function SearchPicker<T>({
     const query = searchTerm.trim();
     setIsOpen(false);
     abortSearch();
+    // The input keeps focus while the dialog opens (a press on the row does not move it), so the
+    // dialog's own focus restore lands on it before this promise settles: that must not reopen.
+    suppressFocusOpenRef.current = true;
     const created = await createAction.onCreate(query).catch(() => null);
+    suppressFocusOpenRef.current = false;
     if (created) {
       handleSelect(created);
     } else {
       suppressFocusOpenRef.current = true;
       inputRef.current?.focus();
+      // The focus event is synchronous; clear the flag in case none fired (already focused).
+      suppressFocusOpenRef.current = false;
     }
   };
 
@@ -640,7 +658,7 @@ export function SearchPicker<T>({
   }
 
   return (
-    <div className={styles.container} ref={containerRef}>
+    <div className={styles.container} ref={containerRef} onBlur={handleBlur}>
       <input
         id={id}
         ref={setInputRef}
@@ -665,6 +683,9 @@ export function SearchPicker<T>({
             className={styles.portalDropdown}
             role="listbox"
             onKeyDown={handleListKeyDown}
+            // Keep focus where it is on a press, so the input's blur cannot close the list (and
+            // unmount the option) before the click lands (Safari does not focus buttons on press).
+            onMouseDown={(event) => event.preventDefault()}
           >
             {/* Special options at the top */}
             {specialOptions && specialOptions.length > 0 && (

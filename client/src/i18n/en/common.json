@@ -338,14 +338,21 @@
       "category": "New category {{name}}"
     },
     "who": {
-      "group": { "company": "Companies", "member": "Household members" },
-      "kind": { "company": "Company", "member": "Household member" }
+      "group": {
+        "company": "Companies",
+        "member": "Household members"
+      },
+      "kind": {
+        "company": "Company",
+        "member": "Household member"
+      }
     },
     "placeholder": {
       "company": "Search companies",
       "who": "Search companies or household members",
       "category": "Select a category",
-      "taskOrPurchase": "Search tasks or purchases"
+      "taskOrPurchase": "Search tasks or purchases",
+      "document": "Search your documents"
     },
     "typeMore": "Type at least 2 letters.",
     "task": {
@@ -364,6 +371,11 @@
       "tradeTitle": "New trade",
       "categoryTitle": "New purchase category",
       "name": "Name"
+    },
+    "document": {
+      "noResults": "No documents found.",
+      "loadError": "Couldn't load documents.",
+      "linkedHidden": "Documents already linked are not listed."
     }
   },
   "relatedList": {

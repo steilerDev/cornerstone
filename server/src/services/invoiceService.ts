@@ -2,12 +2,19 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql, gte, lte, inArray, type SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, users, invoiceDeposits, invoiceBudgetLines } from '../db/schema.js';
+import {
+  invoices,
+  vendors,
+  users,
+  invoiceDeposits,
+  invoiceBudgetLines,
+  budgetSources,
+} from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
   InvoiceDeposit,
-  CreateInvoiceRequest,
+  CreateVendorInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
   PaginationMeta,
@@ -31,8 +38,13 @@ import {
 import { toLikeContainsPattern } from './shared/likePattern.js';
 import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
-import { deleteLinksForEntity } from './documentLinkService.js';
-import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
+import { createLink, deleteLinksForEntity } from './documentLinkService.js';
+import {
+  createInvoiceBudgetLine,
+  getInvoiceBudgetLinesForInvoice,
+} from './invoiceBudgetLineService.js';
+import { createWorkItemBudget } from './workItemBudgetService.js';
+import { createHouseholdItemBudget } from './householdItemBudgetService.js';
 import { getReadyToSubmit, loadInvoiceLinks } from './moneyService.js';
 import {
   NOT_YET_SPLIT_MIN_CENTS,
@@ -724,7 +736,7 @@ export function getInvoiceDetail(db: DbType, invoiceId: string): InvoiceDetail {
 export function createInvoice(
   db: DbType,
   vendorId: string,
-  data: CreateInvoiceRequest,
+  data: CreateVendorInvoiceRequest,
   userId: string,
 ): Invoice {
   const vendorName = assertVendorExists(db, vendorId);
@@ -752,21 +764,66 @@ export function createInvoice(
   const id = randomUUID();
   const now = new Date().toISOString();
 
-  db.insert(invoices)
-    .values({
-      id,
-      vendorId,
-      invoiceNumber: data.invoiceNumber ?? null,
-      amount: data.amount,
-      date: data.date,
-      dueDate: data.dueDate ?? null,
-      status: data.status ?? 'pending',
-      notes: data.notes ?? null,
-      createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
+  const status = data.status ?? 'pending';
+
+  // One transaction: the invoice, its optional cost line and its optional document link
+  // are all created or none are (#2241).
+  db.transaction(() => {
+    db.insert(invoices)
+      .values({
+        id,
+        vendorId,
+        invoiceNumber: data.invoiceNumber ?? null,
+        amount: data.amount,
+        date: data.date,
+        dueDate: data.dueDate ?? null,
+        status,
+        notes: data.notes ?? null,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    if (data.costLine) {
+      const { targetType, targetId } = data.costLine;
+      // The discretionary source is seeded by migration 0021 and can never be deleted or
+      // unflagged, so it always exists; budget lines require a source.
+      const sourceId = db
+        .select({ id: budgetSources.id })
+        .from(budgetSources)
+        .where(eq(budgetSources.isDiscretionary, true))
+        .get()!.id;
+      const payload = {
+        description: null,
+        plannedAmount: data.amount,
+        includesVat: true,
+        confidence: status === 'quotation' ? ('quote' as const) : ('invoice' as const),
+        vendorId,
+        budgetSourceId: sourceId,
+      };
+      const line =
+        targetType === 'work_item'
+          ? createWorkItemBudget(db, targetId, userId, payload)
+          : createHouseholdItemBudget(db, targetId, userId, payload);
+      createInvoiceBudgetLine(db, id, {
+        workItemBudgetId: targetType === 'work_item' ? line.id : null,
+        householdItemBudgetId: targetType === 'household_item' ? line.id : null,
+        itemizedAmount: data.amount,
+      });
+    }
+
+    if (data.paperlessDocumentId !== undefined) {
+      createLink(
+        db,
+        'invoice',
+        id,
+        data.paperlessDocumentId,
+        userId,
+        status === 'quotation' ? 'quotation' : 'invoice',
+      );
+    }
+  });
 
   const row = db.select().from(invoices).where(eq(invoices.id, id)).get()!;
   return toInvoice(db, row, vendorName);

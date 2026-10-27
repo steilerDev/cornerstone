@@ -71,6 +71,7 @@ import { USER_ACCOUNT_STATUSES } from '../lib/userAccountStatus.js';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 import { QUICK_LOG_MODES } from '../navigation/createQuery.js';
+import { INVOICE_FORM_KINDS } from '../objectForms/invoiceCreateContext.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
@@ -286,6 +287,10 @@ export const I18N_UNION_KEYS = {
   whoGroup: unionKeySet('common', 'entityPicker.who.group', WHO_KINDS),
   /** common — Who picker kind suffix after the selected name. */
   whoKind: unionKeySet('common', 'entityPicker.who.kind', WHO_KINDS),
+  /** budget — title of the New invoice / New offer dialog. */
+  invoiceFormTitle: unionKeySet('budget', 'invoiceForm.title', INVOICE_FORM_KINDS),
+  /** budget — "added" confirmation of the New invoice / New offer dialog. */
+  invoiceFormAdded: unionKeySet('budget', 'invoiceForm.added', INVOICE_FORM_KINDS),
   /** common — "New ‹kind› ‹text›" create row per creatable kind. */
   entityPickerNew: unionKeySet('common', 'entityPicker.new', ENTITY_CREATE_KINDS),
   /** common — object page tab label (Overview … History) (#2233). */

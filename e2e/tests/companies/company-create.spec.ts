@@ -6,9 +6,9 @@
  *     was started on; Back closes it; Save lands on the new company page and Back returns to where
  *     the user came from
  * C2  `/companies?create=1` is replaced by `/companies/new`
- * P1  Invoice create modal picker (`#invoice-vendor`)
- * P2  Invoice edit modal picker (`#edit-vendor`): the form stacks over the modal, one Escape
- *     closes only the company form
+ * P1  New invoice dialog picker (`#vendorId`): the company form is a child step of the dialog
+ * P2  Edit details dialog picker (`#vendorId`): the company form is a child step of the dialog;
+ *     Back returns to the invoice form, Save selects the new company
  * P3  Diary daily-log company picker ("Other company…" on the capture screen)
  * P4  Purchase form picker (`#vendorId`): the company form is a child step of the purchase form;
  *     focus is checked when the step opens and when it closes (Back and Save)
@@ -24,7 +24,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
-import { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
+import type { CompanyPickerControl } from '../../pages/components/CompanyPickerControl.js';
 import { CreateMenu } from '../../pages/components/CreateMenu.js';
 import { ObjectFormDialog } from '../../pages/components/ObjectFormDialog.js';
 import { DiaryCapturePage } from '../../pages/DiaryCapturePage.js';
@@ -72,6 +72,8 @@ async function exerciseCreateRow(
   existing: string,
   variant: string,
   typed: string,
+  /** Where the form opens: the stacked company dialog (default) or a host dialog's child step. */
+  child: ObjectFormDialog = picker.form,
 ): Promise<void> {
   // An existing name, in another case with a folded umlaut, shows no create row
   await picker.type(variant);
@@ -87,8 +89,17 @@ async function exerciseCreateRow(
 
   // Enter opens the form with the typed text as the name
   await page.keyboard.press('Enter');
-  await picker.form.waitForOpen();
-  await expect(picker.form.field('name')).toHaveValue(typed);
+  await child.waitForOpen();
+  await expect(child.field('name')).toHaveValue(typed);
+
+  if (child !== picker.form) {
+    // A child step: Back (not dirty: the name is the prefill) returns to the host form with the
+    // picker input focused again
+    await child.backButton.click();
+    await expect(child.heading).toBeHidden();
+    await expect(picker.input).toBeFocused();
+    return;
+  }
 
   // Cancel (not dirty: the name is the prefill) closes it and focuses the picker input again
   await picker.form.cancel();
@@ -230,13 +241,14 @@ test.describe('New company dialog (AC5)', { tag: '@responsive' }, () => {
 // P1 - invoice create modal
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Company picker - invoice create modal (AC5)', { tag: '@responsive' }, () => {
-  test('P1: the create row works inside the Add Invoice modal, which stays open meanwhile', async ({
+test.describe('Company picker - New invoice dialog (AC5)', { tag: '@responsive' }, () => {
+  test('P1: the create row opens the company form as a child step of the New invoice dialog', async ({
     page,
     testPrefix,
   }) => {
     const invoices = new InvoicesPage(page);
-    const picker = invoices.createVendorPicker;
+    const dialog = invoices.createDialog;
+    const picker = dialog.company;
     const existing = `${testPrefix} Picker Öko Haus 2213`;
     const typed = `${testPrefix} Picker New Co 2213`;
     const existingId = await createCompany(page, existing);
@@ -246,22 +258,26 @@ test.describe('Company picker - invoice create modal (AC5)', { tag: '@responsive
       await invoices.openCreateModal();
       await expect(picker.input).toBeVisible();
 
-      await exerciseCreateRow(page, picker, existing, existing.replace('Öko', 'OEKO'), typed);
+      await exerciseCreateRow(
+        page,
+        picker,
+        existing,
+        existing.replace('Öko', 'OEKO'),
+        typed,
+        dialog.companyChild,
+      );
       await picker.input.fill('');
 
-      // Save selects the new company, focuses "Clear selection", and the modal is still open
-      await picker.openCreateForm(typed);
-      await picker.form.save();
-      await picker.form.waitForClosed();
-      await expect(invoices.createModal).toBeVisible();
-      await expect(invoices.createVendorSelected).toContainText(typed);
-      await expect(picker.clearButton).toBeFocused();
+      // Save selects the new company and returns to the invoice form
+      await dialog.openNewCompany(typed);
+      await dialog.companyChild.save();
+      await dialog.waitForOpen();
+      await expect(dialog.companyChip()).toContainText(typed);
+      expect(await focusIsOnBody(page)).toBe(false);
 
       // And the invoice can be created for it
-      await invoices.createAmountInput.fill('120');
-      await invoices.createDateInput.fill('2026-03-01');
-      await invoices.createSubmitButton.click();
-      await expect(invoices.createModal).toBeHidden();
+      await dialog.fill({ amount: '120', date: '2026-03-01' });
+      await dialog.saveAndGetId();
     } finally {
       await page.request.delete(`${API.vendors}/${existingId}`);
       await deleteCompaniesNamed(page, [typed]);
@@ -270,16 +286,17 @@ test.describe('Company picker - invoice create modal (AC5)', { tag: '@responsive
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// P2 - invoice edit modal
+// P2 - invoice edit dialog
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Company picker - invoice edit modal (AC5)', { tag: '@responsive' }, () => {
-  test('P2: the form stacks over the edit modal; one Escape closes only the company form', async ({
+test.describe('Company picker - Edit details dialog (AC5)', { tag: '@responsive' }, () => {
+  test('P2: the company form is a child step of Edit details; Back returns, Save selects it', async ({
     page,
     testPrefix,
   }) => {
     const detail = new InvoiceDetailPage(page);
-    const picker = new CompanyPickerControl(page, 'edit-vendor', detail.editModal);
+    const picker = detail.editDialog.company;
+    const child = detail.editDialog.companyChild;
     const current = `${testPrefix} Edit Current Co 2213`;
     const typed = `${testPrefix} Edit New Co 2213`;
     const currentId = await createCompany(page, current);
@@ -296,24 +313,17 @@ test.describe('Company picker - invoice edit modal (AC5)', { tag: '@responsive' 
         .getByRole('button', { name: 'Clear selection' })
         .click();
 
-      await exerciseCreateRow(page, picker, current, current.toUpperCase(), typed);
+      await exerciseCreateRow(page, picker, current, current.toUpperCase(), typed, child);
 
-      // Open the form again; one Escape closes ONLY the company form, the edit modal stays
-      await picker.openCreateForm(typed);
-      await page.keyboard.press('Escape');
-      await picker.form.waitForClosed();
+      // Back returned to the edit form (same dialog, titled "Edit details" again)
       await expect(detail.editModal).toBeVisible();
-      await expect(picker.input).toBeFocused();
       expect(await focusIsOnBody(page)).toBe(false);
 
-      // While the form is open the edit modal ignores Escape and its backdrop
-      await picker.openCreateForm(typed);
-      await expect(detail.editModal).toBeVisible();
-      await picker.form.save();
-      await picker.form.waitForClosed();
-      await expect(detail.editModal).toBeVisible();
+      // Open the form again and Save: the new company is selected on the edit form
+      await detail.editDialog.openNewCompany(typed);
+      await child.save();
+      await detail.editDialog.waitForOpen();
       await expect(detail.editVendorSelectedDisplay).toContainText(typed);
-      await expect(picker.clearButton).toBeFocused();
 
       // Saving the invoice moves it to the new company
       await detail.saveEdit();

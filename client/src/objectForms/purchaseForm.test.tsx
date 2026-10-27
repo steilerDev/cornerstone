@@ -32,6 +32,22 @@ const mockCreateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.createHous
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
 
+// EntityPicker formats document dates, so it reads the locale.
+jest.unstable_mockModule('../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../lib/householdItemsApi.js', () => ({
   createHouseholdItem: mockCreateHouseholdItem,
 }));
@@ -673,6 +689,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
               invalid: false,
               describedBy: undefined,
               createChild: jest.fn(),
+              setValues: jest.fn(),
               values: {},
             })}
           </MemoryRouter>,

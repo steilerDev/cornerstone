@@ -131,6 +131,7 @@ describe('useCostLineSchema (direct)', () => {
     invalid: false,
     describedBy: undefined,
     createChild: () => {},
+    setValues: () => {},
     values,
   });
 

@@ -47,6 +47,8 @@ describe('RouteGate', () => {
     if (!RouteGate) RouteGate = (await import('./RouteGate.js')).RouteGate;
     mockGetPaperlessStatus.mockReset();
     mockFetchConfig.mockReset();
+    // The review page's rules include the AI-off rule, so the config is always read for them.
+    mockFetchConfig.mockResolvedValue({ llmEnabled: true });
   });
 
   function renderGate(rules: readonly RouteMapEntry[], url = '/budget/invoices/new/paperless') {
@@ -63,8 +65,8 @@ describe('RouteGate', () => {
     );
   }
 
-  it('uses the live Paperless-off rule from the route map', () => {
-    expect(PAPERLESS_RULES).toHaveLength(1);
+  it('uses the live Paperless-off and AI-off rules from the route map, in that order', () => {
+    expect(PAPERLESS_RULES.map((r) => r.match?.condition)).toEqual(['paperless-off', 'ai-off']);
   });
 
   it('renders nothing while the status is pending', () => {
@@ -92,6 +94,27 @@ describe('RouteGate', () => {
       '/budget/invoices?documentId=7&create=1',
     );
     expect(screen.queryByText('review page')).toBeNull();
+  });
+
+  it('redirects to the invoice dialog, keeping the document id, when the AI reader is off', async () => {
+    mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+    mockFetchConfig.mockResolvedValue({ llmEnabled: false });
+
+    renderGate(PAPERLESS_RULES, '/budget/invoices/new/paperless?documentId=7');
+
+    expect(await screen.findByTestId('where')).toHaveTextContent(
+      '/budget/invoices?documentId=7&create=1',
+    );
+    expect(screen.queryByText('review page')).toBeNull();
+  });
+
+  it('renders the review page when both Paperless and the AI reader are on', async () => {
+    mockGetPaperlessStatus.mockResolvedValue({ configured: true });
+    mockFetchConfig.mockResolvedValue({ llmEnabled: true });
+
+    renderGate(PAPERLESS_RULES, '/budget/invoices/new/paperless?documentId=7');
+
+    expect(await screen.findByText('review page')).toBeInTheDocument();
   });
 
   it('keeps the hash and fills route params in the redirect target', async () => {

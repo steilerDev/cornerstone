@@ -229,25 +229,20 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       await invoicesPage.openCreateModal();
       await expect(invoicesPage.createModal).toBeVisible();
 
-      // Fill required fields. Default status on the form is 'pending' (To pay, #2194); it is
-      // still set explicitly so this test does not depend on the form default.
-      await invoicesPage.selectCreateVendor(vendorName);
-      await invoicesPage.createAmountInput.fill('1500.00');
-      await invoicesPage.createDateInput.fill('2026-01-15');
-      await invoicesPage.createStatusSelect.selectOption('pending');
+      // Fill required fields. The default status on the form is 'pending' (To pay, D-17); it is
+      // still set explicitly so this test does not depend on the form default. Save lands on
+      // the new invoice's page.
+      await invoicesPage.createDialog.fill({
+        company: vendorName,
+        amount: '1500.00',
+        date: '2026-01-15',
+        status: 'pending',
+      });
+      await invoicesPage.createDialog.saveAndGetId();
+      await expect(page).toHaveURL(/\/budget\/invoices\/[^/?]+/);
 
-      // Register response listener BEFORE submit
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/invoices') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 201,
-      );
-      await invoicesPage.createSubmitButton.click();
-      await responsePromise;
-      await invoicesPage.createModal.waitFor({ state: 'hidden' });
-
-      // Wait for list to reload and show data
+      // Back on the list: wait for it and show data
+      await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
       // The To pay chip counts the new pending invoice. The counts and the rows share one API
@@ -263,7 +258,7 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
     }
   });
 
-  test('Create invoice with all optional fields — invoice number and notes visible in list', async ({
+  test('Create an offer with all optional fields — number visible in the Offers list', async ({
     page,
     testPrefix,
   }) => {
@@ -277,31 +272,24 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       const vendor = await createVendorViaApi(page, vendorName);
       vendorId = vendor.id;
 
-      await invoicesPage.goto();
-      await invoicesPage.openCreateModal();
-      await expect(invoicesPage.createModal).toBeVisible();
+      // An offer is created from the Offers chip (its primary reads "New offer"): it has no Status
+      await invoicesPage.gotoChip('quotation');
+      await invoicesPage.clickNewInvoice();
+      await invoicesPage.offerDialog.waitForOpen();
+      await expect(invoicesPage.offerDialog.status).toHaveCount(0);
 
-      await invoicesPage.selectCreateVendor(vendorName);
-      await invoicesPage.createNumberInput.fill(invoiceNumber);
-      await invoicesPage.createAmountInput.fill('750.50');
-      await invoicesPage.createDateInput.fill('2026-02-01');
-      await invoicesPage.createDueDateInput.fill('2026-03-01');
-      await invoicesPage.createStatusSelect.selectOption('quotation');
-      await invoicesPage.createNotesInput.fill(`Notes for ${testPrefix}`);
+      await invoicesPage.offerDialog.fill({
+        company: vendorName,
+        number: invoiceNumber,
+        amount: '750.50',
+        date: '2026-02-01',
+        dueDate: '2026-03-01',
+        notes: `Notes for ${testPrefix}`,
+      });
+      invoiceId = await invoicesPage.offerDialog.saveAndGetId();
+      await expect(page).toHaveURL(new RegExp(`/budget/invoices/${invoiceId}`));
 
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/invoices') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 201,
-        { timeout: 15000 },
-      );
-      await invoicesPage.createSubmitButton.click();
-      const response = await responsePromise;
-      const body = (await response.json()) as { invoice: InvoiceApiResponse };
-      invoiceId = body.invoice.id;
-      await invoicesPage.createModal.waitFor({ state: 'hidden' });
-
+      await invoicesPage.goto('status=quotation');
       await invoicesPage.waitForLoaded();
 
       // The invoice number should appear in the list. Search for it first: the shared database
@@ -321,43 +309,43 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive' }, () => {
-  test('Create invoice fails — vendor not selected shows validation error', async ({ page }) => {
+  test('Create invoice fails — company not selected shows a field error', async ({ page }) => {
     const invoicesPage = new InvoicesPage(page);
+    const dialog = invoicesPage.createDialog;
 
     await invoicesPage.goto();
     await invoicesPage.openCreateModal();
 
-    // Fill amount and date but no vendor
-    await invoicesPage.createAmountInput.fill('500.00');
-    await invoicesPage.createDateInput.fill('2026-01-15');
+    // Amount and date but no company: Save is enabled and reports the Company error
+    await dialog.fill({ amount: '500.00', date: '2026-01-15' });
+    await dialog.save();
+    await expect(dialog.fieldError('vendorId')).toBeVisible();
+    await expect(dialog.dialog).toBeVisible();
 
-    // The submit button is disabled when no vendor is selected
-    await expect(invoicesPage.createSubmitButton).toBeDisabled();
-
-    // Close modal
     await invoicesPage.closeCreateModal();
   });
 
-  test('Create invoice fails — amount not filled shows submit disabled', async ({ page }) => {
+  test('Create invoice fails — amount not filled shows a field error', async ({ page }) => {
     const invoicesPage = new InvoicesPage(page);
+    const dialog = invoicesPage.createDialog;
 
     await invoicesPage.goto();
     await invoicesPage.openCreateModal();
 
-    // Fill date only (no vendor, no amount)
-    await invoicesPage.createDateInput.fill('2026-01-15');
-
-    // Submit button disabled: requires vendorId, amount, AND date
-    await expect(invoicesPage.createSubmitButton).toBeDisabled();
+    await dialog.fill({ date: '2026-01-15' });
+    await dialog.save();
+    await expect(dialog.fieldError('amount')).toBeVisible();
+    await expect(dialog.fieldError('vendorId')).toBeVisible();
 
     await invoicesPage.closeCreateModal();
   });
 
-  test('Create invoice fails — date not filled shows submit disabled', async ({
+  test('Create invoice fails — date not filled shows a field error', async ({
     page,
     testPrefix,
   }) => {
     const invoicesPage = new InvoicesPage(page);
+    const dialog = invoicesPage.createDialog;
     const vendorName = `${testPrefix} NoDate Vendor`;
     let vendorId = '';
 
@@ -368,13 +356,11 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
       await invoicesPage.goto();
       await invoicesPage.openCreateModal();
 
-      // Fill vendor and amount but not date
-      await invoicesPage.selectCreateVendor(vendorName);
-      await invoicesPage.createAmountInput.fill('200.00');
-      // Deliberately omit createDateInput
-
-      // Submit button is disabled when date is empty
-      await expect(invoicesPage.createSubmitButton).toBeDisabled();
+      // Company and amount, then clear the date (it defaults to today)
+      await dialog.fill({ company: vendorName, amount: '200.00' });
+      await dialog.date.fill('');
+      await dialog.save();
+      await expect(dialog.fieldError('date')).toBeVisible();
 
       await invoicesPage.closeCreateModal();
     } finally {
@@ -398,8 +384,8 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
       await invoicesPage.openCreateModal();
       await expect(invoicesPage.createModal).toBeVisible();
 
-      // Start filling form then cancel
-      await invoicesPage.createAmountInput.fill('999.99');
+      // Start filling the form, then cancel (and discard the edit)
+      await invoicesPage.createDialog.amount.fill('999.99');
       await invoicesPage.closeCreateModal();
 
       await expect(invoicesPage.createModal).not.toBeVisible();
@@ -685,9 +671,11 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
       await detailPage.editSaveButton.click();
       await errorResponsePromise;
 
-      // Error banner shows the itemized total (600, formatting-agnostic) and the modal stays open
-      await expect(detailPage.editErrorBanner).toBeVisible();
-      await expect(detailPage.editErrorBanner).toContainText('600');
+      // The error sits under Amount (the ObjectForm maps ITEMIZED_SUM_EXCEEDS_INVOICE) and the
+      // dialog stays open
+      await expect(detailPage.editDialog.fieldError('amount')).toContainText(
+        /can.t be lower than .*600.*cost lines/i,
+      );
       await expect(detailPage.editModal).toBeVisible();
 
       // Cancel — the invoice amount is unchanged

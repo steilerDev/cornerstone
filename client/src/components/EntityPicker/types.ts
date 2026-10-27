@@ -24,6 +24,12 @@ export interface EntityOption {
   readonly trailing?: string;
   /** taskOrPurchase: which kind of item the option stands for. */
   readonly itemType?: 'work_item' | 'household_item';
+  /** document: the Paperless document behind the option. */
+  readonly document?: {
+    readonly title: string;
+    readonly correspondent: string | null;
+    readonly created: string | null;
+  };
   /** The raw id behind an encoded value. */
   readonly entityId?: string;
 }

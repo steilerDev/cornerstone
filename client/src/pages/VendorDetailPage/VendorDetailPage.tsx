@@ -2,9 +2,9 @@ import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { VendorDetail, Invoice, InvoiceStatus } from '@cornerstone/shared';
+import type { VendorDetail, Invoice } from '@cornerstone/shared';
 import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js';
-import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
+import { fetchInvoices, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -18,31 +18,14 @@ import { VendorContactsSection } from '../../components/VendorContacts/VendorCon
 import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import { useOpenInvoiceForm } from '../../objectForms/useOpenInvoiceForm.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorDetailPage.module.css';
-import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-
-/** Invoice form state used for both create and edit. */
-interface InvoiceFormState {
-  invoiceNumber: string;
-  amount: string;
-  date: string;
-  dueDate: string;
-  status: InvoiceStatus;
-  notes: string;
-}
-
-const EMPTY_INVOICE_FORM: InvoiceFormState = {
-  invoiceNumber: '',
-  amount: '',
-  date: '',
-  dueDate: '',
-  status: 'pending',
-  notes: '',
-};
 
 /** The company edit form; `startEdit` always fills every field. */
 interface VendorEditForm {
@@ -95,17 +78,13 @@ export function VendorDetailPage() {
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const vendorImpact = useDeleteImpact('vendor', showDeleteConfirm ? id : null);
   const invoicesHeadingRef = useRef<HTMLHeadingElement>(null);
+  const newInvoiceRef = useRef<HTMLButtonElement>(null);
+  const openForm = useOpenInvoiceForm();
 
   // Invoice list state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
-
-  // Create invoice modal state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_INVOICE_FORM);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string>('');
 
   // Delete invoice confirmation state
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
@@ -264,58 +243,14 @@ export function VendorDetailPage() {
     void loadInvoices();
   }, [id, loadInvoices]);
 
-  const openCreateModal = () => {
-    setCreateForm(EMPTY_INVOICE_FORM);
-    setCreateError('');
-    setShowCreateModal(true);
+  // An invoice or offer created from this page's dialog: refresh the list and the stat cards
+  // (silently: keep the page, and focus, in place).
+  const refreshAfterCreate = () => {
+    void loadInvoices();
+    void loadVendor(true);
   };
-
-  const closeCreateModal = () => {
-    if (!isCreating) {
-      setShowCreateModal(false);
-      setCreateError('');
-    }
-  };
-
-  const handleCreateInvoice = async (event: FormEvent) => {
-    event.preventDefault();
-
-    const amount = parseFloat(createForm.amount);
-    if (isNaN(amount) || amount < 0) {
-      setCreateError(t('invoices.validation.amountRequired'));
-      return;
-    }
-    if (!createForm.date) {
-      setCreateError(t('invoices.validation.dateRequired'));
-      return;
-    }
-
-    setIsCreating(true);
-    setCreateError('');
-
-    try {
-      const newInvoice = await createInvoice(id, {
-        invoiceNumber: createForm.invoiceNumber.trim() || null,
-        amount,
-        date: createForm.date,
-        dueDate: createForm.dueDate || null,
-        status: createForm.status,
-        notes: createForm.notes.trim() || null,
-      });
-      setInvoices((prev) => [newInvoice, ...prev]);
-      setShowCreateModal(false);
-      // Re-fetch vendor to update stats cards (silently: keep the page, and focus, in place)
-      void loadVendor(true);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setCreateError(translateApiError(err.error.code, tErrors));
-      } else {
-        setCreateError(t('vendorDetail.messages.invoiceCreateError'));
-      }
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  useOnObjectCreated('invoice', refreshAfterCreate);
+  useOnObjectCreated('offer', refreshAfterCreate);
 
   const openDeleteInvoiceConfirm = (invoice: Invoice) => {
     setDeletingInvoice(invoice);
@@ -657,9 +592,24 @@ export function VendorDetailPage() {
                   </strong>
                 </span>
               )}
-              <button type="button" className={styles.button} onClick={openCreateModal}>
-                {t('vendorDetail.addInvoice')}
-              </button>
+              {openForm && (
+                <button
+                  type="button"
+                  ref={newInvoiceRef}
+                  className={sharedStyles.btnSecondary}
+                  onClick={() =>
+                    openForm({
+                      kind: 'invoice',
+                      company: { id: vendor.id, name: vendor.name },
+                      originState,
+                      returnFocusRef: newInvoiceRef,
+                    })
+                  }
+                  data-testid="company-new-invoice"
+                >
+                  {t('vendorDetail.addInvoice')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -851,155 +801,6 @@ export function VendorDetailPage() {
           returnFocusRef={headerMenuRef}
           testIdPrefix="vendor-delete"
         />
-      )}
-
-      {/* Create invoice modal */}
-      {showCreateModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="create-invoice-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeCreateModal} />
-          <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
-            <h2 id="create-invoice-modal-title" className={styles.modalTitle}>
-              {t('vendorDetail.invoiceForm.title')}
-            </h2>
-
-            <form onSubmit={handleCreateInvoice} className={styles.form} noValidate>
-              {createError && (
-                <div className={styles.errorBanner} role="alert">
-                  {createError}
-                </div>
-              )}
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="create-invoice-number" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.invoiceNumber')}
-                  </label>
-                  <input
-                    type="text"
-                    id="create-invoice-number"
-                    value={createForm.invoiceNumber}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, invoiceNumber: e.target.value })
-                    }
-                    className={styles.input}
-                    placeholder={t('vendorDetail.invoiceForm.invoiceNumberPlaceholder')}
-                    maxLength={100}
-                    disabled={isCreating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="create-amount" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.amount')}{' '}
-                    <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="create-amount"
-                    value={createForm.amount}
-                    onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
-                    className={styles.input}
-                    min="0"
-                    step="0.01"
-                    required
-                    disabled={isCreating}
-                    onWheel={(e) => e.currentTarget.blur()}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="create-date" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.invoiceDate')}{' '}
-                    <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="create-date"
-                    value={createForm.date}
-                    onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
-                    className={styles.input}
-                    required
-                    disabled={isCreating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="create-due-date" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.dueDate')}
-                  </label>
-                  <input
-                    type="date"
-                    id="create-due-date"
-                    value={createForm.dueDate}
-                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                    className={styles.input}
-                    disabled={isCreating}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="create-status" className={styles.label}>
-                  {t('vendorDetail.invoiceForm.status')}
-                </label>
-                <select
-                  id="create-status"
-                  value={createForm.status}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, status: e.target.value as InvoiceStatus })
-                  }
-                  className={styles.select}
-                  disabled={isCreating}
-                >
-                  {INVOICE_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {statusVariants.invoice[status].label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="create-notes" className={styles.label}>
-                  {t('vendorDetail.invoiceForm.notes')}
-                </label>
-                <textarea
-                  id="create-notes"
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                  className={styles.textarea}
-                  rows={3}
-                  disabled={isCreating}
-                />
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeCreateModal}
-                  disabled={isCreating}
-                >
-                  {t('vendorDetail.buttons.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className={styles.saveButton}
-                  disabled={isCreating || !createForm.amount || !createForm.date}
-                >
-                  {isCreating
-                    ? t('vendorDetail.invoiceForm.adding')
-                    : t('vendorDetail.invoiceForm.add')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
 
       {/* Delete invoice confirmation */}

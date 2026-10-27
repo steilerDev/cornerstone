@@ -13,6 +13,7 @@ function setup(
 ) {
   const onChange = jest.fn<(v: unknown) => void>();
   const createChild = jest.fn();
+  const onSetValues = jest.fn<(v: Record<string, unknown>, a?: string) => void>();
   const utils = render(
     <ObjectFormField
       field={{ name: 'f', label: 'Label', ...field }}
@@ -20,11 +21,12 @@ function setup(
       error={undefined}
       busy={false}
       onChange={onChange}
+      onSetValues={onSetValues}
       createChild={createChild}
       {...props}
     />,
   );
-  return { onChange, createChild, ...utils };
+  return { onChange, createChild, onSetValues, ...utils };
 }
 
 describe('ObjectFormField kinds', () => {
@@ -102,6 +104,7 @@ describe('ObjectFormField kinds', () => {
         error={undefined}
         busy={false}
         onChange={() => {}}
+        onSetValues={() => {}}
         createChild={() => {}}
       />,
     );
@@ -308,5 +311,62 @@ describe('color field', () => {
     expect(screen.getByTestId('area-no-color')).toBeDisabled();
     expect(screen.getByTestId('area-color').getAttribute('aria-describedby')).toContain('f-error');
     expect(screen.getByText('Bad colour.')).toBeInTheDocument();
+  });
+});
+
+describe('ObjectFormField number attributes, function hints and ctx.setValues (#2241)', () => {
+  it('renders step and inputMode on a number input', () => {
+    setup({ kind: 'number', step: 0.01, inputMode: 'decimal' });
+    const input = screen.getByLabelText('Label') as HTMLInputElement;
+    expect(input).toHaveAttribute('step', '0.01');
+    expect(input).toHaveAttribute('inputmode', 'decimal');
+  });
+
+  it('ignores step and inputMode on a non-number input', () => {
+    setup({ kind: 'text', step: 0.01, inputMode: 'decimal' });
+    const input = screen.getByLabelText('Label') as HTMLInputElement;
+    expect(input).not.toHaveAttribute('step');
+    expect(input).not.toHaveAttribute('inputmode');
+  });
+
+  it('resolves a function hint from the values and wires it to aria-describedby', () => {
+    setup({ kind: 'text', hint: (v) => `Count ${String(v.n)}` }, { values: { n: 3 } });
+    expect(screen.getByText('Count 3')).toHaveAttribute('id', 'f-hint');
+    expect(screen.getByLabelText('Label')).toHaveAttribute('aria-describedby', 'f-hint');
+  });
+
+  it('renders no hint and no described-by id when the function returns undefined', () => {
+    setup({ kind: 'text', hint: () => undefined });
+    expect(document.getElementById('f-hint')).toBeNull();
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('passes ctx.setValues through to onSetValues with the announcement', () => {
+    const { onSetValues } = setup({
+      kind: 'custom',
+      render: (ctx) => (
+        <button type="button" onClick={() => ctx.setValues({ a: 1 }, 'Filled.')}>
+          go
+        </button>
+      ),
+    });
+    fireEvent.click(screen.getByText('go'));
+    expect(onSetValues).toHaveBeenCalledWith({ a: 1 }, 'Filled.');
+  });
+
+  it('does not call onSetValues while busy', () => {
+    const { onSetValues } = setup(
+      {
+        kind: 'custom',
+        render: (ctx) => (
+          <button type="button" onClick={() => ctx.setValues({ a: 1 })}>
+            go
+          </button>
+        ),
+      },
+      { busy: true },
+    );
+    fireEvent.click(screen.getByText('go'));
+    expect(onSetValues).not.toHaveBeenCalled();
   });
 });

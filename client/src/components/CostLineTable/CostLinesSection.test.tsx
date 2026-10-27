@@ -14,6 +14,10 @@ import type {
 } from '@cornerstone/shared';
 import { ToastProvider, useToast } from '../Toast/ToastContext.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { InvoiceCreateContext } from '../../objectForms/invoiceCreateContext.js';
+import type { OpenInvoiceForm } from '../../objectForms/invoiceCreateContext.js';
+import type { OriginState } from '../../navigation/origin.js';
 import type * as SectionModule from './CostLinesSection.js';
 import type { CostLineHost } from './types.js';
 
@@ -1273,5 +1277,108 @@ describe('CostLinesSection ported scenarios', () => {
     await screen.findByTestId('cost-lines-row-wb-d1');
     expect(screen.getByTestId('cost-lines-over')).toBeInTheDocument();
     expect(screen.queryByTestId('cost-lines-split')).toBeNull();
+  });
+});
+
+// ─── New invoice from an item (#2241) ────────────────────────────────────────
+
+describe('New invoice button', () => {
+  const mockOpenForm = jest.fn<OpenInvoiceForm>();
+
+  function renderWithOpener(
+    host: CostLineHost,
+    options: { withOpener?: boolean; linkState?: OriginState } = {},
+  ) {
+    mockOpenForm.mockReset();
+    const section = (
+      <ToastProvider>
+        <MemoryRouter>
+          <CostLinesSection
+            host={host}
+            lines={host.kind === 'invoice' ? undefined : ITEM_LINES}
+            onChanged={onChanged}
+            linkState={options.linkState}
+          />
+        </MemoryRouter>
+      </ToastProvider>
+    );
+    return render(
+      options.withOpener === false ? (
+        section
+      ) : (
+        <InvoiceCreateContext value={mockOpenForm}>{section}</InvoiceCreateContext>
+      ),
+    );
+  }
+
+  it.each([
+    ['a task', ITEM_HOST, 'work_item', 'w1', 'Renovate the kitchen'],
+    ['a purchase', HOUSEHOLD_HOST, 'household_item', 'h1', 'Oven'],
+  ] as const)(
+    'on %s it opens the invoice form for that item, with the section state as origin',
+    async (_name, host, type, id, label) => {
+      const origin: OriginState = { origin: { to: '/project/work-items/w1', name: label } };
+      renderWithOpener(host, { linkState: origin });
+
+      const button = screen.getByTestId('cost-lines-new-invoice');
+      expect(button).toHaveTextContent('New invoice');
+      await userEvent.click(button);
+
+      expect(mockOpenForm).toHaveBeenCalledTimes(1);
+      const request = mockOpenForm.mock.calls[0]![0];
+      expect(request).toMatchObject({
+        kind: 'invoice',
+        item: { type, id, label },
+        originState: origin,
+      });
+      expect(request.returnFocusRef?.current).toBe(button);
+    },
+  );
+
+  it.each([
+    ['an invoice', DOC_HOST],
+    ['an offer', OFFER_HOST],
+  ])('is not offered on %s', (_name, host) => {
+    renderWithOpener(host);
+    expect(screen.queryByTestId('cost-lines-new-invoice')).toBeNull();
+  });
+
+  it('is not offered without the invoice provider', () => {
+    renderWithOpener(ITEM_HOST, { withOpener: false });
+    expect(screen.queryByTestId('cost-lines-new-invoice')).toBeNull();
+  });
+
+  it.each(['invoice', 'offer'])(
+    'reloads the item lines when an %s is created behind the dialog',
+    async (kind) => {
+      renderWithOpener(ITEM_HOST);
+      onChanged.mockClear();
+
+      act(() => notifyObjectCreated(kind));
+
+      await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    },
+  );
+
+  it('does not reload for another kind of object', async () => {
+    renderWithOpener(ITEM_HOST);
+    onChanged.mockClear();
+
+    act(() => notifyObjectCreated('company'));
+    await act(async () => {});
+
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('does not reload an invoice page from another invoice created behind the dialog', async () => {
+    renderWithOpener(DOC_HOST);
+    await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(1));
+    onChanged.mockClear();
+
+    act(() => notifyObjectCreated('invoice'));
+    await act(async () => {});
+
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(1);
   });
 });

@@ -422,7 +422,7 @@ describe('server errors (never render server text)', () => {
     it('turns a mapped code into a field error with our own text, focus and no banner', async () => {
       const user = userEvent.setup();
       const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
-      const mapError = jest.fn((code: string, values: ObjectFormValues) =>
+      const mapError = jest.fn((code: string, values: ObjectFormValues, _details?: object) =>
         code === 'CONFLICT' ? { title: `"${String(values.title)}" is taken.` } : null,
       );
       setup({ schema: makeSchema({ submit, mapError }) });
@@ -433,12 +433,43 @@ describe('server errors (never render server text)', () => {
       expect(mapError).toHaveBeenCalledWith(
         'CONFLICT',
         expect.objectContaining({ title: 'Hello' }),
+        undefined,
       );
       expect(title()).toHaveAttribute('aria-invalid', 'true');
       expect(title()).toHaveFocus();
       expect(screen.queryByRole('alert')).toBeNull();
       expect(document.body.textContent).not.toContain('server text');
       expect(save()).toHaveTextContent('Save');
+    });
+
+    it('hands the API error details to mapError as the third argument', async () => {
+      const user = userEvent.setup();
+      const submit = jest
+        .fn<SubmitFn>()
+        .mockRejectedValue(
+          new ApiClientError(400, { code: 'CONFLICT', message: 'x', details: { limit: 7 } }),
+        );
+      const mapError = jest.fn((_code: string, _values: ObjectFormValues, details?: object) => ({
+        title: `Limit ${String((details as { limit?: number } | undefined)?.limit)}`,
+      }));
+      setup({ schema: makeSchema({ submit, mapError }) });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      expect(await screen.findByText('Limit 7')).toBeInTheDocument();
+      expect(mapError.mock.calls[0]![2]).toEqual({ limit: 7 });
+    });
+
+    it('passes undefined details when the error carries none', async () => {
+      const user = userEvent.setup();
+      const submit = jest.fn<SubmitFn>().mockRejectedValue(conflict());
+      const mapError = jest.fn((_c: string, _v: ObjectFormValues, _d?: object) => null);
+      setup({ schema: makeSchema({ submit, mapError }) });
+      await user.type(title(), 'Hello');
+      await user.click(save());
+
+      await waitFor(() => expect(mapError).toHaveBeenCalled());
+      expect(mapError.mock.calls[0]![2]).toBeUndefined();
     });
 
     it('expands More details when the mapped field is hidden there', async () => {

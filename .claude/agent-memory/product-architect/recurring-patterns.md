@@ -2208,3 +2208,13 @@ the blocking "over" state rendered unstyled and every test still passed, because
 text. Whenever a module selector compounds a class with `[data-*]`/`[aria-*]`, grep for the JSX site
 and confirm the same element carries `styles.<thatClass>` from the same module. Ask for a test that
 asserts the class on each surface.
+
+## New `?create=1` pre-fill key vs the page's `carries` (PR #2342, #2241)
+
+A page's `carries` in `routeMap.ts` is documentation only: no code reads it, so `plan:check` passes
+when a new `useCreateQuery` pre-fill key (here `documentId`) is never added to it. #2212 set the
+precedent: it added `companyId` to `routeMap.ts`, `routemap.json` and the Route-Map "Query carried"
+column. When a PR adds a key to `prefillKeys`/`CREATE_PREFILL_KEYS`, grep the target page entry's
+`carries` in all three places. Same PR: when a component is deleted, grep the wiki for it as a _live
+consumer_ in other sections, not only in the retired lists (Architecture's SearchPicker consumer list
+still named `InvoicePaperlessPickerModal`).

@@ -18,6 +18,7 @@ function setup(
       error={props.error}
       busy={false}
       onChange={() => {}}
+      onSetValues={() => {}}
       createChild={() => {}}
     />,
   );

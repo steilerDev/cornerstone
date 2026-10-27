@@ -38,7 +38,7 @@ Click **Add cost line** in the Cost lines section. The form asks for:
 - **Cost category** and **Funding source** -- Where the cost belongs and which source pays for it
 - **Company** -- Optional. The company you expect to pay for this line. Type to search. If no company matches, choose **New company ‹text›** to create it and select it
 
-After you save, the form stays open with **Add another** so you can enter the next line straight away. To enter many lines at once, use the grid described in [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
+After you save, the form stays open with **Add another** so you can enter the next line straight away. To enter many lines at once, use the grid described in [Invoices & Companies](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
 
 ## Basis
 
@@ -59,12 +59,12 @@ Once a line is linked to an offer or invoice, its basis is set by that document 
 
 When a company's offer or invoice arrives for work covered by a cost line, you can link the line to it. You can do this from either direction:
 
-- **From the invoice or offer page** -- split the document into cost lines on tasks and purchases. See [Invoices & Vendors](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
+- **From the invoice or offer page** -- split the document into cost lines on tasks and purchases. See [Invoices & Companies](vendors-and-invoices#splitting-an-offer-or-invoice-into-cost-lines).
 - **From the Cost section of the task page** -- on an estimate, click **Link to offer or invoice** and pick the offer or invoice. Enter the amount that applies to this line.
 
 A cost line can be linked to **at most one** offer or invoice. When several lines on the same task belong to the same document, they appear together in one group, headed by the document number and its total.
 
-See [Invoices & Vendors](vendors-and-invoices) for the full picture of managing offers, invoices and their lines.
+See [Invoices & Companies](vendors-and-invoices) for the full picture of managing offers, invoices and their lines.
 
 ## Editing a Linked Cost Line
 

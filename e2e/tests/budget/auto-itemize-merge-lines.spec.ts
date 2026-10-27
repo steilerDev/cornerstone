@@ -179,13 +179,17 @@ async function mockConfig(page: Page, autoItemizeEnabled: boolean): Promise<void
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled }),
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled, llmEnabled: autoItemizeEnabled }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled }),
+        body: JSON.stringify({
+          currency: 'EUR',
+          autoItemizeEnabled,
+          llmEnabled: autoItemizeEnabled,
+        }),
       });
     }
   });
@@ -414,9 +418,8 @@ async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewP
   await invoicesPage.goto();
   await invoicesPage.waitForLoaded();
 
-  await invoicesPage.clickNewInvoice();
-  const pickerModal = await invoicesPage.waitForPickerModal();
-  await pickerModal.selectDocument(PF_MOCK_DOC.title);
+  // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+  await new PaperlessInvoiceReviewPage(page).goto(PF_MOCK_DOC.id);
   await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
   const reviewPage = new PaperlessInvoiceReviewPage(page);

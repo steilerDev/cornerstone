@@ -33,7 +33,7 @@ import { TITLE_SEPARATOR } from '../../navigation/pageIdentity.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useUserText } from '../../hooks/useUserText.js';
 import sharedStyles from '../../styles/shared.module.css';
-import { InvoiceEditModal } from './InvoiceEditModal.js';
+import { InvoiceEditDialog } from './InvoiceEditDialog.js';
 import { InvoiceHistoryPanel } from './InvoiceHistoryPanel.js';
 import { InvoicePaymentsPanel } from './InvoicePaymentsPanel.js';
 import { INVOICE_HEADER_ACTIONS } from './invoiceHeaderActions.js';
@@ -395,7 +395,7 @@ function InvoiceDetailLoaded({
       {payments.dialog}
 
       {showEditModal && (
-        <InvoiceEditModal
+        <InvoiceEditDialog
           invoice={invoice}
           onSaved={record.refresh}
           onClose={() => setShowEditModal(false)}

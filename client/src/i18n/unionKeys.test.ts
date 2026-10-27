@@ -28,6 +28,7 @@ import {
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { ENTITY_CREATE_KINDS, WHO_KINDS } from '../components/EntityPicker/entityPickerKinds.js';
+import { INVOICE_FORM_KINDS } from '../objectForms/invoiceCreateContext.js';
 import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 import enBudget from './en/budget.json';
 import enDocuments from './en/documents.json';
@@ -89,8 +90,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 68 registered sets', () => {
-    expect(SETS).toHaveLength(68);
+  it('iterates all 70 registered sets', () => {
+    expect(SETS).toHaveLength(70);
   });
 });
 
@@ -223,6 +224,8 @@ describe('I18N_UNION_KEYS registry', () => {
       'quickLogMode',
       'whoGroup',
       'whoKind',
+      'invoiceFormTitle',
+      'invoiceFormAdded',
       'entityPickerNew',
       'objectTab',
       'documentLinkEntity',
@@ -286,6 +289,17 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(sets.entityPickerNew.members).toEqual(['area', 'orientation', 'trade', 'category']);
     expect(sets.entityPickerNew.key('trade')).toBe('entityPicker.new.trade');
     expect(sets.entityPickerNew.key('category')).toBe('entityPicker.new.category');
+  });
+
+  it('builds the #2241 invoice form keys from the invoice kinds tuple', () => {
+    const sets = I18N_UNION_KEYS;
+    expect(sets.invoiceFormTitle.ns).toBe('budget');
+    expect(sets.invoiceFormTitle.members).toBe(INVOICE_FORM_KINDS);
+    expect(sets.invoiceFormTitle.members).toEqual(['invoice', 'offer']);
+    expect(sets.invoiceFormTitle.key('offer')).toBe('invoiceForm.title.offer');
+    expect(sets.invoiceFormAdded.ns).toBe('budget');
+    expect(sets.invoiceFormAdded.members).toBe(INVOICE_FORM_KINDS);
+    expect(sets.invoiceFormAdded.key('invoice')).toBe('invoiceForm.added.invoice');
   });
 
   it('builds the #2230 Home and attention keys from their tuples', () => {

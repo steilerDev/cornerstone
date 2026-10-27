@@ -4,7 +4,7 @@ import * as invoiceService from '../services/invoiceService.js';
 import { runUndoable, undoStore } from '../services/undoService.js';
 import * as vendorService from '../services/vendorService.js';
 import { onInvoiceCreated } from '../services/diaryAutoEventService.js';
-import type { CreateInvoiceRequest, UpdateInvoiceRequest } from '@cornerstone/shared';
+import type { CreateVendorInvoiceRequest, UpdateInvoiceRequest } from '@cornerstone/shared';
 
 // JSON schema for GET /api/vendors/:vendorId/invoices (list invoices)
 const listInvoicesSchema = {
@@ -29,6 +29,16 @@ const createInvoiceSchema = {
       dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
       status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
       notes: { type: ['string', 'null'], maxLength: 10000 },
+      costLine: {
+        type: 'object',
+        required: ['targetType', 'targetId'],
+        properties: {
+          targetType: { type: 'string', enum: ['work_item', 'household_item'] },
+          targetId: { type: 'string', minLength: 1 },
+        },
+        additionalProperties: false,
+      },
+      paperlessDocumentId: { type: 'integer', minimum: 1 },
     },
     additionalProperties: false,
   },
@@ -103,7 +113,7 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
    * Create a new invoice for a vendor.
    * Auth required: Yes (both admin and member)
    */
-  fastify.post<{ Params: { vendorId: string }; Body: CreateInvoiceRequest }>(
+  fastify.post<{ Params: { vendorId: string }; Body: CreateVendorInvoiceRequest }>(
     '/',
     { schema: createInvoiceSchema },
     async (request, reply) => {

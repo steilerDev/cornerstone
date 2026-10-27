@@ -1,7 +1,9 @@
 import { useEffect, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus } from '@cornerstone/shared';
+import { useFormatters } from '../../lib/formatters.js';
 import { useCompanyName } from '../../hooks/useCompanyName.js';
+import { listAllLinkedDocumentIds } from '../../lib/documentLinksApi.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { useTagCreate } from '../../objectForms/useTagCreate.js';
@@ -20,6 +22,7 @@ import {
   pathText,
   searchAreaOptions,
   searchCompanyOptions,
+  searchDocumentOptions,
   searchOrientationOptions,
   searchTaskOptions,
   searchTaskOrPurchaseOptions,
@@ -80,6 +83,8 @@ export function EntityPicker(props: EntityPickerProps) {
   // The options seen so far, so a picked value resolves back to its option.
   const seenRef = useRef(new Map<string, EntityOption>());
   const entriesRef = useRef<Promise<NamedEntry[]> | null>(null);
+  const linkedRef = useRef<Promise<ReadonlySet<number>> | null>(null);
+  const { formatDate } = useFormatters();
 
   const creating = companyCreate.isCreating || tagCreate.isCreating;
   const onCreatingChangeRef = useRef(onCreatingChange);
@@ -129,6 +134,21 @@ export function EntityPicker(props: EntityPickerProps) {
     return entriesRef.current;
   };
 
+  // Linked document ids load once per mount; a failure shows no filter and is retried next time.
+  const loadLinkedIds = (): Promise<ReadonlySet<number>> => {
+    if (linkedRef.current === null) {
+      const pending = listAllLinkedDocumentIds().then(
+        (ids) => new Set(ids),
+        () => {
+          if (linkedRef.current === pending) linkedRef.current = null;
+          return new Set<number>();
+        },
+      );
+      linkedRef.current = pending;
+    }
+    return linkedRef.current;
+  };
+
   const runSearch = async (query: string, signal: AbortSignal): Promise<EntityOption[]> => {
     switch (kind) {
       case 'company':
@@ -149,6 +169,8 @@ export function EntityPicker(props: EntityPickerProps) {
           task: t('entityPicker.taskOrPurchase.kindTask'),
           purchase: t('entityPicker.taskOrPurchase.kindPurchase'),
         });
+      case 'document':
+        return searchDocumentOptions(query, await loadLinkedIds(), (iso) => formatDate(iso));
     }
   };
 
@@ -233,6 +255,7 @@ export function EntityPicker(props: EntityPickerProps) {
     category: t('entityPicker.placeholder.category'),
     task: t('entityPicker.task.placeholder'),
     taskOrPurchase: t('entityPicker.placeholder.taskOrPurchase'),
+    document: t('entityPicker.placeholder.document'),
   } satisfies Record<typeof kind, string>;
 
   let initialTitle: string | undefined;
@@ -288,7 +311,14 @@ export function EntityPicker(props: EntityPickerProps) {
             emptyHint: t('entityPicker.typeMore'),
             noResultsMessage: t('entityPicker.taskOrPurchase.noResults'),
           }
-        : null;
+        : kind === 'document'
+          ? {
+              emptyHint: t('entityPicker.document.linkedHidden'),
+              noResultsMessage: t('entityPicker.document.noResults'),
+              loadErrorMessage: t('entityPicker.document.loadError'),
+              searchErrorMessage: t('entityPicker.document.loadError'),
+            }
+          : null;
 
   return (
     <SearchPicker<EntityOption>

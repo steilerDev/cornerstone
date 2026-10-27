@@ -21,7 +21,8 @@
     "retry": "Retry",
     "saved": "Saved.",
     "savedCount_one": "{{count}} line saved.",
-    "savedCount_other": "{{count}} lines saved."
+    "savedCount_other": "{{count}} lines saved.",
+    "newInvoice": "New invoice"
   },
   "overview": {
     "expectedCost": "Expected cost",

@@ -20,6 +20,7 @@ import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
 import { ToastRegion } from './components/ToastRegion.js';
 
 export type ConvertField = 'amount' | 'date' | 'invoiceNumber' | 'dueDate' | 'notes';
@@ -43,8 +44,13 @@ export class InvoiceConvertPage {
 
   // Document card
   readonly document: Locator;
+  /** The "Source document" EntityPicker (`#convert-document-picker`, kind document; #2241). */
+  readonly documentPicker: EntityPickerControl;
+  /** The picker's text input (present while no document is chosen). */
   readonly selectDocument: Locator;
+  /** The chosen document's chip. */
   readonly selectedDocument: Locator;
+  /** The chip's "Clear selection" button: it removes the document. */
   readonly removeDocument: Locator;
   readonly readAmounts: Locator;
   readonly readStatus: Locator;
@@ -101,9 +107,13 @@ export class InvoiceConvertPage {
     this.intro = page.locator('p[class*="intro"]');
 
     this.document = page.getByTestId('convert-document');
-    this.selectDocument = page.getByTestId('convert-select-document');
-    this.selectedDocument = page.getByTestId('convert-selected-document');
-    this.removeDocument = page.getByTestId('convert-remove-document');
+    this.documentPicker = new EntityPickerControl(page, 'convert-document-picker');
+    this.selectDocument = this.documentPicker.input;
+    this.selectedDocument = this.documentPicker.selectedDisplay();
+    this.removeDocument = this.document.getByRole('button', {
+      name: 'Clear selection',
+      exact: true,
+    });
     this.readAmounts = page.getByTestId('convert-ai-prefill');
     this.readStatus = page.getByTestId('convert-read-status');
     this.readError = page.getByTestId('convert-ai-error');

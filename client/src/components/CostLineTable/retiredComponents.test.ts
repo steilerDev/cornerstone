@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
  *
  * Mutation that must fail this test: re-adding any one of the files below (for example an empty
  * `components/budget/BudgetLineCard.tsx`), or importing `useBudgetSection` from any source file; re-adding `ConvertQuotationModal.tsx` or
- * `useConvertQuotation.ts` (the convert dialog and its hook, #2240).
+ * `useConvertQuotation.ts` (the convert dialog and its hook, #2240), or `InvoiceEditModal.tsx` (folded into the invoice ObjectForm, #2241).
  */
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -34,6 +34,7 @@ const RETIRED = [
   'HouseholdItemPicker',
   'ConvertQuotationModal',
   'useConvertQuotation',
+  'InvoiceEditModal',
 ] as const;
 
 function walk(dir: string): string[] {

@@ -2,11 +2,13 @@
  * E2E tests for the Paperless-first invoice creation flow (Stories #1679, #1703, #1704).
  *
  * Feature:
- *   When Paperless is configured+reachable AND autoItemizeEnabled=true, clicking
- *   "New Invoice" on the Invoices list page opens an InvoicePaperlessPickerModal
- *   instead of the manual create modal. The user selects a document, which
- *   triggers extraction on PaperlessInvoiceReviewPage (/budget/invoices/new/paperless),
- *   then confirms to create the invoice and its budget lines atomically.
+ *   The review page (/budget/invoices/new/paperless) extracts a Paperless document with the LLM
+ *   and confirms it into an invoice with budget lines. Since #2241 it is reached from the New
+ *   invoice dialog's "Read amounts and lines with AI" link (covered by invoice-form.spec.ts I6c);
+ *   these tests open the same URL (`?documentId=`) directly, which is also the deep-link path.
+ *   The old invoice picker modal is gone, so its scenarios (picker defaults, correspondent filter,
+ *   hide-linked, Open in Paperless, mobile picker) were removed: the Documents panel's "Link
+ *   document" picker keeps the hide-linked coverage (Scenario 9, document-browser.spec.ts).
  *
  *   Story #1703/#1704: PaperlessInvoiceReviewPage refactored to a two-column layout
  *   (formColumn + previewColumn with PDF iframe). The Save button is NO LONGER disabled
@@ -14,21 +16,15 @@
  *   silently doing nothing.
  *
  * Scenarios covered:
- *   1.  @smoke Picker opens with correct default state (Paperless+LLM configured)
- *   2.  Correspondent filter: select → list refreshes; clear → full list returns
- *   3.  Document selection triggers extraction spinner + navigation to review page
+ *   3.  Opening the review page shows the extraction spinner, then the ready state
  *   4.  @smoke Review screen: extraction complete → vendor pre-fill + SuggestionBadge
- *   5.  Hide-linked toggle defaults ON in picker modal
- *   6.  "Open in Paperless" anchor has correct href and target
  *   7.  @smoke Full confirm flow: vendor + lines → confirm → navigate to invoice detail
- *   8.  Responsive picker: on mobile (375px) picker modal is full-screen
  *   9.  Hide-linked default in Documents panel on invoice detail page
  *   10. PDF iframe present in preview column after extraction complete
  *   11. Silent-failure fix: clicking Create without vendor shows inline vendor error, no navigation
  *   12. Page-level error banner on commit 500 (page stays in ready state)
  *   13. Two-column layout at desktop viewport (formColumn + previewColumn side by side)
  *   14. @responsive Stacked layout at mobile viewport (previewColumn after formColumn)
- *   15. Hide-linked filter actually hides documents whose IDs are returned by linked-ids API
  *   16. @smoke Choosing a task for a row marks it as a new cost line; nothing is created yet (Story #1764)
  *   17. Editing the row and saving creates the cost line + invoice (Story #1764)
  *   18. Row validation: a missing amount shows a cell error, no navigation (Story #1764)
@@ -205,13 +201,17 @@ async function mockConfig(page: Page, autoItemizeEnabled: boolean): Promise<void
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ ...realBody, autoItemizeEnabled }),
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled, llmEnabled: autoItemizeEnabled }),
       });
     } catch {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled }),
+        body: JSON.stringify({
+          currency: 'EUR',
+          autoItemizeEnabled,
+          llmEnabled: autoItemizeEnabled,
+        }),
       });
     }
   });
@@ -234,7 +234,7 @@ async function mockCorrespondents(page: Page): Promise<void> {
  * Without this mock, the tags request goes to the real server (which has no
  * Paperless configured), the Promise.all rejects, usePaperless enters error state,
  * and DocumentBrowser renders a role="alert" error div instead of the grid.
- * Must be registered before the picker modal is opened.
+ * Must be registered before the review page is opened.
  */
 async function mockTags(page: Page): Promise<void> {
   await page.route('**/api/paperless/tags', async (route: Route) => {
@@ -242,23 +242,6 @@ async function mockTags(page: Page): Promise<void> {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ tags: [] }),
-    });
-  });
-}
-
-/**
- * Intercept GET /api/document-links/linked-ids.
- * InvoicePaperlessPickerModal fetches this endpoint on mount via useAllLinkedDocumentIds
- * to populate the linkedDocumentIds prop on DocumentBrowser so already-linked documents
- * can be filtered when the hide-linked toggle is ON.
- * Must be registered BEFORE clickNewInvoice() to avoid an unmocked request firing on mount.
- */
-async function mockLinkedIds(page: Page, ids: number[]): Promise<void> {
-  await page.route('**/api/document-links/linked-ids', async (route: Route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ paperlessDocumentIds: ids }),
     });
   });
 }
@@ -420,114 +403,6 @@ async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1 — @smoke: Picker opens with correct default state
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe(
-  'Scenario 1 — Picker opens with correct default state',
-  { tag: ['@smoke', '@responsive'] },
-  () => {
-    test('With Paperless+LLM configured, New Invoice opens picker modal with hide-linked checked and no pre-selected correspondent', async ({
-      page,
-    }) => {
-      await mockPaperlessConfigured(page);
-      await mockConfig(page, true);
-      await mockCorrespondents(page);
-      await mockDocuments(page);
-      await mockTags(page);
-
-      const invoicesPage = new InvoicesPage(page);
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
-
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-
-      // Modal title is visible
-      await expect(pickerModal.modal).toBeVisible();
-
-      // Hide-linked toggle defaults to checked (defaultHideLinked=true in InvoicePaperlessPickerModal)
-      await expect(pickerModal.hideLinkedToggle).toBeChecked();
-
-      // No correspondent pre-selected — input is empty
-      await expect(pickerModal.correspondentInput).toHaveValue('');
-    });
-  },
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2 — Correspondent filter
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 2 — Correspondent filter', () => {
-  test('Selecting correspondent filters document list; clearing restores full list', async ({
-    page,
-  }) => {
-    await mockPaperlessConfigured(page);
-    await mockConfig(page, true);
-    await mockCorrespondents(page);
-    await mockTags(page);
-
-    // Track whether correspondent filter was applied to the documents request
-    let lastDocRequestHadCorrespondent = false;
-    await page.route('**/paperless/documents**', async (route: Route) => {
-      const url = new URL(route.request().url());
-      // The client sends ?correspondent=<id> (integer param name, per paperlessApi.ts)
-      const corrParam = url.searchParams.get('correspondent');
-      lastDocRequestHadCorrespondent = corrParam !== null && corrParam !== '';
-      if (lastDocRequestHadCorrespondent) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_DOCUMENTS_FILTERED),
-        });
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_DOCUMENTS_ALL),
-        });
-      }
-    });
-
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
-
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-
-    // Wait for the document grid to finish both async loading stages before asserting cards
-    await pickerModal.waitForDocumentsLoaded();
-
-    // Initially both documents are visible (all list)
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
-
-    // Select "Builder Co" correspondent
-    await pickerModal.correspondentInput.fill('Builder');
-    await pickerModal.correspondentPortalDropdown.waitFor({ state: 'visible' });
-    await pickerModal.correspondentPortalDropdown
-      .getByRole('option', { name: 'Builder Co' })
-      .click();
-
-    // Wait for grid to finish re-fetching with the correspondent filter applied
-    await pickerModal.waitForDocumentsLoaded();
-
-    // After correspondent selection, the filtered list shows only doc 1
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
-    // Doc 2 should no longer be visible
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).not.toBeVisible();
-
-    // Clear the correspondent — input resets and full list is restored
-    await pickerModal.clearCorrespondent();
-    // Wait for grid to finish re-fetching the full unfiltered list
-    await pickerModal.waitForDocumentsLoaded();
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3 — Document selection triggers extraction and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -553,11 +428,8 @@ test.describe('Scenario 3 — Document selection triggers extraction', () => {
     await invoicesPage.goto();
     await invoicesPage.waitForLoaded();
 
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-
-    // Select document
-    await pickerModal.selectDocument(MOCK_DOC_1.title);
+    // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+    await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
 
     // Navigation to review page occurs
     await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
@@ -608,11 +480,8 @@ test.describe(
         await invoicesPage.goto();
         await invoicesPage.waitForLoaded();
 
-        await invoicesPage.clickNewInvoice();
-        const pickerModal = await invoicesPage.waitForPickerModal();
-
-        // Select document — this calls navigate('/budget/invoices/new/paperless', { state: {...} })
-        await pickerModal.selectDocument(MOCK_DOC_1.title);
+        // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+        await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
         await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
         const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -637,84 +506,6 @@ test.describe(
     });
   },
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5 — Hide-linked toggle defaults ON in picker modal
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 5 — Hide-linked toggle defaults ON in picker modal', () => {
-  test('DocumentBrowser inside picker modal has hide-linked toggle checked by default', async ({
-    page,
-  }) => {
-    await mockPaperlessConfigured(page);
-    await mockConfig(page, true);
-    await mockCorrespondents(page);
-    await mockDocuments(page);
-    await mockTags(page);
-    // InvoicePaperlessPickerModal now fetches linked-ids on mount (Issue #1739 fix).
-    // Register before clickNewInvoice() to prevent an unmocked request causing a console error.
-    await mockLinkedIds(page, []);
-
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
-
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-
-    // defaultHideLinked=true is passed to DocumentBrowser in InvoicePaperlessPickerModal
-    await expect(pickerModal.hideLinkedToggle).toBeChecked();
-
-    // Toggle it off
-    await pickerModal.hideLinkedToggle.click();
-    await expect(pickerModal.hideLinkedToggle).not.toBeChecked();
-
-    // Toggle it back on
-    await pickerModal.hideLinkedToggle.click();
-    await expect(pickerModal.hideLinkedToggle).toBeChecked();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6 — "Open in Paperless" anchor has correct href and target
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 6 — Open in Paperless anchor', () => {
-  test('Document card shows Open-in-Paperless link with correct URL and new-tab target', async ({
-    page,
-  }) => {
-    await mockPaperlessConfigured(page);
-    await mockConfig(page, true);
-    await mockCorrespondents(page);
-    await mockDocuments(page);
-    await mockTags(page);
-
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
-
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-
-    // Wait for the document grid to finish loading before asserting card and link visibility
-    await pickerModal.waitForDocumentsLoaded();
-
-    // The document card is visible
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
-
-    // Get the "Open in Paperless" link for doc 1
-    const openLink = pickerModal.getOpenInPaperlessLink(MOCK_DOC_1.title);
-    await expect(openLink).toBeVisible();
-
-    // Verify the href points to the correct Paperless document detail URL
-    const expectedHref = `${PAPERLESS_BASE_URL}/documents/${MOCK_DOC_1.id}/details`;
-    await expect(openLink).toHaveAttribute('href', expectedHref);
-
-    // Verify it opens in a new tab
-    await expect(openLink).toHaveAttribute('target', '_blank');
-    await expect(openLink).toHaveAttribute('rel', /noopener/);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 7 — @smoke Full confirm flow: vendor + lines → confirm → navigate
@@ -828,13 +619,8 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      // Step 1: Click New Invoice → picker opens
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await expect(pickerModal.modal).toBeVisible();
-
-      // Step 2: Select document → navigate to review page
-      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      // The review page is reached by its link: the dialog's "Read amounts and lines with AI"
+      await new PaperlessInvoiceReviewPage(page).goto(MOCK_DOC_1.id);
       await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       // Step 3: Wait for extraction complete on review page
@@ -935,66 +721,19 @@ test.describe('Scenario 7b — Invoice status select on review page', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8 — Responsive picker: mobile viewport
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 8 — Responsive picker on mobile viewport', () => {
-  test(
-    'On 375px viewport, picker modal is full-screen (≥90% of viewport width)',
-    { tag: '@responsive' },
-    async ({ page }) => {
-      // This test is meaningful only on mobile viewport
-      const viewportWidth = page.viewportSize()?.width ?? 1280;
-      if (viewportWidth >= 1024) {
-        test.skip();
-        return;
-      }
-
-      await mockPaperlessConfigured(page);
-      await mockConfig(page, true);
-      await mockCorrespondents(page);
-      await mockDocuments(page);
-      await mockTags(page);
-
-      const invoicesPage = new InvoicesPage(page);
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
-
-      await invoicesPage.clickNewInvoice();
-      const pickerModal = await invoicesPage.waitForPickerModal();
-      await expect(pickerModal.modal).toBeVisible();
-
-      // On mobile, the modal should be full-screen (width ≥ 90% of viewport)
-      const modalBox = await pickerModal.modal.boundingBox();
-      expect(modalBox).not.toBeNull();
-      if (modalBox) {
-        expect(modalBox.width).toBeGreaterThanOrEqual(viewportWidth * 0.9);
-      }
-    },
-  );
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared helper: navigate through the full picker flow to the review page
+// Shared helper: open the review page for the mocked document
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Navigate from the invoices list page through the picker to the review page.
- * Returns a PaperlessInvoiceReviewPage instance once extraction is complete.
- * All Paperless mocks (status, config, correspondents, documents, tags, detail, preview)
- * must be registered BEFORE calling this helper.
+ * Open the review page of the mocked document through its link (the New invoice dialog's "Read
+ * amounts and lines with AI" goes to the same URL, see invoice-form.spec.ts I6c) and wait for the
+ * extraction. All Paperless mocks (status, config, detail, preview) must be registered BEFORE
+ * calling this helper.
  */
 async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewPage> {
-  const invoicesPage = new InvoicesPage(page);
-  await invoicesPage.goto();
-  await invoicesPage.waitForLoaded();
-
-  await invoicesPage.clickNewInvoice();
-  const pickerModal = await invoicesPage.waitForPickerModal();
-  await pickerModal.selectDocument(MOCK_DOC_1.title);
-  await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
-
   const reviewPage = new PaperlessInvoiceReviewPage(page);
+  await reviewPage.goto(MOCK_DOC_1.id);
+  await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
   await reviewPage.waitForExtractionComplete();
   return reviewPage;
 }
@@ -1335,63 +1074,6 @@ test.describe(
     });
   },
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 15 — Hide-linked filter hides documents returned by linked-ids API
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 15 — Hide-linked filter uses linked-ids API (Issue #1739)', () => {
-  test('When hide-linked is ON and linked-ids API returns IDs, those documents are hidden; disabling the toggle reveals them', async ({
-    page,
-  }) => {
-    // Register standard Paperless mocks — all must be in place before clickNewInvoice()
-    await mockPaperlessConfigured(page);
-    await mockConfig(page, true);
-    await mockCorrespondents(page);
-    await mockTags(page);
-
-    // MOCK_DOC_1 is already linked system-wide; MOCK_DOC_2 is not.
-    // Register BEFORE clickNewInvoice() so the on-mount fetch is intercepted.
-    await mockLinkedIds(page, [MOCK_DOC_1.id]);
-
-    // Both documents are returned by the Paperless documents endpoint
-    await page.route('**/paperless/documents**', async (route: Route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_DOCUMENTS_ALL),
-      });
-    });
-
-    const invoicesPage = new InvoicesPage(page);
-    await invoicesPage.goto();
-    await invoicesPage.waitForLoaded();
-
-    await invoicesPage.clickNewInvoice();
-    const pickerModal = await invoicesPage.waitForPickerModal();
-
-    // Wait for the document grid to finish both async loading stages
-    await pickerModal.waitForDocumentsLoaded();
-
-    // The hide-linked toggle is ON by default (defaultHideLinked=true in InvoicePaperlessPickerModal)
-    await expect(pickerModal.hideLinkedToggle).toBeChecked();
-
-    // MOCK_DOC_1 is in the linked-ids list → hidden when toggle is ON
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).not.toBeVisible();
-
-    // MOCK_DOC_2 is not linked → visible
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
-
-    // Disable the hide-linked toggle
-    await pickerModal.hideLinkedToggle.click();
-    await expect(pickerModal.hideLinkedToggle).not.toBeChecked();
-
-    // After disabling, MOCK_DOC_1 should now be visible
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
-    // MOCK_DOC_2 remains visible
-    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 16 — @smoke "Create New Budget Line" closes picker + shows inline form
