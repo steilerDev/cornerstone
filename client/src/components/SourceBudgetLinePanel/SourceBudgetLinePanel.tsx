@@ -1,5 +1,5 @@
 import { routeUrl } from '@cornerstone/shared';
-import { useCallback, useImperativeHandle, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import type { KeyboardEvent, Ref } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -304,13 +304,29 @@ export function SourceBudgetLinePanel({
   const originState = useOriginState();
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // The first checkbox of the panel is the first area's; rAF waits for the page to settle.
+  // The first checkbox of the panel is the first area's; rAF waits for the page to settle. While
+  // the lines are still loading (no checkbox yet) the region takes focus and the first checkbox
+  // follows as soon as it exists.
+  const pendingFocusRef = useRef(false);
+  const firstCheckbox = () =>
+    rootRef.current?.querySelector<HTMLInputElement>('input[type="checkbox"]') ?? null;
   const focusFirstCheckbox = useCallback(() => {
     requestAnimationFrame(() => {
-      rootRef.current?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+      const checkbox = rootRef.current?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.focus();
+      } else {
+        pendingFocusRef.current = true;
+        rootRef.current?.focus();
+      }
     });
   }, []);
   useImperativeHandle(ref, () => ({ focusFirstCheckbox }), [focusFirstCheckbox]);
+  useEffect(() => {
+    if (!pendingFocusRef.current || isLoading) return;
+    pendingFocusRef.current = false;
+    firstCheckbox()?.focus();
+  });
 
   // One tree for tasks and purchases: area > item > line. The item heading carries the kind word.
   const lines = useMemo<TaggedLine[]>(
@@ -433,7 +449,7 @@ export function SourceBudgetLinePanel({
               label={t('sources.budgetLines.move.selectGroupLabel', { name: areaName })}
               hideLabel
             />
-            <h3 className={styles.areaHeading}>{areaName}</h3>
+            <h2 className={styles.areaHeading}>{areaName}</h2>
             <span className={styles.areaLineCount}>
               {t('sources.lines.areaLineCount', { count: node.totalLines })}
             </span>
@@ -480,10 +496,10 @@ export function SourceBudgetLinePanel({
                   })}
                   hideLabel
                 />
-                <h4 className={styles.parentItemHeading}>
+                <h3 className={styles.parentItemHeading}>
                   <span className={styles.parentItemKind}>{kindWord}</span>
                   <span className={styles.parentItemName}>{parentGroup.parentName}</span>
-                </h4>
+                </h3>
                 <Link
                   to={
                     parentGroup.kind === 'work-item'
@@ -564,6 +580,8 @@ export function SourceBudgetLinePanel({
   if (isLoading) {
     return (
       <div
+        ref={rootRef}
+        tabIndex={-1}
         id={`source-lines-${sourceId}`}
         role="region"
         aria-label={t('sources.lines.loadingLabel')}
@@ -581,6 +599,8 @@ export function SourceBudgetLinePanel({
   if (error) {
     return (
       <div
+        ref={rootRef}
+        tabIndex={-1}
         id={`source-lines-${sourceId}`}
         role="region"
         aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
@@ -599,6 +619,8 @@ export function SourceBudgetLinePanel({
   if (isEmpty) {
     return (
       <div
+        ref={rootRef}
+        tabIndex={-1}
         id={`source-lines-${sourceId}`}
         role="region"
         aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
@@ -615,6 +637,7 @@ export function SourceBudgetLinePanel({
   return (
     <div
       ref={rootRef}
+      tabIndex={-1}
       id={`source-lines-${sourceId}`}
       role="region"
       aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}

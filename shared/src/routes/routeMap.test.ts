@@ -358,6 +358,20 @@ describe('History page rollout (#2224)', () => {
       expect(entry).not.toHaveProperty('interim');
     });
 
+    it('the Financing page carries create and kind (the New menu and the retired URLs open its dialogs, #2242)', () => {
+      const entry = (ROUTE_MAP as readonly { id?: string; carries?: readonly string[] }[]).find(
+        (e) => e.id === 'financing',
+      )!;
+      expect(entry.carries).toEqual(['create', 'kind']);
+    });
+
+    it.each([
+      ['/budget/subsidies?create=1', '/budget/financing?create=1#grants'],
+      ['/budget/sources?create=1', '/budget/financing?create=1#sources'],
+    ])('redirecting %s keeps create and lands on %s', (from, to) => {
+      expect(resolveLocation(from, ADMIN_CTX)).toMatchObject({ kind: 'redirect', to });
+    });
+
     it.each([
       ['budgetSources', '/budget/sources', '/budget/financing#sources'],
       ['budgetSubsidies', '/budget/subsidies', '/budget/financing#grants'],

@@ -95,7 +95,7 @@
 .cardName {
   margin: 0;
   min-width: 0;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -149,6 +149,7 @@
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
@@ -157,7 +158,7 @@
 }
 
 .danger {
-  color: var(--color-danger);
+  color: var(--color-danger-text-on-light);
   font-weight: var(--font-weight-medium);
 }
 
@@ -171,6 +172,7 @@
 }
 
 .ready {
+  font-variant-numeric: tabular-nums;
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);

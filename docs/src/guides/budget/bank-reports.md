@@ -26,7 +26,7 @@ The wizard supports three report types, chosen in step 1:
 | **Claim** | Document invoices marked as paid or claimed, for submitting a reimbursement claim to a bank or grant program | Invoices in `pending` or `paid` status |
 | **Proof of Funds** | Show only claimed invoices, as evidence that previously claimed funds were actually spent | Invoices in `claimed` status |
 
-Each report is generated for a single **budget source** at a time (a specific loan, credit line, or savings account) -- see [Financing](financing-sources).
+Each report is generated for a single **funding source** at a time (a specific loan, credit line, or savings account) -- see [Financing](financing-sources).
 
 ## The Five Steps
 
@@ -36,9 +36,9 @@ The wizard walks through five steps, shown in a stepper at the top of the page. 
 
 Choose Budget Overview, Claim, or Proof of Funds. This determines which invoices are eligible in step 3 and which document types qualify to be attached in step 4.
 
-### 2. Budget Source
+### 2. Funding source
 
-Select the financing source the report is for. Each source shows the relevant amount for the chosen report type (Total Amount, Pending Amount, or Claimed Amount).
+Select the funding source the report is for, using the **Select the funding source for this report** field. Each source shows the relevant amount for the chosen report type (Total Amount, Pending Amount, or Claimed Amount).
 
 ### 3. Select Invoices
 
@@ -46,7 +46,7 @@ Every eligible invoice for the source and report type is listed, pre-selected. Y
 
 - Deselect individual invoices, or use **Select all** / **Reset selection**
 - Expand an invoice to see its individual budget lines and deposits/refunds, and exclude specific line items from the report without excluding the whole invoice
-- See a **partial** badge on invoices whose funding is split across more than one budget source -- both invoices split across budget lines and invoices with a source-tagged deposit are flagged, and the PDF's footnotes distinguish which kind of split applies to each row
+- See a **partial** badge on invoices whose funding is split across more than one funding source -- both invoices split across budget lines and invoices with a source-tagged deposit are flagged, and the PDF's footnotes distinguish which kind of split applies to each row
 - See invoices with no allocation for this source grouped separately under **Unallocated Invoices**
 
 Excluding a line item narrows the amount shown in the report but does not change the invoice's claim status -- see [Marking Invoices as Claimed](#marking-invoices-as-claimed) below.

@@ -87,7 +87,10 @@ export function FinancingPage() {
 
   useCreateQuery({
     onOpen: (request) => {
-      const kind: FinancingFormKind = request.kind === 'grant' ? 'grant' : 'source';
+      // The old Grants URL redirects here with `#grants` and no `kind`: that opens New grant.
+      const wantsGrant =
+        request.kind === 'grant' || (request.kind === null && location.hash === '#grants');
+      const kind: FinancingFormKind = wantsGrant ? 'grant' : 'source';
       open(
         kind,
         hasCreateOpener(location.state)

@@ -399,7 +399,7 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [],
+    "carries": ["create", "kind"],
     "note": "NEW Money › Financing (h1 'Financing'): funding sources and grants; Add funding source, Add grant (§2.0 #11); Prepare bank report. Live since #2242."
   },
   {

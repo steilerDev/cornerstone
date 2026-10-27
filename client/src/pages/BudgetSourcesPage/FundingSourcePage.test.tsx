@@ -632,7 +632,7 @@ describe('FundingSourcePage', () => {
 
     it('shows the lines of the source in one tree', async () => {
       await openCost();
-      expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(3);
+      expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
     });
 
     it('a failed lines load shows the error with Retry that loads again', async () => {

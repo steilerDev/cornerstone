@@ -221,23 +221,23 @@ describe('SourceBudgetLinePanel', () => {
   });
 
   describe('tree', () => {
-    it('is one region named for the source with ONE tree: area h3, item h4 with the kind word', () => {
+    it('is one region named for the source with ONE tree: area h2, item h3 with the kind word', () => {
       renderPanel({ data: data() });
 
       const region = screen.getByRole('region', { name: 'Budget lines for Home Loan' });
       expect(region).toHaveAttribute('id', 'source-lines-src-1');
       expect(
         within(region)
-          .getAllByRole('heading', { level: 3 })
+          .getAllByRole('heading', { level: 2 })
           .map((h) => h.textContent),
       ).toEqual(['House', 'Kitchen', 'No Area']);
       expect(
         within(region)
-          .getAllByRole('heading', { level: 4 })
+          .getAllByRole('heading', { level: 3 })
           .map((h) => h.textContent),
       ).toEqual(['PurchaseSink', 'TaskTiling', 'TaskFence']);
       // no kind-level section headings any more
-      expect(within(region).queryAllByRole('heading', { level: 2 })).toEqual([]);
+      expect(within(region).queryAllByRole('heading', { level: 1 })).toEqual([]);
     });
 
     it('nests Kitchen below House (depth) and counts the lines of each area', () => {
@@ -342,7 +342,7 @@ describe('SourceBudgetLinePanel', () => {
         ]),
       });
 
-      expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
         'Garden',
         'House',
         'Ground floor',
@@ -374,7 +374,7 @@ describe('SourceBudgetLinePanel', () => {
         ]),
       });
 
-      expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
         'Garden',
         'House',
         'Ground floor',
@@ -386,7 +386,7 @@ describe('SourceBudgetLinePanel', () => {
     it('treats an area without an ancestors list as a root', () => {
       const bare = { id: 'a-x', name: 'Shed', color: null } as never;
       renderPanel({ data: makeResponse([makeLine({ id: 'l-x', area: bare })]) });
-      expect(screen.getByRole('heading', { level: 3, name: 'Shed' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'Shed' })).toBeInTheDocument();
     });
 
     it('unchecking a selected line removes only that line', () => {
@@ -458,7 +458,7 @@ describe('SourceBudgetLinePanel', () => {
       const { container } = renderPanel({ data: data() });
       const block = container.querySelector('[class*="parentItemBlock"]') as HTMLElement;
 
-      fireEvent.click(block.querySelector('h4')!);
+      fireEvent.click(block.querySelector('h3')!);
       expect(onSelectionSpy).toHaveBeenCalledTimes(1);
 
       onSelectionSpy.mockClear();
@@ -550,7 +550,7 @@ describe('SourceBudgetLinePanel', () => {
       await waitFor(() => expect(box('Select all in House')).toHaveFocus());
     });
 
-    it('focusFirstCheckbox is a no-op while the panel shows no tree', async () => {
+    it('with no tree to land in, focusFirstCheckbox leaves focus on the (empty) region', async () => {
       const ref = createRef<SourceBudgetLinePanelHandle>();
       render(
         <MemoryRouter>
@@ -564,7 +564,85 @@ describe('SourceBudgetLinePanel', () => {
       await act(async () => {
         await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
       });
-      expect(document.body).toHaveFocus();
+      expect(document.getElementById('source-lines-src-1')).toHaveFocus();
+    });
+
+    describe('while the lines are loading (UX round 1)', () => {
+      function setup(initial: Partial<PanelProps>) {
+        const ref = createRef<SourceBudgetLinePanelHandle>();
+        const tree = (props: Partial<PanelProps>) => (
+          <MemoryRouter>
+            <LocaleProvider>
+              <Host ref={ref} {...props} />
+            </LocaleProvider>
+          </MemoryRouter>
+        );
+        const view = render(tree(initial));
+        return {
+          ref,
+          unmount: view.unmount,
+          rerender: (props: Partial<PanelProps>) => view.rerender(tree(props)),
+        };
+      }
+      const region = () => document.getElementById('source-lines-src-1')!;
+
+      it('every state is a programmatically focusable region', () => {
+        for (const props of [
+          { isLoading: true },
+          { error: 'Could not load budget lines.' },
+          { data: null },
+          { data: data() },
+        ] as Partial<PanelProps>[]) {
+          const { unmount } = setup(props);
+          expect(region()).toHaveAttribute('tabindex', '-1');
+          expect(region()).toHaveAttribute('role', 'region');
+          unmount();
+        }
+      });
+
+      it('focuses the region while loading and the first checkbox once the lines arrive', async () => {
+        const { ref, rerender } = setup({ isLoading: true });
+
+        act(() => ref.current!.focusFirstCheckbox());
+        await waitFor(() => expect(region()).toHaveFocus());
+        expect(screen.queryByRole('checkbox')).toBeNull();
+
+        rerender({ isLoading: false, data: data() });
+
+        await waitFor(() => expect(box('Select all in House')).toHaveFocus());
+      });
+
+      it.each([
+        ['no lines', { isLoading: false, data: makeResponse() }],
+        ['a failed load', { isLoading: false, error: 'Could not load budget lines.' }],
+      ] as [string, Partial<PanelProps>][])(
+        'stays on the region when the load ends with %s',
+        async (_name, after) => {
+          const { ref, rerender } = setup({ isLoading: true });
+          act(() => ref.current!.focusFirstCheckbox());
+          await waitFor(() => expect(region()).toHaveFocus());
+
+          rerender(after);
+
+          await waitFor(() => expect(region()).toBeInTheDocument());
+          expect(region()).toHaveFocus();
+        },
+      );
+
+      it('a request made after the load goes straight to the first checkbox', async () => {
+        const { ref } = setup({ data: data() });
+        act(() => ref.current!.focusFirstCheckbox());
+        await waitFor(() => expect(box('Select all in House')).toHaveFocus());
+      });
+
+      it('does not steal focus later: a finished load without a request leaves focus alone', async () => {
+        const { rerender } = setup({ isLoading: true });
+        rerender({ isLoading: false, data: data() });
+        await act(async () => {
+          await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        });
+        expect(document.body).toHaveFocus();
+      });
     });
 
     it('does not select anything by itself (Move lines never pre-selects)', async () => {

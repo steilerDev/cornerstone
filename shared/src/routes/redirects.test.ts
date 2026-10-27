@@ -105,6 +105,19 @@ describe('LIVE_REDIRECT_ROUTES', () => {
     }
   });
 
+  it('keeps ?create=1 when the retired Grants and Funding sources URLs redirect (#2242)', () => {
+    for (const [from, target] of [
+      ['/budget/subsidies', '/budget/financing#grants'],
+      ['/budget/sources', '/budget/financing#sources'],
+    ] as const) {
+      const rule = LIVE_REDIRECT_ROUTES.find((r) => r.from === from)!;
+      expect(rule.target).toBe(target);
+      expect(resolveRedirect(rule.target, {}, '?create=1', '')).toBe(
+        `/budget/financing?create=1#${target.split('#')[1]}`,
+      );
+    }
+  });
+
   it('carries only from, target and queryMaps', () => {
     for (const route of LIVE_REDIRECT_ROUTES) {
       expect(Object.keys(route).sort()).toEqual(['from', 'queryMaps', 'target']);

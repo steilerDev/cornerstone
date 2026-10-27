@@ -12,7 +12,6 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import type { areas } from '../db/schema.js';
 import {
   householdItems,
   householdItemCategories,
@@ -29,9 +28,9 @@ import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { getExpectedGrantsByHouseholdItem } from './moneyService.js';
-import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
+import { getAreaSummary, loadAreaMap, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
-import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
+import { toUserSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
 import { loadGrantChips } from './shared/itemGrantChips.js';
 import type {
@@ -153,28 +152,6 @@ function getBudgetSummary(
 }
 
 /**
- * Get area with ancestors resolved from the area map.
- * Returns null if areaId is null or area is not found in the map.
- */
-function getAreaWithAncestors(
-  areaId: string | null,
-  areaMap: Map<string, AreaMapEntry>,
-): ReturnType<typeof toAreaSummary> {
-  if (!areaId) return null;
-  const entry = areaMap.get(areaId)!;
-  const ancestors = resolveAreaAncestors(areaId, areaMap);
-  return toAreaSummary(
-    {
-      id: entry.id,
-      name: entry.name,
-      color: entry.color,
-      parentId: entry.parentId,
-    } as typeof areas.$inferSelect,
-    ancestors,
-  );
-}
-
-/**
  * Convert database household item row to HouseholdItemSummary shape.
  */
 export function toHouseholdItemSummary(
@@ -192,7 +169,7 @@ export function toHouseholdItemSummary(
     ? db.select().from(users).where(eq(users.id, item.createdBy)).get()!
     : null;
 
-  const area = getAreaWithAncestors(item.areaId, areaMap);
+  const area = getAreaSummary(item.areaId, areaMap);
 
   return {
     id: item.id,

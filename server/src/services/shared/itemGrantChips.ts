@@ -6,16 +6,14 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../../db/schema.js';
-import type { ItemGrantChip, SubsidyReductionType } from '@cornerstone/shared';
+import type { GrantItemType, ItemGrantChip, SubsidyReductionType } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-export type GrantChipItemKind = 'work_item' | 'household_item';
 
 /** itemId -> chips for the given page of item ids; every id has an entry (`[]` when none). */
 export function loadGrantChips(
   db: Pick<DbType, 'all'>,
-  kind: GrantChipItemKind,
+  kind: GrantItemType,
   itemIds: readonly string[],
 ): Map<string, ItemGrantChip[]> {
   const result = new Map<string, ItemGrantChip[]>();

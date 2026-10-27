@@ -16,7 +16,6 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type {
-  AreaSummary,
   BreakdownMoney,
   BudgetBreakdown,
   BudgetSourceStatus,
@@ -38,8 +37,7 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError } from '../errors/AppError.js';
 import { toCents } from './shared/money.js';
-import { toAreaSummary } from './shared/converters.js';
-import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
+import { getAreaSummary, loadAreaMap } from './areaService.js';
 import {
   computeOpenPaymentItems,
   type InvoiceDepositRow,
@@ -69,7 +67,6 @@ import {
 import { attributePayments, computeBreakdown, type LinkInput } from './shared/moneyBreakdown.js';
 import { getSourcePaidAndSubmitted } from './budgetSourceService.js';
 import { getDrawDownSet } from './sourceReportService.js';
-import type { areas } from '../db/schema.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -809,23 +806,6 @@ export function getGrantMoney(db: DbType, vatRate: number, id: string): GrantMon
   };
 }
 
-function areaSummaryOf(
-  areaId: string | null,
-  areaMap: Map<string, AreaMapEntry>,
-): AreaSummary | null {
-  if (!areaId) return null;
-  const entry = areaMap.get(areaId)!;
-  return toAreaSummary(
-    {
-      id: entry.id,
-      name: entry.name,
-      color: entry.color,
-      parentId: entry.parentId,
-    } as typeof areas.$inferSelect,
-    resolveAreaAncestors(areaId, areaMap),
-  );
-}
-
 /**
  * Every task and purchase linked to a grant, with the grant's engine share for it (expected
  * scenario; 0 for a rejected grant). Tasks first, then purchases, each by title.
@@ -869,7 +849,7 @@ export function getGrantCoveredItems(
       type: row.type,
       id: row.id,
       title: row.title,
-      area: areaSummaryOf(row.areaId, areaMap),
+      area: getAreaSummary(row.areaId, areaMap),
       covered: toMajor(share?.expected ?? 0),
     };
   });

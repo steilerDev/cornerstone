@@ -617,6 +617,30 @@ describe('FinancingPage', () => {
       );
     });
 
+    it.each([
+      ['/budget/financing?create=1&kind=grant', 'grant'],
+      ['/budget/financing?create=1#grants', 'grant'],
+      ['/budget/financing?create=1', 'source'],
+      ['/budget/financing?create=1#sources', 'source'],
+      ['/budget/financing?create=1&kind=source#grants', 'source'],
+    ])(
+      '%s opens New %s (an explicit kind wins over the section anchor, F2)',
+      async (entry, kind) => {
+        renderPage(entry);
+
+        await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+        expect(open.mock.calls[0]![0].kind).toBe(kind);
+      },
+    );
+
+    it('the create params are removed from the URL once the dialog is requested', async () => {
+      renderPage('/budget/financing?create=1&kind=source#grants');
+      await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByTestId('where').textContent).not.toMatch(/create|kind/),
+      );
+    });
+
     it('from the New menu the focus returns to the create trigger', async () => {
       const trigger = document.createElement('button');
       trigger.setAttribute('data-create-trigger', '');

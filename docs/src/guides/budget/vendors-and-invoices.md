@@ -172,12 +172,12 @@ If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](aut
 
 - **Company picker** -- Pick the matching company (the picker pre-suggests one based on the document). If the company doesn't exist, type its name and choose **New company ‹text›**. The company form opens with the name filled in, and the new company is selected when you save it.
 - **Invoice status** -- Choose the initial status: Offer, To pay, Paid, or Submitted. Defaults to **To pay**.
-- **Default budget source (optional)** -- If set, all extracted lines are assigned to this funding source. You can still override the source for individual lines in step 2. This field is useful when you know the entire invoice comes from a single financing source.
+- **Funding source (optional)** -- Shows **No default** until you pick one. If set, all extracted lines are assigned to this funding source. You can still override the source for individual lines in step 2. This field is useful when you know the entire invoice comes from a single financing source.
 
 **Step 2: Metadata & Lines**
 
 - **Pre-fills the invoice metadata** (number, amount, date, due date, notes) from the document, each with a one-click suggestion to apply the extracted value.
-- **Lists the extracted lines in the same grid as [Split with AI](auto-itemize)**, so you can include, edit, categorise, fund, and assign each line to a task or purchase. Net lines are grossed up by VAT so the totals match the invoice. If you specified a default budget source in step 1, each line uses that source by default but can be overridden.
+- **Lists the extracted lines in the same grid as [Split with AI](auto-itemize)**, so you can include, edit, categorise, fund, and assign each line to a task or purchase. Net lines are grossed up by VAT so the totals match the invoice. If you specified a funding source in step 1, each line uses that source by default but can be overridden.
 
 Click **Create Invoice & Itemize** to create the invoice and its cost lines in one step. The new-invoice review screen and the existing-invoice [Split with AI](auto-itemize) page share the same grid, so line editing, assignment, and funding-source behaviour is identical in both. See [Assign each line](auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source) for the details.
 

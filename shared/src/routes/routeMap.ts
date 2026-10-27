@@ -460,7 +460,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: [],
+    carries: ['create', 'kind'],
     stage: 'done',
     parent: 'budgetOverview',
   },

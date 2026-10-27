@@ -18,6 +18,11 @@
   }
 }
 
+.linesPanel:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .linesPanel {
   animation: fadeIn var(--transition-medium) ease-out;
   background-color: var(--color-bg-primary);
@@ -233,6 +238,7 @@
 }
 
 .linePlannedAmount {
+  font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
   font-weight: var(--font-weight-medium);
   text-align: right;
@@ -283,12 +289,14 @@
 }
 
 /* Mobile responsive */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .checkbox {
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
+}
 
+@media (max-width: 767px) {
   .areaGroup {
     padding: var(--spacing-2);
     margin-left: calc(var(--area-depth, 0) * var(--spacing-3));
