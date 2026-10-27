@@ -161,6 +161,9 @@ test.describe('Cost line Remove - focus (U3)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
+    // Each Remove leaves an Undo toast for 6 s; on a phone it covers the next menu, so the test
+    // waits for it to go before opening the next menu
+    test.setTimeout(60_000);
     const { invoice } = await seedLinked(page, testPrefix, 3);
     const panel = new CostLinesPanel(page);
     await page.goto(routeUrl('invoice', { id: invoice.id }));
@@ -178,6 +181,7 @@ test.describe('Cost line Remove - focus (U3)', { tag: '@responsive' }, () => {
     // Remove the LAST row: focus goes to the previous row's menu
     rows = await order();
     expect(rows).toHaveLength(2);
+    await expect(panel.toasts.undoToast).toHaveCount(0, { timeout: 10_000 });
     await panel.chooseAction(panel.row(rows[1]!), 'Remove from invoice');
     await expect(panel.row(rows[1]!)).toHaveCount(0);
     await expect(panel.menuTrigger(panel.row(rows[0]!))).toBeFocused();
@@ -185,6 +189,7 @@ test.describe('Cost line Remove - focus (U3)', { tag: '@responsive' }, () => {
     // Remove the ONLY row: focus goes to the section's fallback (Add cost line, else the heading)
     rows = await order();
     expect(rows).toHaveLength(1);
+    await expect(panel.toasts.undoToast).toHaveCount(0, { timeout: 10_000 });
     await panel.chooseAction(panel.row(rows[0]!), 'Remove from invoice');
     await expect(panel.rows()).toHaveCount(0);
     await expect

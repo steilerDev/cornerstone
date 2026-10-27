@@ -205,6 +205,101 @@ describe('useInvoiceRecord', () => {
     expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2);
   });
 
+  describe('apply', () => {
+    it('shows a record fetched elsewhere as the page record and bumps the revision', async () => {
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 0 }));
+      const { result } = renderHook(() => useInvoiceRecord('inv-1'));
+      await waitFor(() => expect(result.current.invoice).not.toBeNull());
+      act(() => result.current.apply(makeInvoiceDetail({ paid: 400, status: 'paid' })));
+      expect(result.current.invoice).toMatchObject({ paid: 400, status: 'paid' });
+      expect(result.current.revision).toBe(1);
+      expect(result.current.isLoading).toBe(false);
+      act(() => result.current.apply(makeInvoiceDetail({ paid: 500 })));
+      expect(result.current.revision).toBe(2);
+      expect(mockFetchInvoiceById).toHaveBeenCalledTimes(1);
+    });
+
+    it('supersedes an in-flight refresh: its older response cannot overwrite the applied record', async () => {
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 0 }));
+      const { result } = renderHook(() => useInvoiceRecord('inv-1'));
+      await waitFor(() => expect(result.current.invoice).not.toBeNull());
+      const slow = deferred<InvoiceDetail>();
+      mockFetchInvoiceById.mockReturnValueOnce(slow.promise);
+      let pending: Promise<InvoiceDetail | null> = Promise.resolve(null);
+      act(() => {
+        pending = result.current.refresh();
+      });
+      act(() => result.current.apply(makeInvoiceDetail({ paid: 700 })));
+      await act(async () => {
+        slow.resolve(makeInvoiceDetail({ paid: 100 }));
+        expect(await pending).toBeNull();
+      });
+      expect(result.current.invoice?.paid).toBe(700);
+      expect(result.current.revision).toBe(1);
+    });
+
+    it('supersedes an in-flight reload: its older response cannot overwrite the applied record', async () => {
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 0 }));
+      const { result } = renderHook(() => useInvoiceRecord('inv-1'));
+      await waitFor(() => expect(result.current.invoice).not.toBeNull());
+      const slow = deferred<InvoiceDetail>();
+      mockFetchInvoiceById.mockReturnValueOnce(slow.promise);
+      let pending: Promise<void> = Promise.resolve();
+      act(() => {
+        pending = result.current.reload();
+      });
+      act(() => result.current.apply(makeInvoiceDetail({ paid: 700 })));
+      await act(async () => {
+        slow.resolve(makeInvoiceDetail({ paid: 100 }));
+        await pending;
+      });
+      expect(result.current.invoice?.paid).toBe(700);
+    });
+
+    it('apply during an in-flight reload does not leave the page loading', async () => {
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 0 }));
+      const { result } = renderHook(() => useInvoiceRecord('inv-1'));
+      await waitFor(() => expect(result.current.invoice).not.toBeNull());
+      const slow = deferred<InvoiceDetail>();
+      mockFetchInvoiceById.mockReturnValueOnce(slow.promise);
+      let pending: Promise<void> = Promise.resolve();
+      act(() => {
+        pending = result.current.reload();
+      });
+      act(() => result.current.apply(makeInvoiceDetail({ paid: 700 })));
+      await act(async () => {
+        slow.resolve(makeInvoiceDetail({ paid: 100 }));
+        await pending;
+      });
+      // the page must not stay on the skeleton because the reload it replaced never finished
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('a refresh that supersedes an in-flight reload ends with isLoading false and the fresh record', async () => {
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 0 }));
+      const { result } = renderHook(() => useInvoiceRecord('inv-1'));
+      await waitFor(() => expect(result.current.invoice).not.toBeNull());
+      const slow = deferred<InvoiceDetail>();
+      mockFetchInvoiceById.mockReturnValueOnce(slow.promise);
+      act(() => {
+        void result.current.reload();
+      });
+      expect(result.current.isLoading).toBe(true);
+      mockFetchInvoiceById.mockResolvedValueOnce(makeInvoiceDetail({ paid: 300 }));
+      await act(async () => {
+        await result.current.refresh();
+      });
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+      expect(result.current.invoice?.paid).toBe(300);
+      await act(async () => {
+        slow.resolve(makeInvoiceDetail({ paid: 1 }));
+        await Promise.resolve();
+      });
+      expect(result.current.invoice?.paid).toBe(300);
+    });
+  });
+
   it('loads again when the id changes', async () => {
     mockFetchInvoiceById.mockImplementation(async (id) => makeInvoiceDetail({ id }));
     const { result, rerender } = renderHook(({ id }) => useInvoiceRecord(id), {

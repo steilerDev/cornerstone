@@ -178,7 +178,11 @@ function InvoiceDetailLoaded({
 
   const convert = useConvertQuotation({
     invoice,
-    refreshInvoice: () => fetchInvoiceById(id),
+    refreshInvoice: async () => {
+      const fresh = await fetchInvoiceById(id);
+      record.apply(fresh);
+      return fresh;
+    },
     onConverted: () => {
       focusHeadingAfterConvertRef.current = true;
       void record.refresh();

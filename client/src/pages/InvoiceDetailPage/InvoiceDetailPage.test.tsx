@@ -989,6 +989,39 @@ describe('InvoiceDetailPage conversion (S11)', () => {
     expect(mockFetchInvoiceById).toHaveBeenCalledWith(ID);
   });
 
+  it('the conversion flow refetch becomes the page record: deposits update without a skeleton', async () => {
+    await loaded({ status: 'quotation', deposits: [] });
+    mockFetchInvoiceById.mockResolvedValue(
+      record({
+        status: 'quotation',
+        deposits: [makePayment({ id: 'dep-new', invoiceId: ID, amount: 250 })],
+        paid: 250,
+      }),
+    );
+    let returned: InvoiceDetail | undefined;
+    await act(async () => {
+      returned = (await convertArgs!.refreshInvoice()) as InvoiceDetail;
+    });
+    expect(returned?.deposits.map((d) => d.id)).toEqual(['dep-new']);
+    await waitFor(() =>
+      expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€250.00'),
+    );
+    expect(screen.getByRole('tab', { name: /Payments.*1/ })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
+  });
+
+  it('a failed conversion-flow refetch rejects to the dialog and leaves the page rendered', async () => {
+    await loaded({ status: 'quotation', paid: 0 });
+    mockFetchInvoiceById.mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      await expect(convertArgs!.refreshInvoice()).rejects.toThrow('offline');
+    });
+    expect(screen.getByRole('heading', { level: 1, name: HEADING })).toBeInTheDocument();
+    expect(screen.getByTestId('summary-fact-paid')).toHaveTextContent('€0.00');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('status', { name: 'Loading invoice...' })).toBeNull();
+  });
+
   it('after a conversion the page refreshes, reloads the cost lines and focuses the h1', async () => {
     await loaded({ status: 'quotation' });
     mockFetchInvoiceById.mockResolvedValue(record({ status: 'pending' }));

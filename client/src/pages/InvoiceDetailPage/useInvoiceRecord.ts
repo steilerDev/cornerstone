@@ -15,6 +15,8 @@ export interface UseInvoiceRecordResult {
   readonly reload: () => Promise<void>;
   /** Silent re-fetch: keeps the page as it is; a failure falls back to `reload`. */
   readonly refresh: () => Promise<InvoiceDetail | null>;
+  /** Shows a record fetched elsewhere (the convert flow's own refetch) as the page's record. */
+  readonly apply: (fresh: InvoiceDetail) => void;
   /** Bumps on every successful `refresh`, for panels that load their own data. */
   readonly revision: number;
 }
@@ -75,7 +77,11 @@ export function useInvoiceRecord(id: string): UseInvoiceRecordResult {
     try {
       const fresh = await fetchInvoiceById(id);
       if (!mountedRef.current || request !== latestRequestRef.current) return null;
+      // This request won: a reload it superseded can no longer clear the loading state.
       setInvoice(fresh);
+      setIsLoading(false);
+      setError(null);
+      setNotFound(false);
       setRevision((value) => value + 1);
       return fresh;
     } catch {
@@ -84,5 +90,15 @@ export function useInvoiceRecord(id: string): UseInvoiceRecordResult {
     }
   }, [id, reload]);
 
-  return { invoice, isLoading, error, notFound, reload, refresh, revision };
+  const apply = useCallback((fresh: InvoiceDetail) => {
+    // A fetch that is still in flight is older than this record.
+    latestRequestRef.current += 1;
+    setInvoice(fresh);
+    setIsLoading(false);
+    setError(null);
+    setNotFound(false);
+    setRevision((value) => value + 1);
+  }, []);
+
+  return { invoice, isLoading, error, notFound, reload, refresh, apply, revision };
 }

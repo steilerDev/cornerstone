@@ -1070,7 +1070,7 @@ test.describe('Scenario 9 — Hide-linked default in invoice detail Documents pa
 
       // Open the Documents panel, then its Link document picker view
       const docsPanel = new DocumentsPanel(page);
-      await docsPanel.open();
+      await docsPanel.open('summary-fact-documents');
       await docsPanel.openPicker();
 
       // The picker (DocumentBrowser in the panel's sheet) is open

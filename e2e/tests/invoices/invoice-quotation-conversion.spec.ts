@@ -676,7 +676,8 @@ test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', ()
       expect(invoice.deposits[0]?.entryType).toBe('deposit');
       expect(invoice.deposits[0]?.amount).toBe(6000);
       expect(invoice.deposits.filter((d) => d.entryType === 'refund')).toHaveLength(0);
-      await expect(detail.finalPaymentAmount).toHaveText(/^\D*0[.,]00\D*$/);
+      await detail.openPayments();
+      await expect(detail.finalPaymentRow).toContainText(/Final payment.*0[.,]00/s);
     } finally {
       await cleanup(page, fixture);
     }
