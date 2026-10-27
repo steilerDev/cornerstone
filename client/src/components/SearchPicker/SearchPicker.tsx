@@ -460,12 +460,18 @@ export function SearchPicker<T>({
     const query = searchTerm.trim();
     setIsOpen(false);
     abortSearch();
+    // The input keeps focus while the dialog opens (a press on the row does not move it), so the
+    // dialog's own focus restore lands on it before this promise settles: that must not reopen.
+    suppressFocusOpenRef.current = true;
     const created = await createAction.onCreate(query).catch(() => null);
+    suppressFocusOpenRef.current = false;
     if (created) {
       handleSelect(created);
     } else {
       suppressFocusOpenRef.current = true;
       inputRef.current?.focus();
+      // The focus event is synchronous; clear the flag in case none fired (already focused).
+      suppressFocusOpenRef.current = false;
     }
   };
 
