@@ -60,7 +60,9 @@ test.describe('Vendor list phone fallback', { tag: '@responsive' }, () => {
 
       // The Phone column shows the number and a Call button (a tel: link). Phone cards show one
       // full-width "Call <number>" button instead (no separate number text).
-      const phoneVisible = (await page.viewportSize())!.width >= 768;
+      // The list's own width decides (tablet shows cards), not the viewport
+      await vendorsPage.waitForVendorsLoaded();
+      const phoneVisible = await vendorsPage.isTableSurface();
 
       const drywallCall = vendorsPage.callLink(drywallName);
       await expect(drywallCall).toHaveAttribute('href', 'tel:5550101');
