@@ -61,7 +61,7 @@ function isTimingIntent(value: string): value is TaskTimingIntent {
 export default function WorkItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   if (!id) return <Navigate to={routeUrl('workItems')} replace />;
-  return <TaskView id={id} />;
+  return <TaskView key={id} id={id} />;
 }
 
 function TaskView({ id }: { id: string }) {
@@ -205,14 +205,14 @@ function TaskLoaded({ id, task, state, h1Text, displayTitle, originState }: Task
     const target = pendingEditRef.current;
     if (target && tabs.active === 'overview') {
       pendingEditRef.current = null;
-      cardFor(target).current?.startEdit();
+      cardFor(target).current!.startEdit();
     }
   });
 
   const openOverviewEdit = useCallback(
     (target: OverviewTarget) => {
       if (tabs.active === 'overview') {
-        (target === 'details' ? detailsCardRef : whoWhereCardRef).current?.startEdit();
+        cardFor(target).current!.startEdit();
         return;
       }
       pendingEditRef.current = target;

@@ -277,6 +277,8 @@ describe('glossary.json (real file)', () => {
       ['Home', 'Project'],
       ['Home', 'Projekt'],
       ['Home', 'Projektübersicht'],
+      ['Not before', 'Start After'],
+      ['Start by', 'Start Before'],
       ['Task', 'Work item'],
       ['Covered items', 'Subsidy items'],
       ['Task', 'Work items'],

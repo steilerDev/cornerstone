@@ -12,7 +12,6 @@ import { useFormatters } from '../../lib/formatters.js';
 import { deleteNote } from '../../lib/notesApi.js';
 import { useNoteFormSchema } from '../../objectForms/noteForm.js';
 import type { NoteFormMode } from '../../objectForms/noteForm.js';
-import sharedStyles from '../../styles/shared.module.css';
 import { taskActionError } from './taskActionError.js';
 import { useRowTriggerRefs } from './useRowTriggerRefs.js';
 import styles from './WorkItemDetailPage.module.css';
@@ -116,7 +115,7 @@ export function TaskNotesCard({
       <div className={styles.cardActions}>
         <button
           type="button"
-          className={sharedStyles.btnSecondaryCompact}
+          className={styles.compactButton}
           data-testid="task-notes-add"
           ref={addButtonRef}
           onClick={() => onOpenNote({ mode: 'create' }, addButtonRef)}
@@ -134,6 +133,7 @@ export function TaskNotesCard({
           error={deleteError}
           onConfirm={() => void confirmDelete(deleting)}
           onCancel={() => setDeleting(null)}
+          returnFocusRef={addButtonRef}
           testIdPrefix="note-delete"
         />
       ) : null}

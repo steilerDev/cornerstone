@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SubtaskResponse } from '@cornerstone/shared';
@@ -15,9 +15,9 @@ import {
   updateSubtask,
 } from '../../lib/subtasksApi.js';
 import { useChecklistItemFormSchema } from '../../objectForms/checklistItemForm.js';
-import sharedStyles from '../../styles/shared.module.css';
 import { taskActionError } from './taskActionError.js';
 import { useRowTriggerRefs } from './useRowTriggerRefs.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemDetailPage.module.css';
 
 const ITEM_MAX = 500;
@@ -52,6 +52,16 @@ export function TaskChecklistCard({
   const [deleting, setDeleting] = useState<SubtaskResponse | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const announceFrameRef = useRef(0);
+
+  // One always-mounted polite region. Clearing first makes a repeated message read again.
+  const announce = (message: string) => {
+    window.cancelAnimationFrame(announceFrameRef.current);
+    setAnnouncement('');
+    announceFrameRef.current = window.requestAnimationFrame(() => setAnnouncement(message));
+  };
+  useEffect(() => () => window.cancelAnimationFrame(announceFrameRef.current), []);
 
   const run = async (action: () => Promise<unknown>, fallback: string): Promise<boolean> => {
     setError(null);
@@ -86,7 +96,16 @@ export function TaskChecklistCard({
     void run(
       () => reorderSubtasks(workItemId, { subtaskIds: ids }),
       t('taskPage.checklist.updateError'),
-    );
+    ).then((moved) => {
+      if (!moved) return;
+      announce(
+        t('taskPage.checklist.position', {
+          title: items[index]!.title,
+          position: index + by + 1,
+          count: items.length,
+        }),
+      );
+    });
   };
 
   const confirmDelete = async (target: SubtaskResponse) => {
@@ -186,14 +205,13 @@ export function TaskChecklistCard({
           onChange={(event) => setNewTitle(event.target.value)}
           data-testid="task-checklist-add-input"
         />
-        <button
-          type="submit"
-          className={sharedStyles.btnSecondaryCompact}
-          data-testid="task-checklist-add"
-        >
+        <button type="submit" className={styles.compactButton} data-testid="task-checklist-add">
           {t('taskPage.checklist.add')}
         </button>
       </form>
+      <div role="status" className={sharedStyles.srOnly} data-testid="task-checklist-status">
+        {announcement}
+      </div>
       {renaming ? (
         <RenameDialog
           workItemId={workItemId}
@@ -213,6 +231,7 @@ export function TaskChecklistCard({
           error={deleteError}
           onConfirm={() => void confirmDelete(deleting)}
           onCancel={() => setDeleting(null)}
+          returnFocusRef={addInputRef}
           testIdPrefix="subtask-delete"
         />
       ) : null}

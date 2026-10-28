@@ -191,6 +191,14 @@ describe('TaskTimingPanel', () => {
       expect(await screen.findByTestId('reschedule-panel')).toBeInTheDocument();
     });
 
+    it('moves focus to the Reschedule section heading when it opens', async () => {
+      renderPanel();
+      await open();
+      expect(
+        within(screen.getByTestId('task-reschedule-section')).getByRole('heading'),
+      ).toHaveFocus();
+    });
+
     it('Cancel closes the section and focuses the Reschedule button again', async () => {
       renderPanel();
       await open();

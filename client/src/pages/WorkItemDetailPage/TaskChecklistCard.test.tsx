@@ -205,6 +205,41 @@ describe('TaskChecklistCard', () => {
       expect(mockReorderSubtasks).not.toHaveBeenCalled();
     });
 
+    it('announces the new position in a polite status region, again for a repeated move', async () => {
+      renderCard();
+      const status = screen.getByTestId('task-checklist-status');
+      expect(status).toHaveAttribute('role', 'status');
+      expect(status).toHaveTextContent('');
+      await choose('Book digger', 'Move up');
+      await waitFor(() =>
+        expect(status).toHaveTextContent('Book digger moved to position 1 of 3.'),
+      );
+      await choose('Book digger', 'Move up');
+      await waitFor(() =>
+        expect(status).toHaveTextContent('Book digger moved to position 1 of 3.'),
+      );
+    });
+
+    it('announces the position of an item moved down', async () => {
+      renderCard();
+      await choose('Order gravel', 'Move down');
+      await waitFor(() =>
+        expect(screen.getByTestId('task-checklist-status')).toHaveTextContent(
+          'Order gravel moved to position 2 of 3.',
+        ),
+      );
+    });
+
+    it('does not announce a failed move, and a pending announcement is dropped on unmount', async () => {
+      mockReorderSubtasks.mockRejectedValueOnce(new Error('down'));
+      const { unmount } = renderCard();
+      await choose('Book digger', 'Move up');
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('task-checklist-status')).toHaveTextContent('');
+      await choose('Book digger', 'Move up');
+      unmount();
+    });
+
     it('shows an error when reordering fails', async () => {
       mockReorderSubtasks.mockRejectedValueOnce(new Error('down'));
       renderCard();
@@ -267,11 +302,12 @@ describe('TaskChecklistCard', () => {
       await waitFor(() => expect(onEmptied).toHaveBeenCalledTimes(1));
     });
 
-    it('Cancel closes the confirmation without deleting', async () => {
-      renderCard();
+    it('Cancel closes the confirmation without deleting and returns focus to the add field', async () => {
+      const { addInputRef } = renderCard();
       await choose('Order gravel', 'Delete');
       fireEvent.click(await screen.findByTestId('subtask-delete-cancel'));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(addInputRef.current).toHaveFocus();
       expect(mockDeleteSubtask).not.toHaveBeenCalled();
     });
 

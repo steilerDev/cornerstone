@@ -1164,7 +1164,7 @@ export function getWorkItemPageDetail(
       .from(vendors)
       .where(eq(vendors.id, detail.assignedVendor.id))
       .get();
-    assignedVendor = { ...detail.assignedVendor, phone: vendorRow?.phone ?? null };
+    assignedVendor = { ...detail.assignedVendor, phone: vendorRow!.phone };
   }
 
   return { ...detail, assignedVendor, expectedCost, grants, waitsFor, holdsUp };

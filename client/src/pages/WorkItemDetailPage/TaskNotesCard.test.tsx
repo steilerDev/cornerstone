@@ -167,11 +167,12 @@ describe('TaskNotesCard', () => {
       await waitFor(() => expect(onEmptied).toHaveBeenCalledTimes(1));
     });
 
-    it('Cancel closes the confirmation without deleting', async () => {
-      renderCard();
+    it('Cancel closes the confirmation without deleting and returns focus to Add note', async () => {
+      const { addButtonRef } = renderCard();
       await startDelete();
       fireEvent.click(screen.getByTestId('note-delete-cancel'));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(addButtonRef.current).toHaveFocus();
       expect(mockDeleteNote).not.toHaveBeenCalled();
     });
 

@@ -12,6 +12,7 @@ import {
   MemoryRouter,
   Route,
   Routes,
+  Link,
   useLocation,
   useNavigationType,
   useSearchParams,
@@ -169,7 +170,14 @@ function Probe() {
   useEffect(() => {
     seen.keys.push(location.key);
   }, [location.key]);
-  return <div data-testid="probe-tab">{params.get('tab') ?? ''}</div>;
+  return (
+    <>
+      <div data-testid="probe-tab">{params.get('tab') ?? ''}</div>
+      <Link data-testid="go-wi-2" to="/project/work-items/wi-2">
+        Other task
+      </Link>
+    </>
+  );
 }
 
 function renderPage(
@@ -249,6 +257,19 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByRole('heading', { name: 'Pour slab', level: 1 })).toBeVisible();
       await waitFor(() => expect(document.title).toBe('Pour slab · Tasks · Cornerstone'));
       expect(mockGetWorkItem).toHaveBeenCalledWith('wi-1');
+    });
+
+    it('shows the loading heading, not the first task, when the route moves to another task', async () => {
+      mockGetWorkItem.mockImplementation((id) =>
+        id === 'wi-2' ? new Promise(() => {}) : Promise.resolve(TASK),
+      );
+      const view = renderPage();
+      await screen.findByRole('heading', { level: 1, name: 'Pour slab' });
+      fireEvent.click(screen.getByTestId('go-wi-2'));
+      expect(await screen.findByRole('heading', { level: 1, name: 'Task' })).toBeVisible();
+      expect(screen.queryByRole('heading', { level: 1, name: 'Pour slab' })).toBeNull();
+      expect(mockGetWorkItem).toHaveBeenCalledWith('wi-2');
+      view.unmount();
     });
 
     it('falls back to "Untitled task" for a whitespace-only title', async () => {

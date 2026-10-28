@@ -70,7 +70,13 @@ function RescheduleSection({ task, onSaved, onUndone, onCancel }: RescheduleSect
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const headingId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const { timeline, failure, retry } = useOpenTimeline();
+
+  // Focus moves into the section when it opens, so it is not lost while the timeline loads.
+  useEffect(() => {
+    headingRef.current!.focus();
+  }, []);
 
   return (
     <section
@@ -78,7 +84,7 @@ function RescheduleSection({ task, onSaved, onUndone, onCancel }: RescheduleSect
       aria-labelledby={headingId}
       data-testid="task-reschedule-section"
     >
-      <h2 id={headingId} className={styles.rescheduleHeading}>
+      <h2 id={headingId} ref={headingRef} tabIndex={-1} className={styles.rescheduleHeading}>
         {tSchedule('reschedule.title', { title: task.title })}
       </h2>
       {failure !== null ? (

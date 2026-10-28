@@ -209,6 +209,24 @@ describe('useTaskSummaryFacts', () => {
       expect(screen.queryByTestId('task-summary-call')).toBeNull();
     });
 
+    it('is wide only while the Call button shows', () => {
+      const withPhone = renderFacts(
+        makeTaskPage({
+          assignedVendor: { id: 'v-1', name: 'Acme Roofing', trade: null, phone: '+49 30 123' },
+        }),
+      );
+      const whoOf = (facts: SummaryFact[]) =>
+        facts.find((f) => f.id === 'who') as { wide?: boolean };
+      expect(whoOf(withPhone.facts()).wide).toBe(true);
+      withPhone.unmount();
+      const noPhone = renderFacts(
+        makeTaskPage({
+          assignedVendor: { id: 'v-1', name: 'Acme Roofing', trade: null, phone: null },
+        }),
+      );
+      expect(whoOf(noPhone.facts()).wide).toBeUndefined();
+    });
+
     it('shows a member by display name and never a Call button', () => {
       renderFacts(
         makeTaskPage({

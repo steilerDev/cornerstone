@@ -159,7 +159,8 @@
       "nameRequired": "Enter a name.",
       "addError": "Couldn't add the checklist item.",
       "updateError": "Couldn't update the checklist item.",
-      "deleteError": "Couldn't delete the checklist item."
+      "deleteError": "Couldn't delete the checklist item.",
+      "position": "{{title}} moved to position {{position}} of {{count}}."
     },
     "notes": {
       "title": "Notes",

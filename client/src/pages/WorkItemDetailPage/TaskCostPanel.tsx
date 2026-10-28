@@ -17,6 +17,7 @@ import {
   unlinkWorkItemSubsidy,
 } from '../../lib/workItemsApi.js';
 import type { TaskPanelProps } from './taskPageTypes.js';
+import styles from './TaskCostPanel.module.css';
 
 /**
  * The Cost tab of the task page: its cost lines (estimates, then one group per offer or invoice)
@@ -87,14 +88,16 @@ export function TaskCostPanel({ task, revision, refresh, originState }: TaskPane
   };
 
   return (
-    <>
-      <CostLinesSection
-        host={{ kind: 'work_item', id: taskId, label: task.title }}
-        lines={task.budgets}
-        onChanged={refresh}
-        linkState={originState}
-        headingLevel={2}
-      />
+    <div className={styles.panel}>
+      <div className={styles.costCard}>
+        <CostLinesSection
+          host={{ kind: 'work_item', id: taskId, label: task.title }}
+          lines={task.budgets}
+          onChanged={refresh}
+          linkState={originState}
+          headingLevel={2}
+        />
+      </div>
       <RelatedList
         title={t('taskPage.cost.grants')}
         rows={rows}
@@ -134,7 +137,7 @@ export function TaskCostPanel({ task, revision, refresh, originState }: TaskPane
         linkState={originState}
         testId="task-grants"
       />
-    </>
+    </div>
   );
 }
 

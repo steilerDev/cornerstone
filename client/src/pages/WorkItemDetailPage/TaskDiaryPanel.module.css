@@ -1,7 +1,5 @@
 .panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
+  composes: panel from './WorkItemDetailPage.module.css';
 }
 
 .header {
@@ -110,4 +108,10 @@
   flex-direction: column;
   gap: var(--spacing-3);
   padding-bottom: var(--spacing-2);
+}
+
+@media (max-width: 1023px) {
+  .logButton {
+    min-height: var(--touch-target-min);
+  }
 }

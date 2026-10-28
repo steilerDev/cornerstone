@@ -12,7 +12,6 @@ import type { FetchFailure } from '../../lib/fetchFailure.js';
 import { listNotes } from '../../lib/notesApi.js';
 import { listUsers } from '../../lib/usersApi.js';
 import type { NoteFormMode } from '../../objectForms/noteForm.js';
-import sharedStyles from '../../styles/shared.module.css';
 import { TaskChecklistCard } from './TaskChecklistCard.js';
 import { TaskDetailCards } from './TaskDetailCards.js';
 import { NoteDialog, TaskNotesCard } from './TaskNotesCard.js';
@@ -172,7 +171,7 @@ export function TaskOverviewPanel({
               placement="bottom-start"
               data-testid="task-add-menu"
               renderTrigger={(props) => (
-                <button {...props} className={sharedStyles.btnSecondaryCompact}>
+                <button {...props} className={styles.compactButton}>
                   {t('taskPage.overview.add')} <span aria-hidden="true">▾</span>
                 </button>
               )}
@@ -208,7 +207,7 @@ export function TaskOverviewPanel({
             <FormError
               message={fetchFailureMessage(failure, tErrors, t('taskPage.notes.loadError'))}
             />
-            <button type="button" className={sharedStyles.btnSecondaryCompact} onClick={retry}>
+            <button type="button" className={styles.compactButton} onClick={retry}>
               {t('taskPage.retry')}
             </button>
           </div>

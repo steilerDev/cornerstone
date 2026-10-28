@@ -107,8 +107,12 @@ export function useTaskSummaryFacts({
 
   const whoName = task.assignedVendor?.name ?? task.assignedUser?.displayName ?? null;
   const phone = task.assignedVendor?.phone ?? null;
+  const showsCall = task.assignedVendor !== null && phone !== null;
   facts.push({
-    ...tabFact('who', 'overview', t('taskPage.strip.who'), whoName, { onActivate: onOpenWhoWhere }),
+    ...tabFact('who', 'overview', t('taskPage.strip.who'), whoName, {
+      onActivate: onOpenWhoWhere,
+      wide: showsCall,
+    }),
     ...(task.assignedVendor && phone
       ? {
           trailing: (

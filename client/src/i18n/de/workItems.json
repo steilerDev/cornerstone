@@ -159,7 +159,8 @@
       "nameRequired": "Gib einen Namen ein.",
       "addError": "Der Checklistenpunkt konnte nicht hinzugefügt werden.",
       "updateError": "Der Checklistenpunkt konnte nicht aktualisiert werden.",
-      "deleteError": "Der Checklistenpunkt konnte nicht gelöscht werden."
+      "deleteError": "Der Checklistenpunkt konnte nicht gelöscht werden.",
+      "position": "{{title}} auf Position {{position}} von {{count}} verschoben."
     },
     "notes": {
       "title": "Notizen",

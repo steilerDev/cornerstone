@@ -269,11 +269,7 @@ function WhoWhereCard({
                     t('taskPage.overview.usersLoadError'),
                   )}
                 />
-                <button
-                  type="button"
-                  className={sharedStyles.btnSecondaryCompact}
-                  onClick={onRetryUsers}
-                >
+                <button type="button" className={styles.compactButton} onClick={onRetryUsers}>
                   {t('taskPage.retry')}
                 </button>
               </div>
