@@ -2394,6 +2394,64 @@ describe('GanttChart — Schedule view (#2247)', () => {
       expect(dateAtX(scroller().scrollLeft, newRange, 'day')).toBe(dateBefore);
     });
 
+    it('a data or toggle rerender with unchanged column geometry leaves scrollLeft exactly where it is', () => {
+      const first = makeTimeline();
+      const view = (data: TimelineResponse, showArrows = true) => (
+        <MemoryRouter>
+          <GanttChart data={data} zoom="day" showArrows={showArrows} />
+        </MemoryRouter>
+      );
+      const { rerender } = render(view(first));
+      const el = scroller();
+      el.scrollLeft = 1234.5;
+      el.scrollTop = ROW_HEIGHT;
+      fireEvent.scroll(el);
+
+      // a new row (rows change, columns do not) and a toggle
+      const extra = { ...first.workItems[0]!, id: 'wi-new', title: 'New task' };
+      rerender(view({ ...first, workItems: [extra, ...first.workItems] }));
+      expect(scroller().scrollLeft).toBe(1234.5);
+      rerender(view({ ...first, workItems: [extra, ...first.workItems] }, false));
+      expect(scroller().scrollLeft).toBe(1234.5);
+    });
+
+    it('still re-anchors the vertical position on the same row when rows change', () => {
+      const first = makeTimeline();
+      const view = (data: TimelineResponse) => (
+        <MemoryRouter>
+          <GanttChart data={data} zoom="day" />
+        </MemoryRouter>
+      );
+      const { rerender } = render(view(first));
+      const el = scroller();
+      el.scrollTop = ROW_HEIGHT;
+      fireEvent.scroll(el);
+      const earlier = {
+        ...first.workItems[0]!,
+        id: 'wi-first',
+        startDate: '2024-06-01',
+        projectedStartDate: '2024-06-01',
+      };
+      rerender(view({ ...first, workItems: [earlier, ...first.workItems] }));
+      // the row that was second from the top is now third
+      expect(scroller().scrollTop).toBe(2 * ROW_HEIGHT);
+    });
+
+    it('a column width change moves the left edge to keep the same date', () => {
+      const data = makeTimeline();
+      const view = (columnWidth: number) => (
+        <MemoryRouter>
+          <GanttChart data={data} zoom="day" columnWidth={columnWidth} />
+        </MemoryRouter>
+      );
+      const { rerender } = render(view(58));
+      const el = scroller();
+      el.scrollLeft = 580;
+      fireEvent.scroll(el);
+      rerender(view(116));
+      expect(scroller().scrollLeft).toBeCloseTo(1160, 3);
+    });
+
     it('a zoom change keeps the date at the centre of the viewport', () => {
       const data = makeTimeline();
       const view = (zoom: 'day' | 'week') => (

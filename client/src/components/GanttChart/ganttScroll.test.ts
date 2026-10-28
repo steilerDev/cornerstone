@@ -6,7 +6,8 @@ import {
   scrollFromAnchor,
   type GanttScrollGeometry,
 } from './ganttScroll.js';
-import { COLUMN_WIDTHS, ROW_HEIGHT, computeChartRange, type GanttRow } from './ganttUtils.js';
+import { COLUMN_WIDTHS, ROW_HEIGHT, computeChartRange } from './ganttUtils.js';
+import type { GanttRow, ZoomLevel } from './ganttUtils.js';
 import type { ScheduleRowKey } from '../../lib/scheduleView.js';
 import { makeMilestone, makeTask } from '../../test/scheduleFixtures.js';
 
@@ -37,7 +38,7 @@ describe('dateAtX', () => {
 describe('anchorFromScroll', () => {
   it('anchors on the date at the left edge and the row at the top with its offset', () => {
     const anchor = anchorFromScroll(3 * COLUMN_WIDTHS.day, ROW_HEIGHT * 2 + 10, GEO);
-    expect(anchor).toEqual({ date: '2026-03-01', rowKey: 'task:b', rowOffset: 10 });
+    expect(anchor).toEqual({ date: '2026-03-01', dayOffset: 0, rowKey: 'task:b', rowOffset: 10 });
   });
 
   it('anchors a group header at the top on the row below it', () => {
@@ -135,5 +136,64 @@ describe('firstCurrentRowIndex', () => {
         today,
       ),
     ).toBe(-1);
+  });
+});
+
+describe('dayOffset (AC6: no drift on a round trip)', () => {
+  const zooms: ZoomLevel[] = ['day', 'week', 'month'];
+
+  it.each(zooms)(
+    'anchorFromScroll then scrollFromAnchor returns the same scrollLeft at %s zoom',
+    (zoom) => {
+      const geometry: GanttScrollGeometry = {
+        chartRange: computeChartRange('2026-03-01', '2026-06-30', zoom),
+        zoom,
+        rowKeys: KEYS,
+      };
+      const col = COLUMN_WIDTHS[zoom];
+      // whole columns and mid-day / mid-column positions
+      for (const x of [0, col * 0.5, col * 3, col * 3.37, col * 11.9, col * 20 + 0.25]) {
+        const anchor = anchorFromScroll(x, 0, geometry);
+        expect(anchor.dayOffset).toBeGreaterThanOrEqual(0);
+        expect(anchor.dayOffset).toBeLessThanOrEqual(1);
+        expect(scrollFromAnchor(anchor, geometry).left).toBeCloseTo(x, 6);
+      }
+    },
+  );
+
+  it('keeps the fraction through the day: half a day column is dayOffset 0.5', () => {
+    const anchor = anchorFromScroll(3.5 * COLUMN_WIDTHS.day, 0, GEO);
+    expect(anchor.date).toBe('2026-03-01');
+    expect(anchor.dayOffset).toBeCloseTo(0.5, 6);
+  });
+
+  it('a missing dayOffset (an older saved anchor) restores to the start of the day', () => {
+    const { left } = scrollFromAnchor({ date: '2026-03-01', rowKey: null, rowOffset: 0 }, GEO);
+    expect(left).toBe(3 * COLUMN_WIDTHS.day);
+    const withZero = scrollFromAnchor(
+      { date: '2026-03-01', dayOffset: 0, rowKey: null, rowOffset: 0 },
+      GEO,
+    );
+    expect(withZero.left).toBe(left);
+  });
+
+  it('restores a dayOffset inside the column', () => {
+    const { left } = scrollFromAnchor(
+      { date: '2026-03-01', dayOffset: 0.25, rowKey: null, rowOffset: 0 },
+      GEO,
+    );
+    expect(left).toBeCloseTo(3.25 * COLUMN_WIDTHS.day, 6);
+  });
+
+  it('a negative scrollLeft anchors at the very start with offset 0', () => {
+    const anchor = anchorFromScroll(-50, 0, GEO);
+    expect(anchor.dayOffset).toBe(0);
+    expect(scrollFromAnchor(anchor, GEO).left).toBe(0);
+  });
+
+  it('honours a custom column width', () => {
+    const geometry = { ...GEO, columnWidth: 20 };
+    const anchor = anchorFromScroll(65, 0, geometry);
+    expect(scrollFromAnchor(anchor, geometry).left).toBeCloseTo(65, 6);
   });
 });

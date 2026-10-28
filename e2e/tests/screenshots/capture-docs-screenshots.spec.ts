@@ -716,25 +716,14 @@ test.describe('Documentation screenshots', () => {
       timeout: 10000,
     });
 
-    // Ensure dependency arrows are visible (toggle on if needed)
-    const arrowPath = page.locator('svg path.dependency-arrow, svg path[marker-end]').first();
-    if ((await arrowPath.count()) === 0) {
-      // Try toggling the dependency arrows button
-      const toggleBtn = page.locator('[aria-label*="dependencies"], [aria-label*="arrows"]');
-      if ((await toggleBtn.count()) > 0) {
-        await toggleBtn.first().click();
-        await page.waitForTimeout(500);
-      }
+    // Dependency arrows and the critical path are items of the Show menu (#2247): make sure both
+    // are on, then close the menu
+    await page.getByTestId('schedule-show-trigger').click();
+    for (const key of ['arrows', 'critical']) {
+      const item = page.getByTestId(`schedule-show-${key}`);
+      if ((await item.getAttribute('aria-checked')) !== 'true') await item.click();
     }
-
-    // Also toggle critical path on if available
-    const criticalPathBtn = page.locator(
-      '[aria-label*="critical path"], [aria-label*="Critical path"]',
-    );
-    if ((await criticalPathBtn.count()) > 0) {
-      await criticalPathBtn.first().click();
-      await page.waitForTimeout(500);
-    }
+    await page.keyboard.press('Escape');
 
     await page.waitForTimeout(300);
 

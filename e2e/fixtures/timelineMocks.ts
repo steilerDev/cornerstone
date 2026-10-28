@@ -245,6 +245,7 @@ export function buildScheduleScenario(): TimelineResponse {
         id: SCHEDULE_IDS.purchase,
         name: 'Sched Kitchen island',
         status: 'scheduled',
+        targetDeliveryDate: daysFromToday(16),
         latestDeliveryDate: daysFromToday(16),
         earliestDeliveryDate: daysFromToday(16),
         area: KITCHEN,
@@ -262,4 +263,30 @@ export function buildScheduleScenario(): TimelineResponse {
       milestones: { [String(SCHEDULE_IDS.milestone)]: { count: 1, startingWithin14Days: 1 } },
     },
   });
+}
+
+/**
+ * The scenario plus two far-apart tasks (about 200 days) so the chart is wider than any viewport
+ * and can be scrolled sideways. The server's date range is kept, so toggles never change it.
+ */
+export function buildWideScheduleScenario(): TimelineResponse {
+  const scenario = buildScheduleScenario();
+  scenario.workItems.push(
+    mockWorkItem({
+      id: 'sched-far-past',
+      title: 'Sched Far Past',
+      status: 'not_started',
+      startDate: daysFromToday(-100),
+      endDate: daysFromToday(-96),
+    }),
+    mockWorkItem({
+      id: 'sched-far-future',
+      title: 'Sched Far Future',
+      status: 'not_started',
+      startDate: daysFromToday(100),
+      endDate: daysFromToday(104),
+    }),
+  );
+  scenario.dateRange = { earliest: daysFromToday(-100), latest: daysFromToday(104) };
+  return scenario;
 }

@@ -1181,7 +1181,11 @@ export function GanttChart({
       return;
     }
     const target = scrollFromAnchor(anchorFromScroll(left, top, previous), geometry);
-    applyScroll(target.left, target.top);
+    // Same columns (a data, toggle or width change only): the left edge must not move at all
+    const sameColumns =
+      previous.columnWidth === columnWidth &&
+      previous.chartRange.start.getTime() === chartRange.start.getTime();
+    applyScroll(sameColumns ? left : target.left, target.top);
     // Re-runs on geometry only: the first positioning reads the rest once, and a changed
     // anchor prop must never move a chart the user is looking at
     // eslint-disable-next-line @eslint-react/exhaustive-deps

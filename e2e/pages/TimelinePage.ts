@@ -520,21 +520,23 @@ export class TimelinePage {
     await this.page.getByTestId(`schedule-group-${group}`).click();
   }
 
-  /** Open the area picker from the chip and pick one area by its name. */
+  /**
+   * Open the area picker from the chip and pick one area. `name` is the option's accessible name:
+   * the area's path ("Wing, Room" for a child). The picker is a Modal (wide) or a bottom Sheet, and
+   * its result list is portaled, so everything is located page-wide.
+   */
   async chooseArea(name: string): Promise<void> {
     await this.areaChip.click();
-    await this.areaPicker.waitFor({ state: 'visible' });
-    const input = this.areaPicker
-      .getByRole('combobox')
-      .or(this.areaPicker.locator('input'))
-      .first();
-    await input.fill(name);
-    // An area row's accessible name is its path ("Wing, Room"): pass the full path for a child
-    const option = this.areaPicker.getByRole('option', { name, exact: true });
-    // A search answer can re-render the rows under the click: retry until the dialog closes
+    const input = this.page.locator('input[aria-label="Show one area"]');
+    await input.waitFor({ state: 'visible' });
+    await input.fill(name.split(', ').pop()!);
+    const option = this.page
+      .locator('[data-search-picker-dropdown]')
+      .getByRole('option', { name, exact: true });
+    // A search answer can re-render the rows under the click: retry until the picker closes
     await expect(async () => {
-      if (await this.areaPicker.isVisible()) await option.click();
-      await expect(this.areaPicker).toBeHidden();
+      if (await input.isVisible()) await option.click();
+      await expect(input).toBeHidden();
     }).toPass();
   }
 

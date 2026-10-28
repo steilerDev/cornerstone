@@ -84,10 +84,15 @@ export function readScheduleAnchor(locationKey: string): GanttScrollAnchor | nul
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
-    const { date, rowKey, rowOffset } = parsed as Record<string, unknown>;
+    const { date, rowKey, rowOffset, dayOffset } = parsed as Record<string, unknown>;
     if (typeof date !== 'string' || typeof rowOffset !== 'number') return null;
     if (rowKey !== null && !isRowKey(rowKey)) return null;
-    return { date, rowKey, rowOffset };
+    const validDayOffset =
+      typeof dayOffset === 'number' &&
+      Number.isFinite(dayOffset) &&
+      dayOffset >= 0 &&
+      dayOffset <= 1;
+    return validDayOffset ? { date, rowKey, rowOffset, dayOffset } : { date, rowKey, rowOffset };
   } catch {
     return null;
   }

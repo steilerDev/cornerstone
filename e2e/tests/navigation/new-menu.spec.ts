@@ -28,7 +28,9 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import {
   createAreaViaApi,
   createVendorViaApi,
+  createWorkItemViaApi,
   deleteAreaViaApi,
+  deleteWorkItemViaApi,
   deleteVendorViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { ROUTES } from '../../fixtures/testData.js';
@@ -470,9 +472,17 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
       const createMenu = new CreateMenu(page);
       const timeline = new TimelinePage(page);
       let areaId: string | null = null;
+      let taskId: string | null = null;
 
       try {
         areaId = await createAreaViaApi(page, { name: `${testPrefix} Prefill Area` });
+        // An area with nothing in it shows the "Nothing to show" state, so give it a task
+        taskId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} Prefill Task`,
+          areaId,
+          startDate: localToday(),
+          endDate: localToday(),
+        });
         await page.goto(`${routeUrl('scheduleGantt')}?areaId=${areaId}`);
         await timeline.heading.waitFor({ state: 'visible' });
         const surface = await timeline.surface();
@@ -499,6 +509,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
           routeUrl('workItemNew', undefined, { areaId }),
         );
       } finally {
+        if (taskId) await deleteWorkItemViaApi(page, taskId);
         if (areaId) await deleteAreaViaApi(page, areaId);
       }
     });

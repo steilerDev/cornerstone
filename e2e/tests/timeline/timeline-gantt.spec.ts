@@ -27,6 +27,7 @@
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import {
   buildScheduleScenario,
+  buildWideScheduleScenario,
   buildTimeline,
   mockWorkItem,
   SCHEDULE_IDS,
@@ -138,7 +139,9 @@ test.describe('Chart renders (Scenario 2)', () => {
       void page.goto(TIMELINE_ROUTE);
       await timelinePage.ganttSkeleton.waitFor({ state: 'visible' });
     } finally {
+      // Let the held request go and wait for it to be served before the route is removed
       release();
+      await timelinePage.waitForLoaded();
       await page.unroute('**/api/timeline');
     }
   });
@@ -316,7 +319,7 @@ test.describe('Show menu: dependency arrows (Scenario 6)', () => {
       await timelinePage.toggleShow('purchases');
       await expect(timelinePage.showItem('tasks')).toHaveAttribute('aria-disabled', 'true');
       // Activating it is a no-op: Tasks stay shown
-      await timelinePage.showItem('tasks').click();
+      await timelinePage.showItem('tasks').click({ force: true });
       await expect(timelinePage.showItem('tasks')).toHaveAttribute('aria-checked', 'true');
       await expect(timelinePage.ganttSidebarRow(SCHEDULE_IDS.foundation)).toBeVisible();
     } finally {
@@ -527,7 +530,7 @@ test.describe('First look (Scenario 11, AC1)', { tag: '@responsive' }, () => {
 
   test('Today jumps the chart back to the present', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
-    await timelinePage.mockTimeline(buildScheduleScenario());
+    await timelinePage.mockTimeline(buildWideScheduleScenario());
 
     try {
       await timelinePage.goto();
@@ -576,7 +579,9 @@ test.describe('View state is remembered (Scenario 12, AC1)', () => {
       // The change is written to the URL ...
       await expect(page).toHaveURL(/[?&]zoom=week/);
       await expect(page).toHaveURL(/[?&]group=area/);
-      await expect(page).toHaveURL(/[?&]show=[a-z,]*done/);
+      await expect(page).toHaveURL((url) =>
+        (url.searchParams.get('show') ?? '').split(',').includes('done'),
+      );
 
       // ... and saved as the preference (fire and forget: wait until the server has it)
       await expect
@@ -892,7 +897,7 @@ test.describe('Legend (Scenario 16)', () => {
       await expect(timelinePage.legendToggle).toHaveAttribute('aria-expanded', 'true');
       await expect(timelinePage.legend).toBeVisible();
       await expect(timelinePage.legend).toContainText('Late or held up');
-      await expect(timelinePage.legend).toContainText('Critical path');
+      await expect(timelinePage.legend).toContainText('critical path');
       await expect(timelinePage.legendDoneHidden).toHaveText('1 done item hidden');
     } finally {
       await timelinePage.unmockTimeline();

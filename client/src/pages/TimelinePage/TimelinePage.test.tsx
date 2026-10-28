@@ -182,6 +182,20 @@ describe('scroll memory helpers', () => {
     expect(readScheduleAnchor('other')).toBeNull();
   });
 
+  it('reads a valid dayOffset and ignores an invalid or missing one', () => {
+    const base = { date: '2026-03-02', rowKey: null, rowOffset: 0 };
+    for (const dayOffset of [0, 0.5, 1]) {
+      sessionStorage.setItem('schedule.scroll:d', JSON.stringify({ ...base, dayOffset }));
+      expect(readScheduleAnchor('d')).toEqual({ ...base, dayOffset });
+    }
+    for (const dayOffset of [-0.1, 1.5, '0.5', null]) {
+      sessionStorage.setItem('schedule.scroll:d', JSON.stringify({ ...base, dayOffset }));
+      expect(readScheduleAnchor('d')).toEqual(base);
+    }
+    sessionStorage.setItem('schedule.scroll:d', JSON.stringify(base));
+    expect(readScheduleAnchor('d')).toEqual(base);
+  });
+
   it('accepts a null row key and milestone and purchase keys', () => {
     for (const rowKey of [null, 'milestone:3', 'purchase:p1'] as const) {
       writeScheduleAnchor('k', { date: '2026-03-02', rowKey, rowOffset: 0 });

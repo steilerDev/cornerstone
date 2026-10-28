@@ -17,11 +17,7 @@
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
-import {
-  buildScheduleScenario,
-  daysFromToday,
-  mockWorkItem,
-} from '../../fixtures/timelineMocks.js';
+import { buildWideScheduleScenario, daysFromToday } from '../../fixtures/timelineMocks.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { StatusMenuControl } from '../../pages/components/StatusMenuControl.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
@@ -84,24 +80,7 @@ async function expectSamePosition(
 test.describe('Scroll and zoom stay put (AC6)', () => {
   test('K1: toggling Show items keeps the scroll position and the zoom', async ({ page }) => {
     const timeline = new TimelinePage(page);
-    const scenario = buildScheduleScenario();
-    scenario.workItems.push(
-      mockWorkItem({
-        id: 'sched-far-past',
-        title: 'Sched Far Past',
-        status: 'not_started',
-        startDate: daysFromToday(-100),
-        endDate: daysFromToday(-96),
-      }),
-      mockWorkItem({
-        id: 'sched-far-future',
-        title: 'Sched Far Future',
-        status: 'not_started',
-        startDate: daysFromToday(100),
-        endDate: daysFromToday(104),
-      }),
-    );
-    scenario.dateRange = { earliest: daysFromToday(-100), latest: daysFromToday(104) };
+    const scenario = buildWideScheduleScenario();
     await timeline.mockTimeline(scenario);
 
     try {
