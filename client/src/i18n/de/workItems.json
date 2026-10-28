@@ -31,8 +31,8 @@
       "done": "Abgeschlossen"
     },
     "group": {
-      "noArea": "Nicht zugewiesen",
-      "noCompany": "Nicht zugewiesen"
+      "noArea": "Kein Bereich",
+      "noCompany": "Keine Firma"
     },
     "sort": {
       "startDate": "Startdatum",

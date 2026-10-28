@@ -762,7 +762,7 @@
         "singular": "Nicht zugewiesen"
       },
       "deSource": "shipped",
-      "definition": "No value is set yet, for example no area or no company.",
+      "definition": "No person or owner is set yet, for example a task nobody is responsible for. \"No area\" and \"No company\" are not this term: they read \"Kein Bereich\" and \"Keine Firma\".",
       "doNotUse": [],
       "formerly": []
     },

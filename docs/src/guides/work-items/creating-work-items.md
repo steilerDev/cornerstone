@@ -1,11 +1,11 @@
 ---
 sidebar_position: 1
-title: Creating Work Items
+title: Creating Tasks
 ---
 
-# Creating Work Items
+# Creating Tasks
 
-## Creating a New Work Item
+## Creating a New Task
 
 From the Tasks page, click the **New task** button (or press `n`) to open the creation form.
 
@@ -23,16 +23,16 @@ From the Tasks page, click the **New task** button (or press `n`) to open the cr
 - **Area** -- A location within your project (e.g., "Kitchen", "Ground Floor")
 - **Start After** / **Start Before** -- Scheduling constraints for company or weather dependencies
 
-## Editing a Work Item
+## Editing a Task
 
-From the work item detail page, click the **Edit** button (or press `e`) to modify any field. Changes are saved when you submit the form.
+From the task detail page, click the **Edit** button (or press `e`) to modify any field. Changes are saved when you submit the form.
 
-## Deleting a Work Item
+## Deleting a Task
 
-From the work item detail page, click the **Delete** button (or press `Delete`). You'll be asked to confirm before the item is permanently removed.
+From the task detail page, click the **Delete** button (or press `Delete`). You'll be asked to confirm before the task is permanently removed.
 
 :::caution
-Deleting a work item also removes all its notes, subtasks, and dependency relationships. This action cannot be undone.
+Deleting a task also removes all its notes, subtasks, and dependency relationships. This action cannot be undone.
 :::
 
 ## Statuses
@@ -45,7 +45,7 @@ Deleting a work item also removes all its notes, subtasks, and dependency relati
 
 ## Scheduling
 
-Work items support flexible scheduling:
+Tasks support flexible scheduling:
 
 - Set a **start date** and **end date** for a fixed schedule
 - Set a **duration** to auto-calculate the end date from the start date

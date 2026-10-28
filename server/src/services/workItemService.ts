@@ -71,7 +71,7 @@ function getBudgetLineCount(db: DbType, workItemId: string): number {
     .from(workItemBudgets)
     .where(eq(workItemBudgets.workItemId, workItemId))
     .get();
-  return result?.count ?? 0;
+  return result!.count;
 }
 
 /**
@@ -746,7 +746,7 @@ function buildFilterMeta(db: DbType, baseConditions: SQL[]): FilterMeta {
     .from(workItems)
     .where(baseConditions.length > 0 ? and(...baseConditions) : undefined)
     .get();
-  return { budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 } };
+  return { budgetLines: { min: metaRow!.budgetLinesMin, max: metaRow!.budgetLinesMax } };
 }
 
 /** True when the shown dates fall inside the query's inclusive start/end ranges. */
@@ -880,7 +880,7 @@ export function listWorkItems(
     .from(workItems)
     .where(whereClause)
     .get();
-  const totalItems = countResult?.count ?? 0;
+  const totalItems = countResult!.count;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
@@ -1008,12 +1008,11 @@ export function listWorkItemRows(
     for (const entry of entries) groupCounts[windowOf.get(entry.row.id)!] += 1;
   }
 
-  const scopeTotal =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(workItems)
-      .where(query.status ? eq(workItems.status, query.status) : undefined)
-      .get()?.count ?? 0;
+  const scopeTotal = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItems)
+    .where(query.status ? eq(workItems.status, query.status) : undefined)
+    .get()!.count;
 
   // `ids` narrows the rows and the pagination, nothing else
   const idSet = new Set(idList);

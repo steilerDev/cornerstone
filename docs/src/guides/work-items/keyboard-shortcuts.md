@@ -15,12 +15,12 @@ Cornerstone includes keyboard shortcuts for faster navigation and actions.
 | `/` | Focus the search input |
 | `?` | Show keyboard shortcut help |
 
-## Work Item Detail
+## Task Detail
 
 | Shortcut | Action |
 |----------|--------|
-| `e` | Edit the work item |
-| `Delete` | Delete the work item |
+| `e` | Edit the task |
+| `Delete` | Delete the task |
 | `Escape` | Cancel the current action |
 
 :::tip

@@ -100,7 +100,9 @@ The row command depends on the task's status:
 - **Start** on a not-started task asks when it started. The planned start date is suggested.
 - **Mark done** on an in-progress task asks when it was finished.
 
-After **Mark done**, a short notification offers **Undo** if the change was a mistake. The **⋯** menu on each row has:
+On a phone or tablet card, the first entry of the **⋯** menu is the same command, but it applies immediately without the date step. Use the table on desktop when you want to record the actual start or finish date.
+
+After any single-row status change (**Start**, **Mark done**, or **Reopen**), a short notification offers **Undo** if the change was a mistake. The **⋯** menu on each row has:
 
 - **Open** -- Go to the task's detail page
 - **Reopen** -- Reopen a done task (done tasks only)
@@ -121,7 +123,7 @@ Click any work item to see its full detail page with all fields, notes, subtasks
 
 ## Next Steps
 
-- [Creating Work Items](creating-work-items) -- How to create and edit work items
+- [Creating Tasks](creating-work-items) -- How to create and edit tasks
 - [Areas & Trades](areas-and-trades) -- Organize by location and specialty
 - [Notes & Subtasks](notes-and-subtasks) -- Add comments and checklists
 - [Dependencies](dependencies) -- Link work items together

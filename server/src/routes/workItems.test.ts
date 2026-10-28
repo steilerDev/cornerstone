@@ -613,6 +613,28 @@ describe('Work Item Routes', () => {
     });
   });
 
+  describe('GET /api/work-items/:id/dependent-household-items', () => {
+    it('returns an empty list for a task nothing depends on', async () => {
+      const { userId, cookie } = await createUserWithSession('dep@example.com', 'D', 'password123');
+      const item = workItemService.createWorkItem(app.db, userId, { title: 'Pour slab' });
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${item.id}/dependent-household-items`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ householdItems: unknown[] }>()).toEqual({ householdItems: [] });
+    });
+
+    it('requires authentication', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items/wi-1/dependent-household-items',
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
   describe('GET /api/work-items — Tasks list rows (#2245)', () => {
     async function seedTwo() {
       const { userId, cookie } = await createUserWithSession(

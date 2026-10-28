@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemListRow, WorkItemStatus } from '@cornerstone/shared';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
@@ -101,12 +102,11 @@ export function useTaskActions(host: TaskActionsHost): UseTaskActionsResult {
     // Table and cards are both mounted and the inactive one is hidden by CSS: take the first
     // title that really accepts focus, else the h1.
     for (const element of titles) {
-      const id = (element.dataset.testid as string).replace(/^tasks-title-(mobile-)?/, '');
-      if (skip.has(id)) continue;
+      if (skip.has(element.dataset.testid as string)) continue;
       element.focus();
       if (document.activeElement === element) return;
     }
-    hostRef.current.headingRef.current?.focus();
+    (hostRef.current.headingRef.current as HTMLElement).focus();
   }, [focusTick]);
 
   /** "‹title› started." and, when the Time grouping is on, " Late now n." from the fresh counts. */
@@ -181,7 +181,13 @@ export function useTaskActions(host: TaskActionsHost): UseTaskActionsResult {
       const summary = t('list.bulk.updated', { count: done.length, total: eligible.length });
       if (done.length === eligible.length) {
         announceChange(summary, figures);
-        focusSkipRef.current = new Set(eligible.map((item) => item.id));
+        // Title testids of the acted rows on both surfaces (the one in use is hidden-agnostic).
+        focusSkipRef.current = new Set(
+          eligible.flatMap((item) => [
+            dataTableTestId('tasks-title', item.id, 'table'),
+            dataTableTestId('tasks-title', item.id, 'card'),
+          ]),
+        );
         clear();
         setFocusTick((tick) => tick + 1);
         return;
