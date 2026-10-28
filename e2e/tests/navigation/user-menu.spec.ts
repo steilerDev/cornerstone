@@ -138,15 +138,10 @@ test.describe('User menu', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    for (const key of ['n', '/', '?']) {
-      await expect(
-        dialog
-          .locator('kbd')
-          .filter({ hasText: new RegExp(`^${key === '?' || key === '/' ? '\\' + key : key}$`) }),
-      ).toBeVisible();
-    }
+    // The Tasks list registers `n` only (#2245: `/` and `?` are handled globally, not per page)
+    await expect(dialog.locator('kbd').filter({ hasText: /^n$/ })).toBeVisible();
     // #2212: the page's own `n` row wins over the shell's "Open the New menu" fallback
-    await expect(dialog).toContainText('New work item');
+    await expect(dialog).toContainText('New task');
     await expect(dialog).not.toContainText('Open the New menu');
     // #2209: a fixed "Everywhere" section lists the global undo shortcut
     await expect(dialog.getByRole('heading', { name: 'Everywhere' })).toBeVisible();

@@ -85,8 +85,10 @@ jest.unstable_mockModule('./lib/timelineApi.js', () => ({
 // Mock to prevent fetch calls in the jsdom test environment.
 // listWorkItems default value is set in beforeEach.
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
+const mockListWorkItemRows = jest.fn<typeof WorkItemsApiTypes.listWorkItemRows>();
 jest.unstable_mockModule('./lib/workItemsApi.js', () => ({
   listWorkItems: mockListWorkItems,
+  listWorkItemRows: mockListWorkItemRows,
   getWorkItem: jest.fn<typeof WorkItemsApiTypes.getWorkItem>(),
   createWorkItem: jest.fn<typeof WorkItemsApiTypes.createWorkItem>(),
   updateWorkItem: jest.fn<typeof WorkItemsApiTypes.updateWorkItem>(),
@@ -338,6 +340,7 @@ describe('App', () => {
     mockListMilestones.mockReset();
     mockGetTimeline.mockReset();
     mockListWorkItems.mockReset();
+    mockListWorkItemRows.mockReset();
     mockListHouseholdItems.mockReset();
     mockFetchVendors.mockReset();
     mockFetchVendor.mockReset();
@@ -433,6 +436,13 @@ describe('App', () => {
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+    });
+
+    // The Tasks list reads the rows endpoint
+    mockListWorkItemRows.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+      scopeTotal: 0,
     });
 
     // Default: household items returns empty paginated list (used by HouseholdItemsPage)

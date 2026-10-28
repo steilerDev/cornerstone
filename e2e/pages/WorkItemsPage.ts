@@ -262,7 +262,12 @@ export class WorkItemsPage {
     await this.listSection.waitFor({ state: 'attached' });
     await expect(this.listSection).not.toHaveAttribute('aria-busy', 'true');
     await expect(
-      this.titleLinks.first().or(this.emptyState).or(this.retryButton).or(this.groupToggles()),
+      this.titleLinks
+        .first()
+        .or(this.emptyState)
+        .or(this.retryButton)
+        .or(this.groupToggles().first())
+        .first(),
     ).toBeVisible();
   }
 
