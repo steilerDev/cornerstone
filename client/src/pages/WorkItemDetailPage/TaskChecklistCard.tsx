@@ -90,17 +90,18 @@ export function TaskChecklistCard({
   };
 
   const move = (index: number, by: -1 | 1) => {
+    const { title } = items[index]!;
     const ids = items.map((item) => item.id);
     const [moved] = ids.splice(index, 1);
     ids.splice(index + by, 0, moved!);
     void run(
       () => reorderSubtasks(workItemId, { subtaskIds: ids }),
       t('taskPage.checklist.updateError'),
-    ).then((moved) => {
-      if (!moved) return;
+    ).then((ok) => {
+      if (!ok) return;
       announce(
         t('taskPage.checklist.position', {
-          title: items[index]!.title,
+          title,
           position: index + by + 1,
           count: items.length,
         }),
