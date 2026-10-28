@@ -56,6 +56,16 @@ export function SidePanel({
     if (dockedOpen) titleRef.current!.focus();
   }, [dockedOpen, focusKey]);
 
+  // Docked: publish the panel's width so fixed overlays (the Undo toast) stay clear of it.
+  useEffect(() => {
+    if (!dockedOpen) return;
+    const root = document.documentElement;
+    root.style.setProperty('--docked-panel-width', 'var(--side-panel-width)');
+    return () => {
+      root.style.removeProperty('--docked-panel-width');
+    };
+  }, [dockedOpen]);
+
   if (!docked) {
     return (
       <Sheet

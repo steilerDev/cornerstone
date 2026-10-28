@@ -259,6 +259,44 @@ test.describe('Status change (P3, AC4)', () => {
   });
 });
 
+test.describe('Toast beside the docked panel (P3b, AC4)', () => {
+  test('While the Undo toast shows, Reschedule... stays clickable and the toast does not overlap the docked panel', async ({
+    page,
+    testPrefix,
+  }) => {
+    const timeline = new TimelinePage(page);
+    const toasts = new ToastRegion(page);
+    let id: string | null = null;
+
+    try {
+      id = await createReschedulable(page, `${testPrefix} Toast Overlap`);
+      await timeline.goto();
+      await timeline.showChart();
+      await timeline.openTaskPanel(id);
+      test.skip(!(await timeline.panelIsDocked()), 'Only the docked panel shares the screen');
+
+      await new StatusMenuControl(page, 'schedule-panel-status').chooseToday('in_progress');
+      await expect(toasts.undoToast).toBeVisible();
+
+      // The toast sits beside the panel, not over it
+      await expect(async () => {
+        const toast = await toasts.undoToast.first().boundingBox();
+        const panel = await timeline.panel.boundingBox();
+        expect(toast).not.toBeNull();
+        expect(panel).not.toBeNull();
+        expect(toast!.x + toast!.width).toBeLessThanOrEqual(panel!.x + 1);
+      }).toPass();
+
+      // ... so Reschedule... is clickable while the toast is still on screen
+      await timeline.panelReschedule.click();
+      await expect(timeline.reschedule).toBeVisible();
+      await expect(toasts.undoToast).toBeVisible();
+    } finally {
+      if (id) await deleteWorkItemViaApi(page, id);
+    }
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // P4: Open task
 // ─────────────────────────────────────────────────────────────────────────────

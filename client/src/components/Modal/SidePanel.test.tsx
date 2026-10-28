@@ -341,3 +341,60 @@ describe('SidePanel responding to viewport changes', () => {
     expect(screen.getByText('body control')).toBeInTheDocument();
   });
 });
+
+describe('SidePanel --docked-panel-width (the Toast keeps clear of the docked panel)', () => {
+  const read = () => document.documentElement.style.getPropertyValue('--docked-panel-width');
+
+  afterEach(() => {
+    document.documentElement.style.removeProperty('--docked-panel-width');
+  });
+
+  it('is set to the side panel width while docked and open', async () => {
+    media.set(SIDE_PANEL_DOCKED_QUERY, true);
+    media.set(WIDE_QUERY, true);
+    render(<Host />);
+    expect(read()).toBe('');
+    await userEvent.click(screen.getByText('opener'));
+    expect(read()).toBe('var(--side-panel-width)');
+  });
+
+  it('is removed when the docked panel closes', async () => {
+    media.set(SIDE_PANEL_DOCKED_QUERY, true);
+    media.set(WIDE_QUERY, true);
+    render(<Host initialOpen />);
+    expect(read()).toBe('var(--side-panel-width)');
+    await userEvent.click(screen.getByText('programmatic close'));
+    expect(read()).toBe('');
+  });
+
+  it('is removed on unmount', () => {
+    media.set(SIDE_PANEL_DOCKED_QUERY, true);
+    media.set(WIDE_QUERY, true);
+    const { unmount } = render(<Host initialOpen />);
+    expect(read()).toBe('var(--side-panel-width)');
+    unmount();
+    expect(read()).toBe('');
+  });
+
+  it('is removed when the media query flips to a Sheet, and set again when it flips back', () => {
+    media.set(SIDE_PANEL_DOCKED_QUERY, true);
+    media.set(WIDE_QUERY, true);
+    render(<Host initialOpen />);
+    media.set(SIDE_PANEL_DOCKED_QUERY, false);
+    expect(read()).toBe('');
+    media.set(SIDE_PANEL_DOCKED_QUERY, true);
+    expect(read()).toBe('var(--side-panel-width)');
+  });
+
+  it.each([
+    ['side sheet', true],
+    ['bottom sheet', false],
+  ])('is never set in the %s modes', async (_name, wide) => {
+    media.set(SIDE_PANEL_DOCKED_QUERY, false);
+    media.set(WIDE_QUERY, wide);
+    render(<Host />);
+    await userEvent.click(screen.getByText('opener'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(read()).toBe('');
+  });
+});
