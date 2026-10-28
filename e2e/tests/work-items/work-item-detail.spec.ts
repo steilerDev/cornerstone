@@ -280,7 +280,8 @@ test.describe('Checklist (Scenario 4)', { tag: '@responsive' }, () => {
       // Tick
       const checkbox = detailPage.checklistItem(alpha).getByRole('checkbox');
       await expect(checkbox).not.toBeChecked();
-      await checkbox.check();
+      // The box is controlled: it flips once the saved answer has been loaded again
+      await checkbox.click();
       await expect(checkbox).toBeChecked();
 
       // Rename

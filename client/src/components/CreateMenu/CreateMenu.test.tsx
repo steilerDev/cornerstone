@@ -99,7 +99,7 @@ describe('CreateMenu', () => {
     );
     expect(href('milestone')).toBe(routeUrl('milestoneNew', undefined, { date: '2026-03-01' }));
     expect(href('diaryEntry')).toBe(
-      routeUrl('diaryEntryNew', undefined, { areaId: 'a1', date: '2026-03-01' }),
+      routeUrl('diaryEntryNew', undefined, { areaId: 'a1', companyId: 'c1', date: '2026-03-01' }),
     );
     expect(href('offer')).toBe(
       routeUrl('invoices', undefined, { create: '1', kind: 'offer', companyId: 'c1' }),

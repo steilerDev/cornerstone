@@ -484,12 +484,13 @@ test.describe('Needs attention (H2 - H5)', { tag: '@responsive' }, () => {
     const home = await openHome(page, newHomeMockState({ attention: attentionResponse({ rows }) }));
     await home.reviewAllButton.click();
     await home.rowReschedule(rows[0]!.key, 'catch-up').click();
-    // The task page takes the intent and replaces the URL: Timing tab, no hash left
+    // The task does not exist in this mock, so the page never consumes the intent: the link's own
+    // URL stays (Timing tab, #reschedule)
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === routeUrl('workItem', { id: 'rs-1' }) &&
         url.searchParams.get('tab') === 'timing' &&
-        url.hash === '',
+        url.hash === '#reschedule',
     );
   });
 });
@@ -1112,12 +1113,13 @@ test.describe('Reschedule and legacy URLs (H15, H16)', { tag: '@responsive' }, (
     }
   });
 
-  test('H15: a task without dates cannot be rescheduled, so the link opens its Constraints card', async ({
+  test('H15: a done task cannot be rescheduled, so the link opens its Constraints card', async ({
     page,
     testPrefix,
   }) => {
-    const title = `${testPrefix} Home Reschedule Undated`;
-    const id = await createWorkItemViaApi(page, { title, status: 'in_progress' });
+    const title = `${testPrefix} Home Reschedule Done`;
+    // (an undated task still has forecast dates, so only a done task cannot be rescheduled)
+    const id = await createWorkItemViaApi(page, { title, status: 'completed' });
     try {
       const row = lateTaskRow({ id, title });
       const home = await openHome(

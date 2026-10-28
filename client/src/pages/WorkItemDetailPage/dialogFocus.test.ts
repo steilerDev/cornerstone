@@ -27,7 +27,7 @@ describe('restoreFocusAfterDialog', () => {
     document.body.replaceChildren();
   });
 
-  it('focuses the list Add button when the opener is gone and focus fell to the body', () => {
+  it('focuses the list Add button when the opener is gone', () => {
     opener.remove();
     restoreFocusAfterDialog({ current: opener }, 'list-add', { current: heading });
     expect(add).toHaveFocus();
@@ -52,11 +52,30 @@ describe('restoreFocusAfterDialog', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('leaves focus alone when it is already somewhere useful', () => {
+  it('focuses the Add button even when the closing dialog left focus on the page heading', () => {
     opener.remove();
+    heading.focus();
+    expect(heading).toHaveFocus();
+    restoreFocusAfterDialog({ current: opener }, 'list-add', { current: heading });
+    expect(add).toHaveFocus();
+  });
+
+  it('keeps focus on the heading when the Add button is missing and the heading already has it', () => {
+    opener.remove();
+    add.remove();
     heading.focus();
     restoreFocusAfterDialog({ current: opener }, 'list-add', { current: heading });
     expect(heading).toHaveFocus();
-    expect(add).not.toHaveFocus();
+  });
+
+  it('treats a missing opener like a gone one', () => {
+    restoreFocusAfterDialog({ current: null }, 'list-add', { current: heading });
+    expect(add).toHaveFocus();
+  });
+
+  it('leaves focus alone while the opener is connected, wherever focus is', () => {
+    heading.focus();
+    restoreFocusAfterDialog({ current: opener }, 'list-add', { current: heading });
+    expect(heading).toHaveFocus();
   });
 });

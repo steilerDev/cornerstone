@@ -628,6 +628,9 @@ test.describe('Waits for (T5, AC5, AC10)', { tag: '@responsive' }, () => {
     await task.dependencyAdd(task.waitsFor).click();
     const dialog = task.dependencyDialog(dependencyDialogTitles.addWaitsFor);
     await dialog.waitForOpen();
+    // The task chooser opens its list on focus and the list covers Save: leave it first
+    await dialog.heading.click();
+    await expect(new EntityPickerControl(page, 'task', dialog.dialog).dropdown).toBeHidden();
     await dialog.save();
 
     await expect(dialog.fieldError('task')).toHaveText('Choose a task.');
@@ -946,18 +949,20 @@ test.describe('Deep links (T10, D15)', { tag: '@responsive' }, () => {
     );
   });
 
-  test('#constraints, and #reschedule on a task without dates, start editing the Constraints card', async ({
+  test('#constraints, and #reschedule on a task that cannot be rescheduled, start editing the Constraints card', async ({
     page,
     testPrefix,
   }) => {
+    // An undated task still has forecast dates, so it CAN be rescheduled: a done task cannot
     const id = await makeTask(page, `${testPrefix} T10 Constraints`);
+    const done = await makeTask(page, `${testPrefix} T10 Done`, { status: 'completed' });
     const task = new WorkItemDetailPage(page);
 
     await task.goto(id, { hash: '#constraints' });
     await expect(task.tabs.tab('timing')).toHaveAttribute('aria-selected', 'true');
     await expect(task.constraintsCard.form).toBeVisible();
 
-    await task.goto(id, { query: { tab: 'overview' }, hash: '#reschedule' });
+    await task.goto(done, { query: { tab: 'overview' }, hash: '#reschedule' });
     await expect(task.constraintsCard.form).toBeVisible();
     await expect(task.rescheduleSection).toHaveCount(0);
   });

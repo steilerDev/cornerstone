@@ -170,6 +170,12 @@
   justify-content: flex-start;
 }
 
+/* The Add menu opens downward over the page end; with the phone/tablet bottom bar shown, keep
+   room for it (and the bar) below the row so the last item can scroll clear of the bar. */
+:root[data-shell-bar='shown'] .addRow:last-child {
+  padding-bottom: calc(var(--shell-bottom-height) + var(--spacing-16));
+}
+
 /* ---- History ---- */
 
 .historyLine {
