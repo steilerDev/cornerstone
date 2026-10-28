@@ -65,7 +65,7 @@ Below the header, a strip shows the key facts for the company:
 
 The **Overview** tab holds four cards:
 
-- **Contact Persons** -- one row for each person, with the name, role, phone and e-mail. Each row has a **Call** button that dials that person's number. A person without a phone number shows **No phone number**. Select **New contact person** to add someone. Use a row's **⋯** menu to edit the person or remove them. Removing a contact person shows a message with an **Undo** button, which restores the person. A contact person needs a first name or a last name.
+- **Contact persons** -- one row for each person, with the name, role, phone and e-mail. Each row has a **Call** button that dials that person's number. A person without a phone number shows **No phone number**. Select **New contact person** to add someone. Use a row's **⋯** menu to edit the person or remove them. Removing a contact person shows a message with an **Undo** button, which restores the person. A contact person needs a first name or a last name.
 - **Phone and e-mail** -- the company's phone number and e-mail address.
 - **Address** -- the company's postal address.
 - **About** -- the company's name and notes, and who added the company (**Added by**).
