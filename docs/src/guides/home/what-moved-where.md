@@ -32,6 +32,10 @@ The old invoice summary cards are gone too. Their counts now sit on the status c
 
 **Assigned To** on a task is one picker with two groups: companies and household members. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
 
+## Companies
+
+Each company has its own page under **Companies** in the main navigation. Open it to see the company's **Still to pay** and **Paid** totals, its contact persons with a **Call** button, and its invoices, offers, progress payments, tasks, site diary entries and history. To pay an invoice, use **Money > Invoices** as before. See [Invoices & Companies](/guides/budget/vendors-and-invoices#company-page) for the full page.
+
 ## What the labels mean
 
 The rows in **Needs attention** and **Tidy up** each carry a label. The label tells you how urgent the row is. The words on each row describe what happened, with a date.

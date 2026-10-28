@@ -45,7 +45,17 @@ export interface ObjectFormField {
   readonly name: string;
   /** Already translated. */
   readonly label: string;
-  readonly kind: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select' | 'color' | 'custom';
+  readonly kind:
+    | 'text'
+    | 'textarea'
+    | 'number'
+    | 'date'
+    | 'url'
+    | 'tel'
+    | 'email'
+    | 'select'
+    | 'color'
+    | 'custom';
   /** Shown before "More details". */
   readonly essential?: boolean;
   readonly required?: boolean;
@@ -71,6 +81,8 @@ export interface ObjectFormField {
   /** Number inputs only. */
   readonly inputMode?: 'decimal' | 'numeric';
   readonly maxLength?: number;
+  /** Single-line inputs only: the HTML autocomplete token (e.g. 'tel', 'email'). */
+  readonly autoComplete?: string;
   readonly testId?: string;
   /** The field is rendered only while this returns true; hidden fields take no part in focus, "More details" or errors. */
   readonly visibleWhen?: (values: ObjectFormValues) => boolean;

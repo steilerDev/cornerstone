@@ -917,10 +917,10 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.invoiceCount).toBe(3);
-      expect(body.vendor.outstandingBalance).toBe(600);
+      expect(body.vendor.stillToPay).toBe(600);
     });
 
-    it('returns invoiceCount 0 and outstandingBalance 0 when no invoices', async () => {
+    it('returns invoiceCount 0 and stillToPay 0 when no invoices', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Clean Vendor');
 
@@ -933,7 +933,7 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.invoiceCount).toBe(0);
-      expect(body.vendor.outstandingBalance).toBe(0);
+      expect(body.vendor.stillToPay).toBe(0);
     });
 
     it('returns 404 NOT_FOUND for non-existent vendor', async () => {
@@ -979,6 +979,123 @@ describe('Vendor Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  // ─── #2244: relations, money fields, still_to_pay sort ───────────────────
+
+  describe('GET /api/vendors/:id/relations (#2244)', () => {
+    it('returns 401 without a session', async () => {
+      const vendor = createTestVendor('Rel Auth');
+
+      const res = await app.inject({ method: 'GET', url: `/api/vendors/${vendor.id}/relations` });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 404 NOT_FOUND for an unknown company', async () => {
+      const { cookie } = await createUserWithSession('rel@test.com', 'Rel', 'password');
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/vendors/no-such-vendor/relations',
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 200 with the three sections for a member', async () => {
+      const { cookie } = await createUserWithSession('rel2@test.com', 'Rel', 'password', 'member');
+      const vendor = createTestVendor('Rel Co');
+      const now = new Date().toISOString();
+      app.db
+        .insert(workItems)
+        .values({
+          id: 'rel-wi',
+          title: 'Screed',
+          status: 'in_progress',
+          assignedVendorId: vendor.id,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(workItemBudgets)
+        .values({
+          id: 'rel-line',
+          workItemId: null,
+          vendorId: vendor.id,
+          plannedAmount: 42,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${vendor.id}/relations`,
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json<{
+        workItems: Array<{ id: string; title: string }>;
+        householdItems: unknown[];
+        budgetLines: Array<{ id: string; parent: unknown }>;
+      }>();
+      expect(body.workItems.map((w) => w.title)).toEqual(['Screed']);
+      expect(body.householdItems).toEqual([]);
+      expect(body.budgetLines).toEqual([
+        { id: 'rel-line', description: null, plannedAmount: 42, parent: null },
+      ]);
+    });
+  });
+
+  describe('GET /api/vendors money fields and still_to_pay sort (#2244)', () => {
+    it('carries stillToPay, paid and offers on each list row, equal to the detail', async () => {
+      const { cookie } = await createUserWithSession('money@test.com', 'Money', 'password');
+      const a = createTestVendor('Money A');
+      const b = createTestVendor('Money B');
+      createTestInvoice(a.id, 'pending', 300);
+      createTestInvoice(b.id, 'paid', 80);
+
+      const list = await app.inject({ method: 'GET', url: '/api/vendors', headers: { cookie } });
+      const rows = list.json<{ vendors: Array<VendorDetail> }>().vendors;
+
+      expect(rows.find((v) => v.id === a.id)).toMatchObject({ stillToPay: 300, paid: 0 });
+      expect(rows.find((v) => v.id === b.id)).toMatchObject({ stillToPay: 0, paid: 80 });
+      for (const row of rows) {
+        const detail = await app.inject({
+          method: 'GET',
+          url: `/api/vendors/${row.id}`,
+          headers: { cookie },
+        });
+        const d = detail.json<{ vendor: VendorDetail }>().vendor;
+        expect([row.stillToPay, row.paid, row.offers]).toEqual([d.stillToPay, d.paid, d.offers]);
+      }
+    });
+
+    it.each([
+      ['asc', ['Sort Zero', 'Sort Mid', 'Sort Big']],
+      ['desc', ['Sort Big', 'Sort Mid', 'Sort Zero']],
+    ] as const)('accepts sortBy=still_to_pay (%s)', async (order, expected) => {
+      const { cookie } = await createUserWithSession('sort@test.com', 'Sort', 'password');
+      createTestInvoice(createTestVendor('Sort Big').id, 'pending', 900);
+      createTestInvoice(createTestVendor('Sort Mid').id, 'pending', 90);
+      createTestVendor('Sort Zero');
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/vendors?sortBy=still_to_pay&sortOrder=${order}`,
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json<{ vendors: Vendor[] }>().vendors.map((v) => v.name)).toEqual([...expected]);
     });
   });
 
@@ -1059,7 +1176,7 @@ describe('Vendor Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('returns VendorDetail shape (includes invoiceCount and outstandingBalance)', async () => {
+    it('returns VendorDetail shape (includes invoiceCount and stillToPay)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Update Detail Vendor');
       createTestInvoice(vendor.id, 'pending', 250);
@@ -1074,7 +1191,15 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.invoiceCount).toBe(1);
-      expect(body.vendor.outstandingBalance).toBe(250);
+      expect(body.vendor.stillToPay).toBe(250);
+      expect(body.vendor).toMatchObject({
+        paid: 0,
+        offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+        openTaskCount: 0,
+        onSiteDays: 0,
+        lastOnSite: null,
+      });
+      expect(body.vendor).not.toHaveProperty('outstandingBalance');
     });
 
     // (tradeId null test moved to above, now unskipped)

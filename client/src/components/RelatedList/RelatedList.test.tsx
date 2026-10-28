@@ -320,6 +320,54 @@ describe('RelatedList: one fixture per relation', () => {
   });
 });
 
+describe('RelatedList: row Call button (#2244)', () => {
+  const callRow: RelatedListRow = {
+    id: 'c1',
+    title: 'Pat Example',
+    amount: '€5.00',
+    call: { phone: '+49 30 555-0142', name: 'Pat Example' },
+  };
+
+  // Mutation: dropping the `row.call` guard renders a Call link on every row.
+  it('renders a Call link for a row with a number and none for a row without', () => {
+    renderHost({ initialRows: [callRow, { id: 'c2', title: 'No Phone' }] });
+
+    const call = screen.getByTestId('rel-call-c1');
+    expect(call).toHaveAttribute('href', 'tel:+49305550142');
+    expect(call).toHaveAccessibleName('Call Pat Example on +49 30 555-0142');
+    expect(screen.queryByTestId('rel-call-c2')).toBeNull();
+  });
+
+  it('marks only the row with a call as rowWithCall and puts the cell inside that row', () => {
+    renderHost({ initialRows: [callRow, { id: 'c2', title: 'No Phone' }] });
+
+    expect(screen.getByTestId('rel-row-c1')).toHaveClass('row', 'rowWithCall');
+    expect(screen.getByTestId('rel-row-c2')).toHaveClass('row');
+    expect(screen.getByTestId('rel-row-c2')).not.toHaveClass('rowWithCall');
+    expect(within(screen.getByTestId('rel-row-c1')).getByTestId('rel-call-c1')).toBe(
+      screen.getByTestId('rel-call-c1'),
+    );
+  });
+
+  it('places the Call cell after the amount and before the Edit cell', () => {
+    renderHost({ initialRows: [callRow] });
+    const row = screen.getByTestId('rel-row-c1');
+    const order = (el: HTMLElement) => Array.from(row.children).indexOf(el.closest('li > *')!);
+
+    expect(order(screen.getByText('€5.00'))).toBeLessThan(order(screen.getByTestId('rel-call-c1')));
+    expect(order(screen.getByTestId('rel-call-c1'))).toBeLessThan(
+      order(screen.getByTestId('rel-actions-c1')),
+    );
+  });
+
+  it('gives the Call button the callButton host class and keeps the row link out of its way', () => {
+    renderHost({ initialRows: [{ ...callRow, to: '/project/contacts/c1' }] });
+
+    expect(screen.getByTestId('rel-call-c1')).toHaveClass('button', 'callButton');
+    expect(screen.getByTestId('rel-call-c1').closest('.callCell')).not.toBeNull();
+  });
+});
+
 describe('RelatedList: heading, loading and error', () => {
   it('renders an h3 when headingLevel is 3', () => {
     renderHost({ headingLevel: 3 });

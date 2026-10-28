@@ -251,29 +251,26 @@ test.describe('Money truth — company Still to pay (AC2)', { tag: '@responsive'
     await makeInvoice(page, vendorId, { amount: 700, date: '2026-01-06', status: 'claimed' });
 
     const vendorPage = new VendorDetailPage(page);
-    await vendorPage.goto(vendorId);
-    await expect(vendorPage.invoicesHeaderOutstanding).toBeVisible();
+    // Payments: the strip fact and the totals line are the two Still to pay markers (#2244)
+    await vendorPage.goto(vendorId, 'payments');
+    await vendorPage.waitForPaymentsLoaded();
+    await expect(vendorPage.stillToPayFigures.filter({ visible: true })).toHaveCount(2);
 
     // Both places show formatted 0
-    await expect(vendorPage.outstandingBalanceValue).toContainText(/0[.,]00/);
-    await expect(vendorPage.invoicesHeaderOutstanding).toContainText(/0[.,]00/);
+    const stripFigure = vendorPage.summary.figure('still-to-pay');
+    await expect(stripFigure).toContainText(/0[.,]00/);
+    await expect(vendorPage.stillToPayFigure).toContainText(/0[.,]00/);
 
-    // No danger colour: zero values use the neutral colour of their non-danger reference
-    const statColorZero = await vendorPage.outstandingBalanceValue.evaluate(
-      (el) => getComputedStyle(el).color,
-    );
-    const neutralStatColor = await vendorPage.totalInvoicesStat
-      .locator('[class*="statValue"]')
-      .evaluate((el) => getComputedStyle(el).color);
-    expect(statColorZero).toBe(neutralStatColor);
-
-    const headerColorZero = await vendorPage.invoicesHeaderOutstanding.evaluate(
-      (el) => getComputedStyle(el).color,
-    );
-    const headerNeutralColor = await vendorPage.invoicesHeaderOutstanding.evaluate(
+    // Neutral colour: neither marker uses a danger colour, zero or not. The strip figure takes the
+    // colour of its own fact link, the totals figure that of the Paid figure beside it.
+    const colorOf = (locator: typeof stripFigure) =>
+      locator.evaluate((el) => getComputedStyle(el).color);
+    const stripNeutral = await stripFigure.evaluate(
       (el) => getComputedStyle(el.parentElement!).color,
     );
-    expect(headerColorZero).toBe(headerNeutralColor);
+    expect(await colorOf(stripFigure)).toBe(stripNeutral);
+    const totalsNeutral = await colorOf(vendorPage.paidFigure);
+    expect(await colorOf(vendorPage.stillToPayFigure)).toBe(totalsNeutral);
 
     // Pending 1000 with a paid progress payment of 400 -> 600 still to pay
     const pendingId = await makeInvoice(page, vendorId, {
@@ -284,14 +281,15 @@ test.describe('Money truth — company Still to pay (AC2)', { tag: '@responsive'
     await makePaidProgressPayment(page, pendingId, 400);
 
     await page.reload();
-    await expect(vendorPage.invoicesHeaderOutstanding).toContainText(amountRegex(600));
-    await expect(vendorPage.outstandingBalanceValue).toContainText(amountRegex(600));
+    await vendorPage.waitForPaymentsLoaded();
+    await expect(stripFigure).toContainText(amountRegex(600));
+    await expect(vendorPage.stillToPayFigure).toContainText(amountRegex(600));
 
-    // Non-zero is highlighted: colour now differs from the neutral reference
-    const statColorOpen = await vendorPage.outstandingBalanceValue.evaluate(
-      (el) => getComputedStyle(el).color,
+    // Non-zero stays neutral too (the figure is information, not a warning)
+    expect(await colorOf(stripFigure)).toBe(
+      await stripFigure.evaluate((el) => getComputedStyle(el.parentElement!).color),
     );
-    expect(statColorOpen).not.toBe(neutralStatColor);
+    expect(await colorOf(vendorPage.stillToPayFigure)).toBe(await colorOf(vendorPage.paidFigure));
   });
 });
 
@@ -312,7 +310,8 @@ test.describe('Money truth — new invoice default status (AC3)', { tag: '@respo
     const vendorId = await makeVendor(page, `${testPrefix} Default Status Co ${Date.now()}`);
     const vendorPage = new VendorDetailPage(page);
     const dialog = new InvoiceFormDialog(page, 'invoice');
-    await vendorPage.goto(vendorId);
+    await vendorPage.goto(vendorId, 'payments');
+    await vendorPage.waitForPaymentsLoaded();
     await vendorPage.newInvoiceButton.click();
     await dialog.waitForOpen();
     await expect(dialog.status).toBeVisible();

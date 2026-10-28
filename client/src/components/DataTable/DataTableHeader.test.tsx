@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableHeader } from './DataTableHeader.js';
@@ -115,13 +115,111 @@ describe('DataTableHeader', () => {
     });
   });
 
+  describe('sort key, class and filter-key fallbacks (whole-file coverage, #2244)', () => {
+    const custom: ColumnDef<TestItem>[] = [
+      {
+        key: 'title',
+        label: 'Title',
+        sortable: true,
+        sortKey: 'title_text',
+        headerClassName: 'hostHeader',
+        render: (item) => item.title,
+      },
+      {
+        key: 'amount',
+        label: 'Amount',
+        filterable: true,
+        filterType: 'string',
+        getValue: (item) => item.amount,
+        render: (item) => item.amount,
+      },
+    ];
+    const keys = new Set(['title', 'amount']);
+
+    it('matches the sorted column by its sortKey for the arrow and aria-sort', () => {
+      const { container } = renderHeader({
+        columns: custom,
+        visibleColumns: keys,
+        tableState: makeTableState({ sortBy: 'title_text', sortDir: 'asc' }),
+      });
+
+      const th = container.querySelectorAll('th')[0]!;
+      expect(th).toHaveAttribute('aria-sort', 'ascending');
+      expect(screen.getByText(/Title.*↑/)).toBeInTheDocument();
+    });
+
+    it('does not mark a column sorted when only its key (not its sortKey) matches', () => {
+      const { container } = renderHeader({
+        columns: custom,
+        visibleColumns: keys,
+        tableState: makeTableState({ sortBy: 'title', sortDir: 'asc' }),
+      });
+
+      expect(container.querySelectorAll('th')[0]).toHaveAttribute('aria-sort', 'none');
+    });
+
+    it('reports none and no arrow for a sorted column without a direction', () => {
+      const { container } = renderHeader({
+        tableState: makeTableState({ sortBy: 'title', sortDir: null }),
+      });
+
+      expect(container.querySelectorAll('th')[0]).toHaveAttribute('aria-sort', 'none');
+      expect(screen.queryByText(/[↑↓]/)).toBeNull();
+    });
+
+    it('appends the host header class to the th', () => {
+      const { container } = renderHeader({ columns: custom, visibleColumns: keys });
+
+      expect(container.querySelectorAll('th')[0]).toHaveClass('hostHeader');
+    });
+
+    it('opens the popover for a getValue column and applies the filter under the column key', async () => {
+      const user = userEvent.setup();
+      const onFilter = jest.fn();
+      renderHeader({
+        columns: custom,
+        visibleColumns: keys,
+        onFilter,
+        tableState: makeTableState({ filters: new Map([['amount', { value: '5' }]]) }),
+      });
+
+      await user.click(screen.getByRole('button', { name: /filter by amount/i }));
+
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByDisplayValue('5')).toBeInTheDocument();
+    });
+
+    it('opens an empty popover for a getValue column with no active filter', async () => {
+      const user = userEvent.setup();
+      renderHeader({ columns: custom, visibleColumns: keys });
+
+      await user.click(screen.getByRole('button', { name: /filter by amount/i }));
+
+      expect(within(await screen.findByRole('dialog')).getByRole('textbox')).toHaveValue('');
+    });
+
+    it('offers a filter button for a getValue column without a filterParamKey, keyed by the column key', () => {
+      renderHeader({
+        columns: custom,
+        visibleColumns: keys,
+        tableState: makeTableState({ filters: new Map([['amount', { value: '5' }]]) }),
+      });
+
+      const button = screen.getByRole('button', { name: /filter by amount/i });
+      expect(button.className).toContain('tableHeaderFilterButtonActive');
+    });
+  });
+
   describe('sort aria-sort attributes', () => {
-    it('has aria-sort="none" on all columns when no sort is active', () => {
+    it('has aria-sort="none" on sortable columns and no aria-sort on the non-sortable one when no sort is active', () => {
       const { container } = renderHeader();
       const headers = container.querySelectorAll('th');
-      headers.forEach((th) => {
-        expect(th).toHaveAttribute('aria-sort', 'none');
+      // 'id' (index 2) is not sortable: a state it cannot be in must not be announced.
+      headers.forEach((th, index) => {
+        if (index === 2) expect(th).not.toHaveAttribute('aria-sort');
+        else expect(th).toHaveAttribute('aria-sort', 'none');
       });
+      expect(headers[2]!).toHaveTextContent('ID');
     });
 
     it('has aria-sort="ascending" on the sorted column when sortDir is "asc"', () => {
@@ -246,6 +344,18 @@ describe('DataTableHeader', () => {
 
       await user.click(filterBtn);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('a second click on the filter button closes the open popover (toggle)', async () => {
+      const user = userEvent.setup();
+      renderHeader();
+      const button = screen.getByRole('button', { name: /filter by title/i });
+
+      await user.click(button);
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      await user.click(button);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
 
     it('filter button has active class when filter is active for that column', () => {

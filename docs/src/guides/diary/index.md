@@ -17,7 +17,7 @@ The diary provides:
 - **Photo Attachments** -- Capture photos on your phone and tag them with a caption, area, and orientation for visual documentation
 - **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser (touch-enabled)
 - **Unfinished Drafts** -- Entries you started but did not finish are listed in an **Unfinished** row at the top of the Site diary, where you can continue or discard them
-- **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable
+- **Signature Capture** -- Collect digital signatures from users or companies with a drawing canvas; signed entries become immutable
 - **Infinite Scroll** -- Entries load automatically as you scroll; a "Load more" button lets you fetch the next batch without scrolling
 - **Filters** -- Narrow the Site diary by entry type, area, company, and date range
 

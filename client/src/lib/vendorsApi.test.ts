@@ -40,7 +40,12 @@ describe('vendorsApi', () => {
   const sampleVendorDetail: VendorDetail = {
     ...sampleVendor,
     invoiceCount: 3,
-    outstandingBalance: 800,
+    stillToPay: 800,
+    paid: 120,
+    offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+    openTaskCount: 1,
+    onSiteDays: 2,
+    lastOnSite: '2026-03-05',
     contacts: [],
   };
 
@@ -276,7 +281,7 @@ describe('vendorsApi', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/vendors/vendor-1', expect.any(Object));
     });
 
-    it('returns VendorDetail with invoiceCount and outstandingBalance', async () => {
+    it('returns VendorDetail with invoiceCount and money figures', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ vendor: sampleVendorDetail }),
@@ -287,7 +292,8 @@ describe('vendorsApi', () => {
       expect(result.id).toBe('vendor-1');
       expect(result.name).toBe('Smith Plumbing');
       expect(result.invoiceCount).toBe(3);
-      expect(result.outstandingBalance).toBe(800);
+      expect(result.stillToPay).toBe(800);
+      expect(result.lastOnSite).toBe('2026-03-05');
     });
 
     it('unwraps the vendor from the response envelope', async () => {

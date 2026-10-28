@@ -1,12 +1,18 @@
 /**
- * E2E tests for Vendor Contacts CRUD (Story #933)
+ * E2E tests for contact persons of a company (Story #933, rebuilt on #2244).
+ *
+ * The Contacts section of the old vendor page is the Contact persons list of the Overview tab
+ * (RelatedList): "New contact person" opens the shared ObjectForm dialog, a row has Edit and a
+ * ⋯ menu with Remove, and Remove acts at once with an Undo toast (no confirmation dialog). The
+ * wider company-page behaviour (Call rule, cards, Payments, ...) is in
+ * tests/companies/company-page.spec.ts.
  *
  * UAT Scenarios covered:
- * - Scenario 1: [smoke] Add a vendor contact — happy path, all fields
- * - Scenario 2: Edit a vendor contact — change name
- * - Scenario 3: Delete a vendor contact — confirm removes from list
- * - Scenario 4: Contacts list is empty initially for a new vendor
- * - Scenario 5: Name is required — validation error shown
+ * - Scenario 1: [smoke] Add a contact person - all fields
+ * - Scenario 2: Edit a contact person - change name
+ * - Scenario 3: Remove a contact person - gone, Undo restores it
+ * - Scenario 4: The list is empty initially for a new company
+ * - Scenario 5: A first or last name is required - validation error shown
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -28,15 +34,25 @@ async function createVendorViaApi(page: Page, name: string): Promise<string> {
   return body.vendor.id;
 }
 
+async function createContactViaApi(
+  page: Page,
+  vendorId: string,
+  data: { firstName: string; lastName: string; role?: string },
+): Promise<string> {
+  const response = await page.request.post(`${API.vendors}/${vendorId}/contacts`, { data });
+  expect(response.ok(), `POST contact: ${response.status()}`).toBeTruthy();
+  return ((await response.json()) as { contact: { id: string } }).contact.id;
+}
+
 async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.vendors}/${id}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1 (smoke): Add a vendor contact — all fields
+// Scenario 1 (smoke): Add a contact person — all fields
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Add vendor contact (Scenario 1)', () => {
+test.describe('Add contact person (Scenario 1)', { tag: '@responsive' }, () => {
   let vendorId: string;
 
   test.beforeEach(async ({ page, testPrefix }) => {
@@ -47,52 +63,48 @@ test.describe('Add vendor contact (Scenario 1)', () => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test('[smoke] Add a vendor contact with all fields', { tag: '@smoke' }, async ({ page }) => {
+  test('[smoke] Add a contact person with all fields', { tag: '@smoke' }, async ({ page }) => {
     const vendorPage = new VendorDetailPage(page);
 
-    // Given: A vendor exists and the user is on the detail page
+    // Given: A company exists and the user is on its page
     await vendorPage.goto(vendorId);
 
-    // When: User opens the Add Contact modal
-    await vendorPage.openAddContactModal();
-
-    // And: Fills in all contact fields
-    await vendorPage.fillCreateContactForm({
+    // When: The user adds a contact person with every field and saves
+    await vendorPage.addContact({
       firstName: 'Jane',
       lastName: 'Smith',
       role: 'Site Manager',
       phone: '+49 123 456',
       email: 'jane@example.com',
+      notes: 'Reachable after 8 am',
     });
 
-    // And: Submits the form
-    await vendorPage.submitCreateContact();
+    // Then: The person appears in the list with role, number and e-mail
+    const jane = vendorPage.contactRow('Jane Smith');
+    await expect(jane).toBeVisible();
+    await expect(jane).toContainText('Site Manager');
+    await expect(jane).toContainText('+49 123 456');
+    await expect(jane).toContainText('jane@example.com');
 
-    // Then: The contact appears in the contacts list
-    const contacts = await vendorPage.getContactItems();
-    expect(contacts.some((c) => c.name === 'Jane Smith')).toBe(true);
-
-    // And: The contacts list is visible (no longer showing empty state)
-    await expect(vendorPage.contactsEmptyState).not.toBeVisible();
-
-    // And: The contact's role is shown
-    const jane = contacts.find((c) => c.name === 'Jane Smith');
-    expect(jane?.role).toBe('Site Manager');
+    // And: The empty message is gone
+    await expect(vendorPage.contacts.emptyMessage(/No contact persons yet/)).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Edit a vendor contact
+// Scenario 2: Edit a contact person
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Edit vendor contact (Scenario 2)', () => {
+test.describe('Edit contact person (Scenario 2)', { tag: '@responsive' }, () => {
   let vendorId: string;
+  let contactId: string;
 
   test.beforeEach(async ({ page, testPrefix }) => {
     vendorId = await createVendorViaApi(page, `${testPrefix} Edit Contact Vendor`);
-    // Pre-create a contact via API
-    await page.request.post(`${API.vendors}/${vendorId}/contacts`, {
-      data: { firstName: 'Jane', lastName: 'Smith', role: 'Site Manager' },
+    contactId = await createContactViaApi(page, vendorId, {
+      firstName: 'Jane',
+      lastName: 'Smith',
+      role: 'Site Manager',
     });
   });
 
@@ -100,80 +112,81 @@ test.describe('Edit vendor contact (Scenario 2)', () => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test('Edit a vendor contact — change name', async ({ page }) => {
+  test('Edit a contact person — change name', async ({ page }) => {
     const vendorPage = new VendorDetailPage(page);
 
-    // Given: A vendor with an existing contact
+    // Given: A company with an existing contact person
     await vendorPage.goto(vendorId);
+    await expect(vendorPage.contactRow('Jane Smith')).toBeVisible();
 
-    // Verify the contact is present before editing (the list loads after the title)
-    await expect(vendorPage.contactsList.getByText('Jane Smith')).toBeVisible();
-    const contactsBefore = await vendorPage.getContactItems();
-    expect(contactsBefore.some((c) => c.name === 'Jane Smith')).toBe(true);
+    // When: The user opens the edit dialog, which shows the stored values
+    await vendorPage.openEditContact(contactId);
+    await expect(
+      vendorPage.editContactDialog.dialog.getByTestId('contact-person-first-name'),
+    ).toHaveValue('Jane');
 
-    // When: User opens the edit modal for the contact
-    await vendorPage.openEditContactModal('Jane Smith');
+    // And: Changes the last name and saves
+    await vendorPage.editContactDialog.dialog.getByTestId('contact-person-last-name').fill('Doe');
+    await vendorPage.editContactDialog.save();
+    await vendorPage.editContactDialog.waitForClosed();
 
-    // And: Changes the last name
-    await vendorPage.fillEditContactForm({ lastName: 'Doe' });
-
-    // And: Saves the changes
-    await vendorPage.submitEditContact();
-
-    // Then: The updated name is shown in the list
-    const contactsAfter = await vendorPage.getContactItems();
-    expect(contactsAfter.some((c) => c.name === 'Jane Doe')).toBe(true);
-
-    // And: The old name is no longer present
-    expect(contactsAfter.some((c) => c.name === 'Jane Smith')).toBe(false);
+    // Then: The updated name is shown and the old one is gone
+    await expect(vendorPage.contactRow('Jane Doe')).toBeVisible();
+    await expect(vendorPage.contactRow('Jane Smith')).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Delete a vendor contact
+// Scenario 3: Remove a contact person (Undo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Delete vendor contact (Scenario 3)', () => {
+test.describe('Remove contact person (Scenario 3)', { tag: '@responsive' }, () => {
   let vendorId: string;
+  let contactId: string;
 
   test.beforeEach(async ({ page, testPrefix }) => {
     vendorId = await createVendorViaApi(page, `${testPrefix} Delete Contact Vendor`);
-    await page.request.post(`${API.vendors}/${vendorId}/contacts`, {
-      data: { firstName: 'Delete', lastName: 'Me' },
-    });
+    contactId = await createContactViaApi(page, vendorId, { firstName: 'Delete', lastName: 'Me' });
   });
 
   test.afterEach(async ({ page }) => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test('Delete a vendor contact — contact no longer in list', async ({ page }) => {
+  test('Remove a contact person — gone at once with an Undo toast; Undo restores it', async ({
+    page,
+  }) => {
     const vendorPage = new VendorDetailPage(page);
+    const nativeDialogs: string[] = [];
+    page.on('dialog', (native) => {
+      nativeDialogs.push(native.message());
+      void native.dismiss();
+    });
 
-    // Given: A vendor with an existing contact
+    // Given: A company with an existing contact person
     await vendorPage.goto(vendorId);
+    await expect(vendorPage.contactRow('Delete Me')).toBeVisible();
 
-    // Verify the contact is present (the list loads after the title, so wait for the card)
-    await expect(vendorPage.contactsList.getByText('Delete Me')).toBeVisible();
-    const contactsBefore = await vendorPage.getContactItems();
-    expect(contactsBefore.some((c) => c.name === 'Delete Me')).toBe(true);
+    // When: The user removes the person through the row menu
+    await vendorPage.contacts.remove(contactId);
 
-    // When: User deletes the contact
-    await vendorPage.deleteContactByName('Delete Me');
+    // Then: The person is gone at once, with no confirmation dialog, and an Undo toast appears
+    await expect(vendorPage.contactRow('Delete Me')).toHaveCount(0);
+    await expect(vendorPage.toasts.undoToastWith(/Delete Me removed/)).toBeVisible();
+    await expect(vendorPage.page.getByRole('alertdialog')).toHaveCount(0);
 
-    // Then: The contact is no longer in the list
-    // Allow React to re-render after the DELETE API response
-    await expect(vendorPage.contactsSection).toBeVisible();
-    const contactsAfter = await vendorPage.getContactItems();
-    expect(contactsAfter.some((c) => c.name === 'Delete Me')).toBe(false);
+    // And: Undo brings the person back
+    await vendorPage.toasts.undoViaButton();
+    await expect(vendorPage.contactRow('Delete Me')).toBeVisible();
+    expect(nativeDialogs).toEqual([]);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Contacts list is empty initially
+// Scenario 4: Contact persons list is empty initially
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Empty contacts state (Scenario 4)', () => {
+test.describe('Empty contact persons state (Scenario 4)', { tag: '@responsive' }, () => {
   let vendorId: string;
 
   test.beforeEach(async ({ page, testPrefix }) => {
@@ -184,29 +197,25 @@ test.describe('Empty contacts state (Scenario 4)', () => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test('Contacts section shows empty state for a new vendor', async ({ page }) => {
+  test('Contact persons shows the empty state for a new company', async ({ page }) => {
     const vendorPage = new VendorDetailPage(page);
 
-    // Given: A freshly created vendor with no contacts
+    // Given: A freshly created company with no contact persons
     await vendorPage.goto(vendorId);
 
-    // Then: The contacts section is present
-    await expect(vendorPage.contactsSection).toBeVisible();
-
-    // And: The empty state message is shown
-    await expect(vendorPage.contactsEmptyState).toBeVisible();
-
-    // And: The contacts list is not present (no contact cards)
-    const contacts = await vendorPage.getContactItems();
-    expect(contacts).toHaveLength(0);
+    // Then: The list is present with its empty message and an action
+    await expect(vendorPage.contacts.root).toBeVisible();
+    await expect(vendorPage.contacts.emptyMessage(/No contact persons yet/)).toBeVisible();
+    await expect(vendorPage.contacts.addAction('New contact person')).toBeVisible();
+    await expect(vendorPage.contacts.rows).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Name is required — validation error
+// Scenario 5: A name is required — validation error
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Contact name validation (Scenario 5)', () => {
+test.describe('Contact name validation (Scenario 5)', { tag: '@responsive' }, () => {
   let vendorId: string;
 
   test.beforeEach(async ({ page, testPrefix }) => {
@@ -217,22 +226,30 @@ test.describe('Contact name validation (Scenario 5)', () => {
     await deleteVendorViaApi(page, vendorId);
   });
 
-  test('Submitting empty contact name shows "Name is required" error', async ({ page }) => {
+  test('Submitting without a first or last name shows an inline error', async ({ page }) => {
     const vendorPage = new VendorDetailPage(page);
 
-    // Given: The Add Contact modal is open
+    // Given: The New contact person dialog is open
     await vendorPage.goto(vendorId);
-    await vendorPage.openAddContactModal();
+    await vendorPage.openNewContact();
 
-    // When: User submits the form without entering a name
-    await vendorPage.createContactSubmitButton.click();
+    // When: The user saves without entering a name
+    await vendorPage.newContactDialog.save();
 
-    // Then: A validation error is shown
-    await expect(vendorPage.createContactErrorBanner).toBeVisible();
-    const errorText = await vendorPage.createContactErrorBanner.textContent();
-    expect(errorText?.toLowerCase()).toContain('name is required');
+    // Then: The error is shown on the name field
+    await expect(vendorPage.newContactDialog.fieldError('firstName')).toHaveText(
+      'Enter a first or last name.',
+    );
 
-    // And: The modal remains open (form not submitted)
-    await expect(vendorPage.createContactModal).toBeVisible();
+    // And: The dialog remains open (nothing was sent)
+    await expect(vendorPage.newContactDialog.dialog).toBeVisible();
+
+    // And: A last name alone is enough
+    await vendorPage.newContactDialog.dialog
+      .getByTestId('contact-person-last-name')
+      .fill('Onlylast');
+    await vendorPage.newContactDialog.save();
+    await vendorPage.newContactDialog.waitForClosed();
+    await expect(vendorPage.contactRow('Onlylast')).toBeVisible();
   });
 });

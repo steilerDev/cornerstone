@@ -644,18 +644,55 @@ function describeConsistency(getCtx: () => Ctx): void {
       expect(body.summary.quotation.count).toBe(money.records.offers.count);
     });
 
-    it('8. GET /api/vendors/:id: the outstanding balances add up to Still to pay', async () => {
+    it("8. GET /api/vendors/:id: the companies' Still to pay figures add up to Still to pay", async () => {
       const ctx = getCtx();
       const money = computeProjectMoney(ctx.app.db, VAT).summary;
       let sum = 0;
       for (const id of ['v-1', 'v-2', 'v-3']) {
-        const { vendor } = await getJson<{ vendor: { outstandingBalance: number } }>(
+        const { vendor } = await getJson<{ vendor: { stillToPay: number } }>(
           ctx,
           `/api/vendors/${id}`,
         );
-        sum += Math.round(vendor.outstandingBalance * 100);
+        sum += Math.round(vendor.stillToPay * 100);
       }
       expect(sum).toBe(Math.round(money.stillToPay * 100));
+    });
+
+    it('8b. GET /api/vendors: the list figures add up to the money totals, and each row equals its detail (#2244)', async () => {
+      const ctx = getCtx();
+      const money = computeProjectMoney(ctx.app.db, VAT).summary;
+      type Row = {
+        id: string;
+        stillToPay: number;
+        paid: number;
+        offers: { amount: number; paid: number; stillToPay: number };
+      };
+      const { vendors } = await getJson<{ vendors: Row[] }>(ctx, '/api/vendors?pageSize=100');
+      const cents = (n: number) => Math.round(n * 100);
+
+      expect(vendors.length).toBeGreaterThanOrEqual(3);
+      expect(vendors.reduce((t, v) => t + cents(v.stillToPay), 0)).toBe(cents(money.stillToPay));
+      expect(vendors.reduce((t, v) => t + cents(v.paid), 0)).toBe(cents(money.paid));
+      expect(vendors.reduce((t, v) => t + cents(v.offers.amount), 0)).toBe(
+        cents(money.records.offers.amount),
+      );
+      expect(vendors.reduce((t, v) => t + cents(v.offers.paid), 0)).toBe(
+        cents(money.records.offers.paid),
+      );
+      // The fixture must discriminate: some figure is non-zero, so an all-zero list cannot pass.
+      expect(cents(money.paid)).toBeGreaterThan(0);
+      for (const row of vendors) {
+        const { vendor } = await getJson<{ vendor: Row }>(ctx, `/api/vendors/${row.id}`);
+        expect({
+          stillToPay: row.stillToPay,
+          paid: row.paid,
+          offers: row.offers,
+        }).toEqual({
+          stillToPay: vendor.stillToPay,
+          paid: vendor.paid,
+          offers: vendor.offers,
+        });
+      }
     });
 
     it('9. GET /api/home/pulse: left to spend, still to pay and its count are the money service figures (#2232)', async () => {

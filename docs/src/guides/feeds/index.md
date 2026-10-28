@@ -5,14 +5,14 @@ title: Calendar & Contact Feeds
 
 # Calendar & Contact Feeds
 
-Cornerstone exposes your project data as standard calendar and contact feeds that you can subscribe to from any compatible app. This lets you see your construction schedule in your everyday calendar and keep vendor contact details in your phone -- without logging into Cornerstone.
+Cornerstone exposes your project data as standard calendar and contact feeds that you can subscribe to from any compatible app. This lets you see your construction schedule in your everyday calendar and keep company contact details in your phone -- without logging into Cornerstone.
 
 ## Overview
 
 Two feed endpoints are available:
 
 - **Calendar Feed** (`/feeds/cal.ics`) -- An iCalendar feed containing work item schedules, milestones, and household item deliveries
-- **Contacts Feed** (`/feeds/contacts.vcf`) -- A vCard feed containing all your vendor contact information
+- **Contacts Feed** (`/feeds/contacts.vcf`) -- A vCard feed containing your companies and their contact persons
 
 Both feeds are read-only and update automatically. When your calendar or contacts app re-fetches the feed, it gets the latest data from Cornerstone.
 
@@ -43,7 +43,7 @@ The calendar feed includes three types of events:
 
 ### Contacts Feed
 
-The contacts feed exports all vendors as contact cards. Each card includes the fields you have filled in:
+The contacts feed exports every company, and every contact person of those companies, as a contact card. Each card includes the fields you have filled in:
 
 - Name
 - Email

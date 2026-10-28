@@ -12,13 +12,6 @@ import type {
 } from '@cornerstone/shared';
 
 /**
- * Fetches all invoices for a given vendor.
- */
-export function fetchInvoices(vendorId: string): Promise<Invoice[]> {
-  return get<{ invoices: Invoice[] }>(`/vendors/${vendorId}/invoices`).then((r) => r.invoices);
-}
-
-/**
  * Creates a new invoice for a vendor; an optional cost line and linked document are written in
  * the same request.
  */

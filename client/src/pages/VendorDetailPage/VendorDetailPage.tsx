@@ -1,203 +1,197 @@
-import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
-import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { VendorDetail, Invoice } from '@cornerstone/shared';
-import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js';
-import { fetchInvoices, deleteInvoice } from '../../lib/invoicesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
-import { useFormatters } from '../../lib/formatters.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { Skeleton } from '../../components/Skeleton/Skeleton.js';
-import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
-import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
-import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
-import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
-import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
-import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
-import { useOriginState } from '../../navigation/useOriginState.js';
-import { useOpenInvoiceForm } from '../../objectForms/useOpenInvoiceForm.js';
-import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
-import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
-import sharedStyles from '../../styles/shared.module.css';
-import styles from './VendorDetailPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
-import { Badge } from '../../components/Badge/Badge.js';
-import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import type { VendorDetail } from '@cornerstone/shared';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
+import { ObjectHistorySection } from '../../components/FeedRow/ObjectHistorySection.js';
+import { ObjectHeader } from '../../components/ObjectHeader/index.js';
+import type { ObjectHeaderPrimary } from '../../components/ObjectHeader/index.js';
+import { ObjectTabs } from '../../components/ObjectTabs/ObjectTabs.js';
+import type { ObjectTabId } from '../../components/ObjectTabs/objectTabIds.js';
+import { useObjectTabs } from '../../components/ObjectTabs/useObjectTabs.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SectionCardScope } from '../../components/SectionCard/index.js';
+import type { SectionCardController } from '../../components/SectionCard/index.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { SummaryStrip } from '../../components/SummaryStrip/SummaryStrip.js';
+import type { SummaryFact } from '../../components/SummaryStrip/SummaryStrip.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
+import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { deleteVendor } from '../../lib/vendorsApi.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import sharedStyles from '../../styles/shared.module.css';
+import { CompanyContactPersons } from './CompanyContactPersons.js';
+import { CompanyDetailCards } from './CompanyDetailCards.js';
+import { CompanyDiaryPanel } from './CompanyDiaryPanel.js';
+import { CompanyPaymentsPanel } from './CompanyPaymentsPanel.js';
+import { CompanyWorkPanel } from './CompanyWorkPanel.js';
+import { companyPrimary } from './companyHeaderActions.js';
+import { useCompanyDiary } from './useCompanyDiary.js';
+import { useCompanyPayments } from './useCompanyPayments.js';
+import { useCompanyRecord } from './useCompanyRecord.js';
+import type { UseCompanyRecordResult } from './useCompanyRecord.js';
+import { useCompanyRelations } from './useCompanyRelations.js';
+import styles from './VendorDetailPage.module.css';
 
-/** The company edit form; `startEdit` always fills every field. */
-interface VendorEditForm {
-  name: string;
-  phone: string;
-  email: string;
-  address: string;
-  notes: string;
-  tradeId: string | null;
+/** Reads the route id once; the view below always has a company id. */
+export function VendorDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to={routeUrl('companies')} replace />;
+  return <CompanyView id={id} />;
 }
 
-const EMPTY_EDIT_FORM: VendorEditForm = {
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  notes: '',
-  tradeId: null,
-};
-
-export function VendorDetailPage() {
+function CompanyView({ id }: { id: string }) {
   const { t } = useTranslation('budget');
+  const { t: tc } = useTranslation('common');
+  const navigate = useNavigate();
+  const state = useCompanyRecord(id);
+  const { record, isLoading, error } = state;
+
+  // New › Invoice / Offer / Purchase start from this company.
+  useCreateContext({ companyId: record?.id });
+  const h1Text = !isLoading && record ? record.name : t('companyPage.typeLabel');
+  useDocumentTitle(h1Text);
+  const originState = useOriginState(record ? record.name : null);
+
+  if (isLoading) {
+    return (
+      <PageLayout title={h1Text} breadcrumbs={<PageBreadcrumbs />}>
+        <Skeleton lines={4} loadingLabel={t('companyPage.loading')} />
+      </PageLayout>
+    );
+  }
+
+  if (error || !record) {
+    return (
+      <PageLayout title={h1Text} breadcrumbs={<PageBreadcrumbs />}>
+        <div className={styles.errorCard} role="alert">
+          <p>{error}</p>
+          <div className={styles.errorActions}>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={() => navigate(routeUrl('companies'))}
+            >
+              {tc('navigation.backTo', { origin: tc('navigation.companies') })}
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={() => void state.reload()}
+            >
+              {t('companyPage.retry')}
+            </button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <CompanyLoaded
+      id={id}
+      vendor={record}
+      state={state}
+      h1Text={h1Text}
+      originState={originState}
+    />
+  );
+}
+
+interface CompanyLoadedProps {
+  readonly id: string;
+  readonly vendor: VendorDetail;
+  readonly state: UseCompanyRecordResult;
+  readonly h1Text: string;
+  readonly originState: ReturnType<typeof useOriginState>;
+}
+
+function CompanyLoaded({ id, vendor, state, h1Text, originState }: CompanyLoadedProps) {
+  const { t } = useTranslation('budget');
+  const { t: tc } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
-  const { t: tc } = useTranslation('common');
-  const statusVariants = useStatusBadgeVariants();
-  const { formatCurrency, formatDate } = useFormatters();
-  // The route always supplies :id
-  const id = useParams<{ id: string }>().id!;
   const navigate = useNavigate();
+  const { formatCurrency, formatDate } = useFormatters();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const phoneCardRef = useRef<SectionCardController>(null);
+  const pendingPhoneEditRef = useRef(false);
 
-  const [vendor, setVendor] = useState<VendorDetail | null>(null);
-  // New › Invoice / Offer / Purchase start from this company.
-  useCreateContext({ companyId: vendor?.id });
-  useDocumentTitle(vendor?.name ?? null);
-  const originState = useOriginState(vendor?.name);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const tabs = useObjectTabs(['overview', 'work', 'payments', 'diary', 'history']);
+  const diary = useCompanyDiary(id, state.revision);
 
-  // Edit state
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<VendorEditForm>(EMPTY_EDIT_FORM);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [editError, setEditError] = useState<string>('');
-
-  // Delete state
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteError, setDeleteError] = useState('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const vendorImpact = useDeleteImpact('vendor', showDeleteConfirm ? id : null);
-  const invoicesHeadingRef = useRef<HTMLHeadingElement>(null);
-  const newInvoiceRef = useRef<HTMLButtonElement>(null);
-  const openForm = useOpenInvoiceForm();
+  const deleteConsequences = useDeleteImpact('vendor', showDelete ? id : null);
 
-  // Invoice list state
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [invoicesLoading, setInvoicesLoading] = useState(false);
-  const [invoicesError, setInvoicesError] = useState<string | null>(null);
+  // An invoice or offer created from the dialog: the figures and both lists refresh.
+  useOnObjectCreated('invoice', () => void state.refresh());
+  useOnObjectCreated('offer', () => void state.refresh());
 
-  // Delete invoice confirmation state
-  const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
-  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
-  const [deleteInvoiceError, setDeleteInvoiceError] = useState<string>('');
-  const [deleteInvoiceBlocked, setDeleteInvoiceBlocked] = useState(false);
-  const invoiceImpact = useDeleteImpact('invoice', deletingInvoice?.id ?? null);
-
+  // "Add phone number" selects Overview first; its card exists once the tab is active.
   useEffect(() => {
-    void loadVendor();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadVendor is defined in the component body; the effect re-runs only when id changes, which is the intended trigger
-  }, [id]);
-
-  /** `silent` keeps the page mounted (no skeleton), so focus is not lost on a background refresh. */
-  const loadVendor = async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await fetchVendor(id);
-      setVendor(data);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.statusCode === 404) {
-          setError(t('vendorDetail.vendorNotFound'));
-        } else {
-          setError(translateApiError(err.error.code, tErrors));
-        }
-      } else {
-        setError(t('vendorDetail.vendorNotFound'));
-      }
-    } finally {
-      setIsLoading(false);
+    if (pendingPhoneEditRef.current && tabs.active === 'overview') {
+      pendingPhoneEditRef.current = false;
+      phoneCardRef.current!.startEdit();
     }
-  };
+  }, [tabs.active]);
 
-  const startEdit = () => {
-    // Reachable only from the loaded page's menu
-    const current = vendor!;
-    setEditForm({
-      name: current.name,
-      phone: current.phone ?? '',
-      email: current.email ?? '',
-      address: current.address ?? '',
-      notes: current.notes ?? '',
-      tradeId: current.trade?.id ?? null,
-    });
-    setEditError('');
-    setIsEditing(true);
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditError('');
-  };
-
-  const handleUpdate = async (event: FormEvent) => {
-    event.preventDefault();
-    const trimmedName = editForm.name.trim();
-    if (!trimmedName) {
-      setEditError(t('vendors.validation.nameRequired'));
+  const openPhoneEdit = () => {
+    if (tabs.active === 'overview') {
+      phoneCardRef.current!.startEdit();
       return;
     }
-    if (trimmedName.length > 200) {
-      setEditError(t('vendors.validation.nameTooLong'));
-      return;
-    }
-
-    setIsUpdating(true);
-    setEditError('');
-
-    try {
-      const updated = await updateVendor(id, {
-        name: trimmedName,
-        phone: editForm.phone.trim() || null,
-        email: editForm.email.trim() || null,
-        address: editForm.address.trim() || null,
-        notes: editForm.notes.trim() || null,
-        tradeId: editForm.tradeId || null,
-      });
-      setVendor(updated);
-      setIsEditing(false);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setEditError(translateApiError(err.error.code, tErrors));
-      } else {
-        setEditError(t('vendorDetail.messages.updateError'));
-      }
-    } finally {
-      setIsUpdating(false);
-    }
+    pendingPhoneEditRef.current = true;
+    tabs.select('overview');
   };
 
-  // Cancel returns focus to the header ⋯ (the menu item is gone by then).
-  const headerMenuRef = useRef<HTMLButtonElement>(null);
+  const chosen = companyPrimary(vendor);
+  let primary: ObjectHeaderPrimary;
+  if (chosen.kind === 'call') {
+    primary = {
+      kind: 'tel',
+      phone: chosen.phone,
+      label: tc('callButton.call'),
+      ariaLabel: tc('callButton.aria', {
+        name: chosen.personName ?? vendor.name,
+        number: chosen.phone,
+      }),
+      testId: 'company-primary-call',
+    };
+  } else {
+    primary = {
+      kind: 'button',
+      label: t('companyPage.addPhone'),
+      onClick: openPhoneEdit,
+      testId: 'company-primary-add-phone',
+    };
+  }
 
-  const openDeleteConfirm = () => {
+  const openDelete = () => {
     setDeleteError('');
     setDeleteBlocked(false);
-    setShowDeleteConfirm(true);
+    setShowDelete(true);
   };
-
-  const closeDeleteConfirm = () => {
-    // ConfirmDialog ignores cancel while busy
-    setShowDeleteConfirm(false);
+  const closeDelete = () => {
+    setShowDelete(false);
     setDeleteError('');
     setDeleteBlocked(false);
   };
-
   const handleDelete = async () => {
     setIsDeleting(true);
     setDeleteError('');
-
     try {
       await deleteVendor(id);
       // Replace: Back must not land on a deleted company.
@@ -206,590 +200,140 @@ export function VendorDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteBlocked(err.statusCode === 409);
-        if (err.statusCode === 409) {
-          setDeleteError(t('companies.list.deleteBlocked'));
-        } else {
-          setDeleteError(translateApiError(err.error.code, tErrors));
-        }
+        setDeleteError(
+          err.statusCode === 409
+            ? t('companies.list.deleteBlocked')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
-        setDeleteError(t('vendorDetail.messages.deleteError'));
+        setDeleteError(t('companyPage.deleteError'));
       }
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // ─── Invoice handlers ──────────────────────────────────────────────────────
+  const tabFact = (
+    factId: string,
+    tab: ObjectTabId,
+    label: string,
+    value: SummaryFact['value'],
+  ): SummaryFact => ({
+    id: factId,
+    kind: 'tab',
+    href: tabs.hrefFor(tab),
+    onActivate: () => tabs.select(tab, { focusPanel: true }),
+    label,
+    value,
+  });
 
-  const loadInvoices = useCallback(async () => {
-    setInvoicesLoading(true);
-    setInvoicesError(null);
-
-    try {
-      const data = await fetchInvoices(id);
-      setInvoices(data);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setInvoicesError(translateApiError(err.error.code, tErrors));
-      } else {
-        setInvoicesError(t('invoices.errorMessage'));
-      }
-    } finally {
-      setInvoicesLoading(false);
-    }
-  }, [id, t, tErrors]);
-
-  useEffect(() => {
-    void loadInvoices();
-  }, [id, loadInvoices]);
-
-  // An invoice or offer created from this page's dialog: refresh the list and the stat cards
-  // (silently: keep the page, and focus, in place).
-  const refreshAfterCreate = () => {
-    void loadInvoices();
-    void loadVendor(true);
-  };
-  useOnObjectCreated('invoice', refreshAfterCreate);
-  useOnObjectCreated('offer', refreshAfterCreate);
-
-  const openDeleteInvoiceConfirm = (invoice: Invoice) => {
-    setDeletingInvoice(invoice);
-    setDeleteInvoiceError('');
-    setDeleteInvoiceBlocked(false);
-  };
-
-  const closeDeleteInvoiceConfirm = () => {
-    // ConfirmDialog ignores cancel while busy
-    setDeletingInvoice(null);
-    setDeleteInvoiceError('');
-    setDeleteInvoiceBlocked(false);
-  };
-
-  const handleDeleteInvoice = async () => {
-    if (!deletingInvoice) return;
-
-    setIsDeletingInvoice(true);
-    setDeleteInvoiceError('');
-
-    try {
-      await deleteInvoice(id, deletingInvoice.id);
-      setInvoices((prev) => prev.filter((inv) => inv.id !== deletingInvoice.id));
-      setDeletingInvoice(null);
-      // Re-fetch vendor to update stats cards (silently: keep the page, and focus, in place)
-      void loadVendor(true);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setDeleteInvoiceBlocked(err.statusCode === 409);
-        setDeleteInvoiceError(translateApiError(err.error.code, tErrors));
-      } else {
-        setDeleteInvoiceError(t('vendorDetail.messages.invoiceDeleteError'));
-      }
-    } finally {
-      setIsDeletingInvoice(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        <h1 className={sharedStyles.srOnly}>{tc('navigation.companies')}</h1>
-        <Skeleton lines={4} loadingLabel={t('vendorDetail.loading')} />
-      </div>
-    );
+  const facts: SummaryFact[] = [];
+  if (vendor.trade) {
+    facts.push({
+      id: 'trade',
+      kind: 'link',
+      to: routeUrl('companies', undefined, { tradeId: vendor.trade.id }),
+      state: originState,
+      label: t('companyPage.strip.trade'),
+      value: getCategoryDisplayName(tSettings, vendor.trade.name, vendor.trade.translationKey),
+    });
+  } else {
+    facts.push({
+      id: 'trade',
+      kind: 'static',
+      label: t('companyPage.strip.trade'),
+      value: null,
+    });
   }
+  facts.push({
+    ...tabFact(
+      'stillToPay',
+      'payments',
+      t('companyPage.strip.stillToPay'),
+      formatCurrency(vendor.stillToPay),
+    ),
+    figureKind: 'still-to-pay',
+  });
+  facts.push(
+    tabFact(
+      'offers',
+      'payments',
+      t('companyPage.strip.offers'),
+      vendor.offers.count > 0 ? (
+        <>
+          {formatCurrency(vendor.offers.amount)}
+          <span className={styles.remark}>
+            {' · '}
+            {t('companyPage.strip.offersPaid', { amount: formatCurrency(vendor.offers.paid) })}
+          </span>
+        </>
+      ) : (
+        t('companyPage.strip.none')
+      ),
+    ),
+  );
+  facts.push(
+    tabFact(
+      'tasks',
+      'work',
+      t('companyPage.strip.tasks'),
+      vendor.openTaskCount > 0
+        ? t('companyPage.strip.tasksOpen', { count: vendor.openTaskCount })
+        : t('companyPage.strip.noneOpen'),
+    ),
+  );
+  facts.push(
+    tabFact(
+      'onSite',
+      'diary',
+      t('companyPage.strip.onSite'),
+      vendor.onSiteDays > 0 ? (
+        <>
+          {t('companyPage.strip.days', { count: vendor.onSiteDays })}
+          <span className={styles.remark}>
+            {' · '}
+            {t('companyPage.strip.last', { date: formatDate(vendor.lastOnSite) })}
+          </span>
+        </>
+      ) : (
+        t('companyPage.strip.noneYet')
+      ),
+    ),
+  );
 
-  if (error || !vendor) {
-    return (
-      <div className={styles.container}>
-        <PageBreadcrumbs />
-        <h1 className={sharedStyles.srOnly}>{tc('navigation.companies')}</h1>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('vendorDetail.error')}</h2>
-          <p>{error ?? t('vendorDetail.vendorNotFound')}</p>
-          <div className={styles.errorActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => navigate(routeUrl('companies'))}
-            >
-              {tc('navigation.backTo', { origin: tc('navigation.companies') })}
-            </button>
-            <button type="button" className={styles.button} onClick={() => void loadVendor()}>
-              {t('vendorDetail.retry')}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // One server figure (ADR-039 Still to pay) drives both the stats card and the invoices header
-  const hasStillToPay = vendor.outstandingBalance > 0;
+  const header = (
+    <ObjectHeader
+      title={h1Text}
+      breadcrumbs={<PageBreadcrumbs />}
+      headingRef={headingRef}
+      testId="company-header"
+      primary={primary}
+      menu={{ onDelete: openDelete }}
+    />
+  );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <PageBreadcrumbs />
-
-        {/* Page heading */}
-        <div className={styles.headerRow}>
-          <div className={styles.pageHeading}>
-            <h1 className={styles.pageTitle}>{vendor.name}</h1>
-          </div>
-          <div className={styles.pageActions}>
-            {!isEditing && (
-              <>
-                <button type="button" className={styles.editButton} onClick={startEdit}>
-                  {t('vendorDetail.buttons.edit')}
-                </button>
-                <OverflowMenu
-                  triggerRef={headerMenuRef}
-                  triggerAriaLabel={t('companies.list.actionsFor', { name: vendor.name })}
-                  data-testid="company-header-actions"
-                  items={[
-                    {
-                      id: 'delete',
-                      label: tc('button.delete'),
-                      variant: 'destructive',
-                      onClick: openDeleteConfirm,
-                      testId: 'company-header-delete',
-                    },
-                  ]}
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Stats cards */}
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>{t('vendorDetail.totalInvoices')}</span>
-            <span className={styles.statValue}>{vendor.invoiceCount}</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statLabel}>{t('vendorDetail.outstandingBalance')}</span>
-            <span
-              className={`${styles.statValue} ${hasStillToPay ? styles.statValueDanger : ''}`}
-              data-figure="still-to-pay"
-            >
-              {formatCurrency(vendor.outstandingBalance)}
-            </span>
-          </div>
-        </div>
-
-        {/* Info card — view or edit */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>{t('vendorDetail.vendorInformation')}</h2>
-          </div>
-
-          {isEditing ? (
-            <form onSubmit={handleUpdate} className={styles.form} noValidate>
-              {editError && (
-                <div className={styles.errorBanner} role="alert">
-                  {editError}
-                </div>
-              )}
-
-              <div className={styles.field}>
-                <label htmlFor="edit-name" className={styles.label}>
-                  {t('vendorDetail.form.name')}{' '}
-                  <span className={styles.required}>{t('vendorDetail.form.required')}</span>
-                </label>
-                <input
-                  type="text"
-                  id="edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className={styles.input}
-                  maxLength={200}
-                  disabled={isUpdating}
-                  autoFocus
-                />
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-phone" className={styles.label}>
-                    {t('vendorDetail.form.phone')}
-                  </label>
-                  <input
-                    type="tel"
-                    id="edit-phone"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    className={styles.input}
-                    placeholder={t('vendorDetail.form.placeholders.phone')}
-                    maxLength={50}
-                    disabled={isUpdating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-email" className={styles.label}>
-                    {t('vendorDetail.form.email')}
-                  </label>
-                  <input
-                    type="email"
-                    id="edit-email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className={styles.input}
-                    placeholder={t('vendorDetail.form.placeholders.email')}
-                    maxLength={255}
-                    disabled={isUpdating}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-address" className={styles.label}>
-                  {t('vendorDetail.form.address')}
-                </label>
-                <input
-                  type="text"
-                  id="edit-address"
-                  value={editForm.address}
-                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('vendorDetail.form.placeholders.address')}
-                  maxLength={500}
-                  disabled={isUpdating}
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-notes" className={styles.label}>
-                  {t('vendorDetail.form.notes')}
-                </label>
-                <textarea
-                  id="edit-notes"
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                  className={styles.textarea}
-                  rows={4}
-                  disabled={isUpdating}
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-tradeId" className={styles.label}>
-                  {t('vendorDetail.form.trade')}
-                </label>
-                <EntityPicker
-                  kind="trade"
-                  id="edit-tradeId"
-                  selectedLabel={
-                    vendor.trade
-                      ? getCategoryDisplayName(
-                          tSettings,
-                          vendor.trade.name,
-                          vendor.trade.translationKey,
-                        )
-                      : undefined
-                  }
-                  value={(editForm.tradeId as string) ?? ''}
-                  onChange={(tradeId) => setEditForm({ ...editForm, tradeId })}
-                  disabled={isUpdating}
-                  placeholder={t('vendorDetail.form.tradePlaceholder')}
-                />
-              </div>
-
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className={styles.saveButton}
-                  disabled={isUpdating || !editForm.name.trim()}
-                >
-                  {isUpdating ? t('vendorDetail.buttons.saving') : t('vendorDetail.buttons.save')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={cancelEdit}
-                  disabled={isUpdating}
-                >
-                  {t('vendorDetail.buttons.cancel')}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <dl className={styles.infoList}>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.name')}</dt>
-                <dd className={styles.infoValue}>{vendor.name}</dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.phone')}</dt>
-                <dd className={styles.infoValue}>
-                  {vendor.phone ? (
-                    <a href={`tel:${vendor.phone}`} className={styles.infoLink}>
-                      {vendor.phone}
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.email')}</dt>
-                <dd className={styles.infoValue}>
-                  {vendor.email ? (
-                    <a href={`mailto:${vendor.email}`} className={styles.infoLink}>
-                      {vendor.email}
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.address')}</dt>
-                <dd className={styles.infoValue}>{vendor.address || '—'}</dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.notes')}</dt>
-                <dd className={`${styles.infoValue} ${vendor.notes ? styles.infoValueNotes : ''}`}>
-                  {vendor.notes || '—'}
-                </dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.trade')}</dt>
-                <dd className={styles.infoValue}>
-                  {vendor.trade
-                    ? getCategoryDisplayName(
-                        tSettings,
-                        vendor.trade.name,
-                        vendor.trade.translationKey,
-                      )
-                    : '—'}
-                </dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.createdBy')}</dt>
-                <dd className={styles.infoValue}>{vendor.createdBy?.displayName ?? '—'}</dd>
-              </div>
-            </dl>
-          )}
-        </section>
-
-        {/* Invoices section */}
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle} ref={invoicesHeadingRef} tabIndex={-1}>
-              {t('vendorDetail.invoices')}
-            </h2>
-            <div className={styles.invoiceHeaderRight}>
-              {invoices.length > 0 && (
-                <span className={styles.outstandingBalance}>
-                  {t('vendorDetail.outstanding')}{' '}
-                  <strong
-                    className={hasStillToPay ? styles.outstandingAmount : undefined}
-                    data-figure="still-to-pay"
-                  >
-                    {formatCurrency(vendor.outstandingBalance)}
-                  </strong>
-                </span>
-              )}
-              {openForm && (
-                <button
-                  type="button"
-                  ref={newInvoiceRef}
-                  className={sharedStyles.btnSecondary}
-                  onClick={() =>
-                    openForm({
-                      kind: 'invoice',
-                      company: { id: vendor.id, name: vendor.name },
-                      originState,
-                      returnFocusRef: newInvoiceRef,
-                    })
-                  }
-                  data-testid="company-new-invoice"
-                >
-                  {t('vendorDetail.addInvoice')}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {invoicesLoading && (
-            <p className={styles.invoicesLoading}>{t('vendorDetail.invoicesLoading')}</p>
-          )}
-
-          {invoicesError && !invoicesLoading && (
-            <div className={styles.invoicesError} role="alert">
-              <p>{invoicesError}</p>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => void loadInvoices()}
-              >
-                {t('vendorDetail.buttons.retry')}
-              </button>
-            </div>
-          )}
-
-          {!invoicesLoading && !invoicesError && invoices.length === 0 && (
-            <div className={styles.invoicesEmpty}>
-              <p className={styles.invoicesEmptyText}>{t('vendorDetail.noInvoicesYet')}</p>
-              <p className={styles.invoicesEmptyHint}>{t('vendorDetail.noInvoicesHint')}</p>
-            </div>
-          )}
-
-          {!invoicesLoading && !invoicesError && invoices.length > 0 && (
-            <>
-              {/* Desktop table */}
-              <div className={styles.tableWrapper}>
-                <table className={styles.invoiceTable}>
-                  <thead>
-                    <tr>
-                      <th className={styles.tableHeader}>
-                        {t('vendorDetail.invoiceTable.invoiceNumber')}
-                      </th>
-                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
-                        {t('vendorDetail.invoiceTable.amount')}
-                      </th>
-                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.date')}</th>
-                      <th className={styles.tableHeader}>
-                        {t('vendorDetail.invoiceTable.dueDate')}
-                      </th>
-                      <th className={styles.tableHeader}>
-                        {t('vendorDetail.invoiceTable.status')}
-                      </th>
-                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
-                        {t('vendorDetail.invoiceTable.actions')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.map((invoice) => (
-                      <tr key={invoice.id} className={styles.tableRow}>
-                        <td className={styles.tableCell}>
-                          {invoice.invoiceNumber ? (
-                            <span className={styles.invoiceNumber}>{invoice.invoiceNumber}</span>
-                          ) : (
-                            <span className={styles.invoiceNumberNone}>—</span>
-                          )}
-                        </td>
-                        <td
-                          className={`${styles.tableCell} ${styles.tableCellRight} ${styles.amountCell}`}
-                        >
-                          {formatCurrency(invoice.amount)}
-                        </td>
-                        <td className={styles.tableCell}>{formatDate(invoice.date)}</td>
-                        <td className={styles.tableCell}>
-                          {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
-                        </td>
-                        <td className={styles.tableCell}>
-                          <Badge
-                            variants={statusVariants.invoice}
-                            value={invoice.status}
-                            testId={`vendor-invoice-status-${invoice.id}`}
-                          />
-                        </td>
-                        <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
-                          <div className={styles.rowActions}>
-                            <button
-                              type="button"
-                              className={styles.rowActionButton}
-                              onClick={() =>
-                                navigate(routeUrl('invoice', { id: invoice.id }), {
-                                  state: originState,
-                                })
-                              }
-                              aria-label={t('vendorDetail.invoiceEditAria', {
-                                number: invoice.invoiceNumber ?? invoice.id,
-                              })}
-                            >
-                              {t('vendorDetail.buttons.editRow')}
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
-                              onClick={() => openDeleteInvoiceConfirm(invoice)}
-                              aria-label={t('vendorDetail.invoiceDeleteAria', {
-                                number: invoice.invoiceNumber ?? invoice.id,
-                              })}
-                            >
-                              {t('vendorDetail.buttons.deleteRow')}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile card list */}
-              <ul className={styles.invoiceCardList} aria-label={t('vendorDetail.invoices')}>
-                {invoices.map((invoice) => (
-                  <li key={invoice.id} className={styles.invoiceCard}>
-                    <div className={styles.invoiceCardRow}>
-                      <span className={styles.invoiceCardNumber}>
-                        {invoice.invoiceNumber
-                          ? `#${invoice.invoiceNumber}`
-                          : t('vendorDetail.invoiceCard.noInvoiceNumber')}
-                      </span>
-                      <Badge
-                        variants={statusVariants.invoice}
-                        value={invoice.status}
-                        testId={`vendor-invoice-status-mobile-${invoice.id}`}
-                      />
-                    </div>
-                    <div className={styles.invoiceCardRow}>
-                      <span className={styles.invoiceCardAmount}>
-                        {formatCurrency(invoice.amount)}
-                      </span>
-                      <span className={styles.invoiceCardDate}>{formatDate(invoice.date)}</span>
-                    </div>
-                    {invoice.dueDate && (
-                      <div className={styles.invoiceCardMeta}>
-                        Due: {formatDate(invoice.dueDate)}
-                      </div>
-                    )}
-                    {invoice.notes && <div className={styles.invoiceCardMeta}>{invoice.notes}</div>}
-                    <div className={styles.invoiceCardActions}>
-                      <button
-                        type="button"
-                        className={styles.rowActionButton}
-                        onClick={() =>
-                          navigate(routeUrl('invoice', { id: invoice.id }), { state: originState })
-                        }
-                        aria-label={t('vendorDetail.invoiceEditAria', {
-                          number: invoice.invoiceNumber ?? invoice.id,
-                        })}
-                      >
-                        {t('vendorDetail.buttons.editRow')}
-                      </button>
-                      <button
-                        type="button"
-                        className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
-                        onClick={() => openDeleteInvoiceConfirm(invoice)}
-                        aria-label={t('vendorDetail.invoiceDeleteAria', {
-                          number: invoice.invoiceNumber ?? invoice.id,
-                        })}
-                      >
-                        {t('vendorDetail.buttons.deleteRow')}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
-
-        {/* Vendor Contacts Section */}
-        {vendor && id && <VendorContactsSection vendorId={id} />}
-      </div>
-
-      {/* Delete vendor confirmation */}
-      {showDeleteConfirm && (
+    <PageLayout header={header}>
+      <SummaryStrip
+        typeLabel={t('companyPage.typeLabel')}
+        columns={5}
+        facts={facts}
+        testId="company-summary"
+      />
+      <CompanyTabs
+        id={id}
+        vendor={vendor}
+        state={state}
+        tabs={tabs}
+        diary={diary}
+        originState={originState}
+        phoneCardRef={phoneCardRef}
+        headingRef={headingRef}
+      />
+      {showDelete && (
         <ConfirmDialog
           title={tc('confirmDialog.deleteTitle', { name: vendor.name })}
-          consequences={vendorImpact}
+          consequences={deleteConsequences}
           irreversible
           confirmLabel={tc('button.delete')}
           busyLabel={tc('confirmDialog.deleting')}
@@ -797,32 +341,127 @@ export function VendorDetailPage() {
           blocked={deleteBlocked}
           error={deleteError || null}
           onConfirm={() => void handleDelete()}
-          onCancel={closeDeleteConfirm}
-          returnFocusRef={headerMenuRef}
+          onCancel={closeDelete}
+          returnFocusRef={headingRef}
           testIdPrefix="vendor-delete"
         />
       )}
+    </PageLayout>
+  );
+}
 
-      {/* Delete invoice confirmation */}
-      {deletingInvoice && (
-        <ConfirmDialog
-          title={tc('confirmDialog.deleteTitle', {
-            name: deletingInvoice.invoiceNumber || t('vendorDetail.deleteInvoiceModal.noNumber'),
-          })}
-          consequences={invoiceImpact}
-          irreversible
-          confirmLabel={tc('button.delete')}
-          busyLabel={tc('confirmDialog.deleting')}
-          busy={isDeletingInvoice}
-          blocked={deleteInvoiceBlocked}
-          error={deleteInvoiceError || null}
-          onConfirm={() => void handleDeleteInvoice()}
-          onCancel={closeDeleteInvoiceConfirm}
-          returnFocusRef={invoicesHeadingRef}
-          testIdPrefix="vendor-invoice-delete"
-        />
-      )}
-    </div>
+interface CompanyTabsProps {
+  readonly id: string;
+  readonly vendor: VendorDetail;
+  readonly state: UseCompanyRecordResult;
+  readonly tabs: ReturnType<typeof useObjectTabs>;
+  readonly diary: ReturnType<typeof useCompanyDiary>;
+  readonly originState: ReturnType<typeof useOriginState>;
+  readonly phoneCardRef: RefObject<SectionCardController | null>;
+  readonly headingRef: RefObject<HTMLHeadingElement | null>;
+}
+
+/** The tab strip and its panels; each data panel loads on its first visit. */
+function CompanyTabs({
+  id,
+  vendor,
+  state,
+  tabs,
+  diary,
+  originState,
+  phoneCardRef,
+  headingRef,
+}: CompanyTabsProps) {
+  const { t } = useTranslation('budget');
+  return (
+    <ObjectTabs
+      controller={tabs}
+      typeLabel={t('companyPage.typeLabel')}
+      idPrefix="company-tabs"
+      counts={{ payments: vendor.invoiceCount, diary: diary.totalItems }}
+      panels={{
+        overview: () => (
+          <SectionCardScope>
+            <div className={styles.overview}>
+              <CompanyContactPersons
+                vendorId={id}
+                contacts={vendor.contacts}
+                onChanged={state.refresh}
+              />
+              <CompanyDetailCards
+                vendor={vendor}
+                onSaved={state.refresh}
+                phoneCardRef={phoneCardRef}
+              />
+            </div>
+          </SectionCardScope>
+        ),
+        work: () => <WorkTab id={id} revision={state.revision} originState={originState} />,
+        payments: () => (
+          <PaymentsTab
+            vendor={vendor}
+            revision={state.revision}
+            originState={originState}
+            onChanged={state.refresh}
+            headingRef={headingRef}
+          />
+        ),
+        diary: () => <CompanyDiaryPanel vendorId={id} diary={diary} originState={originState} />,
+        history: () => (
+          <ObjectHistorySection
+            entityType="vendor"
+            entityId={id}
+            revision={state.revision}
+            testIdPrefix="company-history"
+            labels={{
+              title: t('companyPage.history.title'),
+              empty: t('companyPage.history.empty'),
+              loadError: t('companyPage.history.loadError'),
+              retry: t('companyPage.history.retry'),
+              showAll: t('companyPage.history.showAll'),
+            }}
+          />
+        ),
+      }}
+    />
+  );
+}
+
+function WorkTab({
+  id,
+  revision,
+  originState,
+}: {
+  readonly id: string;
+  readonly revision: number;
+  readonly originState: ReturnType<typeof useOriginState>;
+}) {
+  const relations = useCompanyRelations(id, revision);
+  return <CompanyWorkPanel relations={relations} originState={originState} />;
+}
+
+function PaymentsTab({
+  vendor,
+  revision,
+  originState,
+  onChanged,
+  headingRef,
+}: {
+  readonly vendor: VendorDetail;
+  readonly revision: number;
+  readonly originState: ReturnType<typeof useOriginState>;
+  readonly onChanged: () => Promise<unknown>;
+  readonly headingRef: RefObject<HTMLHeadingElement | null>;
+}) {
+  const payments = useCompanyPayments(vendor.id, revision);
+  return (
+    <CompanyPaymentsPanel
+      vendor={vendor}
+      payments={payments}
+      originState={originState}
+      onChanged={onChanged}
+      headingRef={headingRef}
+    />
   );
 }
 

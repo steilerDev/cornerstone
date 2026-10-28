@@ -26,6 +26,7 @@ import { HomePage } from '../pages/HomePage.js';
 import { InvoicesPage } from '../pages/InvoicesPage.js';
 import { TimelinePage } from '../pages/TimelinePage.js';
 import { VendorDetailPage } from '../pages/VendorDetailPage.js';
+import { VendorsPage } from '../pages/VendorsPage.js';
 
 /** Mirrors client/src/types/figureKind.ts (closed list). */
 export type FigureKind = 'left-to-spend' | 'still-to-pay' | 'paid' | 'ready-to-submit' | 'holds-up';
@@ -50,6 +51,10 @@ export interface ProjectSurface {
 export interface CompanySubject {
   companyId: string;
 }
+/** A company on the Companies list: found through a search for its (unique) name. */
+export interface CompanyListSubject extends CompanySubject {
+  companyName: string;
+}
 export interface TaskSubject {
   workItemId: string;
 }
@@ -65,6 +70,7 @@ export interface SubjectSurface<S> {
   story: string;
   kind:
     | 'company-still-to-pay'
+    | 'company-paid'
     | 'holds-up'
     | 'invoice-paid'
     | 'invoice-still-to-pay'
@@ -206,16 +212,46 @@ export const LEFT_SCREENS: ServedRouteId[] = [
 // Subject figures
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The company page (#2244, story 4.12): on `?tab=payments` the Still to pay fact of the summary
+ * strip and the Still to pay of the totals line are both the money service's balance, so
+ * `readAll` returns two markers. (On the other tabs only the strip shows it.)
+ */
 export const COMPANY_SURFACE: SubjectSurface<CompanySubject> = {
   id: 'company.page',
-  story: '3.5',
+  story: '4.12',
   kind: 'company-still-to-pay',
   async readAll(page, subject) {
-    await page.goto(routeUrl('company', { id: subject.companyId }));
-    const vendor = new VendorDetailPage(page);
-    await vendor.stillToPayFigures.first().waitFor({ state: 'visible' });
-    const texts = await vendor.stillToPayFigures.allInnerTexts();
+    await page.goto(routeUrl('company', { id: subject.companyId }, { tab: 'payments' }));
+    const company = new VendorDetailPage(page);
+    await company.paymentsTotals.waitFor({ state: 'visible' });
+    await company.stillToPayFigure.waitFor({ state: 'visible' });
+    const texts = await company.stillToPayFigures.filter({ visible: true }).allInnerTexts();
     return texts.map((text) => parseMoney(text));
+  },
+};
+
+/** The company page totals line: Paid (paid + submitted, progress payments included). */
+export const COMPANY_PAID_SURFACE: SubjectSurface<CompanySubject> = {
+  id: 'company.page.paid',
+  story: '4.12',
+  kind: 'company-paid',
+  async readAll(page, subject) {
+    await page.goto(routeUrl('company', { id: subject.companyId }, { tab: 'payments' }));
+    const company = new VendorDetailPage(page);
+    return [parseMoney(await figureText(company.paidFigure))];
+  },
+};
+
+/** The Still to pay cell of a company's row (table) or card (phone) on the Companies list. */
+export const COMPANIES_LIST_SURFACE: SubjectSurface<CompanyListSubject> = {
+  id: 'companies.list',
+  story: '4.12',
+  kind: 'company-still-to-pay',
+  async readAll(page, subject) {
+    const list = new VendorsPage(page);
+    await list.goto({ q: subject.companyName });
+    return [parseMoney(await figureText(list.stillToPay(subject.companyId)))];
   },
 };
 
@@ -335,6 +371,8 @@ export async function readFinancingReadyCount(page: Page, subject: SourceSubject
 
 export const SUBJECT_SURFACES = [
   COMPANY_SURFACE,
+  COMPANY_PAID_SURFACE,
+  COMPANIES_LIST_SURFACE,
   HOME_ATTENTION_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   INVOICE_PAID_SURFACE,
@@ -348,12 +386,6 @@ export const SUBJECT_SURFACES = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PENDING_SURFACES: PendingSurface[] = [
-  {
-    story: '4.12',
-    screen: 'Company summary',
-    figures: ['company-still-to-pay'],
-    note: 'The company page summary, now labelled Still to pay (today: Outstanding Balance).',
-  },
   {
     story: '5.2',
     screen: 'Task page',

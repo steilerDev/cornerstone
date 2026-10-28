@@ -11,8 +11,8 @@
  * - Scenario 2:  Create a company - full details (happy path)
  * - Scenario 3:  Create a company - name only
  * - Scenario 4:  Create fails - missing required name (inline error, no alert)
- * - Scenario 5:  Company page with stats
- * - Scenario 6:  Edit company details
+ * - Scenario 5:  Company page (summary strip, tabs; the full page suite is companies/company-page.spec.ts)
+ * - Scenario 6:  Edit company details (Overview cards)
  * - Scenario 8:  Delete - no references (list row menu and header menu)
  * - Scenario 9:  Delete blocked when invoices exist (409 via route mock)
  * - Scenario 11: List is paginated
@@ -175,11 +175,10 @@ test.describe('Create company (Scenarios 2-4)', { tag: '@responsive' }, () => {
     const createdId = page.url().split('/').pop() as string;
 
     try {
-      const fields = await detailPage.getInfoFields();
-      expect(fields['Phone']).toContain('555-0123');
-      expect(fields['Email']).toContain('contact@example.com');
-      expect(fields['Address']).toBe('1 Sample Lane, Exampleville');
-      expect(fields['Notes']).toBe('Primary contractor for foundation work');
+      await expect(detailPage.detail('phone')).toContainText('555-0123');
+      await expect(detailPage.detail('email')).toContainText('contact@example.com');
+      await expect(detailPage.detail('address')).toHaveText('1 Sample Lane, Exampleville');
+      await expect(detailPage.detail('notes')).toHaveText('Primary contractor for foundation work');
 
       // And: the list shows the row with its Call button
       await vendorsPage.goto();
@@ -310,42 +309,26 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
         (url) => url.pathname === routeUrl('company', { id: createdId as string }),
       );
 
-      // Wait for the loading state to clear — CI runners can be slow and the
-      // fetch + render may take longer than the default 7s timeout
-      await expect(page.getByText('Loading vendor...')).not.toBeVisible({ timeout: 15000 });
-
-      // And: The page heading is the vendor name
-      // Wait for the detail page info card to render — the h1 transitions from
-      // "Budget" (list page) to the vendor name after React fetches and renders
-      await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
+      // And: The page heading is the vendor name and the summary strip rendered
+      await expect(detailPage.summary.root).toBeVisible();
       await expect(detailPage.pageTitle).toHaveText(vendorName);
 
-      // And: All vendor fields are shown in the info card
-      // Note: specialty was replaced by trade in EPIC-18 — trade shows as "—" when unassigned
-      const fields = await detailPage.getInfoFields();
-      expect(fields['Name']).toBe(vendorName);
-      expect(fields['Phone']).toContain('+1-555-111-2222');
-      expect(fields['Email']).toContain('detail@e2e-test.example.com');
-      expect(fields['Address']).toBe('456 Pipe Lane, Springfield, IL');
-      expect(fields['Notes']).toBe('Handles all plumbing fixtures');
-      // Trade field is present (value is "—" since no trade assigned via API)
-      expect('Trade' in fields).toBe(true);
+      // And: All vendor fields are shown on the Overview cards
+      await expect(detailPage.detail('name')).toHaveText(vendorName);
+      await expect(detailPage.detail('phone')).toContainText('+1-555-111-2222');
+      await expect(detailPage.detail('email')).toContainText('detail@e2e-test.example.com');
+      await expect(detailPage.detail('address')).toHaveText('456 Pipe Lane, Springfield, IL');
+      await expect(detailPage.detail('notes')).toHaveText('Handles all plumbing fixtures');
+      // Trade shows "Not set" since none is assigned via the API
+      await expect(detailPage.detail('trade')).toContainText('Not set');
 
-      // And: Stats cards are visible
-      await expect(detailPage.totalInvoicesStat).toBeVisible();
-      await expect(detailPage.outstandingBalanceStat).toBeVisible();
+      // And: The summary strip shows Still to pay 0.00 and no offers, tasks or visits yet
+      await expect(detailPage.summary.fact('stillToPay')).toContainText(/0\.00/);
+      await expect(detailPage.summary.fact('offers')).toContainText('None');
 
-      // And: Invoice stat shows 0 (no invoices yet)
-      const invoiceCount = await detailPage.getTotalInvoices();
-      expect(invoiceCount?.trim()).toBe('0');
-
-      // And: Outstanding balance shows 0.00 (currency symbol is locale-dependent — match digits only)
-      const balance = await detailPage.getOutstandingBalance();
-      expect(balance?.trim()).toMatch(/0\.00/);
-
-      // And: Invoices section is visible with empty state (no invoices yet)
-      await expect(detailPage.invoicesSection).toBeVisible();
-      await expect(detailPage.invoicesEmptyState).toBeVisible();
+      // And: Payments shows the empty state (no invoices yet)
+      await detailPage.tabs.select('payments');
+      await expect(detailPage.paymentsEmpty).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -404,29 +387,25 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
         notes: 'Original notes',
       });
 
-      // When: I navigate to its detail page and click "Edit"
+      // When: I navigate to its detail page and edit the Phone and e-mail card
       await detailPage.goto(createdId);
-      await detailPage.startEdit();
+      await detailPage.startEdit('company-phone-email');
+      await detailPage.phoneField.fill('+1-555-999-0000');
+      await detailPage.saveCard('company-phone-email');
 
-      // And: I update phone and notes
-      await detailPage.fillEditForm({
-        phone: '+1-555-999-0000',
-        notes: 'Preferred for structural work',
-      });
-
-      // And: I click "Save Changes"
-      await detailPage.saveEdit();
+      // And: the About card (notes)
+      await detailPage.startEdit('company-about');
+      await detailPage.notesField.fill('Preferred for structural work');
+      await detailPage.saveCard('company-about');
 
       // Then: The detail page shows the updated values
-      const fields = await detailPage.getInfoFields();
-      expect(fields['Phone']).toContain('+1-555-999-0000');
-      expect(fields['Notes']).toBe('Preferred for structural work');
+      await expect(detailPage.detail('phone')).toContainText('+1-555-999-0000');
+      await expect(detailPage.detail('notes')).toHaveText('Preferred for structural work');
 
       // And: The changes persist on page reload
       await detailPage.goto(createdId);
-      const fieldsAfterReload = await detailPage.getInfoFields();
-      expect(fieldsAfterReload['Phone']).toContain('+1-555-999-0000');
-      expect(fieldsAfterReload['Notes']).toBe('Preferred for structural work');
+      await expect(detailPage.detail('phone')).toContainText('+1-555-999-0000');
+      await expect(detailPage.detail('notes')).toHaveText('Preferred for structural work');
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -446,21 +425,23 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
       });
 
       await detailPage.goto(createdId);
-      await detailPage.startEdit();
+      await detailPage.startEdit('company-phone-email');
 
-      // Change the phone but cancel
-      await detailPage.fillEditForm({ phone: '+1-999-999-9999' });
-      await detailPage.cancelEdit();
+      // Change the phone but discard
+      await detailPage.phoneField.fill('+1-999-999-9999');
+      await detailPage.discardCard('company-phone-email');
 
       // Then: The original phone is still shown
-      const fields = await detailPage.getInfoFields();
-      expect(fields['Phone']).toContain('+1-555-777-8888');
+      await expect(detailPage.detail('phone')).toContainText('+1-555-777-8888');
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
   });
 
-  test('Edit — clearing name disables Save Changes button', async ({ page, testPrefix }) => {
+  test('Edit — clearing the name is reported on the field and nothing is saved', async ({
+    page,
+    testPrefix,
+  }) => {
     const detailPage = new VendorDetailPage(page);
     let createdId: string | null = null;
 
@@ -470,16 +451,19 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
       });
 
       await detailPage.goto(createdId);
-      await detailPage.startEdit();
+      await detailPage.startEdit('company-about');
 
-      // Clear the name field
-      await detailPage.editNameInput.fill('');
+      // Clear the name field and try to save
+      await detailPage.nameField.fill('');
+      await detailPage.cardSave('company-about').click();
 
-      // Then: Save Changes button should be disabled
-      await expect(detailPage.saveChangesButton).toBeDisabled();
+      // Then: the card stays open with the field error
+      await expect(detailPage.cardForm('company-about')).toContainText('Enter a name.');
+      await expect(detailPage.nameField).toHaveAttribute('aria-invalid', 'true');
 
-      // Cleanup: cancel
-      await detailPage.cancelEditButton.click();
+      // Cleanup: discard
+      await detailPage.discardCard('company-about');
+      await expect(detailPage.pageTitle).toHaveText(`${testPrefix} Save Guard Vendor`);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -978,13 +962,15 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // Default columns: Name, Trade, Phone, Contact persons, Last on site (E-mail, Address,
-      // Notes, Date added and Last updated are hidden by default), then the row-actions column
-      // (its header is visually hidden text).
+      // Default columns: Name, Trade, Phone, Still to pay, Offers, Contact persons, Last on site
+      // (E-mail, Address, Notes, Date added and Last updated are hidden by default), then the
+      // row-actions column (its header is visually hidden text).
       await expect(vendorsPage.tableContainer.locator('thead th')).toHaveText([
         /^Name/,
         /^Trade/,
         /^Phone/,
+        /^Still to pay/,
+        /^Offers/,
         /^Contact persons/,
         /^Last on site/,
         /^Actions$/,
@@ -1024,7 +1010,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       await page.waitForURL(/\/companies\/[0-9a-f-]{36}$/);
 
       // Wait for detail page to fully render before interacting with back button
-      await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
+      await expect(detailPage.summary.root).toBeVisible();
 
       // Navigate back via back button
       await detailPage.goBackToVendors();
@@ -1269,7 +1255,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       await detailPage.pageTitle.waitFor({ state: 'visible', timeout: 8000 });
 
       await expect(detailPage.pageTitle).toBeVisible();
-      await expect(detailPage.editButton).toBeVisible();
+      await expect(detailPage.summary.root).toBeVisible();
       await expect(detailPage.actionsTrigger).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {

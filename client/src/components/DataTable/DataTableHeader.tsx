@@ -55,7 +55,7 @@ export function DataTableHeader<T>({
       // Keep focus off <body>: return it to the column's filter button when it was inside the popover
       const active = document.activeElement;
       if (active instanceof HTMLElement && active.closest(`.${styles.filterPopover}`)) {
-        filterTriggerRef.current[activeFilterColumn]?.focus();
+        filterTriggerRef.current[activeFilterColumn]!.focus();
       }
       setActiveFilterColumn(null);
     };
@@ -98,7 +98,7 @@ export function DataTableHeader<T>({
                 col.sortable ? styles.tableHeaderSortable : ''
               } ${col.headerClassName || ''}`}
               onClick={() => col.sortable && onSort(col.key, col.sortKey)}
-              aria-sort={getSortAttribute(col.key, col.sortKey)}
+              aria-sort={col.sortable ? getSortAttribute(col.key, col.sortKey) : undefined}
               title={col.headerTitle}
             >
               <div className={styles.tableHeaderContent}>
@@ -121,7 +121,6 @@ export function DataTableHeader<T>({
                     } ${disabledReason ? styles.tableHeaderFilterButtonDisabled : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (disabledReason) return;
                       setActiveFilterColumn(activeFilterColumn === col.key ? null : col.key);
                     }}
                     aria-label={
@@ -149,8 +148,7 @@ export function DataTableHeader<T>({
                 col.filterable &&
                 col.filterType &&
                 (col.filterParamKey || col.getValue) &&
-                !disabledFilterKeys?.has(col.key) &&
-                filterTriggerRef.current[col.key] && (
+                !disabledFilterKeys?.has(col.key) && (
                   <DataTableFilterPopover
                     column={col}
                     value={tableState.filters.get(col.filterParamKey || col.key)?.value || ''}
@@ -158,7 +156,7 @@ export function DataTableHeader<T>({
                     onApply={(value) => {
                       onFilter(col.filterParamKey || col.key, value || null);
                     }}
-                    // filterTriggerRef.current[col.key] is guarded by the && condition above
+                    // The popover opens from this column's trigger button, so its ref is set
                     triggerRect={filterTriggerRef.current[col.key]!.getBoundingClientRect()}
                   />
                 )}

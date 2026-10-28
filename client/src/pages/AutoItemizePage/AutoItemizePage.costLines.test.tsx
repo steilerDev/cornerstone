@@ -22,7 +22,6 @@ import type { InvoiceDetail, PaperlessDocumentDetailResponse } from '@cornerston
 const mockFetchInvoiceById = jest.fn<typeof InvoicesApiModule.fetchInvoiceById>();
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoiceById: mockFetchInvoiceById,
-  fetchInvoices: jest.fn(),
   createInvoice: jest.fn(),
   updateInvoice: jest.fn(),
   deleteInvoice: jest.fn(),

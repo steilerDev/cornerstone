@@ -868,10 +868,9 @@ describe('Vendor Service', () => {
         expect(rows.find((v) => v.name === 'Alpha Co')?.contactCount).toBe(1);
       });
 
-      it('is a list-only field: detail responses do not carry it', () => {
+      it('is a list-only field: detail responses do not carry it (contacts array instead)', () => {
         const id = createTestVendor('Detail Co').id;
         expect(vendorService.getVendorById(db, id)).not.toHaveProperty('contactCount');
-        expect(vendorService.getVendorById(db, id)).not.toHaveProperty('lastOnSite');
       });
     });
 
@@ -1103,7 +1102,7 @@ describe('Vendor Service', () => {
       const result = vendorService.getVendorById(db, vendor.id);
 
       expect(result.invoiceCount).toBe(0);
-      expect(result.outstandingBalance).toBe(0);
+      expect(result.stillToPay).toBe(0);
     });
 
     it('includes correct invoiceCount when vendor has invoices', () => {
@@ -1117,7 +1116,7 @@ describe('Vendor Service', () => {
       expect(result.invoiceCount).toBe(3);
     });
 
-    // Mutation guard for every outstandingBalance case below: the old implementation was
+    // Mutation guard for every stillToPay case below: the old implementation was
     // SUM(amount) WHERE status IN ('pending','claimed'); each assertion fails under it.
     it('D-06: counts only pending invoices; claimed (submitted) and paid never count', () => {
       const vendor = createTestVendor('Balance Vendor');
@@ -1127,16 +1126,16 @@ describe('Vendor Service', () => {
 
       const result = vendorService.getVendorById(db, vendor.id);
 
-      expect(result.outstandingBalance).toBe(500);
+      expect(result.stillToPay).toBe(500);
       expect(result.invoiceCount).toBe(3);
     });
 
-    it('D-06: outstandingBalance is 0 with only paid and claimed invoices', () => {
+    it('D-06: stillToPay is 0 with only paid and claimed invoices', () => {
       const vendor = createTestVendor('Settled Vendor');
       createTestInvoice(vendor.id, 'paid', 1000);
       createTestInvoice(vendor.id, 'claimed', 250);
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(0);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(0);
     });
 
     it('subtracts a paid progress payment from a pending invoice', () => {
@@ -1144,7 +1143,7 @@ describe('Vendor Service', () => {
       const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
       createTestDeposit(invoiceId, 400, 'paid');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(600);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(600);
     });
 
     it('subtracts claimed progress payments too', () => {
@@ -1153,7 +1152,7 @@ describe('Vendor Service', () => {
       createTestDeposit(invoiceId, 400, 'paid');
       createTestDeposit(invoiceId, 100, 'claimed');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(500);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(500);
     });
 
     it('adds a pending progress payment on a quotation (quotation itself adds nothing)', () => {
@@ -1165,7 +1164,7 @@ describe('Vendor Service', () => {
         .run();
       createTestDeposit(invoiceId, 300, 'pending');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(300);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(300);
     });
 
     it('keeps a pending progress payment inside a pending invoice total (no double count)', () => {
@@ -1173,7 +1172,7 @@ describe('Vendor Service', () => {
       const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
       createTestDeposit(invoiceId, 250, 'pending');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(1000);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(1000);
     });
 
     it('ignores a pending refund entry', () => {
@@ -1181,7 +1180,7 @@ describe('Vendor Service', () => {
       const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
       createTestDeposit(invoiceId, 200, 'pending', 'refund');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(1000);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(1000);
     });
 
     it('excludes another vendor invoices and progress payments', () => {
@@ -1191,17 +1190,17 @@ describe('Vendor Service', () => {
       const otherInvoice = createTestInvoice(other.id, 'pending', 5000);
       createTestDeposit(otherInvoice, 700, 'pending');
 
-      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(100);
+      expect(vendorService.getVendorById(db, vendor.id).stillToPay).toBe(100);
     });
 
-    it('outstandingBalance is 0 when all invoices are paid', () => {
+    it('stillToPay is 0 when all invoices are paid', () => {
       const vendor = createTestVendor('Paid Up Vendor');
       createTestInvoice(vendor.id, 'paid', 999);
       createTestInvoice(vendor.id, 'paid', 500);
 
       const result = vendorService.getVendorById(db, vendor.id);
 
-      expect(result.outstandingBalance).toBe(0);
+      expect(result.stillToPay).toBe(0);
     });
 
     it('returns all optional fields including null values', () => {
@@ -1238,7 +1237,399 @@ describe('Vendor Service', () => {
       const result = vendorService.getVendorById(db, vendor1.id);
 
       expect(result.invoiceCount).toBe(1);
-      expect(result.outstandingBalance).toBe(1000);
+      expect(result.stillToPay).toBe(1000);
+    });
+  });
+
+  // ─── Company figures (#2244) ────────────────────────────────────────────────
+
+  describe('company money, tasks and site days (#2244)', () => {
+    let seq2244 = 0;
+    const AT = '2026-01-01T00:00:00.000Z';
+
+    function addInvoice(
+      vendorId: string,
+      status: 'pending' | 'paid' | 'claimed' | 'quotation',
+      amount: number,
+    ) {
+      seq2244 += 1;
+      const id = `inv2244-${seq2244}`;
+      db.insert(schema.invoices)
+        .values({ id, vendorId, amount, date: '2026-01-01', status, createdAt: AT, updatedAt: AT })
+        .run();
+      return id;
+    }
+
+    function addProgress(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed',
+      entryType: 'deposit' | 'refund' = 'deposit',
+    ) {
+      seq2244 += 1;
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id: `dep2244-${seq2244}`,
+          invoiceId,
+          amount,
+          dueDate: '2026-01-15',
+          status,
+          entryType,
+          createdAt: AT,
+          updatedAt: AT,
+        })
+        .run();
+    }
+
+    function addTask(vendorId: string, status: 'not_started' | 'in_progress' | 'completed') {
+      seq2244 += 1;
+      db.insert(schema.workItems)
+        .values({
+          id: `wi2244-${seq2244}`,
+          title: `Task ${seq2244}`,
+          status,
+          assignedVendorId: vendorId,
+          createdAt: AT,
+          updatedAt: AT,
+        })
+        .run();
+    }
+
+    function addLog(
+      options: {
+        vendorId?: string;
+        date?: string;
+        status?: 'draft' | 'saved';
+        isAutomatic?: boolean;
+        entryType?: 'daily_log' | 'general_note';
+        rawMetadata?: string | null;
+      } = {},
+    ) {
+      seq2244 += 1;
+      const metadata =
+        options.rawMetadata !== undefined
+          ? options.rawMetadata
+          : JSON.stringify({ vendorId: options.vendorId });
+      db.insert(schema.diaryEntries)
+        .values({
+          id: `log2244-${seq2244}`,
+          entryType: options.entryType ?? 'daily_log',
+          entryDate: options.date ?? '2026-03-01',
+          body: 'On site',
+          metadata,
+          status: options.status ?? 'saved',
+          isAutomatic: options.isAutomatic ?? false,
+          createdAt: AT,
+          updatedAt: AT,
+        })
+        .run();
+    }
+
+    describe('money fields on the detail', () => {
+      it('is all zeros for a company without records', () => {
+        const id = createTestVendor('Empty Co').id;
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.stillToPay).toBe(0);
+        expect(detail.paid).toBe(0);
+        expect(detail.offers).toEqual({
+          count: 0,
+          amount: 0,
+          paid: 0,
+          stillToPay: 0,
+          remainingOnOffer: 0,
+        });
+      });
+
+      // Mutation: summing only paid-status invoices would miss the claimed (submitted) 300 and
+      // the progress payments; counting claimed as unpaid would raise stillToPay.
+      it('counts paid, submitted (claimed) and progress payments as Paid; only pending as Still to pay', () => {
+        const id = createTestVendor('Mixed Co').id;
+        const pending = addInvoice(id, 'pending', 1000);
+        addProgress(pending, 400, 'paid');
+        addInvoice(id, 'claimed', 300);
+        addInvoice(id, 'paid', 200);
+
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.stillToPay).toBe(600);
+        expect(detail.paid).toBe(900);
+        expect(detail.invoiceCount).toBe(3);
+      });
+
+      it('nets a paid refund against Paid', () => {
+        const id = createTestVendor('Refund Co').id;
+        const paid = addInvoice(id, 'paid', 500);
+        addProgress(paid, 100, 'paid', 'refund');
+
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.paid).toBe(400);
+        expect(detail.stillToPay).toBe(0);
+      });
+
+      it('reports offers (quotations) separately with paid, still to pay and remaining', () => {
+        const id = createTestVendor('Offer Co').id;
+        const offer = addInvoice(id, 'quotation', 2000);
+        addProgress(offer, 500, 'paid');
+        addProgress(offer, 300, 'pending');
+        addInvoice(id, 'pending', 100);
+
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.offers.count).toBe(1);
+        expect(detail.offers.amount).toBe(2000);
+        expect(detail.offers.paid).toBe(500);
+        expect(detail.offers.stillToPay).toBe(300);
+        expect(detail.offers.remainingOnOffer).toBe(1200); // 2000 less paid 500 and pending 300
+        // The offer's pending progress payment and the pending invoice both count as Still to pay.
+        expect(detail.stillToPay).toBe(400);
+        expect(detail.invoiceCount).toBe(2);
+      });
+
+      it('keeps every company figure separate (no cross-contamination)', () => {
+        const a = createTestVendor('Alpha Money').id;
+        const b = createTestVendor('Beta Money').id;
+        addInvoice(a, 'pending', 700);
+        addInvoice(b, 'paid', 50);
+
+        expect(vendorService.getVendorById(db, a).stillToPay).toBe(700);
+        expect(vendorService.getVendorById(db, a).paid).toBe(0);
+        expect(vendorService.getVendorById(db, b).stillToPay).toBe(0);
+        expect(vendorService.getVendorById(db, b).paid).toBe(50);
+      });
+    });
+
+    describe('openTaskCount', () => {
+      it('counts tasks assigned to the company that are not completed', () => {
+        const id = createTestVendor('Task Co').id;
+        const other = createTestVendor('Other Task Co').id;
+        addTask(id, 'not_started');
+        addTask(id, 'in_progress');
+        addTask(id, 'completed');
+        addTask(other, 'not_started');
+
+        expect(vendorService.getVendorById(db, id).openTaskCount).toBe(2);
+        expect(vendorService.getVendorById(db, other).openTaskCount).toBe(1);
+      });
+
+      it('is 0 without tasks', () => {
+        expect(
+          vendorService.getVendorById(db, createTestVendor('No Task Co').id).openTaskCount,
+        ).toBe(0);
+      });
+    });
+
+    describe('onSiteDays and lastOnSite', () => {
+      it('is 0 and null without daily logs', () => {
+        const detail = vendorService.getVendorById(db, createTestVendor('Never Co').id);
+
+        expect(detail.onSiteDays).toBe(0);
+        expect(detail.lastOnSite).toBeNull();
+      });
+
+      it('counts distinct dates, so two logs on one day are one site day', () => {
+        const id = createTestVendor('Site Co').id;
+        addLog({ vendorId: id, date: '2026-03-01' });
+        addLog({ vendorId: id, date: '2026-03-01' });
+        addLog({ vendorId: id, date: '2026-03-05' });
+
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.onSiteDays).toBe(2);
+        expect(detail.lastOnSite).toBe('2026-03-05');
+      });
+
+      it('ignores drafts, automatic entries, other entry types and other companies', () => {
+        const id = createTestVendor('Strict Co').id;
+        const other = createTestVendor('Else Co').id;
+        addLog({ vendorId: id, date: '2026-01-10' });
+        addLog({ vendorId: id, date: '2026-09-01', status: 'draft' });
+        addLog({ vendorId: id, date: '2026-09-02', isAutomatic: true });
+        addLog({ vendorId: id, date: '2026-09-03', entryType: 'general_note' });
+        addLog({ vendorId: other, date: '2026-09-04' });
+
+        const detail = vendorService.getVendorById(db, id);
+
+        expect(detail.onSiteDays).toBe(1);
+        expect(detail.lastOnSite).toBe('2026-01-10');
+      });
+
+      it('does not fail on invalid or missing metadata JSON and skips those rows', () => {
+        const id = createTestVendor('Json Co').id;
+        addLog({ rawMetadata: '{not json' });
+        addLog({ rawMetadata: null });
+        addLog({ vendorId: id, date: '2026-02-02' });
+
+        const detail = vendorService.getVendorById(db, id);
+        expect(detail.onSiteDays).toBe(1);
+        expect(detail.lastOnSite).toBe('2026-02-02');
+        // The list shares the guard: a bad row must not break the whole query.
+        expect(vendorService.listVendors(db, {}).vendors.find((v) => v.id === id)?.lastOnSite).toBe(
+          '2026-02-02',
+        );
+      });
+    });
+
+    describe('list money fields and the still_to_pay sort', () => {
+      function seedMoney() {
+        const low = createTestVendor('Low Co').id;
+        const high = createTestVendor('High Co').id;
+        const zeroB = createTestVendor('Zero B').id;
+        const zeroA = createTestVendor('Zero A').id;
+        addInvoice(low, 'pending', 100);
+        addInvoice(high, 'pending', 900);
+        const offer = addInvoice(high, 'quotation', 1000);
+        addProgress(offer, 250, 'paid');
+        addInvoice(zeroB, 'paid', 40);
+        return { low, high, zeroA, zeroB };
+      }
+
+      it('attaches stillToPay, paid and offers to each row and equals the detail', () => {
+        const { low, high, zeroA } = seedMoney();
+        const rows = vendorService.listVendors(db, {}).vendors;
+
+        for (const id of [low, high, zeroA]) {
+          const row = rows.find((v) => v.id === id)!;
+          const detail = vendorService.getVendorById(db, id);
+          expect(row.stillToPay).toBe(detail.stillToPay);
+          expect(row.paid).toBe(detail.paid);
+          expect(row.offers).toEqual(detail.offers);
+        }
+        expect(rows.find((v) => v.id === high)!.stillToPay).toBe(900);
+        expect(rows.find((v) => v.id === high)!.offers!.paid).toBe(250);
+        expect(rows.find((v) => v.id === zeroA)!.offers!.count).toBe(0);
+      });
+
+      it('sorts ascending by still to pay, ties by name then id', () => {
+        seedMoney();
+        const asc = vendorService.listVendors(db, { sortBy: 'still_to_pay', sortOrder: 'asc' });
+
+        expect(asc.vendors.map((v) => v.name)).toEqual(['Zero A', 'Zero B', 'Low Co', 'High Co']);
+      });
+
+      it('sorts descending by still to pay and keeps the zero tie in name order', () => {
+        seedMoney();
+        const desc = vendorService.listVendors(db, { sortBy: 'still_to_pay', sortOrder: 'desc' });
+
+        expect(desc.vendors.map((v) => v.name)).toEqual(['High Co', 'Low Co', 'Zero A', 'Zero B']);
+      });
+
+      it('breaks equal figures and equal names by id', () => {
+        const ids = [createTestVendor('Twin').id, createTestVendor('Twin').id].sort();
+
+        for (const sortOrder of ['asc', 'desc'] as const) {
+          const rows = vendorService.listVendors(db, { sortBy: 'still_to_pay', sortOrder });
+          expect(rows.vendors.map((v) => v.id)).toEqual(ids);
+        }
+      });
+
+      it('pages after the sort and keeps totalItems', () => {
+        seedMoney();
+        const page1 = vendorService.listVendors(db, {
+          sortBy: 'still_to_pay',
+          sortOrder: 'desc',
+          page: 1,
+          pageSize: 3,
+        });
+        const page2 = vendorService.listVendors(db, {
+          sortBy: 'still_to_pay',
+          sortOrder: 'desc',
+          page: 2,
+          pageSize: 3,
+        });
+
+        expect(page1.vendors.map((v) => v.name)).toEqual(['High Co', 'Low Co', 'Zero A']);
+        expect(page2.vendors.map((v) => v.name)).toEqual(['Zero B']);
+        expect(page1.pagination.totalItems).toBe(4);
+        expect(page2.vendors[0]!.stillToPay).toBe(0);
+        expect(page2.vendors[0]!.paid).toBe(40);
+      });
+
+      it('applies the filter before sorting and hydrates list-only fields', () => {
+        const { high } = seedMoney();
+        addContact2244(high);
+        const result = vendorService.listVendors(db, {
+          q: 'High',
+          sortBy: 'still_to_pay',
+          sortOrder: 'asc',
+        });
+
+        expect(result.vendors.map((v) => v.name)).toEqual(['High Co']);
+        expect(result.vendors[0]!.contactCount).toBe(1);
+        expect(result.vendors[0]!.firstContactPhone).toBe('555-0100');
+      });
+
+      it('returns an empty page for an empty filter result', () => {
+        seedMoney();
+        const result = vendorService.listVendors(db, {
+          q: 'nomatchxyz',
+          sortBy: 'still_to_pay',
+          sortOrder: 'asc',
+        });
+
+        expect(result.vendors).toEqual([]);
+        expect(result.pagination.totalItems).toBe(0);
+      });
+
+      function addContact2244(vendorId: string) {
+        db.insert(schema.vendorContacts)
+          .values({
+            id: `vc2244-${vendorId}`,
+            vendorId,
+            name: 'Pat',
+            phone: '555-0100',
+            createdAt: AT,
+            updatedAt: AT,
+          })
+          .run();
+      }
+    });
+  });
+
+  describe('gaps closed with #2244 (whole-file coverage)', () => {
+    it('rejects an unknown tradeId on create and on update', () => {
+      const userId = createTestUser('gap@test.com', 'Gap');
+      const vendor = createTestVendor('Gap Co');
+
+      expect(() =>
+        vendorService.createVendor(db, { name: 'New', tradeId: 'no-such-trade' }, userId),
+      ).toThrow('Trade does not exist');
+      expect(() => vendorService.updateVendor(db, vendor.id, { tradeId: 'no-such-trade' })).toThrow(
+        'Trade does not exist',
+      );
+    });
+
+    it('still_to_pay: a page past the last page is empty and totalItems stays correct', () => {
+      createTestVendor('One');
+      createTestVendor('Two');
+
+      const result = vendorService.listVendors(db, {
+        sortBy: 'still_to_pay',
+        sortOrder: 'asc',
+        page: 5,
+        pageSize: 2,
+      });
+
+      expect(result.vendors).toEqual([]);
+      expect(result.pagination.totalItems).toBe(2);
+      expect(result.pagination.page).toBe(5);
+    });
+
+    it('carries a stored trade translationKey and sorts by updated_at ascending', () => {
+      const trade = createTestTrade('Plumbing');
+      db.update(schema.trades)
+        .set({ translationKey: 'trades.plumbing' })
+        .where(eq(schema.trades.id, trade.id))
+        .run();
+      const first = createTestVendor('Older', { tradeId: trade.id });
+      createTestVendor('Newer');
+
+      const detail = vendorService.getVendorById(db, first.id);
+      expect(detail.trade?.translationKey).toBe('trades.plumbing');
+
+      const asc = vendorService.listVendors(db, { sortBy: 'updated_at', sortOrder: 'asc' });
+      expect(asc.vendors.map((v) => v.name)).toEqual(['Older', 'Newer']);
     });
   });
 
@@ -1420,14 +1811,14 @@ describe('Vendor Service', () => {
       expect(result.name).toBe('New Name');
     });
 
-    it('returns VendorDetail shape with invoiceCount and outstandingBalance', () => {
+    it('returns VendorDetail shape with invoiceCount and stillToPay', () => {
       const vendor = createTestVendor('Invoice Vendor');
       createTestInvoice(vendor.id, 'pending', 750);
 
       const result = vendorService.updateVendor(db, vendor.id, { name: 'Updated Invoice Vendor' });
 
       expect(result.invoiceCount).toBe(1);
-      expect(result.outstandingBalance).toBe(750);
+      expect(result.stillToPay).toBe(750);
     });
 
     it('updates tradeId only (partial update)', () => {

@@ -150,7 +150,6 @@ const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>()
 jest.unstable_mockModule('./lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
   createInvoice: jest.fn<typeof InvoicesApiTypes.createInvoice>(),
-  fetchInvoices: jest.fn<typeof InvoicesApiTypes.fetchInvoices>(),
   updateInvoice: jest.fn<typeof InvoicesApiTypes.updateInvoice>(),
   deleteInvoice: jest.fn<typeof InvoicesApiTypes.deleteInvoice>(),
   fetchInvoiceById: mockFetchInvoiceById,

@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
+import { VENDOR_SORT_FIELDS } from './vendor.js';
 import type {
   Vendor,
   VendorListItem,
@@ -174,7 +175,7 @@ describe('Vendor interface', () => {
 // ---------------------------------------------------------------------------
 
 describe('VendorDetail interface', () => {
-  it('extends Vendor with invoiceCount, outstandingBalance, and contacts', () => {
+  it('extends Vendor with invoiceCount, money figures, site figures and contacts', () => {
     const detail: VendorDetail = {
       id: 'v-detail-1',
       name: 'Master Builder',
@@ -192,17 +193,24 @@ describe('VendorDetail interface', () => {
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-01T00:00:00Z',
       invoiceCount: 5,
-      outstandingBalance: 12500.0,
+      stillToPay: 12500.0,
+      paid: 800,
+      offers: { count: 1, amount: 3000, paid: 500, stillToPay: 250, remainingOnOffer: 2250 },
+      openTaskCount: 2,
+      onSiteDays: 4,
+      lastOnSite: '2026-03-05',
       contacts: [],
     };
 
     expect(detail.invoiceCount).toBe(5);
-    expect(detail.outstandingBalance).toBe(12500.0);
+    expect(detail.stillToPay).toBe(12500.0);
+    expect(detail.offers.remainingOnOffer).toBe(2250);
+    expect(detail.lastOnSite).toBe('2026-03-05');
     expect(detail.contacts).toHaveLength(0);
     expect(detail.trade?.name).toBe('General Contractor');
   });
 
-  it('can have a zero outstanding balance', () => {
+  it('can have a zero still-to-pay figure', () => {
     const detail: VendorDetail = {
       id: 'v-detail-2',
       name: 'Fully Paid Vendor',
@@ -215,12 +223,18 @@ describe('VendorDetail interface', () => {
       createdAt: '2025-01-01T00:00:00Z',
       updatedAt: '2025-01-01T00:00:00Z',
       invoiceCount: 3,
-      outstandingBalance: 0,
+      stillToPay: 0,
+      paid: 0,
+      offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+      openTaskCount: 0,
+      onSiteDays: 0,
+      lastOnSite: null,
       contacts: [],
     };
 
     expect(detail.invoiceCount).toBe(3);
-    expect(detail.outstandingBalance).toBe(0);
+    expect(detail.stillToPay).toBe(0);
+    expect(detail).not.toHaveProperty('outstandingBalance');
   });
 });
 
@@ -359,6 +373,8 @@ describe('VendorListQuery interface', () => {
     const sortByValues: NonNullable<VendorListQuery['sortBy']>[] = [
       'name',
       'trade',
+      'last_on_site',
+      'still_to_pay',
       'created_at',
       'updated_at',
     ];
@@ -439,14 +455,32 @@ describe('VendorDetailResponse interface', () => {
         createdAt: '2026-03-01T00:00:00Z',
         updatedAt: '2026-03-01T00:00:00Z',
         invoiceCount: 0,
-        outstandingBalance: 0,
+        stillToPay: 0,
+        paid: 0,
+        offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
+        openTaskCount: 0,
+        onSiteDays: 0,
+        lastOnSite: null,
         contacts: [],
       },
     };
 
     expect(response.vendor.id).toBe('v-detail-resp');
     expect(response.vendor.invoiceCount).toBe(0);
-    expect(response.vendor.outstandingBalance).toBe(0);
+    expect(response.vendor.stillToPay).toBe(0);
     expect(response.vendor.contacts).toHaveLength(0);
+  });
+});
+
+describe('VENDOR_SORT_FIELDS', () => {
+  it('lists still_to_pay between last_on_site and created_at (#2244)', () => {
+    expect([...VENDOR_SORT_FIELDS]).toEqual([
+      'name',
+      'trade',
+      'last_on_site',
+      'still_to_pay',
+      'created_at',
+      'updated_at',
+    ]);
   });
 });

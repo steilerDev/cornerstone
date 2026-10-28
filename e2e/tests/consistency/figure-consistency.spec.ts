@@ -10,7 +10,7 @@
  *
  * Scenarios
  * FC1 (desktop, AC1)       project figures equal the money service on every registered surface
- * FC2 (desktop, AC1)       a company's Still to pay: both page markers equal the API balance
+ * FC2 (desktop, AC1)       a company's Still to pay: both page markers and the Companies list cell equal the API balance; Paid equals the API's paid (#2244)
  * FC3 (desktop, AC1)       "Holds up n tasks": API, Home attention row and Schedule tooltip agree
  * FC4 (@responsive, AC4)   at most one Left to spend figure per screen; no former names visible
  * FC5 (desktop, AC3)       a pending surface cannot become served without registering itself
@@ -30,6 +30,8 @@ import {
 import { API } from '../../fixtures/testData.js';
 import { dayOffset } from '../../fixtures/homeMocks.js';
 import {
+  COMPANIES_LIST_SURFACE,
+  COMPANY_PAID_SURFACE,
   COMPANY_SURFACE,
   FINANCING_READY_SURFACE,
   FINANCING_SOURCE_PAID_SURFACE,
@@ -168,7 +170,7 @@ test.describe('Figure consistency', () => {
     expect(last.problems).toEqual([]);
   });
 
-  test('FC2: a company Still to pay is the same on both markers and in the API (AC1)', async ({
+  test('FC2: a company Still to pay is the same on both markers, the list and the API; Paid too (AC1)', async ({
     page,
     testPrefix,
   }) => {
@@ -181,15 +183,28 @@ test.describe('Figure consistency', () => {
       ({ vendorId } = await seedCompany(page, testPrefix));
       const response = await page.request.get(`${API.vendors}/${vendorId}`);
       expect(response.ok()).toBeTruthy();
-      const balance = ((await response.json()) as { vendor: { outstandingBalance: number } }).vendor
-        .outstandingBalance;
-      expect(balance).toBeGreaterThan(0);
+      const { stillToPay, paid } = (
+        (await response.json()) as {
+          vendor: { stillToPay: number; paid: number };
+        }
+      ).vendor;
+      expect(stillToPay).toBeGreaterThan(0);
+      expect(paid).toBeGreaterThan(0);
 
-      // The stat card and the invoices header (the header needs the loaded invoice list)
-      await page.goto(routeUrl('company', { id: vendorId }));
-      await expect(page.locator('[data-figure="still-to-pay"]')).toHaveCount(2);
+      // The summary strip fact and the Payments totals line (both appear on ?tab=payments)
       const markers = await COMPANY_SURFACE.readAll(page, { companyId: vendorId });
-      expect(markers).toEqual([cents(balance), cents(balance)]);
+      expect(markers).toEqual([cents(stillToPay), cents(stillToPay)]);
+      // The totals line Paid
+      expect(await COMPANY_PAID_SURFACE.readAll(page, { companyId: vendorId })).toEqual([
+        cents(paid),
+      ]);
+      // The Still to pay cell of the company's row on the Companies list
+      expect(
+        await COMPANIES_LIST_SURFACE.readAll(page, {
+          companyId: vendorId,
+          companyName: `${testPrefix} Consistency Company`,
+        }),
+      ).toEqual([cents(stillToPay)]);
     } finally {
       if (vendorId) await removeCompany(page, vendorId);
     }
@@ -511,8 +526,12 @@ test.describe('Figure surface registry', () => {
     const entries = ROUTE_MAP as unknown as ReadonlyArray<{ id: string; stage: string }>;
     const routeIds = new Set(entries.map((entry) => entry.id));
     const gated = PENDING_SURFACES.filter((pending) => routeIds.has(pending.screen));
-    // The Financing surface (4.10) is built: it is registered, no longer pending
+    // The Financing surface (4.10) and the Company page (4.12) are built: registered, no longer pending
     expect(PENDING_SURFACES.map((pending) => pending.story)).not.toContain('4.10');
+    expect(PENDING_SURFACES.map((pending) => pending.story)).not.toContain('4.12');
+    expect(COMPANY_SURFACE.story).toBe('4.12');
+    expect(COMPANY_PAID_SURFACE.story).toBe('4.12');
+    expect(COMPANIES_LIST_SURFACE.story).toBe('4.12');
     expect(FINANCING_SOURCE_PAID_SURFACE.story).toBe('4.10');
     expect(FINANCING_READY_SURFACE.story).toBe('4.10');
     for (const pending of gated) {

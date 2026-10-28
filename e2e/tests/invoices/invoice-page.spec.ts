@@ -635,8 +635,8 @@ test.describe('Invoice page breadcrumbs (E13)', { tag: '@responsive' }, () => {
     await page.goBack();
     await expect(detail.heading).toBeVisible();
 
-    await page.goto(routeUrl('company', { id: seed.vendorId }));
-    await page.getByRole('button', { name: `Edit invoice ${seed.number}` }).click();
+    await page.goto(routeUrl('company', { id: seed.vendorId }, { tab: 'payments' }));
+    await page.getByTestId(`company-invoices-link-${seed.invoiceId}`).click();
     await expect(page).toHaveURL(
       (url) => url.pathname === routeUrl('invoice', { id: seed.invoiceId }),
     );

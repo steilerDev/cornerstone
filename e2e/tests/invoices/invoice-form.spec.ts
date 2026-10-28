@@ -313,7 +313,8 @@ test.describe('New invoice dialog - entry points (I4, I5, I5b)', { tag: '@respon
     const companyId = await createVendor(page, cleanup, company);
     const vendor = new VendorDetailPage(page);
     const dialog = new InvoiceFormDialog(page, 'invoice');
-    await vendor.goto(companyId);
+    await vendor.goto(companyId, 'payments');
+    await vendor.waitForPaymentsLoaded();
 
     await vendor.newInvoiceButton.click();
     await dialog.waitForOpen();

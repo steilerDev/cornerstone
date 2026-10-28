@@ -1,5 +1,7 @@
 import type { MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PhoneIcon } from './PhoneIcon.js';
+import { telHref } from './telHref.js';
 import styles from './CallButton.module.css';
 
 export interface CallButtonProps {
@@ -14,6 +16,8 @@ export interface CallButtonProps {
   readonly tabIndex?: number;
   readonly id?: string;
   readonly testId?: string;
+  /** Appended after the button's own classes (a host positions or stretches it). */
+  readonly className?: string;
   /** Rows call stopPropagation here so the row click does not also fire. */
   readonly onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 }
@@ -30,6 +34,7 @@ export function CallButton({
   tabIndex,
   id,
   testId,
+  className,
   onClick,
 }: CallButtonProps) {
   const { t } = useTranslation('common');
@@ -41,28 +46,17 @@ export function CallButton({
   return (
     <a
       id={id}
-      href={`tel:${phone.replace(/[^\d+]/g, '')}`}
+      href={telHref(phone)}
       tabIndex={tabIndex}
-      className={fullWidth ? `${styles.button} ${styles.fullWidth}` : styles.button}
+      className={[styles.button, fullWidth ? styles.fullWidth : null, className]
+        .filter(Boolean)
+        .join(' ')}
       aria-label={label}
       title={phone}
       onClick={onClick}
       data-testid={testId}
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        className={styles.icon}
-      >
-        <path d="M3 2.5h3l1 3-1.5 1a8 8 0 0 0 4 4l1-1.5 3 1v3a1.5 1.5 0 0 1-1.5 1.5A11 11 0 0 1 1.5 4 1.5 1.5 0 0 1 3 2.5z" />
-      </svg>
+      <PhoneIcon className={styles.icon} />
       <span className={styles.text}>{text}</span>
     </a>
   );

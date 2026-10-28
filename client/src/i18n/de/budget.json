@@ -190,81 +190,6 @@
   "budgetSection": {
     "subsidies": "Förderprogramme"
   },
-  "vendorDetail": {
-    "loading": "Auftragnehmer wird geladen...",
-    "error": "Fehler",
-    "retry": "Erneut versuchen",
-    "vendorNotFound": "Auftragnehmer nicht gefunden. Er wurde möglicherweise gelöscht.",
-    "vendorInformation": "Auftragnehmerinformationen",
-    "totalInvoices": "Gesamtrechnungen",
-    "outstandingBalance": "Ausstehender Saldo",
-    "invoices": "Rechnungen",
-    "addInvoice": "Neue Rechnung",
-    "invoicesLoading": "Rechnungen werden geladen...",
-    "invoiceEditAria": "Rechnung {{number}} bearbeiten",
-    "invoiceDeleteAria": "Rechnung {{number}} löschen",
-    "noInvoicesYet": "Noch keine Rechnungen.",
-    "noInvoicesHint": "Klicke auf „Rechnung hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
-    "outstanding": "Ausstehend:",
-    "createdBy": "Erstellt von",
-    "detailFields": {
-      "name": "Name",
-      "specialty": "Fachrichtung",
-      "phone": "Telefon",
-      "email": "E-Mail",
-      "address": "Adresse",
-      "notes": "Notizen",
-      "trade": "Gewerk",
-      "createdBy": "Erstellt von"
-    },
-    "form": {
-      "name": "Name",
-      "specialty": "Fachrichtung",
-      "phone": "Telefon",
-      "email": "E-Mail",
-      "address": "Adresse",
-      "notes": "Notizen",
-      "trade": "Gewerk",
-      "required": "*",
-      "tradePlaceholder": "Gewerk auswählen...",
-      "placeholders": {
-        "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
-        "phone": "z. B. +49 555-123-4567",
-        "email": "z. B. kontakt@auftragnehmer.de",
-        "address": "z. B. Hauptstr. 123, 12345 Musterstadt"
-      }
-    },
-    "buttons": {
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "retry": "Erneut versuchen",
-      "editRow": "Bearbeiten",
-      "deleteRow": "Löschen"
-    },
-    "deleteInvoiceModal": {
-      "noNumber": "diese Rechnung"
-    },
-    "quotedLabel": "Angebot",
-    "invoiceTable": {
-      "invoiceNumber": "Rechnung #",
-      "amount": "Betrag",
-      "date": "Datum",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "actions": "Aktionen"
-    },
-    "invoiceCard": {
-      "noInvoiceNumber": "Keine Rechnungsnummer"
-    },
-    "messages": {
-      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuche es später erneut.",
-      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuche es später erneut.",
-      "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuche es später erneut."
-    }
-  },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
     "error": "Fehler",
@@ -974,8 +899,12 @@
         "address": "Adresse",
         "notes": "Notizen",
         "createdAt": "Hinzugefügt am",
-        "updatedAt": "Zuletzt aktualisiert"
-      }
+        "updatedAt": "Zuletzt aktualisiert",
+        "stillToPay": "Noch zu zahlen",
+        "offers": "Angebote"
+      },
+      "offersPaid": "{{amount}} bezahlt",
+      "noOffers": "Keine Angebote"
     },
     "form": {
       "title": "Neue Firma",
@@ -992,6 +921,109 @@
     },
     "picker": {
       "newNamed": "Neue Firma „{{name}}“"
+    }
+  },
+  "companyPage": {
+    "typeLabel": "Firma",
+    "loading": "Firma wird geladen",
+    "loadError": "Diese Firma konnte nicht geladen werden. Versuche es erneut.",
+    "notFound": "Diese Firma existiert nicht oder wurde gelöscht.",
+    "retry": "Erneut versuchen",
+    "addPhone": "Telefonnummer hinzufügen",
+    "deleteError": "Die Firma konnte nicht gelöscht werden. Versuche es erneut.",
+    "strip": {
+      "trade": "Gewerk",
+      "stillToPay": "Noch zu zahlen",
+      "offers": "Angebote",
+      "offersPaid": "{{amount}} bezahlt",
+      "none": "Keine",
+      "tasks": "Aufgaben",
+      "tasksOpen_one": "{{count}} offen",
+      "tasksOpen_other": "{{count}} offen",
+      "noneOpen": "Keine offen",
+      "onSite": "Vor Ort",
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "last": "zuletzt {{date}}",
+      "noneYet": "Noch keine"
+    },
+    "sections": {
+      "phoneEmail": "Telefon und E-Mail",
+      "address": "Adresse",
+      "about": "Info"
+    },
+    "fields": {
+      "addedBy": "Hinzugefügt von"
+    },
+    "saveError": "Die Firma konnte nicht gespeichert werden. Versuche es erneut.",
+    "contactPersons": {
+      "title": "Ansprechpartner",
+      "new": "Neuer Ansprechpartner",
+      "empty": "Noch keine Ansprechpartner. Füge die Personen hinzu, mit denen du bei dieser Firma sprichst.",
+      "noPhone": "Keine Telefonnummer",
+      "nameRequired": "Gib einen Vor- oder Nachnamen ein.",
+      "saveError": "Der Ansprechpartner konnte nicht gespeichert werden. Versuche es erneut.",
+      "form": {
+        "newTitle": "Neuer Ansprechpartner",
+        "editTitle": "Ansprechpartner bearbeiten",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "role": "Rolle",
+        "phone": "Telefon",
+        "email": "E-Mail",
+        "notes": "Notizen"
+      }
+    },
+    "payments": {
+      "paid": "Bezahlt",
+      "stillToPay": "Noch zu zahlen",
+      "submittedNote_one": "{{count}} eingereichte Rechnung wird nicht in „Noch zu zahlen“ mitgezählt.",
+      "submittedNote_other": "{{count}} eingereichte Rechnungen werden nicht in „Noch zu zahlen“ mitgezählt.",
+      "invoices": "Rechnungen",
+      "offers": "Angebote",
+      "progressPayments": "Abschlagszahlungen",
+      "newInvoice": "Neue Rechnung",
+      "newOffer": "Neues Angebot",
+      "invoicesEmpty": "Noch keine Rechnungen von dieser Firma.",
+      "offersEmpty": "Noch keine Angebote von dieser Firma.",
+      "allEmpty": "Noch keine Angebote, Rechnungen oder Zahlungen für diese Firma.",
+      "loadError": "Die Zahlungen dieser Firma konnten nicht geladen werden. Versuche es erneut.",
+      "due": "Fällig {{date}}",
+      "paidAmount": "{{amount}} bezahlt",
+      "stillToPayAmount": "{{amount}} noch zu zahlen",
+      "remainingOnOffer": "Restbetrag laut Angebot {{amount}}",
+      "progressPaymentTitle": "Abschlagszahlung · {{date}}",
+      "deleteNameInvoice": "diese Rechnung",
+      "deleteNameOffer": "dieses Angebot",
+      "deleteError": "Die Rechnung konnte nicht gelöscht werden. Versuche es erneut."
+    },
+    "work": {
+      "tasks": "Aufgaben",
+      "purchases": "Anschaffungen",
+      "costLines": "Kostenpositionen",
+      "tasksEmpty": "Dieser Firma sind keine Aufgaben zugewiesen.",
+      "purchasesEmpty": "Keine Anschaffungen nennen diese Firma als Lieferanten.",
+      "costLinesEmpty": "Keine Kostenpositionen nennen diese Firma.",
+      "taskEnds": "Endet {{date}}",
+      "delivery": "Lieferung {{date}}",
+      "delivered": "Geliefert {{date}}",
+      "untitledLine": "Kostenposition",
+      "loadError": "Die Arbeiten dieser Firma konnten nicht geladen werden. Versuche es erneut."
+    },
+    "diary": {
+      "title": "Bautagebuch",
+      "srCount_one": ", {{count}} Eintrag",
+      "srCount_other": ", {{count}} Einträge",
+      "showAll": "Alle im Bautagebuch anzeigen",
+      "empty": "Noch kein Bautagebucheintrag nennt diese Firma.",
+      "loadError": "Die Bautagebucheinträge konnten nicht geladen werden. Versuche es erneut."
+    },
+    "history": {
+      "title": "Verlauf",
+      "empty": "Bei den Angeboten und Rechnungen dieser Firma ist noch nichts passiert.",
+      "loadError": "Der Verlauf konnte nicht geladen werden. Versuche es erneut.",
+      "retry": "Erneut versuchen",
+      "showAll": "Alle im Verlauf anzeigen"
     }
   },
   "convertPage": {

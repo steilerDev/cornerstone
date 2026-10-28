@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as vendorService from '../services/vendorService.js';
+import * as vendorRelationsService from '../services/vendorRelationsService.js';
 import { parseTradeIds } from '../services/shared/tradeIdsParam.js';
 import { SEARCH_QUERY_RAW_MAX_LENGTH, VENDOR_SORT_FIELDS } from '@cornerstone/shared';
 import type {
@@ -138,6 +139,24 @@ export default async function vendorRoutes(fastify: FastifyInstance) {
 
       const vendor = vendorService.getVendorById(fastify.db, request.params.id);
       return reply.status(200).send({ vendor });
+    },
+  );
+
+  /**
+   * GET /api/vendors/:id/relations
+   * Work items, household items and budget lines attached to the company (contract 13).
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.get<{ Params: { id: string } }>(
+    '/:id/relations',
+    { schema: vendorIdSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const relations = vendorRelationsService.getVendorRelations(fastify.db, request.params.id);
+      return reply.status(200).send(relations);
     },
   );
 

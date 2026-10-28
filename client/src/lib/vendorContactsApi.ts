@@ -1,19 +1,11 @@
-import { get, post, patch, del } from './apiClient.js';
+import { post, patch, del } from './apiClient.js';
 import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type {
   VendorContact,
   CreateVendorContactRequest,
   UpdateVendorContactRequest,
-  VendorContactListResponse,
   VendorContactResponse,
 } from '@cornerstone/shared';
-
-/**
- * Fetches the list of contacts for a vendor.
- */
-export function listVendorContacts(vendorId: string): Promise<VendorContactListResponse> {
-  return get<VendorContactListResponse>(`/vendors/${vendorId}/contacts`);
-}
 
 /**
  * Creates a new contact for a vendor.

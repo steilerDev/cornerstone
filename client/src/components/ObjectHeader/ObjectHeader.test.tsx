@@ -227,6 +227,30 @@ describe('ObjectHeader', () => {
       expect(probedOrigin()).toEqual({ to: '/from' });
     });
 
+    // Mutation: building the href from the raw number leaves spaces and dashes in it.
+    it('kind=tel: a tel: anchor with only digits and plus, the given name, the number as title and one primary class', () => {
+      renderHeader({
+        primary: {
+          kind: 'tel',
+          phone: '+49 (30) 555-0142',
+          label: 'Call',
+          ariaLabel: 'Call Sample Co on +49 (30) 555-0142',
+          testId: 'tel-primary',
+        },
+      });
+      const root = screen.getByTestId('object-header');
+      const link = screen.getByTestId('tel-primary');
+
+      expect(root.querySelectorAll('.primary')).toHaveLength(1);
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveClass('primary');
+      expect(link).toHaveAttribute('href', 'tel:+49305550142');
+      expect(link).toHaveAttribute('title', '+49 (30) 555-0142');
+      expect(link).toHaveAccessibleName('Call Sample Co on +49 (30) 555-0142');
+      expect(link).toHaveTextContent('Call');
+      expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    });
+
     it('kind=status: a StatusMenu action trigger carries the primary class and applies the transition', async () => {
       const onApply = jest.fn<(to: S, date: string | null) => Promise<void>>().mockResolvedValue();
       renderHeader({

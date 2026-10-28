@@ -25,7 +25,8 @@
       "invoice": "Rechnung",
       "milestone": "Meilenstein",
       "subsidy_program": "Förderprogramm",
-      "budget_source": "Finanzierungsquelle"
+      "budget_source": "Finanzierungsquelle",
+      "vendor": "Firma"
     },
     "from": "Von",
     "to": "Bis",

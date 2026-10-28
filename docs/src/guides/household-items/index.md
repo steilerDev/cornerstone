@@ -16,7 +16,7 @@ The household items system provides:
 - **Work Item Linking** -- Link household items to work items for installation coordination (e.g., "Kitchen sink" depends on "Plumbing rough-in")
 - **Delivery Scheduling** -- Track order dates, delivery windows (earliest/latest), actual delivery dates, and late detection
 - **Timeline Dependencies** -- Add dependencies on work items and milestones so delivery dates integrate with the project Gantt chart
-- **Invoice Linking** -- Link vendor offers and invoices to household item cost lines to track actual costs
+- **Invoice Linking** -- Link company offers and invoices to household item cost lines to track actual costs
 - **Document Linking** -- Attach documents from [Paperless-ngx](/guides/documents) (product specs, receipts, warranties) to household items
 - **Areas & Notes** -- Assign items to project areas and add timestamped notes
 - **Grant Support** -- Link grants to household items so the grant covers their costs
@@ -34,7 +34,7 @@ Household items move through a purchase lifecycle:
 | Status | Meaning |
 |--------|---------|
 | **Planned** | Item identified but not yet ordered |
-| **Purchased** | Order placed with vendor |
+| **Purchased** | Order placed with the company |
 | **Scheduled** | Delivery date confirmed |
 | **Arrived** | Item delivered |
 

@@ -1,6 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
-  fetchInvoices,
   createInvoice,
   updateInvoice,
   deleteInvoice,
@@ -47,103 +46,6 @@ describe('invoicesApi', () => {
     createdAt: '2026-02-01T00:00:00.000Z',
     updatedAt: '2026-02-01T00:00:00.000Z',
   };
-
-  // ─── fetchInvoices ─────────────────────────────────────────────────────────
-
-  describe('fetchInvoices', () => {
-    it('sends GET request to /api/vendors/:vendorId/invoices', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ invoices: [] }),
-      } as Response);
-
-      await fetchInvoices('vendor-1');
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/vendors/vendor-1/invoices', expect.any(Object));
-    });
-
-    it('returns an empty array when no invoices exist', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ invoices: [] }),
-      } as Response);
-
-      const result = await fetchInvoices('vendor-1');
-
-      expect(result).toHaveLength(0);
-    });
-
-    it('returns an array of invoices', async () => {
-      const invoiceList = [sampleInvoice, { ...sampleInvoice, id: 'invoice-2', amount: 500 }];
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ invoices: invoiceList }),
-      } as Response);
-
-      const result = await fetchInvoices('vendor-1');
-
-      expect(result).toHaveLength(2);
-      expect(result[0]!.id).toBe('invoice-1');
-      expect(result[1]!.id).toBe('invoice-2');
-    });
-
-    it('unwraps the invoices array from the response envelope', async () => {
-      const envelope = { invoices: [sampleInvoice] };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => envelope,
-      } as Response);
-
-      const result = await fetchInvoices('vendor-1');
-
-      expect(Array.isArray(result)).toBe(true);
-      expect(result[0]!).toEqual(sampleInvoice);
-    });
-
-    it('uses the correct vendorId in the URL', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ invoices: [] }),
-      } as Response);
-
-      await fetchInvoices('vendor-abc-123');
-
-      const call = mockFetch.mock.calls[0]!;
-      expect(call[0]!).toBe('/api/vendors/vendor-abc-123/invoices');
-    });
-
-    it('throws when server returns 401 UNAUTHORIZED', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }),
-      } as Response);
-
-      await expect(fetchInvoices('vendor-1')).rejects.toThrow();
-    });
-
-    it('throws when server returns 404 NOT_FOUND', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Vendor not found' } }),
-      } as Response);
-
-      await expect(fetchInvoices('non-existent-vendor')).rejects.toThrow();
-    });
-
-    it('throws when server returns 500 INTERNAL_ERROR', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
-      } as Response);
-
-      await expect(fetchInvoices('vendor-1')).rejects.toThrow();
-    });
-  });
 
   // ─── createInvoice ─────────────────────────────────────────────────────────
 

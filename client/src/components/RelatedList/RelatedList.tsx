@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UndoToken } from '@cornerstone/shared';
+import { CallButton } from '../CallButton/CallButton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { FormError } from '../FormError/FormError.js';
 import { OverflowMenu, type OverflowMenuItem } from '../OverflowMenu/OverflowMenu.js';
@@ -190,7 +191,11 @@ export function RelatedList({
     const showEdit = onEdit !== undefined && row.editable !== false;
     const editLabel = t('relatedList.edit', { title: row.title });
     return (
-      <li key={row.id} className={styles.row} data-testid={`${testId}-row-${row.id}`}>
+      <li
+        key={row.id}
+        className={row.call ? `${styles.row} ${styles.rowWithCall}` : styles.row}
+        data-testid={`${testId}-row-${row.id}`}
+      >
         <div className={styles.main}>
           <div className={styles.titleCell}>
             {row.to ? (
@@ -214,6 +219,16 @@ export function RelatedList({
           ) : null}
         </div>
         {row.amount ? <div className={styles.amount}>{row.amount}</div> : null}
+        {row.call ? (
+          <div className={styles.callCell}>
+            <CallButton
+              phone={row.call.phone}
+              name={row.call.name}
+              className={styles.callButton}
+              testId={`${testId}-call-${row.id}`}
+            />
+          </div>
+        ) : null}
         {showEdit ? (
           <div className={styles.editCell}>
             <Tooltip content={editLabel}>

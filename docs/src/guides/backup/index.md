@@ -13,7 +13,7 @@ This guide walks through configuring the backup directory, scheduling automatic 
 
 A backup is a `tar.gz` archive of the **entire app data directory** -- the same directory that contains your SQLite database file (`cornerstone.db` by default). That means a single archive captures:
 
-- A consistent snapshot of the SQLite database (work items, budgets, users, vendors, diary entries, etc.)
+- A consistent snapshot of the SQLite database (work items, budgets, users, companies, diary entries, etc.)
 - Diary photo attachments stored under the data directory
 - Any other state Cornerstone keeps next to the database
 

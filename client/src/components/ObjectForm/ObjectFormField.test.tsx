@@ -35,6 +35,8 @@ describe('ObjectFormField kinds', () => {
     ['number', 'number'],
     ['date', 'date'],
     ['url', 'url'],
+    ['tel', 'tel'],
+    ['email', 'email'],
   ] as const)('renders a %s input labelled by its label', (kind, type) => {
     setup({ kind });
     const input = screen.getByLabelText('Label') as HTMLInputElement;
@@ -50,6 +52,28 @@ describe('ObjectFormField kinds', () => {
     expect(input).toHaveAttribute('min', '0');
     expect(input).toHaveAttribute('maxlength', '5');
     expect(input).toHaveAttribute('placeholder', '0');
+  });
+
+  // Mutation: dropping the prop pass-through loses the browser's autofill hint.
+  it.each(['text', 'tel', 'email', 'url'] as const)(
+    'passes autoComplete to a %s input and sets none when the field has none',
+    (kind) => {
+      const { unmount } = setup({ kind, autoComplete: 'tel' });
+      expect(screen.getByLabelText('Label')).toHaveAttribute('autocomplete', 'tel');
+      unmount();
+
+      setup({ kind });
+      expect(screen.getByLabelText('Label')).not.toHaveAttribute('autocomplete');
+    },
+  );
+
+  it('does not put autoComplete on a textarea or a select', () => {
+    const { unmount } = setup({ kind: 'textarea', autoComplete: 'tel' });
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('autocomplete');
+    unmount();
+
+    setup({ kind: 'select', autoComplete: 'tel', options: [{ value: 'a', label: 'A' }] });
+    expect(screen.getByLabelText('Label')).not.toHaveAttribute('autocomplete');
   });
 
   it('does not set min on a non-number input', () => {

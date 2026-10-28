@@ -271,6 +271,22 @@ export function listHistory(db: DbType, query: ParsedHistoryQuery): HistoryListR
       sql`${metaField('batchId')} IS NOT NULL`,
       sql`${metaField('budgetSourceId')} = ${query.entityId}`,
     );
+  } else if (query.entityType === 'vendor' && query.entityId) {
+    // A company's history is the events of its offers and invoices. The metadata clause keeps
+    // `invoice_created` events of invoices deleted since (metaField guards with json_valid).
+    autoConds.push(
+      eq(diaryEntries.sourceEntityType, 'invoice'),
+      or(
+        inArray(
+          diaryEntries.sourceEntityId,
+          db
+            .select({ id: invoices.id })
+            .from(invoices)
+            .where(eq(invoices.vendorId, query.entityId)),
+        ),
+        sql`${metaField('vendorId')} = ${query.entityId}`,
+      ),
+    );
   } else if (query.entityType && query.entityId) {
     autoConds.push(
       eq(diaryEntries.sourceEntityType, query.entityType),
