@@ -112,6 +112,8 @@ test.describe('Tasks list - Time groups (AC1)', { tag: '@responsive' }, () => {
         title: `${testPrefix} T1 week`,
         status: 'in_progress',
         startDate: dayOffset(-1),
+        // The planned end must still be ahead, or an in-progress task is Late (scheduling rule 3)
+        durationDays: 10,
       });
       await seedTask(page, cleanup, {
         title: `${testPrefix} T1 next`,
@@ -252,16 +254,16 @@ test.describe('Tasks list - row anatomy (AC3)', { tag: '@responsive' }, () => {
 
       if (!(await list.isTableSurface())) {
         // Cards: the area is a fact on the second line
-        await expect(list.workItemRow(lateTitle)).toContainText(areaName);
+        await expect(list.row(lateId)).toContainText(areaName);
         return;
       }
 
       await expect(list.areaLink(lateId)).toHaveText(areaName);
       await expect(list.grantChips(lateId)).toContainText(`${grantName} · 25%`);
-      await expect(list.workItemRow(lateTitle)).toContainText(vendorName);
+      await expect(list.row(lateId)).toContainText(vendorName);
       // Expected cost equals the server's figure
       const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' });
-      await expect(list.workItemRow(lateTitle)).toContainText(money.format(lateRow.expectedCost!));
+      await expect(list.row(lateId)).toContainText(money.format(lateRow.expectedCost!));
       // Relations: the late task holds up its successor; the successor waits for it
       await expect(list.holdsUp(lateId)).toHaveText('Holds up 1 task');
       await expect(list.holdsUp(lateId)).toHaveAttribute('data-figure', 'holds-up');
@@ -605,6 +607,8 @@ test.describe('Tasks list - Start and Mark done (AC8)', { tag: '@responsive' }, 
             title,
             status: 'in_progress',
             startDate: dayOffset(-3 + index),
+            // End still ahead: an in-progress task whose planned end passed is Late, not This week
+            durationDays: 10,
           }),
         );
       }

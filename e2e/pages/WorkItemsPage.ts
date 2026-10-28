@@ -348,25 +348,39 @@ export class WorkItemsPage {
     await expect(this.chip(value)).toHaveAttribute('aria-pressed', 'true');
   }
 
+  /**
+   * Choose an option of a Group by / Sort menu. Choosing a radio item does not close the menu, so
+   * open it only when it is not open yet, and close it again with Escape.
+   */
+  private async chooseMenuOption(trigger: Locator, option: Locator): Promise<void> {
+    if (!(await option.isVisible())) await trigger.click();
+    await option.click();
+    await this.page.keyboard.press('Escape');
+    await expect(option).toBeHidden();
+  }
+
   async setGroupBy(value: TaskGroupBy): Promise<void> {
-    await this.groupMenuButton.click();
-    await this.page.getByTestId(`tasks-group-${value}`).click();
+    await this.chooseMenuOption(
+      this.groupMenuButton,
+      this.page.getByTestId(`tasks-group-${value}`),
+    );
   }
 
   /** The Group by option as the menu shows it (for the disabled-with-reason check). */
   async groupOption(value: TaskGroupBy): Promise<Locator> {
-    await this.groupMenuButton.click();
     const option = this.page.getByTestId(`tasks-group-${value}`);
+    if (!(await option.isVisible())) await this.groupMenuButton.click();
     await option.waitFor({ state: 'visible' });
     return option;
   }
 
   async setSort(value: string, direction?: 'asc' | 'desc'): Promise<void> {
-    await this.sortMenuButton.click();
-    await this.page.getByTestId(`tasks-sort-${value}`).click();
+    await this.chooseMenuOption(this.sortMenuButton, this.page.getByTestId(`tasks-sort-${value}`));
     if (direction) {
-      await this.sortMenuButton.click();
-      await this.page.getByTestId(`tasks-sort-${direction}`).click();
+      await this.chooseMenuOption(
+        this.sortMenuButton,
+        this.page.getByTestId(`tasks-sort-${direction}`),
+      );
     }
   }
 
@@ -450,7 +464,9 @@ export class WorkItemsPage {
       await this.areaFilter.choose(this.areaFilter.optionNamed('No area'));
       return;
     }
-    await this.areaFilter.pick(name);
+    // The special "No area" option is always listed, so choose the named row instead of pick()
+    await this.areaFilter.type(name);
+    await this.areaFilter.choose(this.areaFilter.optionNamed(name));
   }
 
   /** The text of the selected chip of a picker inside the open Filters surface. */
@@ -477,7 +493,7 @@ export class WorkItemsPage {
   /** Set area for the selection through the dialog: picks the area by name (a pick applies). */
   async bulkSetArea(areaName: string): Promise<void> {
     await this.bulkSetAreaButton.click();
-    const input = this.page.getByLabel(/^Set area for \d+ tasks?$/);
+    const input = this.page.getByRole('textbox', { name: /^Set area for \d+ tasks?$/ });
     const picker = new EntityPickerControl(this.page, input);
     await picker.pick(areaName);
   }
@@ -517,7 +533,13 @@ export class WorkItemsPage {
 
   /** A column header of the table surface. */
   columnHeader(label: string | RegExp): Locator {
-    return this.tableSurface.getByRole('columnheader', { name: label });
+    // A string matches the start of the name ("Task" must not match "Select all tasks", and a
+    // sortable header's name carries a sort hint after the label)
+    const name =
+      typeof label === 'string'
+        ? new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+        : label;
+    return this.tableSurface.getByRole('columnheader', { name });
   }
 
   /** Open the Columns… dialog from the page ⋯ menu. */

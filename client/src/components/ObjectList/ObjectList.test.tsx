@@ -657,8 +657,12 @@ describe('ObjectList announcements', () => {
   });
 
   it('speaks a host announcement once per key, even when its text changes', async () => {
-    const view = renderList({ announcement: { key: 1, text: 'Marked done' } });
+    const view = renderList();
     await loaded();
+    // The initial result-count announcement settles first; a host message arrives after a user
+    // action, never during the first load.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('3 tasks'));
+    view.rerender(tree({ announcement: { key: 1, text: 'Marked done' } }));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Marked done'));
     // Same key, new text: not announced again.
     view.rerender(tree({ announcement: { key: 1, text: 'Something else' } }));
