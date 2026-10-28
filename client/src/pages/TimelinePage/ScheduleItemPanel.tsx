@@ -59,7 +59,7 @@ import {
 import type { RelationLabel, ScheduleRelationRow, ScheduleSubject } from './scheduleRelations.js';
 import styles from './ScheduleItemPanel.module.css';
 
-const PANEL_TEST_ID = 'schedule-panel';
+export const PANEL_TEST_ID = 'schedule-panel';
 
 export interface ScheduleItemPanelProps {
   /** The row the panel shows; null closes it. */

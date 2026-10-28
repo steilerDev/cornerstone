@@ -92,6 +92,7 @@ function LocationProbe() {
 
 function setup(view: ScheduleView, props: Partial<Parameters<typeof ScheduleToolbar>[0]> = {}) {
   const onToday = jest.fn<() => void>();
+  const onLegendToggle = jest.fn<() => void>();
   const legendToggleRef = createRef<HTMLButtonElement>();
   const utils = render(
     <MemoryRouter initialEntries={['/schedule/gantt']}>
@@ -102,13 +103,15 @@ function setup(view: ScheduleView, props: Partial<Parameters<typeof ScheduleTool
         onToday={onToday}
         areas={AREAS}
         legendId="legend-1"
+        legendOpen={false}
+        onLegendToggle={onLegendToggle}
         legendToggleRef={legendToggleRef}
         {...props}
       />
       <LocationProbe />
     </MemoryRouter>,
   );
-  return { ...utils, onToday, legendToggleRef };
+  return { ...utils, onToday, onLegendToggle, legendToggleRef };
 }
 
 beforeEach(() => {
@@ -274,6 +277,8 @@ describe('ScheduleToolbar area chip', () => {
           onToday={() => {}}
           areas={AREAS}
           legendId="legend-1"
+          legendOpen={false}
+          onLegendToggle={() => {}}
           legendToggleRef={legendToggleRef}
         />
       </MemoryRouter>,
@@ -294,6 +299,8 @@ describe('ScheduleToolbar area chip', () => {
           onToday={() => {}}
           areas={AREAS}
           legendId="legend-1"
+          legendOpen={false}
+          onLegendToggle={() => {}}
           legendToggleRef={legendToggleRef}
         />
       </MemoryRouter>,
@@ -309,23 +316,24 @@ describe('ScheduleToolbar actions', () => {
     expect(onToday).toHaveBeenCalledTimes(1);
   });
 
-  it('the Legend button controls the legend id, reflects its state and toggles it', () => {
-    const view = makeView({ legendOpen: true });
-    const { legendToggleRef } = setup(view);
+  it('the Legend button controls the legend id, reflects the open state it is given and toggles', () => {
+    const { legendToggleRef, onLegendToggle } = setup(makeView(), { legendOpen: true });
     const button = screen.getByTestId('schedule-legend-toggle');
     expect(button).toHaveAttribute('aria-controls', 'legend-1');
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(legendToggleRef.current).toBe(button);
     fireEvent.click(button);
-    expect(view.setLegendOpen).toHaveBeenCalledWith(false);
+    expect(onLegendToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the legend from a closed state', () => {
-    const view = makeView({ legendOpen: false });
-    setup(view);
+  it('shows the legend closed when told so and still just calls the toggle', () => {
+    const view = makeView({ legendOpen: true });
+    const { onLegendToggle } = setup(view, { legendOpen: false });
+    // the page decides what is open (a stored open state does not leak in)
     expect(screen.getByTestId('schedule-legend-toggle')).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(screen.getByTestId('schedule-legend-toggle'));
-    expect(view.setLegendOpen).toHaveBeenCalledWith(true);
+    expect(onLegendToggle).toHaveBeenCalledTimes(1);
+    expect(view.setLegendOpen).not.toHaveBeenCalled();
   });
 
   it('the more menu links to the calendar sync section of the profile settings', () => {

@@ -114,6 +114,13 @@
   font-size: var(--font-size-xs);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .toolbarButton,
+  .moreTrigger {
+    transition: none;
+  }
+}
+
 @media (pointer: coarse) {
   .toolbarButton,
   .moreTrigger,

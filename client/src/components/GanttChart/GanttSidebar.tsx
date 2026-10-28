@@ -317,7 +317,7 @@ export const GanttSidebar = function GanttSidebar({
                   )}
                 </span>
                 {hi.area && (
-                  <span className={styles.subline} title={purchasePath ?? undefined}>
+                  <span className={styles.subline} title={purchasePath!}>
                     {hi.area.name}
                   </span>
                 )}

@@ -10,10 +10,9 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { addDays } from '../../lib/home/agenda.js';
-import { barDates } from '../../lib/scheduleDates.js';
+import { barDates, daysBetweenKeys } from '../../lib/scheduleDates.js';
 import { updateWorkItem } from '../../lib/workItemsApi.js';
 import sharedStyles from '../../styles/shared.module.css';
-import { daysBetweenKeys } from '../../lib/scheduleDates.js';
 import { Badge } from '../Badge/Badge.js';
 import { FormError } from '../FormError/FormError.js';
 import { Spinner } from '../Spinner/Spinner.js';
@@ -111,7 +110,7 @@ export function ReschedulePanel({
   const endRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    endRef.current?.focus();
+    endRef.current!.focus();
   }, []);
 
   const follow = useDebouncedCallback((from: Edited, value: string) => {

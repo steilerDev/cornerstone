@@ -8,7 +8,7 @@ import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { ScheduleResponse, ApiErrorResponse, ScheduleRequest } from '@cornerstone/shared';
 import { workItems, workItemDependencies, milestones, milestoneWorkItems } from '../db/schema.js';
-import type { SchedulePreviewResponse } from '@cornerstone/shared';
+import type { SchedulePreviewResponse, TimelineResponse } from '@cornerstone/shared';
 
 function futureDateStr(daysFromNow: number): string {
   const d = new Date();
@@ -1159,6 +1159,89 @@ describe('Schedule Routes', () => {
           overrides: [{ workItemId: a, startDate: '2026-02-30' }],
         });
         expect(snapshot()).toEqual(before);
+      });
+    });
+
+    describe('preview predicts what Save stores', () => {
+      it('every moved task, milestone and the project end match the timeline after PATCH', async () => {
+        const { userId, cookie } = await createUserWithSession(
+          'pv@example.com',
+          'PV',
+          'password123',
+        );
+        const d = (n: number) => futureDateStr(n);
+        // consistent with the plan, as after a normal reschedule
+        const a = createTestWorkItem(userId, 'A', {
+          durationDays: 5,
+          startDate: d(10),
+          endDate: d(15),
+        });
+        const b = createTestWorkItem(userId, 'B', {
+          durationDays: 3,
+          startDate: d(15),
+          endDate: d(18),
+        });
+        const c = createTestWorkItem(userId, 'C', {
+          durationDays: 2,
+          startDate: d(18),
+          endDate: d(20),
+        });
+        createTestDependency(a, b);
+        createTestDependency(b, c);
+        const now = new Date().toISOString();
+        const m = app.db
+          .insert(milestones)
+          .values({
+            title: 'Shell',
+            targetDate: d(60),
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning()
+          .get();
+        app.db.insert(milestoneWorkItems).values({ milestoneId: m.id, workItemId: c }).run();
+
+        const preview = await post(cookie, {
+          mode: 'cascade',
+          anchorWorkItemId: a,
+          overrides: [{ workItemId: a, durationDays: 9 }],
+        });
+        expect(preview.statusCode).toBe(200);
+        const { impact } = preview.json<SchedulePreviewResponse>();
+        expect(impact.movedItems.map((i) => i.workItemId).sort()).toEqual([b, c].sort());
+        expect(impact.milestones.map((i) => i.milestoneId)).toEqual([m.id]);
+
+        const saved = await app.inject({
+          method: 'PATCH',
+          url: `/api/work-items/${a}`,
+          headers: { cookie },
+          payload: { durationDays: 9, endDate: d(19) },
+        });
+        expect(saved.statusCode).toBe(200);
+
+        const timeline = (
+          await app.inject({ method: 'GET', url: '/api/timeline', headers: { cookie } })
+        ).json<TimelineResponse>();
+        const shownEnd = (id: string) => {
+          const w = timeline.workItems.find((x) => x.id === id)!;
+          return w.actualEndDate ?? w.projectedEndDate;
+        };
+
+        for (const moved of impact.movedItems) {
+          expect(moved.newEndDate).toBe(shownEnd(moved.workItemId));
+        }
+        for (const ms of impact.milestones) {
+          expect(ms.newProjectedDate).toBe(
+            timeline.milestones.find((x) => x.id === ms.milestoneId)!.projectedDate,
+          );
+        }
+        const latest = timeline.workItems
+          .map((w) => w.actualEndDate ?? w.projectedEndDate)
+          .filter((x): x is string => x !== null)
+          .sort()
+          .at(-1);
+        expect(impact.projectEnd.newDate).toBe(latest);
       });
     });
 

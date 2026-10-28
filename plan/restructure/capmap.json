@@ -889,7 +889,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Tasks › Schedule > bar or row label (1) > side panel 'Reschedule…' (2)",
-    "note": "Needs an `overrides` field on POST /api/schedule. Real preview: ending the floor heating on Fri 9 Oct moves 28 tasks by 3 days and both milestones by 3 days. #2247: shipped on the Schedule side panel: ReschedulePanel (shared) previews through POST /api/schedule overrides (never persisted; the preview settles the patched graph as Save + autoReschedule would), shows 'Holds up n tasks', the moved tasks and milestone shifts and the project end, then Save PATCHes the task with Undo. The task-page adoption (Timing tab) is #2248."
+    "note": "Needs an `overrides` field on POST /api/schedule. Real preview: ending the floor heating on Fri 9 Oct moves 28 tasks by 3 days and both milestones by 3 days. #2247: shipped on the Schedule side panel: ReschedulePanel (shared) previews through POST /api/schedule overrides (never persisted; the preview settles the patched graph as Save + autoReschedule would), shows 'Holds up n tasks', the moved tasks and milestone shifts and the project end, then Save PATCHes the task with Undo. The task-page adoption (Timing tab) is #2248. AC8 what-if journey: bar (1) › Reschedule… (2) › change the end date or duration (3) shows the impact preview › Save (4); clicks counts reaching Reschedule…."
   },
   "WRK-137": {
     "name": "Attach several vendors to one work item (API only, legacy)",

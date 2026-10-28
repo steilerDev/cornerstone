@@ -521,10 +521,10 @@ describe('Arrow group CSS class application (hover/dim state)', () => {
 // ---------------------------------------------------------------------------
 
 describe('tabIndex controlled by visible prop', () => {
-  it('sets tabIndex=0 when visible=true', () => {
+  it('sets tabIndex=-1 when visible=true too (arrows are pointer targets only, D8)', () => {
     renderArrows({ visible: true });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0]!.getAttribute('tabindex')).toBe('0');
+    expect(arrows[0]!.getAttribute('tabindex')).toBe('-1');
   });
 
   it('sets tabIndex=-1 when visible=false', () => {
@@ -1128,5 +1128,154 @@ describe('Implicit critical path — milestone transitive skip (Issue #573)', ()
     );
     // Both pairs (wi-a, wi-b) and (wi-b, wi-c) are connected through critical milestones
     expect(implicitArrows).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Milestone and purchase arrows: missing data, fallbacks and critical styling (#2247 coverage)
+// ---------------------------------------------------------------------------
+
+describe('milestone and purchase arrow edge cases', () => {
+  const MS_POINTS = new Map([[1, { x: 600, y: 60 }]]);
+  const labels = () =>
+    screen.queryAllByRole('graphics-symbol').map((el) => el.getAttribute('aria-label'));
+
+  it('skips milestone arrows for a milestone with no point, and for a work item without a bar', () => {
+    renderArrows({
+      dependencies: [],
+      milestonePoints: MS_POINTS,
+      milestoneContributors: new Map([
+        [2, ['wi-pred']],
+        [1, ['wi-ghost', 'wi-pred']],
+      ]),
+      workItemRequiredMilestones: new Map([
+        ['wi-ghost', [1]],
+        ['wi-succ', [2, 1]],
+      ]),
+    });
+    expect(labels()).toEqual([
+      'Install Plumbing contributes to milestone Milestone 1',
+      'Milestone 1 is a required milestone for Paint Walls',
+    ]);
+  });
+
+  it('draws milestone arrows without any milestone data as nothing', () => {
+    renderArrows({ dependencies: [], milestonePoints: MS_POINTS });
+    expect(labels()).toEqual([]);
+  });
+
+  it('styles a linkage arrow as critical only for a critical milestone and a critical work item', () => {
+    renderArrows({
+      dependencies: [],
+      milestonePoints: MS_POINTS,
+      milestoneContributors: new Map([[1, ['wi-pred', 'wi-succ']]]),
+      workItemRequiredMilestones: new Map(),
+      criticalMilestoneIds: new Set([1]),
+      criticalPathSet: new Set(['wi-pred']),
+    });
+    const strokes = Array.from(document.querySelectorAll('[role="graphics-symbol"] path')).map(
+      (p) => p.getAttribute('stroke'),
+    );
+    expect(strokes).toContain(COLORS.criticalArrow);
+    expect(strokes).toContain(COLORS.defaultArrow);
+  });
+
+  it('does not add an implicit critical arrow when a critical milestone already connects the two', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-pred', 'wi-succ'],
+      criticalPathSet: new Set(['wi-pred', 'wi-succ']),
+      milestonePoints: MS_POINTS,
+      milestoneContributors: new Map([[1, ['wi-pred']]]),
+      workItemRequiredMilestones: new Map([['wi-succ', [1]]]),
+      criticalMilestoneIds: new Set([1]),
+    });
+    expect(labels().some((l) => l?.includes('consecutive'))).toBe(false);
+  });
+
+  it('adds the implicit arrow when the milestone is not critical or does not contribute', () => {
+    renderArrows({
+      dependencies: [],
+      criticalPathOrder: ['wi-pred', 'wi-succ', 'wi-ghost'],
+      criticalPathSet: new Set(['wi-pred', 'wi-succ']),
+      milestonePoints: MS_POINTS,
+      milestoneContributors: new Map([[1, ['wi-other']]]),
+      workItemRequiredMilestones: new Map([['wi-succ', [1]]]),
+      criticalMilestoneIds: new Set([1]),
+    });
+    expect(labels().filter((l) => l?.includes('consecutive'))).toHaveLength(1);
+  });
+
+  describe('purchase dependency arrows', () => {
+    const hi = (
+      id: string,
+      dependencyIds: Array<{ predecessorType: 'work_item' | 'milestone'; predecessorId: string }>,
+      name = `Purchase ${id}`,
+    ) => ({ id, name, dependencyIds });
+
+    it('draws arrows from a task and from a milestone to the delivery', () => {
+      renderArrows({
+        dependencies: [],
+        milestonePoints: MS_POINTS,
+        milestoneTitles: new Map([[1, 'Shell']]),
+        hiPoints: new Map([['p1', { x: 800, y: 100 }]]),
+        householdItems: [
+          hi('p1', [
+            { predecessorType: 'work_item', predecessorId: 'wi-pred' },
+            { predecessorType: 'milestone', predecessorId: '1' },
+          ]),
+        ],
+      });
+      expect(labels()).toEqual([
+        'Install Plumbing must be complete before Purchase p1 is delivered',
+        'Shell must be complete before Purchase p1 is delivered',
+      ]);
+    });
+
+    it('falls back to ids and default names when titles are missing', () => {
+      renderArrows({
+        dependencies: [],
+        barRects: new Map([['wi-x', makeBarRect(100, 100, 0)]]),
+        milestonePoints: MS_POINTS,
+        hiPoints: new Map([['p1', { x: 800, y: 100 }]]),
+        householdItems: [
+          {
+            id: 'p1',
+            name: undefined as unknown as string,
+            dependencyIds: [
+              { predecessorType: 'work_item', predecessorId: 'wi-x' },
+              { predecessorType: 'milestone', predecessorId: '1' },
+            ],
+          },
+        ],
+      });
+      expect(labels()).toEqual([
+        'wi-x must be complete before Household Item p1 is delivered',
+        'Milestone 1 must be complete before Household Item p1 is delivered',
+      ]);
+    });
+
+    it('skips purchases without a point and predecessors that cannot be placed', () => {
+      renderArrows({
+        dependencies: [],
+        milestonePoints: MS_POINTS,
+        hiPoints: new Map([['p1', { x: 800, y: 100 }]]),
+        householdItems: [
+          hi('nopoint', [{ predecessorType: 'work_item', predecessorId: 'wi-pred' }]),
+          hi('p1', [
+            { predecessorType: 'work_item', predecessorId: 'missing' },
+            { predecessorType: 'milestone', predecessorId: 'abc' },
+            { predecessorType: 'milestone', predecessorId: '99' },
+          ]),
+        ],
+      });
+      expect(labels()).toEqual([]);
+    });
+
+    it('draws nothing without points or purchases', () => {
+      renderArrows({ dependencies: [], householdItems: [hi('p1', [])] });
+      renderArrows({ dependencies: [], hiPoints: new Map() });
+      expect(labels()).toEqual([]);
+    });
   });
 });

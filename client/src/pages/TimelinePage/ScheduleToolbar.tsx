@@ -38,6 +38,9 @@ export interface ScheduleToolbarProps {
   readonly areas: AreaResponse[];
   /** Id of the legend strip the Legend button controls. */
   readonly legendId: string;
+  /** Whether the legend is open (on a phone: opened this session by a tap). */
+  readonly legendOpen: boolean;
+  readonly onLegendToggle: () => void;
   /** The Legend button (the phone legend sheet returns focus to it). */
   readonly legendToggleRef: RefObject<HTMLButtonElement | null>;
 }
@@ -58,6 +61,8 @@ export function ScheduleToolbar({
   onToday,
   areas,
   legendId,
+  legendOpen,
+  onLegendToggle,
   legendToggleRef,
 }: ScheduleToolbarProps) {
   const { t } = useTranslation('schedule');
@@ -272,9 +277,9 @@ export function ScheduleToolbar({
             type="button"
             ref={legendToggleRef}
             className={styles.toolbarButton}
-            aria-expanded={view.legendOpen}
+            aria-expanded={legendOpen}
             aria-controls={legendId}
-            onClick={() => view.setLegendOpen(!view.legendOpen)}
+            onClick={onLegendToggle}
             data-testid="schedule-legend-toggle"
           >
             {t('view.toolbar.legend')}

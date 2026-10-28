@@ -55,7 +55,7 @@ export function anchorFromScroll(
   const topIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
   const index = rowKeys.findIndex((key, i) => i >= topIndex && key !== null);
   if (index === -1) return { date, rowKey: null, rowOffset: 0 };
-  return { date, rowKey: rowKeys[index] ?? null, rowOffset: scrollTop - index * ROW_HEIGHT };
+  return { date, rowKey: rowKeys[index]!, rowOffset: scrollTop - index * ROW_HEIGHT };
 }
 
 /** The scroll position for an anchor; `top` is null when its row is no longer shown. */

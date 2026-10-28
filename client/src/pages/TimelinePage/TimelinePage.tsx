@@ -37,7 +37,7 @@ import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageTitle } from '../../components/PageLayout/PageTitle.js';
 import shared from '../../styles/shared.module.css';
-import { ScheduleItemPanel } from './ScheduleItemPanel.js';
+import { PANEL_TEST_ID, ScheduleItemPanel } from './ScheduleItemPanel.js';
 import { ScheduleToolbar } from './ScheduleToolbar.js';
 import { useScheduleView } from './useScheduleView.js';
 import styles from './TimelinePage.module.css';
@@ -65,7 +65,7 @@ function computeDefaultColumnWidth(zoom: ZoomLevel, chartAreaWidth: number): num
 
 const ZOOM_STEP_FACTOR = 0.2; // 20% per step
 
-const PANEL_SELECTOR = '[role="dialog"], [data-testid="schedule-panel"]';
+const PANEL_SELECTOR = `[role="dialog"], [data-testid="${PANEL_TEST_ID}"]`;
 
 const ROW_KEY_PATTERN = /^(?:(?:task|purchase):.+|milestone:\d+)$/;
 
@@ -131,6 +131,8 @@ export function TimelinePage() {
   const originState = useOriginState();
   const phone = useMediaQuery('(max-width: 767px)');
   const legendId = useId();
+  // A phone's legend is a modal sheet: it opens only on a tap in this session, never from the stored state.
+  const [phoneLegendOpen, setPhoneLegendOpen] = useState(false);
   const legendToggleRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -159,8 +161,7 @@ export function TimelinePage() {
   const [columnWidth, setColumnWidth] = useState<number>(() => COLUMN_WIDTHS['month']);
 
   useEffect(() => {
-    const el = chartAreaRef.current;
-    const areaWidth = el ? el.clientWidth - SIDEBAR_WIDTH : 0;
+    const areaWidth = chartAreaRef.current!.clientWidth - SIDEBAR_WIDTH;
     setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
   }, [zoom]);
 
@@ -242,6 +243,13 @@ export function TimelinePage() {
     },
     [locationKey],
   );
+
+  const legendOpen = phone ? phoneLegendOpen : view.legendOpen;
+  const { legendOpen: storedLegendOpen, setLegendOpen } = view;
+  const handleLegendToggle = () => {
+    if (phone) setPhoneLegendOpen(!phoneLegendOpen);
+    else setLegendOpen(!storedLegendOpen);
+  };
 
   const handleToday = useCallback(() => controlRef.current?.scrollToToday(), []);
 
@@ -390,6 +398,8 @@ export function TimelinePage() {
           onToday={handleToday}
           areas={view.areas}
           legendId={legendId}
+          legendOpen={legendOpen}
+          onLegendToggle={handleLegendToggle}
           legendToggleRef={legendToggleRef}
         />
       </div>
@@ -419,12 +429,12 @@ export function TimelinePage() {
         <>
           <SchedulePrefill date={showAgenda ? currentWeek : visibleWeek} areaId={view.areaId} />
           <GanttLegend
-            open={view.legendOpen}
+            open={legendOpen}
             id={legendId}
             returnFocusRef={legendToggleRef}
             doneHidden={filtered?.doneHidden ?? 0}
             showDone={view.show.has('done')}
-            onClose={() => view.setLegendOpen(false)}
+            onClose={() => setPhoneLegendOpen(false)}
           />
         </>
       )}

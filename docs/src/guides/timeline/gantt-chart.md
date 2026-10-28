@@ -114,7 +114,7 @@ The critical path is the longest chain of dependent tasks that determines the mi
 
 ## Late and Held-Up Tasks
 
-A task that is late, or that holds up other items, is drawn with a hatched bar, a red outline, and a chip. The **Legend** explains these marks.
+A task is drawn with a hatched bar, a red outline, and a chip when it is late itself (the chip reads **Late · n d**, with the number of days) or when it is held up by a late task before it (the chip reads **Held up**). The **Legend** explains these marks.
 
 A dashed outline shows the **planned** dates of a task. Compare it with the bar to see how far the task has moved from its plan.
 
@@ -134,24 +134,20 @@ The panel has these sections:
 - **Waits for** -- The items that must happen first, shown with a left arrow (←)
 - **Holds up** -- The items that wait for this one, shown with a right arrow (→)
 - **Open task**, **Open milestone**, or **Open purchase** -- Opens the full page
-- **Reschedule…** -- Opens the reschedule dialog for a task (see [Rescheduling a Task](#rescheduling-a-task))
+- **Reschedule…** -- Opens the reschedule view for a task, inside the side panel (see [Rescheduling a Task](#rescheduling-a-task))
 
 ## Rescheduling a Task
 
 You can move a task's end date or change its duration without leaving the chart:
 
-1. Select the task on the chart, then select **Reschedule…** in the side panel
-2. Change the **End date** or the **Duration** in days. The dialog shows the **Start** for reference
-3. Read the preview before you save:
-   - **What moves** lists the tasks and milestones that move, and how far, such as "Ends March 12 instead of March 10, 2 days later"
-   - **Holds up** counts the unfinished items that wait on this task
-   - The project completion date changes, if it does: "Completion moves from March 30 to April 2."
-   - Dashed outlines on the chart show where the affected bars will go
+1. Select the task on the chart, then select **Reschedule…** in the side panel. The side panel switches to the reschedule view. Select **Back** to return to the task's details without saving
+2. Change the **End date** or the **Duration** in days. The view shows the **Start** for reference
+3. Read the preview before you save. It lists the tasks and milestones that move, and how far, such as "Ends March 12 instead of March 10, 2 days later". It also shows how many unfinished items the task holds up, whether the project completion date changes ("Completion moves from March 30 to April 2."), and dashed outlines on the chart where the affected bars will go
 4. Select **Save** once the preview is ready
 
 After you save, a notice confirms the change, with an **Undo** button to reverse it.
 
-If the end date is before the start, or the duration is less than 1 day, the dialog shows an error and does not save.
+If the end date is before the start, or the duration is less than 1 day, the view shows an error and does not save.
 
 ## Tooltips
 

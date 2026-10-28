@@ -23,7 +23,7 @@ The milestone will appear as a diamond marker on both the [schedule chart](gantt
 3. Update the title or target date
 4. Save your changes
 
-You can also click a milestone diamond directly on the schedule chart or calendar to open that milestone's page.
+Select a milestone diamond on the schedule chart to open its side panel, then select **Open milestone** to open the page. On the calendar, selecting a milestone diamond opens the page directly.
 
 ## Deleting a Milestone
 

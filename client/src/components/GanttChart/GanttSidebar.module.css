@@ -49,10 +49,6 @@
   background: var(--color-bg-hover) !important;
 }
 
-.sidebarRowSelected {
-  background: var(--color-primary-bg) !important;
-}
-
 /* The whole row is one button: title (+ signal chip) over "Area · Company" */
 .rowButton {
   display: flex;
@@ -158,6 +154,11 @@
 
 .sidebarRowOdd {
   background: var(--color-gantt-row-odd);
+}
+
+/* After the stripes so it wins by order */
+.sidebarRowSelected {
+  background: var(--color-primary-bg);
 }
 
 .sidebarRowLabel {

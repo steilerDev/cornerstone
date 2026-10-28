@@ -30,6 +30,9 @@ const LEGACY_FILTER_PARAM = 'filter';
 
 const DEFAULT_ZOOM: ZoomLevel = 'month';
 
+/** The effective view as last rendered or committed: `show` is always known. */
+type CurrentView = SchedulePreference & { show: ScheduleShowKey[] };
+
 export interface ScheduleView {
   /** The stored preferences have loaded (before that the values are the URL or the defaults). */
   readonly ready: boolean;
@@ -98,7 +101,7 @@ export function useScheduleView(): ScheduleView {
   const legendOpen = merged.legendOpen ?? false;
   const phoneView = merged.phoneView ?? 'agenda';
 
-  const currentRef = useRef<SchedulePreference>({});
+  const currentRef = useRef<CurrentView>({ show: [] });
   currentRef.current = {
     show: SCHEDULE_SHOW_KEYS.filter((key) => show.has(key)),
     zoom,
@@ -110,7 +113,11 @@ export function useScheduleView(): ScheduleView {
 
   const commit = useCallback(
     (change: SchedulePreference) => {
-      const next = { ...currentRef.current, ...change };
+      const next: CurrentView = {
+        ...currentRef.current,
+        ...change,
+        show: change.show ?? currentRef.current.show,
+      };
       currentRef.current = next;
       setLocal((prev) => ({ ...prev, ...change }));
       setSearchParams(
@@ -141,7 +148,7 @@ export function useScheduleView(): ScheduleView {
 
   const setShow = useCallback(
     (key: ScheduleShowKey, on: boolean) => {
-      const keys = currentRef.current.show ?? [];
+      const keys = currentRef.current.show;
       const current = new Set(keys);
       if (!on && isLastVisibleKind(current, key)) return;
       if (on) current.add(key);

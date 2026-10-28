@@ -1,6 +1,10 @@
 .agenda {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .week {
@@ -10,7 +14,7 @@
 
 .weekHeader {
   position: sticky;
-  top: var(--schedule-agenda-sticky-top, 0);
+  top: 0;
   z-index: var(--z-raised);
   display: flex;
   align-items: center;
@@ -57,8 +61,8 @@
 }
 
 .row:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
 }
 
 .row[data-selected='true'] {

@@ -661,6 +661,35 @@ describe('TimelinePage phone', () => {
     expect(screen.getByTestId('schedule-legend-toggle')).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('the phone legend does not open from a stored open state, only on tap', async () => {
+    mockListPreferences.mockResolvedValue([
+      { key: 'schedule.view', value: JSON.stringify({ legendOpen: true }) } as UserPreference,
+    ]);
+    renderPage(['/schedule/gantt']);
+    await screen.findByTestId('schedule-agenda');
+    expect(screen.queryByRole('dialog', { name: 'Legend' })).toBeNull();
+    expect(screen.getByTestId('schedule-legend-toggle')).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByTestId('schedule-legend-toggle'));
+    expect(await screen.findByRole('dialog', { name: 'Legend' })).toBeInTheDocument();
+    // session-only: nothing is stored for the phone toggle
+    expect(mockUpsertPreference).not.toHaveBeenCalled();
+  });
+
+  it('on a desktop a stored open legend opens at once and the toggle stores the change', async () => {
+    media.set('(max-width: 767px)', false);
+    mockListPreferences.mockResolvedValue([
+      { key: 'schedule.view', value: JSON.stringify({ legendOpen: true }) } as UserPreference,
+    ]);
+    mockGetTimeline.mockResolvedValue(FULL);
+    renderPage(['/schedule/gantt']);
+    await chart();
+    expect(screen.getByTestId('schedule-legend')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('schedule-legend-toggle'));
+    expect(JSON.parse(mockUpsertPreference.mock.calls.at(-1)![1])).toMatchObject({
+      legendOpen: false,
+    });
+  });
+
   it('shows no phone toggle on the calendar', async () => {
     renderPage(['/schedule/calendar']);
     await screen.findByRole('grid');
