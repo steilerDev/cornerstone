@@ -272,7 +272,9 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         if (h1 !== null) {
           const headings = page.getByRole('heading', { level: 1 });
           await expect(headings).toHaveCount(1);
-          await expect(headings).toHaveText(h1);
+          // Object lists (Tasks, Purchases, Milestones, Companies) may carry a count: "Purchases (3)"
+          const escaped = h1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          await expect(headings).toHaveText(new RegExp(`^${escaped}( \\(\\d+( of \\d+)?\\))?$`));
         }
         if (c.dialog !== undefined) {
           await expect(page.getByRole('dialog', { name: c.dialog, exact: true })).toBeVisible();

@@ -2,32 +2,31 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { useEffect } from 'react';
-import { MemoryRouter } from 'react-router-dom';
-import { ShortcutRegistryProvider, useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useLocation } from 'react-router-dom';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { makeMilestoneRow } from '../../test/milestoneListFixtures.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import type { RouterLog } from '../../test/recordingRouter.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import enErrors from '../../i18n/en/errors.json';
-import type { MilestoneSummary } from '@cornerstone/shared';
-import type * as MilestonesPageTypes from './MilestonesPage.js';
-import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
-import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import type * as PageModule from './MilestonesPage.js';
 
-// ── API mocks ─────────────────────────────────────────────────────────────────
-
-const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockListRows = jest.fn<typeof MilestonesApiTypes.listMilestoneRows>();
 const mockDeleteMilestone = jest.fn<typeof MilestonesApiTypes.deleteMilestone>();
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
 
 jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
   fetchDeleteImpact: mockFetchDeleteImpact,
 }));
-
 jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
-  listMilestones: mockListMilestones,
+  listMilestoneRows: mockListRows,
+  listMilestones: jest.fn(),
   deleteMilestone: mockDeleteMilestone,
   getMilestone: jest.fn(),
   createMilestone: jest.fn(),
@@ -38,681 +37,361 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   removeDependentWorkItem: jest.fn(),
   fetchMilestoneLinkedHouseholdItems: jest.fn(),
 }));
-
-// ── Formatters mock ───────────────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-    }).format(n);
-  return {
-    formatDayRange: (start: Date, end: Date) =>
-      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
-    formatDate: fmtDate,
-    formatCurrency: fmtCurrency,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatDate: fmtDate,
-      formatCurrency: fmtCurrency,
-      formatTime: () => '—',
-      formatDateTime: () => '—',
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
-  };
-});
-
-// ── Keyboard shortcuts mock ───────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../hooks/useKeyboardShortcuts.js', () => ({
-  useKeyboardShortcuts: jest.fn(),
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    vatRate: 0.19,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.unstable_mockModule('../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js', () => ({
-  KeyboardShortcutsHelp: ({
-    onClose,
-    shortcuts,
-  }: {
-    onClose: () => void;
-    shortcuts: Array<{ key: string }>;
-  }) => (
-    <div data-testid="keyboard-shortcuts-help">
-      <output data-testid="help-keys">{shortcuts.map((s) => s.key).join(',')}</output>
-      <button onClick={onClose}>Close</button>
-    </div>
-  ),
-}));
+let MilestonesPage: typeof PageModule.MilestonesPage;
 
-// ── Fixtures ──────────────────────────────────────────────────────────────────
-
-const sampleMilestone1: MilestoneSummary = {
+const ROOF = makeMilestoneRow({
   id: 1,
-  title: 'Foundation Complete',
-  description: 'The foundation must be fully poured and cured.',
-  targetDate: '2026-03-15',
-  isCompleted: false,
-  completedAt: null,
-  color: null,
+  title: 'Roof closed',
+  description: 'Frame and roof weathertight',
+  targetDate: '2026-04-01',
+  projectedDate: '2026-04-04',
   workItemCount: 3,
-  dependentWorkItemCount: 1,
-  createdBy: null,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
-const sampleMilestone2: MilestoneSummary = {
+  holdsUp: { count: 2, startingWithin14Days: 1 },
+});
+const WALLS = makeMilestoneRow({
   id: 2,
-  title: 'Framing Complete',
-  description: null,
-  targetDate: '2026-05-01',
+  title: 'Walls up',
+  targetDate: '2026-03-01',
+  projectedDate: '2026-02-27',
+  workItemCount: 1,
+});
+const HANDOVER = makeMilestoneRow({
+  id: 3,
+  title: 'Handover',
+  targetDate: '2026-09-01',
   isCompleted: true,
-  completedAt: '2026-05-01T12:00:00.000Z',
-  color: null,
-  workItemCount: 5,
-  dependentWorkItemCount: 0,
-  createdBy: null,
-  createdAt: '2026-01-05T00:00:00.000Z',
-  updatedAt: '2026-05-01T12:00:00.000Z',
-};
+  completedAt: '2026-08-30T10:00:00.000Z',
+});
+const ALL = [ROOF, WALLS, HANDOVER];
 
-describe('MilestonesPage', () => {
-  let MilestonesPageModule: typeof MilestonesPageTypes;
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="loc">{`${location.pathname}${location.search}`}</output>;
+}
 
-  beforeEach(async () => {
-    mockListMilestones.mockReset();
-    mockDeleteMilestone.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockFetchDeleteImpact.mockResolvedValue({
-      entityType: 'milestone',
-      id: '1',
-      effects: [{ kind: 'tasksUnlinked', count: 3 }],
-    });
-
-    if (!MilestonesPageModule) {
-      MilestonesPageModule = await import('./MilestonesPage.js');
-    }
-  });
-
-  function renderPage() {
-    return render(
+function renderPage(url = '/project/milestones', log: RouterLog = createRouterLog()) {
+  return {
+    log,
+    ...render(
       <ToastProvider>
-        <MemoryRouter initialEntries={['/project/milestones']}>
-          <MilestonesPageModule.MilestonesPage />
-        </MemoryRouter>
+        <ShortcutRegistryProvider>
+          <RecordingRouter entries={[url]} log={log}>
+            <MilestonesPage />
+            <LocationProbe />
+          </RecordingRouter>
+        </ShortcutRegistryProvider>
       </ToastProvider>,
-    );
-  }
+    ),
+  };
+}
 
-  // ─── Loading state ──────────────────────────────────────────────────────────
+async function loaded() {
+  await waitFor(() => expect(screen.queryByLabelText('Loading the list')).not.toBeInTheDocument());
+}
 
-  describe('loading state', () => {
-    it('renders skeleton while fetching milestones', () => {
-      mockListMilestones.mockReturnValueOnce(new Promise(() => {}));
+const heading = () => screen.getByRole('heading', { level: 1 });
+const loc = () => screen.getByTestId('loc').textContent;
 
-      renderPage();
+beforeEach(async () => {
+  if (!MilestonesPage) ({ MilestonesPage } = await import('./MilestonesPage.js'));
+  window.sessionStorage.clear();
+  window.localStorage.clear();
+  mockListRows.mockReset();
+  mockListRows.mockResolvedValue(ALL);
+  mockDeleteMilestone.mockReset();
+  mockFetchDeleteImpact.mockReset();
+  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'milestone', id: '1', effects: [] });
+});
 
-      // DataTable shows a loading skeleton (role="status")
-      expect(screen.getByRole('status')).toBeInTheDocument();
-    });
+describe('states', () => {
+  it('shows the skeleton, then the rows', async () => {
+    renderPage();
+    expect(screen.getByLabelText('Loading the list')).toBeInTheDocument();
+    await loaded();
+    expect(screen.getByTestId('milestones-row-1')).toBeInTheDocument();
   });
 
-  // ─── Populated state ─────────────────────────────────────────────────────────
+  it('shows the load failure with Retry', async () => {
+    mockListRows.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    expect(
+      await screen.findByText('Milestones could not be loaded. Try again.'),
+    ).toBeInTheDocument();
 
-  describe('populated state', () => {
-    it('renders milestone titles after loading', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1, sampleMilestone2]);
+    await userEvent.click(screen.getByTestId('milestones-retry'));
+    await loaded();
 
-      renderPage();
-
-      // DataTable renders each item in both the table row and mobile card view,
-      // so getAllByText is used to handle duplicate occurrences
-      await waitFor(() => {
-        expect(screen.getAllByText('Foundation Complete')[0]!).toBeInTheDocument();
-      });
-      expect(screen.getAllByText('Framing Complete')[0]!).toBeInTheDocument();
-    });
-
-    it('renders "New Milestone" button', async () => {
-      mockListMilestones.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('new-milestone-button')).toBeInTheDocument();
-      });
-    });
-
-    it('renders the page title', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Foundation Complete')[0]!).toBeInTheDocument();
-      });
-    });
-
-    it('renders description truncated when over 60 characters', async () => {
-      const longDescMilestone: MilestoneSummary = {
-        ...sampleMilestone1,
-        description: 'A'.repeat(65),
-      };
-      mockListMilestones.mockResolvedValueOnce([longDescMilestone]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(`${'A'.repeat(60)}...`)[0]).toBeInTheDocument();
-      });
-    });
-
-    it('renders em-dash for milestones with no description', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone2]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Framing Complete')[0]!).toBeInTheDocument();
-      });
-      // Multiple em-dashes may appear (table + card view), so use getAllByText
-      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    });
+    expect(screen.getByTestId('milestones-row-2')).toBeInTheDocument();
   });
 
-  // ─── Error state ─────────────────────────────────────────────────────────────
+  it('shows the empty state', async () => {
+    mockListRows.mockResolvedValue([]);
+    renderPage();
 
-  describe('error state', () => {
-    it('shows API error message when listMilestones fails with ApiClientError', async () => {
-      mockListMilestones.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-      });
-    });
-
-    it('shows generic error when unknown error is thrown', async () => {
-      mockListMilestones.mockRejectedValueOnce(new Error('Network failure'));
-
-      renderPage();
-
-      // The DataTable shows the error banner (role="alert") with the generic message
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-    });
+    expect(await screen.findByText('No milestones yet')).toBeInTheDocument();
   });
 
-  // ─── Empty state ──────────────────────────────────────────────────────────
+  it('shows the no-match state when a search finds nothing', async () => {
+    renderPage('/project/milestones?q=zzz');
 
-  describe('empty state', () => {
-    it('shows empty state message when no milestones exist', async () => {
-      mockListMilestones.mockResolvedValueOnce([]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-      // DataTable renders EmptyState with message from t('milestones.empty.noItems')
-    });
-  });
-
-  // ─── Status words (#2195) ─────────────────────────────────────────────────
-
-  describe('status words', () => {
-    it('a finished milestone reads "Reached", never "Completed"', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone2]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Reached').length).toBeGreaterThan(0);
-      });
-      expect(screen.queryByText('Completed')).not.toBeInTheDocument();
-    });
-
-    it('a not-yet-reached milestone reads "Upcoming", never "Pending"', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
-      });
-      expect(screen.queryByText('Pending')).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Actions menu ─────────────────────────────────────────────────────────
-
-  describe('actions menu', () => {
-    it('shows action menu button for each milestone', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      // DataTable renders renderActions in both table and mobile card; the testids are disjoint
-      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-    });
-
-    it('opens dropdown with edit and delete options on menu button click', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-
-      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
-      expect(screen.getByTestId('milestone-delete-1')).toBeInTheDocument();
-    });
-
-    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1, sampleMilestone2]);
-
-      const { container } = renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-      expect(screen.getByTestId('milestone-menu-button-mobile-1')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-
-      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
-      expect(findDuplicateTestIds(container)).toEqual([]);
-    });
-
-    it('closes dropdown when menu button is clicked again', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      expect(screen.queryByTestId('milestone-edit-1')).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Delete flow ──────────────────────────────────────────────────────────
-
-  describe('delete flow', () => {
-    it('opens delete confirmation modal on delete click', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      expect(
-        screen.getByRole('alertdialog', { name: 'Delete Foundation Complete?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('milestone-list-delete-cancel')).toHaveFocus();
-    });
-
-    async function confirmDelete() {
-      const btn = await screen.findByTestId('milestone-list-delete-confirm');
-      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-      fireEvent.click(btn);
-    }
-
-    async function openDeleteDialog() {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-    }
-
-    it('asks the delete-impact endpoint for this milestone and lists the counts', async () => {
-      await openDeleteDialog();
-      await waitFor(() =>
-        expect(screen.getByTestId('milestone-list-delete-consequences')).toHaveTextContent(
-          'Tasks no longer linked to it: 3',
-        ),
-      );
-      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('milestone', 1);
-    });
-
-    it('keeps the action disabled while the counts load and when they fail, until Retry works', async () => {
-      mockFetchDeleteImpact.mockRejectedValueOnce(new Error('offline'));
-      await openDeleteDialog();
-      const retry = await screen.findByTestId('milestone-list-delete-retry');
-      expect(screen.getByTestId('milestone-list-delete-confirm')).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
-      fireEvent.click(retry);
-      await waitFor(() =>
-        expect(screen.getByTestId('milestone-list-delete-confirm')).not.toHaveAttribute(
-          'aria-disabled',
-        ),
-      );
-      expect(mockDeleteMilestone).not.toHaveBeenCalled();
-    });
-
-    it('a 409 from the delete hides the action and shows the reason', async () => {
-      mockDeleteMilestone.mockRejectedValueOnce(
-        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
-      );
-      await openDeleteDialog();
-      await confirmDelete();
-      await waitFor(() => expect(screen.queryByTestId('milestone-list-delete-confirm')).toBeNull());
-      expect(screen.getByRole('alertdialog')).toHaveTextContent(enErrors.CONFLICT);
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('closes modal when cancel button is clicked', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId('milestone-list-delete-cancel'));
-      expect(screen.queryByRole('alertdialog')).toBeNull();
-    });
-
-    it('calls deleteMilestone and reloads on confirm', async () => {
-      mockListMilestones
-        .mockResolvedValueOnce([sampleMilestone1])
-        .mockResolvedValueOnce([sampleMilestone1]);
-      mockDeleteMilestone.mockResolvedValueOnce(undefined);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(mockDeleteMilestone).toHaveBeenCalledWith(1);
-      });
-    });
-
-    it('shows the translated copy when reloading after a successful delete fails', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      mockDeleteMilestone.mockResolvedValueOnce(undefined);
-      mockListMilestones.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows the generic reload error when reloading after a delete fails with a plain Error', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      mockDeleteMilestone.mockResolvedValueOnce(undefined);
-      mockListMilestones.mockRejectedValueOnce(new Error('RAW-LOCAL'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(screen.getAllByRole('alert')).toHaveLength(1);
-      });
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('shows error banner when deleteMilestone fails', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      mockDeleteMilestone.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();
-        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-      });
-    });
-  });
-
-  // ─── Client-side filtering ────────────────────────────────────────────────
-
-  describe('client-side filtering and sorting', () => {
-    it('renders both milestones when no filter applied', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1, sampleMilestone2]);
-
-      renderPage();
-
-      // DataTable renders items in both table and mobile card view (duplicate text)
-      await waitFor(() => {
-        expect(screen.getAllByText('Foundation Complete')[0]!).toBeInTheDocument();
-      });
-      expect(screen.getAllByText('Framing Complete')[0]!).toBeInTheDocument();
-    });
-  });
-
-  // ── Page identity (#2202) ──────────────────────────────────────────────────
-
-  describe('page identity (#2202)', () => {
-    it('shows exactly one h1 "Milestones" and the tab title under Tasks', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      renderPage();
-
-      expect(await screen.findByRole('heading', { name: 'Milestones', level: 1 })).toBeVisible();
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      await waitFor(() => expect(document.title).toBe('Milestones · Tasks · Cornerstone'));
-    });
-
-    it('is a view: it renders no "You are here" trail and no Back link', async () => {
-      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Milestones', level: 1 });
-      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
-      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
-    });
+    expect(await screen.findByText('No milestones match.')).toBeInTheDocument();
   });
 });
 
-describe('MilestonesPage create openers (#2212)', () => {
-  let Page: typeof MilestonesPageTypes;
+describe('heading, chips and legacy URLs', () => {
+  it('always shows the count, and "(n of m)" while searching', async () => {
+    renderPage();
+    await loaded();
+    expect(heading()).toHaveTextContent('Milestones (3)');
 
-  beforeEach(async () => {
-    mockListMilestones.mockReset();
-    if (!Page) Page = await import('./MilestonesPage.js');
+    document.body.innerHTML = '';
+    renderPage('/project/milestones?q=roof');
+    await loaded();
+    expect(heading()).toHaveTextContent('Milestones (1 of 3)');
   });
 
-  function renderAt(entry = '/project/milestones?x=1') {
-    const log = createRouterLog();
-    render(
-      <ToastProvider>
-        <RecordingRouter entries={[entry]} log={log}>
-          <Page.MilestonesPage />
-        </RecordingRouter>
-      </ToastProvider>,
-    );
-    return log;
-  }
+  it('offers only the Upcoming and Reached chips', async () => {
+    renderPage();
+    await loaded();
 
-  function expectDialogPush(log: ReturnType<typeof createRouterLog>) {
-    expect(log.actions).toEqual(['PUSH /project/milestones/new']);
-    expect(log.states[0]).toMatchObject({
-      origin: { to: '/project/milestones?x=1' },
-      background: { pathname: '/project/milestones', search: '?x=1' },
-    });
-  }
-
-  it('the primary button opens the New milestone dialog over the list', async () => {
-    mockListMilestones.mockResolvedValue([sampleMilestone1]);
-    const log = renderAt();
-    fireEvent.click(await screen.findByTestId('new-milestone-button'));
-    expectDialogPush(log);
+    expect(screen.getByTestId('milestones-chip-upcoming')).toHaveTextContent('Upcoming');
+    expect(screen.getByTestId('milestones-chip-reached')).toHaveTextContent('Reached');
+    expect(screen.queryByTestId('milestones-chip-late')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('milestones-chip-early')).not.toBeInTheDocument();
   });
 
-  it('the n shortcut opens the New milestone dialog over the list', async () => {
-    mockListMilestones.mockResolvedValue([sampleMilestone1]);
-    const log = renderAt();
-    await screen.findByTestId('new-milestone-button');
-    // useKeyboardShortcuts is mocked in this file: run the page's registered n handler.
-    const { useKeyboardShortcuts } = await import('../../hooks/useKeyboardShortcuts.js');
-    const calls = (useKeyboardShortcuts as unknown as jest.Mock).mock.calls as Array<
-      [Array<{ key: string; handler: () => void }>]
-    >;
-    const shortcut = calls.at(-1)![0].find((s) => s.key === 'n')!;
-    act(() => shortcut.handler());
-    expectDialogPush(log);
+  it('a chip narrows the list on the client', async () => {
+    renderPage();
+    await loaded();
+
+    await userEvent.click(screen.getByTestId('milestones-chip-reached'));
+
+    await waitFor(() => expect(screen.queryByTestId('milestones-row-1')).toBeNull());
+    expect(screen.getByTestId('milestones-row-3')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Milestones (1)');
   });
 
-  it('the empty-state action opens the New milestone dialog over the list', async () => {
-    mockListMilestones.mockResolvedValue([]);
-    const log = renderAt();
-    fireEvent.click(await screen.findByRole('button', { name: 'Create First Milestone' }));
-    expectDialogPush(log);
+  it('has no grouping control', async () => {
+    renderPage();
+    await loaded();
+
+    expect(screen.queryByTestId('milestones-group-menu')).not.toBeInTheDocument();
+  });
+
+  it('absorbs an old ?page=2&pageSize=10 URL and a comma-separated status without an error', async () => {
+    renderPage('/project/milestones?page=2&pageSize=10&status=upcoming,reached');
+    await loaded();
+
+    expect(loc()).not.toContain('page');
+    expect(loc()).not.toContain('status');
+    expect(screen.getByTestId('milestones-row-1')).toBeInTheDocument();
   });
 });
 
-describe('MilestonesPage ? help lists the shell shortcuts (#2211)', () => {
-  let Page: typeof MilestonesPageTypes;
+describe('rows', () => {
+  it('shows the title link with the first description line, dates, Waits for and Holds up', async () => {
+    renderPage();
+    await loaded();
+    const row = screen.getByTestId('milestones-row-1');
 
-  beforeEach(async () => {
-    mockListMilestones.mockReset();
-    if (!Page) Page = await import('./MilestonesPage.js');
-  });
-
-  /** Stands in for the shell: a fallback "/" owner in the shared registry. */
-  function ShellSlash() {
-    const registry = useShortcutRegistry();
-    useEffect(
-      () =>
-        registry?.register(
-          'shell',
-          [{ key: '/', handler: () => {}, description: 'Search this list, or search everywhere' }],
-          { fallback: true },
-        ),
-      [registry],
+    expect(within(row).getByTestId('milestones-title-1')).toHaveAttribute(
+      'href',
+      '/project/milestones/1',
     );
-    return null;
-  }
-
-  function renderPage(withRegistry: boolean) {
-    const page = (
-      <ToastProvider>
-        <MemoryRouter initialEntries={['/project/milestones']}>
-          <ShellSlash />
-          <Page.MilestonesPage />
-        </MemoryRouter>
-      </ToastProvider>
+    expect(row).toHaveTextContent('Frame and roof weathertight');
+    expect(row).toHaveTextContent('Apr 1, 2026');
+    expect(row).toHaveTextContent('Apr 4, 2026');
+    expect(row).toHaveTextContent('3 tasks');
+    expect(within(row).getByTestId('milestones-holds-up-1')).toHaveTextContent('2 tasks');
+    expect(within(row).getByTestId('milestones-holds-up-1')).toHaveAttribute(
+      'data-figure',
+      'holds-up',
     );
-    render(withRegistry ? <ShortcutRegistryProvider>{page}</ShortcutRegistryProvider> : page);
-  }
-
-  async function pressQuestionMark() {
-    const { useKeyboardShortcuts } = await import('../../hooks/useKeyboardShortcuts.js');
-    const calls = (useKeyboardShortcuts as unknown as jest.Mock).mock.calls as Array<
-      [Array<{ key: string; handler: () => void }>]
-    >;
-    const help = calls.at(-1)![0].find((s) => s.key === '?')!;
-    act(() => help.handler());
-  }
-
-  it('shows the registry snapshot, so "/" stays listed', async () => {
-    mockListMilestones.mockResolvedValue([sampleMilestone1]);
-    renderPage(true);
-    await screen.findByTestId('new-milestone-button');
-    await pressQuestionMark();
-    const keys = screen.getByTestId('help-keys').textContent!.split(',');
-    expect(keys).toContain('/');
   });
 
-  it('shows the page own shortcuts when there is no registry', async () => {
-    mockListMilestones.mockResolvedValue([sampleMilestone1]);
-    renderPage(false);
-    await screen.findByTestId('new-milestone-button');
-    await pressQuestionMark();
-    const keys = screen.getByTestId('help-keys').textContent!.split(',');
-    expect(keys).toEqual(expect.arrayContaining(['n', '?', 'Escape']));
-    expect(keys).not.toContain('/');
+  it('shows the status word, with the day count for Late and Early', async () => {
+    renderPage();
+    await loaded();
+
+    expect(screen.getByTestId('milestones-status-1')).toHaveTextContent('Late · 3 d');
+    expect(screen.getByTestId('milestones-status-2')).toHaveTextContent('Early · 2 d');
+    expect(screen.getByTestId('milestones-status-3')).toHaveTextContent('Reached');
   });
 
-  it('closes the help from its own Close button', async () => {
-    mockListMilestones.mockResolvedValue([sampleMilestone1]);
-    renderPage(true);
-    await screen.findByTestId('new-milestone-button');
-    await pressQuestionMark();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByTestId('keyboard-shortcuts-help')).toBeNull();
+  it('sorts by Target date ascending by default', async () => {
+    renderPage();
+    await loaded();
+
+    const ids = screen
+      .getAllByTestId(/^milestones-row-\d+$/)
+      .map((el) => el.getAttribute('data-testid'));
+    expect(ids).toEqual(['milestones-row-2', 'milestones-row-1', 'milestones-row-3']);
+  });
+
+  it('sorts by Title from the sort menu', async () => {
+    renderPage('/project/milestones?sortBy=title');
+    await loaded();
+
+    const ids = screen
+      .getAllByTestId(/^milestones-row-\d+$/)
+      .map((el) => el.getAttribute('data-testid'));
+    expect(ids).toEqual(['milestones-row-3', 'milestones-row-1', 'milestones-row-2']);
+  });
+
+  it('has no duplicate test ids with the menus open', async () => {
+    const { container } = renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('milestones-row-menu-1'));
+
+    expect(findDuplicateTestIds(container)).toEqual([]);
+  });
+});
+
+describe('filters', () => {
+  it('opens the Filters panel with Target date and Waits for', async () => {
+    renderPage();
+    await loaded();
+    fireEvent.click(screen.getByTestId('milestones-filters-button'));
+
+    expect(await screen.findByTestId('milestones-filter-targetDate-from')).toBeInTheDocument();
+    expect(screen.getByTestId('milestones-filter-waitsFor-min')).toBeInTheDocument();
+  });
+
+  it('a Waits for range from the URL narrows the rows', async () => {
+    renderPage('/project/milestones?waitsFor=min:2');
+    await loaded();
+
+    expect(screen.getByTestId('milestones-row-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('milestones-row-2')).toBeNull();
+  });
+});
+
+describe('delete', () => {
+  async function openDelete(id = 2) {
+    await userEvent.click(screen.getByTestId(`milestones-row-menu-${id}`));
+    await userEvent.click(await screen.findByTestId(`milestones-delete-${id}`));
+    return screen.findByRole('alertdialog');
+  }
+
+  it('confirms, deletes, reloads and puts focus on the heading', async () => {
+    mockDeleteMilestone.mockResolvedValue(undefined as never);
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+    expect(dialog).toHaveTextContent('Walls up');
+    mockListRows.mockResolvedValue([ROOF, HANDOVER]);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => expect(screen.queryByTestId('milestones-row-2')).toBeNull());
+    expect(mockDeleteMilestone).toHaveBeenCalledWith(2);
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('keeps the dialog in its blocked state on a 409', async () => {
+    mockDeleteMilestone.mockRejectedValue(
+      new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+    );
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByTestId('milestones-row-2')).toBeInTheDocument();
+  });
+
+  it('shows a network error in the dialog and keeps it open', async () => {
+    mockDeleteMilestone.mockRejectedValue(new NetworkError('offline', null));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "Can't reach the server. Check your connection and try again.",
+    );
+  });
+
+  it('cancel closes the dialog without deleting and puts focus on the heading', async () => {
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(mockDeleteMilestone).not.toHaveBeenCalled();
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('cancel is ignored while the delete is running', async () => {
+    let finish: () => void = () => undefined;
+    mockDeleteMilestone.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$|deleting/i }));
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    await act(async () => finish());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+});
+
+describe('shortcuts and create', () => {
+  it('the New milestone button opens the create dialog route', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    await userEvent.click(screen.getByTestId('new-milestone-button'));
+
+    expect(log.actions.at(-1)).toContain('/project/milestones/new');
+  });
+
+  it('the n shortcut does the same', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    await userEvent.keyboard('n');
+
+    expect(log.actions.at(-1)).toContain('/project/milestones/new');
+  });
+
+  it('has no ? or Escape shortcut of its own any more', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    await userEvent.keyboard('?');
+    await userEvent.keyboard('{Escape}');
+
+    expect(log.actions).toEqual([]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('reloads when a milestone is created elsewhere', async () => {
+    renderPage();
+    await loaded();
+    mockListRows.mockClear();
+
+    act(() => notifyObjectCreated('milestone'));
+
+    await waitFor(() => expect(mockListRows).toHaveBeenCalled());
   });
 });

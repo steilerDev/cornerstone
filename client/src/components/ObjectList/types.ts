@@ -22,6 +22,14 @@ export interface ObjectListChipsConfig {
   readonly allLabel?: string;
   /** Accessible name of the chip group (default common objectList.chips.label "Filter by status"). */
   readonly ariaLabel?: string;
+  /**
+   * Values that are valid chips but not shown as chips: a "More" choice menu after the chip group
+   * (Companies' remaining trades). Picking one sets the same chip value.
+   */
+  readonly overflow?: {
+    readonly label: string;
+    readonly options: readonly ObjectListChipOption[];
+  };
 }
 
 export interface ObjectListGroupMeta {

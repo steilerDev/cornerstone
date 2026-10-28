@@ -127,7 +127,7 @@ export function useTaskRows({ actions }: UseTaskRowsOptions): RowProps {
                   <NavAnchor
                     to={routeUrl('workItem', { id: waitsFor.id })}
                     state={originState}
-                    {...userText(styles.relationLink)}
+                    {...userText(shared.rowLink)}
                     data-testid={dataTableTestId('tasks-waits-for', item.id, 'table')}
                   >
                     {waitsFor.title}

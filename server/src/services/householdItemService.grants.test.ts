@@ -19,7 +19,7 @@ import { ValidationError } from '../errors/AppError.js';
 import {
   createHouseholdItem,
   getHouseholdItemById,
-  listHouseholdItems,
+  listHouseholdItemRows,
   updateHouseholdItem,
 } from './householdItemService.js';
 import { createMoneySeed } from '../test/moneyDb.js';
@@ -44,8 +44,8 @@ describe('householdItemService: grant chips and remaining branches (#2242)', () 
     sqlite.close();
   });
 
-  const list = (query: Parameters<typeof listHouseholdItems>[1] = {}) =>
-    listHouseholdItems(db, { page: 1, pageSize: 100, ...query }, VAT);
+  const list = (query: Parameters<typeof listHouseholdItemRows>[1] = {}) =>
+    listHouseholdItemRows(db, { page: 1, pageSize: 100, ...query }, { vatRate: VAT });
 
   describe('grants on list rows', () => {
     it('attaches every non-rejected grant, ordered by name, and [] when there is none', () => {
@@ -87,7 +87,7 @@ describe('householdItemService: grant chips and remaining branches (#2242)', () 
         logger: { logQuery: (q: string) => statements.push(q) },
       });
 
-      listHouseholdItems(logged, { page: 1, pageSize: 100 }, VAT);
+      listHouseholdItemRows(logged, { page: 1, pageSize: 100 }, { vatRate: VAT });
 
       expect(statements.filter((q) => q.includes('link.household_item_id'))).toHaveLength(1);
     });
@@ -237,15 +237,12 @@ describe('householdItemService: grant chips and remaining branches (#2242)', () 
       expect(updateHouseholdItem(db, 'hi-9', { vendorId: 'v-1' }, VAT).vendor?.id).toBe('v-1');
     });
 
-    it('an empty table lists nothing and reports zero filter ranges', () => {
+    it('an empty table lists nothing and reports zero totals', () => {
       const result = list();
       expect(result.items).toEqual([]);
       expect(result.pagination.totalItems).toBe(0);
-      expect(result.filterMeta).toEqual({
-        plannedCost: { min: 0, max: 0 },
-        actualCost: { min: 0, max: 0 },
-        budgetLines: { min: 0, max: 0 },
-      });
+      expect(result.scopeTotal).toBe(0);
+      expect(result.totals).toEqual({ expectedCost: 0, invoiced: 0, paid: 0 });
     });
 
     it('an area filter with no meaningful input (only separators) filters nothing', () => {

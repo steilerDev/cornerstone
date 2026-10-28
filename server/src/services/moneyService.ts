@@ -673,6 +673,65 @@ export function getExpectedGrantsByHouseholdItem(db: DbType, vatRate: number): M
   return map;
 }
 
+/** Money of one purchase on the Purchases list (#2246), major units. */
+export interface HouseholdItemListMoney {
+  /** Engine expected cost. */
+  expectedCost: number;
+  /** Counted grants, expected scenario. */
+  grants: number;
+  /** Paid (ADR-039 attribution), summed over the purchase's lines. */
+  paid: number;
+}
+
+/**
+ * householdItemId -> expected cost, counted grants and Paid, from one engine run. Paid follows
+ * `getBudgetBreakdown`: payments are attributed per line, then summed into the line's purchase.
+ */
+export function getHouseholdItemListMoney(
+  db: DbType,
+  vatRate: number,
+): Map<string, HouseholdItemListMoney> {
+  const links = loadInvoiceLinks(db);
+  const input = loadMoneyInput(db, vatRate, links);
+  const result = computeMoney(input);
+  const payments = attributePayments(
+    input.invoices,
+    loadDepositRows(db),
+    links,
+    result.notYetSplitByInvoice,
+    new Map(input.lines.map((l) => [l.id, l.budgetSourceId])),
+  );
+
+  const paidCents = new Map<string, number>();
+  for (const line of input.lines) {
+    if (line.kind === 'household_item') {
+      // A purchase line always carries its purchase (only task lines can be orphans, ADR-030).
+      const itemId = line.itemId!;
+      const linePaid = payments.byLine.get(line.id)?.paid ?? 0;
+      paidCents.set(itemId, (paidCents.get(itemId) ?? 0) + linePaid);
+    }
+  }
+
+  // The engine only holds purchases with a line or a share: seed every purchase with zeros.
+  const map = new Map<string, HouseholdItemListMoney>(
+    db
+      .all<{ id: string }>(sql`SELECT id AS id FROM household_items`)
+      .map((row) => [row.id, { expectedCost: 0, grants: 0, paid: 0 }]),
+  );
+  for (const [key, figures] of result.items) {
+    if (key.startsWith('household_item:')) {
+      const id = key.slice('household_item:'.length);
+      map.set(id, {
+        expectedCost: toMajor(figures.cost.expected),
+        grants: toMajor(figures.grants.expected),
+        // Every purchase the engine holds has a line, and each purchase line seeded paidCents above
+        paid: toMajor(paidCents.get(id)!),
+      });
+    }
+  }
+  return map;
+}
+
 /** workItemId -> expected cost in major units (every task the engine knows; Tasks list #2245). */
 export function getExpectedCostByWorkItem(db: DbType, vatRate: number): Map<string, number> {
   const result = computeMoney(loadMoneyInput(db, vatRate));

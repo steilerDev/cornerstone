@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
+import { eq, sql, and, or, inArray, isNull, gte, lte } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -27,12 +27,15 @@ import { toLikeContainsPattern } from './shared/likePattern.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { getExpectedGrantsByHouseholdItem } from './moneyService.js';
+import { getExpectedGrantsByHouseholdItem, getHouseholdItemListMoney } from './moneyService.js';
+import { toCents } from './shared/money.js';
+import { toMajor } from './shared/moneyEngine.js';
 import { getAreaSummary, loadAreaMap, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
 import { loadGrantChips } from './shared/itemGrantChips.js';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
@@ -43,8 +46,9 @@ import type {
   CreateHouseholdItemRequest,
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
-  PaginationMeta,
-  FilterMeta,
+  HouseholdItemListRow,
+  HouseholdItemListRowsResponse,
+  HouseholdItemListSort,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -466,54 +470,110 @@ export function deleteHouseholdItem(db: DbType, id: string): void {
   db.delete(householdItems).where(eq(householdItems.id, id)).run();
 }
 
+/** One purchase while the list is filtered, sorted and grouped in memory. */
+interface ListEntry {
+  row: typeof householdItems.$inferSelect;
+  /** Engine expected cost; null when the purchase has no cost lines. */
+  expectedCost: number | null;
+  grants: number;
+  paid: number;
+  invoiced: number;
+}
+
+type SortKey = string | number | null;
+
+/** `afterGrants` in major units, rounded in cents; null when there is no expected cost. */
+function afterGrantsOf(expectedCost: number | null, grants: number): number | null {
+  return expectedCost === null ? null : toMajor(toCents(expectedCost) - toCents(grants));
+}
+
+/** The value a list sort orders by. */
+function sortKeyOf(entry: ListEntry, sortBy: HouseholdItemListSort): SortKey {
+  const { row } = entry;
+  switch (sortBy) {
+    case 'name':
+      return row.name;
+    case 'category':
+      return row.categoryId;
+    case 'status':
+      // Lifecycle order (planned … arrived), not alphabetical
+      return HOUSEHOLD_ITEM_STATUSES.indexOf(row.status as HouseholdItemStatus);
+    case 'order_date':
+      return row.orderDate;
+    case 'target_delivery_date':
+      return row.targetDeliveryDate;
+    case 'actual_delivery_date':
+      return row.actualDeliveryDate;
+    case 'delivery':
+      return row.actualDeliveryDate ?? row.targetDeliveryDate;
+    case 'expected_cost':
+      return entry.expectedCost;
+    case 'invoiced':
+      return entry.invoiced;
+    case 'updated_at':
+      return row.updatedAt;
+    case 'created_at':
+      return row.createdAt;
+  }
+}
+
+/** Orders two sort keys ascending; the caller handles nulls (always last) and direction. */
+function compareKeys(a: string | number, b: string | number): number {
+  return typeof a === 'string' ? a.localeCompare(b as string) : a - (b as number);
+}
+
+function inRange(value: number, min: number | undefined, max: number | undefined): boolean {
+  return (min === undefined || value >= min) && (max === undefined || value <= max);
+}
+
 /**
- * List household items with filtering, sorting, and pagination.
+ * Purchases list rows (#2246): filters, sorts and groups over the whole matching set, so the
+ * totals, the status group counts and the engine-valued filters/sorts cover every row, not just
+ * the page. Money comes from one money-service run.
  */
-export function listHouseholdItems(
+export function listHouseholdItemRows(
   db: DbType,
   query: HouseholdItemListQuery,
-  vatRate: number,
-): { items: HouseholdItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
+  opts: { vatRate: number },
+): HouseholdItemListRowsResponse {
+  const { vatRate } = opts;
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortBy = query.sortBy ?? 'created_at';
   const sortOrder = query.sortOrder ?? 'desc';
 
-  // Build base conditions (excluding numeric range filters)
-  const baseConditions = [];
+  const conditions = [];
 
   if (query.category) {
-    baseConditions.push(eq(householdItems.categoryId, query.category));
+    conditions.push(eq(householdItems.categoryId, query.category));
   }
 
   if (query.status) {
-    baseConditions.push(eq(householdItems.status, query.status));
+    conditions.push(eq(householdItems.status, query.status));
   }
 
   if (query.vendorId) {
-    baseConditions.push(eq(householdItems.vendorId, query.vendorId));
+    conditions.push(eq(householdItems.vendorId, query.vendorId));
   }
 
   if (query.areaId) {
     const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
     if (includeNull && areaIds.length > 0) {
-      baseConditions.push(
-        or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!,
-      );
+      conditions.push(or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!);
     } else if (includeNull) {
-      baseConditions.push(isNull(householdItems.areaId));
+      conditions.push(isNull(householdItems.areaId));
     } else if (areaIds.length > 0) {
-      baseConditions.push(inArray(householdItems.areaId, areaIds));
+      conditions.push(inArray(householdItems.areaId, areaIds));
     } else if (hasInput) {
       // User supplied ID(s) but all were unknown — yield empty result
-      baseConditions.push(sql`1 = 0`);
+      conditions.push(sql`1 = 0`);
     }
     // else: no meaningful input (empty/whitespace-only CSV) — skip filter
   }
 
   if (query.q) {
     const pattern = toLikeContainsPattern(query.q);
-    baseConditions.push(
+    conditions.push(
       or(
         sql`LOWER(${householdItems.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
         sql`LOWER(${householdItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
@@ -521,26 +581,21 @@ export function listHouseholdItems(
     );
   }
 
-  const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
+  // Delivery date ranges (inclusive; purchases without the date never match a set bound)
+  if (query.targetDeliveryFrom !== undefined) {
+    conditions.push(gte(householdItems.targetDeliveryDate, query.targetDeliveryFrom));
+  }
+  if (query.targetDeliveryTo !== undefined) {
+    conditions.push(lte(householdItems.targetDeliveryDate, query.targetDeliveryTo));
+  }
+  if (query.actualDeliveryFrom !== undefined) {
+    conditions.push(gte(householdItems.actualDeliveryDate, query.actualDeliveryFrom));
+  }
+  if (query.actualDeliveryTo !== undefined) {
+    conditions.push(lte(householdItems.actualDeliveryDate, query.actualDeliveryTo));
+  }
 
-  // Compute filterMeta from base conditions
-  const metaRow = db
-    .select({
-      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
-      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
-      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
-      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
-      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
-      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
-    })
-    .from(householdItems)
-    .where(baseWhereClause)
-    .get();
-
-  // Build full conditions with numeric range filters for main query
-  const conditions = [...baseConditions];
-
-  // Filter by budget line count
+  // Cost-line count and planned / invoiced amount ranges
   if (query.budgetLinesMin !== undefined) {
     conditions.push(
       sql`(SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}) >= ${query.budgetLinesMin}`,
@@ -551,8 +606,6 @@ export function listHouseholdItems(
       sql`(SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}) <= ${query.budgetLinesMax}`,
     );
   }
-
-  // Filter by planned cost
   if (query.plannedCostMin !== undefined) {
     conditions.push(
       sql`COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.plannedCostMin}`,
@@ -563,88 +616,139 @@ export function listHouseholdItems(
       sql`COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.plannedCostMax}`,
     );
   }
-
-  // Filter by actual cost (from invoices)
   if (query.actualCostMin !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) >= ${query.actualCostMin}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = "household_items"."id"), 0) >= ${query.actualCostMin}`,
     );
   }
   if (query.actualCostMax !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) <= ${query.actualCostMax}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = "household_items"."id"), 0) <= ${query.actualCostMax}`,
     );
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  // Count total items
-  const countResult = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(householdItems)
-    .where(whereClause)
-    .get();
-  const totalItems = countResult!.count;
-  const totalPages = Math.ceil(totalItems / pageSize);
-
-  // Build ORDER BY
-  const sortColumn =
-    sortBy === 'name'
-      ? householdItems.name
-      : sortBy === 'category'
-        ? householdItems.categoryId
-        : sortBy === 'status'
-          ? householdItems.status
-          : sortBy === 'order_date'
-            ? householdItems.orderDate
-            : sortBy === 'target_delivery_date'
-              ? householdItems.targetDeliveryDate
-              : sortBy === 'updated_at'
-                ? householdItems.updatedAt
-                : householdItems.createdAt;
-
-  const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-
-  // Load area map once for all items
-  const areaMap = loadAreaMap(db);
-
-  // Fetch paginated items
-  const offset = (page - 1) * pageSize;
   const itemRows = db
     .select()
     .from(householdItems)
-    .where(whereClause)
-    .orderBy(orderBy)
-    .limit(pageSize)
-    .offset(offset)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .all();
 
-  // Counted grant shares are computed once for the whole page (money service, ADR-039)
-  const expectedGrants = getExpectedGrantsByHouseholdItem(db, vatRate);
+  // Per-request maps, built once: engine money, invoiced amounts, purchases with cost lines
+  const money = getHouseholdItemListMoney(db, vatRate);
+  const invoicedById = new Map(
+    db
+      .select({
+        id: householdItemBudgets.householdItemId,
+        total: sql<number>`SUM(${invoiceBudgetLines.itemizedAmount})`,
+      })
+      .from(invoiceBudgetLines)
+      .innerJoin(invoices, eq(invoices.id, invoiceBudgetLines.invoiceId))
+      .innerJoin(
+        householdItemBudgets,
+        eq(invoiceBudgetLines.householdItemBudgetId, householdItemBudgets.id),
+      )
+      .groupBy(householdItemBudgets.householdItemId)
+      .all()
+      .map((r) => [r.id, r.total]),
+  );
+  const withCostLines = new Set(
+    db
+      .select({ id: householdItemBudgets.householdItemId })
+      .from(householdItemBudgets)
+      .groupBy(householdItemBudgets.householdItemId)
+      .all()
+      .map((r) => r.id),
+  );
+
+  const entries: ListEntry[] = itemRows
+    .map((row) => {
+      const figures = money.get(row.id)!;
+      return {
+        row,
+        expectedCost: withCostLines.has(row.id) ? figures.expectedCost : null,
+        grants: figures.grants,
+        paid: figures.paid,
+        invoiced: invoicedById.get(row.id) ?? 0,
+      };
+    })
+    .filter(
+      (entry) =>
+        inRange(entry.expectedCost ?? 0, query.expectedCostMin, query.expectedCostMax) &&
+        inRange(entry.grants, query.grantsMin, query.grantsMax) &&
+        inRange(
+          afterGrantsOf(entry.expectedCost, entry.grants) ?? 0,
+          query.afterGrantsMin,
+          query.afterGrantsMax,
+        ),
+    );
+
+  const direction = sortOrder === 'asc' ? 1 : -1;
+  const statusRank = (entry: ListEntry): number =>
+    query.group === 'status'
+      ? HOUSEHOLD_ITEM_STATUSES.indexOf(entry.row.status as HouseholdItemStatus)
+      : 0;
+  entries.sort((a, b) => {
+    const rank = statusRank(a) - statusRank(b);
+    if (rank !== 0) return rank;
+    const keyA = sortKeyOf(a, sortBy);
+    const keyB = sortKeyOf(b, sortBy);
+    if (keyA !== keyB) {
+      // Null dates and amounts go last in both directions
+      if (keyA === null) return 1;
+      if (keyB === null) return -1;
+      return compareKeys(keyA, keyB) * direction;
+    }
+    return a.row.name.localeCompare(b.row.name) || a.row.id.localeCompare(b.row.id);
+  });
+
+  let groupCounts: Record<HouseholdItemStatus, number> | undefined;
+  if (query.group === 'status') {
+    groupCounts = { planned: 0, purchased: 0, scheduled: 0, arrived: 0 };
+    for (const entry of entries) groupCounts[entry.row.status as HouseholdItemStatus] += 1;
+  }
+
+  const scopeTotal = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(householdItems)
+    .where(query.status ? eq(householdItems.status, query.status) : undefined)
+    .get()!.count;
+
+  let expectedCents = 0;
+  let invoicedCents = 0;
+  let paidCents = 0;
+  for (const entry of entries) {
+    expectedCents += toCents(entry.expectedCost ?? 0);
+    invoicedCents += toCents(entry.invoiced);
+    paidCents += toCents(entry.paid);
+  }
+
+  const totalItems = entries.length;
+  const pageEntries = entries.slice((page - 1) * pageSize, page * pageSize);
+
+  const areaMap = loadAreaMap(db);
+  const grantsById = new Map([...money].map(([id, figures]) => [id, figures.grants]));
   const chips = loadGrantChips(
     db,
     'household_item',
-    itemRows.map((item) => item.id),
+    pageEntries.map((entry) => entry.row.id),
   );
-  const items = itemRows.map((item) => ({
-    ...toHouseholdItemSummary(db, item, areaMap, vatRate, expectedGrants),
-    grants: chips.get(item.id)!,
+  const items: HouseholdItemListRow[] = pageEntries.map((entry) => ({
+    ...toHouseholdItemSummary(db, entry.row, areaMap, vatRate, grantsById),
+    grants: chips.get(entry.row.id)!,
+    expectedCost: entry.expectedCost,
+    afterGrants: afterGrantsOf(entry.expectedCost, entry.grants),
+    paid: entry.paid,
   }));
-
-  const filterMeta: FilterMeta = {
-    plannedCost: { min: metaRow!.plannedCostMin, max: metaRow!.plannedCostMax },
-    actualCost: { min: metaRow!.actualCostMin, max: metaRow!.actualCostMax },
-    budgetLines: { min: metaRow!.budgetLinesMin, max: metaRow!.budgetLinesMax },
-  };
 
   return {
     items,
-    pagination: {
-      page,
-      pageSize,
-      totalItems,
-      totalPages,
+    pagination: { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) },
+    ...(groupCounts ? { groupCounts } : {}),
+    scopeTotal,
+    totals: {
+      expectedCost: toMajor(expectedCents),
+      invoiced: toMajor(invoicedCents),
+      paid: toMajor(paidCents),
     },
-    filterMeta,
   };
 }

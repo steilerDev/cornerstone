@@ -3,10 +3,10 @@ import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemListRow, WorkItemStatus } from '@cornerstone/shared';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import { useListRowDelete } from '../../hooks/useListRowDelete.js';
+import type { ListRowDeletion } from '../../hooks/useListRowDelete.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
-import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
 import { changeWorkItemStatus, workItemStatusBody } from '../../lib/statusChangeApi.js';
 import { deleteWorkItem, updateWorkItem } from '../../lib/workItemsApi.js';
 import type { RefreshedFigures } from './useTasksList.js';
@@ -44,16 +44,7 @@ export interface TaskActions {
   ) => Promise<void>;
 }
 
-export interface TaskDeletion {
-  /** The task whose delete dialog is open. */
-  readonly item: WorkItemListRow | null;
-  readonly busy: boolean;
-  readonly error: string | null;
-  /** 409: the delete cannot go ahead. */
-  readonly blocked: boolean;
-  readonly confirm: () => void;
-  readonly cancel: () => void;
-}
+export type TaskDeletion = ListRowDeletion<WorkItemListRow>;
 
 export interface UseTaskActionsResult {
   readonly actions: TaskActions;
@@ -71,8 +62,6 @@ export interface UseTaskActionsResult {
  */
 export function useTaskActions(host: TaskActionsHost): UseTaskActionsResult {
   const { t } = useTranslation('workItems');
-  const { t: tCommon } = useTranslation('common');
-  const { t: tErrors } = useTranslation('errors');
   const statusVariants = useStatusBadgeVariants();
   const { run } = useUndoableStatusChange();
   const hostRef = useRef(host);
@@ -221,62 +210,17 @@ export function useTaskActions(host: TaskActionsHost): UseTaskActionsResult {
   );
 
   // --- Delete ---
-  const [deleting, setDeleting] = useState<WorkItemListRow | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteBlocked, setDeleteBlocked] = useState(false);
-
-  const requestDelete = useCallback((item: WorkItemListRow) => {
-    setDeleting(item);
-    setDeleteError(null);
-    setDeleteBlocked(false);
-  }, []);
-
-  const cancelDelete = useCallback(() => {
-    if (deleteBusy) return;
-    setDeleting(null);
-    setDeleteError(null);
-  }, [deleteBusy]);
-
-  const confirmDelete = useCallback(() => {
-    if (!deleting) return;
-    const item = deleting;
-    setDeleteBusy(true);
-    setDeleteError(null);
-    void deleteWorkItem(item.id)
-      .then(async () => {
-        setDeleting(null);
-        await hostRef.current.refreshRows([item.id]);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof ApiClientError) {
-          setDeleteBlocked(err.statusCode === 409);
-          setDeleteError(translateApiError(err.error.code, tErrors));
-        } else if (err instanceof NetworkError) {
-          setDeleteError(tCommon('requestErrors.network'));
-        } else {
-          setDeleteError(tCommon('requestErrors.unexpected'));
-        }
-      })
-      .finally(() => setDeleteBusy(false));
-  }, [deleting, tErrors, tCommon]);
+  const { request: requestDelete, deletion } = useListRowDelete<WorkItemListRow>({
+    remove: (item) => deleteWorkItem(item.id),
+    onDeleted: (item) => {
+      void hostRef.current.refreshRows([item.id]);
+    },
+  });
 
   const actions = useMemo(
     (): TaskActions => ({ applyStatus, reopen, requestDelete, bulkSetStatus, bulkSetArea }),
     [applyStatus, reopen, requestDelete, bulkSetStatus, bulkSetArea],
   );
-  const deletion = useMemo(
-    (): TaskDeletion => ({
-      item: deleting,
-      busy: deleteBusy,
-      error: deleteError,
-      blocked: deleteBlocked,
-      confirm: confirmDelete,
-      cancel: cancelDelete,
-    }),
-    [deleting, deleteBusy, deleteError, deleteBlocked, confirmDelete, cancelDelete],
-  );
-
   // Shown only under the query it happened in (compared at render, no effect).
   const bulkError =
     bulkFailure && bulkFailure.queryKey === host.queryKey() ? bulkFailure.text : null;

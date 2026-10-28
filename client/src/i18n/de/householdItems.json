@@ -1,102 +1,78 @@
 {
-  "newButton": "Neuer Haushaltsartikel",
-  "search": {
-    "placeholder": "Haushaltsartikel durchsuchen...",
-    "ariaLabel": "Haushaltsartikel durchsuchen"
-  },
-  "filters": {
-    "ariaLabel": "Haushaltsartikel-Filter",
-    "category": "Kategorie:",
-    "area": "Bereich:",
-    "status": "Status:",
-    "room": "Raum:",
-    "vendor": "Auftragnehmer:",
-    "sortBy": "Sortieren nach:",
-    "allCategories": "Alle Kategorien",
-    "allAreas": "Alle Bereiche",
-    "allStatuses": "Alle Status",
-    "allVendors": "Alle Auftragnehmer",
-    "roomPlaceholder": "Nach Raum filtern...",
-    "roomAriaLabel": "Nach Raum filtern",
-    "toggleSort": "Sortierreihenfolge umschalten"
-  },
-  "sort": {
-    "options": {
-      "name": "Name",
-      "category": "Kategorie",
-      "status": "Status",
-      "room": "Raum",
-      "order_date": "Bestelldatum",
-      "target_delivery_date": "Ziellieferdatum",
-      "created_at": "Erstellt",
-      "updated_at": "Aktualisiert"
-    },
-    "asc": "↑ Aufsteigend",
-    "desc": "↓ Absteigend"
-  },
-  "table": {
-    "sectionTitle": "Haushaltsartikel",
-    "headers": {
-      "name": "Name",
-      "category": "Kategorie",
+  "list": {
+    "newPurchase": "Neue Anschaffung",
+    "titleHeader": "Anschaffung",
+    "statusHeader": "Status",
+    "search": "Anschaffungen durchsuchen",
+    "resultCount_one": "{{count}} Anschaffung",
+    "resultCount_other": "{{count}} Anschaffungen",
+    "empty": "Noch keine Anschaffungen",
+    "emptyDescription": "Füge deine erste Anschaffung hinzu, um loszulegen.",
+    "noMatch": "Keine Anschaffungen entsprechen deinen Filtern.",
+    "loadFailed": "Anschaffungen konnten nicht geladen werden.",
+    "groupBy": {
       "status": "Status",
       "area": "Bereich",
-      "vendor": "Auftragnehmer",
-      "plannedCost": "Geplante Kosten",
+      "company": "Firma"
+    },
+    "group": {
+      "noArea": "Kein Bereich",
+      "noCompany": "Keine Firma"
+    },
+    "sort": {
+      "name": "Name",
+      "status": "Status",
+      "category": "Kategorie",
+      "delivery": "Lieferung",
       "targetDelivery": "Ziellieferdatum",
-      "actualDelivery": "Tatsächliche Lieferung",
-      "actualCost": "Tatsächliche Kosten",
-      "subsidyReduction": "Erwartete Förderung",
-      "netCost": "Nettokosten",
+      "deliveredOn": "Geliefert am",
       "orderDate": "Bestelldatum",
-      "budgetLines": "Budgetpositionen",
-      "actions": "Aktionen"
+      "expectedCost": "Erwartete Kosten",
+      "invoiced": "Berechnet"
+    },
+    "columns": {
+      "area": "Bereich",
+      "company": "Firma",
+      "delivery": "Lieferung",
+      "expectedCost": "Erwartete Kosten",
+      "invoiced": "Berechnet",
+      "category": "Kategorie",
+      "orderDate": "Bestelldatum",
+      "grants": "Förderung",
+      "afterGrants": "Nach Förderung",
+      "costLines": "Kostenpositionen"
+    },
+    "row": {
+      "notSet": "Nicht festgelegt",
+      "target": "Ziel",
+      "delivered": "Geliefert",
+      "open": "Öffnen"
+    },
+    "filters": {
+      "category": "Kategorie",
+      "anyCategory": "Alle Kategorien",
+      "area": "Bereich",
+      "company": "Firma",
+      "targetDelivery": "Ziellieferdatum",
+      "deliveredOn": "Geliefert am",
+      "expectedCost": "Erwartete Kosten",
+      "invoiced": "Berechnet",
+      "grants": "Förderung",
+      "afterGrants": "Nach Förderung",
+      "costLines": "Kostenpositionen",
+      "from": "Von",
+      "to": "Bis",
+      "min": "Min",
+      "max": "Max",
+      "optionsFailed": "Kategorien konnten nicht geladen werden."
+    },
+    "footer": {
+      "label": "Summen",
+      "labelFiltered": "Summen (gefiltert)",
+      "expectedCost": "Erwartete Kosten",
+      "invoiced": "Berechnet",
+      "paid": "Bezahlt"
     }
-  },
-  "results": {
-    "itemFound": "Haushaltsartikel gefunden",
-    "itemsFound": "Haushaltsartikel gefunden"
-  },
-  "card": {
-    "category": "Kategorie:",
-    "status": "Status:",
-    "room": "Raum:",
-    "vendor": "Auftragnehmer:",
-    "plannedCost": "Geplante Kosten:",
-    "targetDelivery": "Ziellieferdatum:"
-  },
-  "empty": {
-    "noItems": "Noch keine Haushaltsartikel",
-    "noItemsMessage": "Erstelle deinen ersten Haushaltsartikel zum Verfolgen.",
-    "noResults": "Keine Haushaltsartikel entsprechen deinen Filtern",
-    "noResultsMessage": "Versuche, deine Such- oder Filterkriterien anzupassen.",
-    "createFirstItem": "Ersten Artikel erstellen",
-    "clearAllFilters": "Alle Filter löschen"
-  },
-  "menu": {
-    "actions": "Aktionen für {{name}}",
-    "edit": "Bearbeiten",
-    "delete": "Löschen"
-  },
-  "pagination": {
-    "showing": "Zeige",
-    "to": "bis",
-    "of": "von",
-    "items": "Artikel",
-    "previous": "← Zurück",
-    "next": "Weiter →"
-  },
-  "loading": "Haushaltsartikel werden geladen...",
-  "error": "Fehler beim Laden der Haushaltsartikel. Bitte versuche es erneut.",
-  "deleteError": "Fehler beim Löschen des Haushaltsartikels. Bitte versuche es erneut.",
-  "keyboard": {
-    "newItem": "Neuer Haushaltsartikel",
-    "focusSearch": "Suchfeld fokussieren",
-    "selectNext": "Nächsten Artikel wählen",
-    "selectPrevious": "Vorherigen Artikel wählen",
-    "openSelected": "Ausgewählten Artikel öffnen",
-    "showShortcuts": "Tastaturkürzel anzeigen",
-    "closeDialog": "Dialog schließen oder abbrechen"
   },
   "create": {
     "errors": {

@@ -66,7 +66,7 @@ Trades represent specialties of work -- the types of professional services invol
 
 ### Creating Trades
 
-Trades are managed on the **Companies** page. Open the **Trades** list there (**Settings > Project setup** also links to it under **Trades**), select **New trade**, and provide:
+Trades are managed on the **Companies** page. Select **⋯** next to **New company** and choose **Trades** to open the Trades sheet, select **New trade**, and provide:
 
 - **Name** -- A short label (e.g., "Electrical")
 - **Color** -- Pick from a color palette for visual identification
@@ -87,6 +87,6 @@ From the **Areas** page you can:
 - **Reparent** an area by changing its parent
 - **Delete** an area (this removes the association from all items that use it)
 
-From the **Trades** list on the **Companies** page you can rename a trade, merge duplicate trades, and delete a trade.
+From the Trades sheet (**⋯** › **Trades** on the **Companies** page) you can rename a trade, merge duplicate trades, and delete a trade.
 
 ![Areas page with a list of areas](/img/screenshots/manage-light.png)

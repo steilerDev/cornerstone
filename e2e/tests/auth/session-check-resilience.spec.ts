@@ -68,8 +68,13 @@ test.describe('Session check resilience', () => {
 
         await expect(page).toHaveURL(second);
         await expect(page).not.toHaveURL(/\/login/);
+        // Object lists show a count after the name ("Purchases (3)")
         await expect(
-          page.getByRole('heading', { level: 1, name: heading, exact: true }),
+          page.getByRole('heading', {
+            level: 1,
+            name: heading === 'Purchases' ? /^Purchases( \(\d+\))?$/ : heading,
+            exact: true,
+          }),
         ).toBeVisible();
       }
 

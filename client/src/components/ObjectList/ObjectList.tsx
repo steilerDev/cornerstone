@@ -103,6 +103,8 @@ export interface ObjectListProps<T, M = undefined, C = never> {
   /** Host dialogs (ConfirmDialog, sheets). */
   readonly children?: ReactNode;
   readonly headingRef?: RefObject<HTMLHeadingElement | null>;
+  /** The host's page ⋯ menu trigger: where a host sheet returns focus (default: the list's own). */
+  readonly menuTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
 function cssEscape(value: string): string {
@@ -145,6 +147,7 @@ export function ObjectList<T, M = undefined, C = never>({
   hiddenColumnKeys,
   children,
   headingRef: headingRefProp,
+  menuTriggerRef: menuTriggerRefProp,
 }: ObjectListProps<T, M, C>) {
   const { t } = useTranslation('common');
   const p = config.testIdPrefix;
@@ -152,7 +155,8 @@ export function ObjectList<T, M = undefined, C = never>({
   const items = list.items;
   const rootRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const ownMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuTriggerRef = menuTriggerRefProp ?? ownMenuTriggerRef;
   const ownHeadingRef = useRef<HTMLHeadingElement>(null);
   const headingRef = headingRefProp ?? ownHeadingRef;
   const wide = useContainerWide(rootRef);

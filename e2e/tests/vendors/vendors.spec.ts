@@ -15,7 +15,7 @@
  * - Scenario 6:  Edit company details (Overview cards)
  * - Scenario 8:  Delete - no references (list row menu and header menu)
  * - Scenario 9:  Delete blocked when invoices exist (409 via route mock)
- * - Scenario 11: List is paginated
+ * - Scenario 11: No paging controls (batches of 100)
  * - Scenario 12: Search by name (case-insensitive)
  * - Scenario 13: Filter by trade name via search
  * - Scenario 14: List shows scannable key info
@@ -100,13 +100,12 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       // And: The empty state says "No companies yet"
       await expect(vendorsPage.emptyState).toContainText('No companies yet');
 
-      // And: it carries its own "New company" action, so the header button is gone
-      const ctaButton = vendorsPage.emptyState.getByRole('button', { name: 'New company' });
-      await expect(ctaButton).toBeVisible();
-      await expect(vendorsPage.newCompanyButton).toHaveCount(0);
+      // And: the one primary stays in the header (the template's empty state has no action)
+      await expect(vendorsPage.newCompanyButton).toBeVisible();
+      await expect(vendorsPage.emptyState.getByRole('button')).toHaveCount(0);
 
-      // And: the action opens the same dialog as the header button
-      await ctaButton.click();
+      // And: it opens the New company dialog
+      await vendorsPage.newCompanyButton.click();
       await vendorsPage.createDialog.waitForOpen();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('companyNew'));
       await vendorsPage.createDialog.cancel();
@@ -132,12 +131,12 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       // When: I search for something that matches nothing
       await vendorsPage.search('ZZZNOMATCH99999');
 
-      // Then: Empty state appears — DataTable shows a generic "no items match" message
-      // when a search query is active (hasActiveFilters=true), regardless of page-specific
-      // empty state text. t('dataTable.empty.filteredMessage') = "No items match the current filters"
-      await expect(vendorsPage.emptyState).toBeVisible({ timeout: 8000 });
-      const emptyText = await vendorsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no items match|no vendors match|try different/);
+      // Then: the empty state says nothing matched and offers Clear filters
+      await expect(vendorsPage.emptyState).toBeVisible();
+      await expect(vendorsPage.emptyState).toContainText('No companies match.');
+      await expect(
+        vendorsPage.emptyState.getByRole('button', { name: 'Clear filters' }),
+      ).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -692,65 +691,26 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 11: Pagination
+// Scenario 11: No paging controls (rows load in batches of 100, #2246)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
-  test('Pagination controls visible when API returns totalPages > 1', async ({ page }) => {
+test.describe('No paging controls (Scenario 11)', { tag: '@responsive' }, () => {
+  test('A legacy ?page=2&pageSize=10 URL is dropped and the list renders', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    // Mock the API to simulate a multi-page result (26 items, pageSize 25)
-    await page.route(`${API.vendors}*`, async (route) => {
-      if (route.request().method() === 'GET') {
-        // Note: specialty removed in EPIC-18 (replaced by Trade entity)
-        const vendors = Array.from({ length: 25 }, (_, i) => ({
-          id: `mock-vendor-${i}`,
-          name: `Mock Vendor ${String(i + 1).padStart(2, '0')}`,
-          phone: null,
-          email: null,
-          address: null,
-          notes: null,
-          trade: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: { id: 'user-1', displayName: 'E2E Admin' },
-        }));
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            vendors,
-            pagination: { page: 1, pageSize: 25, totalItems: 26, totalPages: 2 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await vendorsPage.goto({ page: 2, pageSize: 10 });
+    await vendorsPage.waitForVendorsLoaded();
 
-    try {
-      // Given: More than one page of vendors
-      await vendorsPage.goto();
-
-      // Then: Pagination controls are visible
-      await expect(vendorsPage.pagination).toBeVisible({ timeout: 8000 });
-      await expect(vendorsPage.nextPageButton).toBeVisible();
-      await expect(vendorsPage.prevPageButton).toBeVisible();
-
-      // And: Previous button disabled on page 1
-      await expect(vendorsPage.prevPageButton).toBeDisabled();
-
-      // And: Pagination info shows range
-      const infoText = await vendorsPage.paginationInfo.textContent();
-      expect(infoText).toMatch(/showing|of 26/i);
-    } finally {
-      await page.unroute(`${API.vendors}*`);
-    }
+    await page.waitForURL(
+      (url) => !url.searchParams.has('page') && !url.searchParams.has('pageSize'),
+    );
+    await expect(vendorsPage.olist.retryButton).toHaveCount(0);
+    await expect(vendorsPage.heading).toBeVisible();
   });
 
-  test('Pagination controls not shown when only one page of results', async ({ page }) => {
+  test('A single-batch list shows no "Showing n of m" footer', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    // Mock a single-page response
+    // Mock a single-batch response
     await page.route(`${API.vendors}*`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -771,7 +731,8 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
                 createdBy: { id: 'u1', displayName: 'Admin' },
               },
             ],
-            pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+            pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+            scopeTotal: 1,
           }),
         });
       } else {
@@ -781,12 +742,10 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
 
     try {
       await vendorsPage.goto();
-
-      // Wait for the list to load (at least one row visible)
       await vendorsPage.waitForVendorsLoaded();
 
-      // Pagination section should NOT be visible
-      await expect(vendorsPage.pagination).not.toBeVisible();
+      await expect(vendorsPage.row('Solo Vendor')).toBeVisible();
+      await expect(vendorsPage.olist.list.getByText(/^Showing \d+ of \d+$/)).toHaveCount(0);
     } finally {
       await page.unroute(`${API.vendors}*`);
     }
@@ -965,8 +924,8 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       // Default columns: Name, Trade, Phone, Still to pay, Offers, Contact persons, Last on site
       // (E-mail, Address, Notes, Date added and Last updated are hidden by default), then the
       // row-actions column (its header is visually hidden text).
-      await expect(vendorsPage.tableContainer.locator('thead th')).toHaveText([
-        /^Name/,
+      await expect(vendorsPage.tableHeaders).toHaveText([
+        /^Company/,
         /^Trade/,
         /^Phone/,
         /^Still to pay/,
@@ -1033,7 +992,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
 
     await vendorsPage.goto();
     await expect(vendorsPage.heading).toBeVisible();
-    await expect(vendorsPage.heading).toHaveText('Companies');
+    await expect(vendorsPage.heading).toHaveText(/^Companies \(\d+\)$/);
 
     // Verify the right page loaded: the Companies sidebar entry is the highlighted one (#2205).
     await expect(new AppShellPage(page).sectionLink('companies')).toHaveAttribute(
@@ -1129,8 +1088,8 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
       await vendorsPage.goto({ q: `${testPrefix} Mobile Card` });
 
       // On mobile the company is a card (the table is hidden), with its Call button
-      await expect(vendorsPage.cardsContainer).toBeVisible();
-      await expect(vendorsPage.tableContainer).toBeHidden();
+      await vendorsPage.waitForVendorsLoaded();
+      await expect(vendorsPage.olist.tableSurface).toBeHidden();
       await expect(vendorsPage.row(`${testPrefix} Mobile Card Vendor`)).toBeVisible();
       await expect(vendorsPage.callLink(`${testPrefix} Mobile Card Vendor`)).toContainText(
         'Call +1-555-100-2000',
@@ -1160,8 +1119,8 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // The table container should be in the DOM and visible
-      await expect(vendorsPage.tableContainer).toBeVisible();
+      // The table surface should be in the DOM and visible
+      await expect(vendorsPage.olist.tableSurface).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }

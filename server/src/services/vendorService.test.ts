@@ -259,6 +259,37 @@ describe('Vendor Service', () => {
       expect(result.pagination.pageSize).toBe(25);
     });
 
+    it('scopeTotal counts every company when no trade is chosen, ignoring the search', () => {
+      createTestVendor('Acme Plumbing');
+      createTestVendor('Best Electric');
+      createTestVendor('Cool Roofing');
+
+      const result = vendorService.listVendors(db, { q: 'Acme' });
+
+      expect(result.pagination.totalItems).toBe(1);
+      expect(result.scopeTotal).toBe(3);
+    });
+
+    it('scopeTotal counts the companies of the chosen trade only, ignoring the search', () => {
+      const plumbing = createTestTrade('Plumbing');
+      const electrical = createTestTrade('Electrical');
+      createTestVendor('Acme Plumbing', { tradeId: plumbing.id });
+      createTestVendor('Best Pipes', { tradeId: plumbing.id });
+      createTestVendor('Cool Wires', { tradeId: electrical.id });
+      createTestVendor('No Trade Inc');
+
+      const unsearched = vendorService.listVendors(db, { tradeId: plumbing.id });
+      const searched = vendorService.listVendors(db, { tradeId: plumbing.id, q: 'Acme' });
+
+      expect(unsearched.scopeTotal).toBe(2);
+      expect(searched.pagination.totalItems).toBe(1);
+      expect(searched.scopeTotal).toBe(2);
+    });
+
+    it('scopeTotal is 0 for an empty table', () => {
+      expect(vendorService.listVendors(db, {}).scopeTotal).toBe(0);
+    });
+
     it('returns all vendor fields', () => {
       const userId = createTestUser('creator@test.com', 'Creator User');
       const trade = createTestTrade('Test Plumbing Trade', { color: '#0EA5E9' });

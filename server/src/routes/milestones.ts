@@ -3,7 +3,11 @@ import { UnauthorizedError } from '../errors/AppError.js';
 import * as milestoneService from '../services/milestoneService.js';
 import { issueRestoreToken, runUndoable, undoStore } from '../services/undoService.js';
 import * as workItemMilestoneService from '../services/workItemMilestoneService.js';
-import { autoReschedule, autoRescheduleLogged } from '../services/schedulingEngine.js';
+import {
+  autoReschedule,
+  autoRescheduleLogged,
+  ensureDailyReschedule,
+} from '../services/schedulingEngine.js';
 import { undoableDeleteResponse } from './undoResponseSchema.js';
 import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
@@ -145,6 +149,7 @@ export default async function milestoneRoutes(fastify: FastifyInstance) {
     if (!request.user) {
       throw new UnauthorizedError();
     }
+    ensureDailyReschedule(fastify.db);
     const result = milestoneService.getAllMilestones(fastify.db);
     return reply.status(200).send(result);
   });

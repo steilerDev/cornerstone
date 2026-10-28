@@ -2,47 +2,27 @@
  * @jest-environment jsdom
  */
 /**
- * Component tests for the Companies list (VendorsPage.tsx, rebuilt in #2213). All data is synthetic.
+ * Component tests for the Companies list on the object template (#2246). All data is synthetic.
  */
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { TradeListItem, VendorListItem } from '@cornerstone/shared';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type { RouterLog } from '../../test/recordingRouter.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
-import { ownNavigations } from '../../test/navLandmarks.js';
-import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
-import type * as AuthContextTypes from '../../contexts/AuthContext.js';
-import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type * as TradesManagerTypes from '../../components/TradesManager/TradesManager.js';
 
 // ─── Mocks (before the component import) ───────────────────────────────────────
-
-const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: mockUseAuth,
-  AuthProvider: ({ children }: { children: ReactNode }) => children,
-}));
-
-const mockListPreferences = jest.fn<typeof PreferencesApiTypes.listPreferences>();
-jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
-  listPreferences: mockListPreferences,
-  upsertPreference: jest
-    .fn<typeof PreferencesApiTypes.upsertPreference>()
-    .mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  deletePreference: jest
-    .fn<typeof PreferencesApiTypes.deletePreference>()
-    .mockResolvedValue(undefined),
-}));
 
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockDeleteVendor = jest.fn<typeof VendorsApiTypes.deleteVendor>();
@@ -55,7 +35,6 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: mockDeleteVendor,
   createVendor: jest.fn(),
   fetchVendor: jest.fn(),
-  // Named import of the EntityPicker closure (the Trades sheet's merge picker).
   searchCompanies: jest.fn(),
   updateVendor: jest.fn(),
 }));
@@ -79,17 +58,16 @@ jest.unstable_mockModule('../../components/TradesManager/TradesManager.js', () =
     );
   },
 }));
-
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  formatDayRange: () => '',
-  useFormatters: () => ({
-    formatDate: (d: string | null | undefined) => (d ? `D:${d.slice(0, 10)}` : '—'),
-    formatCurrency: (n: number) => `€${n.toFixed(2)}`,
-    formatPercent: (n: number) => `${n}%`,
-  }),
-  formatDate: (d: string | null | undefined) => (d ? `D:${d.slice(0, 10)}` : '—'),
-  formatCurrency: (n: number) => `€${n.toFixed(2)}`,
-  formatPercent: (n: number) => `${n}%`,
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    vatRate: 0.19,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -103,11 +81,14 @@ const trade = (id: string, name: string, over: Partial<TradeListItem> = {}): Tra
   sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
-  vendorCount: 0,
+  vendorCount: 1,
   ...over,
 });
-const ROOFING = trade('t-roof', 'Dachdecker', { translationKey: 'trades.roofing' });
-const TILING = trade('t-tile', 'Tiling');
+const ROOFING = trade('t-roof', 'Dachdecker', { translationKey: 'trades.roofing', vendorCount: 5 });
+const TILING = trade('t-tile', 'Tiling', { vendorCount: 4 });
+const ELECTRICAL = trade('t-elec', 'Electrical', { vendorCount: 3 });
+const PLUMBING = trade('t-plum', 'Plumbing', { vendorCount: 2 });
+const WALLS = trade('t-wall', 'Walls', { vendorCount: 1 });
 
 const company = (over: Partial<VendorListItem> = {}): VendorListItem => ({
   id: 'c1',
@@ -123,12 +104,25 @@ const company = (over: Partial<VendorListItem> = {}): VendorListItem => ({
   firstContactPhone: null,
   contactCount: 0,
   lastOnSite: null,
+  stillToPay: 0,
   ...over,
 });
+const ROOF_CO = company({
+  trade: { id: 't-roof', name: 'Dachdecker', translationKey: 'trades.roofing' } as never,
+  stillToPay: 250,
+});
+const TILE_CO = company({
+  id: 'c2',
+  name: 'Example Tiling Co',
+  trade: { id: 't-tile', name: 'Tiling', translationKey: null } as never,
+  phone: null,
+});
+const NO_TRADE_CO = company({ id: 'c3', name: 'Plain Supplies Ltd', phone: null });
 
-const response = (vendors: VendorListItem[], totalItems = vendors.length) => ({
+const response = (vendors: VendorListItem[], scopeTotal = vendors.length) => ({
   vendors,
-  pagination: { page: 1, pageSize: 25, totalItems, totalPages: 1 },
+  pagination: { page: 1, pageSize: 100, totalItems: vendors.length, totalPages: 1 },
+  scopeTotal,
 });
 
 function tradesResult(
@@ -166,1218 +160,666 @@ function LocationProbe() {
 
 function renderPage(
   url = '/companies',
-  options: { state?: unknown; registry?: boolean; log?: RouterLog } = {},
-) {
+  options: { state?: unknown; log?: RouterLog } = {},
+): ReturnType<typeof render> & { log: RouterLog } {
   const log = options.log ?? createRouterLog();
-  const tree = (
+  const tree: ReactNode = (
     <ToastProvider>
-      <RecordingRouter entries={[options.state ? { url, state: options.state } : url]} log={log}>
-        <VendorsPage />
-        <LocationProbe />
-        {options.registry && <ShortcutSnapshot />}
-      </RecordingRouter>
+      <ShortcutRegistryProvider>
+        <RecordingRouter entries={[options.state ? { url, state: options.state } : url]} log={log}>
+          <VendorsPage />
+          <LocationProbe />
+        </RecordingRouter>
+      </ShortcutRegistryProvider>
     </ToastProvider>
   );
-  const utils = render(
-    options.registry ? <ShortcutRegistryProvider>{tree}</ShortcutRegistryProvider> : tree,
-  );
-  return { ...utils, log };
+  return { ...render(tree), log };
 }
-
-/** Resolves after a short delay, so the page renders its loading state before the data arrives. */
-const later = <T,>(value: T, ms = 30) =>
-  new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
 
 const loc = () => screen.getByTestId('loc').textContent;
 const lastFetch = () => mockFetchVendors.mock.calls[mockFetchVendors.mock.calls.length - 1]![0]!;
-const rowLink = (id: string) => screen.getByTestId(`company-name-${id}`);
+const heading = () => screen.getByRole('heading', { level: 1 });
 
-async function loaded(name = 'Sample Roofing Co') {
-  await waitFor(() => expect(screen.getAllByText(name).length).toBeGreaterThan(0));
+async function loaded() {
+  await waitFor(() => expect(screen.queryByLabelText('Loading the list')).not.toBeInTheDocument());
 }
 
-describe('VendorsPage (Companies list)', () => {
-  beforeEach(async () => {
-    if (!VendorsPage) ({ VendorsPage } = await import('./VendorsPage.js'));
-    mockUseAuth.mockReset();
-    mockFetchVendors.mockReset();
-    mockDeleteVendor.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockUseTrades.mockReset();
-    mockListPreferences.mockReset();
-    mockListPreferences.mockResolvedValue([]);
-    managerProps.current = null;
-    mockUseAuth.mockReturnValue({
-      user: {
-        id: 'u1',
-        email: 'member@example.com',
-        displayName: 'Member',
-        role: 'member' as const,
-        authProvider: 'local' as const,
-        oidcLinked: false,
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-        deactivatedAt: null,
-      },
-      oidcEnabled: false,
-      status: 'authenticated',
-      setupRequired: false,
-      isLoading: false,
-      error: null,
-      refreshAuth: jest.fn(async () => Promise.resolve()),
-      logout: jest.fn(async () => Promise.resolve()),
-    });
-    mockUseTrades.mockReturnValue(tradesResult([ROOFING, TILING]));
-    mockFetchVendors.mockResolvedValue(response([company()]));
-    mockDeleteVendor.mockResolvedValue(undefined);
-    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'c1', effects: [] });
+beforeEach(async () => {
+  if (!VendorsPage) ({ VendorsPage } = await import('./VendorsPage.js'));
+  window.sessionStorage.clear();
+  window.localStorage.clear();
+  mockFetchVendors.mockReset();
+  mockFetchVendors.mockResolvedValue(response([ROOF_CO, TILE_CO, NO_TRADE_CO], 9));
+  mockDeleteVendor.mockReset();
+  mockFetchDeleteImpact.mockReset();
+  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'c1', effects: [] });
+  mockUseTrades.mockReset();
+  mockUseTrades.mockReturnValue(tradesResult([ROOFING, TILING]));
+  managerProps.current = null;
+});
+
+describe('page identity and the trades gate', () => {
+  it('titles the tab "Companies" and has the one Companies heading', async () => {
+    renderPage();
+    await loaded();
+
+    expect(document.title).toContain('Companies');
+    expect(heading()).toHaveTextContent('Companies');
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
+  it('shows the heading and a skeleton, and no list, until the trades have answered', async () => {
+    mockUseTrades.mockReturnValue(tradesResult([], { isInitialLoading: true }));
+    renderPage();
+
+    expect(heading()).toHaveTextContent('Companies');
+    expect(mockFetchVendors).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('companies-search')).not.toBeInTheDocument();
   });
 
-  describe('page identity', () => {
-    it('titles the tab "Companies" and has the one Companies heading', async () => {
-      renderPage();
-      await loaded();
-      await waitFor(() => expect(document.title).toBe('Companies · Cornerstone'));
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Companies');
-    });
+  it('mounts the list once the trades answered, and keeps a deep-linked trade chip', async () => {
+    renderPage('/companies?tradeId=t-tile');
+    await loaded();
 
-    it('renders no tab row or section navigation of its own', async () => {
-      const { container } = renderPage();
-      await loaded();
-      expect(ownNavigations(container)).toEqual([]);
-    });
+    expect(screen.getByTestId('companies-chip-t-tile')).toHaveAttribute('aria-pressed', 'true');
+    expect(lastFetch()).toMatchObject({ tradeId: 't-tile' });
+    expect(loc()).toContain('tradeId=t-tile');
   });
 
-  describe('loading and errors', () => {
-    it('shows a skeleton while the first request is pending', () => {
-      mockFetchVendors.mockReturnValue(new Promise(() => {}));
-      renderPage();
-      expect(screen.getByLabelText('Loading table data...')).toBeInTheDocument();
-    });
+  it('shows the list without trade chips and the trades error when the trades failed', async () => {
+    mockUseTrades.mockReturnValue(tradesResult([], { error: 'Trades could not be loaded.' }));
+    renderPage();
+    await loaded();
 
-    it('shows the translated message of an API error', async () => {
-      mockFetchVendors.mockRejectedValue(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'SQLITE raw' }),
-      );
-      renderPage();
-      expect(
-        await screen.findByText('An unexpected error occurred. Please try again.'),
-      ).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain('SQLITE raw');
-    });
-
-    it('shows the list-specific message for any other failure', async () => {
-      mockFetchVendors.mockRejectedValue(new Error('boom'));
-      renderPage();
-      expect(
-        await screen.findByText('Companies could not be loaded. Try again.'),
-      ).toBeInTheDocument();
-    });
-
-    it('ignores a response that arrives after a newer request', async () => {
-      renderPage();
-      await loaded();
-      let resolveFirst: (r: ReturnType<typeof response>) => void = () => {};
-      mockFetchVendors.mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)));
-      mockFetchVendors.mockResolvedValue(response([company({ id: 'c2', name: 'Second Co' })]));
-      const user = userEvent.setup();
-
-      await user.type(screen.getByRole('searchbox'), 'sec');
-      await waitFor(() => expect(lastFetch()).toMatchObject({ q: 'sec' }));
-      await user.type(screen.getByRole('searchbox'), 'ond');
-      await loaded('Second Co');
-      await act(async () => {
-        resolveFirst(response([company({ id: 'c9', name: 'Stale Co' })]));
-      });
-
-      expect(screen.queryByText('Stale Co')).not.toBeInTheDocument();
-      expect(screen.getAllByText('Second Co').length).toBeGreaterThan(0);
-    });
+    expect(screen.getByText('Trades could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByTestId('companies-chip-all')).not.toBeInTheDocument();
+    expect(screen.getByTestId('companies-row-c1')).toBeInTheDocument();
   });
 
-  describe('columns and rows', () => {
-    it('shows Name, Trade, Phone, Contact persons and Last on site by default', async () => {
-      renderPage();
-      await loaded();
-      const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-      for (const label of ['Name', 'Trade', 'Phone', 'Contact persons', 'Last on site']) {
-        expect(headers.some((h) => h?.includes(label))).toBe(true);
-      }
-      for (const hidden of ['E-mail', 'Address', 'Notes', 'Date added', 'Last updated']) {
-        expect(headers.some((h) => h?.includes(hidden))).toBe(false);
-      }
-    });
+  it('drops a trade that has been removed from the URL instead of filtering by it', async () => {
+    renderPage('/companies?tradeId=t-gone');
+    await loaded();
 
-    it('links the name to the company page and shows the translated trade', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({
-            trade: {
-              id: 't-roof',
-              name: 'Dachdecker',
-              color: null,
-              translationKey: 'trades.roofing',
-            },
-          }),
-        ]),
-      );
-      renderPage();
-      await loaded();
-
-      expect(rowLink('c1')).toHaveAttribute('href', '/companies/c1');
-      expect(screen.getAllByText('Roofing').length).toBeGreaterThan(0);
-      expect(screen.queryByText('Dachdecker')).not.toBeInTheDocument();
-    });
-
-    it('shows a dash for a company without trade, phone, contacts and visits', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company({ trade: null, phone: null, firstContactPhone: null })]),
-      );
-      renderPage();
-      await loaded();
-
-      const row = rowLink('c1').closest('tr')!;
-      const cells = within(row).getAllByRole('cell');
-      expect(cells.map((c) => c.textContent)).toEqual(expect.arrayContaining(['—']));
-      expect(within(row).queryByRole('link', { name: /^Call/ })).not.toBeInTheDocument();
-      expect(within(row).getAllByText('—').length).toBeGreaterThanOrEqual(4);
-    });
-
-    it('shows the number of contact persons, and a dash for none', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({ id: 'c1', name: 'Has Contacts', contactCount: 3 }),
-          company({ id: 'c2', name: 'No Contacts', contactCount: 0 }),
-          company({ id: 'c3', name: 'Unknown Count', contactCount: undefined }),
-        ]),
-      );
-      renderPage();
-      await loaded('Has Contacts');
-
-      const cellsOf = (id: string) =>
-        within(rowLink(id).closest('tr')!)
-          .getAllByRole('cell')
-          .map((c) => c.textContent);
-      expect(cellsOf('c1')).toContain('3');
-      expect(cellsOf('c2')).not.toContain('0');
-      expect(cellsOf('c3')).not.toContain('undefined');
-    });
-
-    it('formats the last visit, and shows a dash when there is none', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({ id: 'c1', name: 'Visited Co', lastOnSite: '2026-03-04' }),
-          company({ id: 'c2', name: 'Never Co', lastOnSite: null }),
-        ]),
-      );
-      renderPage();
-      await loaded('Visited Co');
-
-      expect(
-        within(rowLink('c1').closest('tr')!)
-          .getAllByRole('cell')
-          .map((c) => c.textContent),
-      ).toContain('D:2026-03-04');
-    });
-
-    it('opens the company page when the row is clicked, remembering the list as origin', async () => {
-      const { log } = renderPage();
-      await loaded();
-
-      fireEvent.click(rowLink('c1').closest('tr')!);
-
-      expect(log.actions).toEqual(['PUSH /companies/c1']);
-      expect(JSON.stringify(log.states[0])).toContain('/companies');
-    });
-
-    it('does not navigate twice when the name link itself is clicked', async () => {
-      const { log } = renderPage();
-      await loaded();
-
-      fireEvent.click(rowLink('c1'));
-
-      expect(log.actions).toEqual(['PUSH /companies/c1']);
-    });
+    expect(loc()).not.toContain('tradeId');
+    expect(lastFetch()).not.toHaveProperty('tradeId');
   });
 
-  describe('Still to pay and Offers columns (#2244)', () => {
-    const OFFERS = { count: 2, amount: 5000, paid: 1200, stillToPay: 300, remainingOnOffer: 3500 };
+  it('absorbs an old ?page=2&pageSize=10 URL without an error', async () => {
+    renderPage('/companies?page=2&pageSize=10');
+    await loaded();
 
-    it('shows Still to pay and Offers by default, after Phone and before Contact persons', async () => {
-      renderPage();
-      await loaded();
+    expect(loc()).not.toContain('page');
+    expect(lastFetch()).toMatchObject({ page: 1, pageSize: 100 });
+    expect(screen.getByTestId('companies-row-c1')).toBeInTheDocument();
+  });
+});
 
-      const headers = screen.getAllByRole('columnheader').map((h) => h.textContent ?? '');
-      const at = (label: string) => headers.findIndex((h) => h.includes(label));
-      expect(at('Still to pay')).toBeGreaterThan(at('Trade'));
-      expect(at('Still to pay')).toBeGreaterThan(-1);
-      expect(at('Offers')).toBe(at('Still to pay') + 1);
-      expect(at('Contact persons')).toBeGreaterThan(at('Offers'));
-    });
-
-    // Mutation: dropping data-figure leaves the list's Still-to-pay unregistered (ADR-039).
-    it('marks the Still to pay amount as the still-to-pay figure with a per-row test id', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({ id: 'c1', name: 'Owes Co', stillToPay: 1234.5, offers: OFFERS }),
-          company({ id: 'c2', name: 'Square Co', stillToPay: 0 }),
-        ]),
-      );
-      renderPage();
-      await loaded('Owes Co');
-
-      const owes = screen.getByTestId('company-still-to-pay-c1');
-      expect(owes).toHaveAttribute('data-figure', 'still-to-pay');
-      expect(owes).toHaveTextContent('€1234.50');
-      const square = screen.getByTestId('company-still-to-pay-c2');
-      expect(square).toHaveAttribute('data-figure', 'still-to-pay');
-      expect(square).toHaveTextContent('€0.00');
-      expect(owes.className).not.toBe(square.className);
-    });
-
-    it('shows €0.00 for a row from an older response without the field', async () => {
-      mockFetchVendors.mockResolvedValue(response([company({ stillToPay: undefined })]));
-      renderPage();
-      await loaded();
-
-      expect(screen.getByTestId('company-still-to-pay-c1')).toHaveTextContent('€0.00');
-    });
-
-    it('shows the offers amount with the paid part, and a dash with a screen-reader text without offers', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({ id: 'c1', name: 'Offer Co', offers: OFFERS }),
-          company({
-            id: 'c2',
-            name: 'None Co',
-            offers: { count: 0, amount: 0, paid: 0, stillToPay: 0, remainingOnOffer: 0 },
-          }),
-          company({ id: 'c3', name: 'Old Co', offers: undefined }),
-        ]),
-      );
-      renderPage();
-      await loaded('Offer Co');
-
-      const cell = (id: string) => within(rowLink(id).closest('tr')!).getAllByRole('cell');
-      const withOffers = cell('c1').map((c) => c.textContent ?? '');
-      expect(withOffers.some((t) => t.includes('€5000.00') && t.includes('€1200.00 paid'))).toBe(
-        true,
-      );
-      for (const id of ['c2', 'c3']) {
-        const texts = cell(id).map((c) => c.textContent ?? '');
-        expect(texts.some((t) => t.includes('–') && t.includes('No offers'))).toBe(true);
-      }
-    });
-
-    it('sorts by Still to pay with the still_to_pay key, and Offers is not sortable', async () => {
-      renderPage();
-      await loaded();
-
-      await userEvent.setup().click(screen.getByRole('columnheader', { name: /Still to pay/ }));
-
-      await waitFor(() =>
-        expect(lastFetch()).toMatchObject({ sortBy: 'still_to_pay', sortOrder: 'asc' }),
-      );
-      expect(loc()).toContain('sortBy=still_to_pay');
-      const callsBefore = mockFetchVendors.mock.calls.length;
-      await userEvent.setup().click(screen.getByRole('columnheader', { name: /Offers/ }));
-      expect(mockFetchVendors.mock.calls.length).toBe(callsBefore);
-    });
-
-    it('keeps every data-testid unique across the table and the cards with the new columns', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({ stillToPay: 10, offers: OFFERS }),
-          company({ id: 'c2', name: 'Second Co', stillToPay: 0 }),
-        ]),
-      );
-      const { container } = renderPage();
-      await loaded();
-
-      expect(findDuplicateTestIds(container)).toEqual([]);
-      expect(screen.getByTestId('company-still-to-pay-mobile-c1')).toHaveAttribute(
-        'data-figure',
-        'still-to-pay',
-      );
-    });
+describe('states and heading', () => {
+  it('shows the skeleton, then the rows', async () => {
+    renderPage();
+    expect(screen.getByLabelText('Loading the list')).toBeInTheDocument();
+    await loaded();
+    expect(screen.getByTestId('companies-row-c2')).toBeInTheDocument();
   });
 
-  describe('phone and Call (D-34 contact phone fallback, #2197)', () => {
-    const calls = () =>
-      screen.queryAllByRole('link').filter((a) => a.getAttribute('href')?.startsWith('tel:'));
+  it('shows the load failure with Retry', async () => {
+    mockFetchVendors.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    expect(
+      await screen.findByText('Companies could not be loaded. Try again.'),
+    ).toBeInTheDocument();
 
-    it('D-34: shows the company phone with a Call button in the row and a full-width one in the card', async () => {
-      renderPage();
-      await loaded();
+    await userEvent.click(screen.getByTestId('companies-retry'));
+    await loaded();
 
-      const rowCall = screen.getByTestId('company-call-c1');
-      expect(rowCall).toHaveAttribute('href', 'tel:5550142');
-      expect(rowCall).toHaveAccessibleName('Call Sample Roofing Co on 555-0142');
-      expect(rowCall.textContent).toBe('Call');
-      expect(screen.getAllByText('555-0142').length).toBeGreaterThan(0);
-
-      const cardCall = screen.getByTestId('company-call-mobile-c1');
-      expect(cardCall).toHaveTextContent('Call 555-0142');
-      expect(cardCall).toHaveAccessibleName('Call 555-0142, Sample Roofing Co');
-    });
-
-    it('D-34: falls back to the first contact phone as a tel link when the company has no phone', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company({ phone: null, firstContactPhone: '555-0101' })]),
-      );
-      renderPage();
-      await loaded();
-
-      expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550101']));
-      expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
-    });
-
-    it('D-34: falls back to the contact phone when the company phone is blank', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company({ phone: '   ', firstContactPhone: '555-0101' })]),
-      );
-      renderPage();
-      await loaded();
-
-      expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550101']));
-    });
-
-    it("D-34: prefers the company's own phone over the contact phone", async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company({ phone: '555-0102', firstContactPhone: '555-0103' })]),
-      );
-      renderPage();
-      await loaded();
-
-      expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550102']));
-      expect(screen.queryByText('555-0103')).not.toBeInTheDocument();
-    });
-
-    it('D-34: shows no Call button without a company phone or a contact phone', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company({ phone: null, firstContactPhone: null })]),
-      );
-      renderPage();
-      await loaded();
-
-      expect(calls()).toHaveLength(0);
-    });
-
-    it('does not open the company when Call is clicked', async () => {
-      const { log } = renderPage();
-      await loaded();
-      const swallow = (e: Event) => e.preventDefault();
-      document.addEventListener('click', swallow);
-      try {
-        fireEvent.click(screen.getByTestId('company-call-c1'));
-        fireEvent.click(screen.getByTestId('company-call-mobile-c1'));
-      } finally {
-        document.removeEventListener('click', swallow);
-      }
-
-      expect(log.actions).toEqual([]);
-    });
+    expect(screen.getByTestId('companies-row-c1')).toBeInTheDocument();
   });
 
-  describe('trade chips', () => {
-    it('lists All trades and every trade by displayed name, A to Z', async () => {
-      renderPage();
-      await loaded();
+  it('shows the empty state with the New company action', async () => {
+    mockFetchVendors.mockResolvedValue(response([]));
+    const { log } = renderPage();
 
-      const group = screen.getByRole('group', { name: 'Trade' });
-      expect(
-        within(group)
-          .getAllByRole('button')
-          .map((b) => b.textContent),
-      ).toEqual(['All trades', 'Roofing', 'Tiling']);
-      expect(within(group).getByRole('button', { name: 'All trades' })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
-    });
-
-    it('shows no chips when there are no trades', async () => {
-      mockUseTrades.mockReturnValue(tradesResult([]));
-      renderPage();
-      await loaded();
-      expect(screen.queryByRole('group', { name: 'Trade' })).not.toBeInTheDocument();
-    });
-
-    it('writes tradeId into the URL with REPLACE and filters the request', async () => {
-      const { log } = renderPage();
-      await loaded();
-
-      await userEvent.setup().click(screen.getByTestId('company-trade-t-tile'));
-
-      await waitFor(() => expect(lastFetch()).toMatchObject({ tradeId: 't-tile', page: 1 }));
-      expect(log.actions.every((a) => a.startsWith('REPLACE'))).toBe(true);
-      expect(log.actions[log.actions.length - 1]).toContain('tradeId=t-tile');
-      expect(screen.getByTestId('company-trade-t-tile')).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    it('All trades removes the filter and resets the page', async () => {
-      const { log } = renderPage('/companies?tradeId=t-tile&page=3');
-      await loaded();
-
-      await userEvent.setup().click(screen.getByTestId('company-trade-all'));
-
-      await waitFor(() => expect(loc()).not.toContain('tradeId'));
-      expect(loc()).toContain('page=1');
-      expect(log.actions.every((a) => a.startsWith('REPLACE'))).toBe(true);
-      expect(lastFetch()).not.toHaveProperty('tradeId');
-    });
-
-    it('reads the active chip from the URL', async () => {
-      renderPage('/companies?tradeId=t-roof');
-      await loaded();
-      expect(screen.getByTestId('company-trade-t-roof')).toHaveAttribute('aria-pressed', 'true');
-      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ tradeId: 't-roof' }));
-    });
-
-    it('drops a stale tradeId once the trades have loaded without it', async () => {
-      const { log } = renderPage('/companies?tradeId=t-gone');
-      await loaded();
-
-      await waitFor(() => expect(loc()).not.toContain('tradeId'));
-      expect(log.actions.some((a) => a.startsWith('REPLACE') && !a.includes('tradeId'))).toBe(true);
-    });
-
-    it('keeps a tradeId while the trades are still loading', async () => {
-      mockUseTrades.mockReturnValue(tradesResult([], { isInitialLoading: true }));
-      renderPage('/companies?tradeId=t-roof');
-      await loaded();
-      expect(loc()).toContain('tradeId=t-roof');
-    });
-
-    it('keeps a tradeId when the trades failed to load', async () => {
-      mockUseTrades.mockReturnValue(tradesResult([], { error: 'x' }));
-      renderPage('/companies?tradeId=t-roof');
-      await loaded();
-      expect(loc()).toContain('tradeId=t-roof');
-    });
-
-    it('keeps a known tradeId', async () => {
-      renderPage('/companies?tradeId=t-roof');
-      await loaded();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(loc()).toContain('tradeId=t-roof');
-    });
+    expect(await screen.findByText('No companies yet')).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: 'New company' })[0]!);
+    expect(log.actions).toEqual(['PUSH /companies/new']);
   });
 
-  describe('search', () => {
-    it('sends the typed text', async () => {
-      renderPage();
-      await loaded();
+  it('shows the no-match state when a search finds nothing', async () => {
+    mockFetchVendors.mockResolvedValue(response([], 9));
+    renderPage('/companies?q=zzz');
 
-      await userEvent.setup().type(screen.getByRole('searchbox'), 'sample');
-
-      await waitFor(() => expect(lastFetch()).toMatchObject({ q: 'sample' }));
-      expect(loc()).toContain('q=sample');
-    });
-
-    it('sends the ids of trades whose displayed name contains the text (translated names)', async () => {
-      renderPage();
-      await loaded();
-
-      await userEvent.setup().type(screen.getByRole('searchbox'), 'roof');
-
-      await waitFor(() => expect(lastFetch()).toMatchObject({ q: 'roof', tradeIds: 't-roof' }));
-    });
-
-    it('sends no tradeIds when no trade matches, nor without a text', async () => {
-      renderPage();
-      await loaded();
-      expect(lastFetch()).not.toHaveProperty('tradeIds', expect.anything());
-
-      await userEvent.setup().type(screen.getByRole('searchbox'), 'zzzq');
-
-      await waitFor(() => expect(lastFetch()).toMatchObject({ q: 'zzzq' }));
-      expect(lastFetch().tradeIds).toBeUndefined();
-    });
-
-    it('joins several matching trade ids with commas', async () => {
-      mockUseTrades.mockReturnValue(
-        tradesResult([trade('t-a', 'Roof Tiling'), trade('t-b', 'Flat Roofing'), TILING]),
-      );
-      renderPage();
-      await loaded();
-
-      await userEvent.setup().type(screen.getByRole('searchbox'), 'roof');
-
-      await waitFor(() => expect(lastFetch().tradeIds).toBe('t-a,t-b'));
-    });
-
-    it('keeps the active trade chip when the user sorts', async () => {
-      renderPage('/companies?tradeId=t-roof');
-      await loaded();
-
-      await userEvent.setup().click(screen.getByRole('columnheader', { name: /Name/ }));
-
-      await waitFor(() => expect(loc()).toContain('sortBy=name'));
-      expect(loc()).toContain('tradeId=t-roof');
-      expect(lastFetch()).toMatchObject({ tradeId: 't-roof', sortBy: 'name' });
-    });
-
-    it('sends the sort the user picks, including Last on site', async () => {
-      renderPage();
-      await loaded();
-
-      const header = screen.getByRole('columnheader', { name: /Last on site/ });
-      await userEvent.setup().click(header);
-
-      await waitFor(() =>
-        expect(lastFetch()).toMatchObject({ sortBy: 'last_on_site', sortOrder: 'asc' }),
-      );
-    });
+    expect(await screen.findByText('No companies match.')).toBeInTheDocument();
   });
 
-  describe('Trades sheet', () => {
-    const tradesButton = () => screen.getByTestId('companies-trades-button');
-    const fetchCount = () => mockFetchVendors.mock.calls.length;
+  it('always shows the count, and "(n of m)" with the trade scope total when searching', async () => {
+    renderPage();
+    await loaded();
+    expect(heading()).toHaveTextContent('Companies (3)');
 
-    it('opens with a push that remembers it was pushed here', async () => {
-      const { log } = renderPage();
-      await loaded();
+    document.body.innerHTML = '';
+    mockFetchVendors.mockResolvedValue(response([TILE_CO], 9));
+    renderPage('/companies?q=tiling');
+    await loaded();
+    expect(heading()).toHaveTextContent('Companies (1 of 9)');
+  });
+});
 
-      await userEvent.setup().click(tradesButton());
+describe('trade chips', () => {
+  it('lists All and the trades by displayed name, A to Z', async () => {
+    renderPage();
+    await loaded();
 
-      expect(await screen.findByTestId('trades-manager-stub')).toBeInTheDocument();
-      expect(log.actions).toEqual(['PUSH /companies?trades=1']);
-      expect(JSON.parse(screen.getByTestId('loc-state').textContent ?? 'null')).toMatchObject({
-        tradesSheet: true,
-      });
-    });
-
-    it('keeps the other query keys when it opens', async () => {
-      renderPage('/companies?q=sample&tradeId=t-roof');
-      await loaded();
-
-      await userEvent.setup().click(tradesButton());
-
-      await screen.findByTestId('trades-manager-stub');
-      expect(loc()).toContain('q=sample');
-      expect(loc()).toContain('tradeId=t-roof');
-      expect(loc()).toContain('trades=1');
-    });
-
-    it('does not refetch the companies when the sheet opens and closes', async () => {
-      renderPage();
-      await loaded();
-      const before = fetchCount();
-      const user = userEvent.setup();
-
-      await user.click(tradesButton());
-      await screen.findByTestId('trades-manager-stub');
-      await user.click(screen.getByTestId('stub-close'));
-      await waitFor(() => expect(screen.queryByTestId('trades-manager-stub')).toBeNull());
-
-      expect(fetchCount()).toBe(before);
-    });
-
-    it('closes by going back when this page pushed the sheet', async () => {
-      const { log } = renderPage();
-      await loaded();
-      const user = userEvent.setup();
-      await user.click(tradesButton());
-      await screen.findByTestId('trades-manager-stub');
-
-      await user.click(screen.getByTestId('stub-close'));
-
-      expect(log.actions[log.actions.length - 1]).toBe('GO -1');
-      await waitFor(() => expect(loc()).toBe('/companies'));
-    });
-
-    it('opened by URL, closing replaces the entry without the trades key', async () => {
-      const { log } = renderPage('/companies?trades=1&q=sample');
-      await screen.findByTestId('trades-manager-stub');
-
-      await userEvent.setup().click(screen.getByTestId('stub-close'));
-
-      await waitFor(() => expect(screen.queryByTestId('trades-manager-stub')).toBeNull());
-      expect(log.actions[log.actions.length - 1]).toBe('REPLACE /companies?q=sample');
-    });
-
-    it('treats ?trades=1 as a mode, not a filter', async () => {
-      renderPage('/companies?trades=1');
-      await screen.findByTestId('trades-manager-stub');
-      await loaded();
-
-      expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
-      expect(mockFetchVendors).toHaveBeenCalled();
-      for (const call of mockFetchVendors.mock.calls) {
-        expect(call[0]).not.toHaveProperty('trades');
-      }
-    });
-
-    it('hands the Trades button to the sheet as its focus fallback', async () => {
-      renderPage('/companies?trades=1');
-      await screen.findByTestId('trades-manager-stub');
-      expect(managerProps.current?.returnFocusRef?.current).toBe(tradesButton());
-    });
-
-    it('refetches trades and companies when the sheet reports a change', async () => {
-      const refetch = jest.fn();
-      mockUseTrades.mockReturnValue(tradesResult([ROOFING, TILING], { refetch }));
-      renderPage('/companies?trades=1');
-      await loaded();
-      const before = fetchCount();
-
-      await userEvent.setup().click(screen.getByTestId('stub-changed'));
-
-      expect(refetch).toHaveBeenCalledTimes(1);
-      await waitFor(() => expect(fetchCount()).toBe(before + 1));
-    });
-
-    it('turns off the n shortcut while the sheet is open', async () => {
-      const { log } = renderPage('/companies?trades=1');
-      await screen.findByTestId('trades-manager-stub');
-
-      fireEvent.keyDown(document, { key: 'n' });
-
-      expect(log.actions).toEqual([]);
-    });
+    const group = screen.getByRole('group', { name: 'Trade' });
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Roofing', 'Tiling', 'All']);
   });
 
-  describe('creating a company', () => {
-    it('New company pushes /companies/new with the list as background and origin', async () => {
-      const { log } = renderPage('/companies?q=sample');
-      await loaded();
+  it('a chip writes tradeId with REPLACE and filters the request; All removes it', async () => {
+    const { log } = renderPage();
+    await loaded();
 
-      await userEvent.setup().click(screen.getByTestId('new-company-button'));
+    await userEvent.click(screen.getByTestId('companies-chip-t-tile'));
+    await waitFor(() => expect(lastFetch()).toMatchObject({ tradeId: 't-tile' }));
+    expect(log.actions.at(-1)).toMatch(/^REPLACE .*tradeId=t-tile/);
 
-      expect(log.actions).toEqual(['PUSH /companies/new']);
-      const state = log.states[0] as {
-        background?: { pathname: string; search: string };
-        origin?: unknown;
-      };
-      expect(state.background).toMatchObject({ pathname: '/companies', search: '?q=sample' });
-      expect(state.origin).toBeDefined();
-    });
-
-    it('the n shortcut opens the same dialog route', async () => {
-      const { log } = renderPage();
-      await loaded();
-
-      fireEvent.keyDown(document, { key: 'n' });
-
-      expect(log.actions).toEqual(['PUSH /companies/new']);
-    });
-
-    it('ignores n typed into the search field', async () => {
-      const { log } = renderPage();
-      await loaded();
-
-      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'n' });
-
-      expect(log.actions).toEqual([]);
-    });
-
-    it('registers n as "New company" in the shortcut registry', async () => {
-      renderPage('/companies', { registry: true });
-      await loaded();
-
-      fireEvent.click(screen.getByTestId('shortcut-snapshot'));
-
-      expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain('n:New company');
-    });
-
-    it('replaces ?create=1 with the dialog route (deep-link mode)', async () => {
-      const { log } = renderPage('/companies?create=1');
-
-      await waitFor(() => expect(log.actions).toContain('REPLACE /companies/new'));
-    });
-
-    it('does not treat create as a table filter: the list request never carries it', async () => {
-      renderPage('/companies?create=1');
-      await loaded();
-
-      for (const call of mockFetchVendors.mock.calls) {
-        expect(call[0]).not.toHaveProperty('create');
-      }
-    });
-
-    it('does nothing without ?create=1', async () => {
-      const { log } = renderPage();
-      await loaded();
-      expect(log.actions).toEqual([]);
-    });
+    await userEvent.click(screen.getByTestId('companies-chip-all'));
+    await waitFor(() => expect(lastFetch()).not.toHaveProperty('tradeId'));
+    expect(screen.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  describe('empty states', () => {
-    it('hides the header New company button on the unfiltered empty list and offers the empty-state action', async () => {
-      mockFetchVendors.mockResolvedValue(response([]));
-      renderPage();
+  it('with more than four trades, the rest are in a More trades menu that sets the same chip', async () => {
+    mockUseTrades.mockReturnValue(tradesResult([ROOFING, TILING, ELECTRICAL, PLUMBING, WALLS]));
+    renderPage();
+    await loaded();
 
-      expect(await screen.findByText('No companies yet')).toBeInTheDocument();
-      expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument();
-      expect(screen.getByTestId('companies-trades-button')).toBeInTheDocument();
-      await userEvent.setup().click(screen.getByRole('button', { name: 'New company' }));
-    });
+    expect(screen.queryByTestId('companies-chip-t-wall')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('companies-chip-more'));
+    await userEvent.click(await screen.findByTestId('companies-chip-more-t-wall'));
 
-    it('the empty-state action opens the dialog route', async () => {
-      mockFetchVendors.mockResolvedValue(response([]));
-      const { log } = renderPage();
-      await screen.findByText('No companies yet');
-
-      await userEvent.setup().click(screen.getByRole('button', { name: 'New company' }));
-
-      expect(log.actions).toEqual(['PUSH /companies/new']);
-    });
-
-    it.each([
-      ['a search', '/companies?q=zzz'],
-      ['a trade filter', '/companies?tradeId=t-tile'],
-    ])('keeps the header New company button for %s with no results', async (_label, url) => {
-      mockFetchVendors.mockResolvedValue(response([]));
-      renderPage(url);
-      await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(screen.getByTestId('new-company-button')).toBeInTheDocument();
-    });
-
-    it('shows the header button while the first load is pending', async () => {
-      mockFetchVendors.mockReturnValue(new Promise(() => {}));
-      renderPage();
-      expect(screen.getByTestId('new-company-button')).toBeInTheDocument();
-    });
+    await waitFor(() => expect(lastFetch()).toMatchObject({ tradeId: 't-wall' }));
+    expect(screen.getByTestId('companies-chip-t-wall')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  describe('row actions and delete', () => {
-    const user = () => userEvent.setup();
+  it('has no More trades menu with four trades or fewer', async () => {
+    renderPage();
+    await loaded();
 
-    async function openDelete(id = 'c1') {
-      const u = user();
-      await u.click(await screen.findByTestId(`company-actions-${id}`));
-      await u.click(await screen.findByTestId(`company-delete-${id}`));
-      await screen.findByRole('alertdialog');
-      return u;
+    expect(screen.queryByTestId('companies-chip-more')).not.toBeInTheDocument();
+  });
+
+  it('has no chips when no trade has a company', async () => {
+    mockUseTrades.mockReturnValue(tradesResult([trade('t-1', 'Unused', { vendorCount: 0 })]));
+    renderPage();
+    await loaded();
+
+    expect(screen.queryByTestId('companies-chip-all')).not.toBeInTheDocument();
+  });
+});
+
+describe('search and sort', () => {
+  it('sends the typed text and the ids of trades whose displayed name contains it', async () => {
+    renderPage();
+    await loaded();
+
+    await userEvent.type(screen.getByTestId('companies-search'), 'roof');
+
+    await waitFor(() => expect(lastFetch()).toMatchObject({ q: 'roof', tradeIds: 't-roof' }));
+  });
+
+  it('keeps the active trade chip when the user sorts, and sends the sort', async () => {
+    renderPage('/companies?tradeId=t-roof');
+    await loaded();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Sort/ }));
+    await userEvent.click(await screen.findByTestId('companies-sort-last_on_site'));
+
+    await waitFor(() => expect(lastFetch()).toMatchObject({ sortBy: 'last_on_site' }));
+    expect(lastFetch()).toMatchObject({ tradeId: 't-roof' });
+    expect(loc()).toContain('tradeId=t-roof');
+  });
+});
+
+describe('grouping', () => {
+  it('Group by Trade lists the trades with No trade last and hides the Trade column', async () => {
+    renderPage('/companies?group=trade');
+    await loaded();
+
+    const toggles = screen
+      .getAllByTestId(/^companies-group-toggle-(?!mobile)/)
+      .map((el) => el.getAttribute('data-testid'));
+    expect(toggles).toEqual([
+      'companies-group-toggle-t-roof',
+      'companies-group-toggle-t-tile',
+      'companies-group-toggle-__none__',
+    ]);
+    expect(screen.getByTestId('companies-group-toggle-t-roof')).toHaveTextContent('Roofing');
+    expect(screen.getByTestId('companies-group-toggle-__none__')).toHaveTextContent('No trade');
+    expect(screen.queryByRole('columnheader', { name: 'Trade' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Trade column when not grouped', async () => {
+    renderPage();
+    await loaded();
+
+    expect(screen.getByRole('columnheader', { name: 'Trade' })).toBeInTheDocument();
+  });
+});
+
+describe('rows', () => {
+  it('links the name to the company page and shows the translated trade, Still to pay and the dash for none', async () => {
+    renderPage();
+    await loaded();
+    const row = screen.getByTestId('companies-row-c1');
+
+    expect(within(row).getByTestId('companies-title-c1')).toHaveAttribute('href', '/companies/c1');
+    expect(row).toHaveTextContent('Roofing');
+    expect(within(row).getByTestId('company-still-to-pay-c1')).toHaveTextContent('€250.00');
+    expect(within(row).getByTestId('company-still-to-pay-c1')).toHaveAttribute(
+      'data-figure',
+      'still-to-pay',
+    );
+  });
+
+  it('has no duplicate test ids with a menu open', async () => {
+    const { container } = renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('companies-row-menu-c1'));
+
+    expect(findDuplicateTestIds(container)).toEqual([]);
+  });
+
+  it('keeps the optional columns hidden by default', async () => {
+    renderPage();
+    await loaded();
+
+    for (const name of ['E-mail', 'Address', 'Notes', 'Date added', 'Last updated']) {
+      expect(screen.queryByRole('columnheader', { name })).not.toBeInTheDocument();
+    }
+    for (const name of ['Phone', 'Still to pay', 'Offers', 'Contact persons', 'Last on site']) {
+      expect(screen.getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+  });
+});
+
+describe('phone and Call (D-34 contact phone fallback, #2197)', () => {
+  const calls = () =>
+    screen.queryAllByRole('link').filter((a) => a.getAttribute('href')?.startsWith('tel:'));
+
+  it('D-34: shows the company phone with a Call button in the row and a full-width one in the card', async () => {
+    renderPage();
+    await loaded();
+
+    const rowCall = screen.getByTestId('company-call-c1');
+    expect(rowCall).toHaveAttribute('href', 'tel:5550142');
+    expect(rowCall).toHaveAccessibleName('Call Sample Roofing Co on 555-0142');
+    expect(rowCall.textContent).toBe('Call');
+    expect(screen.getAllByText('555-0142').length).toBeGreaterThan(0);
+
+    const cardCall = screen.getByTestId('company-call-mobile-c1');
+    expect(cardCall).toHaveTextContent('Call 555-0142');
+    expect(cardCall).toHaveAccessibleName('Call 555-0142, Sample Roofing Co');
+  });
+
+  it('D-34: falls back to the first contact phone as a tel link when the company has no phone', async () => {
+    mockFetchVendors.mockResolvedValue(
+      response([company({ phone: null, firstContactPhone: '555-0101' })]),
+    );
+    renderPage();
+    await loaded();
+
+    expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550101']));
+    expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
+  });
+
+  it('D-34: falls back to the contact phone when the company phone is blank', async () => {
+    mockFetchVendors.mockResolvedValue(
+      response([company({ phone: '   ', firstContactPhone: '555-0101' })]),
+    );
+    renderPage();
+    await loaded();
+
+    expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550101']));
+  });
+
+  it("D-34: prefers the company's own phone over the contact phone", async () => {
+    mockFetchVendors.mockResolvedValue(
+      response([company({ phone: '555-0102', firstContactPhone: '555-0103' })]),
+    );
+    renderPage();
+    await loaded();
+
+    expect(new Set(calls().map((a) => a.getAttribute('href')))).toEqual(new Set(['tel:5550102']));
+    expect(screen.queryByText('555-0103')).not.toBeInTheDocument();
+  });
+
+  it('D-34: shows no Call button without a company phone or a contact phone', async () => {
+    mockFetchVendors.mockResolvedValue(
+      response([company({ phone: null, firstContactPhone: null })]),
+    );
+    renderPage();
+    await loaded();
+
+    expect(calls()).toHaveLength(0);
+  });
+
+  it('does not open the company when Call is clicked', async () => {
+    const { log } = renderPage();
+    await loaded();
+    const swallow = (e: Event) => e.preventDefault();
+    document.addEventListener('click', swallow);
+    try {
+      fireEvent.click(screen.getByTestId('company-call-c1'));
+      fireEvent.click(screen.getByTestId('company-call-mobile-c1'));
+    } finally {
+      document.removeEventListener('click', swallow);
     }
 
-    it('labels the row menu with the company name', async () => {
-      renderPage();
-      await loaded();
-      expect(
-        screen.getAllByRole('button', { name: 'Actions for Sample Roofing Co' }).length,
-      ).toBeGreaterThan(0);
-    });
+    expect(log.actions).toEqual([]);
+  });
+});
 
-    it('offers Delete as the only item', async () => {
-      renderPage();
-      await loaded();
-      await user().click(screen.getByTestId('company-actions-c1'));
-      expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual([
-        'Delete',
-      ]);
-    });
+describe('Trades sheet (⋯ › Trades)', () => {
+  const openTradesFromMenu = async () => {
+    await userEvent.click(screen.getByTestId('companies-page-menu'));
+    await userEvent.click(await screen.findByTestId('companies-menu-trades'));
+  };
 
-    it('keeps every data-testid unique across the table and the cards with a menu open', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company(), company({ id: 'c2', name: 'Second Co' })]),
-      );
-      const { container } = renderPage();
-      await loaded();
+  it('opens from the page ⋯ menu with a push that remembers it was pushed here', async () => {
+    const { log } = renderPage();
+    await loaded();
 
-      await user().click(screen.getByTestId('company-actions-c1'));
+    await openTradesFromMenu();
 
-      expect(findDuplicateTestIds(container)).toEqual([]);
-    });
-
-    it('opens a confirm named for the company with Cancel focused, nothing deleted yet', async () => {
-      renderPage();
-      await loaded();
-      await openDelete();
-
-      expect(
-        screen.getByRole('alertdialog', { name: 'Delete Sample Roofing Co?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('company-list-delete-cancel')).toHaveFocus();
-      expect(mockDeleteVendor).not.toHaveBeenCalled();
-    });
-
-    it('lists what the delete also changes, from the delete-impact endpoint', async () => {
-      mockFetchDeleteImpact.mockResolvedValue({
-        entityType: 'vendor',
-        id: 'c1',
-        effects: [
-          { kind: 'contacts', count: 3 },
-          { kind: 'tasksUnassigned', count: 0 },
-        ],
-      });
-      renderPage();
-      await loaded();
-      await openDelete();
-
-      await waitFor(() =>
-        expect(screen.getByTestId('company-list-delete-consequences')).toHaveTextContent(
-          'Contact persons deleted with it: 3',
-        ),
-      );
-      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('vendor', 'c1');
-    });
-
-    it('Cancel closes without deleting', async () => {
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-
-      await u.click(screen.getByTestId('company-list-delete-cancel'));
-
-      expect(screen.queryByRole('alertdialog')).toBeNull();
-      expect(mockDeleteVendor).not.toHaveBeenCalled();
-    });
-
-    it('Cancel returns focus to the ⋯ that opened the confirm', async () => {
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-
-      await u.click(screen.getByTestId('company-list-delete-cancel'));
-
-      await waitFor(() => expect(screen.getByTestId('company-actions-c1')).toHaveFocus());
-    });
-
-    it('Escape also returns focus to that ⋯', async () => {
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-
-      await u.keyboard('{Escape}');
-
-      await waitFor(() => expect(screen.getByTestId('company-actions-c1')).toHaveFocus());
-    });
-
-    it('returns focus to the ⋯ of the right row when several companies are listed', async () => {
-      mockFetchVendors.mockResolvedValue(
-        response([company(), company({ id: 'c2', name: 'Second Co' })]),
-      );
-      renderPage();
-      await loaded();
-      const u = await openDelete('c2');
-
-      await u.click(screen.getByTestId('company-list-delete-cancel'));
-
-      await waitFor(() => expect(screen.getByTestId('company-actions-c2')).toHaveFocus());
-    });
-
-    it('a failed delete keeps the confirm open and moves no focus away from it', async () => {
-      mockDeleteVendor.mockRejectedValueOnce(new Error('boom'));
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-      const confirm = await screen.findByTestId('company-list-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-      await u.click(confirm);
-
-      await screen.findByText('The company could not be deleted. Try again.');
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      expect(screen.getByTestId('company-actions-c1')).not.toHaveFocus();
-    });
-
-    it('deletes, then reloads the list', async () => {
-      mockFetchVendors.mockResolvedValueOnce(response([company()])).mockResolvedValue(response([]));
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-      const confirm = await screen.findByTestId('company-list-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-      await u.click(confirm);
-
-      await waitFor(() => expect(mockDeleteVendor).toHaveBeenCalledWith('c1'));
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(await screen.findByText('No companies yet')).toBeInTheDocument();
-    });
-
-    it('a 409 switches to the blocked form with the specific message and no action', async () => {
-      mockDeleteVendor.mockRejectedValueOnce(
-        new ApiClientError(409, { code: 'VENDOR_IN_USE', message: 'in use' }),
-      );
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-      const confirm = await screen.findByTestId('company-list-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-      await u.click(confirm);
-
-      expect(
-        await screen.findByText(
-          "This company can't be deleted while invoices or cost lines use it. Remove those first.",
-        ),
-      ).toBeInTheDocument();
-      expect(screen.queryByTestId('company-list-delete-confirm')).toBeNull();
-    });
-
-    it('another API failure shows the translated message and keeps the action for a retry', async () => {
-      mockDeleteVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'SQLITE raw' }),
-      );
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-      const confirm = await screen.findByTestId('company-list-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-      await u.click(confirm);
-
-      expect(
-        await within(screen.getByRole('alertdialog')).findByText(
-          'An unexpected error occurred. Please try again.',
-        ),
-      ).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain('SQLITE raw');
-      expect(screen.getByTestId('company-list-delete-confirm')).toBeInTheDocument();
-    });
-
-    it('a non-API failure shows the plain fallback and keeps the action', async () => {
-      mockDeleteVendor.mockRejectedValueOnce(new Error('boom'));
-      renderPage();
-      await loaded();
-      const u = await openDelete();
-      const confirm = await screen.findByTestId('company-list-delete-confirm');
-      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-      await u.click(confirm);
-
-      expect(
-        await screen.findByText('The company could not be deleted. Try again.'),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('company-list-delete-confirm')).toBeInTheDocument();
-    });
-
-    describe('focus after a delete', () => {
-      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent');
-
-      beforeEach(() => {
-        // jsdom has no layout: report the table links as visible and the card links as hidden,
-        // like the real page where CSS shows one surface at a time.
-        Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
-          configurable: true,
-          get(this: HTMLElement) {
-            return this.dataset.testid?.includes('-mobile-') ? null : this.parentElement;
-          },
-        });
-      });
-
-      afterEach(() => {
-        if (original) Object.defineProperty(HTMLElement.prototype, 'offsetParent', original);
-      });
-
-      async function deleteMiddle() {
-        mockFetchVendors
-          .mockResolvedValueOnce(
-            response([
-              company({ id: 'c1', name: 'First Co' }),
-              company({ id: 'c2', name: 'Second Co' }),
-              company({ id: 'c3', name: 'Third Co' }),
-            ]),
-          )
-          .mockImplementation(() =>
-            later(
-              response([
-                company({ id: 'c1', name: 'First Co' }),
-                company({ id: 'c3', name: 'Third Co' }),
-              ]),
-            ),
-          );
-        renderPage();
-        await loaded('First Co');
-        const u = await openDelete('c2');
-        const confirm = await screen.findByTestId('company-list-delete-confirm');
-        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-        await u.click(confirm);
-      }
-
-      async function deleteFirst(afterDelete: VendorListItem[]) {
-        mockFetchVendors
-          .mockResolvedValueOnce(
-            response([
-              company({ id: 'c1', name: 'First Co' }),
-              company({ id: 'c2', name: 'Second Co' }),
-              company({ id: 'c3', name: 'Third Co' }),
-            ]),
-          )
-          .mockImplementation(() => later(response(afterDelete)));
-        renderPage();
-        await loaded('First Co');
-        const u = await openDelete('c1');
-        const confirm = await screen.findByTestId('company-list-delete-confirm');
-        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-        await u.click(confirm);
-      }
-
-      it('moves to the name link of the company now at that row', async () => {
-        await deleteFirst([
-          company({ id: 'c2', name: 'Second Co' }),
-          company({ id: 'c3', name: 'Third Co' }),
-        ]);
-
-        await waitFor(() => expect(screen.getByTestId('company-name-c2')).toHaveFocus());
-      });
-
-      it('moves to the row that took the place of a deleted middle row', async () => {
-        await deleteMiddle();
-
-        await waitFor(() => expect(screen.getByTestId('company-name-c3')).toHaveFocus());
-      });
-
-      it('moves to the previous row when the last one was deleted', async () => {
-        mockFetchVendors
-          .mockResolvedValueOnce(
-            response([
-              company({ id: 'c1', name: 'First Co' }),
-              company({ id: 'c2', name: 'Second Co' }),
-            ]),
-          )
-          .mockImplementation(() => later(response([company({ id: 'c1', name: 'First Co' })])));
-        renderPage();
-        await loaded('First Co');
-        const u = await openDelete('c2');
-        const confirm = await screen.findByTestId('company-list-delete-confirm');
-        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-        await u.click(confirm);
-
-        await waitFor(() => expect(screen.getByTestId('company-name-c1')).toHaveFocus());
-      });
-
-      it('falls back to the page heading when no row is left', async () => {
-        mockFetchVendors
-          .mockResolvedValueOnce(response([company({ id: 'c1', name: 'First Co' })]))
-          .mockImplementation(() => later(response([])));
-        renderPage();
-        await loaded('First Co');
-        const u = await openDelete('c1');
-        const confirm = await screen.findByTestId('company-list-delete-confirm');
-        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
-
-        await u.click(confirm);
-
-        await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
-      });
+    expect(await screen.findByTestId('trades-manager-stub')).toBeInTheDocument();
+    expect(log.actions.at(-1)).toBe('PUSH /companies?trades=1');
+    expect(JSON.parse(screen.getByTestId('loc-state').textContent ?? 'null')).toMatchObject({
+      tradesSheet: true,
     });
   });
 
-  describe('optional columns (hidden by default)', () => {
-    const ALL = ['name', 'email', 'address', 'notes', 'createdAt', 'updatedAt'];
-    const showAll = () =>
-      mockListPreferences.mockResolvedValue([
-        {
-          key: 'table.companies.columns',
-          value: JSON.stringify({ visible: ALL, order: [] }),
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-      ]);
-    const cells = (id: string) =>
-      within(rowLink(id).closest('tr')!)
-        .getAllByRole('cell')
-        .map((c) => c.textContent);
+  it('keeps the existing router state (the origin) when it opens', async () => {
+    renderPage('/companies', { state: { origin: 'home' } });
+    await loaded();
 
-    it('shows the e-mail as a mailto link that does not open the company', async () => {
-      showAll();
-      const { log } = renderPage();
-      await loaded();
+    await openTradesFromMenu();
 
-      const mails = await screen.findAllByRole('link', { name: 'office@sample-roofing.example' });
-      expect(mails[0]).toHaveAttribute('href', 'mailto:office@sample-roofing.example');
-      fireEvent.click(mails[0]!);
-      expect(log.actions).toEqual([]);
-    });
-
-    it('shows address, a short note in full and the dates', async () => {
-      showAll();
-      mockFetchVendors.mockResolvedValue(response([company({ notes: 'Calls back on Monday' })]));
-      renderPage();
-      await loaded();
-
-      await waitFor(() => expect(cells('c1')).toContain('1 Sample Street'));
-      expect(cells('c1')).toEqual(
-        expect.arrayContaining(['Calls back on Monday', 'D:2026-01-02', 'D:2026-01-03']),
-      );
-    });
-
-    it('cuts a long note after 60 characters with an ellipsis', async () => {
-      showAll();
-      const note = 'x'.repeat(61);
-      mockFetchVendors.mockResolvedValue(response([company({ notes: note })]));
-      renderPage();
-      await loaded();
-
-      await waitFor(() => expect(cells('c1')).toContain(`${'x'.repeat(60)}…`));
-      expect(cells('c1')).not.toContain(note);
-    });
-
-    it('keeps a note of exactly 60 characters whole', async () => {
-      showAll();
-      const note = 'y'.repeat(60);
-      mockFetchVendors.mockResolvedValue(response([company({ notes: note })]));
-      renderPage();
-      await loaded();
-
-      await waitFor(() => expect(cells('c1')).toContain(note));
-    });
-
-    it('shows a dash for a missing e-mail, address and note, and falls back to the creation date', async () => {
-      showAll();
-      mockFetchVendors.mockResolvedValue(
-        response([
-          company({
-            email: null,
-            address: null,
-            notes: null,
-            updatedAt: undefined as unknown as string,
-          }),
-        ]),
-      );
-      renderPage();
-      await loaded();
-
-      await waitFor(() =>
-        expect(cells('c1').filter((c) => c === '—').length).toBeGreaterThanOrEqual(3),
-      );
-      expect(cells('c1').filter((c) => c === 'D:2026-01-02')).toHaveLength(2);
+    await screen.findByTestId('trades-manager-stub');
+    expect(JSON.parse(screen.getByTestId('loc-state').textContent ?? 'null')).toEqual({
+      origin: 'home',
+      tradesSheet: true,
     });
   });
 
-  describe('column preferences', () => {
-    const pref = (key: string, visible: string[]) => ({
-      key,
-      value: JSON.stringify({ visible, order: [] }),
-      updatedAt: '2026-01-01T00:00:00.000Z',
+  it('keeps the other query keys when it opens', async () => {
+    renderPage('/companies?q=sample&tradeId=t-roof');
+    await loaded();
+
+    await openTradesFromMenu();
+
+    await screen.findByTestId('trades-manager-stub');
+    expect(loc()).toContain('q=sample');
+    expect(loc()).toContain('tradeId=t-roof');
+    expect(loc()).toContain('trades=1');
+  });
+
+  it('does not refetch the companies when the sheet opens and closes', async () => {
+    renderPage();
+    await loaded();
+    const before = mockFetchVendors.mock.calls.length;
+
+    await openTradesFromMenu();
+    await userEvent.click(await screen.findByTestId('stub-close'));
+
+    await waitFor(() => expect(screen.queryByTestId('trades-manager-stub')).toBeNull());
+    expect(mockFetchVendors.mock.calls.length).toBe(before);
+  });
+
+  it('closes by going back when this page pushed the sheet', async () => {
+    const { log } = renderPage();
+    await loaded();
+    await openTradesFromMenu();
+
+    await userEvent.click(await screen.findByTestId('stub-close'));
+
+    await waitFor(() => expect(log.actions.at(-1)).toBe('GO -1'));
+    expect(loc()).not.toContain('trades=1');
+  });
+
+  it('opened by URL, closing replaces the entry without the trades key', async () => {
+    const { log } = renderPage('/companies?trades=1&q=sample');
+    await screen.findByTestId('trades-manager-stub');
+
+    await userEvent.click(screen.getByTestId('stub-close'));
+
+    await waitFor(() => expect(screen.queryByTestId('trades-manager-stub')).toBeNull());
+    expect(log.actions.at(-1)).toMatch(/^REPLACE/);
+    expect(loc()).toContain('q=sample');
+    expect(loc()).not.toContain('trades=1');
+  });
+
+  it('treats ?trades=1 as a mode, not a filter', async () => {
+    renderPage('/companies?trades=1');
+    await loaded();
+
+    for (const call of mockFetchVendors.mock.calls) {
+      expect(call[0]).not.toHaveProperty('trades');
+    }
+  });
+
+  it('returns focus to the page ⋯ menu button as the sheet closes', async () => {
+    renderPage();
+    await loaded();
+    await openTradesFromMenu();
+    await screen.findByTestId('trades-manager-stub');
+
+    expect(managerProps.current?.returnFocusRef?.current).toBe(
+      screen.getByTestId('companies-page-menu'),
+    );
+  });
+
+  it('refetches trades and companies when the sheet reports a change', async () => {
+    const refetch = jest.fn();
+    mockUseTrades.mockReturnValue(tradesResult([ROOFING, TILING], { refetch }));
+    renderPage('/companies?trades=1');
+    await loaded();
+    const before = mockFetchVendors.mock.calls.length;
+
+    await userEvent.click(screen.getByTestId('stub-changed'));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockFetchVendors.mock.calls.length).toBe(before + 1));
+  });
+
+  it('turns off the n shortcut while the sheet is open', async () => {
+    const { log } = renderPage('/companies?trades=1');
+    await screen.findByTestId('trades-manager-stub');
+
+    fireEvent.keyDown(document, { key: 'n' });
+
+    expect(log.actions).toEqual([]);
+  });
+});
+
+describe('creating a company', () => {
+  it('New company pushes /companies/new', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    await userEvent.click(screen.getByTestId('new-company-button'));
+
+    expect(log.actions.at(-1)).toBe('PUSH /companies/new');
+  });
+
+  it('the n shortcut opens the same dialog route', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    await userEvent.keyboard('n');
+
+    expect(log.actions.at(-1)).toBe('PUSH /companies/new');
+  });
+
+  it('replaces ?create=1 with the dialog route (deep-link mode)', async () => {
+    const { log } = renderPage('/companies?create=1');
+
+    await waitFor(() => expect(log.actions).toContain('REPLACE /companies/new'));
+  });
+
+  it('does not treat create as a filter, and does nothing without ?create=1', async () => {
+    const { log } = renderPage();
+    await loaded();
+
+    expect(log.actions).toEqual([]);
+    for (const call of mockFetchVendors.mock.calls) {
+      expect(call[0]).not.toHaveProperty('create');
+    }
+  });
+
+  it('reloads when a company is created elsewhere', async () => {
+    renderPage();
+    await loaded();
+    mockFetchVendors.mockClear();
+
+    act(() => notifyObjectCreated('company'));
+
+    await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+  });
+});
+
+describe('delete', () => {
+  async function openDelete(id = 'c2') {
+    await userEvent.click(screen.getByTestId(`companies-row-menu-${id}`));
+    await userEvent.click(await screen.findByTestId(`company-delete-${id}`));
+    return screen.findByRole('alertdialog');
+  }
+
+  it('offers Open and Delete in the row menu', async () => {
+    renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('companies-row-menu-c1'));
+
+    expect(await screen.findByTestId('company-open-c1')).toBeInTheDocument();
+    expect(screen.getByTestId('company-delete-c1')).toBeInTheDocument();
+  });
+
+  it('opens a confirm named for the company, nothing deleted yet', async () => {
+    renderPage();
+    await loaded();
+
+    const dialog = await openDelete();
+
+    expect(dialog).toHaveTextContent('Example Tiling Co');
+    expect(mockDeleteVendor).not.toHaveBeenCalled();
+  });
+
+  it('lists what the delete also changes, from the delete-impact endpoint', async () => {
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'vendor',
+      id: 'c2',
+      effects: [{ kind: 'unlink', entity: 'diary_entry', count: 2 }] as never,
     });
-    const headerTexts = () => screen.getAllByRole('columnheader').map((h) => h.textContent ?? '');
+    renderPage();
+    await loaded();
 
-    it('reads the saved columns from table.companies.columns', async () => {
-      mockListPreferences.mockResolvedValue([pref('table.companies.columns', ['name', 'email'])]);
-      renderPage();
-      await loaded();
+    await openDelete();
 
-      await waitFor(() => expect(headerTexts().some((h) => h.includes('E-mail'))).toBe(true));
-      expect(headerTexts().some((h) => h.includes('Phone'))).toBe(false);
-    });
+    await waitFor(() => expect(mockFetchDeleteImpact).toHaveBeenCalledWith('vendor', 'c2'));
+  });
 
-    it('ignores the columns saved for the old vendors page (new column keys would be invisible)', async () => {
-      mockListPreferences.mockResolvedValue([pref('table.vendors.columns', ['name', 'email'])]);
-      renderPage();
-      await loaded();
-      await act(async () => {
-        await Promise.resolve();
-      });
+  it('deletes, reloads the list and puts focus on the heading', async () => {
+    mockDeleteVendor.mockResolvedValue(undefined as never);
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+    mockFetchVendors.mockResolvedValue(response([ROOF_CO, NO_TRADE_CO], 8));
 
-      expect(headerTexts().some((h) => h.includes('Phone'))).toBe(true);
-      expect(headerTexts().some((h) => h.includes('Last on site'))).toBe(true);
-      expect(headerTexts().some((h) => h.includes('E-mail'))).toBe(false);
-    });
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => expect(screen.queryByTestId('companies-row-c2')).toBeNull());
+    expect(mockDeleteVendor).toHaveBeenCalledWith('c2');
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('a 409 shows the blocked message and no way to retry', async () => {
+    mockDeleteVendor.mockRejectedValue(new ApiClientError(409, { code: 'CONFLICT', message: 'x' }));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    expect(
+      await within(dialog).findByText(/can't be deleted while invoices or cost lines/),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /^delete$/i })).toBeNull();
+    expect(screen.getByTestId('companies-row-c2')).toBeInTheDocument();
+  });
+
+  it('another API failure shows the translated message and keeps the action', async () => {
+    mockDeleteVendor.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+    );
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'An unexpected error occurred. Please try again.',
+    );
+    expect(within(dialog).getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+  });
+
+  it('a network failure shows its own message', async () => {
+    mockDeleteVendor.mockRejectedValue(new NetworkError('offline', null));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "Can't reach the server. Check your connection and try again.",
+    );
+  });
+
+  it('Cancel closes without deleting and puts focus on the heading', async () => {
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(mockDeleteVendor).not.toHaveBeenCalled();
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('cancel is ignored while the delete is running', async () => {
+    let finish: () => void = () => undefined;
+    mockDeleteVendor.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$|deleting/i }));
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    await act(async () => finish());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+});
+
+describe('column preferences', () => {
+  it('ignores stored keys of the old page that no longer exist', async () => {
+    window.localStorage.setItem('table.companies.columns', JSON.stringify(['name', 'phone']));
+    renderPage();
+    await loaded();
+
+    expect(screen.getByRole('columnheader', { name: 'Phone' })).toBeInTheDocument();
   });
 });

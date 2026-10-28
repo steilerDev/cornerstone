@@ -421,3 +421,63 @@ describe('Tasks list route (#2245)', () => {
     expect(entry?.carries).not.toContain('pageSize');
   });
 });
+
+describe('Purchases, Milestones and Companies list routes (#2246)', () => {
+  const noPaging = (carries: readonly string[] | undefined) => {
+    expect(carries).not.toContain('page');
+    expect(carries).not.toContain('pageSize');
+    expect(carries).not.toContain('filters');
+  };
+
+  it('Purchases carry the list search, chip, grouping, sort and filter params, and no paging', () => {
+    const entry = ENTRIES.find((e) => e.id === 'householdItems');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.carries).toEqual([
+      'q',
+      'status',
+      'group',
+      'sortBy',
+      'sortOrder',
+      'category',
+      'areaId',
+      'vendorId',
+      'targetDelivery',
+      'actualDelivery',
+      'plannedCost',
+      'actualCost',
+      'grants',
+      'afterGrants',
+      'budgetLines',
+    ]);
+    noPaging(entry?.carries);
+  });
+
+  it('Milestones carry the list search, chip, sort and filter params, and no paging', () => {
+    const entry = ENTRIES.find((e) => e.id === 'milestones');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.carries).toEqual([
+      'q',
+      'status',
+      'sortBy',
+      'sortOrder',
+      'targetDate',
+      'waitsFor',
+    ]);
+    noPaging(entry?.carries);
+  });
+
+  it('Companies carry the list search, trade chip, grouping, sort, create and trades params, and no paging', () => {
+    const entry = ENTRIES.find((e) => e.id === 'companies');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.carries).toEqual([
+      'q',
+      'tradeId',
+      'group',
+      'sortBy',
+      'sortOrder',
+      'create',
+      'trades',
+    ]);
+    noPaging(entry?.carries);
+  });
+});

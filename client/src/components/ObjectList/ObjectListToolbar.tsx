@@ -90,6 +90,24 @@ export function ObjectListToolbar<T, M>({
     ? ''
     : (list.explicitChip ?? chips?.defaultValue ?? 'all');
 
+  const overflow = chips?.overflow;
+  const overflowItems: OverflowMenuEntry[] = overflow
+    ? [
+        {
+          kind: 'choice',
+          id: 'chip-more',
+          label: overflow.label,
+          value: chipValue,
+          onChange: list.setChip,
+          options: overflow.options.map((option) => ({
+            value: option.value,
+            label: option.label,
+            testId: `${p}-chip-more-${option.value}`,
+          })),
+        },
+      ]
+    : [];
+
   const groupOption = config.groupBy?.options.find((o) => o.value === list.group);
   const groupTriggerText = t('objectList.groupBy.trigger', {
     label: groupOption?.label ?? t('objectList.groupBy.none'),
@@ -179,21 +197,36 @@ export function ObjectListToolbar<T, M>({
       </div>
 
       {chips ? (
-        <FilterChipGroup
-          options={[
-            ...chips.options,
-            {
-              value: 'all',
-              label: chips.allLabel ?? t('objectList.chips.all'),
-              testId: `${p}-chip-all`,
-            },
-          ]}
-          value={chipValue}
-          onChange={list.setChip}
-          ariaLabel={chips.ariaLabel ?? t('objectList.chips.label')}
-          testIdPrefix={`${p}-chip`}
-          layout={wide ? 'wrap' : 'scroll'}
-        />
+        <div className={styles.chipRow}>
+          <FilterChipGroup
+            options={[
+              ...chips.options,
+              {
+                value: 'all',
+                label: chips.allLabel ?? t('objectList.chips.all'),
+                testId: `${p}-chip-all`,
+              },
+            ]}
+            value={chipValue}
+            onChange={list.setChip}
+            ariaLabel={chips.ariaLabel ?? t('objectList.chips.label')}
+            testIdPrefix={`${p}-chip`}
+            layout={wide ? 'wrap' : 'scroll'}
+          />
+          {overflow && overflow.options.length > 0 ? (
+            <OverflowMenu
+              items={overflowItems}
+              triggerAriaLabel={overflow.label}
+              placement="bottom-start"
+              data-testid={`${p}-chip-more`}
+              renderTrigger={(props) => (
+                <button {...props} className={`${shared.btnSecondaryCompact} ${styles.menuButton}`}>
+                  {overflow.label}
+                </button>
+              )}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       <div className={styles.buttons}>

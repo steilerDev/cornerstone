@@ -18,6 +18,7 @@
  * 6. Belongs-to picker (cost line form) — kind and area path visible in the search dropdown (smoke)
  */
 
+import type { Locator } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { routeUrl } from '../../../shared/src/routes/index.js';
 import { CostLineFormDialog } from '../../pages/components/CostLineFormDialog.js';
@@ -31,6 +32,19 @@ import {
   deleteHouseholdItemViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
+
+/**
+ * The element that shows a purchase's area path: the Area column's link on the table surface, the
+ * compact breadcrumb span on the card surface (the card shows no Area column).
+ */
+async function areaPathElement(
+  listPage: HouseholdItemsPage,
+  itemName: string,
+  itemId: string,
+): Promise<Locator> {
+  if (await listPage.isTableSurface()) return listPage.areaLink(itemId);
+  return listPage.itemRow(itemName).locator('[class*="compact"]');
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: List page — breadcrumb with ancestors
@@ -60,27 +74,12 @@ test.describe(
         // Navigate directly with search query in URL — avoids debounce/race issues
         await listPage.search(itemName);
 
-        const viewport = page.viewportSize();
-        const tableVisible = viewport ? viewport.width >= 768 : true;
-
-        if (tableVisible) {
-          const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
-          // The name column renders <div class*="titleCell"> containing compact AreaBreadcrumb
-          const breadcrumbSpan = row.locator('[class*="compact"]');
-          await expect(breadcrumbSpan).toBeVisible();
-          const breadcrumbText = await breadcrumbSpan.textContent();
-          expect(breadcrumbText).toContain(rootName);
-          expect(breadcrumbText).toContain(childName);
-        } else {
-          const card = listPage.cardsContainer
-            .locator('[class*="card"]')
-            .filter({ hasText: itemName });
-          const breadcrumbSpan = card.locator('[class*="compact"]');
-          await expect(breadcrumbSpan).toBeVisible();
-          const breadcrumbText = await breadcrumbSpan.textContent();
-          expect(breadcrumbText).toContain(rootName);
-          expect(breadcrumbText).toContain(childName);
-        }
+        // Table: the Area column's link shows the full path; card: the compact breadcrumb
+        const area = await areaPathElement(listPage, itemName, itemId);
+        await expect(area).toBeVisible();
+        const breadcrumbText = await area.textContent();
+        expect(breadcrumbText).toContain(rootName);
+        expect(breadcrumbText).toContain(childName);
       } finally {
         if (itemId) await deleteHouseholdItemViaApi(page, itemId);
         if (childAreaId) await deleteAreaViaApi(page, childAreaId);
@@ -164,21 +163,8 @@ test.describe('Compact breadcrumb — no tabIndex and no tooltip (Scenario 3)', 
 
       await listPage.search(itemName);
 
-      // Find the compact breadcrumb span for this item (no tabIndex=0 selector now).
-      // Works in both table rows (desktop/tablet) and cards (mobile).
-      const viewport = page.viewportSize();
-      const tableVisible = viewport ? viewport.width >= 768 : true;
-
-      let breadcrumbSpan;
-      if (tableVisible) {
-        const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
-        breadcrumbSpan = row.locator('[class*="compact"]');
-      } else {
-        const card = listPage.cardsContainer
-          .locator('[class*="card"]')
-          .filter({ hasText: itemName });
-        breadcrumbSpan = card.locator('[class*="compact"]');
-      }
+      // Table: the Area link (full path); card: the compact breadcrumb span.
+      const breadcrumbSpan = await areaPathElement(listPage, itemName, itemId);
 
       // (a) Compact span is visible and contains area path text
       await expect(breadcrumbSpan).toBeVisible();
@@ -226,18 +212,7 @@ test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@r
 
       // Null area renders <span class*="muted">No area</span> inside the name column's titleCell
       // Works in both table rows and mobile cards
-      const viewport = page.viewportSize();
-      const tableVisible = viewport ? viewport.width >= 768 : true;
-
-      if (tableVisible) {
-        const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
-        await expect(row.getByText('No area', { exact: true })).toBeVisible();
-      } else {
-        const card = listPage.cardsContainer
-          .locator('[class*="card"]')
-          .filter({ hasText: itemName });
-        await expect(card.getByText('No area', { exact: true })).toBeVisible();
-      }
+      await expect(listPage.itemRow(itemName).getByText('No area', { exact: true })).toBeVisible();
     } finally {
       if (itemId) await deleteHouseholdItemViaApi(page, itemId);
     }

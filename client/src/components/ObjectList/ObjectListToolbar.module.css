@@ -38,6 +38,18 @@
   align-items: center;
 }
 
+.chipRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.chipRow > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .menuButton {
   display: inline-flex;
   align-items: center;

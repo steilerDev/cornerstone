@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2246 object-list tests](story-2246-object-lists-tests.md) (2026-10-28) — no-line purchase engine-map crash, fixtures, headingCount/chip quirks
 - [Story #2245 Tasks list tests](story-2245-tasks-list-tests.md) (2026-10-28) — NODE_OPTIONS same-call trap, TS1503 local config, workItemsApi mock stubs, 2 defects pinned
 - [Story #2244 company page tests](story-2244-company-page-tests.md) (2026-10-28) — jest-from-root, Toast/ConfirmDialog/EntityPicker harness traps, dead-branch list
 - [Story #2243 bank report server tests](story-2243-bank-report-server-tests.md) (2026-10-27) — Fastify 414 on long params, dead auth guards, AppError default-arg coverage

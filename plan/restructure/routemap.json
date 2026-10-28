@@ -81,8 +81,24 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters"],
-    "note": "Purchases list (h1 'Purchases')."
+    "carries": [
+      "q",
+      "status",
+      "group",
+      "sortBy",
+      "sortOrder",
+      "category",
+      "areaId",
+      "vendorId",
+      "targetDelivery",
+      "actualDelivery",
+      "plannedCost",
+      "actualCost",
+      "grants",
+      "afterGrants",
+      "budgetLines"
+    ],
+    "note": "Purchases list (h1 'Purchases'). #2246: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); group absent = status (Planned / Purchased / Scheduled / Delivered, server-grouped, Delivered collapsed), also area/company; comma-separated category/areaId use their first id; filter params keep their serialisations (targetDelivery/actualDelivery from:…,to:…, plannedCost/actualCost/grants/afterGrants/budgetLines min:…,max:…)."
   },
   {
     "from": "/project/household-items/new",
@@ -117,8 +133,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters"],
-    "note": "Tasks › Milestones (h1 'Milestones'); target-date filter."
+    "carries": ["q", "status", "sortBy", "sortOrder", "targetDate", "waitsFor"],
+    "note": "Tasks › Milestones (h1 'Milestones'); target-date filter. #2246: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); no Group by; status chips upcoming/reached; filter params targetDate from:…,to:… and waitsFor min:…,max:…."
   },
   {
     "from": "/project/milestones/new",
@@ -460,18 +476,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [
-      "q",
-      "sortBy",
-      "sortOrder",
-      "page",
-      "pageSize",
-      "filters",
-      "create",
-      "trades",
-      "tradeId"
-    ],
-    "note": "Companies list (moved from /settings/vendors), flat A–Z. ?trades=1 opens the Trades sheet (Back closes it). ?create=1 is replaced by the New company dialog (/companies/new). #2213."
+    "carries": ["q", "tradeId", "group", "sortBy", "sortOrder", "create", "trades"],
+    "note": "Companies list (moved from /settings/vendors), flat A–Z. #2246: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); tradeId is the trade chip (top-4 trades + More trades), group=trade optional; a tradeId naming no trade with companies is dropped. ?trades=1 opens the Trades sheet (Back closes it). ?create=1 is replaced by the New company dialog (/companies/new). #2213."
   },
   {
     "from": "/companies/new",

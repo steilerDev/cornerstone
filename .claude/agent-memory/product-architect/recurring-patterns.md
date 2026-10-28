@@ -2227,3 +2227,7 @@ but `client/src/types/figureKind.test.ts`'s literal file list and `e2e/fixtures/
 were not updated, so the guard fails (`unregistered: [useTaskRows.tsx]`). In Phase D / review, grep
 the diff for `data-figure=` and run `figureKind.test.ts` (2 s). Also: `HOME_AGENDA_DAYS` is 21, not
 14 — "Next 2 weeks" = days 8–21; read the constant before writing a window bound in the wiki.
+**Recurred #2246 in a second form:** extracting a page's rows into a `use…Rows.tsx` hook _moves_ an
+existing marker (Companies' Still to pay: `VendorsPage.tsx` → `useCompanyRows.tsx`), so the guard
+fails on both sides (stale file listed, new file unregistered). Grep `data-figure=` per file, not per
+page, whenever a page is split.

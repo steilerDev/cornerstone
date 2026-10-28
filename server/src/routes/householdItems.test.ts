@@ -707,6 +707,82 @@ describe('Household Item Routes', () => {
   // GET /api/household-items/:id
   // ---------------------------------------------------------------------------
 
+  describe('GET /api/household-items — Purchases list query (#2246)', () => {
+    async function getList(url: string, withItems = false) {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      if (withItems) {
+        householdItemService.createHouseholdItem(app.db, userId, { name: 'Sofa' }, 0.19);
+        householdItemService.createHouseholdItem(
+          app.db,
+          userId,
+          { name: 'Lamp', status: 'arrived' },
+          0.19,
+        );
+      }
+      return app.inject({ method: 'GET', url, headers: { cookie } });
+    }
+
+    it('accepts group=status and returns groupCounts, scopeTotal and totals', async () => {
+      const response = await getList('/api/household-items?group=status', true);
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        groupCounts: Record<string, number>;
+        scopeTotal: number;
+        totals: Record<string, number>;
+      };
+      expect(body.groupCounts).toEqual({ planned: 1, purchased: 0, scheduled: 0, arrived: 1 });
+      expect(body.scopeTotal).toBe(2);
+      expect(body.totals).toEqual({ expectedCost: 0, invoiced: 0, paid: 0 });
+    });
+
+    it('does not send filterMeta any more', async () => {
+      const response = await getList('/api/household-items', true);
+
+      expect(JSON.parse(response.body)).not.toHaveProperty('filterMeta');
+    });
+
+    it('lists a purchase that has no cost lines with expectedCost null', async () => {
+      const response = await getList('/api/household-items', true);
+
+      const body = JSON.parse(response.body) as { items: Array<{ expectedCost: number | null }> };
+      expect(body.items).toHaveLength(2);
+      expect(body.items.every((i) => i.expectedCost === null)).toBe(true);
+    });
+
+    it.each([
+      'group=area',
+      'targetDeliveryFrom=2026-13-45',
+      'actualDeliveryTo=tomorrow',
+      'expectedCostMin=abc',
+    ])('returns 400 for %s', async (query) => {
+      const response = await getList(`/api/household-items?${query}`);
+
+      expect(response.statusCode).toBe(400);
+      expect((JSON.parse(response.body) as ApiErrorResponse).error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it.each([
+      'targetDeliveryFrom=2026-03-01&targetDeliveryTo=2026-03-31',
+      'actualDeliveryFrom=2026-03-01&actualDeliveryTo=2026-03-31',
+      'expectedCostMin=1&expectedCostMax=500',
+      'grantsMin=0&grantsMax=10',
+      'afterGrantsMin=0&afterGrantsMax=10',
+      'sortBy=delivery&sortOrder=desc',
+      'sortBy=expected_cost',
+      'sortBy=invoiced',
+      'sortBy=actual_delivery_date',
+    ])('accepts %s', async (query) => {
+      const response = await getList(`/api/household-items?${query}`);
+
+      expect(response.statusCode).toBe(200);
+    });
+  });
+
   describe('GET /api/household-items/:id', () => {
     it('returns household item detail with 200', async () => {
       // Given: An existing item

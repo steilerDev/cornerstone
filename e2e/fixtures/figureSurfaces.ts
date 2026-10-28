@@ -24,6 +24,7 @@ import { BudgetOverviewPage } from '../pages/BudgetOverviewPage.js';
 import { FinancingPage } from '../pages/FinancingPage.js';
 import { HomePage } from '../pages/HomePage.js';
 import { InvoicesPage } from '../pages/InvoicesPage.js';
+import { MilestonesPage } from '../pages/MilestonesPage.js';
 import { TimelinePage } from '../pages/TimelinePage.js';
 import { VendorDetailPage } from '../pages/VendorDetailPage.js';
 import { VendorsPage } from '../pages/VendorsPage.js';
@@ -58,6 +59,11 @@ export interface CompanyListSubject extends CompanySubject {
 }
 export interface TaskSubject {
   workItemId: string;
+}
+/** A milestone on the Milestones list: found through a search for its (unique) title. */
+export interface MilestoneSubject {
+  milestoneId: number;
+  title: string;
 }
 export interface InvoiceSubject {
   invoiceId: string;
@@ -296,6 +302,27 @@ export const TASKS_LIST_HOLDS_UP_SURFACE: SubjectSurface<TaskSubject & { title: 
   },
 };
 
+/**
+ * The Milestones list's Holds up column (#2246, story 5.2): a milestone's "n tasks" sentence
+ * (`computeHoldsUp('milestone:<id>')`). Table surface only (the cards do not carry it), so a
+ * caller on a narrow list gets no marker. The reading is the `[data-figure="holds-up"]` cell in
+ * the milestone's own row.
+ */
+export const MILESTONES_LIST_HOLDS_UP_SURFACE: SubjectSurface<MilestoneSubject> = {
+  id: 'milestones.list',
+  story: '5.2',
+  kind: 'holds-up',
+  async readAll(page, subject) {
+    const list = new MilestonesPage(page);
+    await list.goto(`q=${encodeURIComponent(subject.title)}`);
+    await list.waitForLoaded();
+    if (!(await list.isTableSurface())) return [];
+    const figure = list.milestoneRow(subject.title).locator('[data-figure="holds-up"]');
+    await figure.waitFor({ state: 'visible' });
+    return (await figure.allInnerTexts()).map((text) => firstInteger(text));
+  },
+};
+
 export const SCHEDULE_TOOLTIP_SURFACE: SubjectSurface<TaskSubject> = {
   id: 'schedule.tooltip',
   story: '3.5',
@@ -394,6 +421,7 @@ export const SUBJECT_SURFACES = [
   COMPANIES_LIST_SURFACE,
   HOME_ATTENTION_SURFACE,
   TASKS_LIST_HOLDS_UP_SURFACE,
+  MILESTONES_LIST_HOLDS_UP_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,

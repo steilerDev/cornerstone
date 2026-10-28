@@ -40,7 +40,7 @@ test.describe('Dialog open (Scenario 1)', { tag: '@responsive' }, () => {
     await expect(createPage.heading).toHaveText('New purchase');
     // A deep link renders the parent list behind the dialog (a view: no breadcrumb trail).
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Purchases', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Purchases( \(\d+\))?$/ }),
     ).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(HOUSEHOLD_ITEM_CREATE_ROUTE);
     await expect(createPage.cancelButton).toBeVisible();
@@ -62,7 +62,7 @@ test.describe('Close paths (Scenario 2)', { tag: '@responsive' }, () => {
     await page.waitForURL((url) => url.pathname === LIST_PATH);
     await createPage.form.waitForClosed();
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Purchases', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Purchases( \(\d+\))?$/ }),
     ).toBeFocused();
   });
 
@@ -265,7 +265,7 @@ test.describe('Cancel navigation (Scenario 9)', { tag: '@responsive' }, () => {
 
     await page.waitForURL((url) => url.pathname === LIST_PATH);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Purchases', exact: true }),
+      page.getByRole('heading', { level: 1, name: /^Purchases( \(\d+\))?$/ }),
     ).toBeVisible();
   });
 });

@@ -1,102 +1,78 @@
 {
-  "newButton": "New Household Item",
-  "search": {
-    "placeholder": "Search household items...",
-    "ariaLabel": "Search household items"
-  },
-  "filters": {
-    "ariaLabel": "Household item filters",
-    "category": "Category:",
-    "area": "Area:",
-    "status": "Status:",
-    "room": "Room:",
-    "vendor": "Vendor:",
-    "sortBy": "Sort by:",
-    "allCategories": "All Categories",
-    "allAreas": "All Areas",
-    "allStatuses": "All Statuses",
-    "allVendors": "All Vendors",
-    "roomPlaceholder": "Filter by room...",
-    "roomAriaLabel": "Filter by room",
-    "toggleSort": "Toggle sort order"
-  },
-  "sort": {
-    "options": {
-      "name": "Name",
-      "category": "Category",
-      "status": "Status",
-      "room": "Room",
-      "order_date": "Order Date",
-      "target_delivery_date": "Target Delivery",
-      "created_at": "Created",
-      "updated_at": "Updated"
-    },
-    "asc": "↑ Asc",
-    "desc": "↓ Desc"
-  },
-  "table": {
-    "sectionTitle": "Household Items",
-    "headers": {
-      "name": "Name",
-      "category": "Category",
+  "list": {
+    "newPurchase": "New purchase",
+    "titleHeader": "Purchase",
+    "statusHeader": "Status",
+    "search": "Search purchases",
+    "resultCount_one": "{{count}} purchase",
+    "resultCount_other": "{{count}} purchases",
+    "empty": "No purchases yet",
+    "emptyDescription": "Get started by adding your first purchase.",
+    "noMatch": "No purchases match.",
+    "loadFailed": "The purchases could not be loaded.",
+    "groupBy": {
       "status": "Status",
       "area": "Area",
-      "vendor": "Vendor",
-      "plannedCost": "Planned Cost",
-      "targetDelivery": "Target Delivery",
-      "actualDelivery": "Actual Delivery",
-      "actualCost": "Actual Cost",
-      "subsidyReduction": "Expected grants",
-      "netCost": "Net Cost",
-      "orderDate": "Order Date",
-      "budgetLines": "Budget Lines",
-      "actions": "Actions"
+      "company": "Company"
+    },
+    "group": {
+      "noArea": "No area",
+      "noCompany": "No company"
+    },
+    "sort": {
+      "name": "Name",
+      "status": "Status",
+      "category": "Category",
+      "delivery": "Delivery",
+      "targetDelivery": "Target delivery",
+      "deliveredOn": "Delivered on",
+      "orderDate": "Order date",
+      "expectedCost": "Expected cost",
+      "invoiced": "Invoiced"
+    },
+    "columns": {
+      "area": "Area",
+      "company": "Company",
+      "delivery": "Delivery",
+      "expectedCost": "Expected cost",
+      "invoiced": "Invoiced",
+      "category": "Category",
+      "orderDate": "Order date",
+      "grants": "Grants",
+      "afterGrants": "After grants",
+      "costLines": "Cost lines"
+    },
+    "row": {
+      "notSet": "Not set",
+      "target": "Target",
+      "delivered": "Delivered",
+      "open": "Open"
+    },
+    "filters": {
+      "category": "Category",
+      "anyCategory": "Any category",
+      "area": "Area",
+      "company": "Company",
+      "targetDelivery": "Target delivery",
+      "deliveredOn": "Delivered on",
+      "expectedCost": "Expected cost",
+      "invoiced": "Invoiced",
+      "grants": "Grants",
+      "afterGrants": "After grants",
+      "costLines": "Cost lines",
+      "from": "From",
+      "to": "To",
+      "min": "Min",
+      "max": "Max",
+      "optionsFailed": "The categories could not be loaded."
+    },
+    "footer": {
+      "label": "Totals",
+      "labelFiltered": "Totals (filtered)",
+      "expectedCost": "Expected cost",
+      "invoiced": "Invoiced",
+      "paid": "Paid"
     }
-  },
-  "results": {
-    "itemFound": "household item found",
-    "itemsFound": "household items found"
-  },
-  "card": {
-    "category": "Category:",
-    "status": "Status:",
-    "room": "Room:",
-    "vendor": "Vendor:",
-    "plannedCost": "Planned Cost:",
-    "targetDelivery": "Target Delivery:"
-  },
-  "empty": {
-    "noItems": "No household items yet",
-    "noItemsMessage": "Get started by creating your first household item to track.",
-    "noResults": "No household items match your filters",
-    "noResultsMessage": "Try adjusting your search or filter criteria.",
-    "createFirstItem": "Create First Item",
-    "clearAllFilters": "Clear All Filters"
-  },
-  "menu": {
-    "actions": "Actions for {{name}}",
-    "edit": "Edit",
-    "delete": "Delete"
-  },
-  "pagination": {
-    "showing": "Showing",
-    "to": "to",
-    "of": "of",
-    "items": "items",
-    "previous": "← Previous",
-    "next": "Next →"
-  },
-  "loading": "Loading household items...",
-  "error": "Failed to load household items. Please try again.",
-  "deleteError": "Failed to delete household item. Please try again.",
-  "keyboard": {
-    "newItem": "New household item",
-    "focusSearch": "Focus search",
-    "selectNext": "Select next item",
-    "selectPrevious": "Select previous item",
-    "openSelected": "Open selected item",
-    "showShortcuts": "Show keyboard shortcuts",
-    "closeDialog": "Close dialog or cancel"
   },
   "create": {
     "errors": {

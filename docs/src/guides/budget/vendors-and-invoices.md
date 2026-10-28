@@ -15,7 +15,7 @@ Companies are a page of their own in the main navigation, separate from the budg
 
 ### Company List
 
-Navigate to **Companies** in the main navigation to see all companies. Search finds a company by its name or its trade. The list shows these columns by default:
+Navigate to **Companies** in the main navigation to see all companies. The list is one flat list sorted A to Z. Search finds a company by its name or its trade, and each row has a **Call** button to call the company. The list shows these columns by default:
 
 - **Name** and **Trade**
 - **Phone** and **Contact persons** -- the number of people on the company's contact list
@@ -23,9 +23,15 @@ Navigate to **Companies** in the main navigation to see all companies. Search fi
 - **Still to pay** -- the total you still owe the company across its open invoices and progress payments
 - **Offers** -- the total of the company's offers, with the amount already paid shown beneath it, such as **12,000 EUR** and **5,000 EUR paid** below it. A company with no offers shows a dash.
 
-Use **Visible columns** to show more, such as **E-mail**, **Address**, **Notes**, **Date added** or **Last updated**.
+Use **Columns** to show more, such as **E-mail**, **Address**, **Notes**, **Date added** or **Last updated**.
 
-Sort by **Name**, **Trade**, **Still to pay**, **Last on site**, **Date added** or **Last updated** by selecting the column header. **Phone**, **Contact persons** and **Offers** cannot be sorted. The list shows one page at a time, so use the page controls to move through a long list.
+**Trade chips** above the list show the four trades with the most companies, in alphabetical order. Select a chip to show only the companies in that trade. When more than four trades have companies, **More trades** opens a menu with the rest. A trade picked from that menu also appears as a chip while it is selected.
+
+Use **Group by** and choose **Trade** to group the companies by trade. Companies without a trade sit in a **No trade** group at the end of the list.
+
+Use **Sort** to order the list by **Name**, **Trade**, **Still to pay**, **Last on site**, **Date added** or **Last updated**. **Phone**, **Contact persons** and **Offers** are not sort options.
+
+The list loads all companies at once, so there is no paging to work through.
 
 ### Creating a Company
 

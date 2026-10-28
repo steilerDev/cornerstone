@@ -78,7 +78,7 @@ The critical path is the longest chain of dependent tasks that determines the mi
 
 ## Milestones on the Gantt Chart
 
-[Milestones](milestones) appear as diamond markers on the Gantt chart at their target date position. Click a milestone diamond to open the milestone panel for editing.
+[Milestones](milestones) appear as diamond markers on the Gantt chart at their target date position. Click a milestone diamond to open that milestone's page, where you can edit it.
 
 Milestone diamonds are color-coded:
 

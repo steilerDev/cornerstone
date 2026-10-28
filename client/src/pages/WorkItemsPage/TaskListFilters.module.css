@@ -10,13 +10,3 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
 }
-
-.select {
-  min-height: var(--spacing-10);
-}
-
-@media (max-width: 1023px) {
-  .select {
-    min-height: var(--touch-target-min);
-  }
-}

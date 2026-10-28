@@ -463,7 +463,7 @@
     "to": "Tasks > Milestones (tab next to Tasks / Schedule / Calendar)",
     "change": "same",
     "gate": "none",
-    "note": "Milestones stay siblings of tasks; schedule anchors live with the schedule. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
+    "note": "Milestones stay siblings of tasks; schedule anchors live with the schedule. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone. #2246: built on the ObjectList template — columns Target, Projected, Status, Waits for, Holds up; no Group by; infinite scroll replaces paging."
   },
   "WRK-072": {
     "name": "Search milestones by title or description",
@@ -471,39 +471,39 @@
     "to": "Tasks > Milestones > search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2246: ObjectList search (client-side over all milestones)."
   },
   "WRK-073": {
     "name": "Filter milestones by status (pending / completed)",
     "from": "/project/milestones > Status header funnel",
-    "to": "Tasks > Milestones > filter chips > Status (Upcoming / Late / Reached)",
+    "to": "Tasks > Milestones > filter chips > Status (Upcoming / Reached); Late · n d / Early · n d on the status",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2195: milestone status word 'Pending' is now 'Upcoming' (AC7); Gantt and calendar screen-reader sentences are translated with the canonical milestone and task words."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2195: milestone status word 'Pending' is now 'Upcoming' (AC7); Gantt and calendar screen-reader sentences are translated with the canonical milestone and task words. #2246: chips Upcoming · Reached; Late and Early are the row status word (shared milestoneDisplayStatus), not chips."
   },
   "WRK-074": {
     "name": "Filter milestones by number of linked work items",
     "from": "/project/milestones > Linked Items header funnel (min/max)",
-    "to": "Tasks > Milestones > Filters sheet > Linked tasks (min/max)",
+    "to": "Tasks > Milestones > Filters > Waits for (min/max)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel › Waits for (tasks counting toward the milestone)."
   },
   "WRK-075": {
     "name": "Filter milestones by target-date range (implemented but unreachable)",
     "from": "/project/milestones > Target Date column header (no filter control rendered)",
-    "to": "Tasks > Milestones > Filters sheet > Target date range",
+    "to": "Tasks > Milestones > Filters > Target date",
     "change": "promoted",
     "gate": "none",
-    "note": "Implemented but unreachable today; now reachable."
+    "note": "Implemented but unreachable today; now reachable. #2246: Filters panel › Target date (date range)."
   },
   "WRK-076": {
     "name": "Sort milestones by title, target date, status or linked-item count",
     "from": "/project/milestones > sortable column headers",
-    "to": "Tasks > Milestones > Sort menu / column headers",
+    "to": "Tasks > Milestones > Sort > Target date (default), Title, Projected, Status, Waits for",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2246: ObjectList Sort menu; Projected is the schedule projection's date."
   },
   "WRK-077": {
     "name": "Open a milestone from the list",
@@ -511,7 +511,7 @@
     "to": "Tasks > Milestones > row link (real anchor)",
     "change": "same",
     "gate": "none",
-    "note": "Rows become anchors (NAV-10)."
+    "note": "Rows become anchors (NAV-10). #2246: ObjectList row link; row ⋯ › Open, Delete."
   },
   "WRK-078": {
     "name": "Delete a milestone from the list with confirmation",
@@ -519,7 +519,7 @@
     "to": "Tasks > Milestones > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestones › row Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestones › row Delete (ConfirmDialog with counts). #2246: row ⋯ › Delete through the shared useListRowDelete (ConfirmDialog)."
   },
   "WRK-079": {
     "name": "Start creating a milestone from any of five entry points",
@@ -1879,16 +1879,16 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2213: served at /companies; group by Trade dropped (the Trade chips filter instead). #2244: the columns Still to pay (right-aligned, marked as a Still to pay figure) and Offers (amount, with what is paid on them) are on the list; Still to pay is the ADR-039 figure of GET /api/vendors."
+    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2213: served at /companies; group by Trade dropped (the Trade chips filter instead). #2244: the columns Still to pay (right-aligned, marked as a Still to pay figure) and Offers (amount, with what is paid on them) are on the list; Still to pay is the ADR-039 figure of GET /api/vendors. #2246: Group by Trade is an option again (flat A–Z stays the default); columns Trade, Phone with Call, Contact persons, Last on site, Still to pay, Offers; hidden E-mail, Address, Notes, Date added, Last updated; Trade column hidden while grouped by Trade."
   },
   "MNY-135": {
     "name": "Search, filter, sort and paginate vendors",
     "from": "/settings/vendors > search box (name or trade), 'Trade' header filter, sortable Name / Trade / Date Added / Last Updated, pagination, column settings",
-    "to": "Companies > Companies list (/companies) > list search (name, trade incl. translated trade names, contact persons, phone, e-mail; German-aware), Trade chips, sort incl. Last on site, paging",
+    "to": "Companies > Companies list (/companies) > list search (name, trade incl. translated trade names, contact persons, phone, e-mail; German-aware), Trade chips (top 4 by company count) + More trades menu, sort incl. Last on site and Still to pay, infinite scroll",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2213: GET /api/vendors q uses the /api/search vendor matcher; translated trade names via tradeIds; the Trade header filter became chips. #2244: the list sorts by Still to pay (sortBy=still_to_pay, server-side, ties by name); Offers is not sortable."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2213: GET /api/vendors q uses the /api/search vendor matcher; translated trade names via tradeIds; the Trade header filter became chips. #2244: the list sorts by Still to pay (sortBy=still_to_pay, server-side, ties by name); Offers is not sortable. #2246: built on the ObjectList template — the 4 trades with the most companies as chips plus a More trades menu (every trade with companies, A–Z); infinite scroll replaces paging."
   },
   "MNY-136": {
     "name": "Call or e-mail a vendor or vendor contact",
@@ -1986,18 +1986,18 @@
   "HHI-008": {
     "name": "View household items in a table with default columns",
     "from": "/project/household-items > DataTable",
-    "to": "Purchases > Purchases list (columns Name, Status, Area, Company, Delivery, Expected cost, Invoiced; footer totals Expected · Invoiced · Paid)",
+    "to": "Purchases > Purchases list (status groups Planned / Ordered / Delivery scheduled / Delivered, Delivered collapsed; columns Name, Status, Area, Company, Delivery, Expected cost, Invoiced; footer totals Expected cost · Invoiced · Paid)",
     "change": "same",
     "gate": "none",
-    "note": "Area shown once (DOM-15)."
+    "note": "Area shown once (DOM-15). #2246: built on the ObjectList template — server-grouped by status (Delivered collapsed while another group has rows), also group by Area or Company; Expected cost is the money engine's expected cost per purchase (Not set without cost lines); the footer sums Expected cost, Invoiced and Paid over the whole filtered set on the server; infinite scroll replaces paging."
   },
   "HHI-009": {
     "name": "Compare computed cost figures per item in the list (planned, actual, subsidy reduction, net cost, budget-line count)",
     "from": "/project/household-items > columns \"Planned Cost\" (default) + optional \"Actual Cost\", \"Subsidy Reduction\", \"Net Cost\", \"Budget Lines\" | /project/household-items > columns Planned Cost (default), Actual Cost, Subsidy Reduction, Net Cost (hidden, filterable) | /project/work-items > 'Budget Lines' count column / filter only",
-    "to": "Purchases > Purchases list > ⋯ Columns > Expected cost / Invoiced / Grants / After grants",
+    "to": "Purchases > Purchases list > ⋯ Columns > Expected cost / Invoiced / Grants / After grants / Cost lines",
     "change": "same",
     "gate": "none",
-    "note": "'Net' meant 'after grants' and collided with 'net of VAT'; the registry label is 'After grants' (C-12)."
+    "note": "'Net' meant 'after grants' and collided with 'net of VAT'; the registry label is 'After grants' (C-12). #2246: Planned cost became Expected cost (money engine, not planned-only); Actual cost dropped as the same number as Invoiced; Subsidy reduction, Net cost and Budget lines renamed Grants, After grants and Cost lines (hidden by default)."
   },
   "HHI-013": {
     "name": "Search household items by name or description",
@@ -2010,10 +2010,10 @@
   "HHI-014": {
     "name": "Filter the list by category",
     "from": "/project/household-items > \"Category\" column header > funnel button > checkbox popover (Select all / Select none)",
-    "to": "Purchases > Purchases list > filter chips > Category",
+    "to": "Purchases > Purchases list > Filters panel > Category (select)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2246: a Filters panel field; Status is the only chip row."
   },
   "HHI-015": {
     "name": "Filter the list by purchase status",
@@ -2026,90 +2026,90 @@
   "HHI-016": {
     "name": "Filter the list by area, including sub-areas or items without an area",
     "from": "/project/household-items > \"Area\" column header > funnel button > hierarchical checkbox popover incl. \"No area\"",
-    "to": "Purchases > Purchases list > filter chips > Area",
+    "to": "Purchases > Purchases list > Filters panel > Area (with 'No area')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2246: a Filters panel field; Status is the only chip row."
   },
   "HHI-017": {
     "name": "Filter the list by vendor",
     "from": "/project/household-items > \"Vendor\" column header > funnel button > checkbox popover",
-    "to": "Purchases > Purchases list > filter chips > Company",
+    "to": "Purchases > Purchases list > Filters panel > Company",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2246: a Filters panel field; Status is the only chip row."
   },
   "HHI-018": {
     "name": "Filter the list by planned cost range",
     "from": "/project/household-items > \"Planned Cost\" column header > funnel > min/max inputs",
-    "to": "Purchases > Purchases list > Filters sheet > Expected cost range",
+    "to": "Purchases > Purchases list > Filters panel > Expected cost range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-019": {
     "name": "Filter the list by actual (invoiced) cost range",
     "from": "/project/household-items > optional \"Actual Cost\" column header > funnel > min/max",
-    "to": "Purchases > Purchases list > Filters sheet > Invoiced cost range",
+    "to": "Purchases > Purchases list > Filters panel > Invoiced range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-020": {
     "name": "Filter the list by number of budget lines (e.g. find items without any budget)",
     "from": "/project/household-items > optional \"Budget Lines\" column header > funnel > min/max",
-    "to": "Purchases > Purchases list > Filters sheet > Number of cost lines",
+    "to": "Purchases > Purchases list > Filters panel > Cost lines (min/max)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-021": {
     "name": "Filter the list by subsidy reduction range",
     "from": "/project/household-items > optional \"Subsidy Reduction\" column header > funnel > min/max",
-    "to": "Purchases > Purchases list > Filters sheet > Grant amount range",
+    "to": "Purchases > Purchases list > Filters panel > Grants range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-022": {
     "name": "Filter the list by net cost range",
     "from": "/project/household-items > optional \"Net Cost\" column header > funnel > min/max",
-    "to": "Purchases > Purchases list > Filters sheet > After grants range",
+    "to": "Purchases > Purchases list > Filters panel > After grants range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-023": {
     "name": "Filter the list by target delivery date range",
     "from": "/project/household-items > \"Target Delivery\" column header > funnel > date range",
-    "to": "Purchases > Purchases list > Filters sheet > Target delivery range",
+    "to": "Purchases > Purchases list > Filters panel > Target delivery range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-024": {
     "name": "Filter the list by actual delivery date range",
     "from": "/project/household-items > optional \"Actual Delivery\" column header > funnel > date range",
-    "to": "Purchases > Purchases list > Filters sheet > Delivered date range",
+    "to": "Purchases > Purchases list > Filters panel > Delivered on range",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Filters panel field; the old URL parameter and its serialisation are kept."
   },
   "HHI-026": {
     "name": "Sort the list by name, category, status, order date or target delivery date",
     "from": "/project/household-items > click sortable column header (cycles ascending -> descending -> none)",
-    "to": "Purchases > Purchases list > Sort menu / column headers",
+    "to": "Purchases > Purchases list > Sort > Name (default), Status, Category, Delivery, Target delivery, Delivered on, Order date, Expected cost, Invoiced",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2246: sorts run on the server; Delivery sorts by the delivered date, else the target date; Area and Company are covered by Group by."
   },
   "HHI-027": {
     "name": "Sort the list by actual delivery date",
     "from": "/project/household-items > optional \"Actual Delivery\" column header click",
-    "to": "Purchases > Purchases list > Sort > Delivered date",
+    "to": "Purchases > Purchases list > Sort > Delivered on",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2246: Sort › Delivered on (server-side)."
   },
   "HHI-030": {
     "name": "Browse household items as cards on a phone",
@@ -2117,7 +2117,7 @@
     "to": "Purchases > Purchases list (phone and tablet: two-line rows with the same toolbar)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2246: ObjectList card rows on phone and tablet with the same toolbar (chips, Filters, Group by, Sort, Columns)."
   },
   "HHI-031": {
     "name": "Delete a household item from the list",
@@ -2125,7 +2125,7 @@
     "to": "Purchases > Purchases list > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts). #2246: row ⋯ › Open, Delete through the shared useListRowDelete (ConfirmDialog, blocked state on 409); the list and footer refresh after a delete."
   },
   "HHI-032": {
     "name": "Create a household item with a name and description",
@@ -4010,34 +4010,40 @@
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
     "from": "/settings/manage?tab=trades > \"Create New Trade\": Trade Name, Color, Sort Order, Description > \"Create Trade\" | Settings > Manage > Trades tab",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there; inline 'New trade ‹text›' in trade pickers",
+    "to": "Companies > Companies list > ⋯ > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there; inline 'New trade ‹text›' in trade pickers",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. #2236: trade pickers (company form, company page; the Trades sheet's Merge target with create off) are EntityPicker kind 'trade'; their 'New trade ‹text›' row opens the trade form through TagCreateProvider. TradePicker retired.",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. #2236: trade pickers (company form, company page; the Trades sheet's Merge target with create off) are EntityPicker kind 'trade'; their 'New trade ‹text›' row opens the trade form through TagCreateProvider. TradePicker retired. #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone.",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there.",
+    "clicks": 2,
+    "clickPath": "Companies list > ⋯ (1) > Trades (2)"
   },
   "PLT-099": {
     "name": "Edit a trade inline",
     "from": "/settings/manage?tab=trades > row \"Edit\" > inline form > \"Save\"",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
+    "to": "Companies > Companies list > ⋯ > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only).",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only). #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone.",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there.",
+    "clicks": 2,
+    "clickPath": "Companies list > ⋯ (1) > Trades (2)"
   },
   "PLT-100": {
     "name": "Delete a trade",
     "from": "/settings/manage?tab=trades > row \"Delete\" > dialog > \"Delete Trade\"",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
+    "to": "Companies > Companies list > ⋯ > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Delete is blocked while companies use the trade, with 'Merge instead'.",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Delete is blocked while companies use the trade, with 'Merge instead'. #2246: the Trades sheet is opened from the Companies list page menu (⋯ › Trades); the toolbar button is gone.",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there.",
+    "clicks": 2,
+    "clickPath": "Companies list > ⋯ (1) > Trades (2)"
   },
   "PLT-101": {
     "name": "See predefined trades and categories in the interface language",
     "from": "/settings/manage > Trades / Budget Categories / Household Item Categories lists (and every picker using them)",
-    "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
+    "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > ⋯ > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
     "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale. #2236: EntityPicker matches trades and categories on the client against both the translated and the stored name, so a built-in default is found by its name in the interface language."
@@ -4117,7 +4123,7 @@
   "PLT-111": {
     "name": "Control the order of areas, trades, orientations and categories with a sort number",
     "from": "/settings/manage > every tab > \"Sort Order\" number field (create + inline edit); shown as \"#N\" on each row",
-    "to": "Areas > Areas index and Settings > Project setup lists > drag to reorder, or row ⋯ > Move up / Move down (sort number kept, '#N' no longer shown) — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
+    "to": "Areas > Areas index and Settings > Project setup lists > drag to reorder, or row ⋯ > Move up / Move down (sort number kept, '#N' no longer shown) — trades themselves: Companies > ⋯ > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
     "note": "Kept as it works today, inside Areas; only the shared page template, the words and the navigation around it change (rare use). #2218: siblings reorder by drag, ↑/↓ or ⋯ Move up/down; one request per move."

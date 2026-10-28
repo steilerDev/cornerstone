@@ -112,6 +112,116 @@ describe('Milestone Service', () => {
     sqlite.close();
   });
 
+  // ─── getAllMilestones: projectedDate and holdsUp (#2246) ─────────────────────
+
+  describe('getAllMilestones — projectedDate and holdsUp', () => {
+    const NOW = '2026-03-10T09:00:00.000Z';
+
+    function datedWorkItem(
+      id: string,
+      startDate: string,
+      endDate: string,
+      status: 'not_started' | 'completed' = 'not_started',
+    ): string {
+      db.insert(schema.workItems)
+        .values({ id, title: id, status, startDate, endDate, createdAt: NOW, updatedAt: NOW })
+        .run();
+      return id;
+    }
+
+    function makeMilestone(title: string, isCompleted = false): number {
+      const created = milestoneService.createMilestone(
+        db,
+        { title, targetDate: '2026-03-15' },
+        createTestUser(`${title}@example.test`, title),
+      );
+      if (isCompleted) {
+        db.update(schema.milestones)
+          .set({ isCompleted: true, completedAt: NOW })
+          .where(eq(schema.milestones.id, created.id))
+          .run();
+      }
+      return created.id;
+    }
+
+    /** M is required by D1; D2 finishes-to-start after D1: the chain M -> D1 -> D2. */
+    function seedChain(milestoneId: number): void {
+      datedWorkItem('d1', '2026-03-16', '2026-03-18');
+      datedWorkItem('d2', '2026-03-19', '2026-03-22');
+      db.insert(schema.workItemMilestoneDeps).values({ workItemId: 'd1', milestoneId }).run();
+      db.insert(schema.workItemDependencies)
+        .values({
+          predecessorId: 'd1',
+          successorId: 'd2',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
+        .run();
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date(NOW), doNotFake: DO_NOT_FAKE_TIMERS });
+    });
+
+    it('counts every unfinished task waiting on the milestone, transitively (M -> D1 -> D2 is 2)', () => {
+      const id = makeMilestone('Roof closed');
+      seedChain(id);
+
+      const row = milestoneService.getAllMilestones(db).milestones[0]!;
+
+      expect(row.holdsUp).toEqual({ count: 2, startingWithin14Days: 2 });
+    });
+
+    it('counts only the tasks starting within 14 days in startingWithin14Days', () => {
+      const id = makeMilestone('Roof closed');
+      seedChain(id);
+      db.update(schema.workItems)
+        .set({ startDate: '2026-06-01', endDate: '2026-06-05' })
+        .where(eq(schema.workItems.id, 'd2'))
+        .run();
+
+      const row = milestoneService.getAllMilestones(db).milestones[0]!;
+
+      expect(row.holdsUp?.count).toBe(2);
+      expect(row.holdsUp?.startingWithin14Days).toBe(1);
+    });
+
+    it('is null for a reached milestone even when tasks still wait on it', () => {
+      const id = makeMilestone('Reached', true);
+      seedChain(id);
+
+      expect(milestoneService.getAllMilestones(db).milestones[0]!.holdsUp).toBeNull();
+    });
+
+    it('is null when nothing waits for the milestone', () => {
+      makeMilestone('Alone');
+
+      expect(milestoneService.getAllMilestones(db).milestones[0]!.holdsUp).toBeNull();
+    });
+
+    it('does not count a finished task waiting on the milestone', () => {
+      const id = makeMilestone('Roof closed');
+      datedWorkItem('done', '2026-03-01', '2026-03-05', 'completed');
+      db.insert(schema.workItemMilestoneDeps).values({ workItemId: 'done', milestoneId: id }).run();
+
+      expect(milestoneService.getAllMilestones(db).milestones[0]!.holdsUp).toBeNull();
+    });
+
+    it('projects the latest end of the contributing tasks, null when none contribute', () => {
+      const withTasks = makeMilestone('With tasks');
+      const empty = makeMilestone('Empty');
+      datedWorkItem('c1', '2026-03-12', '2026-03-20');
+      datedWorkItem('c2', '2026-03-12', '2026-03-28');
+      milestoneService.linkWorkItem(db, withTasks, 'c1');
+      milestoneService.linkWorkItem(db, withTasks, 'c2');
+
+      const rows = new Map(milestoneService.getAllMilestones(db).milestones.map((m) => [m.id, m]));
+
+      expect(rows.get(withTasks)!.projectedDate).toBe('2026-03-28');
+      expect(rows.get(empty)!.projectedDate).toBeNull();
+    });
+  });
+
   // ─── getAllMilestones ─────────────────────────────────────────────────────────
 
   describe('getAllMilestones', () => {

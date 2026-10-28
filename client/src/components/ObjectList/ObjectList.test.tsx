@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { createRef } from 'react';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -899,6 +900,20 @@ describe('ObjectList sorting and columns', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getByTestId('tasks-page-menu')).toHaveFocus();
+  });
+
+  it('a host menuTriggerRef is attached to the page menu button and is where the Columns dialog returns focus (#2246)', async () => {
+    const menuTriggerRef = createRef<HTMLButtonElement>();
+    renderList({ menuTriggerRef });
+    await loaded();
+
+    expect(menuTriggerRef.current).toBe(screen.getByTestId('tasks-page-menu'));
+    await userEvent.click(screen.getByTestId('tasks-page-menu'));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Columns…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Columns' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(menuTriggerRef.current).toHaveFocus();
   });
 
   it('keeps stale stored column keys from breaking ordering', async () => {

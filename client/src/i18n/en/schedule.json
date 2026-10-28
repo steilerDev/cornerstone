@@ -157,46 +157,49 @@
     "weeklyCalendarAriaLabel": "Weekly calendar"
   },
   "milestones": {
-    "errors": {
-      "loadFailed": "An unexpected error occurred while loading milestones."
-    },
-    "newButton": "New Milestone",
-    "empty": {
-      "noItems": "No milestones yet",
-      "noItemsMessage": "Create your first milestone to mark major project progress points.",
-      "createFirst": "Create First Milestone"
-    },
-    "table": {
-      "headers": {
+    "list": {
+      "newMilestone": "New milestone",
+      "titleHeader": "Milestone",
+      "statusHeader": "Status",
+      "search": "Search milestones",
+      "resultCount_one": "{{count}} milestone",
+      "resultCount_other": "{{count}} milestones",
+      "empty": "No milestones yet",
+      "emptyDescription": "Create your first milestone to mark a major point of progress.",
+      "noMatch": "No milestones match.",
+      "loadFailed": "Milestones could not be loaded. Try again.",
+      "sort": {
+        "targetDate": "Target date",
         "title": "Title",
-        "targetDate": "Target Date",
+        "projectedDate": "Projected",
         "status": "Status",
+        "waitsFor": "Waits for"
+      },
+      "columns": {
+        "target": "Target",
+        "projected": "Projected",
+        "waitsFor": "Waits for",
+        "holdsUp": "Holds up",
         "description": "Description",
-        "linkedItems": "Linked Items",
-        "completedAt": "Completed Date",
-        "actions": "Actions"
+        "reachedOn": "Reached on"
+      },
+      "row": {
+        "notSet": "Not set",
+        "taskCount_one": "{{count}} task",
+        "taskCount_other": "{{count}} tasks",
+        "open": "Open"
+      },
+      "filters": {
+        "targetDate": "Target date",
+        "waitsFor": "Waits for",
+        "from": "From",
+        "to": "To",
+        "min": "Min",
+        "max": "Max"
       }
     },
-    "card": {
-      "targetDate": "Target Date:",
-      "status": "Status:",
-      "description": "Description:"
-    },
-    "menu": {
-      "actions": "Actions menu",
-      "edit": "Edit",
-      "delete": "Delete"
-    },
-    "loading": "Loading milestones...",
-    "error": "Failed to load milestones. Please try again.",
-    "deleteError": "Failed to delete milestone. Please try again.",
-    "keyboard": {
-      "newMilestone": "New milestone",
-      "selectNext": "Select next item",
-      "selectPrevious": "Select previous item",
-      "openSelected": "Open selected item",
-      "showShortcuts": "Show keyboard shortcuts",
-      "closeDialog": "Close dialog or cancel"
+    "errors": {
+      "loadFailed": "An unexpected error occurred while loading milestones."
     },
     "create": {
       "form": {

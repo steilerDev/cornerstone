@@ -842,16 +842,16 @@ describe('Household Item Service', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // listHouseholdItems()
+  // listHouseholdItemRows()
   // ---------------------------------------------------------------------------
 
-  describe('listHouseholdItems()', () => {
+  describe('listHouseholdItemRows()', () => {
     it('returns empty list when no items exist', () => {
       // Given: No items
-      const query: Parameters<typeof householdItemService.listHouseholdItems>[1] = {};
+      const query: Parameters<typeof householdItemService.listHouseholdItemRows>[1] = {};
 
       // When: Listing
-      const result = householdItemService.listHouseholdItems(db, query, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, query, { vatRate: 0.19 });
 
       // Then: Returns empty paginated response
       expect(result.items).toHaveLength(0);
@@ -869,7 +869,7 @@ describe('Household Item Service', () => {
       }
 
       // When: Listing with defaults
-      const result = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       // Then: Returns all 3 items
       expect(result.items).toHaveLength(3);
@@ -886,7 +886,11 @@ describe('Household Item Service', () => {
       }
 
       // When: Getting page 2 with pageSize 4
-      const result = householdItemService.listHouseholdItems(db, { page: 2, pageSize: 4 }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { page: 2, pageSize: 4 },
+        { vatRate: 0.19 },
+      );
 
       // Then: Correct pagination metadata
       expect(result.items).toHaveLength(4);
@@ -928,10 +932,10 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by category
-      const result = householdItemService.listHouseholdItems(
+      const result = householdItemService.listHouseholdItemRows(
         db,
         { category: 'hic-appliances' },
-        0.19,
+        { vatRate: 0.19 },
       );
 
       // Then: Only appliances returned
@@ -971,7 +975,11 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by status
-      const result = householdItemService.listHouseholdItems(db, { status: 'purchased' }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { status: 'purchased' },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only purchased items
       expect(result.items).toHaveLength(1);
@@ -1004,7 +1012,11 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: 'No Vendor' }, 0.19);
 
       // When: Filtering by vendor1
-      const result = householdItemService.listHouseholdItems(db, { vendorId: vendor1 }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { vendorId: vendor1 },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only vendor1's items
       expect(result.items).toHaveLength(1);
@@ -1018,7 +1030,7 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: 'Couch' }, 0.19);
 
       // When: Filtering with null areaId (no area assigned)
-      const result = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       // Then: Items without area are returned
       expect(result.items).toHaveLength(2);
@@ -1051,7 +1063,7 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: 'No Area Item' }, 0.19);
 
       // When: Filtering by area
-      const result = householdItemService.listHouseholdItems(db, { areaId }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, { areaId }, { vatRate: 0.19 });
 
       // Then: Only items in that area are returned
       expect(result.items).toHaveLength(1);
@@ -1084,7 +1096,11 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by the leaf area
-      const result = householdItemService.listHouseholdItems(db, { areaId: leafAreaId }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { areaId: leafAreaId },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only the item in the leaf area is returned
       expect(result.items).toHaveLength(1);
@@ -1117,7 +1133,11 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by the parent area
-      const result = householdItemService.listHouseholdItems(db, { areaId: parentAreaId }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { areaId: parentAreaId },
+        { vatRate: 0.19 },
+      );
 
       // Then: Both items are returned (parent + child)
       expect(result.items).toHaveLength(2);
@@ -1160,21 +1180,29 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by grandparent — should return all 3
-      const allResult = householdItemService.listHouseholdItems(
+      const allResult = householdItemService.listHouseholdItemRows(
         db,
         { areaId: grandparentId },
-        0.19,
+        { vatRate: 0.19 },
       );
       expect(allResult.items).toHaveLength(3);
 
       // When: Filtering by parent — should return 2 (parent + child, not grandparent)
-      const parentResult = householdItemService.listHouseholdItems(db, { areaId: parentId }, 0.19);
+      const parentResult = householdItemService.listHouseholdItemRows(
+        db,
+        { areaId: parentId },
+        { vatRate: 0.19 },
+      );
       expect(parentResult.items).toHaveLength(2);
       const parentNames = parentResult.items.map((i) => i.name).sort();
       expect(parentNames).toEqual(['Desk Chair', 'Hallway Console']);
 
       // When: Filtering by child — should return 1 (leaf only)
-      const childResult = householdItemService.listHouseholdItems(db, { areaId: childId }, 0.19);
+      const childResult = householdItemService.listHouseholdItemRows(
+        db,
+        { areaId: childId },
+        { vatRate: 0.19 },
+      );
       expect(childResult.items).toHaveLength(1);
       expect(childResult.items[0]!.name).toBe('Desk Chair');
     });
@@ -1187,7 +1215,11 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: 'Kitchen Blender' }, 0.19);
 
       // When: Searching by name fragment
-      const result = householdItemService.listHouseholdItems(db, { q: 'sofa' }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { q: 'sofa' },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
@@ -1200,9 +1232,9 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: '50% Sale Lamp' }, 0.19);
       householdItemService.createHouseholdItem(db, userId, { name: 'Shelf a\\b' }, 0.19);
 
-      const pct = householdItemService.listHouseholdItems(db, { q: '%' }, 0.19);
+      const pct = householdItemService.listHouseholdItemRows(db, { q: '%' }, { vatRate: 0.19 });
       expect(pct.items.map((i) => i.name)).toEqual(['50% Sale Lamp']);
-      const bs = householdItemService.listHouseholdItems(db, { q: '\\' }, 0.19);
+      const bs = householdItemService.listHouseholdItemRows(db, { q: '\\' }, { vatRate: 0.19 });
       expect(bs.items.map((i) => i.name)).toEqual(['Shelf a\\b']);
     });
 
@@ -1229,7 +1261,11 @@ describe('Household Item Service', () => {
       );
 
       // When: Searching by description fragment
-      const result = householdItemService.listHouseholdItems(db, { q: 'LEATHER' }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { q: 'LEATHER' },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
@@ -1259,7 +1295,11 @@ describe('Household Item Service', () => {
       );
 
       // When: Searching by URL fragment (name match)
-      const result = householdItemService.listHouseholdItems(db, { q: 'Shelf' }, 0.19);
+      const result = householdItemService.listHouseholdItemRows(
+        db,
+        { q: 'Shelf' },
+        { vatRate: 0.19 },
+      );
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
@@ -1274,13 +1314,13 @@ describe('Household Item Service', () => {
       householdItemService.createHouseholdItem(db, userId, { name: 'Mango Table' }, 0.19);
 
       // When: Sorting by name asc
-      const result = householdItemService.listHouseholdItems(
+      const result = householdItemService.listHouseholdItemRows(
         db,
         {
           sortBy: 'name',
           sortOrder: 'asc',
         },
-        0.19,
+        { vatRate: 0.19 },
       );
 
       // Then: Items are sorted alphabetically
@@ -1313,13 +1353,13 @@ describe('Household Item Service', () => {
       );
 
       // When: Sorting by category desc
-      const result = householdItemService.listHouseholdItems(
+      const result = householdItemService.listHouseholdItemRows(
         db,
         {
           sortBy: 'category',
           sortOrder: 'desc',
         },
-        0.19,
+        { vatRate: 0.19 },
       );
 
       // Then: Sorted category desc (hic-furniture > hic-appliances alphabetically)
@@ -1359,7 +1399,7 @@ describe('Household Item Service', () => {
         .run();
 
       // When: Listing items
-      const result = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       // Then: Aggregates are correct
       expect(result.items).toHaveLength(1);
@@ -1402,13 +1442,13 @@ describe('Household Item Service', () => {
       );
 
       // When: Filtering by both category and status
-      const result = householdItemService.listHouseholdItems(
+      const result = householdItemService.listHouseholdItemRows(
         db,
         {
           category: 'hic-appliances',
           status: 'arrived',
         },
-        0.19,
+        { vatRate: 0.19 },
       );
 
       // Then: Only the matching item is returned
@@ -1435,7 +1475,7 @@ describe('Household Item Service', () => {
       );
 
       // When: Getting list (which returns summary)
-      const result = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       // Then: area in summary is null when unset
       expect(result.items[0]!.area).toBeNull();
@@ -1454,7 +1494,7 @@ describe('Household Item Service', () => {
       );
 
       // When: Getting list (which returns summary)
-      const result = householdItemService.listHouseholdItems(db, {}, 0.19);
+      const result = householdItemService.listHouseholdItemRows(db, {}, { vatRate: 0.19 });
 
       // Then: Summary includes delivery date fields
       expect(result.items[0]).toHaveProperty('earliestDeliveryDate');

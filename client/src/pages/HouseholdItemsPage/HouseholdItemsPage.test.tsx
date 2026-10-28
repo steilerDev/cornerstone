@@ -1,67 +1,48 @@
 /**
  * @jest-environment jsdom
  */
-/**
- * Component tests for HouseholdItemsPage.tsx
- */
-
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { makeSearchCompanies } from '../../test/companySearchMock.js';
-import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import {
+  APPLIANCES,
+  FURNITURE,
+  makePurchaseResponse,
+  makePurchaseRow,
+} from '../../test/purchaseListFixtures.js';
+import enCommon from '../../i18n/en/common.json';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
-import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
-import type * as UseAreasTypes from '../../hooks/useAreas.js';
-import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
-import type { HouseholdItemSummary } from '@cornerstone/shared';
-import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
-import enErrors from '../../i18n/en/errors.json';
-import enCommon from '../../i18n/en/common.json';
-import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
-import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
-import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
-import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
+import type * as PageModule from './HouseholdItemsPage.js';
 
-// ─── Mock modules BEFORE importing component ────────────────────────────────
-
-// Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
-const mockListPreferencesHI = jest
-  .fn<typeof PreferencesApiTypes.listPreferences>()
-  .mockResolvedValue([]);
-jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
-  listPreferences: mockListPreferencesHI,
-  upsertPreference: jest
-    .fn<typeof PreferencesApiTypes.upsertPreference>()
-    .mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  deletePreference: jest
-    .fn<typeof PreferencesApiTypes.deletePreference>()
-    .mockResolvedValue(undefined),
-}));
-
-const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
-const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
+const mockListRows = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItemRows>();
+const mockDelete = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
+const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
 
-jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
-  fetchDeleteImpact: mockFetchDeleteImpact,
-}));
-
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
-  listHouseholdItems: mockListHouseholdItems,
-  deleteHouseholdItem: mockDeleteHouseholdItem,
+  listHouseholdItemRows: mockListRows,
+  listHouseholdItems: jest.fn(),
   getHouseholdItem: jest.fn(),
   createHouseholdItem: jest.fn(),
   updateHouseholdItem: jest.fn(),
+  deleteHouseholdItem: mockDelete,
 }));
-
-const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
-const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
-
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchCategories,
+}));
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
   searchCompanies: makeSearchCompanies(mockFetchVendors),
@@ -70,1149 +51,466 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
 }));
-
-const mockFetchHouseholdItemCategories =
-  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
-
-jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
-  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
-  createHouseholdItemCategory: jest.fn(),
-  updateHouseholdItemCategory: jest.fn(),
-  deleteHouseholdItemCategory: jest.fn(),
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
 }));
-
-const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
-
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
-  useAreas: mockUseAreas,
-}));
-
-// Mock useTableState — use a stable Map reference to prevent infinite useEffect re-renders.
-const stableFiltersHI = new Map<string, { value: string }>();
-const mockSetFilterHI = jest.fn<(key: string, value: string | null) => void>();
-const mockTableHI: { search: string; sortBy: string | null; sortDir: 'asc' | 'desc' | null } = {
-  search: '',
-  sortBy: null,
-  sortDir: null,
-};
-const mockTableStateHI = {
-  get search() {
-    return mockTableHI.search;
-  },
-  get sortBy() {
-    return mockTableHI.sortBy;
-  },
-  get sortDir() {
-    return mockTableHI.sortDir;
-  },
-  filters: stableFiltersHI,
-  page: 1,
-  pageSize: 25,
-};
-jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
-  useTableState: () => ({
-    tableState: mockTableStateHI,
-    searchInput: '',
-    setSearch: jest.fn(),
-    toApiParams: jest.fn(() => ({})),
-    setFilter: mockSetFilterHI,
+  useAreas: () => ({
+    areas: [],
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    createArea: jest.fn(),
+    updateArea: jest.fn(),
+    deleteArea: jest.fn(),
   }),
 }));
-
-// Mock formatters
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  formatDayRange: (start: Date, end: Date) =>
-    `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
-  useFormatters: () => ({
-    formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
-    formatCurrency: (n: number) => `€${n.toFixed(2)}`,
-    formatPercent: (n: number) => `${n}%`,
-  }),
-  formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
-  formatCurrency: (n: number) => `€${n.toFixed(2)}`,
-  formatPercent: (n: number) => `${n}%`,
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    vatRate: 0.19,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock categoryUtils
-jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
-  getCategoryDisplayName: (_t: unknown, name: string) => name,
-}));
+let HouseholdItemsPage: typeof PageModule.HouseholdItemsPage;
 
-// ─── Fixtures ──────────────────────────────────────────────────────────────
-
-const makeHouseholdItem = (
-  overrides: Partial<HouseholdItemSummary> = {},
-): HouseholdItemSummary => ({
-  id: 'hi-1',
-  name: 'Living Room Sofa',
-  description: null,
+const KITCHEN = {
+  id: 'area-kitchen',
+  name: 'Kitchen',
+  color: null,
+  ancestors: [{ id: 'area-gf', name: 'Ground Floor', color: null }],
+};
+const planned = (over = {}) =>
+  makePurchaseRow({ id: 'hi-sofa', name: 'Living room sofa', ...over });
+const SOFA = planned({
+  area: KITCHEN,
+  expectedCost: 1200,
+  targetDeliveryDate: '2026-05-01',
+  vendor: { id: 'v-1', name: 'Example Carpentry Co' } as never,
   category: 'hic-furniture',
-  status: 'planned',
-  vendor: null,
-  area: null,
-  quantity: 1,
-  orderDate: null,
-  actualDeliveryDate: null,
-  earliestDeliveryDate: null,
-  latestDeliveryDate: null,
-  targetDeliveryDate: null,
-  isLate: false,
-  url: null,
-  budgetLineCount: 0,
-  totalPlannedAmount: 1500,
-  budgetSummary: {
-    totalPlanned: 1500,
-    totalActual: 0,
-    subsidyReduction: 0,
-    netCost: 1500,
-  },
-  createdBy: null,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
 });
-
-const makePagination = (overrides = {}) => ({
-  page: 1,
-  pageSize: 25,
-  totalItems: 0,
-  totalPages: 1,
-  ...overrides,
+const OVEN = makePurchaseRow({
+  id: 'hi-oven',
+  name: 'Built-in oven',
+  status: 'purchased',
+  category: 'hic-appliances',
+  expectedCost: 800,
 });
-
-const defaultListResponse = (items: HouseholdItemSummary[] = []) => ({
-  items,
-  pagination: makePagination({ totalItems: items.length }),
-  filterMeta: {},
+const LAMP = makePurchaseRow({
+  id: 'hi-lamp',
+  name: 'Hall lamp',
+  status: 'arrived',
+  actualDeliveryDate: '2026-04-02',
 });
+const ALL = [SOFA, OVEN, LAMP];
+const TOTALS = { expectedCost: 2000, invoiced: 450, paid: 300 };
 
-// ─── Component import (must be after mocks) ──────────────────────────────────
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname + location.search}</div>;
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let HouseholdItemsPage: any;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function renderPage() {
+function renderPage(url = '/project/household-items') {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={['/project/household-items']}>
-        <HouseholdItemsPage />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter initialEntries={[url]}>
+          <Routes>
+            <Route path="/project/household-items" element={<HouseholdItemsPage />} />
+            <Route path="*" element={<div>Elsewhere</div>} />
+          </Routes>
+          <LocationProbe />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     </ToastProvider>,
   );
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+async function loaded() {
+  await waitFor(() => expect(screen.queryByLabelText('Loading the list')).not.toBeInTheDocument());
+}
 
-describe('HouseholdItemsPage', () => {
-  beforeEach(async () => {
-    if (!HouseholdItemsPage) {
-      const module = await import('./HouseholdItemsPage.js');
-      HouseholdItemsPage = module.HouseholdItemsPage;
-    }
-    // Reset mocks to clear call history AND queued Once implementations from prior tests.
-    mockListHouseholdItems.mockReset();
-    mockDeleteHouseholdItem.mockReset();
-    mockFetchDeleteImpact.mockReset();
-    mockFetchDeleteImpact.mockResolvedValue({
-      entityType: 'household_item',
-      id: 'hi-1',
-      effects: [],
-    });
-    mockFetchVendors.mockReset();
-    mockFetchVendor.mockReset();
-    mockSetFilterHI.mockReset();
-    stableFiltersHI.clear();
-    mockTableHI.search = '';
-    mockTableHI.sortBy = null;
-    mockTableHI.sortDir = null;
-    mockFetchHouseholdItemCategories.mockReset();
-    mockListPreferencesHI.mockReset();
-    mockListPreferencesHI.mockResolvedValue([]);
-    mockUseAreas.mockReturnValue({
-      areas: [],
-      isLoading: false,
-      error: null,
-      refetch: jest.fn(),
-      createArea: jest.fn<UseAreasTypes.UseAreasResult['createArea']>(),
-      updateArea: jest.fn<UseAreasTypes.UseAreasResult['updateArea']>(),
-      deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>(),
-    });
-    mockListHouseholdItems.mockResolvedValue(defaultListResponse());
-    mockFetchVendors.mockResolvedValue({
-      vendors: [],
-      pagination: makePagination(),
-    });
-    mockFetchHouseholdItemCategories.mockResolvedValue({
-      categories: [],
-    });
-    mockDeleteHouseholdItem.mockResolvedValue(undefined);
+const heading = () => screen.getByRole('heading', { level: 1 });
+const location = () => screen.getByTestId('location').textContent;
+const footer = () => screen.queryByTestId('purchases-footer');
+
+beforeEach(async () => {
+  if (!HouseholdItemsPage) ({ HouseholdItemsPage } = await import('./HouseholdItemsPage.js'));
+  window.sessionStorage.clear();
+  window.localStorage.clear();
+  mockListRows.mockReset();
+  mockListRows.mockResolvedValue(makePurchaseResponse(ALL, { totals: TOTALS }));
+  mockDelete.mockReset();
+  mockFetchCategories.mockReset();
+  mockFetchCategories.mockResolvedValue({ categories: [FURNITURE, APPLIANCES] });
+  mockFetchVendors.mockReset();
+  mockFetchVendors.mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
   });
-
-  describe('loading state', () => {
-    it('shows loading skeleton while household items are being fetched', () => {
-      mockListHouseholdItems.mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(() => resolve(defaultListResponse()), 200)),
-      );
-
-      renderPage();
-
-      expect(screen.getByRole('status')).toBeInTheDocument();
-    });
-
-    it('hides loading skeleton after household items load', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('data display', () => {
-    it('renders the "New Household Item" button', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('new-household-item-button')).toBeInTheDocument();
-      });
-    });
-
-    it('renders household item names as links when items are loaded', async () => {
-      const item = makeHouseholdItem({ name: 'Living Room Sofa', id: 'hi-1' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-
-      renderPage();
-
-      // DataTable renders both table rows and mobile cards — use getAllByText.
-      await waitFor(() => {
-        expect(screen.getAllByText('Living Room Sofa').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('renders multiple household items', async () => {
-      const items = [
-        makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' }),
-        makeHouseholdItem({ id: 'hi-2', name: 'Dining Table' }),
-      ];
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse(items));
-
-      renderPage();
-
-      // DataTable renders both table rows and mobile cards — use getAllByText.
-      await waitFor(() => {
-        expect(screen.getAllByText('Living Room Sofa').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Dining Table').length).toBeGreaterThan(0);
-      });
-    });
-
-    it.each(HOUSEHOLD_ITEM_STATUSES)(
-      'renders the %s status badge with the shared Badge class and canonical word (D-08)',
-      async (status) => {
-        mockListHouseholdItems.mockResolvedValueOnce(
-          defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Sample Sofa', status })]),
-        );
-        renderPage();
-        const label = enCommon.statusVocabulary.purchase[status];
-        await waitFor(() => {
-          expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-        });
-        const badge = screen.getAllByText(label).find((el) => el.className.includes('badge'));
-        expect(badge).toBeDefined();
-        expect(badge!.className).toContain(status);
-        expect(badge!.className).not.toContain('badge-');
-      },
-    );
-
-    it('status filter lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
-      renderPage();
-      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
-      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
-      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
-        label.querySelector('input')?.id,
-        label.querySelector('span')?.textContent,
-      ]);
-
-      expect(rows).toEqual(
-        HOUSEHOLD_ITEM_STATUSES.map((status) => [
-          `enum-${status}`,
-          enCommon.statusVocabulary.purchase[status],
-        ]),
-      );
-    });
-
-    it('calls listHouseholdItems on mount', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(mockListHouseholdItems).toHaveBeenCalled();
-      });
-    });
-
-    it('loads no companies on mount (the company filter searches the server instead)', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(mockListHouseholdItems).toHaveBeenCalled();
-      });
-
-      expect(mockFetchVendors).not.toHaveBeenCalled();
-      expect(mockFetchVendor).not.toHaveBeenCalled();
-    });
-
-    it('calls fetchHouseholdItemCategories on mount to populate category filter options', async () => {
-      renderPage();
-
-      await waitFor(() => {
-        expect(mockFetchHouseholdItemCategories).toHaveBeenCalled();
-      });
-    });
-
-    it('renders action menu button for each item', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-
-      renderPage();
-
-      // DataTable renders actions in both table rows and mobile cards; the testids are disjoint
-      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('grant chips (#2242, AC6)', () => {
-    const grant = (id: string, name: string, rate: number) => ({
-      id,
-      name,
-      reductionType: 'percentage' as const,
-      rate,
-    });
-
-    it('shows the first grant as "name · rate", +n for more, and nothing without grants', async () => {
-      mockListHouseholdItems.mockResolvedValueOnce(
-        defaultListResponse([
-          makeHouseholdItem({
-            id: 'hi-1',
-            name: 'Oven',
-            grants: [grant('a', 'Alpha', 10), grant('b', 'Beta', 20)],
-          }),
-          makeHouseholdItem({ id: 'hi-2', name: 'Sink', grants: [] }),
-          makeHouseholdItem({ id: 'hi-3', name: 'Lamp' }),
-        ]),
-      );
-
-      renderPage();
-
-      expect(await screen.findByTestId('household-item-grants-hi-1-first')).toHaveTextContent(
-        'Alpha · 10%',
-      );
-      expect(screen.getByTestId('household-item-grants-hi-1-more')).toHaveTextContent('+1');
-      expect(screen.getAllByText('Grants: Alpha, Beta').length).toBeGreaterThan(0);
-      expect(screen.queryByTestId('household-item-grants-hi-2')).toBeNull();
-      expect(screen.queryByTestId('household-item-grants-hi-3')).toBeNull();
-      expect(screen.getByTestId('household-item-grants-mobile-hi-1')).toBeInTheDocument();
-    });
-  });
-
-  describe('URL sync of the table state', () => {
-    function Where() {
-      const location = useLocation();
-      return <output data-testid="where">{location.search}</output>;
-    }
-    const params = () => new URLSearchParams(screen.getByTestId('where').textContent ?? '');
-    function renderWithUrl(entry = '/project/household-items') {
-      return render(
-        <ToastProvider>
-          <MemoryRouter initialEntries={[entry]}>
-            <HouseholdItemsPage />
-            <Where />
-          </MemoryRouter>
-        </ToastProvider>,
-      );
-    }
-
-    beforeEach(() => {
-      mockListHouseholdItems.mockResolvedValue(
-        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
-      );
-    });
-
-    it('typing in the search box writes ?q= after the debounce; an empty search removes it', async () => {
-      const user = userEvent.setup();
-      renderWithUrl('/project/household-items?q=old');
-      await screen.findByTestId('hi-menu-button-hi-1');
-
-      const box = screen.getByRole('searchbox');
-      await user.clear(box);
-      await user.type(box, 'oven');
-      await waitFor(() => expect(params().get('q')).toBe('oven'));
-      expect(params().get('page')).toBe('1');
-      expect(params().get('pageSize')).toBe('25');
-
-      mockTableHI.search = 'oven';
-      await user.clear(box);
-      await waitFor(() => expect(params().has('q')).toBe(false));
-    });
-
-    it('sorting writes sortBy and sortOrder, then desc, then removes both', async () => {
-      const user = userEvent.setup();
-      renderWithUrl();
-      await screen.findByTestId('hi-menu-button-hi-1');
-      const header = () => screen.getByRole('columnheader', { name: /Name/ });
-
-      await user.click(header());
-      await waitFor(() => expect(params().get('sortOrder')).toBe('asc'));
-      expect(params().get('sortBy')).toBeTruthy();
-
-      mockTableHI.sortBy = params().get('sortBy');
-      mockTableHI.sortDir = 'asc';
-      await user.click(header());
-      await waitFor(() => expect(params().get('sortOrder')).toBe('desc'));
-
-      mockTableHI.sortDir = 'desc';
-      await user.click(header());
-      await waitFor(() => expect(params().has('sortBy')).toBe(false));
-      expect(params().has('sortOrder')).toBe(false);
-    });
-
-    it('a sort column with no direction falls back to ascending', async () => {
-      const user = userEvent.setup();
-      mockTableHI.sortBy = 'name';
-      mockTableHI.sortDir = null;
-      renderWithUrl();
-      await screen.findByTestId('hi-menu-button-hi-1');
-      await user.type(screen.getByRole('searchbox'), 'x');
-      await waitFor(() => expect(params().get('sortOrder')).toBe('asc'));
-    });
-
-    it('writes filters with a value, drops empty ones and removes stale filter params', async () => {
-      const user = userEvent.setup();
-      stableFiltersHI.set('status', { value: 'planned' });
-      stableFiltersHI.set('category', { value: '' });
-      renderWithUrl('/project/household-items?budgetLines=1-2&unrelated=keep');
-      await screen.findByTestId('hi-menu-button-hi-1');
-
-      await user.type(screen.getByRole('searchbox'), 'x');
-
-      await waitFor(() => expect(params().get('status')).toBe('planned'));
-      expect(params().has('category')).toBe(false);
-      expect(params().has('budgetLines')).toBe(false);
-      expect(params().get('unrelated')).toBe('keep');
-    });
-  });
-
-  describe('optional columns and the list response', () => {
-    const allColumns = [
-      'name',
-      'category',
-      'area',
-      'vendor',
-      'actualDelivery',
-      'actualCost',
-      'subsidyReduction',
-      'netCost',
-      'orderDate',
-    ];
-
-    it('shows every chosen column with values, and a dash or zero when the item has none', async () => {
-      mockListPreferencesHI.mockResolvedValue([
-        { key: 'table.householdItems.columns', value: JSON.stringify(allColumns), updatedAt: '' },
-      ]);
-      mockFetchHouseholdItemCategories.mockResolvedValue({
-        categories: [{ id: 'hic-furniture', name: 'Furniture', translationKey: null }],
-      } as never);
-      mockListHouseholdItems.mockResolvedValue(
-        defaultListResponse([
-          makeHouseholdItem({
-            id: 'hi-1',
-            name: 'Oven',
-            category: 'hic-furniture',
-            vendor: { id: 'v-1', name: 'Acme Appliances' } as never,
-            area: { id: 'ar-1', name: 'Kitchen', color: null, ancestors: [] } as never,
-            actualDeliveryDate: '2026-02-03',
-            orderDate: '2026-01-02',
-            budgetSummary: {
-              totalPlanned: 900,
-              totalActual: 800,
-              subsidyReduction: 100,
-              netCost: 700,
-            },
-          }),
-          makeHouseholdItem({
-            id: 'hi-2',
-            name: 'Lamp',
-            category: 'hic-unknown',
-            budgetSummary: undefined as never,
-          }),
-        ]),
-      );
-
-      renderPage();
-
-      await screen.findByTestId('hi-menu-button-hi-1');
-      await waitFor(() =>
-        expect(
-          screen
-            .getAllByRole('columnheader')
-            .map((h) => h.textContent)
-            .join('|'),
-        ).toMatch(/Order Date/),
-      );
-      const cells = (id: string) =>
-        Array.from(
-          screen.getByTestId(`hi-menu-button-${id}`).closest('tr')!.querySelectorAll('td'),
-        ).map((td) => td.textContent);
-      expect(cells('hi-1')).toEqual(
-        expect.arrayContaining(['Furniture', 'Acme Appliances', '€800.00', '€100.00', '€700.00']),
-      );
-      expect(cells('hi-2')).toEqual(expect.arrayContaining(['hic-unknown']));
-      expect(cells('hi-2').filter((text) => text === '—').length).toBeGreaterThanOrEqual(3);
-      expect(cells('hi-2').filter((text) => text === '€0.00').length).toBeGreaterThanOrEqual(3);
-    });
-
-    it('offers the areas as filter options, with their parent', async () => {
-      mockUseAreas.mockReturnValue({
-        areas: [
-          { id: 'ar-1', name: 'House', parentId: null },
-          { id: 'ar-2', name: 'Kitchen', parentId: 'ar-1' },
-        ],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      } as never);
-      mockListHouseholdItems.mockResolvedValue(
-        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
-      );
-      renderPage();
-      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-    });
-
-    it('copes with a list response that carries no filter meta', async () => {
-      mockListHouseholdItems.mockResolvedValue({
-        items: [makeHouseholdItem({ id: 'hi-1', name: 'Oven' })],
-        pagination: makePagination({ totalItems: 1 }),
-      } as never);
-      renderPage();
-      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-    });
-
-    it('a categories failure is logged and the list still loads', async () => {
-      const log = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockFetchHouseholdItemCategories.mockRejectedValue(new Error('offline'));
-      mockListHouseholdItems.mockResolvedValue(
-        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
-      );
-      renderPage();
-      expect(await screen.findByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      expect(log).toHaveBeenCalledWith('Failed to load categories:', expect.any(Error));
-      log.mockRestore();
-    });
-  });
-
-  describe('row action menu', () => {
-    async function withRow() {
-      mockListHouseholdItems.mockResolvedValue(
-        defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Oven' })]),
-      );
-      renderPage();
-      return screen.findByTestId('hi-menu-button-hi-1');
-    }
-
-    it('the menu button toggles the menu', async () => {
-      const button = await withRow();
-      fireEvent.click(button);
-      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
-      fireEvent.click(button);
-      expect(screen.queryByTestId('hi-view-hi-1')).toBeNull();
-    });
-
-    it('a click outside closes the menu, a click inside it does not', async () => {
-      const button = await withRow();
-      fireEvent.click(button);
-      fireEvent.mouseDown(screen.getByTestId('hi-view-hi-1'));
-      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
-
-      fireEvent.mouseDown(document.body);
-      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
-    });
-
-    it('Escape closes the menu; another key does not', async () => {
-      const button = await withRow();
-      fireEvent.click(button);
-      fireEvent.keyDown(document, { key: 'a' });
-      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
-
-      fireEvent.keyDown(document, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
-    });
-
-    it('Edit opens the purchase and closes the menu', async () => {
-      const button = await withRow();
-      fireEvent.click(button);
-      fireEvent.click(screen.getByTestId('hi-view-hi-1'));
-      await waitFor(() => expect(screen.queryByTestId('hi-view-hi-1')).toBeNull());
-    });
-
-    it('Delete asks first; Cancel deletes nothing', async () => {
-      const button = await withRow();
-      fireEvent.click(button);
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-      expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('error state', () => {
-    it('shows error message when listHouseholdItems fails with ApiClientError', async () => {
-      const error = new ApiClientError(500, {
-        code: 'INTERNAL_ERROR',
-        message: 'RAW-SERVER-SENTINEL',
-      });
-      mockListHouseholdItems.mockRejectedValueOnce(error);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-    });
-
-    it('shows the network copy when listHouseholdItems fails with a NetworkError', async () => {
-      mockListHouseholdItems.mockRejectedValueOnce(
-        new NetworkError('RAW-LOCAL', new Error('cause')),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('shows the generic load error (not the local text) for a plain Error', async () => {
-      mockListHouseholdItems.mockRejectedValueOnce(new Error('RAW-LOCAL'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-    });
-
-    it('does not crash when fetchVendors fails (graceful degradation)', async () => {
-      mockFetchVendors.mockRejectedValueOnce(new Error('Vendors failed to load'));
-
-      // Should not throw
-      renderPage();
-
-      await waitFor(() => {
-        // Page still renders; vendor filter options just won't be populated
-        expect(screen.getByTestId('new-household-item-button')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('action menu', () => {
-    it('shows view and delete options when action menu is opened', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-
-      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
-      expect(screen.getByTestId('hi-delete-hi-1')).toBeInTheDocument();
-    });
-
-    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
-      mockListHouseholdItems.mockResolvedValueOnce(
-        defaultListResponse([
-          makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' }),
-          makeHouseholdItem({ id: 'hi-2', name: 'Dining Table' }),
-        ]),
-      );
-
-      const { container } = renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-      expect(screen.getByTestId('hi-menu-button-mobile-hi-1')).toBeInTheDocument();
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-
-      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
-      expect(findDuplicateTestIds(container)).toEqual([]);
-    });
-
-    it('opens delete confirmation modal when delete is clicked from menu', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-      await waitFor(() => {
-        // The delete modal renders the item name in bold
-        const boldItems = screen.getAllByText('Living Room Sofa');
-        expect(boldItems.length).toBeGreaterThan(0);
-      });
-    });
-  });
-
-  describe('delete household item', () => {
-    async function confirmDelete() {
-      const btn = await screen.findByTestId('purchase-list-delete-confirm');
-      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
-      fireEvent.click(btn);
-    }
-
-    async function openDialog() {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-      renderPage();
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-    }
-
-    it('opens an alertdialog titled with the purchase, Cancel focused', async () => {
-      await openDialog();
-      expect(
-        await screen.findByRole('alertdialog', { name: 'Delete Living Room Sofa?' }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId('purchase-list-delete-cancel')).toHaveFocus();
-    });
-
-    it('lists what the delete also changes', async () => {
-      mockFetchDeleteImpact.mockResolvedValue({
-        entityType: 'household_item',
-        id: 'hi-1',
-        effects: [
-          { kind: 'costLines', count: 2 },
-          { kind: 'documentLinks', count: 0 },
-        ],
-      });
-      await openDialog();
-      await waitFor(() =>
-        expect(screen.getByTestId('purchase-list-delete-consequences')).toHaveTextContent(
-          'Cost lines deleted with it: 2',
-        ),
-      );
-      expect(screen.queryByText(/Linked documents/)).toBeNull();
-      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'hi-1');
-    });
-
-    it('a 409 hides the action', async () => {
-      mockDeleteHouseholdItem.mockRejectedValueOnce(
-        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
-      );
-      await openDialog();
-      await confirmDelete();
-      await waitFor(() => expect(screen.queryByTestId('purchase-list-delete-confirm')).toBeNull());
-      expect(screen.getByTestId('purchase-list-delete-cancel')).toBeInTheDocument();
-    });
-
-    it('a non-409 failure keeps the action for a retry', async () => {
-      mockDeleteHouseholdItem.mockRejectedValueOnce(new Error('boom'));
-      await openDialog();
-      await confirmDelete();
-      await screen.findByRole('alert');
-      expect(screen.getByTestId('purchase-list-delete-confirm')).toBeInTheDocument();
-    });
-
-    it('calls deleteHouseholdItem API when deletion is confirmed', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([]));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-      await waitFor(() => {
-        const boldItems = screen.getAllByText('Living Room Sofa');
-        expect(boldItems.length).toBeGreaterThan(0);
-      });
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('hi-1');
-      });
-    });
-
-    it.each([
-      [
-        'NetworkError',
-        () => new NetworkError('RAW-LOCAL', new Error('cause')),
-        enCommon.requestErrors.network,
-      ],
-      [
-        'plain Error',
-        () => new Error('RAW-LOCAL'),
-        'Failed to delete household item. Please try again.',
-      ],
-    ])(
-      'shows the translated copy when deleteHouseholdItem fails with a %s',
-      async (_n, make, expected) => {
-        const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-        mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-        mockDeleteHouseholdItem.mockRejectedValueOnce(make());
-
-        renderPage();
-
-        await waitFor(() => {
-          expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-        fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-        await confirmDelete();
-
-        await waitFor(() => {
-          expect(screen.getByRole('alert')).toHaveTextContent(expected);
-        });
-        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
-      },
-    );
-
-    it('shows API error when deleteHouseholdItem fails', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-      const error = new ApiClientError(409, {
-        code: 'CONFLICT',
-        message: 'RAW-SERVER-SENTINEL',
-      });
-      mockDeleteHouseholdItem.mockRejectedValueOnce(error);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-      await waitFor(() => {
-        const boldItems = screen.getAllByText('Living Room Sofa');
-        expect(boldItems.length).toBeGreaterThan(0);
-      });
-
-      await confirmDelete();
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
-        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
-      });
-    });
-
-    it('closes delete modal when cancel is clicked', async () => {
-      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
-      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
-      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
-
-      await waitFor(() => {
-        // Modal is open
-        const boldItems = screen.getAllByText('Living Room Sofa');
-        expect(boldItems.length).toBeGreaterThan(0);
-      });
-
-      fireEvent.click(screen.getByTestId('purchase-list-delete-cancel'));
-      expect(screen.queryByRole('alertdialog')).toBeNull();
-
-      // Delete API should NOT have been called
-      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('areas integration', () => {
-    it('uses areas from useAreas hook for filter options', async () => {
-      const areas = [
-        {
-          id: 'area-1',
-          name: 'Living Room',
-          parentId: null,
-          color: null,
-          description: null,
-          sortOrder: 0,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-      ];
-      mockUseAreas.mockReturnValueOnce({
-        areas,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn<UseAreasTypes.UseAreasResult['createArea']>(),
-        updateArea: jest.fn<UseAreasTypes.UseAreasResult['updateArea']>(),
-        deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>(),
-      });
-
-      renderPage();
-
-      // The hook should be called
-      await waitFor(() => {
-        expect(mockUseAreas).toHaveBeenCalled();
-      });
-    });
-  });
-
-  // ── Page identity (#2202) ──────────────────────────────────────────────────
-
-  describe('page identity (#2202)', () => {
-    function Probe() {
-      const location = useLocation();
-      const type = useNavigationType();
-      return (
-        <>
-          <div data-testid="probe-type">{type}</div>
-          <div data-testid="probe-search">{location.search}</div>
-        </>
-      );
-    }
-
-    function renderWithProbe() {
-      return render(
-        <ToastProvider>
-          <MemoryRouter initialEntries={['/project/household-items']}>
-            <HouseholdItemsPage />
-            <Probe />
-          </MemoryRouter>
-        </ToastProvider>,
-      );
-    }
-
-    it('shows exactly one h1 "Purchases" and sets the tab title', async () => {
-      renderPage();
-
-      expect(await screen.findByRole('heading', { name: 'Purchases', level: 1 })).toBeVisible();
-      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      await waitFor(() => expect(document.title).toBe('Purchases · Cornerstone'));
-    });
-
-    it('is a view: it renders no "You are here" trail and no Back link', async () => {
-      renderPage();
-
-      await screen.findByRole('heading', { name: 'Purchases', level: 1 });
-      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
-      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
-    });
-
-    it('does not push a history entry on mount', async () => {
-      renderWithProbe();
-
-      await screen.findByRole('heading', { name: 'Purchases', level: 1 });
-      expect(screen.getByTestId('probe-type')).toHaveTextContent('POP');
-    });
-
-    it('replaces (not pushes) the history entry when a filter changes', async () => {
-      renderWithProbe();
-
-      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
-      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
-      fireEvent.click(dialog.querySelector('input') as HTMLInputElement);
-
-      await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
-      expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
-    });
-  });
-
-  describe('company filter (entity filter, server search)', () => {
-    afterEach(() => {
-      stableFiltersHI.clear();
-    });
-
-    const openVendorFilter = async (user: ReturnType<typeof userEvent.setup>) => {
-      await user.click(await screen.findByRole('button', { name: /filter by vendor/i }));
-      return within(await screen.findByRole('dialog'));
-    };
-
-    it('searches companies on the server when the filter picker is used', async () => {
-      const user = userEvent.setup();
-      mockFetchVendors.mockImplementation(async (params) => ({
-        vendors:
-          params?.q === 'zeta'
-            ? ([{ id: 'v-250', name: 'Zeta Tiling', trade: null }] as never)
-            : [],
-        pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
-      }));
-      let search = '';
-      function Probe() {
-        search = useLocation().search;
-        return null;
-      }
-      render(
-        <ToastProvider>
-          <MemoryRouter initialEntries={['/project/household-items']}>
-            <HouseholdItemsPage />
-            <Probe />
-          </MemoryRouter>
-        </ToastProvider>,
-      );
-      const dialog = await openVendorFilter(user);
-
-      await user.type(dialog.getByRole('textbox'), 'zeta');
-      await user.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
-
-      expect(mockFetchVendors).toHaveBeenCalledWith(
-        { q: 'zeta', pageSize: 50 },
-        { signal: expect.any(AbortSignal) },
-      );
-      expect(new URLSearchParams(search).get('vendorId')).toBe('v-250');
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    it('resolves the label of ?vendorId=<id> with GET /vendors/:id', async () => {
-      const user = userEvent.setup();
-      stableFiltersHI.set('vendorId', { value: 'v-250' });
-      mockFetchVendor.mockResolvedValue({ id: 'v-250', name: 'Zeta Tiling' } as never);
-      renderPage();
-
-      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-250'));
-      const dialog = await openVendorFilter(user);
-
-      expect(await dialog.findByText('Zeta Tiling')).toBeInTheDocument();
-      expect(mockSetFilterHI).not.toHaveBeenCalled();
-    });
-
-    it('drops an unknown (404) company from the URL filter', async () => {
-      stableFiltersHI.set('vendorId', { value: 'v-gone' });
-      mockFetchVendor.mockRejectedValue(
-        new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
-      );
-      renderPage();
-
-      await waitFor(() => expect(mockSetFilterHI).toHaveBeenCalledWith('vendorId', null));
-      expect(mockSetFilterHI).toHaveBeenCalledTimes(1);
-    });
-
-    it('keeps the URL filter when the company lookup fails with a server error', async () => {
-      stableFiltersHI.set('vendorId', { value: 'v-1' });
-      mockFetchVendor.mockRejectedValue(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
-      );
-      renderPage();
-
-      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
-      await Promise.resolve();
-
-      expect(mockSetFilterHI).not.toHaveBeenCalled();
-    });
+  mockFetchVendor.mockReset();
+  mockFetchVendor.mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
+  mockFetchDeleteImpact.mockReset();
+  mockFetchDeleteImpact.mockResolvedValue({
+    entityType: 'household_item',
+    id: 'hi-1',
+    effects: [],
   });
 });
 
-describe('HouseholdItemsPage create openers (#2212)', () => {
-  function renderAt(entry = '/project/household-items?x=1') {
-    const log = createRouterLog();
-    render(
-      <ToastProvider>
-        <RecordingRouter entries={[entry]} log={log}>
-          <HouseholdItemsPage />
-        </RecordingRouter>
-      </ToastProvider>,
-    );
-    return log;
-  }
+describe('states', () => {
+  it('shows the skeleton, then the rows', async () => {
+    renderPage();
+    expect(screen.getByLabelText('Loading the list')).toBeInTheDocument();
+    await loaded();
+    expect(screen.getByTestId('purchases-row-hi-oven')).toBeInTheDocument();
+  });
 
-  function expectDialogPush(log: ReturnType<typeof createRouterLog>) {
-    expect(log.actions).toEqual(['PUSH /project/household-items/new']);
-    expect(log.states[0]).toMatchObject({
-      origin: { to: '/project/household-items?x=1' },
-      background: { pathname: '/project/household-items', search: '?x=1' },
+  it('shows the load failure with Retry', async () => {
+    mockListRows.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText('The purchases could not be loaded.')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('purchases-retry'));
+    await loaded();
+    expect(screen.getByTestId('purchases-row-hi-sofa')).toBeInTheDocument();
+  });
+
+  it('shows the empty state and no footer', async () => {
+    mockListRows.mockResolvedValue(makePurchaseResponse([]));
+    renderPage();
+    expect(await screen.findByText('No purchases yet')).toBeInTheDocument();
+    expect(footer()).toBeNull();
+  });
+
+  it('shows the no-match state when a search finds nothing', async () => {
+    mockListRows.mockResolvedValue(makePurchaseResponse([], { scopeTotal: 3 }));
+    renderPage('/project/household-items?q=zzz');
+    expect(await screen.findByText('No purchases match.')).toBeInTheDocument();
+    expect(footer()).toBeNull();
+  });
+});
+
+describe('heading, chips and legacy URLs', () => {
+  it('always shows the purchase count', async () => {
+    renderPage();
+    await loaded();
+    expect(heading()).toHaveTextContent('Purchases (3)');
+  });
+
+  it('a search shows "(n of m)" with the scope total', async () => {
+    mockListRows.mockResolvedValue(makePurchaseResponse([SOFA], { scopeTotal: 9 }));
+    renderPage('/project/household-items?q=sofa');
+    await loaded();
+    expect(heading()).toHaveTextContent('Purchases (1 of 9)');
+  });
+
+  it('offers a chip per status and sends the chip, sort and filters of the URL', async () => {
+    renderPage(
+      '/project/household-items?status=arrived&sortBy=expected_cost&sortOrder=desc&category=hic-furniture',
+    );
+    await loaded();
+    for (const status of HOUSEHOLD_ITEM_STATUSES) {
+      expect(screen.getByTestId(`purchases-chip-${status}`)).toHaveTextContent(
+        enCommon.statusVocabulary.purchase[status],
+      );
+    }
+    expect(mockListRows.mock.calls[0]![0]).toMatchObject({
+      status: 'arrived',
+      sortBy: 'expected_cost',
+      sortOrder: 'desc',
+      category: 'hic-furniture',
+      group: 'status',
+      page: 1,
+      pageSize: 100,
     });
+  });
+
+  it('absorbs an old ?page=2&pageSize=10 URL and a comma-separated status without an error', async () => {
+    renderPage('/project/household-items?page=2&pageSize=10&status=planned,arrived');
+    await loaded();
+
+    expect(mockListRows.mock.calls[0]![0]).toMatchObject({ page: 1, pageSize: 100 });
+    expect(mockListRows.mock.calls[0]![0]).not.toHaveProperty('status');
+    expect(location()).not.toContain('page=');
+    expect(location()).not.toContain('status=');
+    expect(screen.getByTestId('purchases-row-hi-oven')).toBeInTheDocument();
+  });
+
+  it('a legacy comma-separated category is sent as its first id', async () => {
+    renderPage('/project/household-items?category=hic-appliances,hic-furniture');
+    await loaded();
+
+    expect(mockListRows.mock.calls[0]![0]).toMatchObject({ category: 'hic-appliances' });
+  });
+});
+
+describe('groups', () => {
+  it('groups by status in status order with counts, and Delivered starts collapsed', async () => {
+    renderPage();
+    await loaded();
+    const toggles = screen
+      .getAllByTestId(/^purchases-group-toggle-(?!mobile)/)
+      .map((el) => el.getAttribute('data-testid'));
+    expect(toggles).toEqual([
+      'purchases-group-toggle-planned',
+      'purchases-group-toggle-purchased',
+      'purchases-group-toggle-arrived',
+    ]);
+    const planned = screen.getByTestId('purchases-group-toggle-planned');
+    expect(planned).toHaveTextContent('Planned');
+    expect(planned).toHaveTextContent('(1)');
+    expect(planned.querySelector('[class*="badge"]')).toBeNull();
+    const delivered = screen.getByTestId('purchases-group-toggle-arrived');
+    expect(delivered).toHaveTextContent('Delivered');
+    expect(delivered).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(delivered);
+    expect(delivered).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('Delivered is open when it is the only group', async () => {
+    mockListRows.mockResolvedValue(makePurchaseResponse([LAMP]));
+    renderPage();
+    await loaded();
+
+    expect(screen.getByTestId('purchases-group-toggle-arrived')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('groups by area with No area last, and by company with No company last', async () => {
+    renderPage('/project/household-items?group=area');
+    await loaded();
+    const toggles = screen
+      .getAllByTestId(/^purchases-group-toggle-(?!mobile)/)
+      .map((el) => el.getAttribute('data-testid'));
+    expect(toggles).toEqual([
+      'purchases-group-toggle-area-kitchen',
+      'purchases-group-toggle-__none__',
+    ]);
+    expect(screen.getByTestId('purchases-group-toggle-area-kitchen')).toHaveTextContent(
+      'Ground Floor › Kitchen',
+    );
+  });
+
+  it('groups by company', async () => {
+    renderPage('/project/household-items?group=company');
+    await loaded();
+
+    expect(screen.getByTestId('purchases-group-toggle-v-1')).toHaveTextContent(
+      'Example Carpentry Co',
+    );
+    expect(screen.getByTestId('purchases-group-toggle-__none__')).toHaveTextContent('No company');
+  });
+});
+
+describe('rows', () => {
+  it('shows the title link, area, company, delivery and expected cost', async () => {
+    renderPage();
+    await loaded();
+    const row = screen.getByTestId('purchases-row-hi-sofa');
+
+    expect(within(row).getByTestId('purchases-title-hi-sofa')).toHaveAttribute(
+      'href',
+      '/project/household-items/hi-sofa',
+    );
+    expect(within(row).getByTestId('purchases-area-hi-sofa')).toHaveTextContent(
+      'Ground Floor › Kitchen',
+    );
+    expect(within(row).getByTestId('purchases-company-hi-sofa')).toHaveTextContent(
+      'Example Carpentry Co',
+    );
+    expect(row).toHaveTextContent('€1,200.00');
+    expect(row).toHaveTextContent(/Target.*May 1, 2026/);
+  });
+
+  it('has no duplicate test ids with the menus open', async () => {
+    const { container } = renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('purchases-row-menu-hi-oven'));
+    expect(findDuplicateTestIds(container)).toEqual([]);
+  });
+
+  // D-08 (#2195): the status badge carries the shared Badge class for its status, never a dead
+  // badge-<status> class, and the canonical purchase word.
+  it.each(HOUSEHOLD_ITEM_STATUSES)(
+    'renders the %s status badge with the shared Badge class and canonical word (D-08)',
+    async (status) => {
+      mockListRows.mockResolvedValueOnce(
+        makePurchaseResponse([makePurchaseRow({ id: 'hi-1', name: 'Sample Sofa', status })]),
+      );
+      renderPage();
+      await loaded();
+      const badge = screen.getByTestId('purchases-status-hi-1');
+
+      expect(badge).toHaveTextContent(enCommon.statusVocabulary.purchase[status]);
+      expect(badge.className).toContain(status);
+      expect(badge.className).not.toContain('badge-');
+    },
+  );
+});
+
+describe('totals footer', () => {
+  it('shows Expected cost, Invoiced and Paid from the server totals', async () => {
+    renderPage();
+    await loaded();
+
+    expect(footer()).toHaveAttribute('aria-label', 'Totals');
+    expect(screen.getByTestId('purchases-footer-expected')).toHaveTextContent('€2,000.00');
+    expect(screen.getByTestId('purchases-footer-invoiced')).toHaveTextContent('€450.00');
+    expect(screen.getByTestId('purchases-footer-paid')).toHaveTextContent('€300.00');
+    expect(footer()).toHaveTextContent('Expected cost');
+  });
+
+  it('says "Totals (filtered)" when a search narrows the list', async () => {
+    renderPage('/project/household-items?q=sofa');
+    await loaded();
+
+    expect(footer()).toHaveAttribute('aria-label', 'Totals (filtered)');
+  });
+
+  it('says "Totals (filtered)" when a status chip narrows the list', async () => {
+    renderPage('/project/household-items?status=arrived');
+    await loaded();
+
+    expect(footer()).toHaveAttribute('aria-label', 'Totals (filtered)');
+  });
+
+  it('says "Totals (filtered)" when a filter is active', async () => {
+    renderPage('/project/household-items?category=hic-furniture');
+    await loaded();
+
+    expect(footer()).toHaveAttribute('aria-label', 'Totals (filtered)');
+  });
+
+  it('has no figure markers on the footer numbers', async () => {
+    renderPage();
+    await loaded();
+
+    expect(footer()!.querySelector('[data-figure]')).toBeNull();
+  });
+});
+
+describe('delete', () => {
+  async function openDelete(id = 'hi-oven') {
+    await userEvent.click(screen.getByTestId(`purchases-row-menu-${id}`));
+    await userEvent.click(await screen.findByTestId(`purchases-delete-${id}`));
+    return screen.findByRole('alertdialog');
   }
 
-  it('the primary button opens the New purchase dialog over the list', async () => {
-    const log = renderAt();
-    fireEvent.click(await screen.findByTestId('new-household-item-button'));
-    expectDialogPush(log);
-  });
-
-  it('the empty-state action opens the New purchase dialog over the list', async () => {
-    const log = renderAt();
-    fireEvent.click(await screen.findByRole('button', { name: 'Create First Item' }));
-    expectDialogPush(log);
-  });
-
-  it('the n shortcut opens the same New purchase dialog as the primary button (#2211)', async () => {
-    const log = renderAt();
-    await screen.findByTestId('new-household-item-button');
-    fireEvent.keyDown(document, { key: 'n' });
-    expectDialogPush(log);
-  });
-
-  it('n typed into the list search field does not open the dialog (#2211)', async () => {
-    const log = renderAt();
-    await screen.findByTestId('new-household-item-button');
-    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'n' });
-    expect(log.actions).toEqual([]);
-  });
-
-  it('n with a modifier key does not open the dialog (#2211)', async () => {
-    const log = renderAt();
-    await screen.findByTestId('new-household-item-button');
-    fireEvent.keyDown(document, { key: 'n', ctrlKey: true });
-    expect(log.actions).toEqual([]);
-  });
-
-  it('registers its n shortcut with the New purchase description (#2211)', async () => {
-    const log = createRouterLog();
-    render(
-      <ShortcutRegistryProvider>
-        <ToastProvider>
-          <RecordingRouter entries={['/project/household-items']} log={log}>
-            <HouseholdItemsPage />
-            <ShortcutSnapshot />
-          </RecordingRouter>
-        </ToastProvider>
-      </ShortcutRegistryProvider>,
+  it('confirms, deletes, refreshes the list and the footer, and puts focus on the heading', async () => {
+    mockDelete.mockResolvedValue(undefined as never);
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+    expect(dialog).toHaveTextContent('Built-in oven');
+    mockListRows.mockResolvedValue(
+      makePurchaseResponse([SOFA, LAMP], { totals: { expectedCost: 1200, invoiced: 0, paid: 0 } }),
     );
-    await screen.findByTestId('new-household-item-button');
-    fireEvent.click(screen.getByTestId('shortcut-snapshot'));
-    expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain('n:New purchase');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => expect(screen.queryByTestId('purchases-row-hi-oven')).toBeNull());
+    expect(mockDelete).toHaveBeenCalledWith('hi-oven');
+    expect(screen.getByTestId('purchases-footer-expected')).toHaveTextContent('€1,200.00');
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('keeps the dialog in its blocked state on a 409', async () => {
+    mockDelete.mockRejectedValue(new ApiClientError(409, { code: 'CONFLICT', message: 'x' }));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByTestId('purchases-row-hi-oven')).toBeInTheDocument();
+  });
+
+  it('shows a network error in the dialog and keeps it open', async () => {
+    mockDelete.mockRejectedValue(new NetworkError('offline', null));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "Can't reach the server. Check your connection and try again.",
+    );
+  });
+
+  it('cancel closes the dialog without deleting and puts focus on the heading', async () => {
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(mockDelete).not.toHaveBeenCalled();
+    await waitFor(() => expect(heading()).toHaveFocus());
+  });
+
+  it('cancel is ignored while the delete is running', async () => {
+    let finish: () => void = () => undefined;
+    mockDelete.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    renderPage();
+    await loaded();
+    const dialog = await openDelete();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /^delete$|deleting/i }));
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    await act(async () => finish());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+});
+
+describe('shortcut and create', () => {
+  it('the New purchase button opens the create dialog route', async () => {
+    renderPage();
+    await loaded();
+    await userEvent.click(screen.getByTestId('new-household-item-button'));
+    expect(location()).toContain('/project/household-items/new');
+  });
+
+  it('the n shortcut does the same', async () => {
+    renderPage();
+    await loaded();
+    await userEvent.keyboard('n');
+    expect(location()).toContain('/project/household-items/new');
+  });
+
+  it('reloads when a purchase is created elsewhere', async () => {
+    renderPage();
+    await loaded();
+    mockListRows.mockClear();
+    act(() => notifyObjectCreated('purchase'));
+    await waitFor(() => expect(mockListRows).toHaveBeenCalled());
+  });
+});
+
+describe('filters', () => {
+  it('opens the Filters panel with Category, Area, Company, the date ranges and the amounts', async () => {
+    renderPage();
+    await loaded();
+    fireEvent.click(screen.getByTestId('purchases-filters-button'));
+
+    expect(await screen.findByTestId('purchases-filter-category')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-targetDelivery-from')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-actualDelivery-from')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-plannedCost-min')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-actualCost-min')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-grants-min')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-afterGrants-min')).toBeInTheDocument();
+    expect(screen.getByTestId('purchases-filter-budgetLines-min')).toBeInTheDocument();
   });
 });

@@ -1,14 +1,18 @@
 /**
  * E2E tests for DataTable UX bug fixes
  *
- * Covers the interactive UX improvements shipped in this PR:
- * - Date filter auto-chaining: selecting a "from" date auto-focuses the "to" input
- * - Date filter confirmed state: "from" input renders with confirmed visual style once set
- * - Target Delivery date filter on the Purchases list, the DataTable host with a date column filter (the Tasks list is an ObjectList since #2245, Invoices since #2238; their date filters live in the Filters panel and are covered by tasks-list.spec.ts / invoices-list.spec.ts)
+ * Since #2246 the Users settings page (admin) is the only page that hosts a DataTable (the lists
+ * are on the object-list template), so these scenarios run there.
+ *
+ * Covers the interactive UX improvements:
  * - Column settings SVG icon: gear emoji removed, replaced with inline SVG bars icon
  * - Toolbar height alignment: search input, clear-filters button, and column settings button
  *   all render at 36px height
  * - Column drag uses "move" semantics (effectAllowed = "move", no copy indicator)
+ *
+ * Removed with #2246 (no page hosts a DataTable date filter any more; the DateRangePicker Jest
+ * tests cover the component): the date filter auto-chaining and Target Delivery apply/clear
+ * scenarios.
  *
  * Desktop viewport only for column settings tests (the button is CSS-hidden on mobile).
  */
@@ -17,10 +21,10 @@
  * Playwright 1.60.0 API availability notes (Issue #1572):
  *
  * ADOPTED in this file:
- * - page.evaluateHandle(() => new DataTransfer()) — used in Scenario 5 (replaces
+ * - page.evaluateHandle(() => new DataTransfer()) — used in Scenario 3 (replaces
  *   page.evaluate + elementHandle(); page.createDataTransfer() does not exist in
  *   Playwright 1.60.0 — the correct cross-browser pattern is evaluateHandle)
- * - test.abort()               — used in Scenarios 5 and 6 (broken-precondition guards)
+ * - test.abort()               — used in Scenarios 3 and 4 (broken-precondition guards)
  *
  * NOT ADOPTED (no callsite in current suite):
  * - toHaveCSS({ pseudo: '::before' })  — no ::before/::after CSS assertions exist
@@ -34,14 +38,14 @@ import { test, expect } from '../fixtures/auth.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import type { Page } from '@playwright/test';
 
-const LIST_URL = routeUrl('householdItems');
+const LIST_URL = routeUrl('settingsUsers');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Navigate to the Purchases page and wait for the DataTable to finish loading.
+ * Navigate to the Users page and wait for the DataTable to finish loading.
  * "Loaded" is defined as the skeleton disappearing and the table header appearing.
  */
 async function gotoListAndWait(page: Page) {
@@ -49,140 +53,12 @@ async function gotoListAndWait(page: Page) {
   // Wait for the table header row — the table is always rendered (even when empty)
   await expect(page.getByRole('table')).toBeVisible();
   // Wait for all network requests to settle so React doesn't re-render the DataTable
-  // (and detach popover DOM nodes) during interaction — matches datatable-date-range-picker.spec.ts
+  // (and detach popover DOM nodes) during interaction
   await page.waitForLoadState('networkidle');
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 1 — Date filter auto-chaining (calendar-based)
-// ---------------------------------------------------------------------------
-test.describe('Date filter auto-chaining', () => {
-  // Desktop only: column settings and filter popovers require the full table layout
-  test.beforeEach(({ page }) => {
-    if ((page.viewportSize()?.width ?? 1280) < 768) test.skip();
-  });
-
-  test('opening the date filter shows "Select start date" phase label', async ({ page }) => {
-    // Given: Purchases page is loaded with the DataTable visible
-    await gotoListAndWait(page);
-
-    // When: I open the filter popover on the "Due Date" column header
-    const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by target delivery/i,
-    });
-    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
-    await dueDateFilterButton.click();
-
-    // Then: The date filter popover appears with the calendar in "Select start date" phase
-    const filterPopover = page.getByRole('dialog', { name: /filter by target delivery/i });
-    await expect(filterPopover).toBeVisible();
-
-    // And: The phase label reads "Select start date"
-    await expect(filterPopover).toContainText('Select start date');
-
-    // And: A calendar grid is rendered (no native date inputs)
-    const grid = filterPopover.locator('[role="grid"]');
-    await expect(grid).toBeVisible();
-  });
-
-  test('selecting a start date auto-advances the phase label to "Select end date"', async ({
-    page,
-  }) => {
-    // Given: The date filter popover is open on the Target Delivery column
-    await gotoListAndWait(page);
-
-    const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by target delivery/i,
-    });
-    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
-    await dueDateFilterButton.click();
-
-    const filterPopover = page.getByRole('dialog', { name: /filter by target delivery/i });
-    await expect(filterPopover).toBeVisible();
-    await expect(filterPopover).toContainText('Select start date');
-
-    // When: I click any day button in the calendar grid
-    const firstDayButton = filterPopover.locator('[role="gridcell"] button').first();
-    await firstDayButton.click();
-
-    // Then: The phase label automatically advances to "Select end date" (auto-chaining)
-    await expect(filterPopover).toContainText('Select end date');
-
-    // And: The clicked day button has aria-pressed="true" (confirmed selected state)
-    await expect(firstDayButton).toHaveAttribute('aria-pressed', 'true');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Scenario 2 — Target Delivery date filter: apply and clear
-// ---------------------------------------------------------------------------
-test.describe('Target Delivery date filter — apply and clear', () => {
-  test.beforeEach(({ page }) => {
-    if ((page.viewportSize()?.width ?? 1280) < 768) test.skip();
-  });
-
-  test('can open, apply, and clear the Target Delivery filter', async ({ page }) => {
-    // Given: Purchases page is loaded
-    await gotoListAndWait(page);
-
-    // Then: The "Due Date" column header has a filter button
-    const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by target delivery/i,
-    });
-    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
-
-    // When: I click it, a date filter popover with a calendar grid appears
-    await dueDateFilterButton.click();
-    const filterPopover = page.getByRole('dialog', { name: /filter by target delivery/i });
-    await expect(filterPopover).toBeVisible();
-
-    // And: The popover shows the calendar in "Select start date" phase
-    await expect(filterPopover).toContainText('Select start date');
-    const grid = filterPopover.locator('[role="grid"]');
-    await expect(grid).toBeVisible();
-
-    // When: I click two day buttons to set a start and end date range.
-    // Wait for the grid to be stable before interacting (mirrors datatable-date-range-picker.spec.ts).
-    await grid.waitFor({ state: 'visible' });
-
-    const startButton = filterPopover.locator('[role="gridcell"] button').nth(4);
-    await startButton.waitFor({ state: 'visible' });
-    await startButton.click();
-
-    // Phase advances to "Select end date" automatically — wait for text to appear in popover.
-    // Use getByText() scoped to the popover (not toContainText on the dialog role element)
-    // to avoid "element not found" when the popover is re-rendered after the first click.
-    await expect(filterPopover.getByText('Select end date')).toBeVisible({ timeout: 10000 });
-
-    // Click the 15th day button as end date — well after start, avoids disabled buttons.
-    // Using nth(14) (15th button) matches the pattern from datatable-date-range-picker.spec.ts
-    // which selects a date far enough from the start to avoid disabled-state issues.
-    const endButton = filterPopover.locator('[role="gridcell"] button').nth(14);
-    await endButton.waitFor({ state: 'visible', timeout: 10000 });
-    await endButton.click();
-
-    // Then: The filter button becomes active (visually highlighted)
-    await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
-
-    // And: A "Clear Filters" button appears in the toolbar.
-    // Use .first() — when no invoices match, DataTable renders "Clear Filters" in BOTH the
-    // toolbar AND the empty state action; .first() always targets the toolbar button.
-    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i }).first();
-    await expect(clearFiltersButton).toBeVisible();
-
-    // When: I click "Clear Filters"
-    await clearFiltersButton.click();
-
-    // Then: The filter button reverts to inactive state
-    await expect(dueDateFilterButton).not.toHaveClass(/tableHeaderFilterButtonActive/);
-
-    // And: The "Clear Filters" toolbar button disappears
-    await expect(clearFiltersButton).not.toBeVisible();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Scenario 3 — Column settings SVG icon: no emoji, yes SVG
+// Scenario 1 — Column settings SVG icon: no emoji, yes SVG
 // ---------------------------------------------------------------------------
 test.describe('Column settings SVG icon', () => {
   test.beforeEach(({ page }) => {
@@ -190,7 +66,7 @@ test.describe('Column settings SVG icon', () => {
   });
 
   test('column settings button contains an SVG element and no gear emoji', async ({ page }) => {
-    // Given: Purchases page is loaded (any DataTable page works)
+    // Given: Users page is loaded (any DataTable page works)
     await gotoListAndWait(page);
 
     // When: I locate the column settings trigger button
@@ -211,7 +87,7 @@ test.describe('Column settings SVG icon', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Scenario 4 — Toolbar height alignment: all toolbar controls are 36px tall
+// Scenario 2 — Toolbar height alignment: all toolbar controls are 36px tall
 // ---------------------------------------------------------------------------
 test.describe('Toolbar height alignment', () => {
   test.beforeEach(({ page }) => {
@@ -222,12 +98,12 @@ test.describe('Toolbar height alignment', () => {
   test('search input, column settings button, and clear-filters button are all 36px tall', async ({
     page,
   }) => {
-    // Given: Purchases page is loaded with an active filter (to show the clear-filters button)
-    await page.goto(`${LIST_URL}?q=test`);
-    await expect(page.getByRole('table')).toBeVisible();
+    // Given: Users page is loaded with an active search (to show the clear-filters button)
+    await gotoListAndWait(page);
+    const searchInput = page.getByRole('searchbox', { name: /search items/i });
+    await searchInput.fill('zzz-no-such-user');
 
     // Then: The search input is 36px tall
-    const searchInput = page.getByRole('searchbox', { name: /search items/i });
     await expect(searchInput).toBeVisible();
     const searchBox = await searchInput.boundingBox();
     expect(searchBox).not.toBeNull();
@@ -252,7 +128,7 @@ test.describe('Toolbar height alignment', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Scenario 5 — Column drag: insertion line visible during drag
+// Scenario 3 — Column drag: insertion line visible during drag
 // ---------------------------------------------------------------------------
 test.describe('Column drag-and-drop insertion line', () => {
   test.beforeEach(({ page }) => {
@@ -262,7 +138,7 @@ test.describe('Column drag-and-drop insertion line', () => {
   test('dragging a column item over another shows an insertion line indicator', async ({
     page,
   }) => {
-    // Given: Purchases page is loaded and column settings popover is open
+    // Given: Users page is loaded and column settings popover is open
     await gotoListAndWait(page);
 
     const columnSettingsButton = page.getByRole('button', { name: /column settings/i });
@@ -333,7 +209,7 @@ test.describe('Column drag-and-drop insertion line', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Scenario 6 — Column drag uses "move" semantics (effectAllowed = "move")
+// Scenario 4 — Column drag uses "move" semantics (effectAllowed = "move")
 // ---------------------------------------------------------------------------
 test.describe('Column drag uses move semantics', () => {
   test.beforeEach(({ page }) => {

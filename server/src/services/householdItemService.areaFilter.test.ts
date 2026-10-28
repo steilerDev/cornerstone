@@ -4,11 +4,11 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { listHouseholdItems } from './householdItemService.js';
+import { listHouseholdItemRows } from './householdItemService.js';
 import type { HouseholdItemListQuery } from '@cornerstone/shared';
 
 /**
- * Integration tests for listHouseholdItems() — area filter behavior introduced by
+ * Integration tests for listHouseholdItemRows() — area filter behavior introduced by
  * story #1277 (No Area sentinel filter).
  *
  * Covers:
@@ -18,7 +18,7 @@ import type { HouseholdItemListQuery } from '@cornerstone/shared';
  *   - Regression: named parentId expands to include descendant-area items
  *   - Regression: CSV of multiple area IDs returns union
  */
-describe('listHouseholdItems() — area filter', () => {
+describe('listHouseholdItemRows() — area filter', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
 
@@ -94,7 +94,7 @@ describe('listHouseholdItems() — area filter', () => {
     const assigned = insertHouseholdItem('Sofa', areaId);
     const unassigned = insertHouseholdItem('No-area lamp');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: '__none__' }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: '__none__' }), { vatRate: 0.19 });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(unassigned);
@@ -108,7 +108,7 @@ describe('listHouseholdItems() — area filter', () => {
     const u2 = insertHouseholdItem('Box 2');
     const u3 = insertHouseholdItem('Box 3');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: '__none__' }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: '__none__' }), { vatRate: 0.19 });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(u1);
@@ -127,7 +127,9 @@ describe('listHouseholdItems() — area filter', () => {
     const inArea2 = insertHouseholdItem('Office chair', area2Id);
     const unassigned = insertHouseholdItem('Storage box');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: `__none__,${area1Id}` }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: `__none__,${area1Id}` }), {
+      vatRate: 0.19,
+    });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(inArea1);
@@ -140,7 +142,9 @@ describe('listHouseholdItems() — area filter', () => {
     const inArea = insertHouseholdItem('Mirror', areaId);
     const unassigned = insertHouseholdItem('Floating item');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: `${areaId},__none__` }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: `${areaId},__none__` }), {
+      vatRate: 0.19,
+    });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(inArea);
@@ -154,7 +158,7 @@ describe('listHouseholdItems() — area filter', () => {
     insertHouseholdItem('Tool cabinet', areaId);
     insertHouseholdItem('Bike rack', areaId);
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: '__none__' }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: '__none__' }), { vatRate: 0.19 });
 
     expect(result.items).toHaveLength(0);
     expect(result.pagination.totalItems).toBe(0);
@@ -170,7 +174,7 @@ describe('listHouseholdItems() — area filter', () => {
     const childItem = insertHouseholdItem('King bed', childId);
     const unrelated = insertHouseholdItem('Unrelated item');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: parentId }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: parentId }), { vatRate: 0.19 });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(parentItem);
@@ -188,7 +192,9 @@ describe('listHouseholdItems() — area filter', () => {
     const cItem = insertHouseholdItem('Sectional sofa', childId);
     const unrelated = insertHouseholdItem('No area item');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: grandparentId }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: grandparentId }), {
+      vatRate: 0.19,
+    });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(gpItem);
@@ -209,7 +215,9 @@ describe('listHouseholdItems() — area filter', () => {
     const itemC = insertHouseholdItem('Washing machine', areaC);
     const unassigned = insertHouseholdItem('No area item');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: `${areaA},${areaB}` }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: `${areaA},${areaB}` }), {
+      vatRate: 0.19,
+    });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(itemA);
@@ -227,11 +235,9 @@ describe('listHouseholdItems() — area filter', () => {
     const childItem = insertHouseholdItem('Room A1 item', childId);
     const otherItem = insertHouseholdItem('Zone B item', otherAreaId);
 
-    const result = listHouseholdItems(
-      db,
-      buildQuery({ areaId: `${parentId},${otherAreaId}` }),
-      0.19,
-    );
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: `${parentId},${otherAreaId}` }), {
+      vatRate: 0.19,
+    });
     const ids = result.items.map((i) => i.id);
 
     // parentId expands to include childId
@@ -250,7 +256,7 @@ describe('listHouseholdItems() — area filter', () => {
     const itemB = insertHouseholdItem('Outdoor heater', areaB);
     const unassigned = insertHouseholdItem('No area');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: areaA }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: areaA }), { vatRate: 0.19 });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(itemA);
@@ -266,7 +272,7 @@ describe('listHouseholdItems() — area filter', () => {
     const inArea = insertHouseholdItem('Desk lamp', areaId);
     const noArea = insertHouseholdItem('Spare item');
 
-    const result = listHouseholdItems(db, buildQuery({}), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({}), { vatRate: 0.19 });
     const ids = result.items.map((i) => i.id);
 
     expect(ids).toContain(inArea);
@@ -281,7 +287,7 @@ describe('listHouseholdItems() — area filter', () => {
     insertHouseholdItem('Floating 1');
     insertHouseholdItem('Floating 2');
 
-    const result = listHouseholdItems(db, buildQuery({ areaId: '__none__' }), 0.19);
+    const result = listHouseholdItemRows(db, buildQuery({ areaId: '__none__' }), { vatRate: 0.19 });
 
     expect(result.pagination.totalItems).toBe(2);
   });

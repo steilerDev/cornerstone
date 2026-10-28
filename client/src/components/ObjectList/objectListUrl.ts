@@ -86,7 +86,8 @@ export function normaliseListParams<T>(
     if (
       value !== null &&
       value !== ALL_CHIP &&
-      !config.chips.options.some((o) => o.value === value)
+      !config.chips.options.some((o) => o.value === value) &&
+      !(config.chips.overflow?.options.some((o) => o.value === value) ?? false)
     ) {
       drop(name);
     }

@@ -214,6 +214,25 @@ describe('Vendor Routes', () => {
       expect(body.pagination).toBeDefined();
     });
 
+    it('returns scopeTotal for the trade chip, ignoring the search', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const trade = createTestTrade('Plumbing');
+      createTestVendor('Acme Plumbing', { tradeId: trade.id });
+      createTestVendor('Best Pipes', { tradeId: trade.id });
+      createTestVendor('Cool Wires');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/vendors?tradeId=${trade.id}&q=Acme`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ vendors: Vendor[]; scopeTotal: number }>();
+      expect(body.vendors).toHaveLength(1);
+      expect(body.scopeTotal).toBe(2);
+    });
+
     it('returns 200 with vendor list', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       createTestVendor('Acme Plumbing');

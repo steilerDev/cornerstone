@@ -117,6 +117,28 @@ describe('milestonesApi', () => {
       expect(result).toEqual([]);
     });
 
+    it('listMilestoneRows requests the same endpoint and returns the rows with projectedDate and holdsUp', async () => {
+      const { listMilestoneRows } = await import('./milestonesApi.js');
+      const row = {
+        ...MILESTONE_SUMMARY,
+        projectedDate: '2024-07-04',
+        holdsUp: { count: 2, startingWithin14Days: 1 },
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ milestones: [row] }),
+      } as Response);
+
+      const result = await listMilestoneRows();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/milestones',
+        expect.objectContaining({ method: 'GET' }),
+      );
+      expect(result).toEqual([row]);
+    });
+
     it('throws ApiClientError on server error', async () => {
       const { listMilestones } = await import('./milestonesApi.js');
       const { ApiClientError } = await import('./apiClient.js');

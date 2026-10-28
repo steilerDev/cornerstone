@@ -1,20 +1,17 @@
 /**
  * E2E tests for the "No Area" sentinel filter on the Household Items list page (Issue #1277)
  *
- * The area filter popover now has a "No Area" sentinel checkbox (`id="enum-__none__"`)
- * pinned above the scrollable option list. Selecting it filters for items where
- * areaId IS NULL (`?areaId=__none__`). The sentinel is combinable with named areas via
- * CSV: `?areaId=__none__,<parentId>` returns the union.
+ * Selecting the "No area" special option filters for items where areaId IS NULL
+ * (`?areaId=__none__`).
  *
- * NOTE: The Household Items Area column has defaultVisible: true — the "Filter by Area"
- * button is always present in the table header on desktop/tablet. Interactive scenarios
- * (1) can open the popover directly without enabling the column first.
+ * NOTE (#2246): the sentinel is the "No area" special option of the Area EntityPicker in the
+ * Filters panel (the DataTable column filter is gone).
  * URL-based scenarios (2, 3, 4) bypass the UI entirely and navigate directly.
  *
  * Scenarios covered:
- * 1.  Sentinel renders at top of popover (desktop/tablet; mobile skip)
+ * 1.  "No area" special option is offered by the Area picker
  * 2.  ?areaId=__none__ shows only unassigned items
- * 3.  ?areaId=__none__,<areaId> shows union of unassigned + named area items
+ * 3.  A legacy comma-separated ?areaId=__none__,<areaId> is absorbed (first id shown)
  * 4.  Empty state when none of this test's own items are unassigned and
  *     ?areaId=__none__ applied — see the note on Scenario 4 below for why the
  *     assertion is scoped with `&q=` instead of assuming a suite-global state.
@@ -33,34 +30,19 @@ import {
 // Scenario 1: Sentinel renders at top of area filter popover
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  'No Area sentinel renders at top of area filter popover (Scenario 1)',
+  '"No area" option is offered by the Area filter picker (Scenario 1)',
   { tag: '@responsive' },
   () => {
-    test('Area filter popover contains #enum-__none__ sentinel checkbox', async ({ page }) => {
+    test('Area filter picker offers a "No area" option', async ({ page }) => {
       const listPage = new HouseholdItemsPage(page);
 
-      const viewport = page.viewportSize();
-      // On mobile the table header (and filter button) is CSS-hidden — skip interactive check
-      if (viewport && viewport.width < 768) {
-        await listPage.goto();
-        await expect(listPage.heading).toBeVisible();
-        return;
-      }
-
       await listPage.goto();
+      await listPage.waitForLoaded();
+      await listPage.openFilters();
+      await listPage.areaFilter.input.click();
 
-      // Area column has defaultVisible: true on Household Items — filter button is present
-      await listPage.openAreaFilter();
-
-      // Sentinel checkbox must be visible inside the popover
-      await expect(listPage.noneAreaSentinelCheckbox).toBeVisible();
-
-      // Verify sentinel renders above the scrollable group — check its label text
-      const sentinelLabel = listPage.noneAreaSentinelCheckbox
-        .locator('..')
-        .locator('[class*="filterCheckboxLabelNone"], [class*="filterCheckboxLabel"]');
-      const labelText = await sentinelLabel.first().textContent();
-      expect(labelText?.trim()).toBe('No Area');
+      // The special option is listed in the open picker
+      await expect(listPage.areaFilter.optionNamed('No area')).toBeVisible();
     });
   },
 );
@@ -93,7 +75,9 @@ test.describe(
         itemIds.push(await createHouseholdItemViaApi(page, { name: itemInAreaName, areaId }));
         itemIds.push(await createHouseholdItemViaApi(page, { name: itemNoAreaName }));
 
-        await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=__none__`);
+        await page.goto(
+          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=__none__&q=${encodeURIComponent(`${testPrefix} HI NoArea Sc2`)}`,
+        );
         await listPage.heading.waitFor({ state: 'visible' });
         await listPage.waitForLoaded();
 
@@ -157,21 +141,23 @@ test.describe(
         );
 
         const csvFilter = `__none__,${areaAlphaId}`;
-        await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(csvFilter)}`);
+        await page.goto(
+          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(csvFilter)}&q=${encodeURIComponent(`${testPrefix} HI NoArea Sc3`)}`,
+        );
         await listPage.heading.waitFor({ state: 'visible' });
         await listPage.waitForLoaded();
 
-        // URL must contain the CSV filter value
-        const url = new URL(page.url());
-        expect(url.searchParams.get('areaId')).toBe(csvFilter);
-
-        // Alpha and unassigned items visible; Beta item excluded
+        // A legacy comma-separated areaId (#2246 D25) is absorbed: the list renders without an
+        // error, the picker shows its first id ("No area"), and the item of the other area is
+        // excluded. (Whether the unassigned item alone or the old union is listed is not pinned.)
         await expect(async () => {
           const names = await listPage.getItemNames();
-          expect(names).toContain(itemAlphaName);
           expect(names).toContain(itemUnassignedName);
           expect(names).not.toContain(itemBetaName);
         }).toPass({ timeout: 30_000 });
+        await expect(listPage.olist.retryButton).toHaveCount(0);
+        await listPage.openFilters();
+        await expect(listPage.filtersSelected).toContainText('No area');
       } finally {
         for (const id of itemIds) {
           await deleteHouseholdItemViaApi(page, id);
@@ -271,12 +257,11 @@ test.describe(
         }).toPass({ timeout: 30_000 });
 
         // Empty state message must indicate filtered no-results
-        const emptyText = await listPage.emptyState.textContent();
-        expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
+        await expect(listPage.emptyState).toContainText('No purchases match.');
 
-        // "Clear Filters" button must be visible (DataTable renders it in the empty state action)
+        // "Clear filters" must be offered in the empty state
         const clearButton = listPage.emptyState.getByRole('button', {
-          name: /Clear Filters/i,
+          name: /Clear filters/i,
         });
         await expect(clearButton).toBeVisible();
       } finally {
