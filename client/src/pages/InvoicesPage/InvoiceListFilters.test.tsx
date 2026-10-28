@@ -251,123 +251,26 @@ describe('Company filter', () => {
   });
 });
 
-describe('date range filters', () => {
+describe('range filters wiring (behaviour lives in ObjectListRangeFilters.test.tsx)', () => {
   it.each([
     ['date', 'invoices-filter-date'],
     ['dueDate', 'invoices-filter-dueDate'],
-  ])('%s: each side writes from:…,to:… and an empty range clears', (param, testId) => {
+  ])('%s: the date inputs write from:…,to:… to the param', (param, testId) => {
     const { writes } = renderPanel();
     fireEvent.change(screen.getByTestId(`${testId}-from`), { target: { value: '2026-01-01' } });
     expect(writes.at(-1)).toEqual([param, 'from:2026-01-01']);
-    fireEvent.change(screen.getByTestId(`${testId}-to`), { target: { value: '2026-02-01' } });
-    expect(writes.at(-1)).toEqual([param, 'from:2026-01-01,to:2026-02-01']);
-    fireEvent.change(screen.getByTestId(`${testId}-from`), { target: { value: '' } });
-    expect(writes.at(-1)).toEqual([param, 'to:2026-02-01']);
-    fireEvent.change(screen.getByTestId(`${testId}-to`), { target: { value: '' } });
-    expect(writes.at(-1)).toEqual([param, null]);
   });
 
-  it('keeps the typed value while the URL lags and syncs from the URL when it changes', async () => {
-    const { writes } = renderPanel({}, { applyWrites: false });
-    const from = screen.getByTestId('invoices-filter-date-from') as HTMLInputElement;
-    fireEvent.change(from, { target: { value: '2026-03-03' } });
-    expect(writes).toEqual([['date', 'from:2026-03-03']]);
-    expect(from.value).toBe('2026-03-03');
-
-    fireEvent.click(screen.getByTestId('set-external'));
-    await waitFor(() => expect(from.value).toBe('2026-02-01'));
-  });
-
-  it('shows both sides from the URL value', () => {
-    renderPanel({}, { initial: { dueDate: 'from:2026-04-01,to:2026-05-01' } });
-    expect((screen.getByTestId('invoices-filter-dueDate-from') as HTMLInputElement).value).toBe(
-      '2026-04-01',
-    );
+  it('shows the Invoices labels and writes the amount range on blur', () => {
+    const { writes } = renderPanel({}, { initial: { dueDate: 'from:2026-04-01,to:2026-05-01' } });
     expect((screen.getByTestId('invoices-filter-dueDate-to') as HTMLInputElement).value).toBe(
       '2026-05-01',
     );
-  });
-});
-
-describe('amount range filter', () => {
-  const min = () => screen.getByTestId('invoices-filter-amount-min') as HTMLInputElement;
-  const max = () => screen.getByTestId('invoices-filter-amount-max') as HTMLInputElement;
-
-  it('commits on blur', () => {
-    const { writes } = renderPanel();
-    fireEvent.change(min(), { target: { value: '10' } });
-    expect(writes).toEqual([]);
-    fireEvent.blur(min());
+    const min = screen.getByTestId('invoices-filter-amount-min') as HTMLInputElement;
+    fireEvent.change(min, { target: { value: '10' } });
+    fireEvent.blur(min);
     expect(writes).toEqual([['amount', 'min:10']]);
-    fireEvent.change(max(), { target: { value: '250.5' } });
-    fireEvent.blur(max());
-    expect(writes.at(-1)).toEqual(['amount', 'min:10,max:250.5']);
-  });
-
-  it('commits on Enter and ignores other keys', () => {
-    const { writes } = renderPanel();
-    fireEvent.change(max(), { target: { value: '99' } });
-    fireEvent.keyDown(max(), { key: 'a' });
-    expect(writes).toEqual([]);
-    fireEvent.keyDown(max(), { key: 'Enter' });
-    expect(writes).toEqual([['amount', 'max:99']]);
-  });
-
-  it('does not write again when nothing changed', () => {
-    const { writes } = renderPanel({}, { initial: { amount: 'min:10' } });
-    expect(min().value).toBe('10');
-    fireEvent.blur(min());
-    expect(writes).toEqual([]);
-  });
-
-  it('clears the param when both fields are emptied', () => {
-    const { writes } = renderPanel({}, { initial: { amount: 'min:10,max:20' } });
-    fireEvent.change(min(), { target: { value: '' } });
-    fireEvent.change(max(), { target: { value: '' } });
-    fireEvent.blur(max());
-    expect(writes).toEqual([['amount', null]]);
-  });
-
-  it('drops negative and non-numeric drafts instead of writing them', () => {
-    const { writes } = renderPanel();
-    fireEvent.change(min(), { target: { value: '-5' } });
-    fireEvent.blur(min());
-    expect(writes).toEqual([]);
-    fireEvent.change(max(), { target: { value: '0' } });
-    fireEvent.blur(max());
-    expect(writes).toEqual([['amount', 'max:0']]);
-  });
-
-  it('syncs the drafts from the URL when it changes', async () => {
-    function Wrap() {
-      const [value, setValue] = useState('min:1');
-      const defs = useInvoiceListFilters({ refundsDue: null, paperlessConfigured: null });
-      const amount = defs.find((d) => d.param === 'amount')!;
-      return (
-        <>
-          <button type="button" onClick={() => setValue('min:7,max:9')}>
-            change
-          </button>
-          {amount.render({ value, onChange: () => undefined, id: 'a' })}
-        </>
-      );
-    }
-    render(<Wrap />);
-    expect(min().value).toBe('1');
-    fireEvent.click(screen.getByText('change'));
-    await waitFor(() => expect(min().value).toBe('7'));
-    expect(max().value).toBe('9');
-  });
-
-  it('blurs a number field on wheel so scrolling never changes it', () => {
-    renderPanel();
-    min().focus();
-    expect(min()).toHaveFocus();
-    fireEvent.wheel(min());
-    expect(min()).not.toHaveFocus();
-    max().focus();
-    fireEvent.wheel(max());
-    expect(max()).not.toHaveFocus();
+    expect(screen.getAllByText('Minimum').length).toBeGreaterThan(0);
   });
 });
 

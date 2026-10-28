@@ -23,6 +23,7 @@ import {
   heldUpCauseOf,
   isFoldedLateStart,
   summarizeHoldsUp,
+  waitsForOf,
 } from './holdsUp.js';
 
 const TODAY = '2026-03-10';
@@ -479,5 +480,96 @@ describe('heldUpCauseOf (#2230: the Home "Waits for" line shares the N2 folding 
         heldUpCauseOf(index, 't', projection) !== null,
       );
     }
+  });
+});
+
+describe('waitsForOf (#2245: the Tasks list "Waits for" figure)', () => {
+  const waits = (
+    items: SchedulingWorkItem[],
+    deps: SchedulingDependency[],
+    map: Record<string, Partial<WorkItemScheduleFields>> = {},
+    id = 't',
+  ) =>
+    waitsForOf(
+      buildScheduleIndex({ workItems: items, dependencies: deps }),
+      id,
+      ctxOf(map).projection,
+    );
+
+  it('is null when the task waits for nothing', () => {
+    expect(waits([wi('t')], [])).toBeNull();
+  });
+
+  it('is null when every predecessor is completed or not in the graph', () => {
+    expect(waits([wi('p', { status: 'completed' }), wi('t')], [dep('p', 't')])).toBeNull();
+    expect(waits([wi('t')], [dep('ghost', 't')])).toBeNull();
+  });
+
+  it('names a single unfinished predecessor with count 1', () => {
+    expect(waits([wi('p'), wi('t')], [dep('p', 't')])).toEqual({ firstId: 'p', count: 1 });
+  });
+
+  it('prefers the held-up cause over a later-ending, on-time predecessor', () => {
+    const result = waits([wi('a'), wi('b'), wi('t')], [dep('a', 't'), dep('b', 't')], {
+      a: { isLate: true, projectedEndDate: '2026-03-12' },
+      b: { projectedEndDate: '2026-04-30' },
+    });
+    expect(result).toEqual({ firstId: 'a', count: 2 });
+  });
+
+  it('without a held-up cause falls back to the latest-ending predecessor', () => {
+    const result = waits([wi('a'), wi('b'), wi('t')], [dep('a', 't'), dep('b', 't')], {
+      a: { projectedEndDate: '2026-03-12' },
+      b: { projectedEndDate: '2026-03-15' },
+    });
+    expect(result).toEqual({ firstId: 'b', count: 2 });
+  });
+
+  it('puts a predecessor without an end date last, and ties by lowest id', () => {
+    const items = [wi('a'), wi('b'), wi('t')];
+    const deps = [dep('a', 't'), dep('b', 't')];
+    expect(waits(items, deps, { a: {}, b: { projectedEndDate: '2026-03-01' } })).toEqual({
+      firstId: 'b',
+      count: 2,
+    });
+    expect(waits(items, deps, { b: {}, a: {} })).toEqual({ firstId: 'a', count: 2 });
+    expect(
+      waits(items, deps, {
+        a: { projectedEndDate: '2026-03-05' },
+        b: { projectedEndDate: '2026-03-05' },
+      }),
+    ).toEqual({ firstId: 'a', count: 2 });
+  });
+
+  it('expands an unreached milestone gate into its contributors', () => {
+    const result = waits(
+      [wi('c1'), wi('c2'), ms(1), wi('t')],
+      [dep('c1', 'milestone:1'), dep('c2', 'milestone:1'), dep('milestone:1', 't')],
+      { c2: { projectedEndDate: '2026-03-20' } },
+    );
+    expect(result).toEqual({ firstId: 'c2', count: 2 });
+  });
+
+  it('counts a predecessor once when it is both direct and a gate contributor', () => {
+    const result = waits(
+      [wi('c'), ms(1), wi('t')],
+      [dep('c', 't'), dep('c', 'milestone:1'), dep('milestone:1', 't')],
+    );
+    expect(result).toEqual({ firstId: 'c', count: 1 });
+  });
+
+  it('a reached milestone gate contributes nothing', () => {
+    expect(
+      waits([wi('c'), ms(1, true), wi('t')], [dep('c', 'milestone:1'), dep('milestone:1', 't')]),
+    ).toBeNull();
+  });
+
+  it('skips a milestone node that feeds a milestone (never a real predecessor)', () => {
+    expect(
+      waits(
+        [wi('c'), ms(1), ms(2), wi('t')],
+        [dep('c', 'milestone:1'), dep('milestone:1', 'milestone:2'), dep('milestone:2', 't')],
+      ),
+    ).toBeNull();
   });
 });

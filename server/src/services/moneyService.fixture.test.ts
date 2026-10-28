@@ -39,6 +39,7 @@ import type {
   MoneyCostFigures,
   MoneyRange,
   MoneySummary,
+  WorkItemListRowsResponse,
 } from '@cornerstone/shared';
 import { buildApp } from '../app.js';
 import { NotFoundError } from '../errors/AppError.js';
@@ -902,6 +903,23 @@ function describeConsistency(getCtx: () => Ctx): void {
       expect(() => getSourceMoney(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
       expect(() => getGrantMoney(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
       expect(() => getGrantCoveredItems(ctx.app.db, VAT, 'nope')).toThrow(NotFoundError);
+    });
+
+    it('17. (#2245) every task list row expectedCost equals the breakdown figure, null without lines', async () => {
+      const ctx = getCtx();
+      const money = getBreakdownMoney(computeProjectMoney(ctx.app.db, VAT));
+      const list = await getJson<WorkItemListRowsResponse>(ctx, '/api/work-items?pageSize=100');
+      expect(list.items.length).toBeGreaterThan(0);
+      let priced = 0;
+      for (const row of list.items) {
+        if (row.budgetLineCount === 0) {
+          expect(row.expectedCost).toBeNull();
+        } else {
+          priced += 1;
+          expect(row.expectedCost).toBe(money.workItems[row.id]!.expectedCost.expected);
+        }
+      }
+      expect(priced).toBeGreaterThan(0);
     });
 
     it('16. (#2242) GET /api/budget-sources/:id money equals the financing row; the unknown id is 404', async () => {

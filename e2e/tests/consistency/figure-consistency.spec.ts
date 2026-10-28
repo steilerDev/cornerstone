@@ -43,6 +43,7 @@ import {
   PROJECT_SURFACES,
   readFinancingReadyCount,
   SCHEDULE_TOOLTIP_SURFACE,
+  TASKS_LIST_HOLDS_UP_SURFACE,
 } from '../../fixtures/figureSurfaces.js';
 import type { ProjectFigure } from '../../fixtures/figureSurfaces.js';
 import { ROUTE_MAP, routeUrl } from '../../../shared/src/routes/index.js';
@@ -451,6 +452,13 @@ test.describe('Figure consistency', () => {
         groupKey: own ? undefined : group?.key,
       });
       expect(home).toEqual([2]);
+
+      // Tasks list: the same number in the Relations column (table surface only; [] on cards)
+      const tasksList = await TASKS_LIST_HOLDS_UP_SURFACE.readAll(page, {
+        workItemId: a,
+        title: `${testPrefix} Holds-up A`,
+      });
+      if (tasksList.length > 0) expect(tasksList).toEqual([2]);
 
       // Schedule: the same number in the tooltip, while the list shows the one direct successor
       const tooltip = await SCHEDULE_TOOLTIP_SURFACE.readAll(page, { workItemId: a });

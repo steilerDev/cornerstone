@@ -37,7 +37,7 @@
       "VendorDetailPage": { "destinations": 0, "primaryButtons": 3, "searchFields": 0 },
       "VendorsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
       "WorkItemDetailPage": { "destinations": 3, "primaryButtons": 10, "searchFields": 1 },
-      "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
+      "WorkItemsPage": { "destinations": 0, "primaryButtons": 2, "searchFields": 1 }
     },
     "sharedComponents": {
       "count": 102,

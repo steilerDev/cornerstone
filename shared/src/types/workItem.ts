@@ -11,6 +11,7 @@ import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
 import type { FilterMeta } from './filterMeta.js';
 import type { ItemGrantChip } from './subsidyProgram.js';
+import type { AttentionHoldsUp } from './attention.js';
 
 /**
  * Work item status enum.
@@ -186,6 +187,14 @@ export interface UpdateWorkItemRequest {
   areaId?: string | null;
 }
 
+/** Time windows of the Tasks list, in display order. */
+export const TASK_TIME_WINDOWS = ['late', 'this_week', 'next_two_weeks', 'later', 'done'] as const;
+export type TaskTimeWindow = (typeof TASK_TIME_WINDOWS)[number];
+
+/** Server-side groupings of GET /api/work-items. */
+export const WORK_ITEM_LIST_GROUPS = ['time'] as const;
+export type WorkItemListGroup = (typeof WORK_ITEM_LIST_GROUPS)[number];
+
 /**
  * Query parameters for GET /api/work-items (list with filtering, sorting, pagination).
  */
@@ -214,7 +223,14 @@ export interface WorkItemListQuery {
   endDateFrom?: string;
   /** YYYY-MM-DD, inclusive, applied to the shown end date (actual ?? forecast). */
   endDateTo?: string;
-  sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
+  /** Tasks that count toward this milestone (milestone_work_items); unknown id gives no rows. */
+  milestoneId?: number;
+  /** Comma-separated work item ids; narrows rows and pagination only (max 100 usable ids). */
+  ids?: string;
+  /** `time`: rows ordered by time window, with `groupCounts` in the response. */
+  group?: WorkItemListGroup;
+  sortBy?:
+    'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at' | 'expected_cost';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -225,6 +241,32 @@ export interface WorkItemListResponse {
   items: WorkItemSummary[];
   pagination: PaginationMeta;
   filterMeta?: FilterMeta;
+}
+
+/** The unfinished predecessor a task waits for, plus how many more it waits for. */
+export interface WorkItemWaitsFor {
+  id: string;
+  title: string;
+  more: number;
+}
+
+/** A row of GET /api/work-items (list only; other responses keep WorkItemSummary). */
+export interface WorkItemListRow extends WorkItemSummary {
+  grants: ItemGrantChip[];
+  /** Expected cost in major units; null when the task has no budget lines. */
+  expectedCost: number | null;
+  timeWindow: TaskTimeWindow;
+  isCritical: boolean;
+  waitsFor: WorkItemWaitsFor | null;
+  holdsUp: AttentionHoldsUp | null;
+}
+
+export interface WorkItemListRowsResponse extends WorkItemListResponse {
+  items: WorkItemListRow[];
+  /** Present only with group=time: every window key, rows matching the query (ignores ids). */
+  groupCounts?: Record<TaskTimeWindow, number>;
+  /** Rows matching only `status` (the chip): the heading's "of m". Ignores ids. */
+  scopeTotal: number;
 }
 
 /**

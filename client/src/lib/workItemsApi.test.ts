@@ -1,6 +1,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   listWorkItems,
+  listWorkItemRows,
   getWorkItem,
   createWorkItem,
   updateWorkItem,
@@ -10,7 +11,12 @@ import {
   unlinkWorkItemSubsidy,
   fetchWorkItemSubsidyPayback,
 } from './workItemsApi.js';
-import type { WorkItemListResponse, WorkItemDetail, SubsidyProgram } from '@cornerstone/shared';
+import type {
+  WorkItemListResponse,
+  WorkItemListRowsResponse,
+  WorkItemDetail,
+  SubsidyProgram,
+} from '@cornerstone/shared';
 
 const UNDO = { token: 'tok-1', expiresAt: '2026-01-01T00:00:30Z' };
 
@@ -24,6 +30,65 @@ describe('workItemsApi', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  describe('listWorkItemRows (#2245)', () => {
+    const ROWS: WorkItemListRowsResponse = {
+      items: [],
+      pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+      scopeTotal: 0,
+    };
+
+    function respond(body: unknown = ROWS) {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
+    }
+    const lastUrl = () => new URL(String(mockFetch.mock.calls[0]![0]), 'http://x');
+
+    it('requests /api/work-items without params and returns the rows response', async () => {
+      respond();
+      await expect(listWorkItemRows()).resolves.toEqual(ROWS);
+      expect(mockFetch).toHaveBeenCalledWith('/api/work-items', expect.any(Object));
+    });
+
+    it('sends group, milestoneId and expected_cost sort', async () => {
+      respond();
+      await listWorkItemRows({
+        group: 'time',
+        milestoneId: 7,
+        sortBy: 'expected_cost',
+        sortOrder: 'desc',
+      });
+      const params = lastUrl().searchParams;
+      expect(params.get('group')).toBe('time');
+      expect(params.get('milestoneId')).toBe('7');
+      expect(params.get('sortBy')).toBe('expected_cost');
+      expect(params.get('sortOrder')).toBe('desc');
+    });
+
+    it('joins ids with commas and omits an empty ids list', async () => {
+      respond();
+      await listWorkItemRows({ ids: ['wi-1', 'wi-2'] });
+      expect(lastUrl().searchParams.get('ids')).toBe('wi-1,wi-2');
+      mockFetch.mockClear();
+      respond();
+      await listWorkItemRows({ ids: [] });
+      expect(mockFetch).toHaveBeenCalledWith('/api/work-items', expect.any(Object));
+    });
+
+    it('forwards the abort signal', async () => {
+      respond();
+      const controller = new AbortController();
+      await listWorkItemRows({}, { signal: controller.signal });
+      expect((mockFetch.mock.calls[0]![1] as RequestInit).signal).toBe(controller.signal);
+    });
+
+    it('listWorkItems accepts the same ids list', async () => {
+      respond();
+      await listWorkItems({ ids: ['a'], milestoneId: 3 });
+      const params = lastUrl().searchParams;
+      expect(params.get('ids')).toBe('a');
+      expect(params.get('milestoneId')).toBe('3');
+    });
   });
 
   describe('listWorkItems', () => {

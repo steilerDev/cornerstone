@@ -27,6 +27,7 @@ import { InvoicesPage } from '../pages/InvoicesPage.js';
 import { TimelinePage } from '../pages/TimelinePage.js';
 import { VendorDetailPage } from '../pages/VendorDetailPage.js';
 import { VendorsPage } from '../pages/VendorsPage.js';
+import { WorkItemsPage } from '../pages/WorkItemsPage.js';
 
 /** Mirrors client/src/types/figureKind.ts (closed list). */
 export type FigureKind = 'left-to-spend' | 'still-to-pay' | 'paid' | 'ready-to-submit' | 'holds-up';
@@ -277,6 +278,24 @@ export const HOME_ATTENTION_SURFACE: SubjectSurface<TaskSubject & { groupKey?: s
   },
 };
 
+/**
+ * The Tasks list's Relations column (#2245, story 5.1): a task's "Holds up n tasks" sentence.
+ * Table surface only (the cards do not carry it), so a caller on a narrow list gets no marker.
+ */
+export const TASKS_LIST_HOLDS_UP_SURFACE: SubjectSurface<TaskSubject & { title: string }> = {
+  id: 'tasks.list',
+  story: '5.1',
+  kind: 'holds-up',
+  async readAll(page, subject) {
+    const list = new WorkItemsPage(page);
+    await list.openSearch(subject.title);
+    if (!(await list.isTableSurface())) return [];
+    const figure = list.holdsUp(subject.workItemId);
+    await figure.waitFor({ state: 'visible' });
+    return (await figure.allInnerTexts()).map((text) => firstInteger(text));
+  },
+};
+
 export const SCHEDULE_TOOLTIP_SURFACE: SubjectSurface<TaskSubject> = {
   id: 'schedule.tooltip',
   story: '3.5',
@@ -374,6 +393,7 @@ export const SUBJECT_SURFACES = [
   COMPANY_PAID_SURFACE,
   COMPANIES_LIST_SURFACE,
   HOME_ATTENTION_SURFACE,
+  TASKS_LIST_HOLDS_UP_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   INVOICE_PAID_SURFACE,
   INVOICE_STILL_TO_PAY_SURFACE,

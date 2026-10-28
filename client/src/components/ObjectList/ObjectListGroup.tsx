@@ -16,6 +16,7 @@ export interface ObjectListGroupProps {
   readonly surface: ObjectListSurface;
   readonly groupKey: string;
   readonly label: string;
+  /** Replaces the visible label (icon + word); the label still names the group checkbox and announcements. */
   readonly badge?: ReactNode;
   /** Rows matching the query. */
   readonly count: number;
@@ -88,8 +89,7 @@ export function ObjectListGroup({
           onClick={onToggle}
           data-testid={dataTableTestId(`${testIdPrefix}-group-toggle`, groupKey, surface)}
         >
-          {badge}
-          <span>{label}</span>
+          {badge ?? <span>{label}</span>}
           <span className={styles.groupCount}>{countText}</span>
           <span aria-hidden="true" className={styles.caret} data-open={open}>
             ▸

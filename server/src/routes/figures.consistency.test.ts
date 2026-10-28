@@ -25,8 +25,12 @@ import { buildApp } from '../app.js';
 import * as schema from '../db/schema.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
-import { resetRescheduleTracker } from '../services/schedulingEngine.js';
-import type { AttentionResponse, TimelineResponse } from '@cornerstone/shared';
+import { computeScheduleProjection, resetRescheduleTracker } from '../services/schedulingEngine.js';
+import type {
+  AttentionResponse,
+  TimelineResponse,
+  WorkItemListRowsResponse,
+} from '@cornerstone/shared';
 
 const NOW = '2026-03-10T09:00:00.000Z';
 const STAMP = '2026-03-01T00:00:00.000Z';
@@ -99,6 +103,11 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
       ['wi-d', 'Task D', 'not_started', '2026-03-21', '2026-03-25'],
       ['wi-e', 'Task E', 'completed', '2026-03-06', '2026-03-08'],
       ['wi-far', 'Task Far', 'not_started', '2026-06-01', '2026-06-05'],
+      // Four late starts on one planned date: Home folds them into one N2 group row (#2245)
+      ['wi-g1', 'Group 1', 'not_started', '2026-03-05', '2026-03-07'],
+      ['wi-g2', 'Group 2', 'not_started', '2026-03-05', '2026-03-07'],
+      ['wi-g3', 'Group 3', 'not_started', '2026-03-05', '2026-03-07'],
+      ['wi-g4', 'Group 4', 'not_started', '2026-03-05', '2026-03-07'],
     ];
     for (const [id, title, status, startDate, endDate] of items) {
       app.db
@@ -196,5 +205,68 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
     expect(Object.keys(timeline.holdsUp!.milestones).sort()).toEqual(
       timeline.milestones.map((m) => String(m.id)).sort(),
     );
+  });
+
+  describe('the Tasks list (#2245)', () => {
+    const listRows = () =>
+      getJson<WorkItemListRowsResponse>('/api/work-items?group=time&pageSize=100');
+
+    it('a list row holdsUp equals the attention row holdsUp for the same task (null when none)', async () => {
+      const attention = await getJson<AttentionResponse>('/api/attention');
+      const list = await listRows();
+      const byId = new Map(list.items.map((row) => [row.id, row]));
+      const compared: string[] = [];
+      for (const row of [...attention.rows, ...attention.tidyUp]) {
+        if (row.subject.type !== 'work_item' || row.holdsUp === null) continue;
+        const listed = byId.get(row.subject.id);
+        expect({ key: row.key, holdsUp: listed?.holdsUp }).toEqual({
+          key: row.key,
+          holdsUp: row.holdsUp,
+        });
+        compared.push(row.key);
+      }
+      expect(compared).toContain('N1:work_item:wi-a');
+      // The finished task and a task that holds nothing up show no holds-up figure
+      expect(byId.get('wi-e')!.holdsUp).toBeNull();
+      expect(byId.get('wi-c')!.holdsUp).toBeNull();
+    });
+
+    it('groupCounts.late equals the number of unfinished tasks the projection calls late', async () => {
+      const list = await listRows();
+      const projection = computeScheduleProjection(app.db);
+      const statuses = new Map(list.items.map((row) => [row.id, row.status]));
+      let late = 0;
+      for (const [id, status] of statuses) {
+        if (status !== 'completed' && projection.workItems.get(id)?.isLate === true) late += 1;
+      }
+      expect(late).toBeGreaterThan(0);
+      expect(list.groupCounts!.late).toBe(late);
+      expect(list.items.filter((row) => row.timeWindow === 'late')).toHaveLength(late);
+    });
+
+    it('every N1 and N2 subject, group members included, is in the late window', async () => {
+      const attention = await getJson<AttentionResponse>('/api/attention');
+      const list = await listRows();
+      const windows = new Map(list.items.map((row) => [row.id, row.timeWindow]));
+      const checked: string[] = [];
+      expect(
+        attention.rows.some(
+          (r) => r.rule === 'N2' && (r.params as { kind?: string }).kind === 'group',
+        ),
+      ).toBe(true);
+      for (const row of [...attention.rows, ...attention.tidyUp]) {
+        if (row.rule !== 'N1' && row.rule !== 'N2') continue;
+        const params = row.params as { kind?: string; items?: Array<{ id: string }> };
+        const taskIds =
+          params.kind === 'group' ? params.items!.map((item) => item.id) : [row.subject.id];
+        for (const id of taskIds) {
+          expect({ id, window: windows.get(id) }).toEqual({ id, window: 'late' });
+          checked.push(id);
+        }
+      }
+      expect(checked).toContain('wi-a');
+      // the group row's members are checked one by one
+      expect(checked).toEqual(expect.arrayContaining(['wi-g1', 'wi-g2', 'wi-g3', 'wi-g4']));
+    });
   });
 });

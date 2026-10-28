@@ -69,12 +69,10 @@ async function exerciseFilter(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Company filter - Tasks (F1)', { tag: '@responsive' }, () => {
-  // Enabling the Vendor column writes `table.workItems.columns` on the user's preferences; on the
-  // shared admin that row is rewritten by every other spec that toggles a Tasks column.
-  test.use({ isolatedUserPerTest: { emailPrefix: 'filter-tasks' } });
-
-  test('F1: filter tasks by company, reopen, clear, Escape', async ({ page, testPrefix }) => {
-    skipOnPhone(page);
+  test('F1: filter tasks by company in Filters > Who, reopen, clear', async ({
+    page,
+    testPrefix,
+  }) => {
     const nameA = `${testPrefix} Filter Task Co A`;
     const nameB = `${testPrefix} Filter Task Co B`;
     const titleA = `${testPrefix} Filter Task A`;
@@ -83,19 +81,30 @@ test.describe('Company filter - Tasks (F1)', { tag: '@responsive' }, () => {
     const idB = await createVendorViaApi(page, { name: nameB });
     const taskA = await createWorkItemViaApi(page, { title: titleA, assignedVendorId: idA });
     const taskB = await createWorkItemViaApi(page, { title: titleB, assignedVendorId: idB });
+    const vendorIdParam = () => new URL(page.url()).searchParams.get('assignedVendorId');
     try {
       const list = new WorkItemsPage(page);
-      await list.goto();
-      await list.waitForLoaded();
-      await list.enableColumn('Vendor');
+      await list.openSearch(`${testPrefix} Filter Task`);
 
-      await list.companyFilter.choose(nameA);
-      await list.companyFilter.expectParam(idA);
+      // Choose: the URL carries the param and the list narrows to that company
+      await list.pickCompanyFilter(nameA);
+      await expect.poll(vendorIdParam).toBe(idA);
       await expect(list.workItemRow(titleA)).toBeVisible();
       await expect(list.workItemRow(titleB)).toHaveCount(0);
 
-      await exerciseFilter(page, list.companyFilter, nameB, idB);
+      // Reopen: the selected name shows
+      await list.closeFilters();
+      await list.openFilters();
+      await expect(list.filtersSelected.first()).toContainText(nameA);
+
+      // Clear: the param is gone, the input is back, and another company can be chosen
+      await list.companyFilter.clearButton.click();
+      await expect.poll(vendorIdParam).toBeNull();
+      await expect(list.companyFilter.input).toBeVisible();
+      await list.companyFilter.pick(nameB);
+      await expect.poll(vendorIdParam).toBe(idB);
       await expect(list.workItemRow(titleB)).toBeVisible();
+      await expect(list.workItemRow(titleA)).toHaveCount(0);
     } finally {
       await deleteWorkItemViaApi(page, taskA);
       await deleteWorkItemViaApi(page, taskB);

@@ -1,88 +1,84 @@
 {
   "list": {
-    "sectionTitle": "Arbeitspakete",
-    "newWorkItem": "Neues Arbeitspaket",
-    "loading": "Arbeitspakete werden geladen...",
-    "search": {
-      "placeholder": "Arbeitspakete suchen...",
-      "ariaLabel": "Arbeitspakete suchen"
+    "search": "Aufgaben durchsuchen",
+    "resultCount_one": "{{count}} Aufgabe",
+    "resultCount_other": "{{count}} Aufgaben",
+    "selectAll": "Alle Aufgaben auswählen",
+    "empty": "Noch keine Aufgaben",
+    "emptyDescription": "Erstelle eine Aufgabe, um Termine, Zuständigkeit und Kosten festzulegen.",
+    "noMatch": "Keine Aufgaben entsprechen deinen Filtern.",
+    "loadFailed": "Aufgaben konnten nicht geladen werden.",
+    "newTask": "Neue Aufgabe",
+    "titleHeader": "Aufgabe",
+    "statusHeader": "Status",
+    "columns": {
+      "dates": "Termine",
+      "who": "Wer",
+      "expectedCost": "Erwartete Kosten",
+      "relations": "Wartet auf / Hält auf"
+    },
+    "groupBy": {
+      "time": "Zeit",
+      "area": "Bereich",
+      "company": "Firma",
+      "status": "Status"
+    },
+    "window": {
+      "late": "Verspätet",
+      "this_week": "Diese Woche",
+      "next_two_weeks": "Nächste 2 Wochen",
+      "later": "Später",
+      "done": "Abgeschlossen"
+    },
+    "group": {
+      "noArea": "Kein Bereich",
+      "noCompany": "Keine Firma"
+    },
+    "sort": {
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "title": "Titel",
+      "status": "Status",
+      "expectedCost": "Erwartete Kosten",
+      "created": "Erstellt"
     },
     "filters": {
-      "status": "Status:",
-      "allStatuses": "Alle Status",
-      "assignedTo": "Zugewiesen an:",
-      "allUsers": "Alle Benutzer",
-      "tag": "Tag:",
-      "allTags": "Alle Tags",
-      "area": "Bereich:",
-      "allAreas": "Alle Bereiche",
-      "assignedVendor": "Auftragnehmer:",
-      "allVendors": "Alle Auftragnehmer",
-      "sortBy": "Sortieren nach:",
-      "sortAscending": "↑ Aufsteigend",
-      "sortDescending": "↓ Absteigend",
-      "toggleSortOrder": "Sortierreihenfolge umschalten"
-    },
-    "sortOptions": {
-      "title": "Titel",
-      "status": "Status",
-      "startDate": "Startdatum",
-      "endDate": "Enddatum",
-      "createdAt": "Erstellt",
-      "updatedAt": "Aktualisiert"
-    },
-    "empty": {
-      "noMatchTitle": "Keine Arbeitspakete entsprechen deinen Filtern",
-      "noMatchText": "Versuche, deine Suche oder Filterkriterien anzupassen.",
-      "clearFilters": "Alle Filter löschen",
-      "noItemsTitle": "Noch keine Arbeitspakete",
-      "noItemsText": "Erstelle dein erstes Arbeitspaket, um Bauaufgaben zu verfolgen.",
-      "createFirst": "Erstes Arbeitspaket erstellen"
-    },
-    "table": {
-      "title": "Titel",
-      "status": "Status",
-      "assignedTo": "Zugewiesen an",
-      "vendor": "Auftragnehmer",
       "area": "Bereich",
+      "who": "Wer",
+      "company": "Firma",
+      "member": "Haushaltsmitglied",
+      "anyone": "Alle",
+      "milestone": "Meilenstein",
+      "anyMilestone": "Beliebiger Meilenstein",
       "startDate": "Startdatum",
       "endDate": "Enddatum",
-      "tags": "Tags",
-      "budgetLines": "Budgetpositionen",
-      "budgetLinesAriaLabel": "{{count}} Budgetpositionen",
-      "actions": "Aktionen"
+      "costLines": "Kostenpositionen",
+      "from": "Von",
+      "to": "Bis",
+      "min": "Min",
+      "max": "Max",
+      "optionsFailed": "Auswahlmöglichkeiten konnten nicht geladen werden."
     },
-    "card": {
-      "status": "Status:",
-      "assigned": "Zugewiesen:",
-      "start": "Start:",
-      "end": "Ende:",
-      "tags": "Tags:",
-      "budgetLines": "Budgetpositionen:"
+    "row": {
+      "waitsFor": "Wartet auf",
+      "more": "+{{count}}",
+      "notSet": "Nicht festgelegt",
+      "open": "Öffnen",
+      "reopen": "Wieder öffnen"
     },
-    "actions": {
-      "actionsMenu": "Aktionsmenü",
-      "edit": "Bearbeiten",
-      "delete": "Löschen"
+    "announce": {
+      "started": "{{title}} gestartet.",
+      "markedDone": "{{title}} als abgeschlossen markiert.",
+      "reopened": "{{title}} wieder geöffnet.",
+      "lateNow": "Jetzt {{count}} verspätet."
     },
-    "pagination": {
-      "showing": "Zeige {{from}} bis {{to}} von {{total}} Elementen",
-      "previous": "← Zurück",
-      "next": "Weiter →",
-      "previousAriaLabel": "Vorherige Seite",
-      "nextAriaLabel": "Nächste Seite"
-    },
-    "errors": {
-      "loadFailed": "Arbeitspakete konnten nicht geladen werden. Bitte erneut versuchen.",
-      "deleteFailed": "Arbeitspaket konnte nicht gelöscht werden. Bitte erneut versuchen."
-    },
-    "shortcuts": {
-      "newWorkItem": "Neues Arbeitspaket",
-      "selectNext": "Nächstes Element auswählen",
-      "selectPrevious": "Vorheriges Element auswählen",
-      "openSelected": "Ausgewähltes Element öffnen",
-      "showShortcuts": "Tastaturkürzel anzeigen",
-      "closeOrCancel": "Dialog schließen oder abbrechen"
+    "bulk": {
+      "setStatus": "Status setzen",
+      "setArea": "Bereich setzen",
+      "setAreaTitle_one": "Bereich für {{count}} Aufgabe festlegen",
+      "setAreaTitle_other": "Bereich für {{count}} Aufgaben festlegen",
+      "updated": "{{count}} von {{total}} aktualisiert.",
+      "partial": "{{count}} von {{total}} aktualisiert. Die übrigen konnten nicht geändert werden."
     }
   },
   "create": {

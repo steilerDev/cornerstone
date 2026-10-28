@@ -742,7 +742,8 @@
     "newPurchase": "Neue Anschaffung",
     "newCompany": "Neue Firma",
     "newInvoice": "Neue Rechnung",
-    "newDiaryEntry": "Neuer Tagebucheintrag"
+    "newDiaryEntry": "Neuer Tagebucheintrag",
+    "newTask": "Neue Aufgabe"
   },
   "statusHints": {
     "submitted": "Bezahlt oder fällig und in einem Mittelabruf an die Bank enthalten"

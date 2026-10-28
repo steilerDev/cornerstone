@@ -2,7 +2,7 @@
  * E2E tests for the Work Items area filter (Issue #1241)
  *
  * The Work Items list page supports filtering by area via the ?areaId=<csv> URL parameter.
- * The DataTable EnumFilter serialises selections as CSV; the server now correctly expands
+ * The Filters panel writes one area id; a legacy CSV value in the URL still filters; the server now correctly expands
  * descendant areas from CSV input (previously a single-ID mismatch caused zero results when
  * a parent area was selected).
  *
@@ -11,6 +11,9 @@
  * 2.  Multi-area CSV filter shows the union of items from both areas
  * 3.  Unknown areaId shows the filter empty state with "Clear Filters" button
  * 4.  No area filter: baseline sanity — unfiltered page shows items with no area
+ *
+ * #2245: the Tasks list is an ObjectList. Area is a Filters-panel picker (one area; the server
+ * still expands descendants and accepts a legacy CSV), rows are found by title.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -76,7 +79,9 @@ test.describe(
 
         // Navigate with the parent area filter in the URL.
         // The server must expand to include the child area's items.
-        await page.goto(`${WORK_ITEMS_ROUTE}?areaId=${encodeURIComponent(parentAreaId)}`);
+        await page.goto(
+          `${WORK_ITEMS_ROUTE}?areaId=${encodeURIComponent(parentAreaId)}&q=${encodeURIComponent(testPrefix)}`,
+        );
         await listPage.heading.waitFor({ state: 'visible' });
         await listPage.waitForLoaded();
 
@@ -92,9 +97,9 @@ test.describe(
           expect(titles).not.toContain(wiOtherName);
         }).toPass({ timeout: 30_000 });
 
-        // The URL-based filter works regardless of column visibility; the Area column
-        // is hidden by default (defaultVisible: false) so we do not assert the in-header
-        // filter button is rendered here.
+        // The Filters panel shows the first area id of the param
+        await listPage.openFilters();
+        await expect(listPage.filtersSelected).toContainText(parentAreaName);
       } finally {
         for (const id of workItemIds) {
           await deleteWorkItemViaApi(page, id);
@@ -149,7 +154,9 @@ test.describe(
 
         // Navigate with a CSV areaId — the server must union both area result sets
         const csvAreaId = `${areaAlphaId},${areaBetaId}`;
-        await page.goto(`${WORK_ITEMS_ROUTE}?areaId=${encodeURIComponent(csvAreaId)}`);
+        await page.goto(
+          `${WORK_ITEMS_ROUTE}?areaId=${encodeURIComponent(csvAreaId)}&q=${encodeURIComponent(testPrefix)}`,
+        );
         await listPage.heading.waitFor({ state: 'visible' });
         await listPage.waitForLoaded();
 
@@ -199,12 +206,10 @@ test.describe(
         await expect(listPage.emptyState).toBeVisible();
       }).toPass({ timeout: 30_000 });
 
-      // The filtered empty state message must match DataTable's filteredMessage key
-      const emptyText = await listPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
+      // The filtered empty state of the list
+      await expect(listPage.emptyState).toContainText('No tasks match.');
 
-      // DataTable renders a "Clear Filters" button inside the empty state when filters are active.
-      // Use .first() — it may also appear in the toolbar simultaneously.
+      // The empty state offers "Clear Filters" while a filter is active
       const clearButton = listPage.emptyState.getByRole('button', {
         name: /Clear Filters/i,
       });
@@ -234,9 +239,8 @@ test.describe(
       try {
         workItemIds.push(await createWorkItemViaApi(page, { title: wiName }));
 
-        // Navigate without any areaId param — all items should be visible
-        await listPage.goto();
-        await listPage.waitForLoaded();
+        // Navigate without any areaId param (searched by name so the batch holds the task)
+        await listPage.openSearch(wiName);
 
         // areaId must not appear in the URL (no filter applied)
         const url = new URL(page.url());

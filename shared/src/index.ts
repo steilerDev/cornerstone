@@ -82,12 +82,17 @@ export type {
   UpdateWorkItemRequest,
   WorkItemListQuery,
   WorkItemListResponse,
+  WorkItemListRow,
+  WorkItemListRowsResponse,
+  WorkItemWaitsFor,
+  TaskTimeWindow,
+  WorkItemListGroup,
   WorkItemDependenciesResponse,
   DependencyResponse,
   MilestoneSummaryForWorkItem,
   WorkItemMilestones,
 } from './types/workItem.js';
-export { WORK_ITEM_STATUSES } from './types/workItem.js';
+export { WORK_ITEM_STATUSES, TASK_TIME_WINDOWS, WORK_ITEM_LIST_GROUPS } from './types/workItem.js';
 
 // Subtasks
 export type {

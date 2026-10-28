@@ -742,7 +742,8 @@
     "newPurchase": "New purchase",
     "newCompany": "New company",
     "newInvoice": "New invoice",
-    "newDiaryEntry": "New diary entry"
+    "newDiaryEntry": "New diary entry",
+    "newTask": "New task"
   },
   "statusHints": {
     "submitted": "Paid or due, and included in a draw-down request to the bank"

@@ -33,6 +33,7 @@ import { ATTENTION_RULES, attentionRowKey } from '@cornerstone/shared';
 import type { OpenPaymentItem } from './depositAggregateUtils.js';
 import type { ScheduleGraph, ScheduleProjection } from '../schedulingEngine.js';
 import { attentionLinkOf } from './attentionLinks.js';
+import { isTaskLate } from './taskTimeWindow.js';
 import { isPurchaseLate, purchaseDeliveryDate } from './purchaseLate.js';
 import {
   addDaysUtc,
@@ -227,7 +228,7 @@ function taskCandidates(input: AttentionInput, index: ScheduleIndex): Candidate[
   for (const [id, wi] of input.workItems) {
     const fields = projection.workItems.get(id);
 
-    if (wi.status === 'in_progress' && fields?.isLate === true) {
+    if (wi.status === 'in_progress' && fields !== undefined && isTaskLate(wi.status, fields)) {
       const { holdsUp, ids } = holdsUpOf(index, id, ctx);
       out.push({
         holdsIds: ids,
@@ -249,7 +250,8 @@ function taskCandidates(input: AttentionInput, index: ScheduleIndex): Candidate[
       });
     } else if (
       wi.status === 'not_started' &&
-      fields?.isLate === true &&
+      fields !== undefined &&
+      isTaskLate(wi.status, fields) &&
       !isFoldedLateStart(index, id, projection)
     ) {
       const { holdsUp, ids } = holdsUpOf(index, id, ctx);

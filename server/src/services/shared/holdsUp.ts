@@ -127,34 +127,35 @@ export function summarizeHoldsUp(
 }
 
 /**
- * The unfinished direct predecessor (real, or a contributor of an unreached milestone gate) that
- * is late or held up; the one with the latest projectedEndDate (null last), ties by id ascending.
- * null when none. N2 folding and the Home "Waits for" line share this definition.
+ * Distinct unfinished real direct predecessors of a task: real ones, plus the contributors of
+ * unreached milestone gates (a reached milestone no longer gates, so it contributes nothing).
  */
-export function heldUpCauseOf(
-  index: ScheduleIndex,
-  workItemId: string,
-  projection: Pick<ScheduleProjection, 'workItems'>,
-): string | null {
-  const direct: string[] = [];
+function directPredecessorIds(index: ScheduleIndex, workItemId: string): string[] {
+  const direct = new Set<string>();
   for (const pred of index.predecessors.get(workItemId) ?? []) {
     if (pred.startsWith(MILESTONE_NODE_PREFIX)) {
-      // A reached milestone no longer gates, so it cannot fold a late task
       if (index.nodes.get(pred)?.status === 'completed') continue;
-      direct.push(...(index.predecessors.get(pred) ?? []));
+      for (const contributor of index.predecessors.get(pred) ?? []) direct.add(contributor);
     } else {
-      direct.push(pred);
+      direct.add(pred);
     }
   }
+  return [...direct].filter((id) => {
+    if (id.startsWith(MILESTONE_NODE_PREFIX)) return false;
+    const node = index.nodes.get(id);
+    return node !== undefined && node.status !== 'completed';
+  });
+}
+
+/** The id with the latest projectedEndDate (null last), ties by id ascending. */
+function latestEndingId(
+  ids: readonly string[],
+  projection: Pick<ScheduleProjection, 'workItems'>,
+): string | null {
   let best: string | null = null;
   let bestEnd: string | null = null;
-  for (const id of direct) {
-    if (id.startsWith(MILESTONE_NODE_PREFIX)) continue;
-    const node = index.nodes.get(id);
-    if (!node || node.status === 'completed') continue;
-    const fields = projection.workItems.get(id);
-    if (!fields || !(fields.isLate || fields.isHeldUp)) continue;
-    const end = fields.projectedEndDate;
+  for (const id of ids) {
+    const end = projection.workItems.get(id)?.projectedEndDate ?? null;
     let better: boolean;
     if (best === null) better = true;
     else if (end !== bestEnd) better = end !== null && (bestEnd === null || end > bestEnd);
@@ -165,6 +166,39 @@ export function heldUpCauseOf(
     }
   }
   return best;
+}
+
+/**
+ * The unfinished direct predecessor (real, or a contributor of an unreached milestone gate) that
+ * is late or held up; the one with the latest projectedEndDate (null last), ties by id ascending.
+ * null when none. N2 folding and the Home "Waits for" line share this definition.
+ */
+export function heldUpCauseOf(
+  index: ScheduleIndex,
+  workItemId: string,
+  projection: Pick<ScheduleProjection, 'workItems'>,
+): string | null {
+  const slipping = directPredecessorIds(index, workItemId).filter((id) => {
+    const fields = projection.workItems.get(id);
+    return fields !== undefined && (fields.isLate || fields.isHeldUp);
+  });
+  return latestEndingId(slipping, projection);
+}
+
+/**
+ * What a task waits for (Tasks list "Waits for"): the number of unfinished direct predecessors
+ * and the one shown first, which is `heldUpCauseOf` when there is one (so Home agrees), else the
+ * latest-ending predecessor. null when it waits for nothing.
+ */
+export function waitsForOf(
+  index: ScheduleIndex,
+  workItemId: string,
+  projection: Pick<ScheduleProjection, 'workItems'>,
+): { firstId: string; count: number } | null {
+  const direct = directPredecessorIds(index, workItemId);
+  const firstId =
+    heldUpCauseOf(index, workItemId, projection) ?? latestEndingId(direct, projection);
+  return firstId === null ? null : { firstId, count: direct.length };
 }
 
 /**

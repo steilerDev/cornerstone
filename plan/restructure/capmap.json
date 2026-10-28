@@ -5,7 +5,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > rows (desktop table; phone compact rows)",
     "change": "same",
     "gate": "none",
-    "note": "Work Items list renamed Tasks. Default grouping by time window (Late / This week / Next 2 weeks / Later / Done) replaces creation order (P18, VR-SHL-04); phone keeps filters (P08)."
+    "note": "Work Items list renamed Tasks. Default grouping by time window (Late / This week / Next 2 weeks / Later / Done) replaces creation order (P18, VR-SHL-04); phone keeps filters (P08). #2245: built — ObjectList rows grouped by time window (server-computed, Late / This week / Next 2 weeks / Later / Done, Done collapsed); also group by Area, Company or Status."
   },
   "WRK-002": {
     "name": "Search work items by text in title and description",
@@ -21,49 +21,51 @@
     "to": "Tasks > Tasks list (/project/work-items) > filter chips > Status",
     "change": "same",
     "gate": "none",
-    "note": "Chips work at every width (today hidden <768 px, JRN-07). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
+    "note": "Chips work at every width (today hidden <768 px, JRN-07). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2245: Tasks status chips (Not started / In progress / Done) on the ObjectList chip row."
   },
   "WRK-004": {
     "name": "Filter work items by assigned user",
     "from": "/project/work-items > Assigned To column header > funnel popover",
-    "to": "Tasks > Tasks list (/project/work-items) > Filters sheet > Who: household member",
+    "to": "Tasks > Tasks list (/project/work-items) > Filters > Who: Household member",
     "change": "demoted",
     "gate": "none",
     "clicks": 2,
-    "clickPath": "Tasks list > Filters (1) > Who: household member (2)",
-    "note": "81% of real tasks have no assigned person (USE-09); off the default chip row, 2 clicks away."
+    "clickPath": "Tasks list > Filters (1) > Who: Household member (2)",
+    "note": "81% of real tasks have no assigned person (USE-09); off the default chip row, 2 clicks away. #2245: Filters panel › Who fieldset (Company + Household member); URL param assignedUserId kept."
   },
   "WRK-005": {
     "name": "Filter work items by assigned vendor",
     "from": "/project/work-items > gear (column settings) > enable \"Vendor\" column > Vendor header funnel",
-    "to": "Tasks > Tasks list (/project/work-items) > filter chips > Company",
+    "to": "Tasks > Tasks list (/project/work-items) > Filters > Who: Company",
     "change": "promoted",
     "gate": "none",
-    "note": "No longer needs a hidden column; 62% of real rows show a company (VR-SHL-07)."
+    "note": "No longer needs a hidden column; 62% of real rows show a company (VR-SHL-07). #2245: lives in the Filters panel › Who fieldset (Company + Household member), not a chip; still no hidden column. URL param assignedVendorId kept.",
+    "clicks": 2,
+    "clickPath": "Tasks list > Filters (1) > Who: Company (2)"
   },
   "WRK-006": {
     "name": "Filter work items by area including all sub-areas, or by \"No area\"",
     "from": "/project/work-items > gear > enable \"Area\" column > Area header funnel (hierarchical tri-state checklist + \"No area\")",
-    "to": "Tasks > Tasks list (/project/work-items) > filter chips > Area (tree incl. 'No area'); group-by Area",
+    "to": "Tasks > Tasks list (/project/work-items) > Filters > Area (tree incl. 'No area'); group by Area",
     "change": "promoted",
     "gate": "none",
-    "note": "Area is the main organising dimension; both users switched the hidden column on (USE-06)."
+    "note": "Area is the main organising dimension; both users switched the hidden column on (USE-06). #2245: Filters panel › Area (single pick; a legacy multi-value areaId still filters) plus Group by › Area (No area last)."
   },
   "WRK-007": {
     "name": "Filter work items by start-date or end-date range (offered but non-functional)",
     "from": "/project/work-items > Start Date / End Date column header > funnel (from/to date range)",
-    "to": "Tasks > Tasks list (/project/work-items) > Filters sheet > Start / End date range",
+    "to": "Tasks > Tasks list (/project/work-items) > Filters > Start date / End date range",
     "change": "same",
     "gate": "none",
-    "note": "Filter made functional (listed as non-functional today). #2199: made functional — Start/End date filters apply to the shown date (actual, else forecast)."
+    "note": "Filter made functional (listed as non-functional today). #2199: made functional — Start/End date filters apply to the shown date (actual, else forecast). #2245: Filters panel ranges (shared ObjectList range filters); URL keeps from:…,to:…."
   },
   "WRK-008": {
     "name": "Filter work items by number of budget lines (min/max)",
     "from": "/project/work-items > Budget Lines column header > funnel (min/max range with bounds)",
-    "to": "Tasks > Tasks list (/project/work-items) > Filters sheet > Number of cost lines (min/max)",
+    "to": "Tasks > Tasks list (/project/work-items) > Filters > Cost lines (min/max)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2245: Filters panel › 'Cost lines' range (shared ObjectList range filter); URL keeps min:…,max:…."
   },
   "WRK-009": {
     "name": "Clear all list filters and the search term at once (work items, milestones, household items)",
@@ -79,7 +81,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > Sort menu / column headers",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2199: start/end sort follows the shown date (actual, else forecast); empty dates last. #2234: the shared ObjectList Sort menu (key + direction) and sortable column headers (asc → desc → default) share one URL state; Tasks adopts it in P5.1."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2199: start/end sort follows the shown date (actual, else forecast); empty dates last. #2234: the shared ObjectList Sort menu (key + direction) and sortable column headers (asc → desc → default) share one URL state; Tasks adopts it in P5.1. #2245: adopted — Sort menu offers Start date, End date, Title, Status, Expected cost and Created (Expected cost: tasks without cost lines last)."
   },
   "WRK-011": {
     "name": "Reach every row of a long list (work items, household items, invoices, companies): all rows up to 100 load at once, more load as you scroll",
@@ -87,7 +89,7 @@
     "to": "All lists (Tasks, Purchases, Invoices, Milestones, Companies) > list body > load-all up to 100, then 'Showing n of m' footer with Load more / Retry",
     "change": "merged",
     "gate": "none",
-    "note": "#2200: hover shows a primary border, not only a fill. The page-size choice (10/25/50/100) and the numbered pages are retired: they only existed to bound a table, which scrolling does. Nothing replaces the select. Old `?page=` and `?pageSize=` in bookmarks are ignored, not an error, and are no longer written. #2234: built in the shared ObjectList template (page size 100, InfiniteScrollFooter beyond 100 rows); each list adopts it and drops page/pageSize from its route's carries in its own story (Invoices P4.6, Tasks P5.1, Purchases/Companies/Milestones P5.2). #2238: Invoices adopted (page/pageSize dropped from the `invoices` route's carries).",
+    "note": "#2200: hover shows a primary border, not only a fill. The page-size choice (10/25/50/100) and the numbered pages are retired: they only existed to bound a table, which scrolling does. Nothing replaces the select. Old `?page=` and `?pageSize=` in bookmarks are ignored, not an error, and are no longer written. #2234: built in the shared ObjectList template (page size 100, InfiniteScrollFooter beyond 100 rows); each list adopts it and drops page/pageSize from its route's carries in its own story (Invoices P4.6, Tasks P5.1, Purchases/Companies/Milestones P5.2). #2238: Invoices adopted (page/pageSize dropped from the `invoices` route's carries). #2245: Tasks adopted (page/pageSize dropped from the `workItems` route's carries).",
     "acceptance": "Every row of a list over 100 rows is reachable by scrolling or Load more; a failed batch shows Retry."
   },
   "WRK-013": {
@@ -96,7 +98,7 @@
     "to": "All lists > URL query state (filters, sort, group, view)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ObjectList URL state: every write replaces the history entry, absent = default, unknown values are removed, page/pageSize are ignored and dropped; params the list does not own are kept."
+    "note": "Kept as it works today, inside All lists; only the shared page template, the words and the navigation around it change (rare use). #2234: ObjectList URL state: every write replaces the history entry, absent = default, unknown values are removed, page/pageSize are ignored and dropped; params the list does not own are kept. #2245: Tasks adopted; page/pageSize are ignored and dropped from the URL."
   },
   "WRK-014": {
     "name": "Open a work item from the list",
@@ -104,7 +106,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > row link (real anchor, opens Task page)",
     "change": "same",
     "gate": "none",
-    "note": "Row menu label 'Edit' that opened the read view is removed (PAT-10)."
+    "note": "Row menu label 'Edit' that opened the read view is removed (PAT-10). #2245: Tasks list row title is a real link to the Task page; row ⋯ › Open."
   },
   "WRK-015": {
     "name": "Delete a work item from the list with confirmation",
@@ -112,7 +114,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > row ⋯ > Delete (modal listing consequences)",
     "change": "same",
     "gate": "none",
-    "note": "One delete rule for list and detail (PAT-03). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts)."
+    "note": "One delete rule for list and detail (PAT-03). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts). #2245: Tasks list row ⋯ › Delete opens the ConfirmDialog with the delete impact counts."
   },
   "WRK-016": {
     "name": "See each work item's location as an area breadcrumb (House > Ground Floor > Kitchen)",
@@ -120,7 +122,7 @@
     "to": "Tasks > Tasks list / Schedule rows and all task pickers > area chip (link to Area page)",
     "change": "promoted",
     "gate": "none",
-    "note": "Area path becomes a link to the area hub."
+    "note": "Area path becomes a link to the area hub. #2245: Tasks list rows show the area chip via AreaLink (links to the interim Areas page until P5.7)."
   },
   "WRK-017": {
     "name": "Start creating a work item from any of six entry points",
@@ -128,7 +130,7 @@
     "to": "Global > New menu > Task (context-aware: area, company or date pre-filled from the current page, e.g. the date on Tasks > Schedule); Tasks > Tasks list > primary 'New task'; Areas > Area page via the context-aware New menu",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there. #2212: Global › New menu › Task; Tasks › Tasks list › primary 'New Work Item', empty state and n (each opens the New task dialog over the page they are on); Tasks › Schedule › 'Add' menu (kept until its own story)."
+    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there. #2212: Global › New menu › Task; Tasks › Tasks list › primary 'New Work Item', empty state and n (each opens the New task dialog over the page they are on); Tasks › Schedule › 'Add' menu (kept until its own story). #2245: the Tasks list primary reads 'New task' and n still opens the dialog; the empty state has no create action."
   },
   "WRK-018": {
     "name": "Create a work item with title, description and initial status",
@@ -445,7 +447,7 @@
     "to": "Global > keyboard shortcuts on every page: ⌘K / Ctrl K (search everywhere), / (this list's search, else search everywhere), n (the list's own create, else the New menu), ?, g+section; Global > User menu > Keyboard shortcuts",
     "change": "promoted",
     "gate": "none",
-    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell). #2207: below 1024 px Global > More sheet > user block > Keyboard shortcuts, shown only with a hardware keyboard; it closes the sheet before the dialog opens; ? works everywhere. #2211: ⌘K / Ctrl K opens the command search from anywhere (also from text fields); / and n are one shell fallback each, a list page's own create wins for n (Tasks, Milestones, Purchases, Companies, Invoices, Site diary); the help lists ⌘K under Everywhere."
+    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell). #2207: below 1024 px Global > More sheet > user block > Keyboard shortcuts, shown only with a hardware keyboard; it closes the sheet before the dialog opens; ? works everywhere. #2211: ⌘K / Ctrl K opens the command search from anywhere (also from text fields); / and n are one shell fallback each, a list page's own create wins for n (Tasks, Milestones, Purchases, Companies, Invoices, Site diary); the help lists ⌘K under Everywhere. #2245: on Tasks, n opens New task (listed in the shortcut help); the old page-level ? and Esc handlers are gone (handled globally)."
   },
   "WRK-070": {
     "name": "Use keyboard shortcuts on the work-item detail page",

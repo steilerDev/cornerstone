@@ -14,6 +14,7 @@ import * as schema from '../db/schema.js';
 import {
   computeProjectMoney,
   getBreakdownMoney,
+  getExpectedCostByWorkItem,
   getExpectedGrantsByHouseholdItem,
   getItemGrantPayback,
   getReadyToSubmit,
@@ -874,6 +875,37 @@ describe('moneyService', () => {
         Math.round((1234.56 + 777.77) * 15) / 100,
         2,
       );
+    });
+  });
+
+  describe('getExpectedCostByWorkItem (#2245)', () => {
+    it('is empty for an empty database', () => {
+      expect(getExpectedCostByWorkItem(db, VAT).size).toBe(0);
+    });
+
+    it('maps each task to its expected cost and equals the breakdown money', () => {
+      const wi1 = workItem();
+      const wi2 = workItem();
+      const hi = householdItem();
+      wiLine(wi1, { planned: 1234.56, confidence: 'own_estimate' });
+      wiLine(wi1, { planned: 100 });
+      wiLine(wi2, { planned: 800, includesVat: false });
+      hiLine(hi, { planned: 999 });
+      const map = getExpectedCostByWorkItem(db, VAT);
+      const breakdown = getBreakdownMoney(computeProjectMoney(db, VAT)).workItems;
+      for (const wi of [wi1, wi2]) {
+        expect(map.get(wi)).toBe(breakdown[wi]!.expectedCost.expected);
+      }
+      expect(map.get(wi2)).toBe(952);
+      expect(map.has(hi)).toBe(false);
+    });
+
+    it('does not mix up a task and a purchase with the same id', () => {
+      workItem('same');
+      householdItem('same');
+      wiLine('same', { planned: 500 });
+      hiLine('same', { planned: 9000 });
+      expect(getExpectedCostByWorkItem(db, VAT).get('same')).toBe(500);
     });
   });
 

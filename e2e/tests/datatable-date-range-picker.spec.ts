@@ -5,7 +5,7 @@
  * calendar grid supporting two-phase range selection (start → end), month navigation,
  * keyboard accessibility, and responsive touch targets.
  *
- * All tests use the Work items page (End Date column) as the host DataTable with a date
+ * All tests use the Purchases page (Target Delivery column) as the host DataTable with a date
  * filter.  The same DateRangePicker is shared by any DataTable date column, so these
  * scenarios are representative of the full feature.
  *
@@ -21,14 +21,14 @@ import { test, expect } from '../fixtures/auth.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import type { Page } from '@playwright/test';
 
-const LIST_URL = routeUrl('workItems');
+const LIST_URL = routeUrl('householdItems');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Navigate to the Work items page and wait for the DataTable to finish loading.
+ * Navigate to the Purchases page and wait for the DataTable to finish loading.
  * "Loaded" means the table element is visible (it renders unconditionally, even
  * when the invoice list is empty).
  */
@@ -41,17 +41,17 @@ async function gotoListAndWait(page: Page) {
 }
 
 /**
- * Open the End Date column filter popover.
+ * Open the Target Delivery column filter popover.
  * Returns the popover dialog locator after confirming it is visible.
  */
 async function openDueDateFilter(page: Page) {
   const dueDateFilterButton = page.getByRole('button', {
-    name: /filter by end date/i,
+    name: /filter by target delivery/i,
   });
   await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
   await dueDateFilterButton.click();
 
-  const filterPopover = page.getByRole('dialog', { name: /filter by end date/i });
+  const filterPopover = page.getByRole('dialog', { name: /filter by target delivery/i });
   await expect(filterPopover).toBeVisible();
   return filterPopover;
 }
@@ -96,10 +96,10 @@ test.describe('DateRangePicker — full range selection (happy path)', () => {
   test('calendar grid is visible and no native date inputs exist in the popover', async ({
     page,
   }) => {
-    // Given: Work items page is loaded
+    // Given: Purchases page is loaded
     await gotoListAndWait(page);
 
-    // When: I open the Due Date filter popover
+    // When: I open the Target Delivery filter popover
     const filterPopover = await openDueDateFilter(page);
 
     // Then: A calendar grid is rendered
@@ -112,7 +112,7 @@ test.describe('DateRangePicker — full range selection (happy path)', () => {
   });
 
   test('phase label shows "Select start date" before any selection', async ({ page }) => {
-    // Given: Work items page loaded, filter popover open
+    // Given: Purchases page loaded, filter popover open
     await gotoListAndWait(page);
     const filterPopover = await openDueDateFilter(page);
 
@@ -137,12 +137,12 @@ test.describe('DateRangePicker — full range selection (happy path)', () => {
   test('selecting start then end date applies the filter and shows Clear Filters', async ({
     page,
   }) => {
-    // Given: Work items page loaded, filter popover open
+    // Given: Purchases page loaded, filter popover open
     await gotoListAndWait(page);
     const filterPopover = await openDueDateFilter(page);
 
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by end date/i,
+      name: /filter by target delivery/i,
     });
 
     // When: I select a start and end date
@@ -186,7 +186,7 @@ test.describe('DateRangePicker — Clear Filters resets picker state', () => {
     // Then: The clear button disappears from the toolbar
     await expect(clearFiltersButton).not.toBeVisible();
 
-    // When: I reopen the Due Date filter popover
+    // When: I reopen the Target Delivery filter popover
     const reopenedPopover = await openDueDateFilter(page);
 
     // Then: A calendar grid is shown and the phase label is back to "Select start date"
@@ -335,7 +335,7 @@ test.describe('DateRangePicker — keyboard navigation (desktop only)', () => {
 
     // Then: The filter is now active (the filter button has the active class)
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by end date/i,
+      name: /filter by target delivery/i,
     });
     await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
   });
@@ -354,7 +354,7 @@ test.describe('DateRangePicker — mobile touch interaction (mobile only)', () =
   test('calendar is visible on mobile and tapping start then end applies the filter', async ({
     page,
   }) => {
-    // Given: We are on mobile and have navigated to the Work items page
+    // Given: We are on mobile and have navigated to the Purchases page
     await gotoListAndWait(page);
 
     // On mobile the table header filter buttons may be hidden; the DataTable
@@ -362,7 +362,7 @@ test.describe('DateRangePicker — mobile touch interaction (mobile only)', () =
     // (even if not visible as a column header), and skip gracefully if the
     // mobile layout does not expose date filter at all.
     const dueDateFilterButton = page.getByRole('button', {
-      name: /filter by end date/i,
+      name: /filter by target delivery/i,
     });
     const filterButtonVisible = await dueDateFilterButton.isVisible();
     if (!filterButtonVisible) {
@@ -373,7 +373,7 @@ test.describe('DateRangePicker — mobile touch interaction (mobile only)', () =
 
     // When: I open the date filter
     await dueDateFilterButton.click();
-    const filterPopover = page.getByRole('dialog', { name: /filter by end date/i });
+    const filterPopover = page.getByRole('dialog', { name: /filter by target delivery/i });
     await expect(filterPopover).toBeVisible();
 
     // Then: The calendar grid renders with appropriately sized touch targets

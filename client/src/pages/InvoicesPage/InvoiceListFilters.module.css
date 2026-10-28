@@ -22,26 +22,6 @@
   box-shadow: var(--shadow-focus);
 }
 
-.range {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-3);
-}
-
-.rangeField {
-  display: flex;
-  flex: 1 1 8rem;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  min-width: 0;
-}
-
-.rangeLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-}
-
 @media (max-width: 1023px) {
   .checkRow {
     min-height: var(--touch-target-min);

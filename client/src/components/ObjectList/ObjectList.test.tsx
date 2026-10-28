@@ -188,8 +188,8 @@ function Harness(extra: Extra) {
   );
 }
 
-function renderList(extra: Extra = {}, url = '/tasks') {
-  return render(
+function tree(extra: Extra = {}, url = '/tasks') {
+  return (
     <MemoryRouter initialEntries={[url]}>
       <ToastProvider>
         <CommandSearchProvider isOpen={false} onOpen={noop} onClose={noop}>
@@ -197,8 +197,12 @@ function renderList(extra: Extra = {}, url = '/tasks') {
           <Harness {...extra} />
         </CommandSearchProvider>
       </ToastProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderList(extra: Extra = {}, url = '/tasks') {
+  return render(tree(extra, url));
 }
 
 async function loaded(count?: string) {
@@ -279,6 +283,21 @@ describe('ObjectList states', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('(1 of 3)'),
     );
+  });
+
+  it('headingCount whileFiltered shows no count for a chip alone, then (n of m) while filtering', async () => {
+    renderList({ scopeTotal: 3, headingCount: 'whileFiltered' }, '/tasks?status=todo');
+    await loaded();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Tasks$/);
+    await userEvent.type(screen.getByRole('searchbox'), 'hallway 001');
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('(1 of 3)'),
+    );
+  });
+
+  it('headingCount whileFiltered falls back to (n) when scopeTotal is missing', async () => {
+    renderList({ headingCount: 'whileFiltered' }, '/tasks?q=hallway');
+    await loaded('Tasks (3)');
   });
 
   it('keeps (n) when scopeTotal is missing even while filtering', async () => {
@@ -534,13 +553,42 @@ describe('ObjectList selection', () => {
 });
 
 describe('ObjectList focus after removal', () => {
-  it('L10 keeps focus on a row title when a status change moves the row to another group', async () => {
+  it('L10 (D11) a status change that moves a row hands focus to the row now at its former index', async () => {
     data = [...makeTasks(2, 'todo', 1), ...makeTasks(1, 'late', 3)];
     renderList({}, '/tasks?group=state');
     await loaded();
     screen.getByTestId('tasks-title-t001').focus();
     act(() => controller?.updateItem('t001', (t) => ({ ...t, state: 'late' })));
-    await waitFor(() => expect(screen.getByTestId('tasks-title-t001')).toHaveFocus());
+    await waitFor(() => expect(screen.getByTestId('tasks-title-t002')).toHaveFocus());
+  });
+
+  it('L10 (D11) a moved last row hands focus to the next rendered group toggle', async () => {
+    data = [...makeTasks(2, 'todo', 1), ...makeTasks(1, 'done', 3)];
+    renderList({}, '/tasks?group=state');
+    await loaded();
+    // Done is collapsed, so the moved row cannot take focus and nothing sits at its index.
+    screen.getByTestId('tasks-title-t002').focus();
+    act(() => controller?.updateItem('t002', (t) => ({ ...t, state: 'done' })));
+    await waitFor(() => expect(screen.getByTestId('tasks-group-toggle-done')).toHaveFocus());
+    expect(screen.getByTestId('tasks-group-toggle-done')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('L10 (D11) a row moved into the collapsed Done group hands focus to its former group next row', async () => {
+    data = [...makeTasks(2, 'todo', 1), ...makeTasks(1, 'done', 3)];
+    renderList({}, '/tasks?group=state');
+    await loaded();
+    screen.getByTestId('tasks-title-t001').focus();
+    act(() => controller?.updateItem('t001', (t) => ({ ...t, state: 'done' })));
+    await waitFor(() => expect(screen.getByTestId('tasks-title-t002')).toHaveFocus());
+  });
+
+  it('L10 (D11) falls back to the heading when no row or later group is left', async () => {
+    data = makeTasks(1, 'todo', 1);
+    renderList({}, '/tasks?group=state');
+    await loaded();
+    screen.getByTestId('tasks-title-t001').focus();
+    act(() => controller?.updateItem('t001', (t) => ({ ...t, state: 'late' })));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
   });
 
   it('L10 skips candidates inside a collapsed group', async () => {
@@ -606,6 +654,27 @@ describe('ObjectList announcements', () => {
     await userEvent.click(screen.getByTestId('tasks-select-t001'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 selected'));
     expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('speaks a host announcement once per key, even when its text changes', async () => {
+    const view = renderList();
+    await loaded();
+    // The initial result-count announcement settles first; a host message arrives after a user
+    // action, never during the first load.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('3 tasks'));
+    view.rerender(tree({ announcement: { key: 1, text: 'Marked done' } }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Marked done'));
+    // Same key, new text: not announced again.
+    view.rerender(tree({ announcement: { key: 1, text: 'Something else' } }));
+    await act(async () => undefined);
+    expect(screen.getByRole('status')).not.toHaveTextContent('Something else');
+    // A new key is announced.
+    view.rerender(tree({ announcement: { key: 2, text: 'Moved to Done' } }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Moved to Done'));
+    // Clearing the announcement says nothing.
+    view.rerender(tree({ announcement: null }));
+    await act(async () => undefined);
+    expect(screen.getByRole('status')).toHaveTextContent('Moved to Done');
   });
 
   it('announces the searching-all note once per text when settled', async () => {

@@ -1,14 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import type { ObjectListQuery } from '../../components/ObjectList/types.js';
-import {
-  chipCountKey,
-  formatAmountRange,
-  formatDateRange,
-  invoiceListApiParams,
-  legacyInvoicesSearch,
-  parseAmountRange,
-  parseDateRange,
-} from './invoicesListUrl.js';
+import { chipCountKey, invoiceListApiParams, legacyInvoicesSearch } from './invoicesListUrl.js';
 
 function query(overrides: Partial<ObjectListQuery> = {}): ObjectListQuery {
   return {
@@ -34,73 +26,6 @@ describe('chipCountKey', () => {
     ['whatever', 'all'],
   ])('maps %s to %s', (chip, key) => {
     expect(chipCountKey(chip)).toBe(key);
-  });
-});
-
-describe('parseDateRange / formatDateRange', () => {
-  it('reads both sides', () => {
-    expect(parseDateRange('from:2026-01-01,to:2026-02-01')).toEqual({
-      from: '2026-01-01',
-      to: '2026-02-01',
-    });
-  });
-
-  it('reads one side only', () => {
-    expect(parseDateRange('from:2026-01-01')).toEqual({ from: '2026-01-01', to: null });
-    expect(parseDateRange('to:2026-02-01')).toEqual({ from: null, to: '2026-02-01' });
-  });
-
-  it('drops an invalid side and keeps the valid one', () => {
-    expect(parseDateRange('from:nope,to:2026-02-01')).toEqual({ from: null, to: '2026-02-01' });
-    expect(parseDateRange('from:2026-02-30,to:2026-02-01')).toEqual({
-      from: null,
-      to: '2026-02-01',
-    });
-    expect(parseDateRange('from:2026-13-01')).toBeNull();
-  });
-
-  it('is null for no value, an empty value, no valid side or parts without a colon', () => {
-    expect(parseDateRange(null)).toBeNull();
-    expect(parseDateRange('')).toBeNull();
-    expect(parseDateRange('from:,to:')).toBeNull();
-    expect(parseDateRange('garbage,more')).toBeNull();
-    expect(parseDateRange('other:2026-01-01')).toBeNull();
-  });
-
-  it('serialises, with null for an empty range', () => {
-    expect(formatDateRange('2026-01-01', '2026-02-01')).toBe('from:2026-01-01,to:2026-02-01');
-    expect(formatDateRange('2026-01-01', null)).toBe('from:2026-01-01');
-    expect(formatDateRange(null, '2026-02-01')).toBe('to:2026-02-01');
-    expect(formatDateRange(null, null)).toBeNull();
-  });
-});
-
-describe('parseAmountRange / formatAmountRange', () => {
-  it('reads both sides, including zero and decimals', () => {
-    expect(parseAmountRange('min:0,max:250.5')).toEqual({ min: 0, max: 250.5 });
-  });
-
-  it('reads one side only', () => {
-    expect(parseAmountRange('min:10')).toEqual({ min: 10, max: null });
-    expect(parseAmountRange('max:10')).toEqual({ min: null, max: 10 });
-  });
-
-  it('drops sides that are not finite numbers', () => {
-    expect(parseAmountRange('min:abc,max:5')).toEqual({ min: null, max: 5 });
-    expect(parseAmountRange('min:Infinity,max:  ')).toBeNull();
-  });
-
-  it('is null for no value or no valid side', () => {
-    expect(parseAmountRange(null)).toBeNull();
-    expect(parseAmountRange('')).toBeNull();
-    expect(parseAmountRange('min:,max:')).toBeNull();
-  });
-
-  it('serialises, with null for an empty range', () => {
-    expect(formatAmountRange(10, 20.5)).toBe('min:10,max:20.5');
-    expect(formatAmountRange(0, null)).toBe('min:0');
-    expect(formatAmountRange(null, 5)).toBe('max:5');
-    expect(formatAmountRange(null, null)).toBeNull();
   });
 });
 

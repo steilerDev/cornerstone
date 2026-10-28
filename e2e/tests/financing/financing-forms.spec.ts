@@ -24,6 +24,7 @@ import { API } from '../../fixtures/testData.js';
 import { FinancingFormDialog } from '../../pages/FinancingFormDialog.js';
 import { FinancingPage } from '../../pages/FinancingPage.js';
 import { GrantPage } from '../../pages/GrantPage.js';
+import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 
 test.describe('New grant dialog', { tag: '@responsive' }, () => {
   test('F6: the dialog has no type selector and no provider; Save with no items asks for one', async ({
@@ -218,12 +219,16 @@ test.describe('Grant chips on the lists', { tag: '@responsive' }, () => {
         ],
       });
 
-      await page.goto(`${routeUrl('workItems')}?q=${encodeURIComponent(taskTitle)}`);
-      const taskChip = chips(page, 'work-item-grants', taskId);
-      await expect(taskChip).toBeVisible();
-      await expect(taskChip).toContainText(`${grantName} · 40%`);
-      await expect(taskChip.getByRole('link')).toHaveCount(0);
-      await expect(page.getByTestId(`work-item-grants-${taskId}-more`)).toHaveCount(0);
+      // The Tasks list shows the grant chip under the title on the table; cards omit it (#2245)
+      const tasks = new WorkItemsPage(page);
+      await tasks.openSearch(taskTitle);
+      if (await tasks.isTableSurface()) {
+        const taskChip = tasks.grantChips(taskId);
+        await expect(taskChip).toBeVisible();
+        await expect(taskChip).toContainText(`${grantName} · 40%`);
+        await expect(taskChip.getByRole('link')).toHaveCount(0);
+        await expect(page.getByTestId(`work-item-grants-${taskId}-more`)).toHaveCount(0);
+      }
 
       await page.goto(`${routeUrl('householdItems')}?q=${encodeURIComponent(purchaseName)}`);
       const purchaseChip = chips(page, 'household-item-grants', purchaseId);
@@ -253,8 +258,10 @@ test.describe('Grant chips on the lists', { tag: '@responsive' }, () => {
         });
       }
 
-      await page.goto(`${routeUrl('workItems')}?q=${encodeURIComponent(taskTitle)}`);
-      const chip = chips(page, 'work-item-grants', taskId);
+      const tasks = new WorkItemsPage(page);
+      await tasks.openSearch(taskTitle);
+      test.skip(!(await tasks.isTableSurface()), 'Grant chips are on the table surface only');
+      const chip = tasks.grantChips(taskId);
       await expect(chip).toBeVisible();
       // Sorted by name: Alpha first, then "+1"
       await expect(chip).toContainText(`${first} · 40%`);
@@ -277,11 +284,10 @@ test.describe('Grant chips on the lists', { tag: '@responsive' }, () => {
         applicationStatus: 'rejected',
         items: [{ type: 'work_item', id: taskId }],
       });
-      await page.goto(`${routeUrl('workItems')}?q=${encodeURIComponent(taskTitle)}`);
-      await expect(
-        page.getByRole('link', { name: taskTitle }).filter({ visible: true }),
-      ).toBeVisible();
-      await expect(chips(page, 'work-item-grants', taskId)).toHaveCount(0);
+      const tasks = new WorkItemsPage(page);
+      await tasks.openSearch(taskTitle);
+      await expect(tasks.title(taskId)).toBeVisible();
+      await expect(tasks.grantChips(taskId)).toHaveCount(0);
     } finally {
       await runCleanup(cleanup);
     }

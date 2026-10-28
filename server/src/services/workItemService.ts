@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type { areas } from '../db/schema.js';
@@ -11,15 +12,21 @@ import {
   householdItemDeps,
   workItemBudgets,
   vendors,
+  milestoneWorkItems,
 } from '../db/schema.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import {
   autoReschedule,
   computeScheduleProjection,
+  loadScheduleGraph,
+  projectSchedule,
   shownWorkItemDates,
   workItemProjectionOf,
 } from './schedulingEngine.js';
+import { getExpectedCostByWorkItem } from './moneyService.js';
+import { buildScheduleIndex, computeHoldsUp, waitsForOf } from './shared/holdsUp.js';
+import { taskTimeWindowOf } from './shared/taskTimeWindow.js';
 import type { ScheduleProjection } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
@@ -45,7 +52,12 @@ import type {
   PaginationMeta,
   WorkItemBudgetLine,
   FilterMeta,
+  AttentionHoldsUp,
+  TaskTimeWindow,
+  WorkItemListRow,
+  WorkItemListRowsResponse,
 } from '@cornerstone/shared';
+import { TASK_TIME_WINDOWS } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -59,7 +71,7 @@ function getBudgetLineCount(db: DbType, workItemId: string): number {
     .from(workItemBudgets)
     .where(eq(workItemBudgets.workItemId, workItemId))
     .get();
-  return result?.count ?? 0;
+  return result!.count;
 }
 
 /**
@@ -645,19 +657,21 @@ export function deleteWorkItem(db: DbType, id: string): void {
 }
 
 /**
- * List work items with filtering, sorting, and pagination.
+ * Correlated budget-line count of the outer work_items row. The outer id is written qualified:
+ * drizzle emits unqualified column names in single-table queries, so a bare `id` would bind to
+ * work_item_budgets.id inside the subquery.
  */
-export function listWorkItems(
+const BUDGET_LINE_COUNT = sql`SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = "work_items"."id"`;
+
+/**
+ * Filter conditions shared by both list functions. `baseConditions` drive filterMeta (everything
+ * except the numeric budget-line range); `conditions` add the range.
+ */
+function buildConditions(
   db: DbType,
   query: WorkItemListQuery,
-): { items: WorkItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
-  const sortBy = query.sortBy ?? 'created_at';
-  const sortOrder = query.sortOrder ?? 'desc';
-
-  // Build base conditions (excluding numeric range filters)
-  const baseConditions = [];
+): { baseConditions: SQL[]; conditions: SQL[] } {
+  const baseConditions: SQL[] = [];
 
   if (query.status) {
     baseConditions.push(eq(workItems.status, query.status));
@@ -696,32 +710,125 @@ export function listWorkItems(
     );
   }
 
-  const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
+  if (query.milestoneId !== undefined) {
+    baseConditions.push(
+      inArray(
+        workItems.id,
+        db
+          .select({ id: milestoneWorkItems.workItemId })
+          .from(milestoneWorkItems)
+          .where(eq(milestoneWorkItems.milestoneId, query.milestoneId)),
+      ),
+    );
+  }
 
-  // Compute filterMeta from base conditions
-  const metaRow = db
-    .select({
-      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}), 0)), 0)`,
-      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}), 0)), 0)`,
-    })
-    .from(workItems)
-    .where(baseWhereClause)
-    .get();
-
-  // Build full conditions with numeric range filters for main query
+  // Build full conditions with numeric range filters for the main query
   const conditions = [...baseConditions];
 
   // Filter by budget line count
   if (query.budgetLinesMin !== undefined) {
-    conditions.push(
-      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) >= ${query.budgetLinesMin}`,
-    );
+    conditions.push(sql`(${BUDGET_LINE_COUNT}) >= ${query.budgetLinesMin}`);
   }
   if (query.budgetLinesMax !== undefined) {
-    conditions.push(
-      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) <= ${query.budgetLinesMax}`,
-    );
+    conditions.push(sql`(${BUDGET_LINE_COUNT}) <= ${query.budgetLinesMax}`);
   }
+
+  return { baseConditions, conditions };
+}
+
+/** Budget-line range of the rows matching the base conditions (drives the range filter bounds). */
+function buildFilterMeta(db: DbType, baseConditions: SQL[]): FilterMeta {
+  const metaRow = db
+    .select({
+      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((${BUDGET_LINE_COUNT}), 0)), 0)`,
+      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((${BUDGET_LINE_COUNT}), 0)), 0)`,
+    })
+    .from(workItems)
+    .where(baseConditions.length > 0 ? and(...baseConditions) : undefined)
+    .get();
+  return { budgetLines: { min: metaRow!.budgetLinesMin, max: metaRow!.budgetLinesMax } };
+}
+
+/** True when the shown dates fall inside the query's inclusive start/end ranges. */
+function matchesShownDates(
+  dates: { start: string | null; end: string | null },
+  query: WorkItemListQuery,
+): boolean {
+  const inRange = (value: string | null, from?: string, to?: string): boolean => {
+    if (from === undefined && to === undefined) return true;
+    if (value === null) return false;
+    return (from === undefined || value >= from) && (to === undefined || value <= to);
+  };
+  return (
+    inRange(dates.start, query.startDateFrom, query.startDateTo) &&
+    inRange(dates.end, query.endDateFrom, query.endDateTo)
+  );
+}
+
+interface ListEntry {
+  row: typeof workItems.$inferSelect;
+  dates: { start: string | null; end: string | null };
+  /** Major units; null when the task has no budget lines (or the sort does not need it). */
+  expectedCost: number | null;
+}
+
+/**
+ * In-memory list order: the shown dates and expected cost sort rows without a value last in both
+ * directions; ties fall back to createdAt, then id.
+ */
+function compareListEntries(
+  sortBy: NonNullable<WorkItemListQuery['sortBy']>,
+  sortOrder: 'asc' | 'desc',
+): (a: ListEntry, b: ListEntry) => number {
+  const direction = sortOrder === 'asc' ? 1 : -1;
+  const compareValues = (a: string | number, b: string | number): number =>
+    a < b ? -1 : a > b ? 1 : 0;
+  const nullablePick = (entry: ListEntry): string | number | null =>
+    sortBy === 'start_date'
+      ? entry.dates.start
+      : sortBy === 'end_date'
+        ? entry.dates.end
+        : entry.expectedCost;
+  const textPick = (row: typeof workItems.$inferSelect): string =>
+    sortBy === 'title'
+      ? row.title
+      : sortBy === 'status'
+        ? row.status
+        : sortBy === 'updated_at'
+          ? row.updatedAt
+          : row.createdAt;
+  return (a, b) => {
+    let primary: number;
+    if (sortBy === 'start_date' || sortBy === 'end_date' || sortBy === 'expected_cost') {
+      const av = nullablePick(a);
+      const bv = nullablePick(b);
+      if (av === null && bv === null) primary = 0;
+      else if (av === null) return 1;
+      else if (bv === null) return -1;
+      else primary = compareValues(av, bv) * direction;
+    } else {
+      primary = compareValues(textPick(a.row), textPick(b.row)) * direction;
+    }
+    if (primary !== 0) return primary;
+    return compareValues(a.row.createdAt, b.row.createdAt) || compareValues(a.row.id, b.row.id);
+  };
+}
+
+/**
+ * List work items with filtering, sorting, and pagination.
+ */
+export function listWorkItems(
+  db: DbType,
+  query: WorkItemListQuery,
+): { items: WorkItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  const sortBy = query.sortBy ?? 'created_at';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  const { baseConditions, conditions } = buildConditions(db, query);
+
+  const filterMeta = buildFilterMeta(db, baseConditions);
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -733,9 +840,6 @@ export function listWorkItems(
     query.endDateFrom !== undefined ||
     query.endDateTo !== undefined;
   if (sortBy === 'start_date' || sortBy === 'end_date' || dateFilterActive) {
-    const filterMeta: FilterMeta = {
-      budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
-    };
     const projection = computeScheduleProjection(db);
     const areaMap = loadAreaMap(db);
 
@@ -747,45 +851,11 @@ export function listWorkItems(
       .map((row) => ({
         row,
         dates: shownWorkItemDates(row, workItemProjectionOf(projection, row)),
+        expectedCost: null,
       }))
-      .filter(({ dates }) => {
-        const inRange = (value: string | null, from?: string, to?: string): boolean => {
-          if (from === undefined && to === undefined) return true;
-          if (value === null) return false;
-          return (from === undefined || value >= from) && (to === undefined || value <= to);
-        };
-        return (
-          inRange(dates.start, query.startDateFrom, query.startDateTo) &&
-          inRange(dates.end, query.endDateFrom, query.endDateTo)
-        );
-      });
+      .filter(({ dates }) => matchesShownDates(dates, query));
 
-    const direction = sortOrder === 'asc' ? 1 : -1;
-    const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-    shown.sort((a, b) => {
-      let primary: number;
-      if (sortBy === 'start_date' || sortBy === 'end_date') {
-        const av = sortBy === 'start_date' ? a.dates.start : a.dates.end;
-        const bv = sortBy === 'start_date' ? b.dates.start : b.dates.end;
-        // Rows without a shown date sort last in both directions.
-        if (av === null && bv === null) primary = 0;
-        else if (av === null) return 1;
-        else if (bv === null) return -1;
-        else primary = compareStrings(av, bv) * direction;
-      } else {
-        const pick = (r: typeof workItems.$inferSelect): string =>
-          sortBy === 'title'
-            ? r.title
-            : sortBy === 'status'
-              ? r.status
-              : sortBy === 'updated_at'
-                ? r.updatedAt
-                : r.createdAt;
-        primary = compareStrings(pick(a.row), pick(b.row)) * direction;
-      }
-      if (primary !== 0) return primary;
-      return compareStrings(a.row.createdAt, b.row.createdAt) || compareStrings(a.row.id, b.row.id);
-    });
+    shown.sort(compareListEntries(sortBy, sortOrder));
 
     const filteredTotal = shown.length;
     const pageRows = shown.slice((page - 1) * pageSize, page * pageSize);
@@ -810,7 +880,7 @@ export function listWorkItems(
     .from(workItems)
     .where(whereClause)
     .get();
-  const totalItems = countResult?.count ?? 0;
+  const totalItems = countResult!.count;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
@@ -845,10 +915,6 @@ export function listWorkItems(
     workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap, projection)),
   );
 
-  const filterMeta: FilterMeta = {
-    budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
-  };
-
   return {
     items,
     pagination: {
@@ -858,5 +924,163 @@ export function listWorkItems(
       totalPages,
     },
     filterMeta,
+  };
+}
+
+/** Most ids one `ids` request may name (and the page size of an `ids` response). */
+const MAX_LIST_IDS = 100;
+
+/**
+ * List rows for the Tasks list (GET /api/work-items): the summary plus grants, expected cost,
+ * time window, critical flag, waits-for and holds-up. Always runs in memory so the time-window
+ * grouping, the shown-date filters and the expected-cost sort share one path.
+ */
+export function listWorkItemRows(
+  db: DbType,
+  query: WorkItemListQuery,
+  opts: { vatRate: number; now?: Date },
+): WorkItemListRowsResponse {
+  const today = (opts.now ?? new Date()).toISOString().slice(0, 10);
+  const page = Math.max(1, query.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  const sortBy = query.sortBy ?? 'created_at';
+  const sortOrder = query.sortOrder ?? 'desc';
+
+  // `ids`: usable ids only (trimmed, non-empty); narrows just the rows and the pagination.
+  const idList = (query.ids ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  if (idList.length > MAX_LIST_IDS) {
+    throw new ValidationError(`ids accepts at most ${MAX_LIST_IDS} ids`);
+  }
+  const byIds = idList.length > 0;
+
+  const { baseConditions, conditions } = buildConditions(db, query);
+  const filterMeta = buildFilterMeta(db, baseConditions);
+
+  const graph = loadScheduleGraph(db);
+  const projection = projectSchedule(graph, today);
+  const index = buildScheduleIndex(graph);
+
+  const entries: ListEntry[] = db
+    .select()
+    .from(workItems)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .all()
+    .map((row) => ({
+      row,
+      dates: shownWorkItemDates(row, workItemProjectionOf(projection, row)),
+      expectedCost: null,
+    }))
+    .filter(({ dates }) => matchesShownDates(dates, query));
+
+  const windowOf = new Map<string, TaskTimeWindow>();
+  for (const { row } of entries) {
+    windowOf.set(row.id, taskTimeWindowOf(row, workItemProjectionOf(projection, row), today));
+  }
+
+  // Expected cost is computed once: for every row when it sorts, else for the page below.
+  let costs: Map<string, number> | null = null;
+  if (sortBy === 'expected_cost') {
+    costs = getExpectedCostByWorkItem(db, opts.vatRate);
+    const lineCounts = new Set(
+      db
+        .select({ id: workItemBudgets.workItemId })
+        .from(workItemBudgets)
+        .groupBy(workItemBudgets.workItemId)
+        .all()
+        .map((line) => line.id),
+    );
+    for (const entry of entries) {
+      entry.expectedCost = lineCounts.has(entry.row.id) ? costs.get(entry.row.id)! : null;
+    }
+  }
+
+  const compare = compareListEntries(sortBy, sortOrder);
+  const windowIndex = (entry: ListEntry): number =>
+    query.group === 'time' ? TASK_TIME_WINDOWS.indexOf(windowOf.get(entry.row.id)!) : 0;
+  entries.sort((a, b) => windowIndex(a) - windowIndex(b) || compare(a, b));
+
+  let groupCounts: Record<TaskTimeWindow, number> | undefined;
+  if (query.group === 'time') {
+    groupCounts = { late: 0, this_week: 0, next_two_weeks: 0, later: 0, done: 0 };
+    for (const entry of entries) groupCounts[windowOf.get(entry.row.id)!] += 1;
+  }
+
+  const scopeTotal = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItems)
+    .where(query.status ? eq(workItems.status, query.status) : undefined)
+    .get()!.count;
+
+  // `ids` narrows the rows and the pagination, nothing else
+  const idSet = new Set(idList);
+  const matching = byIds ? entries.filter((entry) => idSet.has(entry.row.id)) : entries;
+  const totalItems = matching.length;
+  const pageRows = byIds ? matching : matching.slice((page - 1) * pageSize, page * pageSize);
+
+  const areaMap = loadAreaMap(db);
+  const summaries = pageRows.map(({ row }) => toWorkItemSummary(db, row, areaMap, projection));
+  const chips = loadGrantChips(
+    db,
+    'work_item',
+    summaries.map((summary) => summary.id),
+  );
+  if (costs === null && summaries.some((summary) => summary.budgetLineCount > 0)) {
+    costs = getExpectedCostByWorkItem(db, opts.vatRate);
+  }
+
+  const criticalSet = new Set(projection.criticalPath);
+  const waits = new Map<string, { firstId: string; count: number }>();
+  for (const summary of summaries) {
+    const waitsFor =
+      summary.status === 'completed' ? null : waitsForOf(index, summary.id, projection);
+    if (waitsFor !== null) waits.set(summary.id, waitsFor);
+  }
+  const waitTitles = new Map(
+    db
+      .select({ id: workItems.id, title: workItems.title })
+      .from(workItems)
+      .where(inArray(workItems.id, [...new Set([...waits.values()].map((w) => w.firstId))]))
+      .all()
+      .map((wi) => [wi.id, wi.title]),
+  );
+
+  const items: WorkItemListRow[] = summaries.map((summary) => {
+    const waitsFor = waits.get(summary.id);
+    let holdsUp: AttentionHoldsUp | null = null;
+    if (summary.status !== 'completed') {
+      const { count, startingWithin14Days } = computeHoldsUp(index, summary.id, {
+        today,
+        projection,
+      });
+      if (count > 0) holdsUp = { count, startingWithin14Days };
+    }
+    return {
+      ...summary,
+      grants: chips.get(summary.id)!,
+      expectedCost: summary.budgetLineCount === 0 ? null : costs!.get(summary.id)!,
+      timeWindow: windowOf.get(summary.id)!,
+      isCritical: summary.status !== 'completed' && criticalSet.has(summary.id),
+      waitsFor: waitsFor
+        ? {
+            id: waitsFor.firstId,
+            title: waitTitles.get(waitsFor.firstId)!,
+            more: waitsFor.count - 1,
+          }
+        : null,
+      holdsUp,
+    };
+  });
+
+  return {
+    items,
+    pagination: byIds
+      ? { page: 1, pageSize: MAX_LIST_IDS, totalItems, totalPages: totalItems > 0 ? 1 : 0 }
+      : { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) },
+    filterMeta,
+    ...(groupCounts ? { groupCounts } : {}),
+    scopeTotal,
   };
 }

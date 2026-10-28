@@ -125,6 +125,103 @@ describe('useColumnPreferences', () => {
     });
   });
 
+  describe('legacyKeys', () => {
+    const LEGACY = { name: 'title', cost: 'amount', price: 'amount', gone: null } as const;
+    const stored = (value: unknown) =>
+      makeUsePreferencesResult([makePreference('table.test-page.columns', JSON.stringify(value))]);
+    const render = (columns: typeof COLUMNS = COLUMNS) =>
+      renderHook(() => useColumnPreferences('test-page', columns, { legacyKeys: LEGACY })).result;
+
+    it('maps a plain visible array, drops null targets and keeps unmapped keys', () => {
+      mockUsePreferences.mockReturnValue(stored(['name', 'gone', 'id']));
+      const result = render();
+
+      expect([...result.current.visibleColumns]).toEqual(['title', 'id']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+    });
+
+    it('maps the object form: visible and order, de-duplicated with the first occurrence winning', () => {
+      mockUsePreferences.mockReturnValue(
+        stored({
+          visible: ['cost', 'price', 'name'],
+          order: ['price', 'name', 'cost', 'gone', 'id'],
+        }),
+      );
+      const result = render();
+
+      expect([...result.current.visibleColumns]).toEqual(['amount', 'title']);
+      expect(result.current.columnOrder).toEqual(['amount', 'title', 'id']);
+    });
+
+    it('shows a new key when any old key mapped to it was visible', () => {
+      // `cost` was hidden, `price` visible: both map to amount, so amount is visible.
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['price'], order: ['cost', 'price', 'name', 'id'] }),
+      );
+      const result = render();
+
+      expect(result.current.visibleColumns.has('amount')).toBe(true);
+      expect(result.current.visibleColumns.has('title')).toBe(false);
+    });
+
+    it('keeps a hidden target hidden when none of its old keys was visible', () => {
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['id'], order: ['name', 'cost', 'id'] }),
+      );
+      const result = render();
+
+      expect([...result.current.visibleColumns]).toEqual(['id']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+    });
+
+    it('treats a missing visible or order list as missing', () => {
+      mockUsePreferences.mockReturnValue(stored({ visible: ['name'] }));
+      let result = render();
+      expect([...result.current.visibleColumns]).toEqual(['title']);
+      expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+
+      mockUsePreferences.mockReturnValue(stored({ order: ['cost', 'name'] }));
+      result = render();
+      expect(result.current.columnOrder).toEqual(['amount', 'title', 'id']);
+      expect([...result.current.visibleColumns]).toEqual(['title', 'amount']);
+    });
+
+    it.each([['5'], ['null'], ['"text"']])(
+      'leaves a non-object stored value (%s) on the defaults',
+      (value) => {
+        mockUsePreferences.mockReturnValue(
+          makeUsePreferencesResult([makePreference('table.test-page.columns', value)]),
+        );
+        const result = render();
+
+        expect([...result.current.visibleColumns]).toEqual(['title', 'amount']);
+        expect(result.current.columnOrder).toEqual(['title', 'amount', 'id']);
+      },
+    );
+
+    it('a new key follows its defaultVisible and is appended after the mapped order', () => {
+      const withNew: typeof COLUMNS = [
+        ...COLUMNS,
+        { key: 'stillDue', label: 'Still due', render: () => '' },
+        { key: 'notes', label: 'Notes', defaultVisible: false, render: () => '' },
+      ];
+      mockUsePreferences.mockReturnValue(
+        stored({ visible: ['name'], order: ['cost', 'name', 'id'] }),
+      );
+      const result = render(withNew);
+
+      expect([...result.current.visibleColumns].sort()).toEqual(['stillDue', 'title']);
+      expect(result.current.columnOrder).toEqual(['amount', 'title', 'id', 'stillDue', 'notes']);
+    });
+
+    it('does not map inherited object keys such as constructor', () => {
+      mockUsePreferences.mockReturnValue(stored(['constructor', 'title']));
+      const result = render();
+
+      expect([...result.current.visibleColumns]).toEqual(['constructor', 'title']);
+    });
+  });
+
   describe('a column added after the user saved (#2238)', () => {
     const WITH_NEW: typeof COLUMNS = [
       ...COLUMNS,

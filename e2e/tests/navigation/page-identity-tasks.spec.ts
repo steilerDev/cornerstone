@@ -561,7 +561,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
 
       await page.goto(`${routeUrl('workItems')}?q=${encodeURIComponent(NAMES.task)}`);
       await list.waitForLoaded();
-      await list.workItemRow(NAMES.task).click();
+      await list.title(seed.workItemId).click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('workItem', { id: seed.workItemId }),
@@ -836,7 +836,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
 
       await page.goto(`${routeUrl('workItems')}?q=${encodeURIComponent(NAMES.task)}`);
       await list.waitForLoaded();
-      await list.workItemRow(NAMES.task).click();
+      await list.title(seed.workItemId).click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('workItem', { id: seed.workItemId }),

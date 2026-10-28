@@ -1,17 +1,19 @@
 /**
- * E2E tests for Work Items List page (/project/work-items)
+ * E2E tests for the Tasks list page (/project/work-items): the page basics.
  *
- * Scenarios covered:
- * 1.  Page loads with h1 "Work Items"
- * 2.  Empty state when no work items (mock API)
- * 3.  "New Work Item" button navigates to /project/work-items/new
- * 4.  Search filters work items
- * 5.  Create via API + verify appears in list + delete via API cleanup
- * 6.  Delete modal — confirm removes work item
- * 7.  Delete modal — cancel leaves work item
- * 8.  Pagination visible when >25 items (mock API)
- * 9.  Responsive — no horizontal scroll on current viewport
+ * The full ObjectList behaviour (groups, filters, row commands, bulk edits) is in
+ * `tasks-list.spec.ts`; this file keeps the original scenarios on the new list:
+ * 1.  Page loads with h1 "Tasks"
+ * 2.  Empty state (mock API) and the filtered empty state
+ * 3.  "New task" opens the create dialog over the list
+ * 4.  Search filters tasks
+ * 5.  A task created via API appears in the list
+ * 6.  Delete dialog - confirm removes the task
+ * 7.  Delete dialog - cancel leaves the task
+ * 8.  No page controls: the list loads by scrolling (pagination is gone)
+ * 9.  Responsive - no horizontal scroll; table or card surface by width
  * 10. Dark mode rendering
+ * 11. Status chips use the canonical words and a coloured background
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -20,10 +22,10 @@ import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "Work Items"
+// Scenario 1: Page loads with h1 "Tasks"
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Work Items list page loads with h1 "Work Items"', { tag: '@smoke' }, async ({ page }) => {
+  test('Tasks list page loads with h1 "Tasks"', { tag: '@smoke' }, async ({ page }) => {
     const workItemsPage = new WorkItemsPage(page);
 
     await workItemsPage.goto();
@@ -40,21 +42,24 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Empty state when no work items exist
+// Scenario 2: Empty state
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Empty state shown when no work items exist (mocked empty response)', async ({ page }) => {
+  test('Empty state shown when no tasks exist (mocked empty response), without a create action', async ({
+    page,
+  }) => {
     const workItemsPage = new WorkItemsPage(page);
 
-    // Intercept the work items API to return an empty list
-    await page.route(`${API.workItems}*`, async (route) => {
+    await page.route(`**${API.workItems}?*`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
             items: [],
-            pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+            pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+            groupCounts: { late: 0, this_week: 0, next_two_weeks: 0, later: 0, done: 0 },
+            scopeTotal: 0,
           }),
         });
       } else {
@@ -62,55 +67,31 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
       }
     });
 
-    try {
-      await workItemsPage.goto();
+    await workItemsPage.goto();
 
-      // Empty state should be visible
-      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 7000 });
-
-      // Heading in empty state mentions "No work items yet"
-      const emptyText = await workItemsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no work items yet/);
-
-      // A CTA button to create the first item is visible
-      const ctaButton = workItemsPage.emptyState.getByRole('button', {
-        name: /Create First Work Item/i,
-      });
-      await expect(ctaButton).toBeVisible();
-    } finally {
-      await page.unroute(`${API.workItems}*`);
-    }
+    await expect(workItemsPage.emptyState).toBeVisible();
+    await expect(workItemsPage.emptyState).toContainText('No tasks yet');
+    // The header "New task" is the one create action; the empty state has none
+    await expect(workItemsPage.emptyState.getByRole('button')).toHaveCount(0);
+    await expect(workItemsPage.newWorkItemButton).toBeVisible();
   });
 
-  test('Filter empty state message shown when search matches nothing', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Filtered empty state shown when search matches nothing', async ({ page, testPrefix }) => {
     const workItemsPage = new WorkItemsPage(page);
     let createdId: string | null = null;
 
     try {
-      // Create a work item so we know the list isn't globally empty
       createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Filter Empty Test` });
 
       await workItemsPage.goto();
       await workItemsPage.waitForLoaded();
-
-      // Search for something that will not match any work item
       await workItemsPage.search('ZZZNOMATCH99999XYZABC');
 
-      // Empty state with filter message should appear.
-      // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
-      // when hasActiveFilters is true (search or column filters active).
-      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 15000 });
-      const emptyText = await workItemsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
-
-      // DataTable renders "Clear Filters" button (t('button.clearFilters')) in filtered empty state.
-      const clearButton = workItemsPage.emptyState.getByRole('button', {
-        name: /Clear Filters/i,
-      });
-      await expect(clearButton).toBeVisible({ timeout: 10000 });
+      await expect(workItemsPage.emptyState).toBeVisible();
+      await expect(workItemsPage.emptyState).toContainText('No tasks match.');
+      await expect(
+        workItemsPage.emptyState.getByRole('button', { name: /Clear Filters/i }),
+      ).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -118,25 +99,25 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: "New Work Item" button navigates to /project/work-items/new
+// Scenario 3: "New task" opens the create dialog
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"New Work Item" navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"New Work Item" button navigates to the create page', async ({ page }) => {
+test.describe('"New task" (Scenario 3)', { tag: '@responsive' }, () => {
+  test('"New task" opens the create dialog at /project/work-items/new', async ({ page }) => {
     const workItemsPage = new WorkItemsPage(page);
 
     await workItemsPage.goto();
     await expect(workItemsPage.newWorkItemButton).toBeVisible();
+    await expect(workItemsPage.newWorkItemButton).toHaveText('New task');
 
     await workItemsPage.newWorkItemButton.click();
 
-    // Should navigate to /project/work-items/new
     await page.waitForURL('**/project/work-items/new');
     expect(page.url()).toContain('/project/work-items/new');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Search filters work items
+// Scenario 4: Search
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
   test('Search by partial title filters list to matching items only', async ({
@@ -154,16 +135,10 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
 
       await workItemsPage.goto();
       await workItemsPage.waitForLoaded();
-
-      // Search specifically for the alpha item
       await workItemsPage.search(`${testPrefix} Alpha`);
 
-      // Use expect() with Playwright's retry instead of getWorkItemTitles() —
-      // this handles the async gap between API response and React DOM update.
-      // getByText is scoped to the page so it finds items in either the table
-      // (desktop/tablet) or the mobile cards container.
-      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
-      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
+      await expect(workItemsPage.titleLinks.filter({ hasText: alphaTitle })).toHaveCount(1);
+      await expect(workItemsPage.titleLinks.filter({ hasText: betaTitle })).toHaveCount(0);
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);
@@ -171,7 +146,7 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Clearing search restores full list', async ({ page, testPrefix }) => {
+  test('Clearing search restores the full list', async ({ page, testPrefix }) => {
     const workItemsPage = new WorkItemsPage(page);
     const created: string[] = [];
     const alphaTitle = `${testPrefix} Clear Search Alpha`;
@@ -184,17 +159,14 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
       await workItemsPage.goto();
       await workItemsPage.waitForLoaded();
 
-      // Search so only alpha is shown
-      await workItemsPage.search(`${testPrefix} Clear Search Alpha`);
-      // Use expect() with Playwright's retry for cross-viewport reliability.
-      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
-      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
+      await workItemsPage.search(alphaTitle);
+      await expect(workItemsPage.titleLinks.filter({ hasText: alphaTitle })).toHaveCount(1);
+      await expect(workItemsPage.titleLinks.filter({ hasText: betaTitle })).toHaveCount(0);
 
-      // Clear search — both should reappear.
       await workItemsPage.clearSearch();
       await workItemsPage.search(testPrefix);
-      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
-      await expect(page.getByRole('link', { name: betaTitle }).first()).toBeVisible();
+      await expect(workItemsPage.titleLinks.filter({ hasText: alphaTitle })).toHaveCount(1);
+      await expect(workItemsPage.titleLinks.filter({ hasText: betaTitle })).toHaveCount(1);
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);
@@ -204,45 +176,32 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Create via API + verify appears in list + delete via API cleanup
+// Scenario 5: A task created via API appears in the list
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  'Work item appears in list after API creation (Scenario 5)',
+  'Task appears in list after API creation (Scenario 5)',
   { tag: '@responsive' },
   () => {
-    test('Work item created via API appears in the list', async ({ page, testPrefix }) => {
+    test('Task created via API appears in the list', async ({ page, testPrefix }) => {
       const workItemsPage = new WorkItemsPage(page);
       let createdId: string | null = null;
       const title = `${testPrefix} API Created Item`;
 
       try {
-        // Create via API
         createdId = await createWorkItemViaApi(page, { title });
 
-        await workItemsPage.goto();
-        await workItemsPage.waitForLoaded();
+        await workItemsPage.openSearch(title);
 
-        // Search to ensure this item is visible regardless of pagination
-        await workItemsPage.search(title);
-
-        const titles = await workItemsPage.getWorkItemTitles();
-        expect(titles).toContain(title);
+        await expect.poll(() => workItemsPage.getWorkItemTitles()).toContain(title);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
     });
 
-    test('Table shows work item title, status, and other columns on desktop', async ({
+    test('Table shows the Task, Dates, Who, Expected cost, Waits for / Holds up and Status columns on a wide list', async ({
       page,
       testPrefix,
     }) => {
-      const viewport = page.viewportSize();
-      // Table is hidden on mobile (< 768px)
-      if (!viewport || viewport.width < 768) {
-        test.skip();
-        return;
-      }
-
       const workItemsPage = new WorkItemsPage(page);
       let createdId: string | null = null;
       const title = `${testPrefix} Table Info Test`;
@@ -250,18 +209,19 @@ test.describe(
       try {
         createdId = await createWorkItemViaApi(page, { title });
 
-        await workItemsPage.goto();
-        await workItemsPage.waitForLoaded();
-        await workItemsPage.search(title);
+        await workItemsPage.openSearch(title);
+        test.skip(!(await workItemsPage.isTableSurface()), 'Cards below 768 px of list width');
 
-        // Verify the table container is visible
-        await expect(workItemsPage.tableContainer).toBeVisible();
-
-        // Verify table headers
-        const table = workItemsPage.tableContainer.locator('table');
-        await expect(table.getByRole('columnheader', { name: 'Title' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Status' })).toBeVisible();
-        await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+        for (const name of [
+          'Task',
+          'Dates',
+          'Who',
+          'Expected cost',
+          'Waits for / Holds up',
+          'Status',
+        ]) {
+          await expect(workItemsPage.columnHeader(name)).toBeVisible();
+        }
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
@@ -270,59 +230,34 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Delete modal — confirm removes work item
+// Scenario 6: Delete dialog - confirm removes the task
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete modal — confirm (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Confirming delete removes the work item from the list', async ({ page, testPrefix }) => {
+test.describe('Delete dialog - confirm (Scenario 6)', { tag: '@responsive' }, () => {
+  test('Confirming delete removes the task from the list', async ({ page, testPrefix }) => {
     const workItemsPage = new WorkItemsPage(page);
     const title = `${testPrefix} Delete Confirm Item`;
 
-    // Create the item (no cleanup variable — it is deleted via UI)
-    const createdId = await createWorkItemViaApi(page, { title });
+    await createWorkItemViaApi(page, { title });
 
-    await workItemsPage.goto();
-    await workItemsPage.waitForLoaded();
+    await workItemsPage.openSearch(title);
+    await expect.poll(() => workItemsPage.getWorkItemTitles()).toContain(title);
 
-    // Search for this specific item
-    await workItemsPage.search(title);
-    const titlesBefore = await workItemsPage.getWorkItemTitles();
-    expect(titlesBefore).toContain(title);
-
-    // Open delete modal and confirm
     await workItemsPage.openDeleteModal(title);
     await expect(workItemsPage.deleteModal).toBeVisible();
+    await expect(workItemsPage.deleteModal).toContainText(title);
 
-    // Modal content includes the work item title
-    const modalText = await workItemsPage.deleteModal.textContent();
-    expect(modalText).toContain(title);
-
-    // Register the list-refresh response listener before confirming deletion so
-    // we don't miss the GET that fires immediately after the DELETE completes.
-    const listRefreshPromise = page.waitForResponse(
-      (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
-    );
-
-    // Confirm deletion — confirmDelete() waits for the DELETE API response and
-    // the modal to close.
     await workItemsPage.confirmDelete();
 
-    // Wait for the list to refresh with the post-delete GET response.
-    await listRefreshPromise;
-
-    // Work item no longer in list (assert on DOM, no need for another waitForLoaded)
-    const titlesAfter = await workItemsPage.getWorkItemTitles();
-    expect(titlesAfter).not.toContain(title);
-
-    // Note: item was deleted via UI — no API cleanup needed
-    void createdId;
+    // The task is gone from the list (no reload needed)
+    await expect.poll(() => workItemsPage.getWorkItemTitles()).not.toContain(title);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Delete modal — cancel leaves work item
+// Scenario 7: Delete dialog - cancel leaves the task
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete modal — cancel (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Cancelling delete modal leaves the work item in the list', async ({ page, testPrefix }) => {
+test.describe('Delete dialog - cancel (Scenario 7)', { tag: '@responsive' }, () => {
+  test('Cancelling the delete dialog leaves the task in the list', async ({ page, testPrefix }) => {
     const workItemsPage = new WorkItemsPage(page);
     let createdId: string | null = null;
     const title = `${testPrefix} Cancel Delete Item`;
@@ -330,16 +265,11 @@ test.describe('Delete modal — cancel (Scenario 7)', { tag: '@responsive' }, ()
     try {
       createdId = await createWorkItemViaApi(page, { title });
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-      await workItemsPage.search(title);
-
+      await workItemsPage.openSearch(title);
       await workItemsPage.openDeleteModal(title);
       await workItemsPage.cancelDelete();
 
-      // Work item still present
-      const titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(title);
+      await expect.poll(() => workItemsPage.getWorkItemTitles()).toContain(title);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -347,122 +277,36 @@ test.describe('Delete modal — cancel (Scenario 7)', { tag: '@responsive' }, ()
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Pagination visible when >25 items (mock API)
+// Scenario 8: No pagination controls
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Pagination (Scenario 8)', { tag: '@responsive' }, () => {
-  test('Pagination controls visible when API returns totalPages > 1', async ({ page }) => {
+test.describe('Loading by scrolling (Scenario 8)', { tag: '@responsive' }, () => {
+  test('A single batch shows no page controls', async ({ page, testPrefix }) => {
     const workItemsPage = new WorkItemsPage(page);
-
-    // Mock 26 items across 2 pages
-    await page.route(`${API.workItems}*`, async (route) => {
-      if (route.request().method() === 'GET') {
-        const items = Array.from({ length: 25 }, (_, i) => ({
-          id: `mock-item-${i}`,
-          title: `Mock Work Item ${String(i + 1).padStart(2, '0')}`,
-          status: 'not_started',
-          assignedUser: null,
-          startDate: null,
-          endDate: null,
-          projectedStartDate: null,
-          projectedEndDate: null,
-          isLate: false,
-          lateDays: null,
-          isHeldUp: false,
-          tags: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
-
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items,
-            pagination: { page: 1, pageSize: 25, totalItems: 26, totalPages: 2 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    let createdId: string | null = null;
 
     try {
-      await workItemsPage.goto();
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Single Batch` });
+      await workItemsPage.openSearch(`${testPrefix} Single Batch`);
 
-      // Pagination controls should be visible
-      await expect(workItemsPage.pagination).toBeVisible({ timeout: 7000 });
-      await expect(workItemsPage.nextPageButton).toBeVisible();
-      await expect(workItemsPage.prevPageButton).toBeVisible();
-
-      // Previous page disabled on page 1
-      await expect(workItemsPage.prevPageButton).toBeDisabled();
-
-      // Pagination info text
-      const infoText = await workItemsPage.getPaginationInfoText();
-      expect(infoText).toMatch(/showing|of 26/i);
+      await expect(page.getByLabel('Previous', { exact: true })).toHaveCount(0);
+      await expect(page.getByLabel('Next', { exact: true })).toHaveCount(0);
     } finally {
-      await page.unroute(`${API.workItems}*`);
-    }
-  });
-
-  test('Pagination not shown when result fits on a single page', async ({ page }) => {
-    const workItemsPage = new WorkItemsPage(page);
-
-    // Mock a single-page response
-    await page.route(`${API.workItems}*`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'solo-item-1',
-                title: 'Solo Work Item',
-                status: 'not_started',
-                assignedUser: null,
-                startDate: null,
-                endDate: null,
-                projectedStartDate: null,
-                projectedEndDate: null,
-                isLate: false,
-                lateDays: null,
-                isHeldUp: false,
-                tags: [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-            ],
-            pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-
-      // Pagination should NOT be visible
-      await expect(workItemsPage.pagination).not.toBeVisible();
-    } finally {
-      await page.unroute(`${API.workItems}*`);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Responsive — no horizontal scroll
+// Scenario 9: Responsive
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
-  test('Work Items list page renders without horizontal scroll on current viewport', async ({
+  test('Tasks list page renders without horizontal scroll on current viewport', async ({
     page,
   }) => {
     const workItemsPage = new WorkItemsPage(page);
 
     await workItemsPage.goto();
+    await workItemsPage.waitForLoaded();
 
     const hasHorizontalScroll = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth;
@@ -471,51 +315,23 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Mobile: card view is shown when viewport is < 768px', async ({ page, testPrefix }) => {
-    const viewport = page.viewportSize();
-
-    // Only run the mobile-specific assertion on narrow viewports
-    if (!viewport || viewport.width >= 768) {
-      test.skip();
-      return;
-    }
-
+  test('Exactly one surface (table or cards) shows the rows, and phones use cards', async ({
+    page,
+    testPrefix,
+  }) => {
     const workItemsPage = new WorkItemsPage(page);
     let createdId: string | null = null;
+    const title = `${testPrefix} Surface Item`;
 
     try {
-      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Mobile Card Item` });
+      createdId = await createWorkItemViaApi(page, { title });
+      await workItemsPage.openSearch(title);
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-
-      // At least one card should be visible
-      const cards = await workItemsPage.cardsContainer.locator('[class*="card"]').all();
-      expect(cards.length).toBeGreaterThan(0);
-    } finally {
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
-
-  test('Desktop: table is visible when viewport is >= 768px', async ({ page, testPrefix }) => {
-    const viewport = page.viewportSize();
-
-    // Only run on desktop/tablet viewports
-    if (!viewport || viewport.width < 768) {
-      test.skip();
-      return;
-    }
-
-    const workItemsPage = new WorkItemsPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Desktop Table Item` });
-
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-
-      await expect(workItemsPage.tableContainer).toBeVisible();
+      await expect(workItemsPage.workItemRow(title)).toHaveCount(1);
+      const viewport = page.viewportSize();
+      if (viewport && viewport.width < 768) {
+        expect(await workItemsPage.isTableSurface()).toBe(false);
+      }
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -523,58 +339,33 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10: Dark mode rendering
+// Scenario 10: Dark mode
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () => {
-  test('Work Items list page renders correctly in dark mode', async ({ page }) => {
+  test('Tasks list page renders correctly in dark mode', async ({ page }) => {
     const workItemsPage = new WorkItemsPage(page);
 
     await page.goto(WORK_ITEMS_ROUTE);
-    // Apply dark theme before waiting for heading — avoids race with React hydration
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await workItemsPage.heading.waitFor({ state: 'visible', timeout: 7000 });
-
     await expect(workItemsPage.heading).toBeVisible();
+    await expect(workItemsPage.searchInput).toBeVisible();
+    await expect(workItemsPage.filtersButton).toBeVisible();
 
-    // No horizontal scroll in dark mode
     const hasHorizontalScroll = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth;
     });
     expect(hasHorizontalScroll).toBe(false);
   });
-
-  test('Filters card and search input visible in dark mode', async ({ page }) => {
-    const workItemsPage = new WorkItemsPage(page);
-
-    await page.goto(WORK_ITEMS_ROUTE);
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-
-    await workItemsPage.heading.waitFor({ state: 'visible', timeout: 7000 });
-
-    await expect(workItemsPage.searchInput).toBeVisible();
-    // Column filter buttons are in the table header (<thead>) which is CSS-hidden on mobile
-    // (tableContainer has display:none at max-width: 767px). Only check them on tablet+desktop.
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width >= 768) {
-      await expect(workItemsPage.statusFilter).toBeVisible();
-    }
-    // Column settings button has display:none at max-width:767px — only visible on tablet+desktop.
-    if (viewport && viewport.width >= 768) {
-      await expect(page.getByLabel('Column settings')).toBeVisible();
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Story #2195 (AC2): the shared status chips are coloured and use the canonical words
+// Scenario 11 (Story #2195, AC2): status chips are coloured and use the canonical words
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Status chip colour and wording (Story #2195, AC2)', { tag: '@responsive' }, () => {
-  test('Work item status chips read "In progress" / "Done" and have a non-transparent background', async ({
+  test('Task status chips read "In progress" / "Done" and have a non-transparent background', async ({
     page,
     testPrefix,
   }) => {
@@ -582,30 +373,27 @@ test.describe('Status chip colour and wording (Story #2195, AC2)', { tag: '@resp
     const created: string[] = [];
 
     try {
-      created.push(
-        await createWorkItemViaApi(page, {
-          title: `${testPrefix} Chip Active`,
-          status: 'in_progress',
-        }),
-      );
-      created.push(
-        await createWorkItemViaApi(page, {
-          title: `${testPrefix} Chip Finished`,
-          status: 'completed',
-        }),
-      );
+      const active = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Chip Active`,
+        status: 'in_progress',
+      });
+      created.push(active);
+      const finished = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Chip Finished`,
+        status: 'completed',
+      });
+      created.push(finished);
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-      await workItemsPage.search(`${testPrefix} Chip`);
+      await workItemsPage.openSearch(`${testPrefix} Chip`);
+      // Done is collapsed while other groups have rows
+      await workItemsPage.expandGroup('done');
 
-      for (const label of ['In progress', 'Done']) {
-        const chip = page
-          .locator('[class*="badge"]')
-          .filter({ hasText: new RegExp(`^${label}$`) })
-          .visible()
-          .first();
-        await expect(chip).toBeVisible();
+      for (const [id, label] of [
+        [active, 'In progress'],
+        [finished, 'Done'],
+      ] as const) {
+        const chip = workItemsPage.statusBadge(id);
+        await expect(chip).toHaveText(label);
         const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
         expect(
           bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)',

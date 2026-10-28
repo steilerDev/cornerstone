@@ -39,6 +39,8 @@ export interface ObjectListGroupOption<T> {
   readonly groupOf: (item: T) => ObjectListGroupMeta;
   /** Group keys in display order; other keys follow A–Z by label (locale compare). */
   readonly order?: readonly string[];
+  /** Group keys rendered after the A–Z groups, in the given order (e.g. 'No area'). */
+  readonly last?: readonly string[];
   /** Server orders rows by this group and returns groupCounts, so it works above 100 rows (Tasks' Time window, P5.1). */
   readonly server?: boolean;
 }
@@ -78,13 +80,19 @@ export interface ObjectListFilterDef {
 }
 
 export interface ObjectListConfig<T> {
-  /** Session-state and column-preference key (`table.${listKey}.columns`; reuse today's pageKey, e.g. 'work-items'). */
+  /** Session-state and column-preference key (`table.${listKey}.columns`; reuse today's pageKey, e.g. 'workItems'). */
   readonly listKey: string;
   readonly testIdPrefix: string;
   readonly chips?: ObjectListChipsConfig;
   readonly groupBy?: ObjectListGroupConfig<T>;
   readonly sort: ObjectListSortConfig;
   readonly filters?: readonly ObjectListFilterDef[];
+  /**
+   * Stored column keys of the list this replaced → the new key (null drops it). Applied to the
+   * stored `table.${listKey}.columns` value before it is read; a new key is visible when any old
+   * key mapped to it was.
+   */
+  readonly legacyColumnKeys?: Readonly<Record<string, string | null>>;
 }
 
 /** What the host's fetchPage receives. */

@@ -2218,3 +2218,12 @@ column. When a PR adds a key to `prefillKeys`/`CREATE_PREFILL_KEYS`, grep the ta
 `carries` in all three places. Same PR: when a component is deleted, grep the wiki for it as a _live
 consumer_ in other sections, not only in the retired lists (Architecture's SearchPicker consumer list
 still named `InvoicePaperlessPickerModal`).
+
+## New `data-figure` on a list row escapes the guard (#2245, Phase D)
+
+A list adopter that renders an existing shared sentence ("Holds up n tasks") with `data-figure` is a
+new figure surface even when the story is "not about figures". Server consistency tests got written,
+but `client/src/types/figureKind.test.ts`'s literal file list and `e2e/fixtures/figureSurfaces.ts`
+were not updated, so the guard fails (`unregistered: [useTaskRows.tsx]`). In Phase D / review, grep
+the diff for `data-figure=` and run `figureKind.test.ts` (2 s). Also: `HOME_AGENDA_DAYS` is 21, not
+14 — "Next 2 weeks" = days 8–21; read the constant before writing a window bound in the wiki.

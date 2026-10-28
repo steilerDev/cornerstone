@@ -7,22 +7,22 @@ title: Keyboard Shortcuts
 
 Cornerstone includes keyboard shortcuts for faster navigation and actions.
 
-## Work Items List
+## Tasks List
 
 | Shortcut | Action |
 |----------|--------|
-| `n` | Create a new work item |
+| `n` | Create a new task |
 | `/` | Focus the search input |
 | `?` | Show keyboard shortcut help |
 
-## Work Item Detail
+## Task Detail
 
 | Shortcut | Action |
 |----------|--------|
-| `e` | Edit the work item |
-| `Delete` | Delete the work item |
+| `e` | Edit the task |
+| `Delete` | Delete the task |
 | `Escape` | Cancel the current action |
 
 :::tip
-Press `?` on the work items list page to see all available shortcuts in a help overlay.
+Press `?` on the Tasks page to see all available shortcuts in a help overlay.
 :::

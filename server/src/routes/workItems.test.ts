@@ -11,6 +11,7 @@ import type { FastifyInstance } from 'fastify';
 import type {
   WorkItemDetail,
   WorkItemListResponse,
+  WorkItemListRowsResponse,
   ApiErrorResponse,
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
@@ -609,6 +610,119 @@ describe('Work Item Routes', () => {
         headers: { cookie },
       });
       expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe('GET /api/work-items/:id/dependent-household-items', () => {
+    it('returns an empty list for a task nothing depends on', async () => {
+      const { userId, cookie } = await createUserWithSession('dep@example.com', 'D', 'password123');
+      const item = workItemService.createWorkItem(app.db, userId, { title: 'Pour slab' });
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items/${item.id}/dependent-household-items`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ householdItems: unknown[] }>()).toEqual({ householdItems: [] });
+    });
+
+    it('requires authentication', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items/wi-1/dependent-household-items',
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  describe('GET /api/work-items — Tasks list rows (#2245)', () => {
+    async function seedTwo() {
+      const { userId, cookie } = await createUserWithSession(
+        'rows@example.com',
+        'R',
+        'password123',
+      );
+      const a = workItemService.createWorkItem(app.db, userId, { title: 'Pour slab' });
+      const b = workItemService.createWorkItem(app.db, userId, { title: 'Frame walls' });
+      return { cookie, a: a.id, b: b.id };
+    }
+    const get = (cookie: string, query: string) =>
+      app.inject({ method: 'GET', url: `/api/work-items${query}`, headers: { cookie } });
+
+    it('returns the row figures, scopeTotal and no groupCounts by default', async () => {
+      const { cookie } = await seedTwo();
+      const response = await get(cookie, '');
+      expect(response.statusCode).toBe(200);
+      const body = response.json<WorkItemListRowsResponse>();
+      expect(body.scopeTotal).toBe(2);
+      expect(body).not.toHaveProperty('groupCounts');
+      expect(body.items).toHaveLength(2);
+      expect(body.items[0]).toEqual(
+        expect.objectContaining({
+          grants: [],
+          expectedCost: null,
+          timeWindow: expect.any(String),
+          isCritical: expect.any(Boolean),
+          waitsFor: null,
+          holdsUp: null,
+        }),
+      );
+      expect(body.pagination.totalItems).toBe(2);
+    });
+
+    it('group=time returns groupCounts with every window key', async () => {
+      const { cookie } = await seedTwo();
+      const body = (await get(cookie, '?group=time')).json<WorkItemListRowsResponse>();
+      expect(Object.keys(body.groupCounts!)).toEqual([
+        'late',
+        'this_week',
+        'next_two_weeks',
+        'later',
+        'done',
+      ]);
+      expect(Object.values(body.groupCounts!).reduce((a, b) => a + b, 0)).toBe(2);
+    });
+
+    it('ids narrows the rows and ignores paging', async () => {
+      const { cookie, a } = await seedTwo();
+      const body = (
+        await get(cookie, `?ids=${a}&pageSize=1&page=4`)
+      ).json<WorkItemListRowsResponse>();
+      expect(body.items.map((i) => i.id)).toEqual([a]);
+      expect(body.pagination).toEqual({ page: 1, pageSize: 100, totalItems: 1, totalPages: 1 });
+      expect(body.scopeTotal).toBe(2);
+    });
+
+    it('rejects more than 100 ids with 400 VALIDATION_ERROR', async () => {
+      const { cookie } = await seedTwo();
+      const ids = Array.from({ length: 101 }, (_, i) => `x${i}`).join(',');
+      const response = await get(cookie, `?ids=${ids}`);
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts sortBy=expected_cost and milestoneId', async () => {
+      const { cookie } = await seedTwo();
+      expect((await get(cookie, '?sortBy=expected_cost&sortOrder=asc')).statusCode).toBe(200);
+      const body = (await get(cookie, '?milestoneId=999')).json<WorkItemListRowsResponse>();
+      expect(body.items).toEqual([]);
+    });
+
+    it.each([
+      ['an unknown group', '?group=area'],
+      ['a non-numeric milestoneId', '?milestoneId=abc'],
+      ['a zero milestoneId', '?milestoneId=0'],
+      ['an unknown sort', '?sortBy=cost'],
+      ['an over-long ids list', `?ids=${'a'.repeat(4001)}`],
+    ])('rejects %s with 400', async (_name, query) => {
+      const { cookie } = await seedTwo();
+      const response = await get(cookie, query);
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('requires authentication', async () => {
+      const response = await app.inject({ method: 'GET', url: '/api/work-items?group=time' });
+      expect(response.statusCode).toBe(401);
     });
   });
 
