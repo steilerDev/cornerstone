@@ -250,9 +250,12 @@ test.describe('Tasks list - row anatomy (AC3)', { tag: '@responsive' }, () => {
       await expect(list.statusBadge(lateId)).toHaveText('Not started');
       await expect(list.scheduleSignal(lateId)).toHaveText('Late · 5 d');
       await expect(list.scheduleSignal(heldId)).toHaveText('Held up');
-      await expect(list.criticalBadge(lateId)).toHaveCount(lateRow.isCritical ? 1 : 0);
+      const onTable = await list.isTableSurface();
+      // The table shows up to two markers (Late, then Critical); a card shows only the first, and
+      // Late wins over Critical, so a card has no Critical badge
+      await expect(list.criticalBadge(lateId)).toHaveCount(onTable && lateRow.isCritical ? 1 : 0);
 
-      if (!(await list.isTableSurface())) {
+      if (!onTable) {
         // Cards: the area is a fact on the second line
         await expect(list.row(lateId)).toContainText(areaName);
         return;
