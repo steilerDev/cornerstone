@@ -128,7 +128,7 @@ test.describe('Budget regression — direct-mode VAT-off single uplift (#1439)',
           title: `${testPrefix} VAT Double Uplift Regression`,
         });
 
-        await detailPage.goto(workItemId);
+        await detailPage.goto(workItemId, { tab: 'cost' });
 
         // Open the cost line form: a direct amount, entered net (the default)
         const form = new CostLineFormDialog(page, 'New cost line');
@@ -148,7 +148,7 @@ test.describe('Budget regression — direct-mode VAT-off single uplift (#1439)',
         await expect(budgetLineAmount).toContainText('119.00');
 
         // The double-uplift value (×1.19² = €141.61) must NOT appear anywhere in the budget section.
-        await expect(detailPage.budgetSection).not.toContainText('141.61');
+        await expect(detailPage.tabs.panel('cost')).not.toContainText('141.61');
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       }
@@ -214,7 +214,7 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         });
 
         // Navigate to the work item detail page
-        await detailPage.goto(workItemId);
+        await detailPage.goto(workItemId, { tab: 'cost' });
 
         // The offer group heading names the company and shows the offered amount once
         // (the #1449 range band "€475.00 – €525.00" and the broken "€0.00 – €0.00" are gone).

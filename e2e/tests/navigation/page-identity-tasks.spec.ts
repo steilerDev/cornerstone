@@ -322,7 +322,7 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
     // E2 — the title follows a rename
     // ─────────────────────────────────────────────────────────────────────────
 
-    test('E2: renaming a task inline updates the h1 and the tab title without a reload', async ({
+    test('E2: renaming a task in the Details card updates the h1 and the tab title without a reload', async ({
       page,
     }) => {
       let renameId: string | null = null;
@@ -333,10 +333,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         await detail.goto(renameId);
         await expect(page).toHaveTitle(`${NAMES.renameFrom} · Tasks · ${HOUSE}`);
 
-        await detail.heading.click();
-        const titleInput = page.locator('input[class*="titleInput"]');
-        await titleInput.fill(NAMES.renameTo);
-        await titleInput.press('Enter');
+        // The rename lives in the Details card (#2248), not on the heading
+        await detail.editDetails({ title: NAMES.renameTo });
 
         await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.renameTo);
         await expect(page).toHaveTitle(`${NAMES.renameTo} · Tasks · ${HOUSE}`);

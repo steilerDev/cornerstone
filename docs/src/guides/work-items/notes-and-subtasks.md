@@ -1,13 +1,13 @@
 ---
 sidebar_position: 3
-title: Notes & Subtasks
+title: Notes & Checklists
 ---
 
-# Notes & Subtasks
+# Notes & Checklists
 
 ## Notes
 
-Add notes to any work item to track progress, record decisions, or leave information for other users.
+Add notes to any task to track progress, record decisions, or leave information for other users.
 
 ### Features
 
@@ -17,22 +17,22 @@ Add notes to any work item to track progress, record decisions, or leave informa
 
 ### Adding a Note
 
-On the work item detail page, type your note in the text area at the bottom and click **Add Note**.
+On the task page, open the **Overview** tab and select **Add** > **Note**. Write the note and select **Add note**. The **Notes** card then appears on the Overview tab.
 
-## Subtasks
+## Checklist
 
-Break down work items into smaller subtasks with a checklist interface.
+Break down a task into smaller steps with a checklist.
 
 ### Features
 
-- **Toggle completion** -- mark subtasks complete or incomplete with a single click
-- **Reorder** -- rearrange subtasks using up/down buttons
-- **Add and remove** -- create new subtasks or delete existing ones
+- **Completion checkbox** -- tick a checklist item when it is done, or untick it to reopen it
+- **Reorder** -- use **Move up** and **Move down** from the item's **⋯** menu
+- **Rename and delete** -- change the name of an item, or remove it
 
-### Adding Subtasks
+### Adding Checklist Items
 
-On the work item detail page, use the subtask section to add checklist items. Each subtask has a title and a completion checkbox.
+On the task page, open the **Overview** tab and select **Add** > **Checklist item**. Enter the name and select **Add**. The **Checklist** card appears on the Overview tab as soon as it has an item.
 
 :::tip
-Subtasks are great for breaking down complex tasks. For example, "Install kitchen" might have subtasks like "Order cabinets", "Schedule installer", "Verify measurements", and "Final inspection".
+A checklist is great for breaking down a complex task. For example, "Install kitchen" might have checklist items like "Order cabinets", "Schedule installer", "Verify measurements", and "Final inspection".
 :::

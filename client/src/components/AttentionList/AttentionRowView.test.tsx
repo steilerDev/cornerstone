@@ -337,11 +337,11 @@ describe('AttentionRowView: N2 group', () => {
 });
 
 describe('AttentionRowView: link actions', () => {
-  it('Reschedule links to the Constraints section of the task page', () => {
+  it('Reschedule links to the Reschedule section of the Timing tab', () => {
     renderRow(makeRow('N1'), { withNavigate: true });
     const link = screen.getByTestId(`${TID}-reschedule`);
-    expect(link).toHaveAttribute('href', '/project/work-items/wi-1#constraints');
-    expect(link.getAttribute('href')).toMatch(/#constraints$/);
+    expect(link).toHaveAttribute('href', '/project/work-items/wi-1?tab=timing#reschedule');
+    expect(link.getAttribute('href')).toMatch(/\?tab=timing#reschedule$/);
     fireEvent.click(link);
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });

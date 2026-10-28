@@ -496,3 +496,26 @@ describe('Schedule routes carry their view params (#2247)', () => {
     expect(find('scheduleCalendar').carries).toEqual(['calendarMode', 'show', 'filter']);
   });
 });
+
+describe('Task page routes (#2248)', () => {
+  it('the new diary entry route carries the company the capture screen pre-selects', () => {
+    const entry = (ROUTE_MAP as readonly { id?: string; carries?: readonly string[] }[]).find(
+      (e) => e.id === 'diaryEntryNew',
+    )!;
+    expect(entry.carries).toEqual(['areaId', 'companyId', 'date', 'start']);
+  });
+
+  it('serves the ?depError= query map through the task page as an interim replace, not a live redirect', () => {
+    const entry = ENTRIES.find((e) => e.from === '/project/work-items/:id?depError=');
+    expect(entry).toMatchObject({
+      change: 'query-map',
+      stage: 'interim',
+      interim: 'page',
+      permanent: false,
+      carries: ['*'],
+    });
+    expect(LIVE_REDIRECT_ROUTES.some((r) => r.from === '/project/work-items/:id?depError=')).toBe(
+      false,
+    );
+  });
+});

@@ -36,6 +36,8 @@ jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
   fetchSubsidyProgram: mockFetchGrant,
   deleteSubsidyProgram: mockDeleteGrant,
   updateSubsidyProgram: jest.fn(),
+  // EntityPicker's grant kind imports it
+  fetchSubsidyPrograms: jest.fn(),
 }));
 
 const mockChangeStatus = jest.fn<(id: string, to: string) => Promise<unknown>>();

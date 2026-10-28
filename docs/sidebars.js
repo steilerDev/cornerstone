@@ -16,7 +16,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Work Items',
+      label: 'Tasks',
       link: { type: 'doc', id: 'guides/work-items/index' },
       items: [
         'guides/work-items/creating-work-items',

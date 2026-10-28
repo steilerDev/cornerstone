@@ -101,7 +101,7 @@ describe('CatchUpDialog', () => {
     expect(within(member).getByTestId('catch-up-row-N2:work_item:m1-start')).toBeInTheDocument();
     expect(within(member).getByRole('link', { name: 'Reschedule' })).toHaveAttribute(
       'href',
-      '/project/work-items/m1#constraints',
+      '/project/work-items/m1?tab=timing#reschedule',
     );
   });
 
@@ -177,7 +177,7 @@ describe('CatchUpDialog', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/project/work-items/wi-1#constraints',
+      '/project/work-items/wi-1?tab=timing#reschedule',
     );
   });
 

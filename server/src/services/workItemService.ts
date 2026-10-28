@@ -28,6 +28,7 @@ import { getExpectedCostByWorkItem } from './moneyService.js';
 import { buildScheduleIndex, computeHoldsUp, waitsForOf } from './shared/holdsUp.js';
 import { taskTimeWindowOf } from './shared/taskTimeWindow.js';
 import type { ScheduleProjection } from './schedulingEngine.js';
+import type { ScheduleIndex } from './shared/holdsUp.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
@@ -56,6 +57,8 @@ import type {
   TaskTimeWindow,
   WorkItemListRow,
   WorkItemListRowsResponse,
+  WorkItemPageDetail,
+  WorkItemPageVendor,
 } from '@cornerstone/shared';
 import { TASK_TIME_WINDOWS } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
@@ -930,6 +933,83 @@ export function listWorkItems(
 /** Most ids one `ids` request may name (and the page size of an `ids` response). */
 const MAX_LIST_IDS = 100;
 
+/** The per-task figures shared by the Tasks list rows and the task page (one definition each). */
+type WorkItemRowFigures = Pick<
+  WorkItemListRow,
+  'grants' | 'expectedCost' | 'waitsFor' | 'holdsUp' | 'isCritical'
+>;
+
+/**
+ * Grants, expected cost, critical flag, waits-for and holds-up for the given summaries.
+ * `costs` is the expected-cost map when the caller already holds it; null loads it on demand
+ * (only when some summary has budget lines).
+ */
+function buildRowFigures(
+  db: DbType,
+  summaries: readonly WorkItemSummary[],
+  ctx: {
+    today: string;
+    projection: ScheduleProjection;
+    index: ScheduleIndex;
+    vatRate: number;
+    costs: Map<string, number> | null;
+  },
+): Map<string, WorkItemRowFigures> {
+  const { today, projection, index } = ctx;
+  let costs = ctx.costs;
+  const chips = loadGrantChips(
+    db,
+    'work_item',
+    summaries.map((summary) => summary.id),
+  );
+  if (costs === null && summaries.some((summary) => summary.budgetLineCount > 0)) {
+    costs = getExpectedCostByWorkItem(db, ctx.vatRate);
+  }
+
+  const criticalSet = new Set(projection.criticalPath);
+  const waits = new Map<string, { firstId: string; count: number }>();
+  for (const summary of summaries) {
+    const waitsFor =
+      summary.status === 'completed' ? null : waitsForOf(index, summary.id, projection);
+    if (waitsFor !== null) waits.set(summary.id, waitsFor);
+  }
+  const waitTitles = new Map(
+    db
+      .select({ id: workItems.id, title: workItems.title })
+      .from(workItems)
+      .where(inArray(workItems.id, [...new Set([...waits.values()].map((w) => w.firstId))]))
+      .all()
+      .map((wi) => [wi.id, wi.title]),
+  );
+
+  const figures = new Map<string, WorkItemRowFigures>();
+  for (const summary of summaries) {
+    const waitsFor = waits.get(summary.id);
+    let holdsUp: AttentionHoldsUp | null = null;
+    if (summary.status !== 'completed') {
+      const { count, startingWithin14Days } = computeHoldsUp(index, summary.id, {
+        today,
+        projection,
+      });
+      if (count > 0) holdsUp = { count, startingWithin14Days };
+    }
+    figures.set(summary.id, {
+      grants: chips.get(summary.id)!,
+      expectedCost: summary.budgetLineCount === 0 ? null : costs!.get(summary.id)!,
+      isCritical: summary.status !== 'completed' && criticalSet.has(summary.id),
+      waitsFor: waitsFor
+        ? {
+            id: waitsFor.firstId,
+            title: waitTitles.get(waitsFor.firstId)!,
+            more: waitsFor.count - 1,
+          }
+        : null,
+      holdsUp,
+    });
+  }
+  return figures;
+}
+
 /**
  * List rows for the Tasks list (GET /api/work-items): the summary plus grants, expected cost,
  * time window, critical flag, waits-for and holds-up. Always runs in memory so the time-window
@@ -1022,57 +1102,19 @@ export function listWorkItemRows(
 
   const areaMap = loadAreaMap(db);
   const summaries = pageRows.map(({ row }) => toWorkItemSummary(db, row, areaMap, projection));
-  const chips = loadGrantChips(
-    db,
-    'work_item',
-    summaries.map((summary) => summary.id),
-  );
-  if (costs === null && summaries.some((summary) => summary.budgetLineCount > 0)) {
-    costs = getExpectedCostByWorkItem(db, opts.vatRate);
-  }
-
-  const criticalSet = new Set(projection.criticalPath);
-  const waits = new Map<string, { firstId: string; count: number }>();
-  for (const summary of summaries) {
-    const waitsFor =
-      summary.status === 'completed' ? null : waitsForOf(index, summary.id, projection);
-    if (waitsFor !== null) waits.set(summary.id, waitsFor);
-  }
-  const waitTitles = new Map(
-    db
-      .select({ id: workItems.id, title: workItems.title })
-      .from(workItems)
-      .where(inArray(workItems.id, [...new Set([...waits.values()].map((w) => w.firstId))]))
-      .all()
-      .map((wi) => [wi.id, wi.title]),
-  );
-
-  const items: WorkItemListRow[] = summaries.map((summary) => {
-    const waitsFor = waits.get(summary.id);
-    let holdsUp: AttentionHoldsUp | null = null;
-    if (summary.status !== 'completed') {
-      const { count, startingWithin14Days } = computeHoldsUp(index, summary.id, {
-        today,
-        projection,
-      });
-      if (count > 0) holdsUp = { count, startingWithin14Days };
-    }
-    return {
-      ...summary,
-      grants: chips.get(summary.id)!,
-      expectedCost: summary.budgetLineCount === 0 ? null : costs!.get(summary.id)!,
-      timeWindow: windowOf.get(summary.id)!,
-      isCritical: summary.status !== 'completed' && criticalSet.has(summary.id),
-      waitsFor: waitsFor
-        ? {
-            id: waitsFor.firstId,
-            title: waitTitles.get(waitsFor.firstId)!,
-            more: waitsFor.count - 1,
-          }
-        : null,
-      holdsUp,
-    };
+  const figures = buildRowFigures(db, summaries, {
+    today,
+    projection,
+    index,
+    vatRate: opts.vatRate,
+    costs,
   });
+
+  const items: WorkItemListRow[] = summaries.map((summary) => ({
+    ...summary,
+    ...figures.get(summary.id)!,
+    timeWindow: windowOf.get(summary.id)!,
+  }));
 
   return {
     items,
@@ -1083,4 +1125,47 @@ export function listWorkItemRows(
     ...(groupCounts ? { groupCounts } : {}),
     scopeTotal,
   };
+}
+
+/**
+ * Task page detail (GET /api/work-items/:id): the detail plus the page's figures, computed by the
+ * same helper as the Tasks list rows, and the assigned company's phone for the Call button.
+ * Throws NotFoundError if the work item does not exist.
+ */
+export function getWorkItemPageDetail(
+  db: DbType,
+  id: string,
+  opts: { vatRate: number; now?: Date },
+): WorkItemPageDetail {
+  const row = findWorkItemById(db, id);
+  if (!row) {
+    throw new NotFoundError('Work item not found');
+  }
+  const today = (opts.now ?? new Date()).toISOString().slice(0, 10);
+  const graph = loadScheduleGraph(db);
+  const projection = projectSchedule(graph, today);
+  const index = buildScheduleIndex(graph);
+  const areaMap = loadAreaMap(db);
+
+  const detail = toWorkItemDetail(db, row, areaMap, projection);
+  const summary = toWorkItemSummary(db, row, areaMap, projection);
+  const { expectedCost, grants, waitsFor, holdsUp } = buildRowFigures(db, [summary], {
+    today,
+    projection,
+    index,
+    vatRate: opts.vatRate,
+    costs: null,
+  }).get(id)!;
+
+  let assignedVendor: WorkItemPageVendor | null = null;
+  if (detail.assignedVendor) {
+    const vendorRow = db
+      .select({ phone: vendors.phone })
+      .from(vendors)
+      .where(eq(vendors.id, detail.assignedVendor.id))
+      .get();
+    assignedVendor = { ...detail.assignedVendor, phone: vendorRow?.phone ?? null };
+  }
+
+  return { ...detail, assignedVendor, expectedCost, grants, waitsFor, holdsUp };
 }

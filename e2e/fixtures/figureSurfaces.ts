@@ -29,6 +29,7 @@ import { MilestonesPage } from '../pages/MilestonesPage.js';
 import { TimelinePage } from '../pages/TimelinePage.js';
 import { VendorDetailPage } from '../pages/VendorDetailPage.js';
 import { VendorsPage } from '../pages/VendorsPage.js';
+import { WorkItemDetailPage } from '../pages/WorkItemDetailPage.js';
 import { WorkItemsPage } from '../pages/WorkItemsPage.js';
 
 /** Mirrors client/src/types/figureKind.ts (closed list). */
@@ -324,6 +325,25 @@ export const MILESTONES_LIST_HOLDS_UP_SURFACE: SubjectSurface<MilestoneSubject> 
   },
 };
 
+/**
+ * The task page strip's Holds up fact (#2248, story 5.4): "n tasks" (`holdsUp` of the detail
+ * endpoint, the same helper as the list and the timeline). The marker exists only when the task
+ * holds something up, so a task with no successors gives no marker. The Reschedule preview inside
+ * the page is a separate surface, so the reading stays inside `task-summary`.
+ */
+export const TASK_PAGE_HOLDS_UP_SURFACE: SubjectSurface<TaskSubject> = {
+  id: 'task.page',
+  story: '5.4',
+  kind: 'holds-up',
+  async readAll(page, subject) {
+    const task = new WorkItemDetailPage(page);
+    await task.goto(subject.workItemId);
+    await task.summary.fact('holdsUp').waitFor({ state: 'visible' });
+    const texts = await task.summary.figure('holds-up').allInnerTexts();
+    return texts.map((text) => firstInteger(text));
+  },
+};
+
 export const SCHEDULE_TOOLTIP_SURFACE: SubjectSurface<TaskSubject> = {
   id: 'schedule.tooltip',
   story: '3.5',
@@ -469,6 +489,7 @@ export const SUBJECT_SURFACES = [
   HOME_ATTENTION_SURFACE,
   TASKS_LIST_HOLDS_UP_SURFACE,
   MILESTONES_LIST_HOLDS_UP_SURFACE,
+  TASK_PAGE_HOLDS_UP_SURFACE,
   SCHEDULE_TOOLTIP_SURFACE,
   SCHEDULE_PANEL_SURFACE,
   SCHEDULE_RESCHEDULE_PREVIEW_SURFACE,
@@ -482,11 +503,5 @@ export const SUBJECT_SURFACES = [
 // Not built yet
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const PENDING_SURFACES: PendingSurface[] = [
-  {
-    story: '5.2',
-    screen: 'Task page',
-    figures: ['holds-up'],
-    note: 'Holds up n tasks on the task page.',
-  },
-];
+/** Every planned surface is built (the task page, 5.4, was the last one). */
+export const PENDING_SURFACES: PendingSurface[] = [];

@@ -36,7 +36,7 @@ test.describe('WI unit pricing create (entered as Gross, Scenario 1)', () => {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Unit Pricing VAT Test`,
       });
-      await detailPage.goto(workItemId);
+      await detailPage.goto(workItemId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();
@@ -78,7 +78,7 @@ test.describe('WI unit pricing create (entered as Net, Scenario 2)', () => {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Unit Pricing No VAT Test`,
       });
-      await detailPage.goto(workItemId);
+      await detailPage.goto(workItemId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();
@@ -159,7 +159,7 @@ test.describe('Edit re-opens in unit pricing mode (Scenario 4)', () => {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} Edit Unit Pricing Mode Test`,
       });
-      await detailPage.goto(workItemId);
+      await detailPage.goto(workItemId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();
@@ -202,7 +202,7 @@ test.describe('Switch back to direct amount mode (Scenario 5)', () => {
 
     try {
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} Mode Switch Test` });
-      await detailPage.goto(workItemId);
+      await detailPage.goto(workItemId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();
@@ -239,7 +239,7 @@ test.describe('Cost line form heading (Scenario 6)', () => {
       workItemId = await createWorkItemViaApi(page, {
         title: `${testPrefix} No Form Heading Test`,
       });
-      await detailPage.goto(workItemId);
+      await detailPage.goto(workItemId, { tab: 'cost' });
       await detailPage.costLines.waitForLoaded();
 
       await detailPage.costLines.addButton.click();

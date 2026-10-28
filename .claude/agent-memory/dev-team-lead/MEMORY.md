@@ -82,4 +82,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Tasks list specs](tasks-list-specs.md) — UX drops capabilities, group badge dup label, focus rule vs UX, per-row figures, picker "none", count-only reuse
 - [ObjectList P5.2 specs](object-list-p52-specs.md) — async chip options vs normalise, chip param as filter def, stranded DataTable features, engine Expected cost, milestone holds-up
 - [Schedule page specs](schedule-page-specs.md) — SidePanel as Modal/ helper over Sheet, no breakpoint tokens, holds-up vs move count, "Gantt" banned label, useCreateContext order, status-only undo
+- [Task page specs](task-page-specs.md) — StatusMenu owns date chips+Undo, strip can't nest Call, 7-fact cap, direct vs transitive Holds up, hash lost on tab select, prefill keys
 - [Detail template specs](detail-template-specs.md) — className-only primary count (PrimaryControl), planned-route links, no useBlocker, retire w/o new counted file, portal Escape bubbling

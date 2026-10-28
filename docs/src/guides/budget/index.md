@@ -33,7 +33,7 @@ When a company submits an **offer** or **invoice**, you split it into cost lines
 
 - [Cost Categories](categories) -- Create and manage cost categories in Settings > Project setup
 - [Financing](financing-sources) -- Funding sources, own funds, and the cost lines each one pays for
-- [Work Item Budgets](work-item-budgets) -- Add cost estimates to work items
+- [Task Costs](work-item-budgets) -- Add cost estimates to tasks
 - [Invoices](vendors-and-invoices) -- Track invoices and link them to cost lines (companies have their own page)
 - [Auto-itemize Invoices](auto-itemize) -- Extract rows from invoice PDFs using your own LLM provider
 - [Grants](subsidies) -- Manage grants and the tasks and purchases they cover

@@ -54,7 +54,7 @@ test.describe('Cost line form - create (AC5)', { tag: '@responsive' }, () => {
     const { taskId } = await seedTask(page, testPrefix);
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.addButton.click();
@@ -88,7 +88,7 @@ test.describe('Cost line form - create (AC5)', { tag: '@responsive' }, () => {
     const { taskId } = await seedTask(page, testPrefix);
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.addButton.click();
@@ -114,7 +114,7 @@ test.describe('Cost line form - create (AC5)', { tag: '@responsive' }, () => {
     const { taskId } = await seedTask(page, testPrefix);
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.addButton.click();
@@ -153,7 +153,7 @@ test.describe('Cost line form - create (AC5)', { tag: '@responsive' }, () => {
     const { taskId } = await seedTask(page, testPrefix);
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.addButton.click();
@@ -169,7 +169,7 @@ test.describe('Cost line form - create (AC5)', { tag: '@responsive' }, () => {
     const { taskId } = await seedTask(page, testPrefix);
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await enableDarkTheme(page);
 
@@ -213,7 +213,7 @@ test.describe('Cost line form - Basis and editing (AC2)', { tag: '@responsive' }
 
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'Edit cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} Estimate`), 'Edit');
@@ -258,7 +258,7 @@ test.describe('Cost line form - Basis and editing (AC2)', { tag: '@responsive' }
 
     const taskPanel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'Edit cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await taskPanel.waitForLoaded();
 
     await taskPanel.chooseAction(taskPanel.row(`${testPrefix} Linked`), 'Edit');
@@ -292,7 +292,7 @@ test.describe('Cost line form - Basis and editing (AC2)', { tag: '@responsive' }
 
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'Edit cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} Movable`), 'Edit');
@@ -305,7 +305,7 @@ test.describe('Cost line form - Basis and editing (AC2)', { tag: '@responsive' }
     await form.waitForClosed();
 
     await expect(panel.row(`${testPrefix} Movable`)).toHaveCount(0);
-    await page.goto(routeUrl('workItem', { id: otherTaskId }));
+    await page.goto(routeUrl('workItem', { id: otherTaskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await expect(panel.row(`${testPrefix} Movable`)).toBeVisible();
   });
@@ -335,7 +335,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
 
     const panel = new CostLinesPanel(page);
     const link = new ObjectFormDialog(page, 'Link to offer or invoice', 'link-invoice-form');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} To link`), 'Link to offer or invoice');
@@ -376,7 +376,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     });
 
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     // Unlink acts at once: no dialog, an Undo toast, the line stays as an estimate
@@ -417,7 +417,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     await expect(panel.toasts.undoToastWith(`${testPrefix} Removable removed from`)).toBeVisible();
     await expect(panel.row(`${testPrefix} Removable`)).toHaveCount(0);
 
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
     await expect(panel.stateChip(panel.row(`${testPrefix} Removable`))).toHaveText('Estimate');
   });
@@ -447,7 +447,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
     });
 
     const panel = new CostLinesPanel(page);
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     // A linked line has Unlink, not Delete
@@ -481,7 +481,7 @@ test.describe('Cost line actions - link, unlink, remove, delete', { tag: '@respo
 
     const panel = new CostLinesPanel(page);
     const form = new CostLineFormDialog(page, 'New cost line');
-    await page.goto(routeUrl('workItem', { id: taskId }));
+    await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
     await panel.waitForLoaded();
 
     await panel.chooseAction(panel.row(`${testPrefix} Original`), 'Duplicate');

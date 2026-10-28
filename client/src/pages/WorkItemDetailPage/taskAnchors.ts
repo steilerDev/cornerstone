@@ -1,2 +1,3 @@
-/** Section anchors of the task page that other pages deep-link to (`#constraints`). */
-export const TASK_SECTION_ANCHORS = ['constraints'] as const;
+/** Timing-tab intents other pages deep-link to (`#constraints`, `#reschedule`). */
+export const TASK_TIMING_INTENTS = ['constraints', 'reschedule'] as const;
+export type TaskTimingIntent = (typeof TASK_TIMING_INTENTS)[number];

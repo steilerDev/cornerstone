@@ -257,7 +257,7 @@ describe('taskForm (ObjectForm schema)', () => {
 
   const ready = async () => {
     await screen.findByLabelText(/^title/i);
-    await waitFor(() => expect(screen.getByLabelText(/assigned to/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText(/^who/i)).toBeInTheDocument());
   };
   const save = () => screen.getByTestId('object-form-save');
   const openMore = async (user: ReturnType<typeof userEvent.setup>) =>
@@ -269,7 +269,7 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       expect(screen.getByRole('dialog', { name: 'New task' })).toBeInTheDocument();
       expect(screen.getByLabelText(/^title/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/assigned to/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^who/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/duration/i)).toBeInTheDocument();
       expect(screen.getByTestId('area-picker-mock')).toBeInTheDocument();
     });
@@ -280,13 +280,7 @@ describe('taskForm (ObjectForm schema)', () => {
       const more = screen.getByTestId('object-form-more');
       const hidden = document.getElementById(more.getAttribute('aria-controls')!)!;
       expect(hidden).toHaveAttribute('hidden');
-      for (const label of [
-        'Description',
-        'Status',
-        'Start After',
-        'Start Before',
-        'Dependencies',
-      ]) {
+      for (const label of ['Description', 'Status', 'Not before', 'Start by', 'Waits for']) {
         expect(within(hidden).getByText(label)).toBeInTheDocument();
       }
     });
@@ -307,8 +301,8 @@ describe('taskForm (ObjectForm schema)', () => {
       const duration = screen.getByLabelText(/duration/i) as HTMLInputElement;
       expect(duration.type).toBe('number');
       expect(duration).not.toBeDisabled();
-      expect((screen.getByLabelText(/start after/i) as HTMLInputElement).type).toBe('date');
-      expect((screen.getByLabelText(/start before/i) as HTMLInputElement).type).toBe('date');
+      expect((screen.getByLabelText(/not before/i) as HTMLInputElement).type).toBe('date');
+      expect((screen.getByLabelText(/^start by/i) as HTMLInputElement).type).toBe('date');
     });
 
     it('Save and Cancel are present, with no header back button', async () => {
@@ -343,7 +337,7 @@ describe('taskForm (ObjectForm schema)', () => {
       renderForm();
       await ready();
 
-      await user.click(screen.getByLabelText(/assigned to/i));
+      await user.click(screen.getByLabelText(/^who/i));
 
       const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
       expect(options).toContain('Active User');
@@ -424,12 +418,10 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Test Work Item');
       await openMore(user);
-      fireEvent.change(screen.getByLabelText(/start after/i), { target: { value: '2024-12-31' } });
-      fireEvent.change(screen.getByLabelText(/start before/i), { target: { value: '2024-01-01' } });
+      fireEvent.change(screen.getByLabelText(/not before/i), { target: { value: '2024-12-31' } });
+      fireEvent.change(screen.getByLabelText(/^start by/i), { target: { value: '2024-01-01' } });
       await user.click(save());
-      expect(
-        await screen.findByText(/start after date must be before or equal to start before date/i),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/start by can.t be before not before/i)).toBeInTheDocument();
       expect(mockCreateWorkItem).not.toHaveBeenCalled();
     });
 
@@ -440,8 +432,8 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Same day');
       await openMore(user);
-      fireEvent.change(screen.getByLabelText(/start after/i), { target: { value: '2024-05-05' } });
-      fireEvent.change(screen.getByLabelText(/start before/i), { target: { value: '2024-05-05' } });
+      fireEvent.change(screen.getByLabelText(/not before/i), { target: { value: '2024-05-05' } });
+      fireEvent.change(screen.getByLabelText(/^start by/i), { target: { value: '2024-05-05' } });
       await user.click(save());
       await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
     });
@@ -496,12 +488,12 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Cabinets');
       fireEvent.change(screen.getByTestId('area-picker-mock'), { target: { value: 'a1' } });
-      await user.click(screen.getByLabelText(/assigned to/i));
+      await user.click(screen.getByLabelText(/^who/i));
       await user.click(await screen.findByRole('option', { name: 'Active User' }));
       await openMore(user);
       await user.type(screen.getByLabelText(/description/i), 'Install all');
       await user.selectOptions(screen.getByLabelText(/^status/i), 'in_progress');
-      fireEvent.change(screen.getByLabelText(/start after/i), { target: { value: '2024-03-01' } });
+      fireEvent.change(screen.getByLabelText(/not before/i), { target: { value: '2024-03-01' } });
       await user.click(save());
       await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
       expect(mockCreateWorkItem).toHaveBeenCalledWith(
@@ -560,84 +552,58 @@ describe('taskForm (ObjectForm schema)', () => {
     });
   });
 
-  describe('dependencies', () => {
-    async function addFoundationDependency(user: ReturnType<typeof userEvent.setup>) {
-      mockListWorkItems.mockResolvedValue({
-        items: [FOUNDATION],
-        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
-      });
+  describe('Waits for', () => {
+    const TWO_TASKS = {
+      items: [FOUNDATION, { ...FOUNDATION, id: 'wi-2', title: 'Roof' }],
+      pagination: { page: 1, pageSize: 15, totalItems: 2, totalPages: 1 },
+    };
+
+    async function pickWaitsFor(user: ReturnType<typeof userEvent.setup>, ...titles: string[]) {
+      mockListWorkItems.mockResolvedValue(TWO_TASKS as never);
       await ready();
       await openMore(user);
-      // The first task picker of the builder (the Who picker above it has its own placeholder).
-      const pickerInputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(pickerInputs[0]!);
-      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
-      await user.click(screen.getByText('Foundation'));
-      await user.click(screen.getByRole('button', { name: /^add$/i }));
-      await waitFor(() =>
-        expect(screen.getByRole('list', { name: /dependencies to add/i })).toBeInTheDocument(),
-      );
+      const multi = screen.getByTestId('task-form-waits-for');
+      for (const title of titles) {
+        await user.click(within(multi).getByRole('textbox'));
+        await user.click(await screen.findByRole('option', { name: new RegExp(title) }));
+      }
+      return multi;
     }
 
-    it('renders the dependency sentence builder under More details', async () => {
+    it('offers a multi-select of tasks under More details, named "Waits for"', async () => {
       const user = userEvent.setup();
       renderForm();
       await ready();
       await openMore(user);
-      expect(screen.getByRole('combobox', { name: /predecessor verb/i })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: /successor verb/i })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /this item depends on/i })).toBeNull();
+      const multi = screen.getByTestId('task-form-waits-for');
+      expect(within(multi).getByRole('textbox')).toBeInTheDocument();
+      expect(screen.queryByRole('combobox', { name: /predecessor verb/i })).toBeNull();
     });
 
-    it('adds a dependency where this task comes first and the other item second', async () => {
-      const user = userEvent.setup();
-      mockListWorkItems.mockResolvedValue({
-        items: [FOUNDATION],
-        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
-      });
-      renderForm();
-      await ready();
-      await openMore(user);
-      // Slot 2 starts as "This item": clear it, make slot 1 "This item", then pick the other task.
-      await user.click(screen.getByRole('button', { name: /clear selection/i }));
-      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
-      await user.click(await screen.findByRole('option', { name: 'This item' }));
-      await user.click(await screen.findByPlaceholderText('Search work items...'));
-      await user.click(await screen.findByRole('option', { name: /Foundation/ }));
-      await user.click(screen.getByRole('button', { name: /^add$/i }));
-
-      const list = await screen.findByRole('list', { name: /dependencies to add/i });
-      expect(list).toHaveTextContent('Foundation');
-      expect(
-        screen.getByRole('button', { name: /remove dependency involving foundation/i }),
-      ).toBeInTheDocument();
-    });
-
-    it('shows a pending dependency in sentence format and lets the user remove it', async () => {
+    it('shows each picked task as a chip that can be removed again', async () => {
       const user = userEvent.setup();
       renderForm();
-      await addFoundationDependency(user);
-      const list = screen.getByRole('list', { name: /dependencies to add/i });
-      expect(list.textContent).toMatch(/must finish before|must start before/i);
-      await user.click(
-        screen.getByRole('button', { name: /remove dependency involving foundation/i }),
-      );
-      expect(screen.queryByRole('list', { name: /dependencies to add/i })).toBeNull();
+      const multi = await pickWaitsFor(user, 'Foundation', 'Roof');
+      expect(within(multi).getByRole('button', { name: 'Remove Foundation' })).toBeInTheDocument();
+      expect(within(multi).getByRole('button', { name: 'Remove Roof' })).toBeInTheDocument();
+      await user.click(within(multi).getByRole('button', { name: 'Remove Foundation' }));
+      expect(within(multi).queryByRole('button', { name: 'Remove Foundation' })).toBeNull();
+      expect(within(multi).getByRole('button', { name: 'Remove Roof' })).toBeInTheDocument();
     });
 
-    it('creates each pending dependency against the new task id (sentinel replaced)', async () => {
+    it('creates one finish-to-start dependency per pick with the new task as the successor', async () => {
       const user = userEvent.setup();
       mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
       mockCreateDependency.mockResolvedValue({} as never);
       renderForm();
-      await addFoundationDependency(user);
-      await user.type(screen.getByLabelText(/^title/i), 'With dependency');
+      await pickWaitsFor(user, 'Foundation', 'Roof');
+      await user.type(screen.getByLabelText(/^title/i), 'With dependencies');
       await user.click(save());
-      await waitFor(() => expect(mockCreateDependency).toHaveBeenCalledTimes(1));
-      const [successorId, body] = mockCreateDependency.mock.calls[0]!;
-      const ids = [successorId, (body as { predecessorId: string }).predecessorId];
-      expect(ids).toContain('work-9');
-      expect(ids).toContain('wi-1');
+      await waitFor(() => expect(mockCreateDependency).toHaveBeenCalledTimes(2));
+      expect(mockCreateDependency.mock.calls).toEqual([
+        ['work-9', { predecessorId: 'wi-1', dependencyType: 'finish_to_start' }],
+        ['work-9', { predecessorId: 'wi-2', dependencyType: 'finish_to_start' }],
+      ]);
       await waitFor(() =>
         expect(onCreated).toHaveBeenCalledWith(
           expect.objectContaining({ href: '/project/work-items/work-9' }),
@@ -645,27 +611,47 @@ describe('taskForm (ObjectForm schema)', () => {
       );
     });
 
-    it('still creates the task and reports the failed dependency in the URL (depError)', async () => {
+    it('creates no dependency when nothing was picked', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Plain');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(mockCreateDependency).not.toHaveBeenCalled();
+    });
+
+    it('still creates the task and sends the failed titles to the Timing tab (depError)', async () => {
       const user = userEvent.setup();
       mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
       mockCreateDependency.mockRejectedValue(new Error('cycle'));
       renderForm();
-      await addFoundationDependency(user);
-      await user.type(screen.getByLabelText(/^title/i), 'With dependency');
+      await pickWaitsFor(user, 'Foundation', 'Roof');
+      await user.type(screen.getByLabelText(/^title/i), 'With dependencies');
       await user.click(save());
       await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
       expect(onCreated.mock.calls[0]![0].href).toBe(
-        '/project/work-items/work-9?depError=Foundation',
+        '/project/work-items/work-9?tab=timing&depError=Foundation%2C+Roof',
+      );
+    });
+
+    it('only the failed pick is named when another one succeeds', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      mockCreateDependency.mockResolvedValueOnce({} as never).mockRejectedValueOnce(new Error('x'));
+      renderForm();
+      await pickWaitsFor(user, 'Foundation', 'Roof');
+      await user.type(screen.getByLabelText(/^title/i), 'Mixed');
+      await user.click(save());
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+      expect(onCreated.mock.calls[0]![0].href).toBe(
+        '/project/work-items/work-9?tab=timing&depError=Roof',
       );
     });
   });
 
   describe('schema (called directly)', () => {
-    let THIS = '';
-    beforeEach(async () => {
-      ({ THIS_ITEM_ID: THIS } =
-        await import('../components/DependencySentenceBuilder/dependencyVerbs.js'));
-    });
     const schema = async () => {
       const view = renderHook(() => Form.useTaskFormSchema(), { wrapper: MemoryRouter });
       await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
@@ -737,7 +723,7 @@ describe('taskForm (ObjectForm schema)', () => {
       expect(second).toMatchObject({ assignedUserId: null, assignedVendorId: 'v-1' });
     });
 
-    it('replaces the sentinel on either side of a pending dependency with the new id', async () => {
+    it('creates a dependency per chosen task, whatever the order', async () => {
       mockCreateWorkItem.mockResolvedValue({ id: 'work-3' } as never);
       mockCreateDependency.mockResolvedValue({} as never);
       const result = await schema();
@@ -746,30 +732,25 @@ describe('taskForm (ObjectForm schema)', () => {
         title: 'A',
         status: 'not_started',
         dependencies: [
-          {
-            predecessorId: 'wi-1',
-            successorId: THIS,
-            otherItemId: 'wi-1',
-            otherItemTitle: 'Foundation',
-            dependencyType: 'finish_to_start',
-          },
-          {
-            predecessorId: THIS,
-            successorId: 'wi-2',
-            otherItemId: 'wi-2',
-            otherItemTitle: 'Roof',
-            dependencyType: 'finish_to_start',
-          },
+          { id: 'wi-1', label: 'Foundation' },
+          { id: 'wi-2', label: 'Roof' },
         ],
       });
 
       expect(mockCreateDependency.mock.calls).toEqual([
         ['work-3', { predecessorId: 'wi-1', dependencyType: 'finish_to_start' }],
-        ['wi-2', { predecessorId: 'work-3', dependencyType: 'finish_to_start' }],
+        ['work-3', { predecessorId: 'wi-2', dependencyType: 'finish_to_start' }],
       ]);
     });
 
-    it('renders the Who picker empty for a non-text value and the dependency list empty for a non-list value', async () => {
+    it('treats a non-list "Waits for" value as no picks', async () => {
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-3' } as never);
+      const result = await schema();
+      await result.current.submit({ title: 'A', status: 'not_started', dependencies: 'nope' });
+      expect(mockCreateDependency).not.toHaveBeenCalled();
+    });
+
+    it('renders the Who picker empty for a non-text value and the Waits for picker empty for a non-list value', async () => {
       const result = await schema();
 
       const who = render(
@@ -779,65 +760,11 @@ describe('taskForm (ObjectForm schema)', () => {
       who.unmount();
 
       render(<MemoryRouter>{field(result, 'dependencies').render(ctx('nope'))}</MemoryRouter>);
-      expect(screen.queryByRole('list', { name: /dependencies to add/i })).toBeNull();
-    });
-
-    it('words a pending dependency by which side is "this item"', async () => {
-      const result = await schema();
-      const pending = (predecessorId: string, successorId: string, title: string) => ({
-        predecessorId,
-        successorId,
-        otherItemId: title,
-        otherItemTitle: title,
-        dependencyType: 'finish_to_start',
-      });
-
-      render(
-        <MemoryRouter>
-          {field(result, 'dependencies').render(
-            ctx([pending(THIS, 'x', 'Roof'), pending('y', THIS, 'Foundation')]),
-          )}
-        </MemoryRouter>,
-      );
-
-      const items = within(screen.getByRole('list', { name: /dependencies to add/i })).getAllByRole(
-        'listitem',
-      );
-      expect(items).toHaveLength(2);
-      expect(items[0]).toHaveTextContent('Roof');
-      expect(items[1]).toHaveTextContent('Foundation');
-      expect(items[0]!.textContent).not.toBe(items[1]!.textContent);
-    });
-
-    it('does not add a dependency on an item that is already pending', async () => {
-      const user = userEvent.setup();
-      mockListWorkItems.mockResolvedValue({
-        items: [FOUNDATION],
-        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
-      });
-      const result = await schema();
-      const first = ctx([]);
-      const view = render(
-        <MemoryRouter>{field(result, 'dependencies').render(first)}</MemoryRouter>,
-      );
-      await user.click(screen.getAllByPlaceholderText('Search work items...')[0]!);
-      await user.click(await screen.findByText('Foundation'));
-
-      // The host already holds a pending dependency on Foundation (e.g. added a moment ago).
-      const second = ctx([
-        {
-          predecessorId: 'wi-1',
-          successorId: THIS,
-          otherItemId: 'wi-1',
-          otherItemTitle: 'Foundation',
-          dependencyType: 'finish_to_start',
-        },
-      ]);
-      view.rerender(<MemoryRouter>{field(result, 'dependencies').render(second)}</MemoryRouter>);
-      await user.click(screen.getByRole('button', { name: /^add$/i }));
-
-      expect(second.setValue).not.toHaveBeenCalled();
-      expect(first.setValue).not.toHaveBeenCalled();
+      expect(
+        within(screen.getByTestId('task-form-waits-for')).queryByRole('button', {
+          name: /^Remove/,
+        }),
+      ).toBeNull();
     });
   });
 
@@ -936,7 +863,7 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Tiles');
 
-      await user.type(screen.getByLabelText(/assigned to/i), 'zeta');
+      await user.type(screen.getByLabelText(/^who/i), 'zeta');
       await user.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
       await user.click(save());
 
@@ -955,7 +882,7 @@ describe('taskForm (ObjectForm schema)', () => {
       renderForm();
       await ready();
 
-      await user.type(screen.getByLabelText(/assigned to/i), 'Fresh Co');
+      await user.type(screen.getByLabelText(/^who/i), 'Fresh Co');
       await user.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
 
       expect(await screen.findByRole('dialog', { name: 'New company' })).toBeInTheDocument();
@@ -973,7 +900,7 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Fence');
 
-      await user.type(screen.getByLabelText(/assigned to/i), 'Fresh Co');
+      await user.type(screen.getByLabelText(/^who/i), 'Fresh Co');
       await user.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
       await screen.findByRole('dialog', { name: 'New company' });
       await user.click(save());

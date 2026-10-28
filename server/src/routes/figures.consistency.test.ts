@@ -30,6 +30,7 @@ import type {
   AttentionResponse,
   TimelineResponse,
   WorkItemListRowsResponse,
+  WorkItemPageDetail,
   HouseholdItemListRowsResponse,
   MilestoneListRowsResponse,
   BudgetBreakdownResponse,
@@ -270,6 +271,72 @@ describe('figures consistency: holds up on attention rows and on the timeline', 
       expect(checked).toContain('wi-a');
       // the group row's members are checked one by one
       expect(checked).toEqual(expect.arrayContaining(['wi-g1', 'wi-g2', 'wi-g3', 'wi-g4']));
+    });
+  });
+
+  describe('the task page detail (#2248)', () => {
+    const detail = (id: string) => getJson<WorkItemPageDetail>(`/api/work-items/${id}`);
+
+    it('detail holdsUp equals the list row and the timeline holdsUp for the same task', async () => {
+      const list = await getJson<WorkItemListRowsResponse>(
+        '/api/work-items?group=time&pageSize=100',
+      );
+      const timeline = await getJson<TimelineResponse>('/api/timeline');
+      const compared: string[] = [];
+      for (const row of list.items) {
+        const page = await detail(row.id);
+        expect({ id: row.id, holdsUp: page.holdsUp }).toEqual({ id: row.id, holdsUp: row.holdsUp });
+        expect({ id: row.id, waitsFor: page.waitsFor }).toEqual({
+          id: row.id,
+          waitsFor: row.waitsFor,
+        });
+        const shown = timeline.holdsUp!.workItems[row.id];
+        if (page.holdsUp !== null) {
+          expect({ id: row.id, holdsUp: page.holdsUp }).toEqual({ id: row.id, holdsUp: shown });
+          compared.push(row.id);
+        } else {
+          expect(shown?.count ?? 0).toBe(0);
+        }
+      }
+      expect(compared).toContain('wi-a');
+      expect((await detail('wi-a')).holdsUp).toEqual({ count: 4, startingWithin14Days: 3 });
+    });
+
+    it('detail expectedCost and grants equal the list row (null without cost lines)', async () => {
+      app.db
+        .insert(schema.workItemBudgets)
+        .values({
+          id: 'wl-1',
+          workItemId: 'wi-b',
+          plannedAmount: 1200,
+          confidence: 'own_estimate',
+          includesVat: true,
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.subsidyPrograms)
+        .values({
+          id: 'sp-1',
+          name: 'Grant One',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'approved',
+          ...ts,
+        })
+        .run();
+      app.db
+        .insert(schema.workItemSubsidies)
+        .values({ workItemId: 'wi-b', subsidyProgramId: 'sp-1' })
+        .run();
+      const list = await getJson<WorkItemListRowsResponse>('/api/work-items?pageSize=100');
+      const row = list.items.find((r) => r.id === 'wi-b')!;
+      const page = await detail('wi-b');
+      expect(row.expectedCost).toBeGreaterThan(0);
+      expect(page.expectedCost).toBe(row.expectedCost);
+      expect(page.grants).toEqual(row.grants);
+      expect(page.grants.map((g) => g.name)).toEqual(['Grant One']);
+      expect((await detail('wi-a')).expectedCost).toBeNull();
     });
   });
 

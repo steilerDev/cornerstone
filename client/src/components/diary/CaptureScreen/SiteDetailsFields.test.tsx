@@ -1,12 +1,21 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import type { DiarySignatureEntry, ManualDiaryEntryType } from '@cornerstone/shared';
+import { ApiClientError } from '../../../lib/apiClient.js';
+import type * as VendorsApiTypes from '../../../lib/vendorsApi.js';
 import type * as FieldsModule from './SiteDetailsFields.js';
 import type * as MetadataModule from './captureMetadata.js';
 import type { CaptureFieldId, CaptureFields, CaptureMode } from './captureMetadata.js';
 import type { CompanySuggestion } from './captureSuggestions.js';
+
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
+const realVendorsApi = await import('../../../lib/vendorsApi.js');
+jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
+  ...realVendorsApi,
+  fetchVendor: mockFetchVendor,
+}));
 
 jest.unstable_mockModule('../../../contexts/LocaleContext.js', () => ({
   useLocale: () => ({
@@ -90,6 +99,7 @@ let SiteDetailsFields: typeof FieldsModule.SiteDetailsFields;
 let EMPTY_FIELDS: typeof MetadataModule.EMPTY_FIELDS;
 
 beforeEach(async () => {
+  mockFetchVendor.mockReset();
   if (!SiteDetailsFields) {
     ({ SiteDetailsFields } = await import('./SiteDetailsFields.js'));
     ({ EMPTY_FIELDS } = await import('./captureMetadata.js'));
@@ -217,6 +227,95 @@ describe('SiteDetailsFields', () => {
         'true',
       );
       expect(screen.getByTestId('capture-company-chip-gone')).toHaveTextContent('Old Co');
+    });
+
+    describe('a company seeded from the opening page (#2248)', () => {
+      it('looks the name up and shows the company as a pressed chip labelled with it', async () => {
+        mockFetchVendor.mockResolvedValue({ id: 'seed-1', name: 'Seeded Co' } as never);
+        render(
+          <Harness
+            entryType="daily_log"
+            companies={COMPANIES}
+            initial={{ vendorId: 'seed-1', vendorName: null }}
+          />,
+        );
+
+        const chip = await screen.findByTestId('capture-company-chip-seed-1');
+        expect(chip).toHaveTextContent('Seeded Co');
+        expect(chip).toHaveAttribute('aria-pressed', 'true');
+        expect(mockFetchVendor).toHaveBeenCalledWith('seed-1');
+      });
+
+      it('labels the chip with the stored name and looks nothing up when the name is known', () => {
+        render(
+          <Harness
+            entryType="daily_log"
+            companies={COMPANIES}
+            initial={{ vendorId: 'gone', vendorName: 'Old Co' }}
+          />,
+        );
+        expect(screen.getByTestId('capture-company-chip-gone')).toHaveTextContent('Old Co');
+        expect(mockFetchVendor).not.toHaveBeenCalled();
+      });
+
+      it('uses the suggestion label and needs no extra chip when the company is a suggestion', async () => {
+        mockFetchVendor.mockResolvedValue({ id: 'c2', name: 'Beta Roofing' } as never);
+        render(
+          <Harness
+            entryType="daily_log"
+            companies={COMPANIES}
+            initial={{ vendorId: 'c2', vendorName: null }}
+          />,
+        );
+        await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+        expect(screen.getAllByTestId('capture-company-chip-c2')).toHaveLength(1);
+        expect(screen.getByTestId('capture-company-chip-c2')).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
+      });
+
+      it('drops a company that no longer exists (404): vendorId and vendorName are cleared', async () => {
+        mockFetchVendor.mockRejectedValue(
+          new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+        );
+        render(
+          <Harness
+            entryType="daily_log"
+            companies={COMPANIES}
+            initial={{ vendorId: 'ghost', vendorName: null }}
+          />,
+        );
+        await waitFor(() =>
+          expect(currentFields()).toMatchObject({ vendorId: null, vendorName: null }),
+        );
+        expect(screen.queryByTestId('capture-company-chip-ghost')).not.toBeInTheDocument();
+      });
+
+      it('keeps the id when the lookup fails for another reason', async () => {
+        mockFetchVendor.mockRejectedValue(new Error('network'));
+        render(
+          <Harness
+            entryType="daily_log"
+            companies={COMPANIES}
+            initial={{ vendorId: 'seed-1', vendorName: null }}
+          />,
+        );
+        await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+        expect(currentFields().vendorId).toBe('seed-1');
+        expect(screen.queryByTestId('capture-company-chip-seed-1')).not.toBeInTheDocument();
+      });
+
+      it('does not look a company up for a delivery', () => {
+        render(
+          <Harness
+            entryType="delivery"
+            companies={COMPANIES}
+            initial={{ vendorId: 'seed-1', vendorName: null }}
+          />,
+        );
+        expect(mockFetchVendor).not.toHaveBeenCalled();
+      });
     });
 
     it('opens the picker from Other company… and stores the picked company', async () => {

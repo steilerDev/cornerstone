@@ -45,6 +45,8 @@ export interface UseCaptureDraftOptions {
   entry: DiaryEntryDetail | null;
   /** Pre-selected date (`?date=`). */
   prefillDate: string | null;
+  /** Company to pre-select on a new entry (`?companyId=`); ignored when an entry is loaded. */
+  prefillCompanyId?: string | null;
   /** Type of a new entry (`?start=`); ignored when an entry is loaded. */
   prefillType?: ManualDiaryEntryType | null;
   /** Called once when this screen created the draft. */
@@ -62,9 +64,12 @@ export type TypeSwitchRequest =
   | { kind: 'failed' };
 
 function initialForm(
-  options: Pick<UseCaptureDraftOptions, 'entry' | 'prefillDate' | 'prefillType'>,
+  options: Pick<
+    UseCaptureDraftOptions,
+    'entry' | 'prefillDate' | 'prefillType' | 'prefillCompanyId'
+  >,
 ): CaptureFormValues {
-  const { entry, prefillDate, prefillType } = options;
+  const { entry, prefillDate, prefillType, prefillCompanyId } = options;
   if (entry) {
     const { fields, signatures } = fieldsFromEntry(entry);
     return {
@@ -81,7 +86,11 @@ function initialForm(
     entryDate: prefillDate ?? todayLocalIsoDate(),
     title: '',
     body: '',
-    fields: { ...EMPTY_FIELDS, materials: [] },
+    fields: {
+      ...EMPTY_FIELDS,
+      vendorId: !prefillType || prefillType === 'daily_log' ? (prefillCompanyId ?? null) : null,
+      materials: [],
+    },
     signatures: [],
   };
 }
@@ -113,6 +122,7 @@ export function useCaptureDraft({
   entry,
   prefillDate,
   prefillType,
+  prefillCompanyId,
   onDraftCreated,
   announce,
 }: UseCaptureDraftOptions) {
@@ -121,7 +131,7 @@ export function useCaptureDraft({
   const isSaved = initialMode === 'saved';
 
   const [form, setForm] = useState<CaptureFormValues>(() =>
-    initialForm({ entry, prefillDate, prefillType }),
+    initialForm({ entry, prefillDate, prefillType, prefillCompanyId }),
   );
   const formRef = useRef(form);
   const [draftId, setDraftId] = useState<string | null>(

@@ -6,7 +6,9 @@
  * is unique even on pages with one (inert) panel per row.
  *
  * Hosts and their trigger test ids:
- *   - Task / Purchase / Invoice detail pages: `documents-panel-button` ("Documents (n)")
+ *   - Purchase detail page: `documents-panel-button` ("Documents (n)"); Task / Invoice pages:
+ *     the `summary-fact-documents` strip fact (bare count)
+ *     (`button()` / `open()` without an id find whichever of the two the page renders)
  *   - Financing cards: `financing-source-docs-<id>` / `financing-grant-docs-<id>` (+ a `-link`
  *     sibling opening the panel in the Link document picker); Funding source and Grant pages:
  *     the `summary-fact-documents` strip fact
@@ -80,12 +82,20 @@ export class DocumentsPanel {
   }
 
   /** A "Documents (n)" trigger by test id (default: the single-panel pages). */
-  button(testId: string = DOCUMENTS_BUTTON_TEST_ID): Locator {
+  button(testId?: string): Locator {
+    // Default: whichever trigger the host renders. The task page puts the count in the strip's
+    // Documents fact (#2248); purchases still render the "Documents (n)" button.
+    if (testId === undefined) {
+      return this.page
+        .getByTestId(DOCUMENTS_BUTTON_TEST_ID)
+        .or(this.page.getByTestId('summary-fact-documents'))
+        .first();
+    }
     return this.page.getByTestId(testId);
   }
 
   /** Click the trigger and wait for the sheet. */
-  async open(testId: string = DOCUMENTS_BUTTON_TEST_ID): Promise<void> {
+  async open(testId?: string): Promise<void> {
     const button = this.button(testId);
     await button.click();
     await this.dialog.waitFor({ state: 'visible' });

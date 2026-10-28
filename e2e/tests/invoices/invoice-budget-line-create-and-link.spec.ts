@@ -87,7 +87,7 @@ test.describe(
       await expect(panel.notYetSplit()).toHaveText('Not yet split · €524.00');
 
       // The same line is a cost line of the task
-      await page.goto(routeUrl('workItem', { id: taskId }));
+      await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
       await panel.waitForLoaded();
       await expect(panel.row(`${testPrefix} Window`)).toBeVisible();
     });
@@ -161,7 +161,7 @@ test.describe(
       await form.waitForClosed();
       await expect(panel.rows()).toHaveCount(0);
 
-      await page.goto(routeUrl('workItem', { id: taskId }));
+      await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
       await panel.waitForLoaded();
       await expect(panel.row(`${testPrefix} Excess Line`)).toHaveCount(0);
     });

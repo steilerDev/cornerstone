@@ -111,8 +111,17 @@
 }
 
 .value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   margin: 0;
   min-width: 0;
+}
+
+.trailing {
+  position: relative;
+  z-index: var(--z-raised);
+  flex-shrink: 0;
 }
 
 .target {

@@ -85,6 +85,8 @@ export type {
   WorkItemListRow,
   WorkItemListRowsResponse,
   WorkItemWaitsFor,
+  WorkItemPageDetail,
+  WorkItemPageVendor,
   TaskTimeWindow,
   WorkItemListGroup,
   WorkItemDependenciesResponse,

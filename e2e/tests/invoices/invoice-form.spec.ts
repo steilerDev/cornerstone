@@ -255,7 +255,7 @@ test.describe('New invoice dialog - For task / purchase (I3)', { tag: '@responsi
     expect(await itemizedAmounts(page, id)).toEqual([480]);
 
     const task = new WorkItemDetailPage(page);
-    await task.goto(taskId);
+    await task.goto(taskId, { tab: 'cost' });
     await task.costLines.waitForLoaded();
     await expect(task.costLines.rows()).toHaveCount(1);
   });
@@ -354,7 +354,7 @@ test.describe('New invoice dialog - entry points (I4, I5, I5b)', { tag: '@respon
     const dialog = new InvoiceFormDialog(page, 'invoice');
 
     const task = new WorkItemDetailPage(page);
-    await task.goto(taskId);
+    await task.goto(taskId, { tab: 'cost' });
     await task.costLines.waitForLoaded();
     await task.costLines.newInvoiceButton.click();
     await dialog.waitForOpen();

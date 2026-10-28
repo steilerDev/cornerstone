@@ -67,7 +67,7 @@ export interface CaptureScreenProps {
   mode: CaptureMode;
   entry: DiaryEntryDetail | null;
   photos: readonly Photo[];
-  prefill: { areaId: string | null; date: string | null };
+  prefill: { areaId: string | null; companyId: string | null; date: string | null };
   /** Location trail, rendered by the page in every state. */
   breadcrumbs: ReactNode;
   /** The screen created the draft (the page must not reload it). */
@@ -219,6 +219,7 @@ export function CaptureScreen({
     mode: initialMode,
     entry,
     prefillDate: prefill.date,
+    prefillCompanyId: prefill.companyId,
     prefillType: startMode ? START_ENTRY_TYPE[startMode] : null,
     onDraftCreated: handleCreated,
     announce: setAnnouncement,
@@ -304,7 +305,7 @@ export function CaptureScreen({
 
   // ── Heading ─────────────────────────────────────────────────────────────────────────────────
 
-  const [year = 1970, month = 1, day = 1] = form.entryDate.split('-').map(Number);
+  const [year, month, day] = form.entryDate.split('-').map(Number) as [number, number, number];
   const dateText = `${formatWeekdayShort(new Date(year, month - 1, day, 12))}, ${formatDayMonth(form.entryDate)}`;
   const h1Text = t(mode === 'saved' ? 'capture.titleEdit' : 'capture.titleNew', { date: dateText });
   useDocumentTitle(h1Text);
@@ -437,12 +438,12 @@ export function CaptureScreen({
   };
 
   const confirmSwitch = async () => {
-    if (!switchDialog) return;
+    // Only the open dialog calls this, so `switchDialog` is set.
+    const { to, dropped } = switchDialog!;
     setSwitchBusy(true);
-    const ok = await draft.applyTypeChange(switchDialog.to);
+    const ok = await draft.applyTypeChange(to);
     setSwitchBusy(false);
     if (ok) {
-      const { to, dropped } = switchDialog;
       setSwitchDialog(null);
       afterTypeChange(to, dropped);
     } else {
@@ -469,8 +470,8 @@ export function CaptureScreen({
     f.materials.length > 0;
 
   const addToMatch = async (match: (typeof matches)[number]) => {
-    const draftId = draft.draftId;
-    if (!draftId) return;
+    // Matches are listed only while a draft exists.
+    const draftId = draft.draftId!;
     setMove({ id: match.id, status: 'busy' });
     let progress = moveProgressRef.current.get(match.id);
     if (!progress) {
@@ -1041,7 +1042,6 @@ export function CaptureScreen({
           error={switchError}
           onConfirm={() => void confirmSwitch()}
           onCancel={() => {
-            if (switchBusy) return;
             setSwitchDialog(null);
             // The dialog restores focus to the chip that was tapped; the type did not change,
             // so focus belongs on the chip that is still pressed.

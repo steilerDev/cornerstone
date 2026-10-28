@@ -35,7 +35,7 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 
 ### Plan the build
 
-Break the project into [work items](guides/work-items) organized by [area and trade](guides/work-items/areas-and-trades), link their dependencies, and let the [schedule chart](guides/timeline/gantt-chart) compute the critical path and schedule everything for you. When one trade slips, you see exactly what moves with it. [Milestones](guides/timeline/milestones) and a [calendar view](guides/timeline/calendar-view) keep the big dates in sight.
+Break the project into [tasks](guides/work-items) organized by [area and trade](guides/work-items/areas-and-trades), link their dependencies, and let the [schedule chart](guides/timeline/gantt-chart) compute the critical path and schedule everything for you. When one trade slips, you see exactly what moves with it. [Milestones](guides/timeline/milestones) and a [calendar view](guides/timeline/calendar-view) keep the big dates in sight.
 
 ### Know where every euro goes
 
@@ -43,7 +43,7 @@ Spread costs across [loans, grants, and your own funds](guides/budget/financing-
 
 ### Let AI handle the paperwork
 
-Connect [Paperless-ngx](guides/documents) and link scanned documents to work items, purchases, and invoices. Optionally plug in any LLM provider (OpenAI, Anthropic, Gemini, Ollama) to [auto-itemize invoices](guides/budget/auto-itemize) -- reading line items straight off the PDF and booking them to the right budget lines.
+Connect [Paperless-ngx](guides/documents) and link scanned documents to tasks, purchases, and invoices. Optionally plug in any LLM provider (OpenAI, Anthropic, Gemini, Ollama) to [auto-itemize invoices](guides/budget/auto-itemize) -- reading line items straight off the PDF and booking them to the right budget lines.
 
 ### Document the site
 
@@ -62,7 +62,7 @@ Track [furniture, appliances, and fixtures](guides/household-items) alongside th
 ## Quick Links
 
 - [Getting Started](getting-started) -- Deploy Cornerstone with Docker in minutes
-- [Work Items Guide](guides/work-items) -- Learn how to manage your project tasks
+- [Tasks Guide](guides/work-items) -- Learn how to manage your project tasks
 - [Budget Guide](guides/budget) -- Track costs, invoices, financing, and grants
 - [Schedule Guide](guides/timeline) -- schedule chart, calendar, and milestones
 - [Household Items Guide](guides/household-items) -- Manage furniture, appliances, and fixture purchases

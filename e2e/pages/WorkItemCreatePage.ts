@@ -7,7 +7,9 @@
  *
  * Fields (ids kept from the page):
  * - Essentials: #title (required), area picker (label for="area"), #assignment, #durationDays
- * - Behind "More details": #description, #status, #startAfter, #startBefore, dependencies
+ * - Behind "More details": #description, #status, #startAfter ("Not before"), #startBefore
+ *   ("Start by"), and "Waits for" (#dependencies: an EntityMultiPicker of tasks, test id
+ *   `task-form-waits-for`; each chosen task becomes a finish-to-start dependency, lag 0)
  *
  * Behaviour:
  * - Save is `object-form-save` ("Save" / "Saving…"); Cancel is `object-form-cancel`.
@@ -20,6 +22,7 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
 import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const WORK_ITEM_CREATE_ROUTE = routeUrl('workItemNew');
@@ -58,6 +61,10 @@ export class WorkItemCreatePage {
   readonly durationInput: Locator;
   readonly startAfterInput: Locator;
   readonly startBeforeInput: Locator;
+  /** The "Waits for" task chooser (#dependencies, behind More details). */
+  readonly waitsForPicker: EntityPickerControl;
+  /** The wrapper of the picker and its chips. */
+  readonly waitsFor: Locator;
 
   // Area picker and breadcrumb preview
   // AreaPicker renders a SearchPicker input with placeholder "Select an area".
@@ -92,6 +99,8 @@ export class WorkItemCreatePage {
     this.startAfterInput = this.form.field('startAfter');
     this.startBeforeInput = this.form.field('startBefore');
 
+    this.waitsFor = this.dialog.getByTestId('task-form-waits-for');
+    this.waitsForPicker = new EntityPickerControl(page, 'dependencies', this.dialog);
     this.areaPickerInput = this.dialog.getByPlaceholder('Select an area');
     this.areaBreadcrumbPreview = this.dialog.getByRole('navigation', { name: /area path/i });
     // Direct-parent <div> of <label for="area"> only (child combinator), so the :has() cannot
@@ -151,6 +160,11 @@ export class WorkItemCreatePage {
     if (data.durationDays !== undefined) await this.durationInput.fill(data.durationDays);
     if (data.startAfter !== undefined) await this.startAfterInput.fill(data.startAfter);
     if (data.startBefore !== undefined) await this.startBeforeInput.fill(data.startBefore);
+  }
+
+  /** The chip of a chosen "Waits for" task. */
+  waitsForChip(taskId: string): Locator {
+    return this.dialog.getByTestId(`task-form-waits-for-chip-${taskId}`);
   }
 
   /** Click Save. */

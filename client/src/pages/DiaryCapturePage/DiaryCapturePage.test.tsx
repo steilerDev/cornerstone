@@ -18,6 +18,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import type * as PageModule from './DiaryCapturePage.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type * as PhotoApiTypes from '../../lib/photoApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 
 let engine: FakeEngine;
 let stripMounts = 0;
@@ -26,6 +27,7 @@ const mockGetEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 const mockCreate = jest.fn<typeof DiaryApiTypes.createDiaryEntry>();
 const mockUpdate = jest.fn<typeof DiaryApiTypes.updateDiaryEntry>();
 const mockGetPhotos = jest.fn<typeof PhotoApiTypes.getPhotosForEntity>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: () => ({
@@ -77,7 +79,7 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   searchCompanies: jest.fn(async () => []),
   // Named import of the EntityPicker closure (useCompanyName).
-  fetchVendor: jest.fn(),
+  fetchVendor: mockFetchVendor,
 }));
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   useToast: () => ({ showToast: jest.fn(), showUndoToast: jest.fn() }),
@@ -171,6 +173,7 @@ beforeEach(async () => {
   engine = makeEngine();
   stripMounts = 0;
   jest.clearAllMocks();
+  mockFetchVendor.mockReset();
   sessionStorage.clear();
   localStorage.clear();
   document.title = '';
@@ -514,5 +517,43 @@ describe('DiaryCapturePage: Log now start (#2222)', () => {
 
     expect(screen.getByTestId('capture-title-input')).toHaveValue('Abc');
     expect(stripMounts).toBe(1);
+  });
+});
+
+describe('DiaryCapturePage: company from the opening page (#2248)', () => {
+  it('pre-selects ?companyId= on a new daily log, looked up by name', async () => {
+    mockFetchVendor.mockResolvedValue({ id: 'c-7', name: 'Roofers Inc' } as never);
+    renderPage('/diary/new?companyId=c-7');
+
+    const chip = await screen.findByTestId('capture-company-chip-c-7');
+    expect(chip).toHaveTextContent('Roofers Inc');
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(mockFetchVendor).toHaveBeenCalledWith('c-7');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('pre-selects nothing without ?companyId=', async () => {
+    renderPage('/diary/new');
+
+    await screen.findByTestId('capture-title-input');
+    expect(mockFetchVendor).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('capture-company-chip-c-7')).not.toBeInTheDocument();
+  });
+
+  it('drops the company when it no longer exists', async () => {
+    mockFetchVendor.mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
+    renderPage('/diary/new?companyId=ghost');
+
+    await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('ghost'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('capture-company-chip-ghost')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('does not seed the company for a note start', async () => {
+    renderPage('/diary/new?companyId=c-7&start=note');
+
+    await screen.findByTestId('capture-title-input');
+    expect(mockFetchVendor).not.toHaveBeenCalled();
   });
 });

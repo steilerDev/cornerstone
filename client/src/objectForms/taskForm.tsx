@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
-import type { DependencyType, UserResponse, WorkItemStatus } from '@cornerstone/shared';
+import type { UserResponse, WorkItemStatus } from '@cornerstone/shared';
+import { EntityMultiPicker } from '../components/EntityPicker/EntityMultiPicker.js';
 import { EntityPicker } from '../components/EntityPicker/EntityPicker.js';
 import { decodeWho, encodeWho } from '../components/EntityPicker/entityPickerKinds.js';
-import {
-  DependencySentenceBuilder,
-  THIS_ITEM_ID,
-  dependencyTypeToVerbs,
-} from '../components/DependencySentenceBuilder/index.js';
+import type { EntityOption } from '../components/EntityPicker/types.js';
 import { FormError } from '../components/FormError/FormError.js';
 import type {
   ObjectFormErrors,
-  ObjectFormRenderContext,
   ObjectFormSchema,
   ObjectFormValues,
 } from '../components/ObjectForm/types.js';
@@ -24,88 +20,13 @@ import { createWorkItem } from '../lib/workItemsApi.js';
 import { AreaField } from './AreaField.js';
 import { useCompanyFormSchema } from './companyForm.js';
 import type { CompanyOption } from './companyForm.js';
-import styles from './objectForms.module.css';
 
-interface PendingDependency {
-  predecessorId: string; // THIS_ITEM_ID or real ID
-  successorId: string; // THIS_ITEM_ID or real ID
-  otherItemId: string; // The non-"this" item's real ID
-  otherItemTitle: string;
-  dependencyType: DependencyType;
+/** The tasks chosen in "Waits for"; the field value is the chosen options. */
+function chosenTasks(value: unknown): readonly EntityOption[] {
+  return Array.isArray(value) ? (value as EntityOption[]) : [];
 }
 
-interface DependenciesFieldProps {
-  readonly ctx: ObjectFormRenderContext;
-}
-
-/** Sentence builder plus the list of dependencies that are created together with the task. */
-function DependenciesField({ ctx }: DependenciesFieldProps) {
-  const { t } = useTranslation('workItems');
-  const pending = Array.isArray(ctx.value) ? (ctx.value as PendingDependency[]) : [];
-  const excludedIds = pending.map((d) => d.otherItemId);
-
-  return (
-    <div className={styles.dependenciesSection}>
-      <DependencySentenceBuilder
-        thisItemId={THIS_ITEM_ID}
-        thisItemLabel={t('create.thisItemLabel')}
-        excludeIds={excludedIds}
-        disabled={ctx.busy}
-        onAdd={(data) => {
-          const otherItemId =
-            data.predecessorId === THIS_ITEM_ID ? data.successorId : data.predecessorId;
-          if (pending.some((d) => d.otherItemId === otherItemId)) return;
-          ctx.setValue([
-            ...pending,
-            {
-              predecessorId: data.predecessorId,
-              successorId: data.successorId,
-              otherItemId,
-              otherItemTitle: data.otherItemTitle,
-              dependencyType: data.dependencyType,
-            },
-          ]);
-        }}
-      />
-      {pending.length > 0 && (
-        <ul
-          className={styles.pendingDependenciesList}
-          aria-label={t('create.pendingDeps.ariaLabel')}
-        >
-          {pending.map((dep) => {
-            const { predecessorVerb, successorVerb } = dependencyTypeToVerbs(dep.dependencyType);
-            const sentence = t(
-              dep.predecessorId === THIS_ITEM_ID
-                ? 'create.pendingDeps.thisItemPredecessor'
-                : 'create.pendingDeps.otherItemPredecessor',
-              { predecessorVerb, successorVerb, otherItemTitle: dep.otherItemTitle },
-            );
-            return (
-              <li key={dep.otherItemId} className={styles.pendingDependencyChip}>
-                <span className={styles.chipSentence}>{sentence}</span>
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  onClick={() =>
-                    ctx.setValue(pending.filter((d) => d.otherItemId !== dep.otherItemId))
-                  }
-                  aria-label={t('create.pendingDeps.removeAriaLabel', {
-                    otherItemTitle: dep.otherItemTitle,
-                  })}
-                  disabled={ctx.busy}
-                >
-                  &times;
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/** The New task form: a 1:1 port of the former create page. */
+/** The New task form. */
 export function useTaskFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('workItems');
   const { t: tc } = useTranslation('common');
@@ -251,7 +172,19 @@ export function useTaskFormSchema(): ObjectFormSchema {
         name: 'dependencies',
         label: t('create.fields.dependencies'),
         kind: 'custom',
-        render: (ctx) => <DependenciesField ctx={ctx} />,
+        render: (ctx) => (
+          <EntityMultiPicker
+            id={ctx.id}
+            value={chosenTasks(ctx.value)}
+            onChange={(next) => ctx.setValue(next)}
+            picker={{ kind: 'task', disabled: ctx.busy }}
+            removeLabel={(option) => t('create.waitsFor.remove', { title: option.label })}
+            countLabel={(count) => t('create.waitsFor.count', { count })}
+            invalid={ctx.invalid}
+            describedBy={ctx.describedBy}
+            testId="task-form-waits-for"
+          />
+        ),
       },
     ],
     validate: (values: ObjectFormValues): ObjectFormErrors => {
@@ -286,20 +219,16 @@ export function useTaskFormSchema(): ObjectFormSchema {
         assignedVendorId: vendorId || null,
       });
 
-      // Dependencies are created one by one, replacing the sentinel with the new id
-      const pending = (values.dependencies as PendingDependency[] | undefined) ?? [];
+      // "Waits for": finish-to-start, no lag; the type is edited later on the task page.
       const failed: string[] = [];
-      for (const dep of pending) {
+      for (const predecessor of chosenTasks(values.dependencies)) {
         try {
-          const predecessorId =
-            dep.predecessorId === THIS_ITEM_ID ? workItem.id : dep.predecessorId;
-          const successorId = dep.successorId === THIS_ITEM_ID ? workItem.id : dep.successorId;
-          await createDependency(successorId, {
-            predecessorId,
-            dependencyType: dep.dependencyType,
+          await createDependency(workItem.id, {
+            predecessorId: predecessor.id,
+            dependencyType: 'finish_to_start',
           });
         } catch {
-          failed.push(dep.otherItemTitle);
+          failed.push(predecessor.label);
         }
       }
 
@@ -308,7 +237,7 @@ export function useTaskFormSchema(): ObjectFormSchema {
         href: routeUrl(
           'workItem',
           { id: workItem.id },
-          failed.length > 0 ? { depError: failed.join(', ') } : undefined,
+          failed.length > 0 ? { tab: 'timing', depError: failed.join(', ') } : undefined,
         ),
         label: title,
       };

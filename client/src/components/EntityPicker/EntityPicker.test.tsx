@@ -25,6 +25,8 @@ import type * as TradesApiTypes from '../../lib/tradesApi.js';
 import type * as CategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as SubsidyApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as DocumentLinksApiTypes from '../../lib/documentLinksApi.js';
 import type * as PickerModule from './EntityPicker.js';
 import type * as KindsModule from './entityPickerKinds.js';
@@ -38,6 +40,8 @@ const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
 const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItemCategories>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListPaperlessDocuments = jest.fn<typeof PaperlessApiTypes.listPaperlessDocuments>();
+const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
+const mockFetchSubsidyPrograms = jest.fn<typeof SubsidyApiTypes.fetchSubsidyPrograms>();
 const mockListAllLinkedDocumentIds =
   jest.fn<typeof DocumentLinksApiTypes.listAllLinkedDocumentIds>();
 
@@ -58,6 +62,12 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
 });
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   listPaperlessDocuments: mockListPaperlessDocuments,
+}));
+jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
+  listMilestones: mockListMilestones,
+}));
+jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
+  fetchSubsidyPrograms: mockFetchSubsidyPrograms,
 }));
 jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
   listAllLinkedDocumentIds: mockListAllLinkedDocumentIds,
@@ -194,6 +204,8 @@ describe('EntityPicker', () => {
       mockListWorkItems,
       mockListPaperlessDocuments,
       mockListAllLinkedDocumentIds,
+      mockListMilestones,
+      mockFetchSubsidyPrograms,
       onChange,
       requestCompany,
       requestTag,
@@ -211,6 +223,16 @@ describe('EntityPicker', () => {
     mockListWorkItems.mockResolvedValue({ items: [] } as never);
     mockListPaperlessDocuments.mockResolvedValue({ documents: [] } as never);
     mockListAllLinkedDocumentIds.mockResolvedValue([]);
+    mockListMilestones.mockResolvedValue([
+      { id: 4, title: 'Roof closed', targetDate: '2026-05-01' },
+      { id: 9, title: 'Shell finished', targetDate: '2026-07-15' },
+    ] as never);
+    mockFetchSubsidyPrograms.mockResolvedValue({
+      subsidyPrograms: [
+        { id: 'sp-1', name: 'Energy grant' },
+        { id: 'sp-2', name: 'Heat pump grant' },
+      ],
+    } as never);
     if (!Module) {
       Module = await import('./EntityPicker.js');
       Kinds = await import('./entityPickerKinds.js');
@@ -1833,6 +1855,93 @@ describe('EntityPicker', () => {
           document: { title: 'Roof quote', correspondent: 'Acme Roofing', created: '2026-04-02' },
         }),
       );
+    });
+  });
+
+  describe('milestone and grant (#2248)', () => {
+    it('lists every milestone on focus with its target date as the second line', async () => {
+      const user = userEvent.setup();
+      render(<Harness kind="milestone" />);
+
+      await user.click(input());
+
+      expect(input()).toHaveAttribute('placeholder', 'Search milestones');
+      const options = await screen.findAllByRole('option');
+      expect(options[0]).toHaveTextContent(/Roof closed.*2026/);
+      expect(options[1]).toHaveTextContent(/Shell finished.*2026/);
+    });
+
+    it('filters grants on the client by the typed text and reports the pick', async () => {
+      const user = userEvent.setup();
+      render(<Harness kind="grant" />);
+
+      await user.type(input(), 'HEAT');
+
+      expect(input()).toHaveAttribute('placeholder', 'Type to find a grant');
+      await user.click(await screen.findByRole('option', { name: /Heat pump grant/ }));
+      expect(screen.queryByRole('option', { name: /Energy grant/ })).toBeNull();
+      expect(onChange).toHaveBeenCalledWith(
+        'sp-2',
+        expect.objectContaining({ id: 'sp-2', label: 'Heat pump grant' }),
+      );
+    });
+
+    it('leaves out the excluded ids', async () => {
+      const user = userEvent.setup();
+      render(<Harness kind="grant" excludeIds={['sp-1']} />);
+
+      await user.click(input());
+
+      expect(await optionNames()).toEqual(['Heat pump grant']);
+    });
+
+    it.each([
+      ['milestone', 'No milestone matches this search'],
+      ['grant', 'No grant matches this search'],
+    ] as const)('says when no %s matches', async (kind, message) => {
+      const user = userEvent.setup();
+      render(<Harness kind={kind} />);
+
+      await user.type(input(), 'zzz');
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+    });
+
+    it('fetches the list once across several searches', async () => {
+      const user = userEvent.setup();
+      render(<Harness kind="grant" />);
+
+      await user.type(input(), 'en');
+      await screen.findByRole('option', { name: /Energy grant/ });
+      await user.type(input(), 'er');
+      await screen.findByRole('option', { name: /Energy grant/ });
+
+      expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(1);
+    });
+
+    it('fetches the milestones once across several searches', async () => {
+      const user = userEvent.setup();
+      render(<Harness kind="milestone" />);
+
+      await user.type(input(), 'ro');
+      await screen.findByRole('option', { name: /Roof closed/ });
+      await user.type(input(), 'of');
+      await screen.findByRole('option', { name: /Roof closed/ });
+
+      expect(mockListMilestones).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears the cache on a failed load, so the next search retries', async () => {
+      const user = userEvent.setup();
+      mockFetchSubsidyPrograms.mockRejectedValueOnce(new Error('down'));
+      render(<Harness kind="grant" />);
+
+      await user.type(input(), 'e');
+      await waitFor(() => expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(1));
+      await user.type(input(), 'n');
+
+      expect(await screen.findByRole('option', { name: /Energy grant/ })).toBeInTheDocument();
+      expect(mockFetchSubsidyPrograms).toHaveBeenCalledTimes(2);
     });
   });
 });

@@ -14,7 +14,7 @@ Use this page as a reference. You can open it any time from **Page actions** (`â
 | Old card | Where it is now | Notes |
 |----------|-----------------|-------|
 | **Budget Summary** | **Pulse**, tile **Left to spend** | Select the tile to open Money > Overview. |
-| **Work Item Progress** | **Pulse**, tile **Progress** | Select the tile to open the task list. |
+| **Task Progress** | **Pulse**, tile **Progress** | Select the tile to open the task list. |
 | **Invoice Pipeline** | **Money > Invoices**, the **To pay** chip and its **Still to pay** footer | The chip lists every open invoice and progress payment. Invoices that need action also appear as rows in **Needs attention**, and the **Still to pay** tile in **Pulse** opens the **To pay** chip. |
 | **Upcoming Milestones** | **Needs attention** (late milestones) and **This week** (milestones on their target date) | |
 | **Critical Path** | **This week**, the first line | The line names the task that decides the finish date. |
@@ -28,9 +28,9 @@ Some old cards are split across two places on purpose. A payment that needs you 
 
 The old invoice summary cards are gone too. Their counts now sit on the status chips of **Money > Invoices** (for example **To pay (12)**), and the total you still owe sits in the **Still to pay** footer under the list. The Offers summary appears when you select the **Offers** chip. Filtered totals show **Still to pay in this list**, and the **Ready to submit** amount is not shown on any page yet.
 
-## Assigned To
+## Who
 
-**Assigned To** on a task is one picker with two groups: companies and household members. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
+**Who** on a task is one picker with two groups: companies and household members. Type to search, and pick either a company or a household member. **Household member** is a person with their own sign-in to this project, and a task can be given to them. Picking one replaces the other, so a task never has both.
 
 ## Companies
 

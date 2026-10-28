@@ -95,10 +95,11 @@ jest.unstable_mockModule('../../../lib/undoApi.js', () => ({ undoChange: jest.fn
 jest.unstable_mockModule('../../../lib/workItemsApi.js', () => ({
   listWorkItems: mockListWorkItems,
 }));
+const mockFetchVendor = jest.fn<(id: string) => Promise<{ id: string; name: string }>>();
 jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
   searchCompanies: jest.fn(async () => []),
   // Named import of the EntityPicker closure (useCompanyName).
-  fetchVendor: jest.fn(),
+  fetchVendor: mockFetchVendor,
 }));
 jest.unstable_mockModule('../../Toast/ToastContext.js', () => ({
   useToast: () => ({ showToast: mockShowToast, showUndoToast: mockShowUndoToast }),
@@ -255,7 +256,7 @@ interface RenderOptions {
   mode?: 'new' | 'draft' | 'saved';
   entry?: DiaryEntryDetail | null;
   photos?: ReturnType<typeof photo>[];
-  prefill?: { areaId: string | null; date: string | null };
+  prefill?: { areaId: string | null; companyId: string | null; date: string | null };
   entries?: string[];
   state?: unknown;
   history?: unknown[];
@@ -279,7 +280,7 @@ function renderScreen(options: RenderOptions = {}) {
                 mode={mode}
                 entry={entry}
                 photos={options.photos ?? []}
-                prefill={options.prefill ?? { areaId: null, date: null }}
+                prefill={options.prefill ?? { areaId: null, companyId: null, date: null }}
                 breadcrumbs={<nav data-testid="crumbs" />}
                 onDraftCreated={onDraftCreated}
               />
@@ -333,6 +334,7 @@ const saveButton = () => screen.getByTestId('capture-save');
 beforeEach(async () => {
   engine = makeEngine();
   jest.clearAllMocks();
+  mockFetchVendor.mockReset();
   mockTagsLoading = false;
   mockUser = { id: 'user-1', displayName: 'Alex Owner', email: 'alex@example.test' };
   sessionStorage.clear();
@@ -425,8 +427,29 @@ describe('CaptureScreen: a new entry', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  it('pre-selects the prefilled company on a new daily log without writing anything (#2248)', async () => {
+    mockFetchVendor.mockResolvedValue({ id: 'c-7', name: 'Roofers Inc' });
+    renderScreen({ prefill: { areaId: null, companyId: 'c-7', date: null } });
+
+    const chip = await screen.findByTestId('capture-company-chip-c-7');
+    expect(chip).toHaveTextContent('Roofers Inc');
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('ignores the prefilled company when an entry is loaded (#2248)', () => {
+    renderScreen({
+      mode: 'draft',
+      entry: entryFixture({ status: 'draft' }),
+      prefill: { areaId: null, companyId: 'c-7', date: null },
+    });
+
+    expect(mockFetchVendor).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('capture-company-chip-c-7')).not.toBeInTheDocument();
+  });
+
   it('honours the prefilled date and area', () => {
-    renderScreen({ prefill: { areaId: 'bath', date: '2026-10-10' } });
+    renderScreen({ prefill: { areaId: 'bath', companyId: null, date: '2026-10-10' } });
 
     expect(screen.getByTestId('tag-chips-capture')).toHaveAttribute('data-area', 'bath');
     expect(heading().textContent).toMatch(/10/);
@@ -1794,7 +1817,7 @@ describe('CaptureScreen: ?start= from a Log now tile', () => {
           mode={mode}
           entry={options.entry ?? null}
           photos={[]}
-          prefill={{ areaId: 'bath', date: '2026-10-10' }}
+          prefill={{ areaId: 'bath', companyId: null, date: '2026-10-10' }}
           breadcrumbs={<nav data-testid="crumbs" />}
           onDraftCreated={jest.fn()}
           start={options.start === undefined ? 'note' : options.start}
@@ -2059,7 +2082,7 @@ describe('CaptureScreen: rapid camera saving and leaving', () => {
           mode="new"
           entry={null}
           photos={[]}
-          prefill={{ areaId: null, date: null }}
+          prefill={{ areaId: null, companyId: null, date: null }}
           breadcrumbs={<nav data-testid="crumbs" />}
           onDraftCreated={onDraftCreated}
         />

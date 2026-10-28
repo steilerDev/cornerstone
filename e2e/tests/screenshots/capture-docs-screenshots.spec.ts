@@ -511,6 +511,9 @@ test.describe('Documentation screenshots', () => {
     await page.goto(`${baseUrl}${ROUTES.workItems}/${firstId}`);
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    // The strip and the Overview cards (#2248) are the page's content
+    await expect(page.getByTestId('task-summary')).toBeVisible();
+    await expect(page.getByTestId('section-task-details')).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {

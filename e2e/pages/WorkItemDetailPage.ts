@@ -1,399 +1,406 @@
 /**
- * Page Object Model for the Work Item Detail page (/project/work-items/:id)
+ * Page Object Model for the Task page (/project/work-items/:id), rebuilt on the detail template
+ * in #2248 (EPIC-21 P5.4).
  *
- * The page renders:
- * - An error state (class `error`) if the work item cannot be loaded (404, etc.)
- * - Breadcrumbs (Story #2202): `breadcrumbs` POM = "You are here" trail + origin-aware "Back to ..." link
- * - An inline-editable h1 title (click to edit, or press "e" shortcut)
- * - A status select dropdown
- * - Left column sections:
- *   - h2 "Description" (click body to inline-edit)
- *   - h2 "Schedule" (Start Date, End Date inputs)
- *   - h2 "Assignment" (Assigned To picker: people and companies, server search)
- *   - h2 "Tags" (TagPicker)
- *   - h2 "Cost" (#2235): the cost lines section (`costLines`: "Add cost line", "Add lines (grid)",
- *     the table with State chips and a ⋯ menu per row), the cost overview and the grant links
- *     - Inline form for adding/editing budget lines (planned amount, confidence,
- *       description, category, source, vendor)
- *     - h3 "Grants" — linked subsidy list, subsidy picker select
- *       (aria-label="Select subsidy program to link"), "Add Subsidy" button
- * - Right column sections:
- *   - h2 "Notes" — textarea (placeholder "Add a note..."), "Add Note" submit button, notes list
- *   - h2 "Subtasks" — text input (placeholder "Add a subtask..."), "Add" submit button
- *   - h2 "Constraints" — combined section with subsections:
- *     - h3 "Duration" (Duration (days) input)
- *     - h3 "Date Constraints" (Start After, Start Before inputs)
- *     - h3 "Dependencies" — DependencySentenceDisplay + DependencySentenceBuilder
- *     - h3 "Required Milestones" — milestone dependency picker
- *     - h3 "Linked Milestones" — milestones this item is linked to
- * - Footer: timestamps, "Delete Work Item" button (class deleteWorkItemButton)
- * - Header status chip: StatusMenu (data-testid="work-item-status") - Start / Mark done with
- *   date chips; Back to "...". The old status <select> is gone (#2209).
- * - Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209):
- *   - h2 "Delete <title>?", Cancel (work-item-delete-cancel), Confirm (work-item-delete-confirm)
- *   - Notes (note-delete), subtasks (subtask-delete), dependencies (dependency-remove) and cost
- *     lines (cost-line-delete) use the same component with their own testid prefix
- * - Inline error banner (role="alert", class errorBanner) for inline failures
+ * The page is composed of shared controls:
+ * - `breadcrumbs` (Tasks, optional origin Back) and `header` (`task-header`): h1 = the title, the
+ *   status chip (`work-item-status`), ONE primary (Not started: `task-primary-start`; In progress:
+ *   `task-primary-done`; Done/Cancelled-like: Log `task-primary-log`) and the ⋯ menu (Copy link,
+ *   Print, Delete `object-header-delete`)
+ * - `summary` (`task-summary`): facts when, where, who (+ Call `task-summary-call`), cost,
+ *   waitsFor, holdsUp and documents (Paperless on), ids `summary-fact-<id>`
+ * - `tabs` (`task-tabs`): overview (default), timing, cost, diary, history; `?tab=` carries them
+ * - Overview: cards Details (`section-task-details`), Who and where (`section-task-who-where`),
+ *   Checklist (`section-task-checklist`), Notes (`section-task-notes`) and the "Add ▾" menu
+ *   (`task-add-menu`: Checklist item / Note, whichever card is not shown yet)
+ * - Timing: cards Dates (`task-dates`), Constraints (`task-constraints`), the Reschedule section,
+ *   RelatedLists `task-waits-for` / `task-waiting` / `task-milestones` / `task-purchases`
+ * - Cost: `costLines` and the RelatedList `task-grants`
+ * - Site diary: `task-diary-log`, the company block `task-diary`, the collapsed `<details>`
+ *   `task-diary-other`
+ * - History: `task-history-created` line and the history feed
  *
- * Key DOM observations from source code:
- * - Delete modal uses a plain div[class*="modal"] — no role="dialog", no aria-labelledby
- *   The h2 inside is "Delete Work Item?" (with question mark)
- * - Error state uses class `error` (errorCard with a "Back to Tasks" button inside)
- * - Vendors are now assigned per budget line (no separate vendor picker)
- * - Subsidy picker only renders when availableSubsidies.length > 0
+ * Dialogs (ObjectForm): `noteDialog` (Add note / Edit note, `note-form`), `checklistRenameDialog`,
+ * `dependencyDialog(title)` (`dependency-form`), `milestoneDialog` ("Link milestone",
+ * `milestone-link-form`). Deletes use the shared ConfirmDialog (prefixes `work-item-delete`,
+ * `note-delete`, `subtask-delete`).
+ *
+ * Remove actions of the RelatedLists act at once and show an Undo toast (`toasts`).
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
-import { StatusMenuControl } from './components/StatusMenuControl.js';
-import { CostLinesPanel } from './components/CostLinesPanel.js';
-import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { CostLinesPanel } from './components/CostLinesPanel.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
+import { ObjectHeaderControl } from './components/ObjectHeaderControl.js';
+import { ObjectTabsControl } from './components/ObjectTabsControl.js';
+import { RelatedListControl } from './components/RelatedListControl.js';
+import { SectionCardControl } from './components/SectionCardControl.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
+import { SummaryStripControl } from './components/SummaryStripControl.js';
+import { ToastRegion } from './components/ToastRegion.js';
+
+export type TaskTab = 'overview' | 'timing' | 'cost' | 'diary' | 'history';
 
 export class WorkItemDetailPage {
   readonly page: Page;
 
   // Header
   readonly breadcrumbs: BreadcrumbsBar;
-  readonly heading: Locator; // h1 (work item title)
+  readonly header: ObjectHeaderControl;
+  readonly heading: Locator;
   /** Header StatusMenu chip (data-testid="work-item-status"). */
   readonly statusMenu: StatusMenuControl;
-
-  // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
-  // fix/1278: the breadcrumb has been REMOVED from the WorkItemDetailPage header entirely.
-  // areaBreadcrumbNav is retained so Scenario 2 and 5 tests can assert not.toBeVisible().
-  readonly areaBreadcrumbNav: Locator;
-
-  // Sections (left column)
-  readonly descriptionSection: Locator;
-  readonly scheduleSection: Locator;
-  /** Late / Held up chip in the page header (#2199); absent when neither applies. */
+  /** The Not started primary (Start), a StatusMenu in its `action` appearance. */
+  readonly startPrimary: StatusMenuControl;
+  /** The In progress primary (Mark done). */
+  readonly donePrimary: StatusMenuControl;
+  /** The Done primary: Log (opens the capture screen). */
+  readonly logPrimary: Locator;
+  /** Late / Held up chip next to the When fact; absent when neither applies. */
   readonly headerScheduleSignal: Locator;
-  /** Secondary "Planned: …" line, rendered only when the plan differs from the forecast. */
-  readonly plannedDates: Locator;
-  readonly assignmentSection: Locator;
-  readonly tagsSection: Locator;
-  /** The "Cost" section (overview, cost lines, grant links). */
-  readonly budgetSection: Locator;
+  /** The default (nav) area path inside the header: must stay absent (fix/1278). */
+  readonly areaBreadcrumbNav: Locator;
+  readonly toasts: ToastRegion;
 
-  // Cost lines
+  // Strip, tabs
+  readonly summary: SummaryStripControl;
+  readonly callButton: Locator;
+  readonly tabs: ObjectTabsControl;
+
+  // Overview
+  readonly detailsCard: SectionCardControl;
+  readonly whoWhereCard: SectionCardControl;
+  readonly checklistCard: SectionCardControl;
+  readonly notesCard: SectionCardControl;
+  readonly titleInput: Locator;
+  readonly descriptionInput: Locator;
+  readonly descriptionText: Locator;
+  readonly whoText: Locator;
+  readonly areaText: Locator;
+  /** The "Add ▾" trigger of the Overview (Checklist item / Note). */
+  readonly addMenu: Locator;
+  readonly checklistAddInput: Locator;
+  readonly checklistAddButton: Locator;
+  readonly notesAddButton: Locator;
+  readonly whoPicker: EntityPickerControl;
+  /** The chip of the chosen Who inside the Who and where form. */
+  readonly selectedWho: Locator;
+  /** "Clear selection" of the Who picker (edit mode, a value chosen). */
+  readonly clearWho: Locator;
+  readonly areaPicker: EntityPickerControl;
+  readonly noteDialog: ObjectFormDialog;
+  readonly editNoteDialog: ObjectFormDialog;
+  readonly checklistRenameDialog: ObjectFormDialog;
+  readonly noteDeleteDialog: ConfirmDialogControl;
+  readonly subtaskDeleteDialog: ConfirmDialogControl;
+
+  // Timing
+  readonly timingPanel: Locator;
+  readonly datesCard: SectionCardControl;
+  readonly constraintsCard: SectionCardControl;
+  readonly rescheduleButton: Locator;
+  readonly rescheduleSection: Locator;
+  readonly rescheduleRetry: Locator;
+  readonly depErrorDismiss: Locator;
+  readonly plannedDates: Locator;
+  readonly waitsFor: RelatedListControl;
+  readonly waiting: RelatedListControl;
+  readonly milestones: RelatedListControl;
+  readonly purchases: RelatedListControl;
+  readonly milestoneDialog: ObjectFormDialog;
+
+  // Cost
   readonly costLines: CostLinesPanel;
+  readonly grants: RelatedListControl;
+  /** The grant chooser opened by the Grants Add action. */
+  readonly grantPicker: EntityPickerControl;
   /** "Add cost line" (same locator as `costLines.addButton`). */
   readonly addBudgetLineButton: Locator;
-  /** Assignment picker (#work-item-assignment): people and companies, server search. */
-  readonly assignmentPicker: CompanyPickerControl;
   /** Company picker of the cost line form (#vendorId, under "More details"). */
   readonly budgetVendorPicker: CompanyPickerControl;
 
-  // Subsidy linking
-  readonly subsidyPicker: Locator;
-  readonly addSubsidyButton: Locator;
+  // Site diary
+  readonly diaryLog: Locator;
+  readonly diaryCompanyBlock: Locator;
+  readonly diaryShowAll: Locator;
+  readonly diaryOther: Locator;
+  readonly diaryOtherSummary: Locator;
+  readonly diaryOtherFeed: Locator;
 
-  // Sections (right column)
-  readonly notesSection: Locator;
-  readonly subtasksSection: Locator;
-  readonly constraintsSection: Locator; // right-column combined section (h2 "Constraints")
-  /** Add button of the dependency sentence builder (sibling of the "Successor verb" select). */
-  readonly dependencyAddButton: Locator;
-
-  // Duration input (inside Constraints section, h3 "Duration")
-  readonly durationInput: Locator;
-
-  // Notes
-  readonly noteTextarea: Locator;
-  readonly addNoteButton: Locator;
-
-  // Subtasks
-  readonly subtaskInput: Locator;
-  readonly addSubtaskButton: Locator;
-
-  // Footer
-  readonly deleteButton: Locator; // "Delete Work Item" in footer
+  // History
+  readonly historyCreated: Locator;
 
   // Delete confirmation (ConfirmDialog, role="alertdialog")
+  readonly deleteDialog: ConfirmDialogControl;
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
 
-  // Other ConfirmDialogs on the page (#2209)
-  readonly noteDeleteDialog: ConfirmDialogControl;
-  readonly subtaskDeleteDialog: ConfirmDialogControl;
-  readonly dependencyRemoveDialog: ConfirmDialogControl;
-  readonly costLineDeleteDialog: ConfirmDialogControl;
-
   // Error states
-  readonly errorBanner: Locator; // inline error (role="alert")
-  readonly errorState: Locator; // load failure / 404 state (class "error")
+  readonly errorState: Locator; // load failure / 404 state (role="alert" card)
 
   constructor(page: Page) {
     this.page = page;
 
-    // Header
     this.breadcrumbs = new BreadcrumbsBar(page);
+    this.header = new ObjectHeaderControl(page, 'task-header');
     this.heading = page.getByRole('heading', { level: 1 });
     this.statusMenu = new StatusMenuControl(page, 'work-item-status');
-
-    // fix/1278: breadcrumb removed from WorkItemDetailPage header.
-    // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
-    this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
-
-    // Left column sections — scoped by h2 heading text
-    this.descriptionSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Description', exact: true }) });
-    this.scheduleSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Schedule', exact: true }) });
+    this.startPrimary = new StatusMenuControl(page, 'task-primary-start');
+    this.donePrimary = new StatusMenuControl(page, 'task-primary-done');
+    this.logPrimary = page.getByTestId('task-primary-log');
     this.headerScheduleSignal = page.getByTestId('work-item-schedule-signal');
-    this.plannedDates = page.getByTestId('work-item-planned-dates');
-    this.assignmentSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Assignment', exact: true }) });
-    this.tagsSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Tags', exact: true }) });
-    // The "Cost" section holds the overview, the cost lines and the grant links (#2235)
-    this.budgetSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Cost', exact: true }) });
+    this.areaBreadcrumbNav = this.header.root.getByRole('navigation', { name: /area path/i });
+    this.toasts = new ToastRegion(page);
 
-    // Cost lines (CostLinesSection)
+    this.summary = new SummaryStripControl(page, 'task-summary');
+    this.callButton = page.getByTestId('task-summary-call');
+    this.tabs = new ObjectTabsControl(page, 'task-tabs');
+
+    // Overview
+    this.detailsCard = new SectionCardControl(page, 'section-task-details');
+    this.whoWhereCard = new SectionCardControl(page, 'section-task-who-where');
+    this.checklistCard = new SectionCardControl(page, 'section-task-checklist');
+    this.notesCard = new SectionCardControl(page, 'section-task-notes');
+    this.titleInput = page.getByTestId('task-field-title');
+    this.descriptionInput = page.getByTestId('task-field-description');
+    this.descriptionText = page.getByTestId('task-detail-description');
+    this.whoText = page.getByTestId('task-detail-who');
+    this.areaText = page.getByTestId('task-detail-area');
+    this.addMenu = page.getByTestId('task-add-menu');
+    this.checklistAddInput = page.getByTestId('task-checklist-add-input');
+    this.checklistAddButton = page.getByTestId('task-checklist-add');
+    this.notesAddButton = page.getByTestId('task-notes-add');
+    const whoWhereForm = page.getByTestId('section-task-who-where-form');
+    this.whoPicker = new EntityPickerControl(
+      page,
+      whoWhereForm.getByLabel('Who', { exact: true }),
+      whoWhereForm,
+    );
+    this.selectedWho = whoWhereForm.locator('[class*="selectedDisplay"]').first();
+    this.clearWho = whoWhereForm.getByRole('button', { name: 'Clear selection', exact: true });
+    this.areaPicker = new EntityPickerControl(
+      page,
+      whoWhereForm.getByLabel('Area', { exact: true }),
+      whoWhereForm,
+    );
+    this.noteDialog = new ObjectFormDialog(page, 'Add note', 'note-form');
+    this.editNoteDialog = new ObjectFormDialog(page, 'Edit note', 'note-form');
+    this.checklistRenameDialog = new ObjectFormDialog(
+      page,
+      'Rename checklist item',
+      'checklist-item-form',
+    );
+    this.noteDeleteDialog = new ConfirmDialogControl(page, 'note-delete');
+    this.subtaskDeleteDialog = new ConfirmDialogControl(page, 'subtask-delete');
+
+    // Timing
+    this.timingPanel = page.getByTestId('task-timing-panel');
+    this.datesCard = new SectionCardControl(page, 'task-dates');
+    this.constraintsCard = new SectionCardControl(page, 'task-constraints');
+    this.rescheduleButton = page.getByTestId('task-reschedule');
+    this.rescheduleSection = page.getByTestId('task-reschedule-section');
+    this.rescheduleRetry = page.getByTestId('task-reschedule-retry');
+    this.depErrorDismiss = page.getByTestId('task-dep-error-dismiss');
+    this.plannedDates = page.getByTestId('work-item-planned-dates');
+    this.waitsFor = new RelatedListControl(page, 'task-waits-for');
+    this.waiting = new RelatedListControl(page, 'task-waiting');
+    this.milestones = new RelatedListControl(page, 'task-milestones');
+    this.purchases = new RelatedListControl(page, 'task-purchases');
+    this.milestoneDialog = new ObjectFormDialog(page, 'Link milestone', 'milestone-link-form');
+
+    // Cost
     this.costLines = new CostLinesPanel(page);
     this.addBudgetLineButton = this.costLines.addButton;
-    this.assignmentPicker = new CompanyPickerControl(
-      page,
-      'work-item-assignment',
-      this.assignmentSection,
-    );
+    this.grants = new RelatedListControl(page, 'task-grants');
+    this.grantPicker = new EntityPickerControl(page, this.grants.root.locator('input').first());
     this.budgetVendorPicker = new CompanyPickerControl(
       page,
       'vendorId',
       page.getByTestId('cost-line-form'),
     );
 
-    // Subsidy picker (only present when unlinked subsidies exist)
-    this.subsidyPicker = page.getByLabel('Select subsidy program to link');
-    this.addSubsidyButton = page.getByRole('button', { name: /Add Subsidy|Linking\.\.\./i });
+    // Site diary
+    this.diaryLog = page.getByTestId('task-diary-log');
+    this.diaryCompanyBlock = page.getByTestId('task-diary');
+    this.diaryShowAll = page.getByTestId('task-diary-show-all');
+    this.diaryOther = page.getByTestId('task-diary-other');
+    this.diaryOtherSummary = this.diaryOther.locator('summary');
+    this.diaryOtherFeed = page.getByTestId('task-diary-other-feed');
 
-    // Right column sections
-    this.notesSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Notes', exact: true }) });
-    this.subtasksSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Subtasks', exact: true }) });
-    // Combined constraints section (right column): h2 "Constraints" containing subsections
-    // Date Constraints, Dependencies, Required Milestones, Linked Milestones
-    this.constraintsSection = page
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { level: 2, name: 'Constraints', exact: true }) });
+    this.historyCreated = page.getByTestId('task-history-created');
 
-    // The sentence builder has no testid; its Add button directly follows the successor-verb
-    // select. Scoping this way avoids strict-mode clashes with other "Add" buttons in Constraints.
-    this.dependencyAddButton = this.constraintsSection
-      .getByLabel('Successor verb', { exact: true })
-      .locator('xpath=following-sibling::button');
+    this.deleteDialog = new ConfirmDialogControl(page, 'work-item-delete');
+    this.deleteModal = this.deleteDialog.dialog;
+    this.deleteConfirmButton = this.deleteDialog.confirmButton;
+    this.deleteCancelButton = this.deleteDialog.cancelButton;
 
-    // Duration input lives inside Constraints section (h3 "Duration")
-    this.durationInput = this.constraintsSection.locator('input[type="number"]').first();
-
-    // Notes form
-    this.noteTextarea = this.notesSection.locator('textarea[placeholder="Add a note..."]');
-    this.addNoteButton = this.notesSection.getByRole('button', { name: /Add Note|Adding\.\.\./i });
-
-    // Subtasks form
-    this.subtaskInput = this.subtasksSection.locator('input[placeholder="Add a subtask..."]');
-    this.addSubtaskButton = this.subtasksSection.getByRole('button', {
-      name: /^Add$|Adding\.\.\./i,
-    });
-
-    // Footer delete button
-    this.deleteButton = page.getByRole('button', { name: 'Delete Work Item', exact: true });
-
-    // Delete dialog: the shared ConfirmDialog (role="alertdialog", testid prefix work-item-delete)
-    this.deleteModal = page
-      .getByRole('alertdialog')
-      .filter({ has: page.getByTestId('work-item-delete-cancel') });
-    this.deleteConfirmButton = this.deleteModal.getByTestId('work-item-delete-confirm');
-    this.deleteCancelButton = this.deleteModal.getByTestId('work-item-delete-cancel');
-    this.noteDeleteDialog = new ConfirmDialogControl(page, 'note-delete');
-    this.subtaskDeleteDialog = new ConfirmDialogControl(page, 'subtask-delete');
-    this.dependencyRemoveDialog = new ConfirmDialogControl(page, 'dependency-remove');
-    this.costLineDeleteDialog = new ConfirmDialogControl(page, 'cost-line-delete');
-
-    // Error states
-    this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
     this.errorState = page.locator('[class*="errorCard"]');
   }
 
   /**
-   * Navigate directly to the work item detail page by ID.
-   * Waits for the h1 heading to appear (page loaded successfully) OR
-   * the error state to appear (load failure / 404).
+   * Navigate directly to the task page by id (optionally on a tab or with extra query).
+   * Waits for the h1 heading to appear (page loaded) OR the error state (load failure / 404).
    */
-  async goto(id: string): Promise<void> {
+  async goto(
+    id: string,
+    options: { tab?: TaskTab; query?: Record<string, string>; hash?: string } = {},
+  ): Promise<void> {
+    const query: Record<string, string> = { ...(options.query ?? {}) };
+    if (options.tab) query.tab = options.tab;
+    const url = routeUrl('workItem', { id }, Object.keys(query).length > 0 ? query : undefined);
     // `domcontentloaded`, not the default `load`: the heading/error wait below is the real
-    // readiness signal, and `load` also waits for every subresource, which under 6-worker load
-    // exceeded the 10s navigation timeout on WebKit.
-    await this.page.goto(routeUrl('workItem', { id }), { waitUntil: 'domcontentloaded' });
-    // No explicit timeout — uses the project-level actionTimeout.
+    // readiness signal, and `load` also waits for every subresource.
+    await this.page.goto(`${url}${options.hash ?? ''}`, { waitUntil: 'domcontentloaded' });
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),
       this.errorState.waitFor({ state: 'visible' }),
     ]);
   }
 
-  /**
-   * Get the work item title from the h1 heading.
-   */
+  /** The h1 text. */
   async getTitle(): Promise<string> {
     return (await this.heading.textContent()) ?? '';
   }
 
-  /**
-   * Add a note to the work item.
-   * Fills the note textarea, submits, and waits for the note to appear in the list.
-   */
-  async addNote(text: string): Promise<void> {
-    await this.noteTextarea.fill(text);
-    await this.addNoteButton.click();
-    // Wait for the note to appear in the notes list.
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.notesSection
-      .locator('[class*="noteContent"]')
-      .filter({ hasText: text })
-      .waitFor({ state: 'visible' });
+  /** Select a tab and wait for its panel. */
+  async openTab(tab: TaskTab): Promise<void> {
+    await this.tabs.select(tab);
+    await expect(this.tabs.panel(tab)).toBeVisible();
   }
 
-  /**
-   * Add a subtask to the work item.
-   * Fills the subtask input, submits, and waits for the subtask to appear in the list.
-   */
-  async addSubtask(text: string): Promise<void> {
-    await this.subtaskInput.fill(text);
-    await this.addSubtaskButton.click();
-    // Wait for the subtask to appear in the subtask list.
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.subtasksSection
-      .locator('[class*="subtaskTitle"]')
-      .filter({ hasText: text })
-      .waitFor({ state: 'visible' });
+  // ─── Overview ──────────────────────────────────────────────────────────────
+
+  /** Open the Add ▾ menu and choose "Checklist item" or "Note". */
+  async chooseAdd(item: 'Checklist item' | 'Note'): Promise<void> {
+    await this.addMenu.click();
+    await this.page.getByRole('menuitem', { name: item, exact: true }).click();
   }
 
-  /**
-   * Link a subsidy program to the work item by name.
-   * Selects the subsidy in the picker dropdown and clicks "Add Subsidy".
-   */
-  async linkSubsidy(subsidyName: string): Promise<void> {
-    await this.subsidyPicker.selectOption({ label: subsidyName });
-    await this.addSubsidyButton.click();
-    // Wait for the subsidy to appear in the linked list.
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.budgetSection
-      .locator('[class*="linkedItemName"]')
-      .filter({ hasText: subsidyName })
-      .waitFor({ state: 'visible' });
+  /** One checklist row by its title. */
+  checklistItem(title: string): Locator {
+    return this.page.locator('[data-testid^="task-checklist-item-"]').filter({ hasText: title });
   }
 
-  /**
-   * Open the delete confirmation modal by clicking "Delete Work Item" in the footer.
-   */
+  /** The ⋯ trigger of a checklist row. */
+  checklistActions(title: string): Locator {
+    return this.checklistItem(title).getByRole('button', { name: `Actions for ${title}` });
+  }
+
+  /** Choose a ⋯ action (Rename, Move up, Move down, Delete) of a checklist row. */
+  async chooseChecklistAction(
+    title: string,
+    action: 'Rename' | 'Move up' | 'Move down' | 'Delete',
+  ): Promise<void> {
+    await this.checklistActions(title).click();
+    await this.page.getByRole('menuitem', { name: action, exact: true }).click();
+  }
+
+  /** Add a checklist item through the card's add field and wait for its row. */
+  async addChecklistItem(title: string): Promise<void> {
+    await this.checklistAddInput.fill(title);
+    await this.checklistAddButton.click();
+    await expect(this.checklistItem(title)).toBeVisible();
+  }
+
+  /** One note by its text. */
+  note(text: string): Locator {
+    return this.page.locator('[data-testid^="task-note-"]').filter({ hasText: text });
+  }
+
+  /** Choose Edit or Delete from the ⋯ menu of a note. */
+  async chooseNoteAction(text: string, action: 'Edit' | 'Delete'): Promise<void> {
+    await this.note(text)
+      .getByRole('button', { name: /^Actions for the note/ })
+      .click();
+    await this.page.getByRole('menuitem', { name: action, exact: true }).click();
+  }
+
+  /** Add a note through the dialog (the Notes card's "Add note" or the Add ▾ menu). */
+  async saveNoteInDialog(text: string): Promise<void> {
+    await this.noteDialog.waitForOpen();
+    await this.noteDialog.field('content').fill(text);
+    await this.noteDialog.save();
+    await this.noteDialog.waitForClosed();
+    await expect(this.note(text)).toBeVisible();
+  }
+
+  /** Edit the details card: set title and/or description, Save. */
+  async editDetails(values: { title?: string; description?: string }): Promise<void> {
+    await this.detailsCard.startEdit();
+    if (values.title !== undefined) await this.titleInput.fill(values.title);
+    if (values.description !== undefined) await this.descriptionInput.fill(values.description);
+    await this.detailsCard.save();
+  }
+
+  // ─── Timing ────────────────────────────────────────────────────────────────
+
+  /** The Timing tab's input of a date card by its test id. */
+  input(testId: string): Locator {
+    return this.page.getByTestId(testId);
+  }
+
+  /** The Add action of a dependency list: the header button or the empty state's button. */
+  dependencyAdd(list: RelatedListControl): Locator {
+    return list.addButton.or(list.addAction('Add')).first();
+  }
+
+  /** The dependency dialog; `title` is the dialog's h2 (see `dependencyDialogTitles`). */
+  dependencyDialog(title: string): ObjectFormDialog {
+    return new ObjectFormDialog(this.page, title, 'dependency-form');
+  }
+
+  /** The "Link milestone" Add action: header button or empty-state button. */
+  milestoneAdd(): Locator {
+    return this.milestones.addButton.or(this.milestones.addAction('Link milestone')).first();
+  }
+
+  // ─── Delete ────────────────────────────────────────────────────────────────
+
+  /** Open the delete confirmation from the ⋯ menu. */
   async openDeleteModal(): Promise<void> {
-    await this.deleteButton.click();
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.deleteConfirmButton.waitFor({ state: 'visible' });
+    await this.header.chooseMenuItem('object-header-delete');
+    await this.deleteDialog.waitForOpen();
   }
 
-  /**
-   * Confirm deletion in the modal. The page navigates to /project/work-items on success.
-   */
+  /** Confirm deletion in the dialog. The page navigates to the task list on success. */
   async confirmDelete(): Promise<void> {
-    await this.deleteConfirmButton.click();
-    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
+    await this.deleteDialog.confirmButton.click();
     await this.page.waitForURL('**/project/work-items');
   }
 
-  /**
-   * Cancel the delete modal without deleting.
-   */
+  /** Cancel the delete dialog without deleting. */
   async cancelDelete(): Promise<void> {
-    await this.deleteCancelButton.click();
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-    await this.deleteConfirmButton.waitFor({ state: 'hidden' });
+    await this.deleteDialog.cancel();
   }
 
-  /**
-   * Delete the work item via the modal flow (open + confirm).
-   * Convenience method combining openDeleteModal + confirmDelete.
-   */
+  /** Delete the task through the ⋯ menu and the confirm dialog. */
   async deleteWorkItem(): Promise<void> {
     await this.openDeleteModal();
     await this.confirmDelete();
   }
 
-  /**
-   * Check whether the page loaded in the error state (404 or load failure).
-   */
+  /** Whether the page loaded in the error state (404 or load failure). */
   async isInErrorState(): Promise<boolean> {
     try {
-      // Use a short timeout since we are probing for an optional state.
-      // 3000ms is intentionally short — we don't want to wait long for an error state.
+      // Short timeout: we are probing for an optional state.
       await this.errorState.waitFor({ state: 'visible', timeout: 3000 });
       return true;
     } catch {
       return false;
     }
   }
-
-  /**
-   * Start inline editing of the description by clicking the description body.
-   * Uses a specific selector that only matches the display-mode .description div
-   * (not .descriptionEdit / .descriptionTextarea / .descriptionEditActions).
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
-  async startEditingDescription(): Promise<void> {
-    // Use a scoped selector that excludes the edit-mode variants:
-    // .descriptionEdit, .descriptionTextarea, .descriptionEditActions all
-    // contain "description" as a substring, but only .description div
-    // is present in display mode.  The :not() chain prevents strict-mode
-    // violations if the edit state briefly overlaps.
-    const descriptionBody = this.descriptionSection.locator(
-      'div[class*="description"]:not([class*="descriptionEdit"]):not([class*="descriptionTextarea"]):not([class*="descriptionEditActions"])',
-    );
-    await descriptionBody.click();
-    // Wait for the textarea to appear
-    await this.descriptionSection
-      .locator('[class*="descriptionTextarea"]')
-      .waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Save the current inline description edit.
-   * Clicks Save and waits for the textarea to disappear (edit mode exits)
-   * so the caller can immediately assert on the display-mode description text.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
-  async saveDescription(): Promise<void> {
-    await this.descriptionSection.getByRole('button', { name: 'Save', exact: true }).click();
-    // Wait for the textarea to disappear so assertions after this call don't
-    // encounter a mixed edit+display state (strict-mode violation on
-    // [class*="description"] which matches 3 elements in edit mode).
-    await this.descriptionSection
-      .locator('[class*="descriptionTextarea"]')
-      .waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Get the inline error banner text, or null if not visible.
-   * Uses a short timeout (3000ms) since we are probing for an optional state.
-   */
-  async getInlineErrorText(): Promise<string | null> {
-    try {
-      await this.errorBanner.waitFor({ state: 'visible', timeout: 3000 });
-      return await this.errorBanner.textContent();
-    } catch {
-      return null;
-    }
-  }
 }
+
+/** The h2 of the dependency dialog per direction/mode (workItems:taskPage.dependencyDialog). */
+export const dependencyDialogTitles = {
+  addWaitsFor: 'Add a task this one waits for',
+  addWaiting: 'Add a task that waits for this one',
+  edit: (title: string) => `Dependency: ${title}`,
+} as const;

@@ -47,7 +47,7 @@ async function openTaskGrid(page: Page, prefix: string) {
   const taskId = await createTask(page, cleanup, `${prefix} Hall task`);
   const panel = new CostLinesPanel(page);
   const grid = new CostLineGridDialog(page, 'Add lines');
-  await page.goto(routeUrl('workItem', { id: taskId }));
+  await page.goto(routeUrl('workItem', { id: taskId }, { tab: 'cost' }));
   await panel.waitForLoaded();
   await panel.addGridButton.click();
   await grid.waitForOpen();

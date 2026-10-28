@@ -48,7 +48,7 @@ export const CREATE_TARGETS: Readonly<Record<CreateEntryId, CreateTarget>> = {
   diaryEntry: {
     route: 'diaryEntryNew',
     query: {},
-    prefill: ['areaId', 'date'],
+    prefill: ['areaId', 'companyId', 'date'],
     moneyOnly: false,
     dialog: false,
   },

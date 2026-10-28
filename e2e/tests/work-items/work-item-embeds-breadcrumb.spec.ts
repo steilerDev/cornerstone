@@ -5,7 +5,7 @@
  * where work items are referenced:
  *   - Milestone detail — linked WI list (compact breadcrumb below title)
  *   - Milestone detail — item search dropdown (compact breadcrumb in results)
- *   - WorkItemPicker / DependencySentenceBuilder — compact breadcrumb in search results
+ *   - task picker of the dependency dialog (#2248) — area path in search results
  *   - Gantt sidebar — compact breadcrumb below WI title in sidebar row
  *   - Gantt bar hover tooltip — full area path text in tooltip body
  *
@@ -22,7 +22,8 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
-import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import { WorkItemDetailPage, dependencyDialogTitles } from '../../pages/WorkItemDetailPage.js';
+import { EntityPickerControl } from '../../pages/components/EntityPickerControl.js';
 import {
   createWorkItemViaApi,
   deleteWorkItemViaApi,
@@ -146,11 +147,11 @@ test.describe('Milestone detail — null area "No area" in linked WI (Scenario 2
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: WorkItemPicker — breadcrumb in DependencySentenceBuilder result
+// Scenario 3: task picker — breadcrumb in the dependency dialog result
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Task picker — area path in search result (Scenario 3)', () => {
-  test('Dependency builder picker shows the area path under the task title in the dropdown', async ({
+  test('The task picker of the dependency dialog shows the area path under the task title in the dropdown', async ({
     page,
     testPrefix,
   }) => {
@@ -178,29 +179,21 @@ test.describe('Task picker — area path in search result (Scenario 3)', () => {
         title: targetTitle,
         areaId: childAreaId,
       });
-      // The main WI has no area — we navigate to its detail page and use the dependency builder
+      // The main WI has no area — we navigate to its Timing tab and use the dependency dialog
       mainWorkItemId = await createWorkItemViaApi(page, { title: mainTitle });
 
-      await wiDetailPage.goto(mainWorkItemId);
+      await wiDetailPage.goto(mainWorkItemId, { tab: 'timing' });
       await expect(wiDetailPage.heading).toBeVisible();
 
-      // The DependencySentenceBuilder renders two WorkItemPickers (slot1 + slot2).
-      // Slot 1 starts empty; we type in it to search.
-      // The SearchPicker input has placeholder from t('picker.placeholder') in workItems namespace.
-      // Both pickers have the same placeholder — use the first visible one inside the constraints section.
-      const constraintsSection = page.locator('[class*="constraintSubsection"]').filter({
-        hasText: /Dependencies/i,
-      });
-      await constraintsSection.waitFor({ state: 'visible' });
-
-      // Get the first SearchPicker input (slot1) in the dependency builder
-      const pickerInput = constraintsSection.locator('input[type="text"]').first();
-      await pickerInput.scrollIntoViewIfNeeded();
-      await pickerInput.waitFor({ state: 'visible' });
-      await pickerInput.fill(targetTitle);
+      // The Add dialog of "Waits for" holds the task chooser (EntityPicker kind task)
+      await wiDetailPage.dependencyAdd(wiDetailPage.waitsFor).click();
+      const dialog = wiDetailPage.dependencyDialog(dependencyDialogTitles.addWaitsFor);
+      await dialog.waitForOpen();
+      const pickerControl = new EntityPickerControl(page, 'task', dialog.dialog);
+      await pickerControl.type(targetTitle);
 
       // Wait for the listbox to open with results
-      const listbox = page.getByRole('listbox').first();
+      const listbox = pickerControl.dropdown;
       await expect(listbox).toBeVisible();
 
       // The result option that matches targetTitle

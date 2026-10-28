@@ -350,7 +350,9 @@
       "who": "Search companies or household members",
       "category": "Select a category",
       "taskOrPurchase": "Search tasks or purchases",
-      "document": "Search your documents"
+      "document": "Search your documents",
+      "milestone": "Search milestones",
+      "grant": "Type to find a grant"
     },
     "typeMore": "Type at least 2 letters.",
     "task": {
@@ -374,6 +376,12 @@
       "noResults": "No documents found.",
       "loadError": "Couldn't load documents.",
       "linkedHidden": "Documents already linked are not listed."
+    },
+    "milestone": {
+      "noResults": "No milestone matches this search"
+    },
+    "grant": {
+      "noResults": "No grant matches this search"
     }
   },
   "relatedList": {

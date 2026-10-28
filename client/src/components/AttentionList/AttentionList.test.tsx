@@ -172,11 +172,11 @@ describe('AttentionList: rendering', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
-  it('Reschedule links to the Constraints section of the task page', () => {
+  it('Reschedule links to the Reschedule section of the Timing tab', () => {
     const row = makeRow('N1');
     renderList({ initial: [row] });
     expect(screen.getByTestId(`${rowTid(row)}-reschedule`).getAttribute('href')).toMatch(
-      /\/project\/work-items\/wi-1#constraints$/,
+      /\/project\/work-items\/wi-1\?tab=timing#reschedule$/,
     );
   });
 });

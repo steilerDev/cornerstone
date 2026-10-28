@@ -296,8 +296,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["areaId", "date", "start"],
-    "note": "Capture screen: no type-picker page; type selector inside; always a new entry (offers 'Add to that entry instead' when the same date and title exist); no draft until the first photo or character. Entry points: phone ＋, 'Log today', New menu. ?start=photo|note|delivery (from the New sheet's Log now tiles) sets the type / opens the camera and is removed on arrival (replace)."
+    "carries": ["areaId", "companyId", "date", "start"],
+    "note": "Capture screen: no type-picker page; type selector inside; always a new entry (offers 'Add to that entry instead' when the same date and title exist); no draft until the first photo or character. Entry points: phone ＋, 'Log today', New menu, the task page's 'Log for this task' (?areaId=&companyId=; companyId pre-selects the company on a daily log only and is dropped when unknown, #2248). ?start=photo|note|delivery (from the New sheet's Log now tiles) sets the type / opens the camera and is removed on arrival (replace)."
   },
   {
     "from": "/diary/:id",
@@ -1053,7 +1053,7 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Query map: the dependency error opens on the Timing tab."
+    "note": "Query map: the dependency error opens on the Timing tab. Interim form 'page' (#2248): the task page reads ?depError= (and the #reschedule / legacy #constraints hash) once and rewrites the URL in one replace navigation to ?tab=timing, keeping location.state; page-base query maps cannot be live redirects."
   },
   {
     "from": "/schedule?view=calendar",

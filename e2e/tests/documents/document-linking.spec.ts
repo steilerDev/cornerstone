@@ -205,7 +205,7 @@ test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@res
       const panel = new DocumentsPanel(page);
 
       // Paperless on, nothing linked yet
-      await expect(panel.button()).toHaveText('Documents (0)');
+      await expect(panel.button()).toHaveText('0');
       await panel.open();
       await expect(panel.title).toHaveText('Documents (0)');
 
@@ -227,7 +227,7 @@ test.describe('Document Linking — Work Item (Scenarios 1, 3, 6)', { tag: '@res
       await expect(panel.rowMenuTrigger(MOCK_DOCUMENT.title)).toBeFocused();
 
       // The trigger behind the sheet shows the new count
-      await expect(panel.button()).toHaveText('Documents (1)');
+      await expect(panel.button()).toHaveText('1');
     } finally {
       await cleanupMocks(page);
       if (createdId) await deleteWorkItemViaApi(page, createdId);
@@ -764,7 +764,7 @@ test.describe(
 
         // Server truth: the restored link survives a reload
         await page.reload();
-        await expect(panel.button()).toHaveText('Documents (1)');
+        await expect(panel.button()).toHaveText('1');
         await panel.open();
         await expect(panel.row(title)).toBeVisible();
         await expect(panel.dialog.getByTestId(`linked-document-${linkId}`)).toBeVisible();
@@ -796,7 +796,7 @@ test.describe(
 
         await page.reload();
 
-        await expect(panel.button()).toHaveText('Documents (0)');
+        await expect(panel.button()).toHaveText('0');
         await panel.open();
         await expect(panel.rows).toHaveCount(0);
         await expect(panel.dialog.getByText('No documents linked yet.')).toBeVisible();

@@ -201,8 +201,10 @@ test.describe('StatusMenu — task status', { tag: '@responsive' }, () => {
       // Hover pauses the 6 s undo clock, so a slow runner cannot dismiss the toast before the
       // final cleanup click (it did on CI, #2287).
       await toasts.undoToast.hover();
-      await detail.noteTextarea.fill('typing here');
-      await expect(detail.noteTextarea).toBeFocused();
+      await expect(detail.statusMenu.trigger).toHaveText('In progress');
+      await detail.detailsCard.startEdit();
+      await detail.titleInput.fill('typing here');
+      await expect(detail.titleInput).toBeFocused();
       await page.keyboard.press('Control+z');
 
       await expect(toasts.undoToast).toBeVisible();

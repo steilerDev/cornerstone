@@ -1,0 +1,103 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.depError {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.depErrorMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dismiss {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  flex: 0 0 auto;
+}
+
+/* ---- Date cards ---- */
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+}
+
+.planned {
+  margin: var(--spacing-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: var(--spacing-3);
+}
+
+.rescheduleButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-3);
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+}
+
+/* ---- Reschedule ---- */
+
+.reschedule {
+  composes: card from '../../styles/shared.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.rescheduleHeading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.rescheduleLoading {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-4) 0;
+}
+
+.rescheduleError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.retry {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+@media (min-width: 768px) {
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  .rescheduleButton,
+  .retry,
+  .dismiss {
+    min-height: var(--touch-target-min);
+  }
+}

@@ -297,3 +297,23 @@ export interface WorkItemMilestones {
   /** Milestones this work item contributes to (linked milestones). */
   linked: MilestoneSummaryForWorkItem[];
 }
+
+/** Company on the task page: carries the company phone for the strip's Call button (#2248). */
+export interface WorkItemPageVendor extends VendorSummary {
+  phone: string | null;
+}
+
+/**
+ * GET /api/work-items/:id only (#2248): the detail plus the task page's figures, computed by the
+ * same helper as the Tasks list rows (one definition per figure).
+ */
+export interface WorkItemPageDetail extends Omit<WorkItemDetail, 'assignedVendor'> {
+  assignedVendor: WorkItemPageVendor | null;
+  /** Expected cost in major units; null when the task has no cost lines. */
+  expectedCost: number | null;
+  /** Rejected grants excluded, by name (same as list rows). */
+  grants: ItemGrantChip[];
+  waitsFor: WorkItemWaitsFor | null;
+  /** computeHoldsUp; null when completed or count 0. */
+  holdsUp: AttentionHoldsUp | null;
+}

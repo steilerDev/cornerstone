@@ -170,11 +170,11 @@ test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
 
       // Task page A: header chip, no "Delayed by"
       const detailA = new WorkItemDetailPage(page);
-      await detailA.goto(a);
+      await detailA.goto(a, { tab: 'timing' });
       await expect(detailA.headerScheduleSignal).toHaveText('Late · 5 d');
       await expect(page.getByText('Delayed by')).toHaveCount(0);
       // Start is the forecast; the planned range is secondary text
-      await expect(detailA.scheduleSection).toContainText(fmt(utcDay(0)));
+      await expect(detailA.datesCard.root).toContainText(fmt(utcDay(0)));
       await expect(detailA.plannedDates).toContainText('Planned');
       await expect(detailA.plannedDates).toContainText(
         new RegExp(`\\b${Number(utcDay(-5).slice(8))}\\b`),
@@ -264,9 +264,9 @@ test.describe('One date source for a late task (Scenario 4)', () => {
 
       // Task page Schedule section
       const detail = new WorkItemDetailPage(page);
-      await detail.goto(id);
-      await expect(detail.scheduleSection).toContainText(start);
-      await expect(detail.scheduleSection).toContainText(end);
+      await detail.goto(id, { tab: 'timing' });
+      await expect(detail.datesCard.root).toContainText(start);
+      await expect(detail.datesCard.root).toContainText(end);
 
       // Schedule tooltip (desktop only: hover is not a phone/tablet interaction)
       if ((page.viewportSize()?.width ?? 1440) >= 1200) {
@@ -321,7 +321,7 @@ test.describe('One date source for a late task (Scenario 4)', () => {
       await expect(list.scheduleSignal(id)).toHaveCount(0);
 
       const detail = new WorkItemDetailPage(page);
-      await detail.goto(id);
+      await detail.goto(id, { tab: 'timing' });
       await expect(detail.headerScheduleSignal).toHaveCount(0);
       await expect(detail.plannedDates).toHaveCount(0);
     } finally {
@@ -383,8 +383,8 @@ test.describe('Undated task (Scenario 6)', () => {
 
       // Task page: shows the forecast start, no planned line, no chip
       const detail = new WorkItemDetailPage(page);
-      await detail.goto(id);
-      await expect(detail.scheduleSection).toContainText(fmt(utcDay(0)));
+      await detail.goto(id, { tab: 'timing' });
+      await expect(detail.datesCard.root).toContainText(fmt(utcDay(0)));
       await expect(detail.plannedDates).toHaveCount(0);
       await expect(detail.headerScheduleSignal).toHaveCount(0);
 

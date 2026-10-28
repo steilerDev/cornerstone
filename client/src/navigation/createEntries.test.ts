@@ -82,11 +82,21 @@ describe('createEntries', () => {
         routeUrl('milestoneNew', undefined, { date: '2026-03-01' }),
       );
       expect(createHref('diaryEntry', all)).toBe(
-        routeUrl('diaryEntryNew', undefined, { areaId: 'a1', date: '2026-03-01' }),
+        routeUrl('diaryEntryNew', undefined, { areaId: 'a1', companyId: 'c1', date: '2026-03-01' }),
       );
       expect(createHref('company', all)).toBe(routeUrl('companyNew'));
       expect(createHref('fundingSource', all)).toBe('/budget/financing?create=1&kind=source');
       expect(createHref('grant', all)).toBe('/budget/financing?create=1&kind=grant');
+    });
+
+    it('the Site diary entry carries the company, so the task page can pre-select it (#2248)', () => {
+      expect(CREATE_TARGETS.diaryEntry.prefill).toEqual(['areaId', 'companyId', 'date']);
+      expect(createHref('diaryEntry', { companyId: 'c1' })).toBe('/diary/new?companyId=c1');
+      expect(createHref('diaryEntry', { areaId: 'a1', date: '2026-03-01' })).toBe(
+        '/diary/new?areaId=a1&date=2026-03-01',
+      );
+      const route = getRouteEntry('diaryEntryNew') as { carries?: readonly string[] };
+      expect(route.carries).toContain('companyId');
     });
 
     it('presets kind=offer only for the Offer row', () => {

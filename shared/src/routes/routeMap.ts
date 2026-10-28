@@ -339,7 +339,7 @@ export const ROUTE_MAP = [
     guard: 'member',
     gate: 'none',
     permanent: false,
-    carries: ['areaId', 'date', 'start'],
+    carries: ['areaId', 'companyId', 'date', 'start'],
     stage: 'done',
     parent: 'diary',
   },
@@ -1203,7 +1203,8 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'planned',
+    stage: 'interim',
+    interim: 'page',
     match: {
       query: {
         depError: true,

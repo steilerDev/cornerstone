@@ -1,30 +1,32 @@
 /**
- * E2E tests for Work Item Detail page (/project/work-items/:id)
+ * E2E tests for the Task page (/project/work-items/:id), rebuilt on the detail template in
+ * #2248 (EPIC-21 P5.4). The header, strip, tabs, Timing, Cost and Site diary scenarios live in
+ * `task-page.spec.ts`; this file keeps the basics every task page needs.
  *
  * Scenarios covered:
- * 1.  Page loads with work item title as heading
+ * 1.  Page loads with the task title as heading, the strip, the tabs and the Overview cards
  * 2.  "Tasks" breadcrumb navigates to /project/work-items
- * 3.  Notes — add a note and verify it appears
- * 4.  Subtasks — add a subtask and verify it appears
- * 5.  Vendor linking regression — vendor dropdown loads without error
- *     (regression test for fetchVendors pageSize bug)
- * 6.  Inline edit description — click to edit, save, verify updated
- * 7.  Delete work item — confirm modal + redirect to list
- * 8.  404/error state for non-existent work item ID
- * 9.  Responsive — no horizontal scroll on current viewport
+ * 3.  Notes: Add ▾ › Note, Add note, Edit, Delete (with the confirm dialog)
+ * 4.  Checklist: Add ▾ › Checklist item, add, toggle, rename, reorder, delete
+ * 5.  Cost tab loads without error and offers Add cost line and the Grants list
+ * 6.  Details card: edit the description and the title, cancel, validation, `e` shortcut
+ * 7.  Delete the task from the ⋯ menu: confirm + redirect, cancel, Delete key
+ * 8.  404/error state for a non-existent task id
+ * 9.  Responsive: no horizontal scroll on any tab
  * 10. Dark mode rendering
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
+import type { TaskTab } from '../../pages/WorkItemDetailPage.js';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with work item title as heading
+// Scenario 1: Page loads with the task title as heading
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Work Item detail page loads with the work item title as the h1 heading', async ({
+  test('The task page loads with the task title as the h1 heading', async ({
     page,
     testPrefix,
   }) => {
@@ -44,32 +46,35 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('All key sections are visible on page load', async ({ page, testPrefix }) => {
+  test('The strip, the tabs and the Overview cards are visible on page load', async ({
+    page,
+    testPrefix,
+  }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} All Sections Test`,
-      });
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} All Sections Test` });
 
       await detailPage.goto(createdId);
 
-      // Left column sections
-      await expect(detailPage.descriptionSection).toBeVisible();
-      await expect(detailPage.scheduleSection).toBeVisible();
-      await expect(detailPage.budgetSection).toBeVisible();
-
-      // Right column sections
-      await expect(detailPage.notesSection).toBeVisible();
-      await expect(detailPage.subtasksSection).toBeVisible();
-      await expect(detailPage.constraintsSection).toBeVisible();
+      await expect(detailPage.summary.root).toBeVisible();
+      for (const tab of ['overview', 'timing', 'cost', 'diary', 'history'] as const) {
+        await expect(detailPage.tabs.tab(tab)).toBeVisible();
+      }
+      // Overview is the default tab
+      await expect(detailPage.tabs.tab('overview')).toHaveAttribute('aria-selected', 'true');
+      await expect(detailPage.detailsCard.root).toBeVisible();
+      await expect(detailPage.whoWhereCard.root).toBeVisible();
+      // Nothing to show yet: no Checklist and no Notes card
+      await expect(detailPage.checklistCard.root).toHaveCount(0);
+      await expect(detailPage.notesCard.root).toHaveCount(0);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Status chip is visible and shows the work item status', async ({ page, testPrefix }) => {
+  test('Status chip is visible and shows the task status', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -82,7 +87,6 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
       await detailPage.goto(createdId);
 
       await expect(detailPage.statusMenu.trigger).toBeVisible();
-      // The chip shows "In progress" (#2209: the old status select is gone)
       await expect(detailPage.statusMenu.trigger).toHaveText('In progress');
       await expect(page.locator('[class*="statusSelect"]')).toHaveCount(0);
     } finally {
@@ -95,7 +99,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 // Scenario 2: "Tasks" breadcrumb navigates to /project/work-items
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"Tasks" breadcrumb navigates to the work items list', async ({ page, testPrefix }) => {
+  test('"Tasks" breadcrumb navigates to the task list', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -106,7 +110,6 @@ test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () =
 
       await detailPage.breadcrumbs.trailLink('Tasks').click();
 
-      // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
       await page.waitForURL('**/project/work-items');
       expect(page.url()).toContain('/project/work-items');
       expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
@@ -117,10 +120,10 @@ test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Notes — add a note and verify it appears
+// Scenario 3: Notes
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Add note (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Adding a note to a work item displays it in the notes list', async ({
+test.describe('Notes (Scenario 3)', { tag: '@responsive' }, () => {
+  test('Add ▾ › Note adds a note: the Notes card appears and "Add note" holds focus', async ({
     page,
     testPrefix,
   }) => {
@@ -132,38 +135,91 @@ test.describe('Add note (Scenario 3)', { tag: '@responsive' }, () => {
       createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Note Add Test` });
 
       await detailPage.goto(createdId);
+      await expect(detailPage.notesCard.root).toHaveCount(0);
 
-      // Notes section is visible and initially empty
-      await expect(detailPage.notesSection).toBeVisible();
-      await expect(detailPage.noteTextarea).toBeVisible();
+      await detailPage.chooseAdd('Note');
+      await detailPage.saveNoteInDialog(noteText);
 
-      // Add the note
-      await detailPage.addNote(noteText);
-
-      // Note content appears in the notes list
+      // The card exists now and the note is in it
+      await expect(detailPage.notesCard.root).toBeVisible();
+      await expect(detailPage.notesCard.root).toContainText(noteText);
+      // Focus lands on the card's "Add note" button, never on the body
+      await expect(detailPage.notesAddButton).toBeFocused();
+      // The Add ▾ menu now only offers the Checklist item
+      await detailPage.addMenu.click();
+      await expect(page.getByRole('menuitem', { name: 'Note', exact: true })).toHaveCount(0);
       await expect(
-        detailPage.notesSection.locator('[class*="noteContent"]').filter({ hasText: noteText }),
+        page.getByRole('menuitem', { name: 'Checklist item', exact: true }),
       ).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Add Note button is disabled when note textarea is empty', async ({ page, testPrefix }) => {
+  test('A note can be added from the card, edited and deleted after a confirmation', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+    const first = `${testPrefix} First note text`;
+    const edited = `${testPrefix} Edited note text`;
+
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Note Manage Test` });
+      const seeded = await page.request.post(`${API.workItems}/${createdId}/notes`, {
+        data: { content: first },
+      });
+      expect(seeded.ok(), 'POST note').toBeTruthy();
+
+      await detailPage.goto(createdId);
+      await expect(detailPage.note(first)).toBeVisible();
+
+      // Add a second note from the card
+      await detailPage.notesAddButton.click();
+      await detailPage.saveNoteInDialog(`${testPrefix} Second note text`);
+
+      // Edit the first note
+      await detailPage.chooseNoteAction(first, 'Edit');
+      await detailPage.editNoteDialog.waitForOpen();
+      await expect(detailPage.editNoteDialog.field('content')).toHaveValue(first);
+      await detailPage.editNoteDialog.field('content').fill(edited);
+      await detailPage.editNoteDialog.save();
+      await detailPage.editNoteDialog.waitForClosed();
+      await expect(detailPage.note(edited)).toBeVisible();
+      await expect(detailPage.note(first)).toHaveCount(0);
+
+      // Delete asks first; Cancel keeps it, Delete removes it
+      await detailPage.chooseNoteAction(edited, 'Delete');
+      await detailPage.noteDeleteDialog.waitForOpen();
+      await detailPage.noteDeleteDialog.cancel();
+      await expect(detailPage.note(edited)).toBeVisible();
+
+      await detailPage.chooseNoteAction(edited, 'Delete');
+      await detailPage.noteDeleteDialog.waitForOpen();
+      await detailPage.noteDeleteDialog.confirm();
+      await expect(detailPage.note(edited)).toHaveCount(0);
+      await expect(detailPage.note(`${testPrefix} Second note text`)).toBeVisible();
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('The Add note dialog refuses an empty note', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Note Button Test` });
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Note Empty Test` });
 
       await detailPage.goto(createdId);
+      await detailPage.chooseAdd('Note');
+      await detailPage.noteDialog.waitForOpen();
+      await detailPage.noteDialog.save();
 
-      // Button should be disabled when textarea is empty
-      await expect(detailPage.addNoteButton).toBeDisabled();
-
-      // After filling, button should be enabled
-      await detailPage.noteTextarea.fill('Test note text');
-      await expect(detailPage.addNoteButton).toBeEnabled();
+      await expect(detailPage.noteDialog.fieldError('content')).toHaveText('Write the note first.');
+      await detailPage.noteDialog.cancel();
+      await detailPage.noteDialog.waitForClosed();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -171,132 +227,111 @@ test.describe('Add note (Scenario 3)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Subtasks — add a subtask and verify it appears
+// Scenario 4: Checklist
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Add subtask (Scenario 4)', { tag: '@responsive' }, () => {
-  test('Adding a subtask to a work item displays it in the subtasks list', async ({
+test.describe('Checklist (Scenario 4)', { tag: '@responsive' }, () => {
+  test('Add ▾ › Checklist item shows the empty card with its add field focused; adding fills it', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
-    const subtaskTitle = `${testPrefix} Install foundation forms`;
+    const title = `${testPrefix} Install foundation forms`;
 
     try {
-      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Subtask Add Test` });
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Checklist Add Test` });
 
       await detailPage.goto(createdId);
+      await detailPage.chooseAdd('Checklist item');
 
-      await expect(detailPage.subtasksSection).toBeVisible();
-      await expect(detailPage.subtaskInput).toBeVisible();
+      await expect(detailPage.checklistCard.root).toBeVisible();
+      await expect(detailPage.checklistAddInput).toBeFocused();
 
-      // Add the subtask
-      await detailPage.addSubtask(subtaskTitle);
-
-      // Subtask title appears in the list
-      await expect(
-        detailPage.subtasksSection
-          .locator('[class*="subtaskTitle"]')
-          .filter({ hasText: subtaskTitle }),
-      ).toBeVisible();
+      await detailPage.addChecklistItem(title);
+      await expect(detailPage.checklistItem(title)).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Subtask checkbox is visible and can be toggled', async ({ page, testPrefix }) => {
+  test('A checklist item can be ticked, renamed, moved and deleted', async ({
+    page,
+    testPrefix,
+  }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
-    const subtaskTitle = `${testPrefix} Toggleable Subtask`;
+    const alpha = `${testPrefix} Alpha step`;
+    const beta = `${testPrefix} Beta step`;
+    const renamed = `${testPrefix} Alpha renamed`;
 
     try {
-      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Subtask Toggle Test` });
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Checklist Manage` });
+      for (const [position, itemTitle] of [alpha, beta].entries()) {
+        const seeded = await page.request.post(`${API.workItems}/${createdId}/subtasks`, {
+          data: { title: itemTitle, position },
+        });
+        expect(seeded.ok(), 'POST subtask').toBeTruthy();
+      }
 
       await detailPage.goto(createdId);
+      const items = page.locator('[data-testid^="task-checklist-item-"]');
+      await expect(items).toHaveText([alpha, beta].map((text) => new RegExp(text)));
 
-      // Add a subtask
-      await detailPage.addSubtask(subtaskTitle);
-
-      // Find and toggle the checkbox
-      const subtaskItem = detailPage.subtasksSection
-        .locator('[class*="subtaskItem"]')
-        .filter({ hasText: subtaskTitle });
-
-      const checkbox = subtaskItem.locator('input[type="checkbox"]');
+      // Tick
+      const checkbox = detailPage.checklistItem(alpha).getByRole('checkbox');
       await expect(checkbox).not.toBeChecked();
-
-      // Toggle on
-      await checkbox.click();
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
+      await checkbox.check();
       await expect(checkbox).toBeChecked();
-    } finally {
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Budget section loads with budget lines model
-// (Replaces the old vendor picker regression test — vendors are now assigned
-// per budget line, not via a separate picker.)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Cost section loads without error (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Work item detail page loads without error banner and shows the cost section', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new WorkItemDetailPage(page);
-    let createdId: string | null = null;
+      // Rename
+      await detailPage.chooseChecklistAction(alpha, 'Rename');
+      await detailPage.checklistRenameDialog.waitForOpen();
+      await detailPage.checklistRenameDialog.field('title').fill(renamed);
+      await detailPage.checklistRenameDialog.save();
+      await detailPage.checklistRenameDialog.waitForClosed();
+      await expect(detailPage.checklistItem(renamed)).toBeVisible();
 
-    try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Budget Section Test`,
-      });
+      // Move down: the renamed item is second
+      await detailPage.chooseChecklistAction(renamed, 'Move down');
+      await expect(items).toHaveText([beta, renamed].map((text) => new RegExp(text)));
 
-      await detailPage.goto(createdId);
-
-      // The page should load without an error banner
-      const errorText = await detailPage.getInlineErrorText();
-      expect(errorText).toBeNull();
-
-      // The Cost section should be visible (#2235)
-      await expect(detailPage.budgetSection).toBeVisible();
-
-      // The "Add cost line" button should be visible
-      await expect(detailPage.addBudgetLineButton).toBeVisible();
+      // Delete asks first
+      await detailPage.chooseChecklistAction(beta, 'Delete');
+      await detailPage.subtaskDeleteDialog.waitForOpen();
+      await detailPage.subtaskDeleteDialog.confirm();
+      await expect(detailPage.checklistItem(beta)).toHaveCount(0);
+      await expect(detailPage.checklistItem(renamed)).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Cost section shows Add cost line and the Grants subsection', async ({
+  test('Deleting the last checklist item hides the card and brings the Add ▾ entry back', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
+    const only = `${testPrefix} Only step`;
 
     try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Budget Lines Visible Test`,
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Checklist Last` });
+      const seeded = await page.request.post(`${API.workItems}/${createdId}/subtasks`, {
+        data: { title: only, position: 0 },
       });
+      expect(seeded.ok(), 'POST subtask').toBeTruthy();
 
       await detailPage.goto(createdId);
+      await detailPage.chooseChecklistAction(only, 'Delete');
+      await detailPage.subtaskDeleteDialog.waitForOpen();
+      await detailPage.subtaskDeleteDialog.confirm();
 
-      // No error banner
-      const errorText = await detailPage.getInlineErrorText();
-      expect(errorText).toBeNull();
-
-      // Add cost line button is visible
-      await expect(detailPage.addBudgetLineButton).toBeVisible();
-
-      // Grants subsection heading is visible
+      await expect(detailPage.checklistCard.root).toHaveCount(0);
+      // Focus moves to the Add ▾ menu, never to the body
+      await expect(detailPage.addMenu).toBeFocused();
+      await detailPage.addMenu.click();
       await expect(
-        detailPage.budgetSection.getByRole('heading', {
-          level: 3,
-          name: 'Grants',
-          exact: true,
-        }),
+        page.getByRole('menuitem', { name: 'Checklist item', exact: true }),
       ).toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
@@ -305,17 +340,45 @@ test.describe('Cost section loads without error (Scenario 5)', { tag: '@responsi
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Inline edit description
+// Scenario 5: Cost tab loads without error
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Clicking description section opens inline editor; saving updates the description', async ({
+test.describe('Cost tab loads without error (Scenario 5)', { tag: '@responsive' }, () => {
+  test('The Cost tab shows the cost lines with Add cost line and the Grants list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Cost Tab Test` });
+
+      await detailPage.goto(createdId);
+      await detailPage.openTab('cost');
+      await detailPage.costLines.waitForLoaded();
+
+      await expect(detailPage.addBudgetLineButton).toBeVisible();
+      await expect(detailPage.grants.heading).toContainText('Grants');
+      // The cost overview left the page: the strip carries the Expected cost
+      await expect(detailPage.summary.label('cost')).toHaveText('Expected cost');
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6: Details card
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Details card (Scenario 6)', { tag: '@responsive' }, () => {
+  test('Edit opens the card form; saving updates the description and it persists', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
     const initialDescription = `${testPrefix} Original description text.`;
-    const updatedDescription = `${testPrefix} Updated description via inline edit.`;
+    const updatedDescription = `${testPrefix} Updated description via the card.`;
 
     try {
       createdId = await createWorkItemViaApi(page, {
@@ -324,42 +387,40 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
       });
 
       await detailPage.goto(createdId);
+      await expect(detailPage.descriptionText).toHaveText(initialDescription);
 
-      // Start editing description
-      await detailPage.startEditingDescription();
+      await detailPage.detailsCard.startEdit();
+      await expect(detailPage.descriptionInput).toHaveValue(initialDescription);
+      // Nothing changed yet: Save is off
+      await expect(detailPage.detailsCard.saveButton).toHaveAttribute('aria-disabled', 'true');
 
-      // The description textarea should be visible and contain the current description
-      const textarea = detailPage.descriptionSection.locator('[class*="descriptionTextarea"]');
-      await expect(textarea).toBeVisible();
-      await expect(textarea).toHaveValue(initialDescription);
+      await detailPage.descriptionInput.fill(updatedDescription);
+      await detailPage.detailsCard.save();
+      await expect(detailPage.descriptionText).toHaveText(updatedDescription);
 
-      // Update the description
-      await textarea.fill(updatedDescription);
-
-      // Save
-      await detailPage.saveDescription();
-
-      // The updated description is now visible in the display view.
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-      await expect(
-        detailPage.descriptionSection.locator('[class*="description"]').filter({
-          hasText: updatedDescription,
-        }),
-      ).toBeVisible();
-
-      // Verify it persisted by reloading
+      // Persisted: a fresh load shows it
       await detailPage.goto(createdId);
-      await expect(
-        detailPage.descriptionSection.locator('[class*="description"]').filter({
-          hasText: updatedDescription,
-        }),
-      ).toBeVisible();
+      await expect(detailPage.descriptionText).toHaveText(updatedDescription);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Cancelling description edit restores the original text', async ({ page, testPrefix }) => {
+  test('A task without a description reads "No description yet"', async ({ page, testPrefix }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} No Description` });
+
+      await detailPage.goto(createdId);
+      await expect(detailPage.descriptionText).toHaveText('No description yet');
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('Cancelling the edit restores the original text', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
     const originalDescription = `${testPrefix} Cancel edit original text.`;
@@ -371,24 +432,60 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
       });
 
       await detailPage.goto(createdId);
+      await detailPage.detailsCard.startEdit();
+      await detailPage.descriptionInput.fill('This change will be discarded');
 
-      await detailPage.startEditingDescription();
+      await detailPage.detailsCard.cancel();
+      // A changed form asks before it discards
+      await detailPage.detailsCard.discardConfirm.waitForOpen();
+      await detailPage.detailsCard.discardConfirm.confirm();
 
-      const textarea = detailPage.descriptionSection.locator('[class*="descriptionTextarea"]');
-      await textarea.fill('This change will be discarded');
+      await expect(detailPage.detailsCard.form).toBeHidden();
+      await expect(detailPage.descriptionText).toHaveText(originalDescription);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
 
-      // Cancel
-      await detailPage.descriptionSection
-        .getByRole('button', { name: 'Cancel', exact: true })
-        .click();
+  test('Renaming the task updates the heading; an empty title is refused', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+    const renamed = `${testPrefix} Renamed task`;
 
-      // Original description should still be visible.
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-      await expect(
-        detailPage.descriptionSection
-          .locator('[class*="description"]')
-          .filter({ hasText: originalDescription }),
-      ).toBeVisible();
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Rename Test` });
+
+      await detailPage.goto(createdId);
+      await detailPage.detailsCard.startEdit();
+      await detailPage.titleInput.fill('');
+      await detailPage.detailsCard.saveButton.click();
+      await expect(page.getByText('Enter a title.')).toBeVisible();
+      await expect(detailPage.detailsCard.form).toBeVisible();
+
+      await detailPage.titleInput.fill(renamed);
+      await detailPage.detailsCard.save();
+      await expect(detailPage.heading).toHaveText(renamed);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('The "e" shortcut opens the Details card for editing', async ({ page, testPrefix }) => {
+    test.skip((page.viewportSize()?.width ?? 1280) < 1024, 'Keyboard shortcut: desktop only');
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Shortcut Edit` });
+
+      await detailPage.goto(createdId);
+      await page.keyboard.press('e');
+
+      await expect(detailPage.detailsCard.form).toBeVisible();
+      await expect(detailPage.titleInput).toBeFocused();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -396,47 +493,40 @@ test.describe('Inline description edit (Scenario 6)', { tag: '@responsive' }, ()
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Delete work item — confirm + redirect to list
+// Scenario 7: Delete the task
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Confirming delete redirects to /project/work-items list', async ({ page, testPrefix }) => {
+test.describe('Delete task (Scenario 7)', { tag: '@responsive' }, () => {
+  test('Confirming delete redirects to the task list', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
 
-    // Create the item (no cleanup — deleted via UI)
+    // Created through the API; deleted through the UI (no cleanup)
     const createdId = await createWorkItemViaApi(page, {
       title: `${testPrefix} Delete Redirect Test`,
     });
 
     await detailPage.goto(createdId);
 
-    // Footer delete button is visible
-    await expect(detailPage.deleteButton).toBeVisible();
+    // Delete lives in the ⋯ menu of the header
     await detailPage.openDeleteModal();
 
-    // Dialog asks "Delete <title>?" (names the task)
+    // The dialog asks "Delete <title>?" (names the task)
     await expect(
       detailPage.deleteModal.getByRole('heading', {
         name: `Delete ${testPrefix} Delete Redirect Test?`,
       }),
     ).toBeVisible();
 
-    // Confirm deletion — navigates to /project/work-items
     await detailPage.confirmDelete();
 
-    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
-    await page.waitForURL('**/project/work-items');
     expect(page.url()).toContain('/project/work-items');
     expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
 
-    // Work item no longer exists
+    // The task no longer exists
     const checkResp = await page.request.get(`${API.workItems}/${createdId}`);
     expect(checkResp.status()).toBe(404);
-
-    // Note: item deleted via UI — no API cleanup needed
-    void createdId;
   });
 
-  test('Cancelling delete modal keeps user on the detail page', async ({ page, testPrefix }) => {
+  test('Cancelling the dialog keeps the user on the task page', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -450,116 +540,104 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
       await detailPage.openDeleteModal();
       await detailPage.cancelDelete();
 
-      // Should still be on the detail page
       expect(page.url()).toContain(`/project/work-items/${createdId}`);
-
-      // Modal is closed
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
       await expect(detailPage.deleteConfirmButton).not.toBeVisible();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
+
+  test('The Delete key opens the same confirmation', async ({ page, testPrefix }) => {
+    test.skip((page.viewportSize()?.width ?? 1280) < 1024, 'Keyboard shortcut: desktop only');
+    const detailPage = new WorkItemDetailPage(page);
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Delete Key Test` });
+
+      await detailPage.goto(createdId);
+      await page.keyboard.press('Delete');
+
+      await detailPage.deleteDialog.waitForOpen();
+      await detailPage.cancelDelete();
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: 404/error state for non-existent work item ID
+// Scenario 8: 404/error state for a non-existent id
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsive' }, () => {
-  test('Navigating to a non-existent work item ID shows an error state', async ({ page }) => {
+  test('Navigating to a non-existent task id shows the not-found state', async ({ page }) => {
     const detailPage = new WorkItemDetailPage(page);
 
     await page.goto('/project/work-items/nonexistent-work-item-id-12345');
 
-    // Wait for the error state to appear
-    const isError = await detailPage.isInErrorState();
-    expect(isError).toBe(true);
+    expect(await detailPage.isInErrorState()).toBe(true);
 
-    // Error state includes a "Back to Tasks" button and the h1 "Task not found"
+    // The h1 reads "Task not found" and the card offers "Back to Tasks"
     await expect(page.getByRole('heading', { level: 1, name: 'Task not found' })).toBeVisible();
-    const backButton = detailPage.errorState.getByRole('button', {
-      name: 'Back to Tasks',
-    });
-    // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-    await expect(backButton).toBeVisible();
+    await expect(
+      detailPage.errorState.getByRole('button', { name: 'Back to Tasks' }),
+    ).toBeVisible();
+    // A 404 offers no Retry
+    await expect(detailPage.errorState.getByRole('button', { name: 'Retry' })).toHaveCount(0);
   });
 
-  test('Error state "Back to Tasks" button navigates to the list', async ({ page }) => {
+  test('"Back to Tasks" navigates to the list', async ({ page }) => {
     const detailPage = new WorkItemDetailPage(page);
 
     await page.goto('/project/work-items/nonexistent-id-abc');
 
-    const isError = await detailPage.isInErrorState();
-    expect(isError).toBe(true);
+    expect(await detailPage.isInErrorState()).toBe(true);
 
-    const backButton = detailPage.errorState.getByRole('button', {
-      name: 'Back to Tasks',
-    });
-    await backButton.click();
+    await detailPage.errorState.getByRole('button', { name: 'Back to Tasks' }).click();
 
-    // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
     await page.waitForURL('**/project/work-items');
-    expect(page.url()).toContain('/project/work-items');
     expect(page.url()).not.toMatch(/\/project\/work-items\/[a-z0-9]/);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 9: Responsive — no horizontal scroll
+// Scenario 9: Responsive, no horizontal scroll
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
-  test('Work Item detail page renders without horizontal scroll on current viewport', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new WorkItemDetailPage(page);
-    let createdId: string | null = null;
+  const TABS: readonly TaskTab[] = ['overview', 'timing', 'cost', 'diary', 'history'];
 
-    try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Responsive Detail Test`,
-      });
+  for (const tab of TABS) {
+    test(`The ${tab} tab renders without horizontal scroll on the current viewport`, async ({
+      page,
+      testPrefix,
+    }) => {
+      const detailPage = new WorkItemDetailPage(page);
+      let createdId: string | null = null;
 
-      await detailPage.goto(createdId);
+      try {
+        createdId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} Responsive Detail ${tab}`,
+        });
 
-      const hasHorizontalScroll = await page.evaluate(() => {
-        return document.documentElement.scrollWidth > window.innerWidth;
-      });
+        await detailPage.goto(createdId, { tab });
+        await expect(detailPage.tabs.panel(tab)).toBeVisible();
 
-      expect(hasHorizontalScroll).toBe(false);
-    } finally {
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
-
-  test('Cost section is accessible (scrolled into view) on current viewport', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new WorkItemDetailPage(page);
-    let createdId: string | null = null;
-
-    try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Budget Accessibility Test`,
-      });
-
-      await detailPage.goto(createdId);
-
-      // Scroll to budget section
-      await detailPage.budgetSection.scrollIntoViewIfNeeded();
-      await expect(detailPage.addBudgetLineButton).toBeVisible();
-    } finally {
-      if (createdId) await deleteWorkItemViaApi(page, createdId);
-    }
-  });
+        const hasHorizontalScroll = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
+        expect(hasHorizontalScroll).toBe(false);
+      } finally {
+        if (createdId) await deleteWorkItemViaApi(page, createdId);
+      }
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 10: Dark mode rendering
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () => {
-  test('Work Item detail page renders correctly in dark mode', async ({ page, testPrefix }) => {
+  test('The task page renders correctly in dark mode', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -573,47 +651,40 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
       await detailPage.heading.waitFor({ state: 'visible' });
 
-      // Key elements visible in dark mode
       await expect(detailPage.heading).toBeVisible();
       await expect(detailPage.breadcrumbs.trailLink('Tasks')).toBeVisible();
-      await expect(detailPage.deleteButton).toBeVisible();
+      await expect(detailPage.summary.root).toBeVisible();
+      await expect(detailPage.detailsCard.root).toBeVisible();
 
-      // No horizontal scroll
-      const hasHorizontalScroll = await page.evaluate(() => {
-        return document.documentElement.scrollWidth > window.innerWidth;
-      });
+      const hasHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+      );
       expect(hasHorizontalScroll).toBe(false);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
 
-  test('Delete modal is usable in dark mode', async ({ page, testPrefix }) => {
+  test('The delete dialog is usable in dark mode', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
     try {
-      createdId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Dark Modal Test`,
-      });
+      createdId = await createWorkItemViaApi(page, { title: `${testPrefix} Dark Modal Test` });
 
       await page.goto(`/project/work-items/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
       await detailPage.heading.waitFor({ state: 'visible' });
       await detailPage.openDeleteModal();
 
-      // Modal confirm and cancel buttons visible in dark mode
       await expect(detailPage.deleteConfirmButton).toBeVisible();
       await expect(detailPage.deleteCancelButton).toBeVisible();
 
-      // Cancel without deleting
       await detailPage.cancelDelete();
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);

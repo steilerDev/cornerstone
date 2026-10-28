@@ -82,197 +82,192 @@
     }
   },
   "create": {
-    "thisItemLabel": "Dieses Element",
     "fields": {
       "title": "Titel",
-      "titlePlaceholder": "Titel des Arbeitspakets eingeben",
+      "titlePlaceholder": "Was ist zu tun?",
       "titleRequiredError": "Titel ist erforderlich",
       "description": "Beschreibung",
       "descriptionPlaceholder": "Beschreibe die zu erledigende Arbeit",
       "status": "Status",
-      "assignedTo": "Zugewiesen an",
+      "assignedTo": "Wer",
       "unassigned": "Nicht zugewiesen",
       "durationDays": "Dauer (Tage)",
       "durationError": "Dauer muss eine positive Zahl sein",
       "startAfter": "Frühestens ab",
       "startBefore": "Spätestens ab",
-      "constraintsError": "Das Datum 'Frühestens ab' muss vor oder gleich dem Datum 'Spätestens ab' sein",
+      "constraintsError": "„Spätestens ab“ darf nicht vor „Frühestens ab“ liegen.",
       "tags": "Tags",
       "area": "Bereich",
-      "dependencies": "Abhängigkeiten"
-    },
-    "pendingDeps": {
-      "ariaLabel": "Hinzuzufügende Abhängigkeiten",
-      "thisItemPredecessor": "Dieses Element muss {{predecessorVerb}}, bevor „{{otherItemTitle}}“ {{successorVerb}} kann",
-      "otherItemPredecessor": "„{{otherItemTitle}}“ muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
-      "removeAriaLabel": "Abhängigkeit zu {{otherItemTitle}} entfernen"
+      "dependencies": "Wartet auf"
     },
     "errors": {
       "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen."
     },
-    "added": "Aufgabe „{{title}}“ hinzugefügt."
+    "added": "Aufgabe „{{title}}“ hinzugefügt.",
+    "waitsFor": {
+      "remove": "{{title}} entfernen",
+      "count_one": "{{count}} ausgewählt",
+      "count_other": "{{count}} ausgewählt"
+    }
   },
-  "detail": {
-    "loading": "Arbeitspaket wird geladen...",
-    "error": {
-      "title": "Fehler",
-      "retry": "Erneut versuchen"
+  "taskPage": {
+    "typeLabel": "Aufgabe",
+    "strip": {
+      "when": "Wann",
+      "where": "Wo",
+      "who": "Wer",
+      "cost": "Erwartete Kosten",
+      "waitsFor": "Wartet auf",
+      "holdsUp": "Hält auf",
+      "noDates": "Noch keine Termine",
+      "dateRange": "{{start}} – {{end}}",
+      "nothing": "Nichts",
+      "taskCount_one": "{{count}} Aufgabe",
+      "taskCount_other": "{{count}} Aufgaben",
+      "grantsMore_one": "{{name}} und {{count}} weiteres",
+      "grantsMore_other": "{{name}} und {{count}} weitere"
     },
-    "titleEdit": {
-      "save": "Speichern",
-      "cancel": "Abbrechen"
-    },
-    "sections": {
+    "retry": "Erneut versuchen",
+    "loading": "Aufgabe wird geladen…",
+    "overview": {
+      "details": "Details",
+      "title": "Titel",
+      "titleRequired": "Gib einen Titel ein.",
       "description": "Beschreibung",
-      "schedule": "Zeitplan",
-      "scheduleDescription": "Start- und Enddatum werden von der Planungsmaschine basierend auf Einschränkungen und Abhängigkeiten berechnet.",
+      "noDescription": "Noch keine Beschreibung",
+      "whoWhere": "Wer und wo",
+      "who": "Wer",
       "area": "Bereich",
-      "assignment": "Zuweisung",
-      "tags": "Tags",
-      "notes": "Notizen",
-      "subtasks": "Teilaufgaben",
-      "constraints": "Einschränkungen",
-      "dependentHouseholdItems": "Abhängige Haushaltsartikel"
+      "saveError": "Die Aufgabe konnte nicht gespeichert werden.",
+      "add": "Hinzufügen",
+      "addMenu": "Zu dieser Aufgabe hinzufügen",
+      "addChecklistItem": "Checklistenpunkt",
+      "addNote": "Notiz",
+      "usersLoadError": "Die Haushaltsmitglieder konnten nicht geladen werden."
     },
-    "description": {
-      "noDescription": "Keine Beschreibung",
-      "clickToEdit": "Zum Bearbeiten klicken",
-      "save": "Speichern",
-      "cancel": "Abbrechen"
-    },
-    "schedule": {
-      "startDate": "Startdatum",
-      "endDate": "Enddatum",
-      "notScheduled": "Nicht geplant",
-      "plannedRange": "Geplant: {{range}}"
-    },
-    "assignment": {
-      "assignedTo": "Zugewiesen an",
-      "unassigned": "Nicht zugewiesen"
-    },
-    "area": {
-      "label": "Bereich"
+    "checklist": {
+      "title": "Checkliste",
+      "newItem": "Neuer Checklistenpunkt",
+      "add": "Hinzufügen",
+      "actions": "Aktionen für {{title}}",
+      "rename": "Umbenennen",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "delete": "Löschen",
+      "renameTitle": "Checklistenpunkt umbenennen",
+      "name": "Name",
+      "nameRequired": "Gib einen Namen ein.",
+      "addError": "Der Checklistenpunkt konnte nicht hinzugefügt werden.",
+      "updateError": "Der Checklistenpunkt konnte nicht aktualisiert werden.",
+      "deleteError": "Der Checklistenpunkt konnte nicht gelöscht werden."
     },
     "notes": {
-      "placeholder": "Notiz hinzufügen...",
-      "adding": "Wird hinzugefügt...",
-      "addNote": "Notiz hinzufügen",
-      "noNotes": "Noch keine Notizen. Füge oben eine hinzu.",
-      "save": "Speichern",
-      "cancel": "Abbrechen",
+      "title": "Notizen",
+      "add": "Notiz hinzufügen",
+      "addTitle": "Notiz hinzufügen",
+      "editTitle": "Notiz bearbeiten",
+      "note": "Notiz",
+      "noteRequired": "Schreibe zuerst die Notiz.",
+      "byline": "{{name}} · {{date}}",
+      "unknownAuthor": "Unbekannt",
+      "actions": "Aktionen für die Notiz vom {{date}}",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "unknown": "Unbekannt"
+      "deleteTitle": "Diese Notiz löschen?",
+      "deleteError": "Die Notiz konnte nicht gelöscht werden.",
+      "loadError": "Die Notizen konnten nicht geladen werden."
     },
-    "subtasks": {
-      "placeholder": "Teilaufgabe hinzufügen...",
-      "adding": "Wird hinzugefügt...",
-      "add": "Hinzufügen",
-      "noSubtasks": "Noch keine Teilaufgaben. Füge oben eine hinzu.",
-      "save": "Speichern",
-      "cancel": "Abbrechen",
-      "moveUp": "Nach oben",
-      "moveDown": "Nach unten"
-    },
-    "constraints": {
+    "timing": {
+      "dates": "Termine",
+      "start": "Beginn",
+      "end": "Ende",
+      "planned": "Geplant: {{range}}",
+      "started": "Begonnen",
+      "finished": "Beendet",
       "duration": "Dauer",
-      "durationDays": "Dauer (Tage)",
-      "dateConstraints": "Datumsbeschränkungen",
-      "startAfter": "Frühestens ab",
-      "startBefore": "Spätestens ab",
-      "actualStart": "Tatsächlicher Start",
-      "actualEnd": "Tatsächliches Ende",
-      "clearStartAfter": "Datum 'Frühestens ab' löschen",
-      "clearStartBefore": "Datum 'Spätestens ab' löschen",
-      "clearActualStart": "Tatsächliches Startdatum löschen",
-      "clearActualEnd": "Tatsächliches Enddatum löschen",
-      "dependencies": "Abhängigkeiten",
-      "dependencyBuilder": {
-        "searchPlaceholder": "Arbeitspakete suchen...",
-        "finish": "beenden",
-        "start": "starten",
-        "before": "bevor",
-        "can": "kann",
-        "must": "muss",
-        "predecessorVerbAriaLabel": "Vorgänger-Verb",
-        "successorVerbAriaLabel": "Nachfolger-Verb"
-      },
-      "requiredMilestones": "Erforderliche Meilensteine",
-      "requiredMilestonesDesc": "Meilensteine, die abgeschlossen sein müssen, bevor dieses Arbeitspaket beginnen kann.",
-      "noRequiredMilestones": "Keine erforderlichen Meilensteine",
-      "linkedMilestones": "Verknüpfte Meilensteine",
-      "linkedMilestonesDesc": "Meilensteine, zu denen dieses Arbeitspaket beiträgt.",
-      "noLinkedMilestones": "Keine verknüpften Meilensteine",
-      "selectMilestone": "Meilenstein auswählen...",
-      "selectMilestonePlaceholder": "Meilenstein auswählen...",
-      "removeRequiredMilestoneAria": "Erforderlichen Meilenstein entfernen: {{name}}",
-      "removeLinkedMilestoneAria": "Verknüpften Meilenstein entfernen: {{name}}",
-      "selectRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein zum Hinzufügen auswählen",
-      "selectLinkedMilestoneAriaLabel": "Meilenstein zum Verknüpfen auswählen",
-      "addMilestone": "Hinzufügen",
-      "adding": "Wird hinzugefügt...",
-      "linkMilestone": "Verknüpfen",
-      "linking": "Wird verknüpft...",
-      "removeRequiredMilestoneAriaLabel": "Erforderlichen Meilenstein entfernen: {{name}}",
-      "removeLinkedMilestoneAriaLabel": "Verknüpften Meilenstein entfernen: {{name}}"
+      "durationDays_one": "{{count}} Tag",
+      "durationDays_other": "{{count}} Tage",
+      "durationLabel": "Dauer in Tagen",
+      "durationError": "Gib eine ganze Zahl von Tagen ein, 0 oder mehr.",
+      "finishedBeforeStarted": "„Beendet“ kann nicht vor „Begonnen“ liegen.",
+      "notScheduled": "Nicht geplant",
+      "reschedule": "Neu planen…",
+      "constraints": "Einschränkungen",
+      "notBefore": "Frühestens ab",
+      "startBy": "Spätestens ab",
+      "constraintsError": "„Spätestens ab“ darf nicht vor „Frühestens ab“ liegen.",
+      "saveError": "Die Termine konnten nicht gespeichert werden.",
+      "waitsFor": "Wartet auf",
+      "waitsForEmpty": "Diese Aufgabe wartet auf keine andere Aufgabe.",
+      "waitingForThis": "Wartet auf diese Aufgabe",
+      "waitingForThisEmpty": "Keine andere Aufgabe wartet auf diese.",
+      "add": "Hinzufügen",
+      "lag_one": "{{count}} Tag später",
+      "lag_other": "{{count}} Tage später",
+      "lead_one": "{{count}} Tag früher",
+      "lead_other": "{{count}} Tage früher",
+      "milestones": "Meilensteine",
+      "milestonesEmpty": "Mit keinem Meilenstein verknüpft.",
+      "linkMilestone": "Meilenstein verknüpfen",
+      "relationRequired": "Wartet auf",
+      "relationLinked": "Zählt zu",
+      "purchases": "Anschaffungen, die auf diese Aufgabe warten",
+      "depError": "Diese Abhängigkeiten konnten nicht hinzugefügt werden: {{titles}}",
+      "loadError": "Die Verknüpfungen konnten nicht geladen werden."
     },
-    "householdItems": {
-      "noItems": "Keine Haushaltsartikel sind von diesem Arbeitspaket abhängig."
+    "dependencyDialog": {
+      "addWaitsForTitle": "Eine Aufgabe hinzufügen, auf die diese wartet",
+      "addWaitingTitle": "Eine Aufgabe hinzufügen, die auf diese wartet",
+      "editTitle": "Abhängigkeit: {{title}}",
+      "task": "Aufgabe",
+      "taskRequired": "Wähle eine Aufgabe.",
+      "type": "Art der Verbindung",
+      "lag": "Verzögerung in Tagen",
+      "lagHint": "Mit einer negativen Zahl überlappen sie sich.",
+      "lagError": "Gib eine ganze Zahl von Tagen ein."
     },
-    "footer": {
-      "createdBy": "Erstellt von {{name}} am {{date}}",
-      "lastUpdated": "Zuletzt aktualisiert {{date}}",
-      "deleteWorkItem": "Arbeitspaket löschen"
+    "milestoneDialog": {
+      "title": "Meilenstein verknüpfen",
+      "relation": "Beziehung",
+      "relationRequired": "Diese Aufgabe wartet auf den Meilenstein",
+      "relationLinked": "Diese Aufgabe zählt zum Meilenstein",
+      "milestone": "Meilenstein",
+      "milestoneRequired": "Wähle einen Meilenstein."
     },
-    "modals": {
-      "deleteNote": {
-        "title": "Diese Notiz löschen?"
-      },
-      "removeDependency": {
-        "title": "Abhängigkeit entfernen?",
-        "textPredecessor": "Dieses Element hängt nicht mehr von „{{title}}“ ab.",
-        "textSuccessor": "Dieses Element blockiert „{{title}}“ nicht mehr.",
-        "remove": "Entfernen",
-        "removing": "Wird entfernt…"
-      }
+    "cost": {
+      "grants": "Förderprogramme",
+      "grantsEmpty": "Kein Förderprogramm deckt diese Aufgabe ab.",
+      "add": "Hinzufügen",
+      "loadError": "Die Liste konnte nicht geladen werden.",
+      "linkError": "Hinzufügen nicht möglich. Versuche es erneut."
     },
-    "inlineErrors": {
-      "updateTitle": "Titel konnte nicht aktualisiert werden",
-      "updateDescription": "Beschreibung konnte nicht aktualisiert werden",
-      "updateAssignment": "Zuweisung konnte nicht aktualisiert werden",
-      "updateArea": "Bereich konnte nicht aktualisiert werden",
-      "updateDuration": "Dauer konnte nicht aktualisiert werden",
-      "updateStartAfter": "Datum 'Frühestens ab' konnte nicht aktualisiert werden",
-      "updateStartBefore": "Datum 'Spätestens ab' konnte nicht aktualisiert werden",
-      "updateActualStartDate": "Tatsächliches Startdatum konnte nicht aktualisiert werden",
-      "updateActualEndDate": "Tatsächliches Enddatum konnte nicht aktualisiert werden",
-      "addNote": "Notiz konnte nicht hinzugefügt werden",
-      "updateNote": "Notiz konnte nicht aktualisiert werden",
-      "deleteNote": "Notiz konnte nicht gelöscht werden",
-      "addSubtask": "Teilaufgabe konnte nicht hinzugefügt werden",
-      "updateSubtask": "Teilaufgabe konnte nicht aktualisiert werden",
-      "deleteSubtask": "Teilaufgabe konnte nicht gelöscht werden",
-      "reorderSubtasks": "Teilaufgaben konnten nicht neu angeordnet werden",
-      "addDependency": "Abhängigkeit konnte nicht hinzugefügt werden",
-      "removeDependency": "Abhängigkeit konnte nicht entfernt werden",
-      "addRequiredMilestone": "Erforderlicher Meilenstein konnte nicht hinzugefügt werden",
-      "requiredMilestoneAlreadyLinked": "Dieser Meilenstein ist bereits eine erforderliche Abhängigkeit",
-      "removeRequiredMilestone": "Erforderlicher Meilenstein konnte nicht entfernt werden",
-      "addLinkedMilestone": "Verknüpfter Meilenstein konnte nicht hinzugefügt werden",
-      "linkedMilestoneAlreadyLinked": "Dieser Meilenstein ist bereits verknüpft",
-      "removeLinkedMilestone": "Verknüpfter Meilenstein konnte nicht entfernt werden",
-      "loadFailed": "Arbeitspaket konnte nicht geladen werden. Bitte erneut versuchen.",
-      "linkSubsidy": "Das Förderprogramm konnte nicht mit diesem Element verknüpft werden.",
-      "unlinkSubsidy": "Die Verknüpfung des Förderprogramms mit diesem Element konnte nicht gelöst werden.",
-      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits mit diesem Element verknüpft.",
-      "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
+    "diary": {
+      "title": "Bautagebuch",
+      "logForTask": "Für diese Aufgabe erfassen",
+      "forCompany": "Einträge für {{company}}",
+      "forTask": "Einträge für diese Aufgabe",
+      "otherEntries": "Andere Einträge",
+      "fromPhotoTags": "aus Foto-Tags und Daten",
+      "empty": "Für diese Aufgabe gibt es noch keine Einträge.",
+      "loadError": "Die Einträge konnten nicht geladen werden.",
+      "showAll": "Alle im Bautagebuch anzeigen",
+      "srCount_one": "{{count}} Eintrag",
+      "srCount_other": "{{count}} Einträge"
     },
-    "dismissError": "Fehler ausblenden",
+    "history": {
+      "title": "Verlauf",
+      "empty": "An dieser Aufgabe ist noch nichts passiert.",
+      "loadError": "Der Verlauf konnte nicht geladen werden.",
+      "showAll": "Alle im Verlauf anzeigen",
+      "created": "Erstellt von {{name}} am {{date}}",
+      "createdUnknown": "Erstellt am {{date}}",
+      "updated": "Zuletzt aktualisiert {{date}}"
+    },
+    "deleteError": "Die Aufgabe konnte nicht gelöscht werden.",
     "shortcuts": {
-      "editTitle": "Titel bearbeiten",
-      "deleteWorkItem": "Arbeitspaket löschen (Entf / Rücktaste)",
-      "cancelOrClose": "Bearbeitung abbrechen oder Dialog schließen",
-      "showShortcuts": "Tastaturkürzel anzeigen"
+      "edit": "Aufgabendetails bearbeiten",
+      "delete": "Aufgabe löschen",
+      "help": "Tastenkürzel anzeigen"
     }
   }
 }

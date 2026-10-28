@@ -307,4 +307,59 @@ describe('SummaryStrip', () => {
       expect(document.querySelector('[data-static]')).toBeNull();
     });
   });
+
+  describe('trailing slot (#2248)', () => {
+    const trailing = <a href="tel:+4930123">Call</a>;
+
+    it.each([
+      ['link', { ...link('who', 'Who', 'Company One'), trailing }],
+      [
+        'tab',
+        {
+          kind: 'tab',
+          id: 'who',
+          label: 'Who',
+          value: 'Company One',
+          href: '/x?tab=a',
+          onActivate: () => undefined,
+          trailing,
+        } as SummaryFact,
+      ],
+      [
+        'button',
+        {
+          kind: 'button',
+          id: 'who',
+          label: 'Who',
+          value: 'Company One',
+          onClick: () => undefined,
+          trailing,
+        } as SummaryFact,
+      ],
+      ['static', { kind: 'static', id: 'who', label: 'Who', value: 'Company One', trailing }],
+    ] as [string, SummaryFact][])('renders the trailing node beside a %s target', (_kind, fact) => {
+      renderStrip([fact]);
+      const target = screen.getByTestId('summary-fact-who');
+      const call = screen.getByRole('link', { name: 'Call' });
+      expect(target).toHaveTextContent('Company One');
+      expect(target).not.toContainElement(call);
+      // wrapped in one span so the sibling control is styled as a unit, beside the target
+      expect(call.parentElement!.tagName).toBe('SPAN');
+      expect(call.parentElement!.parentElement).toBe(target.parentElement);
+      expect(target.compareDocumentPosition(call) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('keeps the target clickable and its name free of the trailing text', () => {
+      renderStrip([{ ...link('who', 'Who', 'Company One', '/company/c1'), trailing }]);
+      const target = screen.getByTestId('summary-fact-who');
+      expect(target).toHaveAttribute('href', '/company/c1');
+      expect(target.closest('a')).toBe(target);
+      expect(target.textContent).not.toContain('Call');
+    });
+
+    it('renders nothing extra when no trailing node is given', () => {
+      renderStrip([link('who', 'Who', 'Company One')]);
+      expect(screen.getByTestId('summary-fact-who').parentElement!.childElementCount).toBe(1);
+    });
+  });
 });

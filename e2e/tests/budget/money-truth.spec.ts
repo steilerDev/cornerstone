@@ -374,7 +374,7 @@ test.describe('Money truth — one amount across pages (AC5)', { tag: '@responsi
     ).trim();
 
     const workItemDetail = new WorkItemDetailPage(page);
-    await workItemDetail.goto(workItemId);
+    await workItemDetail.goto(workItemId, { tab: 'cost' });
     await workItemDetail.costLines.waitForLoaded();
     const itemRow = workItemDetail.costLines.row('Net entered line');
     await expect(itemRow).toBeVisible();
@@ -490,7 +490,7 @@ test.describe('Money truth — Link to offer or invoice (AC7)', { tag: '@respons
   async function openLinkForm(page: Page, workItemId: string) {
     const wi = new WorkItemDetailPage(page);
     const link = new ObjectFormDialog(page, 'Link to offer or invoice', 'link-invoice-form');
-    await wi.goto(workItemId);
+    await wi.goto(workItemId, { tab: 'cost' });
     await wi.costLines.waitForLoaded();
     await wi.costLines.chooseAction(wi.costLines.row('Line to link'), 'Link to offer or invoice');
     await link.waitForOpen();

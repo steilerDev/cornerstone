@@ -194,7 +194,9 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     const { id } = request.params as { id: string };
 
-    const workItem = workItemService.getWorkItemDetail(fastify.db, id);
+    const workItem = workItemService.getWorkItemPageDetail(fastify.db, id, {
+      vatRate: fastify.config.vatRate,
+    });
 
     return reply.status(200).send(workItem);
   });
