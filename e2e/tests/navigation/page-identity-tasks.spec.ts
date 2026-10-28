@@ -407,7 +407,10 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
           await fresh.goto(route);
           await expect(fresh.getByRole('dialog', { name: dialog, exact: true })).toBeVisible();
           await expect(
-            fresh.getByRole('heading', { level: 1, name: list, exact: true }),
+            fresh.getByRole('heading', {
+              level: 1,
+              name: new RegExp(`^${list}( \\(\\d+( of \\d+)?\\))?$`),
+            }),
           ).toBeVisible();
           await new BreadcrumbsBar(fresh).expectNoTrail();
         } finally {

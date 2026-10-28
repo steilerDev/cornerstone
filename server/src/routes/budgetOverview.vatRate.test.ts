@@ -366,7 +366,8 @@ describe('VAT_RATE is honored by budget routes', () => {
         const listBody = list.json<Json>();
         expect(listBody.items[0].totalPlannedAmount).toBeCloseTo(gross, 5);
         expect(listBody.items[0].budgetSummary.subsidyReduction).toBeCloseTo(gross * 0.1, 5);
-        expect(listBody.filterMeta.plannedCost.max).toBeCloseTo(gross, 5);
+        expect(listBody.items[0].expectedCost).toBeCloseTo(gross, 5);
+        expect(listBody.totals.expectedCost).toBeCloseTo(gross, 5);
 
         const included = await app.inject({
           method: 'GET',

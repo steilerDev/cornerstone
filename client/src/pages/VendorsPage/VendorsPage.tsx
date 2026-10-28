@@ -5,6 +5,7 @@ import { routeUrl } from '@cornerstone/shared';
 import type { VendorListItem } from '@cornerstone/shared';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { ALL_CHIP } from '../../components/ObjectList/objectListUrl.js';
 import { ObjectList } from '../../components/ObjectList/ObjectList.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
@@ -48,6 +49,14 @@ function CompaniesList({ trades, tradesError, displayName, refetchTrades }: Comp
   });
   const { refresh } = list;
   useOnObjectCreated('company', refresh);
+
+  // A trade merged or deleted in the open Trades sheet: the filter falls back to All (the URL is
+  // only normalised when it changes, and the trades refetch does not change it).
+  const { explicitChip, setChip } = list;
+  useEffect(() => {
+    if (tradesError !== null || explicitChip === null || explicitChip === ALL_CHIP) return;
+    if (!trades.some((trade) => trade.id === explicitChip)) setChip(ALL_CHIP);
+  }, [tradesError, explicitChip, trades, setChip]);
 
   // Trades sheet: ?trades=1. Opening pushes; closing pops when this page pushed it.
   const tradesOpen = searchParams.get('trades') === '1';

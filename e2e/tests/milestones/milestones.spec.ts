@@ -351,8 +351,10 @@ test.describe(
       page,
       testPrefix,
     }) => {
+      // The table/card switch follows the list's own width, and the tablet sidebar leaves a
+      // narrower list: only the desktop viewport always shows the table.
       const viewport = page.viewportSize();
-      if (!viewport || viewport.width < 768) {
+      if (!viewport || viewport.width < 1024) {
         test.skip();
         return;
       }
@@ -820,10 +822,12 @@ test.describe('Responsive layout — list (Scenario 18)', { tag: '@responsive' }
     }
   });
 
-  test('Desktop: table is visible when viewport is >= 768px', async ({ page, testPrefix }) => {
+  test('Desktop: table is visible when viewport is >= 1024px', async ({ page, testPrefix }) => {
+    // The table/card switch follows the list's own width (768px container query), and the tablet
+    // sidebar leaves a narrower list: only the desktop viewport always shows the table.
     const viewport = page.viewportSize();
 
-    if (!viewport || viewport.width < 768) {
+    if (!viewport || viewport.width < 1024) {
       test.skip();
       return;
     }

@@ -37,7 +37,7 @@ test.describe('Milestones list - columns (AC4)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
-    test.skip((page.viewportSize()?.width ?? 1440) < 768, 'the table header exists from 768px');
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'the table shows from 1024px');
     const list = new MilestonesPage(page);
     const title = `${testPrefix} Header Milestone`;
     const id = await createMilestoneViaApi(page, { title, targetDate: dayOffset(40) });
@@ -173,7 +173,7 @@ test.describe('Milestones list - schedule words (AC3)', { tag: '@responsive' }, 
     page,
     testPrefix,
   }) => {
-    test.skip((page.viewportSize()?.width ?? 1440) < 768, 'the columns exist on the table only');
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'the columns exist on the table only');
     const list = new MilestonesPage(page);
     const bare = `${testPrefix} Waits Bare`;
     const busy = `${testPrefix} Waits Busy`;

@@ -320,7 +320,8 @@ test.describe('Companies list - Trade chips (AC3)', { tag: '@responsive' }, () =
       // "All" resets the chip and removes the parameter
       await list.selectChip('all');
       await expect(list.row(bare)).toBeVisible();
-      await expect(page).toHaveURL((url) => !url.searchParams.has('tradeId'));
+      // (the template writes an explicit `tradeId=all` for the All chip)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
 
       // The chip press replaced its history entry: Back leaves the page, it does not un-press
       await list.selectTrade('trade-tiling');
@@ -358,11 +359,12 @@ test.describe('Companies list - Call (AC4)', { tag: '@responsive' }, () => {
       await expect(call).toBeVisible();
       await expect(call).toHaveAttribute('href', 'tel:+15550152');
 
-      const width = (await page.viewportSize())!.width;
+      // The card or the table follows the list's own width, not the viewport (tablet: cards)
+      const isTable = await list.isTableSurface();
       const coarse = await page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
       const box = (await call.boundingBox())!;
 
-      if (width < 768) {
+      if (!isTable) {
         // Phone card: one full-width "Call <number>" button, at least 44px high
         await expect(call).toHaveText('Call +1 555-0152');
         await expect(call).toHaveAccessibleName(`Call +1 555-0152, ${name}`);

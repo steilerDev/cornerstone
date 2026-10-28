@@ -580,14 +580,23 @@ test.describe('Trades sheet - merge duplicates (AC7)', { tag: '@responsive' }, (
       await expect(sheet.row(keeper)).toContainText('3 companies');
       await expect(sheet.rowActions(keeper)).toBeFocused();
 
-      // The active chip fell back to "All"; the parameter is gone
+      // As soon as the trades refetch returns, with the sheet still open, the active chip falls
+      // back to "All" and the list behind is no longer filtered by the merged trade
       await expect(page.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
       await expect(page.getByTestId(`companies-chip-${duplicateId}`)).toHaveCount(0);
-      await expect(page).toHaveURL((url) => !url.searchParams.has('tradeId'));
+      // (the reset writes an explicit `tradeId=all`)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
+      // The stayer (keeper trade) was outside the merged-trade filter and is listed now
+      await expect(list.row(stayer)).toBeVisible();
 
-      // Every former company of the duplicate now shows the keeper's trade
+      // Closing the sheet keeps it that way
       await sheet.doneButton.click();
       await sheet.waitForClosed();
+      await expect(page.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
+      // (the reset writes an explicit `tradeId=all`)
+      await expect(page).toHaveURL((url) => (url.searchParams.get('tradeId') ?? 'all') === 'all');
+
+      // Every former company of the duplicate now shows the keeper's trade
       for (const name of [...movers, stayer]) {
         await expect(list.row(name)).toContainText(keeper);
       }

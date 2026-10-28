@@ -235,6 +235,13 @@ export class HouseholdItemsPage {
   /** Open Filters and pick an area by name, or the "No area" special option. */
   async pickAreaFilter(name: string): Promise<void> {
     await this.openFilters();
+    // A chosen area replaces the input with its chip: clear it first
+    if (
+      !(await this.areaFilter.input.isVisible()) &&
+      (await this.areaFilter.clearButton.isVisible())
+    ) {
+      await this.areaFilter.clearButton.click();
+    }
     if (name === 'No area') {
       await this.areaFilter.input.click();
     } else {

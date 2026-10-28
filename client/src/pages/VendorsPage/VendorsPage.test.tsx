@@ -8,6 +8,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { TradeListItem, VendorListItem } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
@@ -235,12 +236,12 @@ describe('page identity and the trades gate', () => {
     expect(screen.getByTestId('companies-row-c1')).toBeInTheDocument();
   });
 
-  it('drops a trade that has been removed from the URL instead of filtering by it', async () => {
+  it('falls back to All for a trade that has been removed instead of filtering by it', async () => {
     renderPage('/companies?tradeId=t-gone');
     await loaded();
 
-    expect(loc()).not.toContain('tradeId');
-    expect(lastFetch()).not.toHaveProperty('tradeId');
+    await waitFor(() => expect(lastFetch()).not.toHaveProperty('tradeId'));
+    expect(screen.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('absorbs an old ?page=2&pageSize=10 URL without an error', async () => {
@@ -355,6 +356,76 @@ describe('trade chips', () => {
     await loaded();
 
     expect(screen.queryByTestId('companies-chip-all')).not.toBeInTheDocument();
+  });
+});
+
+describe('a selected trade that disappears while the Trades sheet is open (D11)', () => {
+  /**
+   * Opens the sheet with the URL's trade selected, then swaps the trades the way a refetch does
+   * (the page re-renders with the new list) and reports a change.
+   */
+  async function changeTrades(
+    url: string,
+    next: UseTradesTypes.UseTradesResult,
+  ): Promise<RouterLog> {
+    let setTrades: (value: UseTradesTypes.UseTradesResult) => void = () => undefined;
+    const initial = tradesResult([ROOFING, TILING]);
+    mockUseTrades.mockImplementation(() => {
+      const [value, setValue] = useState(initial);
+      setTrades = setValue;
+      return value;
+    });
+    const { log } = renderPage(url);
+    await loaded();
+    await userEvent.click(screen.getByTestId('stub-changed'));
+    act(() => setTrades(next));
+    return log;
+  }
+
+  it('falls back to All and reloads without tradeId when the trade is gone after a refetch', async () => {
+    await changeTrades('/companies?trades=1&tradeId=t-tile', tradesResult([ROOFING]));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true'),
+    );
+    await waitFor(() => expect(lastFetch()).not.toHaveProperty('tradeId'));
+    expect(screen.queryByTestId('companies-chip-t-tile')).not.toBeInTheDocument();
+  });
+
+  it('changes nothing while the selected trade is still there', async () => {
+    const log = await changeTrades(
+      '/companies?trades=1&tradeId=t-tile',
+      tradesResult([ROOFING, TILING, ELECTRICAL]),
+    );
+
+    expect(screen.getByTestId('companies-chip-t-tile')).toHaveAttribute('aria-pressed', 'true');
+    expect(lastFetch()).toMatchObject({ tradeId: 't-tile' });
+    expect(loc()).toContain('tradeId=t-tile');
+    expect(log.actions.filter((a) => a.startsWith('REPLACE'))).toEqual([]);
+  });
+
+  it('does not reset the filter when the trades could not be reloaded', async () => {
+    const log = await changeTrades(
+      '/companies?trades=1&tradeId=t-tile',
+      tradesResult([], { error: 'Trades could not be loaded.' }),
+    );
+
+    await screen.findByText('Trades could not be loaded.');
+    expect(loc()).not.toContain('tradeId=all');
+    expect(log.actions.filter((a) => a.includes('tradeId=all'))).toEqual([]);
+  });
+
+  it('does not reset when All is already selected', async () => {
+    const log = await changeTrades('/companies?trades=1&tradeId=all', tradesResult([ROOFING]));
+
+    expect(screen.getByTestId('companies-chip-all')).toHaveAttribute('aria-pressed', 'true');
+    expect(log.actions.filter((a) => a.startsWith('REPLACE'))).toEqual([]);
+  });
+
+  it('does not reset when no trade is selected', async () => {
+    const log = await changeTrades('/companies?trades=1', tradesResult([ROOFING]));
+
+    expect(log.actions.filter((a) => a.startsWith('REPLACE'))).toEqual([]);
   });
 });
 

@@ -1046,7 +1046,7 @@ test.describe('Companies list - Still to pay and Offers (AC6)', { tag: '@respons
   });
 
   test('L3: clicking the Still to pay header sorts and toggles', async ({ page, testPrefix }) => {
-    test.skip((page.viewportSize()?.width ?? 1440) < 768, 'the table header exists from 768px');
+    test.skip((page.viewportSize()?.width ?? 1440) < 1024, 'the table shows from 1024px');
     const list = new VendorsPage(page);
     const lowId = await createCompany(page, { name: `${testPrefix} Header Low Ltd` });
     await createCompany(page, { name: `${testPrefix} Header Zero Ltd` });

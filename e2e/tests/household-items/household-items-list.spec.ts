@@ -846,15 +846,23 @@ test.describe('Filters panel (Scenario 20)', { tag: '@responsive' }, () => {
     const lateName = `${testPrefix} HI Target Late`;
 
     try {
-      created.push(
-        await createHouseholdItemViaApi(page, {
-          name: earlyName,
-          targetDeliveryDate: '2031-03-10',
-        }),
-      );
-      created.push(
-        await createHouseholdItemViaApi(page, { name: lateName, targetDeliveryDate: '2031-09-20' }),
-      );
+      // The target delivery date is derived: the scheduler sets it from the earliest delivery
+      // constraint, so patch that (a create cannot set it) and read the result back.
+      for (const [name, earliest] of [
+        [earlyName, '2031-03-10'],
+        [lateName, '2031-09-20'],
+      ] as const) {
+        const id = await createHouseholdItemViaApi(page, { name });
+        created.push(id);
+        const patched = await page.request.patch(`${API.householdItems}/${id}`, {
+          data: { earliestDeliveryDate: earliest },
+        });
+        expect(patched.ok(), `PATCH purchase: ${patched.status()}`).toBeTruthy();
+        const detail = (await (await page.request.get(`${API.householdItems}/${id}`)).json()) as {
+          householdItem: { targetDeliveryDate: string | null };
+        };
+        expect(detail.householdItem.targetDeliveryDate).toBe(earliest);
+      }
 
       await listPage.search(`${testPrefix} HI Target`);
       await expect(async () => {
