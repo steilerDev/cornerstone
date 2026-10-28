@@ -132,7 +132,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
         input.blur();
         mockSearchFn.mockResolvedValue([sampleItems[0]!]);
 
-        act(() => input.focus());
+        await user.click(input);
 
         await waitFor(() => {
           expect(mockSearchFn).toHaveBeenCalledWith('alp', [], expect.any(AbortSignal));

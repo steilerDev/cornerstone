@@ -628,9 +628,7 @@ test.describe('Waits for (T5, AC5, AC10)', { tag: '@responsive' }, () => {
     await task.dependencyAdd(task.waitsFor).click();
     const dialog = task.dependencyDialog(dependencyDialogTitles.addWaitsFor);
     await dialog.waitForOpen();
-    // The task chooser opens its list on focus and the list covers Save: leave it first
-    await dialog.heading.click();
-    await expect(new EntityPickerControl(page, 'task', dialog.dialog).dropdown).toBeHidden();
+    // The chooser's list opens only on click, typing, ArrowDown or Tab, so Save is clickable
     await dialog.save();
 
     await expect(dialog.fieldError('task')).toHaveText('Choose a task.');
