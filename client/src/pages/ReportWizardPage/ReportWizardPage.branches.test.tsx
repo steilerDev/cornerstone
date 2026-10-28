@@ -692,7 +692,8 @@ describe('ReportWizardPage selection and the Mark as submitted dialog', () => {
     expect(
       within(dialog).getByText('They move from To pay or Paid to Submitted for Home Loan.'),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('report-mark-cancel')).toHaveFocus();
+    // The dialog moves focus to Cancel after it mounts, not in the same tick
+    await waitFor(() => expect(screen.getByTestId('report-mark-cancel')).toHaveFocus());
   });
 
   it('marks, closes the dialog, shows the success banner with both links, and focuses the step 5 heading', async () => {
