@@ -69,10 +69,18 @@ describe('ObjectListGroup', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('(2 of 5)');
   });
 
-  it('renders a badge in the toggle', () => {
+  it('renders a badge in the toggle in place of the label word', () => {
     renderGroup({ badge: <span data-testid="late-badge">Late</span> });
+    const toggle = screen.getByTestId('tasks-group-toggle-ground');
+    expect(within(toggle).getByTestId('late-badge')).toBeInTheDocument();
+    expect(within(toggle).queryByText('Ground floor')).toBeNull();
+    expect(toggle).toHaveTextContent('Late(3)');
+  });
+
+  it('shows the label word when there is no badge', () => {
+    renderGroup();
     expect(
-      within(screen.getByTestId('tasks-group-toggle-ground')).getByTestId('late-badge'),
+      within(screen.getByTestId('tasks-group-toggle-ground')).getByText('Ground floor'),
     ).toBeInTheDocument();
   });
 

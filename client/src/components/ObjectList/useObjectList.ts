@@ -67,6 +67,11 @@ export interface ObjectListController<T, M = undefined> {
   readonly updateItem: (key: string, updater: (item: T) => T) => void;
   /** Local removal; with rows still on the server it refreshes instead (offset paging). */
   readonly removeItem: (key: string) => void;
+  /** Overrides the total and the server group counts until the next batch applies. */
+  readonly setCounts: (counts: {
+    readonly totalItems: number;
+    readonly groupCounts: Readonly<Record<string, number>> | null;
+  }) => void;
   /** Reload from page 1 (e.g. after Undo). */
   readonly refresh: () => void;
   readonly getKey: (item: T) => string;
@@ -170,6 +175,17 @@ export function useObjectList<T, M = undefined>(
     [updateItems, getKey, refresh],
   );
 
+  const setCounts = useCallback(
+    (counts: {
+      readonly totalItems: number;
+      readonly groupCounts: Readonly<Record<string, number>> | null;
+    }) => {
+      setTotalItems(counts.totalItems);
+      setGroupCounts(counts.groupCounts);
+    },
+    [],
+  );
+
   const activeFilterCount = Object.keys(state.filters).length;
   const filtersActive = state.q !== '' || activeFilterCount > 0;
   const defaultChip = config.chips?.defaultValue ?? ALL_CHIP;
@@ -230,6 +246,7 @@ export function useObjectList<T, M = undefined>(
     lastBatchCount: scroll.lastBatchCount,
     updateItem,
     removeItem,
+    setCounts,
     refresh,
     getKey,
   };

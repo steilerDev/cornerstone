@@ -107,3 +107,4 @@ removing it will fail typecheck. Flag it so QA updates the import in-session.
 - [ObjectList adopter patterns](objectlist-adopter-patterns.md) — Invoices #2238: chip-count config split, ids row refresh, ref cycle for create flow
 - [Invoice create dialog](invoice-create-dialog.md) — #2241 provider/schema/document picker wiring and baseline rules
 - [Financing shared pieces](financing-shared-pieces.md) — #2242 Phase B: EntityMultiPicker, ObjectHistorySection, GrantChips, provider, panel ref handle
+- [Tasks list adopter](tasks-list-adopter.md) — #2245 hook split, bulk selection limit, focus after bulk, time-group row refresh

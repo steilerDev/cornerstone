@@ -55,6 +55,7 @@ import {
   SOURCE_REPORT_TYPES,
   SUBSIDY_APPLICATION_STATUSES,
   TASK_STATUS_ACTIONS,
+  TASK_TIME_WINDOWS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import {
@@ -84,7 +85,8 @@ export type UnionKeyNamespace =
   | 'auth'
   | 'common'
   | 'history'
-  | 'home';
+  | 'home'
+  | 'workItems';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -306,6 +308,8 @@ export const I18N_UNION_KEYS = {
   documentLinkEmptyBody: unionKeySet('documents', 'panel.emptyBody', DOCUMENT_LINK_ENTITY_TYPES),
   /** common — attention tier chip (Late, Overdue, Due, Ready, Follow up, Tidy up) (#2230). */
   attentionTier: unionKeySet('common', 'attention.tier', ATTENTION_TIERS),
+  /** workItems — time-window group of the Tasks list (Late … Done) (#2245). */
+  taskTimeWindow: unionKeySet('workItems', 'list.window', TASK_TIME_WINDOWS),
   /** common — critical-line level chip (On track, Warning, Critical, Overdue) (#2230). */
   criticalLineLevel: unionKeySet('common', 'attention.criticalLevel', CRITICAL_LINE_LEVELS),
   /** common — attention row action label (#2230). */

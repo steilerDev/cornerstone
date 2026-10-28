@@ -128,7 +128,14 @@ const HISTORY = 'sidebar-section-history';
 
 const ROWS: SweepRow[] = [
   // Tasks
-  { id: 'workItems', path: () => routeUrl('workItems'), h1: 'Tasks', crumbs: false, active: TASKS },
+  {
+    id: 'workItems',
+    path: () => routeUrl('workItems'),
+    h1: 'Tasks',
+    h1Count: true,
+    crumbs: false,
+    active: TASKS,
+  },
   {
     id: 'workItemNew',
     path: () => routeUrl('workItemNew'),

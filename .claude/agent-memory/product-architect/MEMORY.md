@@ -2,7 +2,7 @@
 
 ## Topic Files
 
-- [Recurring patterns & traps](recurring-patterns.md) — review traps by PR: forked-function drift, vacuous negatives after contract inversion, revert tests, DataTable dual-DOM testids, env-var drift sweep, wiki gitlink checks; full entry index at the bottom of the file
+- [Recurring patterns & traps](recurring-patterns.md) — new data-figure surfaces vs figureKind guard (#2245); review traps by PR: forked-function drift, vacuous negatives after contract inversion, revert tests, DataTable dual-DOM testids, env-var drift sweep, wiki gitlink checks; full entry index at the bottom of the file
 - [AJV strips unknown props; ADR-010 scrypt drift](recurring-patterns.md) — `additionalProperties:false` never 400s here; probe with inject (#2122)
 - [Tuple migration leaves a second derivation](recurring-patterns.md) — after a badge map moves to a tuple, grep the same file for hand-listed enumOptions/<option> lists (PR #2171)
 - [fs.stat vs readability; pre-reply validation](recurring-patterns.md) — `stat` proves existence only, use `fs.access(R_OK)`; moving a check before the reply makes its error copy live, so re-read it (PR #2168)

@@ -54,33 +54,16 @@ test.describe(
         childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
         workItemId = await createWorkItemViaApi(page, { title: itemTitle, areaId: childAreaId });
 
-        await workItemsPage.goto();
-        await workItemsPage.waitForLoaded();
-        await workItemsPage.search(itemTitle);
+        await workItemsPage.openSearch(itemTitle);
 
-        // The API response is used server-side to populate area.ancestors;
-        // verify both ancestor and area name appear in the row's breadcrumb text.
-        // On desktop/tablet the table row is visible; on mobile the card is used.
-        const viewport = page.viewportSize();
-        const tableVisible = viewport ? viewport.width >= 768 : true;
-
-        if (tableVisible) {
-          const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
-          const breadcrumbSpan = row.locator('[class*="compact"]');
-          await expect(breadcrumbSpan).toBeVisible();
-          const breadcrumbText = await breadcrumbSpan.textContent();
-          expect(breadcrumbText).toContain(rootName);
-          expect(breadcrumbText).toContain(childName);
-        } else {
-          const card = workItemsPage.cardsContainer
-            .locator('[class*="card"]')
-            .filter({ hasText: itemTitle });
-          const breadcrumbSpan = card.locator('[class*="compact"]');
-          await expect(breadcrumbSpan).toBeVisible();
-          const breadcrumbText = await breadcrumbSpan.textContent();
-          expect(breadcrumbText).toContain(rootName);
-          expect(breadcrumbText).toContain(childName);
-        }
+        // The area path is the link under the title on the table and the compact breadcrumb in
+        // the card's facts: both read root then child.
+        const row = workItemsPage.workItemRow(itemTitle);
+        const breadcrumb = row.locator('[data-testid^="tasks-area-"], [class*="compact"]').first();
+        await expect(breadcrumb).toBeVisible();
+        const breadcrumbText = await breadcrumb.textContent();
+        expect(breadcrumbText).toContain(rootName);
+        expect(breadcrumbText).toContain(childName);
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (childAreaId) await deleteAreaViaApi(page, childAreaId);
@@ -162,25 +145,11 @@ test.describe('Compact breadcrumb — no tabIndex and no tooltip (Scenario 3)', 
       child3Id = await createAreaViaApi(page, { name: kitchenName, parentId: child2Id });
       workItemId = await createWorkItemViaApi(page, { title: itemTitle, areaId: child3Id });
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-      await workItemsPage.search(itemTitle);
+      await workItemsPage.openSearch(itemTitle);
 
-      // Find the compact breadcrumb span for this item (no tabIndex=0 selector now).
-      // Works in both table rows (desktop/tablet) and cards (mobile).
-      const viewport = page.viewportSize();
-      const tableVisible = viewport ? viewport.width >= 768 : true;
-
-      let breadcrumbSpan;
-      if (tableVisible) {
-        const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
-        breadcrumbSpan = row.locator('[class*="compact"]');
-      } else {
-        const card = workItemsPage.cardsContainer
-          .locator('[class*="card"]')
-          .filter({ hasText: itemTitle });
-        breadcrumbSpan = card.locator('[class*="compact"]');
-      }
+      // The compact breadcrumb is the card's area fact; the table shows an area link instead
+      test.skip(await workItemsPage.isTableSurface(), 'Compact breadcrumb is on cards only');
+      const breadcrumbSpan = workItemsPage.workItemRow(itemTitle).locator('[class*="compact"]');
 
       // (a) Compact span is visible and contains area path text
       await expect(breadcrumbSpan).toBeVisible();
@@ -224,25 +193,12 @@ test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@r
       // Create work item with no areaId
       workItemId = await createWorkItemViaApi(page, { title: itemTitle });
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-      await workItemsPage.search(itemTitle);
+      await workItemsPage.openSearch(itemTitle);
 
-      // Null area renders <span class*="muted">No area</span>
-      // This appears in both table rows and mobile cards
-      const viewport = page.viewportSize();
-      const tableVisible = viewport ? viewport.width >= 768 : true;
-
-      if (tableVisible) {
-        const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
-        // The "No area" span sits in the title cell
-        await expect(row.getByText('No area', { exact: true })).toBeVisible();
-      } else {
-        const card = workItemsPage.cardsContainer
-          .locator('[class*="card"]')
-          .filter({ hasText: itemTitle });
-        await expect(card.getByText('No area', { exact: true })).toBeVisible();
-      }
+      // The muted "No area" shows under the title (table) or in the card's facts
+      await expect(
+        workItemsPage.workItemRow(itemTitle).getByText('No area', { exact: true }),
+      ).toBeVisible();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }

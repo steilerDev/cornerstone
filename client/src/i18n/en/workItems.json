@@ -1,88 +1,84 @@
 {
   "list": {
-    "sectionTitle": "Work Items",
-    "newWorkItem": "New Work Item",
-    "loading": "Loading work items...",
-    "search": {
-      "placeholder": "Search work items...",
-      "ariaLabel": "Search work items"
+    "search": "Search tasks",
+    "resultCount_one": "{{count}} task",
+    "resultCount_other": "{{count}} tasks",
+    "selectAll": "Select all tasks",
+    "empty": "No tasks yet",
+    "emptyDescription": "Create a task to plan its dates, who does it and what it costs.",
+    "noMatch": "No tasks match.",
+    "loadFailed": "Couldn't load the tasks.",
+    "newTask": "New task",
+    "titleHeader": "Task",
+    "statusHeader": "Status",
+    "columns": {
+      "dates": "Dates",
+      "who": "Who",
+      "expectedCost": "Expected cost",
+      "relations": "Waits for / Holds up"
+    },
+    "groupBy": {
+      "time": "Time",
+      "area": "Area",
+      "company": "Company",
+      "status": "Status"
+    },
+    "window": {
+      "late": "Late",
+      "this_week": "This week",
+      "next_two_weeks": "Next 2 weeks",
+      "later": "Later",
+      "done": "Done"
+    },
+    "group": {
+      "noArea": "No area",
+      "noCompany": "No company"
+    },
+    "sort": {
+      "startDate": "Start date",
+      "endDate": "End date",
+      "title": "Title",
+      "status": "Status",
+      "expectedCost": "Expected cost",
+      "created": "Created"
     },
     "filters": {
-      "status": "Status:",
-      "allStatuses": "All Statuses",
-      "assignedTo": "Assigned to:",
-      "allUsers": "All Users",
-      "tag": "Tag:",
-      "allTags": "All Tags",
-      "area": "Area:",
-      "allAreas": "All Areas",
-      "assignedVendor": "Vendor:",
-      "allVendors": "All Vendors",
-      "sortBy": "Sort by:",
-      "sortAscending": "↑ Asc",
-      "sortDescending": "↓ Desc",
-      "toggleSortOrder": "Toggle sort order"
-    },
-    "sortOptions": {
-      "title": "Title",
-      "status": "Status",
-      "startDate": "Start Date",
-      "endDate": "End Date",
-      "createdAt": "Created",
-      "updatedAt": "Updated"
-    },
-    "empty": {
-      "noMatchTitle": "No work items match your filters",
-      "noMatchText": "Try adjusting your search or filter criteria.",
-      "clearFilters": "Clear All Filters",
-      "noItemsTitle": "No work items yet",
-      "noItemsText": "Get started by creating your first work item to track construction tasks.",
-      "createFirst": "Create First Work Item"
-    },
-    "table": {
-      "title": "Title",
-      "status": "Status",
-      "assignedTo": "Assigned To",
-      "vendor": "Vendor",
       "area": "Area",
-      "startDate": "Start Date",
-      "endDate": "End Date",
-      "tags": "Tags",
-      "budgetLines": "Budget Lines",
-      "budgetLinesAriaLabel": "{{count}} budget lines",
-      "actions": "Actions"
+      "who": "Who",
+      "company": "Company",
+      "member": "Household member",
+      "anyone": "Anyone",
+      "milestone": "Milestone",
+      "anyMilestone": "Any milestone",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "costLines": "Cost lines",
+      "from": "From",
+      "to": "To",
+      "min": "Min",
+      "max": "Max",
+      "optionsFailed": "Couldn't load the choices."
     },
-    "card": {
-      "status": "Status:",
-      "assigned": "Assigned:",
-      "start": "Start:",
-      "end": "End:",
-      "tags": "Tags:",
-      "budgetLines": "Budget Lines:"
+    "row": {
+      "waitsFor": "Waits for",
+      "more": "+{{count}}",
+      "notSet": "Not set",
+      "open": "Open",
+      "reopen": "Reopen"
     },
-    "actions": {
-      "actionsMenu": "Actions menu",
-      "edit": "Edit",
-      "delete": "Delete"
+    "announce": {
+      "started": "{{title}} started.",
+      "markedDone": "{{title}} marked done.",
+      "reopened": "{{title}} reopened.",
+      "lateNow": "Late now {{count}}."
     },
-    "pagination": {
-      "showing": "Showing {{from}} to {{to}} of {{total}} items",
-      "previous": "← Previous",
-      "next": "Next →",
-      "previousAriaLabel": "Previous page",
-      "nextAriaLabel": "Next page"
-    },
-    "errors": {
-      "loadFailed": "Failed to load work items. Please try again.",
-      "deleteFailed": "Failed to delete work item. Please try again."
-    },
-    "shortcuts": {
-      "newWorkItem": "New work item",
-      "selectNext": "Select next item",
-      "selectPrevious": "Select previous item",
-      "openSelected": "Open selected item",
-      "showShortcuts": "Show keyboard shortcuts",
-      "closeOrCancel": "Close dialog or cancel"
+    "bulk": {
+      "setStatus": "Set status",
+      "setArea": "Set area",
+      "setAreaTitle_one": "Set area for {{count}} task",
+      "setAreaTitle_other": "Set area for {{count}} tasks",
+      "updated": "{{count}} of {{total}} updated.",
+      "partial": "{{count}} of {{total}} updated. The others couldn't be changed."
     }
   },
   "create": {

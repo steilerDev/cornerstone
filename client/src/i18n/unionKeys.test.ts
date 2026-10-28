@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   ATTACHMENT_TYPES,
+  TASK_TIME_WINDOWS,
   SEARCH_MATCHED_FIELDS,
   SEARCH_RESULT_TYPES,
   DEFECT_STATUS_ACTIONS,
@@ -40,6 +41,7 @@ import enCommon from './en/common.json';
 import enHistory from './en/history.json';
 import enHome from './en/home.json';
 import enCostLines from './en/costLines.json';
+import enWorkItems from './en/workItems.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
@@ -49,6 +51,7 @@ import deCommon from './de/common.json';
 import deHistory from './de/history.json';
 import deHome from './de/home.json';
 import deCostLines from './de/costLines.json';
+import deWorkItems from './de/workItems.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -62,6 +65,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   common: { en: enCommon, de: deCommon },
   history: { en: enHistory, de: deHistory },
   home: { en: enHome, de: deHome },
+  workItems: { en: enWorkItems, de: deWorkItems },
   costLines: { en: enCostLines, de: deCostLines },
 };
 
@@ -91,8 +95,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 72 registered sets', () => {
-    expect(SETS).toHaveLength(72);
+  it('iterates all 73 registered sets', () => {
+    expect(SETS).toHaveLength(73);
   });
 });
 
@@ -234,6 +238,7 @@ describe('I18N_UNION_KEYS registry', () => {
       'documentLinkEntity',
       'documentLinkEmptyBody',
       'attentionTier',
+      'taskTimeWindow',
       'criticalLineLevel',
       'attentionAction',
       'attentionKind',
@@ -313,6 +318,12 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(sets.grantItemType.ns).toBe('budget');
     expect(sets.grantItemType.members).toBe(GRANT_ITEM_TYPES);
     expect(sets.grantItemType.key('household_item')).toBe('financing.itemKind.household_item');
+  });
+
+  it('builds the #2245 Tasks list time-window keys from their tuple', () => {
+    expect(I18N_UNION_KEYS.taskTimeWindow.ns).toBe('workItems');
+    expect(I18N_UNION_KEYS.taskTimeWindow.key('next_two_weeks')).toBe('list.window.next_two_weeks');
+    expect(I18N_UNION_KEYS.taskTimeWindow.members).toBe(TASK_TIME_WINDOWS);
   });
 
   it('builds the #2230 Home and attention keys from their tuples', () => {

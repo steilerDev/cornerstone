@@ -103,6 +103,25 @@ async function openListFor(page: Page, title: string): Promise<WorkItemsPage> {
   return list;
 }
 
+/**
+ * The list shows the PLANNED dates (#2245): the Dates column on the table, the planned end on a
+ * card. The forecast lives on the task page, the tooltip and the calendar.
+ */
+async function expectListPlanned(
+  list: WorkItemsPage,
+  title: string,
+  planned: { startDate: string | null; endDate: string | null },
+): Promise<void> {
+  const row = list.workItemRow(title);
+  if (await list.isTableSurface()) {
+    if (planned.startDate || planned.endDate) {
+      await expect(row).toContainText(plannedRange(planned.startDate, planned.endDate));
+    }
+  } else if (planned.endDate) {
+    await expect(row).toContainText(fmt(planned.endDate));
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenarios 1 + 2: late task, held-up successor
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,12 +160,10 @@ test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
       expect(taskB.isHeldUp).toBe(true);
       expect(taskB.isLate).toBe(false);
 
-      // List: A shows the chip and its forecast start; B shows Held up
+      // List: A shows the chip and its planned dates; B shows Held up
       const list = await openListFor(page, titleA);
       await expect(list.scheduleSignal(a)).toHaveText('Late · 5 d');
-      // The list shows the forecast start, not the planned one
-      await expect(list.workItemRow(titleA)).toContainText(fmt(utcDay(0)));
-      await expect(list.workItemRow(titleA)).not.toContainText(fmt(utcDay(-5)));
+      await expectListPlanned(list, titleA, taskA);
 
       const listB = await openListFor(page, titleB);
       await expect(listB.scheduleSignal(b)).toHaveText('Held up');
@@ -241,10 +258,9 @@ test.describe('One date source for a late task (Scenario 4)', () => {
       const start = fmt(utcDay(0));
       const end = fmt(utcDay(3));
 
-      // List row
+      // List row: the planned dates (the forecast is on the surfaces below)
       const list = await openListFor(page, title);
-      await expect(list.workItemRow(title)).toContainText(start);
-      await expect(list.workItemRow(title)).toContainText(end);
+      await expectListPlanned(list, title, task);
 
       // Task page Schedule section
       const detail = new WorkItemDetailPage(page);
@@ -360,10 +376,10 @@ test.describe('Undated task (Scenario 6)', () => {
       expect(task.lateDays).toBeNull();
       expect(task.projectedStartDate).toBe(utcDay(0));
 
-      // List: no chip, shows the forecast start (today)
+      // List: no chip, and no planned dates to show (the forecast is not drawn on the list)
       const list = await openListFor(page, title);
       await expect(list.scheduleSignal(id)).toHaveCount(0);
-      await expect(list.workItemRow(title)).toContainText(fmt(utcDay(0)));
+      await expect(list.workItemRow(title)).not.toContainText(fmt(utcDay(0)));
 
       // Task page: shows the forecast start, no planned line, no chip
       const detail = new WorkItemDetailPage(page);

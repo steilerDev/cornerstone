@@ -304,6 +304,23 @@ describe('useObjectList', () => {
     expect(fetchPage.mock.calls[1]![1]).toBe(1);
   });
 
+  it('setCounts overrides the total and group counts until the next batch applies', async () => {
+    const fetchPage = jest.fn<FetchPage>(() =>
+      Promise.resolve({ items: rows(3), totalItems: 3, groupCounts: { w: 3 } }),
+    );
+    const h = setup(fetchPage);
+    await waitFor(() => expect(h.get().totalItems).toBe(3));
+    act(() => h.get().setCounts({ totalItems: 7, groupCounts: { w: 5, x: 2 } }));
+    expect(h.get().totalItems).toBe(7);
+    expect(h.get().groupCounts).toEqual({ w: 5, x: 2 });
+    expect(h.get().items).toHaveLength(3);
+    act(() => h.get().setCounts({ totalItems: 6, groupCounts: null }));
+    expect(h.get().groupCounts).toBeNull();
+    act(() => h.get().refresh());
+    await waitFor(() => expect(h.get().totalItems).toBe(3));
+    expect(h.get().groupCounts).toEqual({ w: 3 });
+  });
+
   it('U6 updateItem changes only the matching row', async () => {
     const h = setup(() => ok(rows(3)));
     await waitFor(() => expect(h.get().totalItems).toBe(3));

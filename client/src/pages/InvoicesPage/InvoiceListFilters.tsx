@@ -1,22 +1,18 @@
 import { useMemo, useState } from 'react';
-import type { KeyboardEvent } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import type { InvoiceStatusSummary } from '@cornerstone/shared';
 import { EntityPicker } from '../../components/EntityPicker/EntityPicker.js';
+import {
+  DateRangeFilter,
+  NumberRangeFilter,
+} from '../../components/ObjectList/ObjectListRangeFilters.js';
 import type {
   ObjectListFilterDef,
   ObjectListFilterRenderContext,
 } from '../../components/ObjectList/types.js';
 import { useFormatters } from '../../lib/formatters.js';
-import shared from '../../styles/shared.module.css';
-import {
-  INVOICE_FLAG_PARAMS,
-  formatAmountRange,
-  formatDateRange,
-  parseAmountRange,
-  parseDateRange,
-} from './invoicesListUrl.js';
+import { INVOICE_FLAG_PARAMS } from './invoicesListUrl.js';
 import type { InvoiceFlagParam } from './invoicesListUrl.js';
 import styles from './InvoiceListFilters.module.css';
 
@@ -97,143 +93,6 @@ function CompanyFilter({ ctx }: CompanyFilterProps) {
   );
 }
 
-interface DateRangeFilterProps {
-  readonly ctx: ObjectListFilterRenderContext;
-  readonly testId: string;
-}
-
-/** From and To dates; the URL receives `from:…,to:…` on every change. */
-function DateRangeFilter({ ctx, testId }: DateRangeFilterProps) {
-  const { t } = useTranslation('budget');
-  const range = parseDateRange(ctx.value);
-  const from = range?.from ?? '';
-  const to = range?.to ?? '';
-  // Local drafts, synced from the URL when it changes (the DiaryFilters pattern).
-  const [fromDraft, setFromDraft] = useState(from);
-  const [prevFrom, setPrevFrom] = useState(from);
-  if (from !== prevFrom) {
-    setPrevFrom(from);
-    setFromDraft(from);
-  }
-  const [toDraft, setToDraft] = useState(to);
-  const [prevTo, setPrevTo] = useState(to);
-  if (to !== prevTo) {
-    setPrevTo(to);
-    setToDraft(to);
-  }
-  return (
-    <div className={styles.range}>
-      <div className={styles.rangeField}>
-        <label htmlFor={`${ctx.id}-from`} className={styles.rangeLabel}>
-          {t('invoices.list.filters.from')}
-        </label>
-        <input
-          id={`${ctx.id}-from`}
-          type="date"
-          className={shared.input}
-          value={fromDraft}
-          onChange={(e) => {
-            setFromDraft(e.target.value);
-            ctx.onChange(formatDateRange(e.target.value || null, toDraft || null));
-          }}
-          data-testid={`${testId}-from`}
-        />
-      </div>
-      <div className={styles.rangeField}>
-        <label htmlFor={`${ctx.id}-to`} className={styles.rangeLabel}>
-          {t('invoices.list.filters.to')}
-        </label>
-        <input
-          id={`${ctx.id}-to`}
-          type="date"
-          className={shared.input}
-          value={toDraft}
-          onChange={(e) => {
-            setToDraft(e.target.value);
-            ctx.onChange(formatDateRange(fromDraft || null, e.target.value || null));
-          }}
-          data-testid={`${testId}-to`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function draftNumber(draft: string): number | null {
-  if (draft.trim() === '') return null;
-  const number = Number(draft);
-  return Number.isFinite(number) && number >= 0 ? number : null;
-}
-
-/** Minimum and Maximum amounts; committed on blur and Enter. */
-function AmountRangeFilter({ ctx, testId }: DateRangeFilterProps) {
-  const { t } = useTranslation('budget');
-  const range = parseAmountRange(ctx.value);
-  const min = range?.min == null ? '' : String(range.min);
-  const max = range?.max == null ? '' : String(range.max);
-  const [minDraft, setMinDraft] = useState(min);
-  const [prevMin, setPrevMin] = useState(min);
-  if (min !== prevMin) {
-    setPrevMin(min);
-    setMinDraft(min);
-  }
-  const [maxDraft, setMaxDraft] = useState(max);
-  const [prevMax, setPrevMax] = useState(max);
-  if (max !== prevMax) {
-    setPrevMax(max);
-    setMaxDraft(max);
-  }
-
-  const commit = () => {
-    const next = formatAmountRange(draftNumber(minDraft), draftNumber(maxDraft));
-    if (next !== (ctx.value || null)) ctx.onChange(next);
-  };
-  const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') commit();
-  };
-
-  return (
-    <div className={styles.range}>
-      <div className={styles.rangeField}>
-        <label htmlFor={`${ctx.id}-min`} className={styles.rangeLabel}>
-          {t('invoices.list.filters.min')}
-        </label>
-        <input
-          id={`${ctx.id}-min`}
-          type="number"
-          min="0"
-          step="0.01"
-          className={shared.input}
-          value={minDraft}
-          onChange={(e) => setMinDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={onEnter}
-          onWheel={(e) => e.currentTarget.blur()}
-          data-testid={`${testId}-min`}
-        />
-      </div>
-      <div className={styles.rangeField}>
-        <label htmlFor={`${ctx.id}-max`} className={styles.rangeLabel}>
-          {t('invoices.list.filters.max')}
-        </label>
-        <input
-          id={`${ctx.id}-max`}
-          type="number"
-          min="0"
-          step="0.01"
-          className={shared.input}
-          value={maxDraft}
-          onChange={(e) => setMaxDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={onEnter}
-          onWheel={(e) => e.currentTarget.blur()}
-          data-testid={`${testId}-max`}
-        />
-      </div>
-    </div>
-  );
-}
-
 /**
  * The filter defs of the Invoices Filters panel, in order: the four "Show only" flags (one shared
  * fieldset), Company, Invoice date, Due date and Amount.
@@ -248,6 +107,10 @@ export function useInvoiceListFilters(
   const refundsAmount = refundsDue?.totalAmount ?? 0;
 
   return useMemo(() => {
+    const rangeLabels = {
+      date: { from: t('invoices.list.filters.from'), to: t('invoices.list.filters.to') },
+      amount: { min: t('invoices.list.filters.min'), max: t('invoices.list.filters.max') },
+    };
     const fieldset = { id: SHOW_ONLY_ID, legend: t('invoices.list.filters.showOnly') };
     const flagDef = (
       flag: InvoiceFlagParam,
@@ -295,17 +158,28 @@ export function useInvoiceListFilters(
       {
         param: 'date',
         label: t('invoices.list.filters.invoiceDate'),
-        render: (ctx) => <DateRangeFilter ctx={ctx} testId="invoices-filter-date" />,
+        render: (ctx) => (
+          <DateRangeFilter ctx={ctx} testId="invoices-filter-date" labels={rangeLabels.date} />
+        ),
       },
       {
         param: 'dueDate',
         label: t('invoices.list.filters.dueDate'),
-        render: (ctx) => <DateRangeFilter ctx={ctx} testId="invoices-filter-dueDate" />,
+        render: (ctx) => (
+          <DateRangeFilter ctx={ctx} testId="invoices-filter-dueDate" labels={rangeLabels.date} />
+        ),
       },
       {
         param: 'amount',
         label: t('invoices.list.filters.amount'),
-        render: (ctx) => <AmountRangeFilter ctx={ctx} testId="invoices-filter-amount" />,
+        render: (ctx) => (
+          <NumberRangeFilter
+            ctx={ctx}
+            testId="invoices-filter-amount"
+            labels={rangeLabels.amount}
+            step="0.01"
+          />
+        ),
       },
     ];
   }, [t, formatCurrency, refundsCount, refundsAmount, paperlessConfigured]);

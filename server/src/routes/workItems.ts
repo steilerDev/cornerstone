@@ -60,9 +60,20 @@ const listWorkItemsSchema = {
       endDateTo: { type: 'string', format: 'date' },
       sortBy: {
         type: 'string',
-        enum: ['title', 'status', 'start_date', 'end_date', 'created_at', 'updated_at'],
+        enum: [
+          'title',
+          'status',
+          'start_date',
+          'end_date',
+          'created_at',
+          'updated_at',
+          'expected_cost',
+        ],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      group: { type: 'string', enum: ['time'] },
+      milestoneId: { type: 'integer', minimum: 1 },
+      ids: { type: 'string', maxLength: 4000 },
     },
     additionalProperties: false,
   },
@@ -163,7 +174,9 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
     const query = request.query as WorkItemListQuery;
 
     ensureDailyReschedule(fastify.db);
-    const result = workItemService.listWorkItems(fastify.db, query);
+    const result = workItemService.listWorkItemRows(fastify.db, query, {
+      vatRate: fastify.config.vatRate,
+    });
 
     return reply.status(200).send(result);
   });

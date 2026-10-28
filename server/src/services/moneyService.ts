@@ -673,6 +673,18 @@ export function getExpectedGrantsByHouseholdItem(db: DbType, vatRate: number): M
   return map;
 }
 
+/** workItemId -> expected cost in major units (every task the engine knows; Tasks list #2245). */
+export function getExpectedCostByWorkItem(db: DbType, vatRate: number): Map<string, number> {
+  const result = computeMoney(loadMoneyInput(db, vatRate));
+  const map = new Map<string, number>();
+  for (const [key, figures] of result.items) {
+    if (key.startsWith('work_item:')) {
+      map.set(key.slice('work_item:'.length), toMajor(figures.cost.expected));
+    }
+  }
+  return map;
+}
+
 // ─── Financing, funding source and grant pages (#2242) ───────────────────────
 
 /** Linked tasks plus purchases per grant (both link tables, one query). */

@@ -32,8 +32,21 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "group"],
-    "note": "Tasks › Tasks list (h1 'Tasks'). Sidebar 'Tasks' always opens this page. Default grouping by time window."
+    "carries": [
+      "q",
+      "status",
+      "group",
+      "sortBy",
+      "sortOrder",
+      "areaId",
+      "assignedUserId",
+      "assignedVendorId",
+      "milestoneId",
+      "startDate",
+      "endDate",
+      "budgetLines"
+    ],
+    "note": "Tasks › Tasks list (h1 'Tasks'). Sidebar 'Tasks' always opens this page. Default grouping by time window. #2245: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); group absent = time (Late / This week / Next 2 weeks / Later / Done, server-grouped), also area/company/status; filter params keep their serialisations (startDate/endDate from:…,to:…, budgetLines min:…,max:…)."
   },
   {
     "from": "/project/work-items/new",

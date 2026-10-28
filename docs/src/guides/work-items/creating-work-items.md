@@ -7,7 +7,7 @@ title: Creating Work Items
 
 ## Creating a New Work Item
 
-From the work items list, click the **New Work Item** button (or press `n`) to open the creation form.
+From the Tasks page, click the **New task** button (or press `n`) to open the creation form.
 
 ### Required Fields
 
@@ -16,7 +16,7 @@ From the work items list, click the **New Work Item** button (or press `n`) to o
 ### Optional Fields
 
 - **Description** -- Detailed information about the task
-- **Status** -- Not Started (default), In Progress, Completed, or Blocked
+- **Status** -- Not started (default), In progress, or Done
 - **Start Date** / **End Date** -- When the task should begin and finish
 - **Duration** -- How long the task takes (auto-calculated from dates if both are set)
 - **Assigned To** -- The company or household member doing this task. Pick one. Type to search: companies are listed first, then household members. Picking another one replaces the first, so a task never has both. See [Assigned To](/guides/home/what-moved-where#assigned-to)
@@ -39,10 +39,9 @@ Deleting a work item also removes all its notes, subtasks, and dependency relati
 
 | Status | Description |
 |--------|-------------|
-| **Not Started** | Task has not begun |
-| **In Progress** | Task is actively being worked on |
-| **Completed** | Task is finished |
-| **Blocked** | Task cannot proceed due to a blocker |
+| **Not started** | Task has not begun |
+| **In progress** | Task is actively being worked on |
+| **Done** | Task is finished |
 
 ## Scheduling
 

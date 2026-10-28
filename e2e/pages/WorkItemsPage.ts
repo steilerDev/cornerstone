@@ -1,75 +1,95 @@
 /**
- * Page Object Model for the Work Items list page (/project/work-items)
+ * Page Object Model for Tasks (/project/work-items), the second ObjectList adopter (#2245,
+ * EPIC-21 P5.1). The anatomy is the Invoices one (see `InvoicesPage.ts`) with the prefix `tasks-`.
  *
  * The page renders:
- * - A page header with h1 "Work Items" and a "New Work Item" button (navigates to /project/work-items/new)
- * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
- * - Filter buttons in column headers: aria-label="Filter by {column label}" (Status, Assigned To, etc.)
- * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
- * - Pagination controls when totalPages > 1
- * - An empty state when no work items exist or no items match filters
- * - A delete ConfirmDialog (role="alertdialog", testid prefix work-item-list-delete)
- * - An error banner (role="alert", class errorBanner) for API errors
- *
- * Key DOM observations from source code:
- * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/project/work-items/new')
- * - The delete dialog is the ConfirmDialog: role="alertdialog", title "Delete <title>?"
- * - The confirm button is testid work-item-list-delete-confirm
- * - Empty state rendered by DataTable EmptyState component
- * - Table rows are clickable and navigate to detail page
- * - Actions menu button: aria-label="Actions menu" (⋮)
- * - No standalone sort select or order toggle — sorting via column header clicks
+ * - h1 "Tasks" (no count; "Tasks (n of m)" while a search or filter is active, a chip alone is not
+ *   a filter), the one primary "New task" (`new-work-item-button`) and the page ⋯ menu
+ *   (`tasks-page-menu`).
+ * - The toolbar: search (`tasks-search`), the status chips `tasks-chip-<not_started|in_progress|
+ *   completed|all>` (none pressed by default), Filters (`tasks-filters-button`; anchored panel
+ *   `tasks-filters-panel` from 768 px, Sheet `tasks-filters-sheet` below), Group by
+ *   (`tasks-group-menu`, options `tasks-group-<none|time|area|company|status>`) and Sort
+ *   (`tasks-sort-menu`, options `tasks-sort-<value>`).
+ * - Filters: Area (`#tasks-filter-areaId`, EntityPicker with a "No area" special option), Who =
+ *   Company (`#tasks-filter-assignedVendorId`, EntityPicker) + Household member
+ *   (`tasks-filter-member`, select), Milestone (`tasks-filter-milestone`, select), Start date /
+ *   End date (`tasks-filter-<startDate|endDate>-<from|to>`) and Cost lines
+ *   (`tasks-filter-budgetLines-<min|max>`).
+ * - The list (`tasks-list`): a table surface and a card surface are BOTH mounted and switched by
+ *   the list's own width (768 px container query), so every row locator is `.visible()`-filtered.
+ *   Table ids are `tasks-<part>-<id>`, card ids `tasks-<part>-mobile-<id>`. Groups: toggle
+ *   `tasks-group-toggle-<key>` (card `...-mobile-<key>`), keys `late|this_week|next_two_weeks|
+ *   later|done` (Time), an area id or `__none__` (Area/Company), the status (Status). A group
+ *   that is collapsed (Done while other groups have rows) hides its rows.
+ * - Row parts: `row`, `select`, `title`, `status`, `schedule-signal`, `critical`, `row-menu`;
+ *   table only: `area`, `work-item-grants`, `waits-for`, `holds-up`, `command` (StatusMenu
+ *   "Start" / "Mark done"). In the ⋯ menu: `open`, `delete`, `reopen`, and on a card the
+ *   `command` entry (`tasks-command-mobile-<id>`, applies without the date step).
+ * - The selection bar (`tasks-selection-bar`) with Set status (`tasks-bulk-status`, menu items
+ *   `tasks-bulk-status-<status>`) and Set area (`tasks-bulk-set-area`, dialog
+ *   `tasks-bulk-area-dialog`); a bulk failure banner `tasks-bulk-error`.
+ * - The delete ConfirmDialog (testid prefix `work-item-list-delete`).
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
-import { CompanyFilterControl } from './components/CompanyFilterControl.js';
+import { EntityPickerControl } from './components/EntityPickerControl.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
 
 export const WORK_ITEMS_ROUTE = routeUrl('workItems');
+
+export type TaskChip = 'not_started' | 'in_progress' | 'completed' | 'all';
+export type TaskGroupBy = 'none' | 'time' | 'area' | 'company' | 'status';
+export type TaskWindowKey = 'late' | 'this_week' | 'next_two_weeks' | 'later' | 'done';
 
 export class WorkItemsPage {
   readonly page: Page;
 
-  // Page header
+  // Header
+  /** The h1: "Tasks" or "Tasks (n of m)". */
   readonly heading: Locator;
   readonly newWorkItemButton: Locator;
+  readonly pageMenuButton: Locator;
 
-  // Search and filter controls
+  // Toolbar
   readonly searchInput: Locator;
-  readonly statusFilter: Locator;
-  readonly userFilter: Locator;
-  readonly tagFilter: Locator;
-  readonly areaFilter: Locator;
-  /** The Vendor column's company filter (a hidden-by-default column: `enableColumn('Vendor')`). */
-  readonly companyFilter: CompanyFilterControl;
-  readonly sortFilter: Locator;
-  readonly sortOrderButton: Locator;
+  readonly filtersButton: Locator;
+  readonly filtersSheet: Locator;
+  readonly filtersPanel: Locator;
+  /** Whichever Filters surface the viewport shows. */
+  readonly filtersSurface: Locator;
+  readonly filtersDoneButton: Locator;
+  readonly groupMenuButton: Locator;
+  readonly sortMenuButton: Locator;
+  readonly note: Locator;
 
-  // Table (desktop view)
-  readonly tableContainer: Locator;
-  readonly tableBody: Locator;
+  // Filters
+  readonly areaFilter: EntityPickerControl;
+  readonly companyFilter: EntityPickerControl;
+  readonly memberFilter: Locator;
+  readonly milestoneFilter: Locator;
 
-  // Cards (mobile view)
-  readonly cardsContainer: Locator;
-
-  // Pagination
-  readonly pagination: Locator;
-  readonly prevPageButton: Locator;
-  readonly nextPageButton: Locator;
-
-  // Empty state
+  // List
+  readonly list: Locator;
+  readonly listSection: Locator;
+  /** The title links of the visible surface (one per visible row). */
+  readonly titleLinks: Locator;
   readonly emptyState: Locator;
+  readonly retryButton: Locator;
+  readonly tableSurface: Locator;
+  /** The list's single polite status region (announcements). */
+  readonly statusRegion: Locator;
 
-  // Area breadcrumb — compact variant (list rows)
-  // fix/1278: The compact AreaBreadcrumb no longer has tabIndex=0 or a Tooltip.
-  // The span carries only class*="compact" with the full path text as plain content.
-  // For per-item assertions, callers scope to a specific row/card — this is the first match.
-  readonly areaBreadcrumb: Locator;
+  // Selection and bulk
+  readonly selectionBar: Locator;
+  readonly bulkStatusButton: Locator;
+  readonly bulkSetAreaButton: Locator;
+  readonly bulkAreaDialog: Locator;
+  readonly bulkError: Locator;
 
-  // Error banner
-  readonly errorBanner: Locator;
-
-  // Delete confirmation modal
+  // Delete confirmation (shared ConfirmDialog)
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
@@ -77,62 +97,40 @@ export class WorkItemsPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Tasks', exact: true });
-    // "New Work Item" is a <button> that calls navigate(), not a <Link>
-    this.newWorkItemButton = page.getByRole('button', { name: /New Work Item/ });
+    this.heading = page.getByRole('heading', { level: 1, name: /^Tasks(\s|$)/ });
+    this.newWorkItemButton = page.getByTestId('new-work-item-button');
+    this.pageMenuButton = page.getByTestId('tasks-page-menu');
 
-    // Search and filters
-    // DataTable renders a generic search input with aria-label="Search items" for all pages.
-    this.searchInput = page.getByLabel('Search items');
-    // DataTable filters are column-header filter buttons, not standalone <select> elements.
-    // Each filterable column header renders a button with aria-label="Filter by {column label}".
-    // Column labels come from workItems i18n: Status, Assigned To, Vendor, Area.
-    this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
-    this.userFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
-    // Tags column was removed — tagFilter kept for API compatibility, points to userFilter.
-    this.tagFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
-    // Area column filter button — the Area column is filterable via DataTable enum filter.
-    // The Area column label comes from workItems i18n: list.table.area = "Area".
-    // aria-label rendered as "Filter by Area" (dataTable.filter.filterByColumn interpolation).
-    // The table header (and this button) is CSS-hidden on mobile (< 768px).
-    this.areaFilter = page.getByRole('button', { name: /Filter by Area/i });
-    // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
-    // Sorting is triggered by clicking sortable column headers.
-    this.companyFilter = new CompanyFilterControl(page, 'assignedVendorId');
-    this.sortFilter = page.locator('[aria-label="Column settings"]');
-    this.sortOrderButton = page.locator('[aria-label="Column settings"]');
+    this.searchInput = page.getByTestId('tasks-search');
+    this.filtersButton = page.getByTestId('tasks-filters-button');
+    this.filtersSheet = page.getByTestId('tasks-filters-sheet');
+    this.filtersPanel = page.getByTestId('tasks-filters-panel');
+    this.filtersSurface = this.filtersSheet.or(this.filtersPanel);
+    this.filtersDoneButton = page.getByTestId('tasks-filters-done');
+    this.groupMenuButton = page.getByTestId('tasks-group-menu');
+    this.sortMenuButton = page.getByTestId('tasks-sort-menu');
+    this.note = page.getByTestId('tasks-note');
 
-    // Table (desktop)
-    this.tableContainer = page.locator('[class*="tableContainer"]');
-    this.tableBody = this.tableContainer.locator('tbody');
+    this.areaFilter = new EntityPickerControl(page, 'tasks-filter-areaId');
+    this.companyFilter = new EntityPickerControl(page, 'tasks-filter-assignedVendorId');
+    this.memberFilter = page.getByTestId('tasks-filter-member');
+    this.milestoneFilter = page.getByTestId('tasks-filter-milestone');
 
-    // Mobile cards
-    this.cardsContainer = page.locator('[class*="cardsContainer"]');
+    this.list = page.getByTestId('tasks-list');
+    this.listSection = this.list.locator('section[aria-label="Tasks"]');
+    this.titleLinks = page.locator('a[data-testid^="tasks-title-"]').visible();
+    // .first(): the EmptyState wrapper holds child elements whose class also contains the name.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
+    this.retryButton = page.getByTestId('tasks-retry');
+    this.tableSurface = this.list.locator('table');
+    this.statusRegion = this.list.getByRole('status');
 
-    // Pagination — use `.first()` because `[class*="pagination"]` matches
-    // the outer container and child elements (paginationInfo, paginationButton, etc.)
-    this.pagination = page.locator('[class*="pagination"]').first();
-    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
-    this.prevPageButton = page.getByLabel('Previous');
-    this.nextPageButton = page.getByLabel('Next');
+    this.selectionBar = page.getByTestId('tasks-selection-bar');
+    this.bulkStatusButton = page.getByTestId('tasks-bulk-status');
+    this.bulkSetAreaButton = page.getByTestId('tasks-bulk-set-area');
+    this.bulkAreaDialog = page.getByTestId('tasks-bulk-area-dialog');
+    this.bulkError = page.getByTestId('tasks-bulk-error');
 
-    // Empty state — EmptyState component's outer wrapper uses the CSS-module-hashed
-    // `emptyState_abc123` class. Scope by prefix so sub-element classes like
-    // `emptyStateTitle_/emptyStateDescription_` don't get picked up first.
-    this.emptyState = page.locator('[class^="emptyState_"], [class*=" emptyState_"]').first();
-
-    // Area breadcrumb — compact variant spans inside table rows / mobile cards.
-    // fix/1278: compact variant no longer has tabIndex=0 or a Tooltip — plain span only.
-    // The "No area" fallback renders a plain <span> with class "muted" — no tabIndex.
-    // Callers scope to a specific row/card when they need per-item assertions — this
-    // is the first match as a default.
-    this.areaBreadcrumb = page.locator('[class*="compact"]').first();
-
-    // Error banner (outside modal)
-    this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
-
-    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)
     this.deleteModal = page
       .getByRole('alertdialog')
       .filter({ has: page.getByTestId('work-item-list-delete-cancel') });
@@ -140,362 +138,389 @@ export class WorkItemsPage {
     this.deleteCancelButton = this.deleteModal.getByTestId('work-item-list-delete-cancel');
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Surface-agnostic row locators
+  // ───────────────────────────────────────────────────────────────────────────
+
+  private part(prefix: string, id: string): Locator {
+    return this.page
+      .locator(`[data-testid="${prefix}-${id}"], [data-testid="${prefix}-mobile-${id}"]`)
+      .visible();
+  }
+
+  /** The row (table `tr` or card `li`) of a task. */
+  row(id: string): Locator {
+    return this.part('tasks-row', id);
+  }
+
   /**
-   * Navigate to the work items list page.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   * The row (table) or card for a task title, whichever surface is visible. `tr`/`li` only, so
+   * the `tasks-row-menu-*` buttons never match.
    */
-  async goto(): Promise<void> {
-    await this.page.goto(WORK_ITEMS_ROUTE);
+  workItemRow(title: string): Locator {
+    return this.page
+      .locator('tr[data-testid^="tasks-row-"], li[data-testid^="tasks-row-mobile-"]')
+      .filter({ hasText: title })
+      .visible();
+  }
+
+  /** The id of the task whose title is shown (read from the row's test id). */
+  async idOf(title: string): Promise<string> {
+    const testId = await this.workItemRow(title).first().getAttribute('data-testid');
+    if (!testId) throw new Error(`Task "${title}" not found in the list`);
+    return testId.replace(/^tasks-row-(mobile-)?/, '');
+  }
+
+  title(id: string): Locator {
+    return this.part('tasks-title', id);
+  }
+
+  statusBadge(id: string): Locator {
+    return this.part('tasks-status', id);
+  }
+
+  /** Late · n d / Held up chip of a task (#2199). */
+  scheduleSignal(id: string): Locator {
+    return this.part('tasks-schedule-signal', id);
+  }
+
+  criticalBadge(id: string): Locator {
+    return this.part('tasks-critical', id);
+  }
+
+  rowCheckbox(id: string): Locator {
+    return this.part('tasks-select', id);
+  }
+
+  rowMenuTrigger(id: string): Locator {
+    return this.part('tasks-row-menu', id);
+  }
+
+  /** Table only: the area link (full path) under the title. */
+  areaLink(id: string): Locator {
+    return this.page.getByTestId(`tasks-area-${id}`);
+  }
+
+  /** Table only: the grant chip(s) under the title. */
+  grantChips(id: string): Locator {
+    return this.page.getByTestId(`work-item-grants-${id}`);
+  }
+
+  /** Table only: the Waits for link in the Relations column. */
+  waitsFor(id: string): Locator {
+    return this.page.getByTestId(`tasks-waits-for-${id}`);
+  }
+
+  /** Table only: the "Holds up n tasks" sentence (`data-figure="holds-up"`). */
+  holdsUp(id: string): Locator {
+    return this.page.getByTestId(`tasks-holds-up-${id}`);
+  }
+
+  /** Whether the table surface (list width of 768 px or more) is the visible one. */
+  async isTableSurface(): Promise<boolean> {
+    return this.tableSurface.isVisible();
+  }
+
+  /** The table's Start / Mark done command as a StatusMenu control (table surface only). */
+  command(id: string): StatusMenuControl {
+    return new StatusMenuControl(this.page, `tasks-command-${id}`);
+  }
+
+  /**
+   * Start / Mark done a task. Table: the command's date step answered with Today. Card: the first
+   * ⋯ item (applies without the date step).
+   */
+  async runCommand(id: string): Promise<void> {
+    if (await this.isTableSurface()) {
+      await this.command(id).actionToday();
+      return;
+    }
+    await this.rowMenuTrigger(id).click();
+    await this.page.getByTestId(`tasks-command-mobile-${id}`).click();
+  }
+
+  /** Open the ⋯ menu of a task and click one of its entries (`open`, `delete`, `reopen`). */
+  async chooseRowMenu(id: string, entry: 'open' | 'delete' | 'reopen'): Promise<void> {
+    await this.rowMenuTrigger(id).click();
+    await this.part(`tasks-${entry}`, id).click();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Navigation and loading
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Open the list, optionally with a query string. */
+  async goto(query = ''): Promise<void> {
+    await this.page.goto(
+      query ? `${WORK_ITEMS_ROUTE}?${query.replace(/^\?/, '')}` : WORK_ITEMS_ROUTE,
+    );
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Wait for the work items list to finish loading.
-   * Races: table rows visible, mobile cards visible, or empty state visible.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
+  /** Wait until the first batch rendered: rows, the empty state or the load failure. */
   async waitForLoaded(): Promise<void> {
-    await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
-      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
-      this.emptyState.waitFor({ state: 'visible' }),
-    ]);
+    await this.listSection.waitFor({ state: 'attached' });
+    await expect(this.listSection).not.toHaveAttribute('aria-busy', 'true');
+    await expect(
+      this.titleLinks.first().or(this.emptyState).or(this.retryButton).or(this.groupToggles()),
+    ).toBeVisible();
   }
 
-  /**
-   * Wait for search results to stabilize after a search() or clearSearch() call.
-   *
-   * waitForLoaded() is designed for the initial page load and resolves immediately
-   * when table rows/cards are already visible (old data). This method uses the URL
-   * search param as a proxy for React state settling — after the debounced search
-   * updates setSearchParams(), the DOM re-render follows in the same microtask batch.
-   *
-   * For search(query): waits until URL has q=query (exact match).
-   * For clearSearch(): waits until URL no longer has q=.
-   */
-  async waitForSearchParams(hasQuery?: string): Promise<void> {
-    if (hasQuery !== undefined) {
-      await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
-        timeout: 15000,
-      });
-    } else {
-      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 15000 });
-    }
+  /** Open the list with `?q=` and wait for it. */
+  async openSearch(query: string, extra = ''): Promise<void> {
+    await this.goto(
+      [`q=${encodeURIComponent(query)}`, extra.replace(/^\?/, '')].filter(Boolean).join('&'),
+    );
+    await this.waitForLoaded();
   }
 
-  /**
-   * Get the titles of all work items currently shown in the table (desktop)
-   * or cards (mobile).
-   */
+  /** The visible titles, in order. */
   async getWorkItemTitles(): Promise<string[]> {
-    // On mobile, tableContainer has display:none (CSS media query at max-width:767px).
-    // Elements inside a CSS-hidden table are still in the DOM so .all() returns them,
-    // but their text would include all items (search filter not reflected in DOM-hidden rows).
-    // Always check visibility before using the table path.
-    const tableVisible = await this.tableContainer.isVisible();
-    if (tableVisible) {
-      // Desktop/tablet: work items title column uses className={styles.itemLink} (CSS Modules).
-      const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
-      if (titleCells.length > 0) {
-        const titles: string[] = [];
-        for (const cell of titleCells) {
-          const text = await cell.textContent();
-          if (text) titles.push(text.trim());
-        }
-        return titles;
-      }
-    }
-
-    // Mobile fallback (or empty table): DataTableCard renders the same cell content as the table.
-    // The title column uses styles.itemLink (CSS Modules) — same class as in the table rows.
-    // DataTableCard has NO "cardTitle" class; looking for itemLink inside cardsContainer is correct.
-    const cardTitles = await this.cardsContainer.locator('[class*="itemLink"]').all();
-    const titles: string[] = [];
-    for (const el of cardTitles) {
-      const text = await el.textContent();
-      if (text) titles.push(text.trim());
-    }
-    return titles;
+    return (await this.titleLinks.allTextContents()).map((s) => s.trim()).filter(Boolean);
   }
 
+  /** The heading's numbers: no count is `null`; "(2 of 9)" is `{ shown: 2, total: 9 }`. */
+  async headingCounts(): Promise<{ shown: number; total: number | null } | null> {
+    const text = (await this.heading.innerText()).replace(/\s+/g, ' ');
+    const match = /\((\d+)(?: of (\d+))?\)/.exec(text);
+    if (!match) return null;
+    return { shown: Number(match[1]), total: match[2] ? Number(match[2]) : null };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Search
+  // ───────────────────────────────────────────────────────────────────────────
+
   /**
-   * Type a search query and wait for both the URL to update (debounce fired) and
-   * the API response to arrive (data fetched).
-   *
-   * Strategy (three-step):
-   *  1. Register a response listener for `q=query` BEFORE fill to avoid missing
-   *     the response on fast CI runners.
-   *  2. fill() the input — WebKit may emit a clear event first, but the response
-   *     listener filters by exact query param and ignores that empty-query response.
-   *  3. Wait for the URL to update with q=query (confirms debounce fired and React
-   *     state is committed) then await the API response (confirms data received).
-   *
-   * After the API response arrives React will commit the filtered results in the next
-   * render. Callers use expect().toBeVisible() / expect().not.toBeVisible() with the
-   * project-level expect.timeout to wait for that DOM update — no extra waitForLoaded()
-   * needed here, which avoids the race where waitForLoaded() resolves on stale DOM.
+   * Type a search and wait for the URL (debounce fired) and the matching API answer. The response
+   * listener is registered before typing.
    */
   async search(query: string): Promise<void> {
-    // Register BEFORE fill to avoid missing the response on fast runners.
-    // 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
-    // API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
-    const responsePromise = this.page.waitForResponse(
-      (resp) => {
-        if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
-        try {
-          const url = new URL(resp.url());
-          return url.searchParams.get('q') === query;
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 15000 },
-    );
-    await this.searchInput.fill(query);
-    // Wait for URL to update — confirms debounce fired and React committed search state.
-    // Must precede the response wait to ensure we don't assert before state is committed.
-    await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
-      timeout: 15000,
+    const answered = this.page.waitForResponse((resp) => {
+      if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
+      try {
+        return new URL(resp.url()).searchParams.get('q') === query;
+      } catch {
+        return false;
+      }
     });
-    await responsePromise;
+    await this.searchInput.fill(query);
+    await this.page.waitForURL((url) => url.searchParams.get('q') === query);
+    await answered;
   }
 
-  /**
-   * Clear the search input and wait for both the URL update and the API response.
-   *
-   * Same three-step pattern as search(): register response listener before clear(),
-   * clear the input, wait for URL (q= param removed), then await response.
-   */
   async clearSearch(): Promise<void> {
-    const responsePromise = this.page.waitForResponse(
-      (resp) => {
-        if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
-        try {
-          const url = new URL(resp.url());
-          return !url.searchParams.has('q');
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 10000 },
-    );
+    const answered = this.page.waitForResponse((resp) => {
+      if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
+      try {
+        return !new URL(resp.url()).searchParams.has('q');
+      } catch {
+        return false;
+      }
+    });
     await this.searchInput.clear();
-    await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
-    await responsePromise;
+    await this.page.waitForURL((url) => !url.searchParams.has('q'));
+    await answered;
   }
 
-  /**
-   * Open the delete modal for the work item with the given title.
-   * Clicks the Actions menu button (⋮) in the table row (desktop), then clicks "Delete".
-   * On mobile (when the table is CSS-hidden), falls back to the card view.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
+  // ───────────────────────────────────────────────────────────────────────────
+  // Chips, group by, sort
+  // ───────────────────────────────────────────────────────────────────────────
+
+  chip(value: TaskChip): Locator {
+    return this.page.getByTestId(`tasks-chip-${value}`);
+  }
+
+  /** The chip's number from its "‹word› (n)" label; null before the first batch applied. */
+  async chipCount(value: TaskChip): Promise<number | null> {
+    const text = (await this.chip(value).innerText()).replace(/\s+/g, ' ');
+    const match = /\((\d+)\)/.exec(text);
+    return match ? Number(match[1]) : null;
+  }
+
+  async selectChip(value: TaskChip): Promise<void> {
+    await this.chip(value).click();
+    await expect(this.chip(value)).toHaveAttribute('aria-pressed', 'true');
+  }
+
+  async setGroupBy(value: TaskGroupBy): Promise<void> {
+    await this.groupMenuButton.click();
+    await this.page.getByTestId(`tasks-group-${value}`).click();
+  }
+
+  /** The Group by option as the menu shows it (for the disabled-with-reason check). */
+  async groupOption(value: TaskGroupBy): Promise<Locator> {
+    await this.groupMenuButton.click();
+    const option = this.page.getByTestId(`tasks-group-${value}`);
+    await option.waitFor({ state: 'visible' });
+    return option;
+  }
+
+  async setSort(value: string, direction?: 'asc' | 'desc'): Promise<void> {
+    await this.sortMenuButton.click();
+    await this.page.getByTestId(`tasks-sort-${value}`).click();
+    if (direction) {
+      await this.sortMenuButton.click();
+      await this.page.getByTestId(`tasks-sort-${direction}`).click();
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Groups
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** All visible group toggles. */
+  groupToggles(): Locator {
+    return this.page.locator('button[data-testid^="tasks-group-toggle-"]').visible();
+  }
+
+  groupToggle(key: string): Locator {
+    return this.part('tasks-group-toggle', key);
+  }
+
+  /** Keys of the visible group toggles, in render order. */
+  async groupKeys(): Promise<string[]> {
+    const ids = await this.groupToggles().evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-testid') ?? ''),
+    );
+    return ids.map((id) => id.replace(/^tasks-group-toggle-(mobile-)?/, ''));
+  }
+
+  /** The group's number: the total in "(n)" or "(loaded of n)". */
+  async groupCount(key: string): Promise<number> {
+    const text = (await this.groupToggle(key).innerText()).replace(/\s+/g, ' ');
+    const match = /\((?:\d+ of )?(\d+)\)/.exec(text);
+    if (!match) throw new Error(`No count in group toggle "${text}"`);
+    return Number(match[1]);
+  }
+
+  async expandGroup(key: string): Promise<void> {
+    const toggle = this.groupToggle(key);
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Filters panel
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async openFilters(): Promise<void> {
+    if (await this.filtersSurface.isVisible()) return;
+    await this.filtersButton.click();
+    await this.filtersSurface.waitFor({ state: 'visible' });
+  }
+
+  /** Close the Filters surface: "Done" in the sheet, Escape in the anchored panel. */
+  async closeFilters(): Promise<void> {
+    if (!(await this.filtersSurface.isVisible())) return;
+    if (await this.filtersSheet.isVisible()) {
+      await this.filtersDoneButton.click();
+    } else {
+      await this.page.keyboard.press('Escape');
+    }
+    await expect(this.filtersSurface).toBeHidden();
+  }
+
+  /** The `from|to` input of a date range filter (`startDate`, `endDate`). */
+  dateInput(param: 'startDate' | 'endDate', side: 'from' | 'to'): Locator {
+    return this.page.getByTestId(`tasks-filter-${param}-${side}`);
+  }
+
+  /** The `min|max` input of the Cost lines filter. */
+  costLinesInput(side: 'min' | 'max'): Locator {
+    return this.page.getByTestId(`tasks-filter-budgetLines-${side}`);
+  }
+
+  /** Open Filters and pick a company (types its name, picks by keyboard). */
+  async pickCompanyFilter(name: string): Promise<void> {
+    await this.openFilters();
+    await this.companyFilter.pick(name);
+  }
+
+  /** Open Filters and pick an area by name (a top-level area, or the "No area" option). */
+  async pickAreaFilter(name: string): Promise<void> {
+    await this.openFilters();
+    if (name === 'No area') {
+      await this.areaFilter.input.click();
+      await this.areaFilter.choose(this.areaFilter.optionNamed('No area'));
+      return;
+    }
+    await this.areaFilter.pick(name);
+  }
+
+  /** The text of the selected chip of a picker inside the open Filters surface. */
+  get filtersSelected(): Locator {
+    return this.filtersSurface.locator('[class*="selectedDisplay"]');
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Bulk
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async selectRows(ids: readonly string[]): Promise<void> {
+    for (const id of ids) {
+      await this.rowCheckbox(id).check();
+    }
+    await expect(this.selectionBar).toBeVisible();
+  }
+
+  async bulkSetStatus(status: 'not_started' | 'in_progress' | 'completed'): Promise<void> {
+    await this.bulkStatusButton.click();
+    await this.page.getByTestId(`tasks-bulk-status-${status}`).click();
+  }
+
+  /** Set area for the selection through the dialog: picks the area by name (a pick applies). */
+  async bulkSetArea(areaName: string): Promise<void> {
+    await this.bulkSetAreaButton.click();
+    const input = this.page.getByLabel(/^Set area for \d+ tasks?$/);
+    const picker = new EntityPickerControl(this.page, input);
+    await picker.pick(areaName);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Open the delete dialog of the task with the given title (⋯ › Delete). */
   async openDeleteModal(title: string): Promise<void> {
-    // Determine whether the desktop table is actually visible.
-    // On mobile viewports the table has `display: none` via CSS — elements inside
-    // are still in the DOM but are not interactable. Always use the card view on mobile.
-    const tableVisible = await this.tableContainer.isVisible();
-
-    if (tableVisible) {
-      // Desktop: find the row in the table by title text
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(title)) {
-          // Open the actions menu
-          await row.locator('[aria-label="Actions menu"]').click();
-          // Click Delete in the dropdown
-          await row.getByRole('button', { name: 'Delete' }).click();
-          await this.deleteModal.waitFor({ state: 'visible' });
-          return;
-        }
-      }
-    }
-
-    // Mobile fallback (or if table row not found): search in cards
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(title)) {
-        await card.locator('[aria-label="Actions menu"]').click();
-        await card.getByRole('button', { name: 'Delete' }).click();
-        await this.deleteModal.waitFor({ state: 'visible' });
-        return;
-      }
-    }
-
-    throw new Error(`Work item with title "${title}" not found in list`);
+    const id = await this.idOf(title);
+    await this.chooseRowMenu(id, 'delete');
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Confirm the deletion in the delete modal.
-   *
-   * Waits for both the DELETE API response and the modal to hide. Registering
-   * the response listener before the click prevents a race where the DELETE
-   * completes and the modal closes before the listener is attached (common on
-   * fast Chromium or heavily-loaded CI runners).
-   */
+  /** Confirm the deletion; waits for the DELETE answer and the dialog to close. */
   async confirmDelete(): Promise<void> {
-    const deleteResponsePromise = this.page.waitForResponse(
+    const deleted = this.page.waitForResponse(
       (resp) =>
         resp.url().includes('/api/work-items') &&
         resp.request().method() === 'DELETE' &&
         resp.status() === 204,
     );
     await this.deleteConfirmButton.click();
-    await deleteResponsePromise;
+    await deleted;
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Cancel the delete modal without deleting.
-   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
-   */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
-  /**
-   * Click a table row by title to navigate to the work item detail page.
-   */
-  async clickWorkItemRow(title: string): Promise<void> {
-    const rows = await this.tableBody.locator('tr').all();
-    for (const row of rows) {
-      const rowText = await row.textContent();
-      if (rowText?.includes(title)) {
-        await row.click();
-        return;
-      }
-    }
-    throw new Error(`Work item with title "${title}" not found in table`);
+  // ───────────────────────────────────────────────────────────────────────────
+  // Columns (table surface only)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** A column header of the table surface. */
+  columnHeader(label: string | RegExp): Locator {
+    return this.tableSurface.getByRole('columnheader', { name: label });
   }
 
-  /**
-   * Find the table row (desktop) or card (mobile) whose title matches the given text,
-   * then return a Locator for the area breadcrumb inside that row/card.
-   *
-   * Desktop: scoped to the <tr> containing a link with the given title.
-   * Mobile: scoped to the card container element containing that title.
-   *
-   * Returns a Locator that may point to:
-   *  - A <span class*="compact"> when an area is assigned (compact breadcrumb, no tabIndex)
-   *  - A <span class*="muted"> with text "No area" when no area is assigned
-   *
-   * fix/1278: compact variant no longer has tabIndex=0 — selector updated accordingly.
-   */
-  getAreaBreadcrumbForItem(title: string): Locator {
-    // We use filter({ hasText }) on the row, then look for either the compact span
-    // or the muted "No area" span inside the title cell.
-    const row = this.tableBody.locator('tr').filter({ hasText: title });
-    const card = this.cardsContainer.locator('[class*="card"]').filter({ hasText: title });
-
-    // Return a locator that covers both: the actual element is whichever is in the
-    // visible container. Callers must await .textContent() or use expect().
-    // The locator resolves to the compact span or the "No area" muted span.
-    return row
-      .locator('[class*="compact"], [class*="muted"]')
-      .or(card.locator('[class*="compact"], [class*="muted"]'))
-      .first();
-  }
-
-  /**
-   * The "No Area" sentinel checkbox in the area filter popover.
-   * Only visible after the area filter popover is opened AND the Area column is visible
-   * (Area column has defaultVisible: false on Work Items — enable it via column settings first).
-   */
-  get noneAreaSentinelCheckbox(): Locator {
-    return this.page.locator('#enum-__none__');
-  }
-
-  /**
-   * Open the area filter popover by clicking the "Filter by Area" column header button.
-   *
-   * IMPORTANT: The Area column has defaultVisible: false on Work Items. The filter button
-   * only renders for visible columns, so this method requires the Area column to be enabled
-   * via the column settings gear icon before calling. If the column is not visible, this
-   * method will time out waiting for the button.
-   */
-  async openAreaFilter(): Promise<void> {
-    await this.areaFilter.waitFor({ state: 'visible' });
-    await this.areaFilter.click();
-  }
-
-  /**
-   * The row (desktop/tablet table) or card (phone) for a task title, whichever surface is
-   * visible. DataTable mounts both, so the hidden one is filtered out (#2199).
-   */
-  workItemRow(title: string): Locator {
-    return this.tableBody
-      .locator('tr')
-      .filter({ hasText: title })
-      .or(
-        // Card root only: `card_` does not match cardHeader_/cardContent_/cardRow_/cardValue_
-        this.cardsContainer.locator('[class*="card_"]').filter({ hasText: title }),
-      )
-      .locator('visible=true');
-  }
-
-  /**
-   * Late / Held up chip for a task id on the visible surface (#2199). Table testid is
-   * `wi-schedule-signal-<id>`, card testid is `wi-schedule-signal-mobile-<id>`.
-   */
-  scheduleSignal(id: string): Locator {
-    return this.page
-      .getByTestId(`wi-schedule-signal-${id}`)
-      .or(this.page.getByTestId(`wi-schedule-signal-mobile-${id}`))
-      .locator('visible=true');
-  }
-
-  /**
-   * Enable the Area column via the column settings gear icon so the filter button appears.
-   * Opens the column settings popover, checks the "Area" checkbox, and closes the popover.
-   */
-  async enableAreaColumn(): Promise<void> {
-    const columnSettingsBtn = this.page.getByRole('button', {
-      name: 'Column settings',
-      exact: true,
-    });
-    await columnSettingsBtn.waitFor({ state: 'visible' });
-    await columnSettingsBtn.click();
-    // The column settings popover renders a checkbox for each column by label
-    const areaCheckbox = this.page.getByRole('checkbox', { name: /^Area$/i });
-    await areaCheckbox.waitFor({ state: 'visible' });
-    const checked = await areaCheckbox.isChecked();
-    if (!checked) {
-      await areaCheckbox.click();
-    }
-    // Close popover by pressing Escape
-    await this.page.keyboard.press('Escape');
-    // Wait for Area filter button to appear in the header
-    await this.areaFilter.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Enable a hidden-by-default column (e.g. "Vendor") via the column settings gear. Desktop and
-   * tablet only: the gear is hidden below 768px.
-   */
-  async enableColumn(label: string): Promise<void> {
-    const gear = this.page.getByRole('button', { name: 'Column settings', exact: true });
-    await gear.waitFor({ state: 'visible' });
-    await gear.click();
-    const checkbox = this.page.getByRole('checkbox', { name: label, exact: true });
-    await checkbox.waitFor({ state: 'visible' });
-    if (!(await checkbox.isChecked())) await checkbox.click();
-    await this.page.keyboard.press('Escape');
-    await checkbox.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Get pagination info text (e.g. "Showing 1 to 25 of 30 items"), or null if not visible.
-   */
-  async getPaginationInfoText(): Promise<string | null> {
-    try {
-      const info = this.page.locator('[class*="paginationInfo"]');
-      await info.waitFor({ state: 'visible' });
-      return await info.textContent();
-    } catch {
-      return null;
-    }
+  /** Open the Columns… dialog from the page ⋯ menu. */
+  async openColumnsDialog(): Promise<Locator> {
+    await this.pageMenuButton.click();
+    await this.page.getByTestId('tasks-columns').click();
+    const dialog = this.page.getByRole('dialog', { name: 'Columns' });
+    await dialog.waitFor({ state: 'visible' });
+    return dialog;
   }
 }

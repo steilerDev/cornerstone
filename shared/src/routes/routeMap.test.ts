@@ -398,3 +398,26 @@ describe('History page rollout (#2224)', () => {
     });
   });
 });
+
+describe('Tasks list route (#2245)', () => {
+  it('carries the list search, chip, grouping, sort and filter params, and no paging', () => {
+    const entry = ENTRIES.find((e) => e.id === 'workItems');
+    expect(entry?.stage).toBe('done');
+    expect(entry?.carries).toEqual([
+      'q',
+      'status',
+      'group',
+      'sortBy',
+      'sortOrder',
+      'areaId',
+      'assignedUserId',
+      'assignedVendorId',
+      'milestoneId',
+      'startDate',
+      'endDate',
+      'budgetLines',
+    ]);
+    expect(entry?.carries).not.toContain('page');
+    expect(entry?.carries).not.toContain('pageSize');
+  });
+});

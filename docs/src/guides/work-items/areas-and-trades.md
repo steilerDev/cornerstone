@@ -49,7 +49,7 @@ The breadcrumb keeps each item grounded in its location at a glance, without hav
 
 ### The "No Area" Option
 
-Not every item has an area assigned -- maybe it is a project-wide task, an administrative item, or something you have not classified yet. The Work Items and Household Items lists include a dedicated **No Area** filter option that surfaces exactly those items, separate from any real area. The Budget Overview uses the same label ("No Area") for the bucket of budget lines whose work item or household item has no area assigned.
+Not every item has an area assigned -- maybe it is a project-wide task, an administrative item, or something you have not classified yet. The Tasks and Household Items lists include a dedicated **No area** filter option that surfaces exactly those items, separate from any real area. The Budget Overview uses the same label ("No area") for the bucket of budget lines whose work item or household item has no area assigned.
 
 ## Trades
 

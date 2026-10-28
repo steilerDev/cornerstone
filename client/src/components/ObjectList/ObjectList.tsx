@@ -16,8 +16,14 @@ import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js'
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
 import shared from '../../styles/shared.module.css';
-import { buildGroups, defaultOpen, groupingAvailable } from './grouping.js';
-import type { ObjectListGroupData } from './grouping.js';
+import {
+  buildGroups,
+  defaultOpen,
+  groupLayout,
+  groupingAvailable,
+  movedRowTargets,
+} from './grouping.js';
+import type { GroupLayout, ObjectListGroupData } from './grouping.js';
 import { readGroupOpen, writeGroupOpen } from './groupOpenState.js';
 import { OBJECT_LIST_PAGE_SIZE } from './objectListUrl.js';
 import { ObjectListColumnsDialog } from './ObjectListColumnsDialog.js';
@@ -79,6 +85,13 @@ export interface ObjectListProps<T, M = undefined, C = never> {
   readonly searchingAll?: ObjectListSearchingAll | null;
   /** Unfiltered total of the current chip scope: "(n of m)" while filtersActive. */
   readonly scopeTotal?: number | null;
+  /**
+   * 'always' (default): the h1 shows the count. 'whileFiltered': no count unless a search or
+   * filter is active (a chip alone is not a filter), then "(n of m)".
+   */
+  readonly headingCount?: 'always' | 'whileFiltered';
+  /** Announced through the list's one status region whenever `key` changes (declarative). */
+  readonly announcement?: { readonly key: number; readonly text: string } | null;
   /** Footer sum row under the list. */
   readonly summary?: ReactNode;
   /** A host summary above the results (Invoices' Offers summary). */
@@ -124,6 +137,8 @@ export function ObjectList<T, M = undefined, C = never>({
   bulkActions,
   searchingAll,
   scopeTotal,
+  headingCount = 'always',
+  announcement,
   summary,
   aboveList,
   note,
@@ -147,7 +162,9 @@ export function ObjectList<T, M = undefined, C = never>({
   const [columnsOpen, setColumnsOpen] = useState(false);
 
   // --- Column preferences (the title, status, command and ⋯ are always shown) ---
-  const prefs = useColumnPreferences(config.listKey, columns);
+  const prefs = useColumnPreferences(config.listKey, columns, {
+    legacyKeys: config.legacyColumnKeys,
+  });
   const orderedColumns = useMemo(() => {
     const byKey = new Map(columns.map((column) => [column.key, column]));
     const ordered: ObjectListColumn<T>[] = [];
@@ -227,6 +244,16 @@ export function ObjectList<T, M = undefined, C = never>({
     }
   }, [searchingAllText, settled, announce]);
 
+  // A host announcement is spoken once per `key`.
+  const announcedKeyRef = useRef<number | null>(null);
+  const announcementKey = announcement?.key ?? null;
+  const announcementText = announcement?.text ?? null;
+  useEffect(() => {
+    if (announcementKey === null || announcementKey === announcedKeyRef.current) return;
+    announcedKeyRef.current = announcementKey;
+    announce(announcementText as string);
+  }, [announcementKey, announcementText, announce]);
+
   // --- Selection (keys of loaded rows; pruned whenever the rows change) ---
   const selectable = bulkActions !== undefined;
   const [selection, setSelection] = useState<ReadonlySet<string>>(() => new Set());
@@ -298,8 +325,11 @@ export function ObjectList<T, M = undefined, C = never>({
   // --- Grouping ---
   const groupOption = config.groupBy?.options.find((option) => option.value === list.group);
   const groupAvailable = groupOption ? groupingAvailable(groupOption, list.totalItems) : false;
-  const groups: ObjectListGroupData<T>[] | null =
-    groupOption && groupAvailable ? buildGroups(items, groupOption, list.groupCounts) : null;
+  const groupCounts = list.groupCounts;
+  const groups = useMemo<ObjectListGroupData<T>[] | null>(
+    () => (groupOption && groupAvailable ? buildGroups(items, groupOption, groupCounts) : null),
+    [groupOption, groupAvailable, items, groupCounts],
+  );
   const groupingUnavailableText =
     groupOption && !groupAvailable ? t('objectList.groupBy.unavailable') : null;
   const [openState, setOpenState] = useState(() => ({
@@ -324,37 +354,48 @@ export function ObjectList<T, M = undefined, C = never>({
   // --- Focus after a row leaves the list ---
   const lastFocusedKeyRef = useRef<string | null>(null);
   const prevKeysRef = useRef<string[]>([]);
+  const prevLayoutRef = useRef<GroupLayout | null>(null);
   const surfaceRef = useRef(surface);
   surfaceRef.current = surface;
   useLayoutEffect(() => {
     const keys = items.map(getKey);
     const previous = prevKeysRef.current;
     prevKeysRef.current = keys;
+    const previousLayout = prevLayoutRef.current;
+    const layout = groups ? groupLayout(groups, getKey) : null;
+    prevLayoutRef.current = layout;
     const lost = lastFocusedKeyRef.current;
     if (lost === null) return;
     const active = document.activeElement;
     if (active && active !== document.body && active.isConnected) return;
     lastFocusedKeyRef.current = null;
-    // Focus was lost with the row's element. The row itself comes first when it is still in the
-    // list (it moved to another group); otherwise the row now at its index, then the previous one.
+    // Focus was lost with the row's element. A row that moved to another group hands focus to the
+    // row now at its index in its former group, then to the next group's toggle. A row still in
+    // its place comes first; a removed row hands it to the row now at its index, then the previous one.
+    const rowTestId = (key: string) => dataTableTestId(`${p}-title`, key, surfaceRef.current);
+    const moved = movedRowTargets(previousLayout, layout, lost);
     const index = previous.indexOf(lost);
-    const candidates = keys.includes(lost)
-      ? [lost]
-      : [keys[index], keys[index - 1], keys[keys.length - 1]];
+    const targets = moved
+      ? [
+          ...moved.rowKeys.map(rowTestId),
+          ...moved.toggleKeys.map((key) =>
+            dataTableTestId(`${p}-group-toggle`, key, surfaceRef.current),
+          ),
+        ]
+      : (keys.includes(lost) ? [lost] : [keys[index], keys[index - 1], keys[keys.length - 1]])
+          .filter((key) => key !== undefined)
+          .map(rowTestId);
     const root = rootRef.current as HTMLDivElement;
-    for (const key of candidates) {
-      if (key === undefined) continue;
-      const link = root.querySelector<HTMLElement>(
-        `[data-testid="${cssEscape(dataTableTestId(`${p}-title`, key, surfaceRef.current))}"]`,
-      );
+    for (const testId of targets) {
+      const element = root.querySelector<HTMLElement>(`[data-testid="${cssEscape(testId)}"]`);
       // A row inside a collapsed group cannot take focus.
-      if (link && !link.closest('[hidden]')) {
-        link.focus();
+      if (element && !element.closest('[hidden]')) {
+        element.focus();
         return;
       }
     }
     (headingRef.current as HTMLElement).focus();
-  }, [items, getKey, p, headingRef]);
+  }, [items, groups, getKey, p, headingRef]);
 
   const onRowFocus = useCallback((key: string) => {
     lastFocusedKeyRef.current = key;
@@ -363,11 +404,12 @@ export function ObjectList<T, M = undefined, C = never>({
   // --- Derived display values ---
   const loadingFirst = list.status === 'loading' && items.length === 0;
   const countKnown = list.totalItems !== null && !loadingFirst;
-  const count: ReactNode | null = !countKnown
-    ? null
-    : list.filtersActive && scopeTotal !== null && scopeTotal !== undefined
-      ? t('objectList.countOf', { count: list.totalItems, total: scopeTotal })
-      : t('objectList.count', { count: list.totalItems });
+  const count: ReactNode | null =
+    !countKnown || (headingCount === 'whileFiltered' && !list.filtersActive)
+      ? null
+      : list.filtersActive && scopeTotal !== null && scopeTotal !== undefined
+        ? t('objectList.countOf', { count: list.totalItems, total: scopeTotal })
+        : t('objectList.count', { count: list.totalItems });
 
   const hasStatus = renderStatus !== undefined;
   const hasCommand = renderCommand !== undefined;

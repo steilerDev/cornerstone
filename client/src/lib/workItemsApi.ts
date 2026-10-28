@@ -3,6 +3,7 @@ import type { UndoableDeleteResponse } from '@cornerstone/shared';
 import type { RequestOptions } from './apiClient.js';
 import type {
   WorkItemListResponse,
+  WorkItemListRowsResponse,
   WorkItemListQuery,
   WorkItemDetail,
   CreateWorkItemRequest,
@@ -11,13 +12,12 @@ import type {
   WorkItemSubsidyPaybackResponse,
 } from '@cornerstone/shared';
 
-/**
- * Fetches a paginated list of work items with optional filters, search, and sorting.
- */
-export function listWorkItems(
-  params?: WorkItemListQuery,
-  options?: RequestOptions,
-): Promise<WorkItemListResponse> {
+/** Query of the Tasks list rows: `ids` is a list here and joined for the request. */
+export type WorkItemRowsParams = Omit<WorkItemListQuery, 'ids'> & {
+  readonly ids?: readonly string[];
+};
+
+function buildListPath(params?: WorkItemRowsParams): string {
   const queryParams = new URLSearchParams();
 
   if (params?.page !== undefined) {
@@ -38,6 +38,9 @@ export function listWorkItems(
   if (params?.assignedVendorId) {
     queryParams.set('assignedVendorId', params.assignedVendorId);
   }
+  if (params?.milestoneId !== undefined) {
+    queryParams.set('milestoneId', params.milestoneId.toString());
+  }
   if (params?.q) {
     queryParams.set('q', params.q);
   }
@@ -51,6 +54,12 @@ export function listWorkItems(
   if (params?.budgetLinesMax !== undefined) {
     queryParams.set('budgetLinesMax', params.budgetLinesMax.toString());
   }
+  if (params?.group) {
+    queryParams.set('group', params.group);
+  }
+  if (params?.ids && params.ids.length > 0) {
+    queryParams.set('ids', params.ids.join(','));
+  }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);
   }
@@ -59,9 +68,29 @@ export function listWorkItems(
   }
 
   const queryString = queryParams.toString();
-  const path = queryString ? `/work-items?${queryString}` : '/work-items';
+  return queryString ? `/work-items?${queryString}` : '/work-items';
+}
 
-  return get<WorkItemListResponse>(path, options);
+/**
+ * Fetches a paginated list of work items with optional filters, search, and sorting.
+ */
+export function listWorkItems(
+  params?: WorkItemRowsParams,
+  options?: RequestOptions,
+): Promise<WorkItemListResponse> {
+  return get<WorkItemListResponse>(buildListPath(params), options);
+}
+
+/**
+ * Fetches the rows of the Tasks list: the list response with the row figures (expected cost,
+ * time window, critical, waits for, holds up), `scopeTotal` and, with `group: 'time'`,
+ * `groupCounts`.
+ */
+export function listWorkItemRows(
+  params?: WorkItemRowsParams,
+  options?: RequestOptions,
+): Promise<WorkItemListRowsResponse> {
+  return get<WorkItemListRowsResponse>(buildListPath(params), options);
 }
 
 /**

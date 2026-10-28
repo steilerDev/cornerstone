@@ -9,12 +9,43 @@ export interface ColumnPreferenceColumn {
   readonly defaultVisible?: boolean;
 }
 
+export interface UseColumnPreferencesOptions {
+  /**
+   * Stored column keys of the list this one replaced → the new key (null drops it). Applied to the
+   * stored value before it is read: keys are mapped, de-duplicated (first occurrence wins), and a
+   * new key is visible when any old key mapped to it was.
+   */
+  readonly legacyKeys?: Readonly<Record<string, string | null>>;
+}
+
 export interface UseColumnPreferencesResult {
   visibleColumns: Set<string>;
   columnOrder: string[];
   toggleColumn: (key: string) => void;
   moveColumn: (from: number, to: number) => void;
   resetToDefaults: () => void;
+}
+
+function mapLegacyKeys(keys: string[], legacy: Readonly<Record<string, string | null>>): string[] {
+  const mapped: string[] = [];
+  for (const key of keys) {
+    const next = Object.hasOwn(legacy, key) ? legacy[key] : key;
+    if (typeof next === 'string' && !mapped.includes(next)) mapped.push(next);
+  }
+  return mapped;
+}
+
+/** Maps a stored value (plain visible array or `{ visible, order }`) through the legacy key map. */
+function applyLegacyKeys(saved: unknown, legacy: Readonly<Record<string, string | null>>): unknown {
+  if (Array.isArray(saved)) return mapLegacyKeys(saved, legacy);
+  if (saved && typeof saved === 'object') {
+    const stored = saved as { visible?: unknown; order?: unknown };
+    return {
+      visible: Array.isArray(stored.visible) ? mapLegacyKeys(stored.visible, legacy) : undefined,
+      order: Array.isArray(stored.order) ? mapLegacyKeys(stored.order, legacy) : undefined,
+    };
+  }
+  return saved;
 }
 
 /**
@@ -27,17 +58,20 @@ export interface UseColumnPreferencesResult {
  *
  * @param pageKey Unique key for this table (e.g. "work-items", "invoices")
  * @param columns Column definitions
+ * @param options `legacyKeys`: stored keys of a replaced list, mapped on read
  * @returns Visible columns, column order, and control functions
  */
 export function useColumnPreferences(
   pageKey: string,
   columns: readonly ColumnPreferenceColumn[],
+  options?: UseColumnPreferencesOptions,
 ): UseColumnPreferencesResult {
   const preferenceKey = `table.${pageKey}.columns`;
   const { preferences, upsert } = usePreferences();
   const { t } = useTranslation('common');
   const { showToast } = useToast();
 
+  const legacyKeys = options?.legacyKeys;
   const defaultColumnOrder = columns.map((col) => col.key);
   const defaultVisibleColumns = new Set(
     columns.filter((col) => col.defaultVisible !== false).map((col) => col.key),
@@ -82,7 +116,8 @@ export function useColumnPreferences(
     const pref = preferences.find((p) => p.key === preferenceKey);
     if (pref) {
       try {
-        const saved = JSON.parse(pref.value);
+        const parsed = JSON.parse(pref.value);
+        const saved = legacyKeys ? applyLegacyKeys(parsed, legacyKeys) : parsed;
 
         // Handle backwards compatibility: if saved value is an array, treat as visible list
         if (Array.isArray(saved)) {
