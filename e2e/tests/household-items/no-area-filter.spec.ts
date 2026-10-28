@@ -5,7 +5,7 @@
  * (`?areaId=__none__`).
  *
  * NOTE (#2246): the sentinel is the "No area" special option of the Area EntityPicker in the
- * Filters panel (the DataTable column filter is gone).
+ * Filters panel.
  * URL-based scenarios (2, 3, 4) bypass the UI entirely and navigate directly.
  *
  * Scenarios covered:
@@ -104,10 +104,10 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: ?areaId=__none__,<areaId> shows union of unassigned + area items
+// Scenario 3: a legacy ?areaId=__none__,<areaId> uses its first id (unassigned only)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  '?areaId=__none__,<areaId> shows union of unassigned and named-area household items (Scenario 3)',
+  'A legacy ?areaId=__none__,<areaId> filters by its first id only (Scenario 3)',
   { tag: '@responsive' },
   () => {
     test.describe.configure({ timeout: 90_000 });
@@ -149,11 +149,12 @@ test.describe(
 
         // A legacy comma-separated areaId (#2246 D25) is absorbed: the list renders without an
         // error, the picker shows its first id ("No area"), and the item of the other area is
-        // excluded. (Whether the unassigned item alone or the old union is listed is not pinned.)
+        // excluded; the second id is dropped, so the Alpha item is excluded too.
         await expect(async () => {
           const names = await listPage.getItemNames();
           expect(names).toContain(itemUnassignedName);
           expect(names).not.toContain(itemBetaName);
+          expect(names).not.toContain(itemAlphaName);
         }).toPass({ timeout: 30_000 });
         await expect(listPage.olist.retryButton).toHaveCount(0);
         await listPage.openFilters();
@@ -191,10 +192,10 @@ test.describe(
 // treatment.
 //
 // Fix: AND the sentinel filter with a `q=` search for this scenario's own name
-// token (`useTableState` hydrates `q` from the URL and householdItemService ANDs
+// token (the object list reads `q` from the URL and householdItemService ANDs
 // it with the areaId condition), so only items this test created can satisfy the
-// list. `q` also counts towards DataTable's `hasActiveFilters`, so the filtered
-// empty-state message and Clear Filters button are still the correct expectations.
+// list. A search also makes the list "filtered", so the "No purchases match."
+// empty state and its Clear filters button are still the correct expectations.
 // A positive control runs first: the same `q` without the sentinel must list the
 // area-assigned item, which rules out the empty state passing vacuously because
 // the search matched nothing at all.
@@ -244,8 +245,8 @@ test.describe(
         );
         await listPage.heading.waitFor({ state: 'visible' });
 
-        // Both filters must survive the SPA's URL round-trip (handleStateChange
-        // rewrites the query string from table state), otherwise the empty state
+        // Both filters must survive the object list's URL normalisation (it rewrites
+        // unknown or default values out of the query string), otherwise the empty state
         // below could be caused by a different filter set than the one under test.
         const url = new URL(page.url());
         expect(url.searchParams.get('areaId')).toBe('__none__');

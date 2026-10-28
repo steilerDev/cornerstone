@@ -107,7 +107,8 @@ export function purchasesListApiParams(query: ObjectListQuery): HouseholdItemLis
   const { filters } = query;
   const category = filters.category?.split(',')[0];
   if (category) params.category = category;
-  if (filters.areaId) params.areaId = filters.areaId;
+  const area = filters.areaId?.split(',')[0];
+  if (area) params.areaId = area;
   if (filters.vendorId) params.vendorId = filters.vendorId;
 
   const target = parseDateRange(filters.targetDelivery ?? null);

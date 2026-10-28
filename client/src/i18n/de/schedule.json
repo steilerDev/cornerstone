@@ -171,7 +171,7 @@
       "sort": {
         "targetDate": "Zieldatum",
         "title": "Titel",
-        "projectedDate": "Voraussichtliches Datum",
+        "projectedDate": "Voraussichtlich",
         "status": "Status",
         "waitsFor": "Wartet auf"
       },

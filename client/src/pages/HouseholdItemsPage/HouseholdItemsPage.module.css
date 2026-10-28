@@ -43,13 +43,16 @@
   gap: var(--spacing-2);
 }
 
+/* Below 768px the row can wrap, so the gap alone separates the pairs. */
+@media (max-width: 767px) {
+  .separator {
+    display: none;
+  }
+}
+
 @media (max-width: 479px) {
   .totals {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .separator {
-    display: none;
   }
 }

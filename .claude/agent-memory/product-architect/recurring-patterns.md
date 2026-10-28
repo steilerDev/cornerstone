@@ -2231,3 +2231,12 @@ the diff for `data-figure=` and run `figureKind.test.ts` (2 s). Also: `HOME_AGEN
 existing marker (Companies' Still to pay: `VendorsPage.tsx` → `useCompanyRows.tsx`), so the guard
 fails on both sides (stale file listed, new file unregistered). Grep `data-figure=` per file, not per
 page, whenever a page is split.
+
+## Legacy CSV param: picker shows the first id, API sends all (PR #2347, #2246)
+
+A list adopter that absorbs an old comma-separated URL value ("uses its first id", spec D25) must
+apply that rule on **both** paths: the Filters-panel control (`split(',')[0]` for display) and the
+API-params builder. Purchases did it for `category` in both but for `areaId` only in the picker, so
+`?areaId=a1,__none__` displayed "a1" while the server unioned both subtrees — and a unit test pinned
+the full CSV. When a spec says "legacy X uses its first id", grep the `…ListApiParams` builder for
+each named param, not just the filter component.

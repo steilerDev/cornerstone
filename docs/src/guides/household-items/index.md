@@ -47,7 +47,7 @@ Purchases display the full **area ancestor path** (e.g. `House / Ground Floor / 
 The **Purchases** page lists every purchase. Open it from **Purchases** in the main navigation. The list provides:
 
 - **Status chips** -- **Planned**, **Ordered**, **Delivery scheduled** and **Delivered** show one status at a time, and **All** shows every purchase
-- **Search** -- Type in **Search purchases** to find a purchase by its name or description. A search covers every status, and the line above the list says how many matches sit in other statuses
+- **Search** -- Type in **Search purchases** to find a purchase by its name or description. The search applies within the selected status chip, and **All** searches every status
 - **Filters** -- Select **Filters** to narrow the list by **Category**, **Area**, **Company**, **Target delivery**, **Delivered on**, **Expected cost**, **Invoiced**, **Grants**, **After grants** and **Cost lines**. The button shows how many filters are active, and **Clear filters** resets them all
 - **Group by** -- Group the purchases by **Status** (the default), **Area** or **Company**. Purchases with no area or no company sit in a last group called **No area** or **No company**
 - **Sort** -- Sort by **Name** (the default, A to Z), **Status**, **Category**, **Delivery**, **Target delivery**, **Delivered on**, **Order date**, **Expected cost** or **Invoiced**, in ascending or descending order

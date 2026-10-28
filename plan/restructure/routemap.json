@@ -98,7 +98,7 @@
       "afterGrants",
       "budgetLines"
     ],
-    "note": "Purchases list (h1 'Purchases'). #2246: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); group absent = status (Planned / Purchased / Scheduled / Delivered, server-grouped, Delivered collapsed), also area/company; comma-separated category/areaId use their first id; filter params keep their serialisations (targetDelivery/actualDelivery from:…,to:…, plannedCost/actualCost/grants/afterGrants/budgetLines min:…,max:…)."
+    "note": "Purchases list (h1 'Purchases'). #2246: built on the ObjectList template; page/pageSize retired (ignored and dropped from the URL); group absent = status (Planned / Ordered / Delivery scheduled / Delivered, server-grouped, Delivered collapsed), also area/company; comma-separated category/areaId use their first id; filter params keep their serialisations (targetDelivery/actualDelivery from:…,to:…, plannedCost/actualCost/grants/afterGrants/budgetLines min:…,max:…)."
   },
   {
     "from": "/project/household-items/new",

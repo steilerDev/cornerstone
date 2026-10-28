@@ -5,7 +5,7 @@
 }
 
 .muted {
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
 }
 
 .subline {

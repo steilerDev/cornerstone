@@ -17,7 +17,7 @@ Companies are a page of their own in the main navigation, separate from the budg
 
 Navigate to **Companies** in the main navigation to see all companies. The list is one flat list sorted A to Z. Search finds a company by its name or its trade, and each row has a **Call** button to call the company. The list shows these columns by default:
 
-- **Name** and **Trade**
+- **Company** and **Trade**
 - **Phone** and **Contact persons** -- the number of people on the company's contact list
 - **Last on site** -- the date of the company's most recent site diary entry
 - **Still to pay** -- the total you still owe the company across its open invoices and progress payments

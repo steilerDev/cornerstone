@@ -83,7 +83,7 @@ Open **Milestones** under **Tasks** in the sidebar to see every milestone in one
 
 The list shows these columns:
 
-- **Title**
+- **Milestone**
 - **Target** -- the target date
 - **Projected** -- the projected date, based on its linked tasks
 - **Status** -- one of the status words above

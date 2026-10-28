@@ -66,13 +66,35 @@ describe('purchasesListApiParams', () => {
   it('sends category, area and company; a legacy comma-separated category uses its first id', () => {
     expect(
       purchasesListApiParams(
-        query({ filters: { category: 'hic-furniture', areaId: `a1,${NONE_KEY}`, vendorId: 'v1' } }),
+        query({ filters: { category: 'hic-furniture', areaId: NONE_KEY, vendorId: 'v1' } }),
       ),
-    ).toMatchObject({ category: 'hic-furniture', areaId: `a1,${NONE_KEY}`, vendorId: 'v1' });
+    ).toMatchObject({ category: 'hic-furniture', areaId: NONE_KEY, vendorId: 'v1' });
     expect(
       purchasesListApiParams(query({ filters: { category: 'hic-furniture,hic-appliances' } }))
         .category,
     ).toBe('hic-furniture');
+  });
+
+  it('a legacy comma-separated area uses its first id', () => {
+    expect(purchasesListApiParams(query({ filters: { areaId: `a1,${NONE_KEY}` } })).areaId).toBe(
+      'a1',
+    );
+    expect(purchasesListApiParams(query({ filters: { areaId: `${NONE_KEY},a1` } })).areaId).toBe(
+      NONE_KEY,
+    );
+  });
+
+  it('sends no area for an empty value', () => {
+    expect(purchasesListApiParams(query({ filters: { areaId: '' } }))).not.toHaveProperty('areaId');
+  });
+
+  it('sends only the cost-line max when the min is missing or invalid', () => {
+    expect(purchasesListApiParams(query({ filters: { budgetLines: 'max:3' } }))).toMatchObject({
+      budgetLinesMax: 3,
+    });
+    const params = purchasesListApiParams(query({ filters: { budgetLines: 'min:-1,max:3' } }));
+    expect(params).not.toHaveProperty('budgetLinesMin');
+    expect(params.budgetLinesMax).toBe(3);
   });
 
   it('maps the delivery date ranges, each side on its own', () => {
@@ -91,6 +113,14 @@ describe('purchasesListApiParams', () => {
       actualDeliveryTo: '2026-04-30',
     });
     expect(params).not.toHaveProperty('actualDeliveryFrom');
+  });
+
+  it('maps a delivered-on range with both sides', () => {
+    expect(
+      purchasesListApiParams(
+        query({ filters: { actualDelivery: 'from:2026-04-01,to:2026-04-30' } }),
+      ),
+    ).toMatchObject({ actualDeliveryFrom: '2026-04-01', actualDeliveryTo: '2026-04-30' });
   });
 
   it('ignores an invalid date range', () => {
