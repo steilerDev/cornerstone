@@ -668,7 +668,11 @@ test.describe('Company page - Payments (AC4)', { tag: '@responsive' }, () => {
     const api = await getCompany(page, seed.companyId);
     expect(Math.round(api.stillToPay * 100)).toBe(80000);
     await expect(company.stillToPayFigure).toContainText(amount('800.00'));
-    await expect(company.paidFigure).toContainText(amount(String(api.paid.toFixed(2))));
+    await expect(company.paidFigure).toContainText(
+      amount(
+        api.paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      ),
+    );
     await expect(company.paymentsTotals).toContainText('Paid');
     await expect(company.paymentsTotals).toContainText('Still to pay');
     // The strip and the totals line agree

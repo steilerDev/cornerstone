@@ -66,7 +66,7 @@ async function clickAreaDelete(page: Page, areaId: string): Promise<AreasIndexPa
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('ConfirmDialog — company delete with counts', { tag: '@responsive' }, () => {
-  test('Lists the contact persons deleted with the company; Cancel is focused; Escape returns focus to the ⋯ trigger', async ({
+  test('Lists the contact persons deleted with the company; Cancel is focused; Escape returns focus to the page heading', async ({
     page,
     testPrefix,
   }) => {
@@ -91,6 +91,9 @@ test.describe('ConfirmDialog — company delete with counts', { tag: '@responsiv
       // focused element on every browser engine
       await detail.actionsTrigger.focus();
       await page.keyboard.press('Enter');
+      // The ObjectHeader menu is Copy link, Print, separator, Delete: End jumps to Delete
+      await expect(detail.header.menuItem('object-header-copy-link')).toBeFocused();
+      await page.keyboard.press('End');
       await expect(detail.deleteButton).toBeFocused();
       await page.keyboard.press('Enter');
 

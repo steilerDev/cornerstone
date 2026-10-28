@@ -130,7 +130,7 @@ describe('DataTableHeader', () => {
         label: 'Amount',
         filterable: true,
         filterType: 'string',
-        getValue: (item) => String(item.amount),
+        getValue: (item) => item.amount,
         render: (item) => item.amount,
       },
     ];
